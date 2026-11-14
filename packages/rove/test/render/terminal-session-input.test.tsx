@@ -52,7 +52,6 @@ test("switching sessions releases the old listeners while retaining registry PTY
     expect(fixture.ptys).toHaveLength(1)
     await act(async () => {
       select?.("bravo::tab-1")
-      await settle()
     })
     // The new session's pane sizes itself, and acquires its PTY, on the next frame.
     await frame(handle)
@@ -61,7 +60,6 @@ test("switching sessions releases the old listeners while retaining registry PTY
     await act(async () => {
       bravo.feed("BRAVO current session")
       await handle.mockInput.typeText("bravo-only")
-      await settle()
     })
     expect(bravo.writeLog.join("")).toBe("bravo-only")
     expect(alpha.writeLog).toEqual([])
@@ -70,7 +68,6 @@ test("switching sessions releases the old listeners while retaining registry PTY
     await act(async () => {
       alpha.feed("\r\nALPHA while hidden")
       select?.("alpha::tab-1")
-      await settle()
     })
     expect(fixture.ptys).toHaveLength(2)
     await frame(handle)
@@ -78,7 +75,6 @@ test("switching sessions releases the old listeners while retaining registry PTY
     await act(async () => {
       bravo.kill()
       await handle.mockInput.typeText("alpha-only")
-      await settle()
     })
     expect(exits).toEqual([])
     expect(alpha.writeLog.join("")).toBe("alpha-only")
@@ -123,7 +119,6 @@ test("split focus and modal ownership gate terminal paste", async () => {
   const paste = async (text: string): Promise<void> => {
     await act(async () => {
       handle.mockInput.pressKey(`\x1b[200~${text}\x1b[201~`)
-      await settle()
     })
   }
   try {
@@ -131,20 +126,17 @@ test("split focus and modal ownership gate terminal paste", async () => {
     expect(fixture.ptys).toHaveLength(2)
     await act(async () => {
       focus?.("bravo")
-      await settle()
     })
     await paste("bravo paste")
     expect(bravo.pastes).toEqual(["bravo paste"])
     expect(alpha.pastes).toEqual([])
     await act(async () => {
       focus?.("alpha")
-      await settle()
     })
     await paste(" text")
     expect(alpha.pastes).toEqual([" text"])
     await act(async () => {
       confirm?.()
-      await settle()
     })
     expect(await frame(handle)).toContain("Modal owner")
     await paste("blocked")

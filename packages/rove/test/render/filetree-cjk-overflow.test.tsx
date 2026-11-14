@@ -23,7 +23,7 @@ import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { displayWidth } from "../../src/lib/display-width"
 import { FileTree } from "../../src/tui-react/panes/filetree/FileTree"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent, waitForFrameText } from "./harness"
 
 /** The file pane at its widest; `computePathBudget` leaves 26 cells here. */
 const PANE_WIDTH = 34
@@ -46,12 +46,12 @@ async function changesFrame(repo: string, marker: string): Promise<string> {
     { width: PANE_WIDTH, height: 20 },
   )
   act(() => mockInput.pressKey("]")) // → Changes tab
-  let text = ""
-  for (let i = 0; i < 40 && !text.includes(marker); i++) {
-    await settle(100)
-    text = await frame()
-  }
-  return text
+  return waitForFrameText(frame, marker)
+}
+
+/** The widest rendered line, in terminal cells. */
+function widestLine(text: string): number {
+  return Math.max(...text.split("\n").map((line) => displayWidth(line.replace(/\s+$/, ""))))
 }
 
 test("a CJK Changes row stays inside the pane's cell width", async () => {
@@ -66,9 +66,7 @@ test("a CJK Changes row stays inside the pane's cell width", async () => {
   // emits `"\346\226\207…"` by default and `unquoteGitPath` decodes it —
   // so this also pins that the wide-glyph path really reaches the renderer.
   expect(text).toContain("笔记.md")
-  for (const line of text.split("\n")) {
-    expect(displayWidth(line.replace(/\s+$/, ""))).toBeLessThanOrEqual(PANE_WIDTH)
-  }
+  expect(widestLine(text)).toBeLessThanOrEqual(PANE_WIDTH)
 })
 
 test("the All tab shows a CJK filename, not git's octal escaping", async () => {
@@ -80,14 +78,7 @@ test("the All tab shows a CJK filename, not git's octal escaping", async () => {
     <FileTree worktreePath={repo} onOpenFile={() => {}} focused={true} paneWidth={PANE_WIDTH} />,
     { width: PANE_WIDTH, height: 20 },
   )
-  let text = ""
-  for (let i = 0; i < 40 && !text.includes("文档"); i++) {
-    await settle(100)
-    text = await frame()
-  }
-  expect(text).toContain("文档")
+  const text = await waitForFrameText(frame, "文档")
   expect(text).not.toContain("\\346")
-  for (const line of text.split("\n")) {
-    expect(displayWidth(line.replace(/\s+$/, ""))).toBeLessThanOrEqual(PANE_WIDTH)
-  }
+  expect(widestLine(text)).toBeLessThanOrEqual(PANE_WIDTH)
 })

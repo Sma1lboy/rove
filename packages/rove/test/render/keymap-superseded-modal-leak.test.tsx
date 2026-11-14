@@ -18,20 +18,26 @@ import { act, renderComponent, settle } from "./harness"
 
 const ABANDONED_SCOPE = Symbol("abandoned-modal-scope")
 
+let lateBarrierMounted = false
+
 function LateBarrier() {
   useBindings(() => ({ bindings: [], modal: true }), { modalOwner: ABANDONED_SCOPE })
+  useEffect(() => {
+    lateBarrierMounted = true
+  }, [])
   return null
 }
 
-/** Opens its barrier on a timer, so the registration lands after the next renderer took over. */
+let openLateModal: () => void = () => {}
+
+/** Opens its barrier on demand, so the registration lands after the next renderer took over. */
 function LateModal() {
   // Registering at mount is what makes this renderer the installed one, so the
   // next `renderComponent` supersedes it — the shape every render test has.
   useBindings(() => ({ bindings: [] }))
   const [open, setOpen] = useState(false)
   useEffect(() => {
-    const timer = setTimeout(() => setOpen(true), 120)
-    return () => clearTimeout(timer)
+    openLateModal = () => setOpen(true)
   }, [])
   return open ? <LateBarrier /> : null
 }
@@ -46,10 +52,9 @@ test("a superseded renderer's late modal barrier does not mute the live pane's p
   )
   await frame()
 
-  // Past the abandoned tree's timer: its barrier registers here, if it can.
-  // The abandoned root updates outside `act` here by design — that is the
-  // scenario. React logs one "not wrapped in act" warning; nothing to fix.
-  await settle(300)
+  // The abandoned tree's barrier registers here, after the live renderer took over, if it can.
+  act(() => openLateModal())
+  expect(lateBarrierMounted).toBe(true)
 
   act(() => mockInput.pressKey("\x1b[200~first line\rsecond line\x1b[201~"))
   await settle()

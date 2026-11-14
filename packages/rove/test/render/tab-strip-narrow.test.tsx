@@ -7,7 +7,7 @@
  * there. Desktop rendering honours the configured mode (default `always`).
  */
 
-import { expect, test } from "bun:test"
+import { afterAll, expect, test } from "bun:test"
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -18,7 +18,21 @@ import { DEFAULT_GLYPHS } from "../../src/tui/lib/glyphs"
 import type { TerminalTab } from "../../src/tui/workspace/terminal-tabs-core"
 import { renderComponent } from "./harness"
 
-process.env.ROVE_HOME_DIR ??= mkdtempSync(join(tmpdir(), "rove-tab-strip-test-"))
+const priorHome = process.env.ROVE_HOME_DIR
+afterAll(() => {
+  if (priorHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = priorHome
+})
+
+/** A fresh home whose stored tab-strip mode is `mode`. */
+function homeWithMode(mode: "always" | "never"): void {
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-tab-strip-"))
+  mkdirSync(join(process.env.ROVE_HOME_DIR, ".config", "rove"), { recursive: true })
+  writeFileSync(
+    join(process.env.ROVE_HOME_DIR, ".config", "rove", "state.json"),
+    JSON.stringify({ [TAB_STRIP_MODE_KEY]: mode }),
+  )
+}
 
 const TABS: readonly TerminalTab[] = [
   { kind: "engine", id: "tab-1", title: null, ordinal: 1 },
@@ -57,12 +71,7 @@ function strip(activeId: string) {
 }
 
 test("narrow strip shows the active tab truncated with a position counter", async () => {
-  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-tab-strip-narrow-"))
-  mkdirSync(join(process.env.ROVE_HOME_DIR, ".config", "rove"), { recursive: true })
-  writeFileSync(
-    join(process.env.ROVE_HOME_DIR, ".config", "rove", "state.json"),
-    JSON.stringify({ [TAB_STRIP_MODE_KEY]: "always" }),
-  )
+  homeWithMode("always")
   const { frame } = await renderComponent(strip("tab-2"), { width: 46, height: 4, providers: { kv: true } })
   const out = await frame()
   expect(out).toContain("2/3")
@@ -74,12 +83,7 @@ test("narrow strip shows the active tab truncated with a position counter", asyn
 test("desktop renders the boxed strip when the mode is `always`", async () => {
   // Explicit, because `never` is the default: the sidebar tree
   // already lists these tabs. This pins what the strip DRAWS when asked for.
-  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-tab-strip-always-"))
-  mkdirSync(join(process.env.ROVE_HOME_DIR, ".config", "rove"), { recursive: true })
-  writeFileSync(
-    join(process.env.ROVE_HOME_DIR, ".config", "rove", "state.json"),
-    JSON.stringify({ [TAB_STRIP_MODE_KEY]: "always" }),
-  )
+  homeWithMode("always")
   const { frame } = await renderComponent(strip("tab-2"), { width: 100, height: 4, providers: { kv: true } })
   const out = await frame()
   // No `2/3` counter outside narrow mode, but the strip itself draws: every
@@ -90,12 +94,7 @@ test("desktop renders the boxed strip when the mode is `always`", async () => {
 })
 
 test("desktop honours a stored `never`", async () => {
-  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-tab-strip-never-"))
-  mkdirSync(join(process.env.ROVE_HOME_DIR, ".config", "rove"), { recursive: true })
-  writeFileSync(
-    join(process.env.ROVE_HOME_DIR, ".config", "rove", "state.json"),
-    JSON.stringify({ [TAB_STRIP_MODE_KEY]: "never" }),
-  )
+  homeWithMode("never")
   const { frame } = await renderComponent(strip("tab-2"), { width: 100, height: 4, providers: { kv: true } })
   expect(await frame()).not.toContain("╭")
 })
@@ -106,12 +105,7 @@ test("narrow keeps each turn state its own tone, the way the wide strip does", a
   // `! error` differed only by glyph. Painting the tone ON the focusAccent
   // fill would not have fixed it either: error red lands at a 1.02 contrast
   // ratio there. The chip therefore sits outside the fill, on ambient.
-  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-tab-strip-tone-"))
-  mkdirSync(join(process.env.ROVE_HOME_DIR, ".config", "rove"), { recursive: true })
-  writeFileSync(
-    join(process.env.ROVE_HOME_DIR, ".config", "rove", "state.json"),
-    JSON.stringify({ [TAB_STRIP_MODE_KEY]: "always" }),
-  )
+  homeWithMode("always")
   seedStatus()
   const glyphs: Record<string, readonly string[]> = {
     "tab-2": DEFAULT_GLYPHS.spinner,

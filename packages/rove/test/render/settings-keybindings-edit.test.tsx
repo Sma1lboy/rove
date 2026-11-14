@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/react */
 /** Settings → Keybindings edits a binding with real keys: enter, then the chord, lands in the YAML and on the row. */
 
-import { expect, test } from "bun:test"
+import { afterAll, expect, test } from "bun:test"
 import { mkdtempSync, readFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -9,9 +9,22 @@ import { SettingsDialog } from "../../src/tui-react/component/settings-dialog"
 import { useKV } from "../../src/tui-react/context/kv"
 import { findBinding } from "../../src/tui/context/keybindings"
 import { reloadUserKeybindings } from "../../src/tui/context/keybindings-user"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent } from "./harness"
 
 const NOOP = (): void => {}
+
+// The live keymap is process-wide: hand later files the defaults, not this file's YAML.
+const savedHome = process.env.ROVE_HOME_DIR
+afterAll(() => {
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-keys-clean-"))
+  reloadUserKeybindings()
+  if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = savedHome
+})
+
+async function repeat(n: number, step: () => Promise<unknown>): Promise<void> {
+  for (let i = 0; i < n; i++) await step()
+}
 
 function Driver() {
   const kv = useKV()
@@ -32,16 +45,14 @@ test("recording a chord on a binding saves it, and backspace restores the defaul
   })
   const press = async (key: string, mods?: { ctrl: boolean }): Promise<string> => {
     act(() => mockInput.pressKey(key, mods))
-    await settle()
     return await frame()
   }
 
-  for (let i = 0; i < 5; i++) await press("j") // → Keybindings
+  await repeat(5, () => press("j")) // → Keybindings
   await press("l")
   // Two prefix-tap rows, the create row, then the bindings: the fourth is "New task".
-  for (let i = 0; i < 5; i++) await press("j")
+  await repeat(5, () => press("j"))
   act(() => mockInput.pressEnter())
-  await settle()
   expect(await frame()).toContain("press the new key")
 
   // The recorder takes the key: `j` would otherwise move the cursor.
@@ -51,8 +62,6 @@ test("recording a chord on a binding saves it, and backspace restores the defaul
   expect(saved).toContain("default: ctrl+a n")
 
   act(() => mockInput.pressBackspace())
-  await settle()
   expect(readFileSync(yaml, "utf8")).not.toContain("task.new.global")
   expect(findBinding("task.new.global")?.keys).toEqual([])
-  reloadUserKeybindings()
 })

@@ -24,7 +24,7 @@ import { type WorktreeGoneEvent, useWorkspaceSelection } from "../../src/tui-rea
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
 import { type TabsSyncDaemon, attachTabsDaemon, untilDaemon } from "../tui-react/tabs-sync-daemon"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent } from "./harness"
 
 function task(id: string, worktreePath: string): Task {
   return {
@@ -100,7 +100,12 @@ beforeEach(async () => {
   })
 })
 
-afterEach(() => daemon.detach())
+const priorHome = process.env.ROVE_HOME_DIR
+afterEach(() => {
+  daemon.detach()
+  if (priorHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = priorHome
+})
 
 /** Mount the probe, then remove alpha's worktree out-of-band. */
 async function vanish(): Promise<{ events: WorktreeGoneEvent[]; writes: string[] }> {
@@ -128,14 +133,13 @@ async function vanish(): Promise<{ events: WorktreeGoneEvent[]; writes: string[]
     />,
     { width: 46, height: 10 },
   )
-  await settle()
+  await act(async () => {})
   // Baseline: nothing announced, tabs intact.
   expect(events).toEqual([])
   expect(tabsByTask.get("alpha")?.tabs).toHaveLength(2)
 
   // The worktree is removed elsewhere: the task survives, its path is cleared.
-  act(() => removeWorktree?.())
-  await settle()
+  await act(async () => removeWorktree?.())
   return { events, writes }
 }
 

@@ -124,9 +124,7 @@ test("every Inbox state badge renders in a single grid cell", async () => {
   const captured = await frame()
 
   // Nothing from the measured-bad set may reach the frame at all.
-  for (const [glyph, why] of KNOWN_OVERSIZED) {
-    expect({ glyph, present: captured.includes(glyph), why }).toEqual({ glyph, present: false, why })
-  }
+  expect([...KNOWN_OVERSIZED].filter(([glyph]) => captured.includes(glyph))).toEqual([])
 
   // Every rendered row is exactly the terminal width: opentui pads to the
   // grid, so a glyph that consumed two columns would have displaced a cell
@@ -134,9 +132,9 @@ test("every Inbox state badge renders in a single grid cell", async () => {
   // badge actually being on screen, this is the one-cell claim.
   const lines = captured.replace(/\n$/, "").split("\n")
   expect(lines.length).toBeGreaterThan(0)
-  for (const line of lines) expect([...line].length).toBe(80)
+  expect(lines.filter((line) => [...line].length !== 80)).toEqual([])
 
-  // …and the badges really are there, so the loop above isn't vacuous.
+  // …and the badges really are there, so the width check above isn't vacuous.
   const badges = badgeRows(captured, ["✓", "?", "×", "◷"])
   expect(badges.length).toBeGreaterThan(0)
 })
@@ -164,7 +162,5 @@ test("a running RECENT row animates with a braille frame, never a badge glyph", 
     { width: 80, height: 20 },
   )
   const captured = await frame()
-  for (const glyph of ["✓", "?", "×", "◷", ...KNOWN_OVERSIZED.keys()]) {
-    expect({ glyph, present: captured.includes(glyph) }).toEqual({ glyph, present: false })
-  }
+  expect(["✓", "?", "×", "◷", ...KNOWN_OVERSIZED.keys()].filter((glyph) => captured.includes(glyph))).toEqual([])
 })

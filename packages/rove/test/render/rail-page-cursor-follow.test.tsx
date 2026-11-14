@@ -15,7 +15,9 @@ import { expect, test } from "bun:test"
 import { KanbanPage } from "../../src/bundled-plugins/kanban/kanban-page"
 import { createStateCell } from "../../src/lib/external-store"
 import { AutomationsPage } from "../../src/tui-react/component/automations-page"
-import { renderComponent, settle } from "./harness"
+import { act, isolateHome, renderComponent, waitForFrameText } from "./harness"
+
+isolateHome()
 
 const ONLINE = createStateCell("online")
 const REPO = "/x/rove"
@@ -56,15 +58,13 @@ test("the routines cursor scrolls into view instead of walking off the page", as
     />,
     { width: 74, height: 24, providers: { dialog: true, notifications: true } },
   )
-  await settle(150)
   // Precondition: the tail of the list starts off-frame, so a cursor that
   // reaches it has genuinely left the viewport.
-  expect(await frame()).not.toContain("routine-11")
+  expect(await waitForFrameText(frame, "routine-01")).not.toContain("routine-11")
 
-  for (let i = 0; i < 10; i += 1) mockInput.typeText("j")
-  await settle(150)
+  await act(() => mockInput.typeText("j".repeat(10)))
 
-  const after = await frame()
+  const after = await waitForFrameText(frame, "prompt 11")
   // The cursor is on routine-11; the detail panel proves where it is and the
   // list proves the viewport came along.
   expect(after).toContain("prompt 11")
@@ -75,7 +75,7 @@ test("enter opens the latest run's task, not an older run that happened to make 
   // The newest run skipped its precheck (the healthy no-op) so it created no
   // task. Falling through to run #1 opens work from a different day.
   const opened: string[] = []
-  const { mockInput } = await renderComponent(
+  const { frame, mockInput } = await renderComponent(
     <AutomationsPage
       orchestrator={orchestrator(
         [routine(1)],
@@ -90,15 +90,15 @@ test("enter opens the latest run's task, not an older run that happened to make 
     />,
     { width: 74, height: 20, providers: { dialog: true, notifications: true } },
   )
-  await settle(150)
-  mockInput.pressEnter()
-  await settle(120)
+  // Enter resolves against the loaded runs, so wait for them to draw.
+  await waitForFrameText(frame, "· #2")
+  act(() => mockInput.pressEnter())
   expect(opened).toEqual([])
 })
 
 test("enter follows the latest run when it did make a task", async () => {
   const opened: string[] = []
-  const { mockInput } = await renderComponent(
+  const { frame, mockInput } = await renderComponent(
     <AutomationsPage
       orchestrator={orchestrator(
         [routine(1)],
@@ -113,9 +113,9 @@ test("enter follows the latest run when it did make a task", async () => {
     />,
     { width: 74, height: 20, providers: { dialog: true, notifications: true } },
   )
-  await settle(150)
-  mockInput.pressEnter()
-  await settle(120)
+  // Enter resolves against the loaded runs, so wait for them to draw.
+  await waitForFrameText(frame, "· #2")
+  act(() => mockInput.pressEnter())
   expect(opened).toEqual(["LATEST"])
 })
 
@@ -143,8 +143,7 @@ async function boardFrame(width: number): Promise<string> {
     />,
     { width, height: 30, providers: { dialog: true, kv: true, notifications: true } },
   )
-  await settle(150)
-  return await frame()
+  return await waitForFrameText(frame, "story-1")
 }
 
 test("the board collapses to one lane when four would leave the cards unreadable", async () => {

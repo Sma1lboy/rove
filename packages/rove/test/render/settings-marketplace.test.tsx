@@ -10,16 +10,26 @@
  * observable without a real install.
  */
 
-import { expect, test } from "bun:test"
+import { afterAll, expect, test } from "bun:test"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { savePluginRegistry } from "@sma1lboy/rove-daemon/plugins/registry"
 import { SettingsDialog } from "../../src/tui-react/component/settings-dialog"
 import { useKV } from "../../src/tui-react/context/kv"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent, waitForFrameText } from "./harness"
 
 const NOOP = (): void => {}
+
+const savedHome = process.env.ROVE_HOME_DIR
+afterAll(() => {
+  if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = savedHome
+})
+
+async function repeat(n: number, step: () => Promise<unknown>): Promise<void> {
+  for (let i = 0; i < n; i++) await step()
+}
 
 function Driver() {
   const kv = useKV()
@@ -67,33 +77,27 @@ test("Marketplace marks installed plugins and reports an install it refused", as
     })
     const press = async (key: string): Promise<string> => {
       act(() => mockInput.pressKey(key))
-      await settle()
       return await frame()
     }
-    const enter = async (): Promise<string> => {
+    const enter = async (outcome: string): Promise<string> => {
       act(() => mockInput.pressEnter())
-      await settle(120)
-      return await frame()
+      return await waitForFrameText(frame, outcome)
     }
 
     // General → Engines → Auto routing → Plugins → Marketplace
-    for (let i = 0; i < 4; i++) await press("j")
-    await settle(120)
-    const listing = await frame()
-    expect(listing).toContain("you/rove-thing")
+    await repeat(4, () => press("j"))
+    const listing = await waitForFrameText(frame, "you/rove-thing")
     // Joined against the registry: the tag replaces the star count.
     expect(listing).toContain("installed")
     expect(listing).not.toContain("★12")
 
     await press("l") // into the body, row 0
     await press("k") // wrap to the last row — the invalid ref
-    const refused = await enter()
-    expect(refused).toContain("install failed")
+    const refused = await enter("install failed")
     expect(refused).toContain("GitHub shorthand")
 
     await press("k") // → you/rove-thing, the installed one
-    const already = await enter()
-    expect(already).toContain("already installed as acme.thing")
+    await enter("already installed as acme.thing")
   } finally {
     globalThis.fetch = realFetch
   }

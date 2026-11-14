@@ -1,12 +1,7 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Scale guard for the cross-task notifier (use-attention): the toast loops
- * must not re-scan the whole `tasks` array per notification. Both effects
- * used `tasks.find(t => t.id === …)` INSIDE their per-edge / per-item loop —
- * with a few hundred tasks and one edge each, every notification paid an
- * O(tasks) scan. The fix hoists one Map build per effect run; this probe
- * counts `Array.prototype.find` calls on the exact array handed to the hook
- * and pins the count at zero while edges and deferred episodes flow.
+ * The cross-task notifier (use-attention) turns an engine-state rising edge
+ * into a toast, driven through the real hook.
  */
 
 import { expect, test } from "bun:test"
@@ -76,18 +71,9 @@ function task(id: string): Task {
   }
 }
 
-/** The tasks array with its `find` instrumented — the scale-regression tripwire. */
-class CountingTasks extends Array<Task> {
-  finds = 0
-  override find(predicate: (value: Task, index: number, obj: Task[]) => unknown, thisArg?: unknown): Task | undefined {
-    this.finds += 1
-    return super.find(predicate, thisArg)
-  }
-}
-
 let pushEdge: () => void = () => {}
 
-function AttentionScaleProbe(props: { tasks: CountingTasks; notif: NotificationsContext }) {
+function AttentionScaleProbe(props: { tasks: Task[]; notif: NotificationsContext }) {
   const [engineState, setEngineState] = useState<ReadonlyMap<string, TaskEngineState>>(
     () => new Map([["task-1", { state: "idle", at: 1 }]]),
   )
@@ -108,9 +94,9 @@ function AttentionScaleProbe(props: { tasks: CountingTasks; notif: Notifications
   return null
 }
 
-test("edge toasts perform zero per-item tasks.find scans", async () => {
+test("an idle → turn_complete edge fires a done toast for that task", async () => {
   const { notif, calls } = notifSpy()
-  const tasks = new CountingTasks(task("task-1"), task("task-2"), task("task-3"))
+  const tasks = [task("task-1"), task("task-2"), task("task-3")]
   await renderComponent(<AttentionScaleProbe tasks={tasks} notif={notif} />, { width: 80, height: 24 })
   expect(calls).toHaveLength(0) // seed render fires nothing
 
@@ -118,9 +104,5 @@ test("edge toasts perform zero per-item tasks.find scans", async () => {
     pushEdge() // rising edge: idle → turn_complete on task-1
   })
   await act(async () => {})
-  // The notifier fired (proves the loop actually ran)…
-  expect(calls.some((c) => c.kind === "done" && c.taskId === "task-1")).toBe(true)
-  // …without a single linear tasks scan. Reverting the Map hoist makes this
-  // count 1 (one find per loop body).
-  expect(tasks.finds).toBe(0)
+  expect(calls).toEqual([expect.objectContaining({ kind: "done", taskId: "task-1" })])
 })

@@ -9,7 +9,7 @@
  * pre-connection render — writes no tabs key from the TUI at all.
  */
 
-import { expect, test } from "bun:test"
+import { afterEach, expect, test } from "bun:test"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -80,6 +80,10 @@ function Probe(props: { orch: RemoteOrchestrator; kv: TabsSnapshotKv; initial: T
 }
 
 const savedHome = process.env.ROVE_HOME_DIR
+afterEach(() => {
+  if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = savedHome
+})
 
 test("a task deleted by a sibling client leaves its tabs record to the daemon — the TUI writes no tabs key", async () => {
   process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-orphan-sweep-"))
@@ -103,9 +107,6 @@ test("a task deleted by a sibling client leaves its tabs record to the daemon �
   })
   expect(tabsWrites(kv)).toEqual([])
   expect(kv.store[terminalTabsKey("alpha")]).toEqual({ tabs: [] })
-
-  if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
-  else process.env.ROVE_HOME_DIR = savedHome
 })
 
 test("an empty task list writes no tabs key either", async () => {
@@ -121,7 +122,4 @@ test("an empty task list writes no tabs key either", async () => {
   // recovery; nothing here may wipe a live record.
   expect(tabsWrites(kv)).toEqual([])
   expect(kv.store[terminalTabsKey("alpha")]).toEqual({ tabs: [] })
-
-  if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
-  else process.env.ROVE_HOME_DIR = savedHome
 })

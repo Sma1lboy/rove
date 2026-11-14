@@ -17,12 +17,20 @@ import { useEffect, useRef } from "react"
 import type { StoredFieldNote } from "../../src/state/field-notes"
 import { FieldNotesDialog, FieldNotesDialogView } from "../../src/tui-react/component/field-notes-dialog"
 import { useDialog } from "../../src/tui-react/ui/dialog"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent, settle, waitForFrameText } from "./harness"
 
 const NOTES: readonly StoredFieldNote[] = [
   { id: 2, at: "2026-08-20T10:00:00.000Z", text: "tests must run under bun", taskId: "t2", author: "worker-b" },
   { id: 1, at: "2026-08-19T10:00:00.000Z", text: "the daemon needs a restart", taskId: "t1", author: "worker-a" },
 ]
+
+async function waitUntil(check: () => boolean | Promise<boolean>): Promise<void> {
+  const deadline = Date.now() + 3_000
+  while (!(await check())) {
+    if (Date.now() >= deadline) throw new Error("condition not met within 3000ms")
+    await settle(20)
+  }
+}
 
 function view(opts: { remove?: (id: number) => Promise<boolean> }) {
   return (
@@ -55,13 +63,12 @@ test("`d` retires the note under the cursor, by ID and not by position", async (
   // Cursor starts on the newest note; step to the older one and delete it.
   act(() => mockInput.pressArrow("down"))
   act(() => mockInput.pressKey("d"))
-  await settle()
   // The confirm names the fact being retired. It is a DANGER confirm, so it
   // opens focused on Cancel — accepting means stepping to Confirm first.
-  expect(await frame()).toContain("Delete this field note?")
+  await waitForFrameText(frame, "Delete this field note?")
   act(() => mockInput.pressArrow("left"))
   act(() => mockInput.pressEnter())
-  await settle()
+  await waitUntil(() => removed.length > 0)
 
   expect(removed).toEqual([1])
   // What this mount can prove ends here: the id. Mounted directly, the view
@@ -82,7 +89,6 @@ test("without a remove handler the dialog stays the read-only reader it was", as
   expect(await frame()).toContain("↑↓ scroll · esc close")
 
   act(() => mockInput.pressKey("d"))
-  await settle()
   expect(await frame()).not.toContain("Delete this field note?")
 })
 
@@ -99,11 +105,11 @@ test("declining the confirm keeps the note — the danger confirm opens on Cance
   )
   await act(async () => {})
   act(() => mockInput.pressKey("d"))
-  await settle()
+  await waitForFrameText(frame, "Delete this field note?")
   // Enter without stepping = Cancel, which is the whole point of the danger
   // default: a reflex keypress must not destroy a note.
   act(() => mockInput.pressEnter())
-  await settle()
+  await waitUntil(async () => !(await frame()).includes("Delete this field note?"))
 
   expect(removed).toEqual([])
   expect(await frame()).toContain("tests must run under bun")
@@ -155,23 +161,16 @@ test("confirming a delete leaves the reader open — the confirm stacks, it does
     height: 30,
     providers: { dialog: true },
   })
-  await settle()
-  expect(await frame()).toContain("tests must run under bun")
+  await waitForFrameText(frame, "tests must run under bun")
 
   act(() => mockInput.pressKey("d"))
-  await settle()
-  expect(await frame()).toContain("Delete this field note?")
+  await waitForFrameText(frame, "Delete this field note?")
 
   // Step off the danger default and commit.
   act(() => mockInput.pressArrow("left"))
   act(() => mockInput.pressEnter())
-  await settle()
-  // The reopen is chained off the store call, so poll rather than guessing a
-  // single settle window.
-  for (let i = 0; i < 40; i++) {
-    if (!(await frame()).includes("tests must run under bun")) break
-    await settle(25)
-  }
+  // The reopen is chained off the store call; wait for the deleted note to leave.
+  await waitUntil(async () => !(await frame()).includes("tests must run under bun"))
 
   expect(removed).toEqual([2])
   const after = await frame()

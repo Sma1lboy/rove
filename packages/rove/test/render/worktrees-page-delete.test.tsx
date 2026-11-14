@@ -11,7 +11,7 @@
 
 import { expect, test } from "bun:test"
 import { WorktreesPage } from "../../src/tui-react/component/worktrees-page"
-import { renderComponent } from "./harness"
+import { act, renderComponent, settle, waitForFrameText } from "./harness"
 
 const ROW = {
   repo: "/x/rove",
@@ -35,7 +35,25 @@ function orchestrator(removeWorktree: (path: string, force: boolean) => Promise<
   } as never
 }
 
-const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 100))
+/** Poll `check` with a cap: the page reaches the orchestrator asynchronously. */
+async function until(check: () => boolean, timeoutMs = 3_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  while (!check() && Date.now() < deadline) await settle(25)
+}
+
+/** Open the delete confirm on the only row and commit it. */
+async function confirmDelete(
+  frame: () => Promise<string>,
+  mockInput: { typeText: (text: string) => void; pressArrow: (dir: "right") => void; pressEnter: () => void },
+): Promise<void> {
+  await waitForFrameText(frame, "feature-a")
+  await act(async () => mockInput.typeText("d"))
+  await waitForFrameText(frame, "Delete worktree?")
+  // Danger confirms open focused on Cancel (a stray Enter must not delete) —
+  // move right onto the confirm button before committing.
+  await act(async () => mockInput.pressArrow("right"))
+  await act(async () => mockInput.pressEnter())
+}
 
 test("landing a Git worktree row finds the task saved with Windows native separators", async () => {
   const preflights: string[] = []
@@ -52,14 +70,14 @@ test("landing a Git worktree row finds the task saved with Windows native separa
       },
     },
   )
-  const { mockInput } = await renderComponent(<WorktreesPage orchestrator={orch} onClose={() => {}} />, {
+  const { frame, mockInput } = await renderComponent(<WorktreesPage orchestrator={orch} onClose={() => {}} />, {
     width: 70,
     height: 20,
     providers: { dialog: true, notifications: true },
   })
-  await settle()
+  await waitForFrameText(frame, "feature-a")
   mockInput.typeText("l")
-  await settle()
+  await until(() => preflights.length > 0)
   expect(preflights).toEqual(["windows-task"])
 })
 
@@ -72,17 +90,7 @@ test("the row disappears before the daemon delete resolves", async () => {
     <WorktreesPage orchestrator={orchestrator(() => pending)} onClose={() => {}} />,
     { width: 70, height: 20, providers: { dialog: true, notifications: true } },
   )
-  await settle()
-  expect(await frame()).toContain("feature-a")
-
-  mockInput.typeText("d")
-  await settle()
-  // Danger confirms open focused on Cancel (a stray Enter must not delete) —
-  // move right onto the confirm button before committing.
-  mockInput.pressArrow("right")
-  await settle()
-  mockInput.pressEnter() // confirm
-  await settle()
+  await confirmDelete(frame, mockInput)
 
   // Daemon call still in flight — the row must already be gone.
   expect(await frame()).not.toContain("feature-a")
@@ -90,17 +98,19 @@ test("the row disappears before the daemon delete resolves", async () => {
 })
 
 test("a failed delete puts the row back", async () => {
+  let removes = 0
+  const remove = (): Promise<void> => {
+    removes++
+    return Promise.reject(new Error("boom"))
+  }
   const { frame, mockInput } = await renderComponent(
-    <WorktreesPage orchestrator={orchestrator(() => Promise.reject(new Error("boom")))} onClose={() => {}} />,
+    <WorktreesPage orchestrator={orchestrator(remove)} onClose={() => {}} />,
     { width: 70, height: 20, providers: { dialog: true, notifications: true } },
   )
-  await settle()
-  mockInput.typeText("d")
-  await settle()
-  mockInput.pressArrow("right")
-  await settle()
-  mockInput.pressEnter()
-  await settle()
+  await confirmDelete(frame, mockInput)
+  await until(() => removes > 0)
+  // Let the rejection settle before reading the row back.
+  await act(async () => {})
   expect(await frame()).toContain("feature-a")
 })
 
@@ -128,22 +138,14 @@ test("a gitignored-work refusal opens the force re-prompt, naming the paths", as
     <WorktreesPage orchestrator={orchestrator(remove)} onClose={() => {}} />,
     { width: 70, height: 24, providers: { dialog: true, notifications: true } },
   )
-  await settle()
-  mockInput.typeText("d")
-  await settle()
-  mockInput.pressArrow("right")
-  await settle()
-  mockInput.pressEnter() // confirm the ordinary delete
-  await settle()
+  await confirmDelete(frame, mockInput)
 
   // The second, more severe confirm — and it names what `git status` cannot.
-  const forcePrompt = await frame()
-  expect(forcePrompt).toContain("Force delete")
+  const forcePrompt = await waitForFrameText(frame, "Force delete")
   expect(forcePrompt).toContain("HANDOFF.md")
 
-  mockInput.pressArrow("right")
-  await settle()
-  mockInput.pressEnter() // authorize the force
-  await settle()
+  await act(async () => mockInput.pressArrow("right"))
+  await act(async () => mockInput.pressEnter()) // authorize the force
+  await until(() => calls.length === 2)
   expect(calls).toEqual([false, true])
 })

@@ -106,11 +106,7 @@ describe("the no-sessions placeholder's keys", () => {
     })
     await settle()
     const tab = tabsByTask.get("t1")?.tabs[0]
-    expect(tab?.kind).toBe("engine")
-    if (tab?.kind === "engine") {
-      expect(tab.vendor).toBe("codex")
-      expect(tab.engineCommand).toBe(tab.vendor)
-    }
+    expect(tab).toMatchObject({ kind: "engine", vendor: "codex", engineCommand: "codex" })
     await untilDaemon(() => tabs("t1")?.tabs.length === 1)
     expect(tabs("t1")?.tabs.map((row) => row.id)).toEqual([tab?.id as string])
   })

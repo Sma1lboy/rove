@@ -4,16 +4,29 @@
  * `keybindings.yaml` from the commented starter, with that one entry live in it.
  */
 
-import { expect, test } from "bun:test"
+import { afterAll, expect, test } from "bun:test"
 import { existsSync, mkdtempSync, readFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { SettingsDialog } from "../../src/tui-react/component/settings-dialog"
 import { useKV } from "../../src/tui-react/context/kv"
 import { reloadUserKeybindings } from "../../src/tui/context/keybindings-user"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent } from "./harness"
 
 const NOOP = (): void => {}
+
+// The live keymap is process-wide: hand later files the defaults, not this file's YAML.
+const savedHome = process.env.ROVE_HOME_DIR
+afterAll(() => {
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-keys-clean-"))
+  reloadUserKeybindings()
+  if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = savedHome
+})
+
+async function repeat(n: number, step: () => Promise<unknown>): Promise<void> {
+  for (let i = 0; i < n; i++) await step()
+}
 
 function Driver() {
   const kv = useKV()
@@ -36,18 +49,16 @@ test("the first saved binding creates keybindings.yaml from the starter", async 
   })
   const press = async (key: string, mods?: { ctrl: boolean }): Promise<string> => {
     act(() => mockInput.pressKey(key, mods))
-    await settle()
     return await frame()
   }
 
-  for (let i = 0; i < 5; i++) await press("j") // → Keybindings
+  await repeat(5, () => press("j")) // → Keybindings
   expect(await frame()).toContain("not created yet")
   await press("l")
   await press("j")
   await press("j") // past the two prefix-tap rows → Prefix key
   // `pressEnter()`: the mock's key names are uppercase, a lowercase one is typed as letters.
   act(() => mockInput.pressEnter())
-  await settle()
   const after = await press("b", { ctrl: true })
 
   const written = readFileSync(yaml, "utf8")
@@ -58,7 +69,4 @@ test("the first saved binding creates keybindings.yaml from the starter", async 
   ])
   expect(after).not.toContain("not created yet")
   expect(after).toContain("Command layer (ctrl+b)")
-  // The live keymap is process-wide: hand the next test the defaults, not this file's prefix.
-  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-keys-clean-"))
-  reloadUserKeybindings()
 })

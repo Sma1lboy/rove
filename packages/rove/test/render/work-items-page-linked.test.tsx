@@ -6,10 +6,16 @@
 
 import { expect, test } from "bun:test"
 import { WorkItemsPage } from "../../src/bundled-plugins/issues/work-items-page"
-import { renderComponent, settle } from "./harness"
+import { renderComponent, settle, waitForFrameText } from "./harness"
 
 const REPO = "/x/rove"
 const ITEM = { number: 412, title: "Fix the thing", author: "octocat", labels: [], updatedAt: new Date().toISOString() }
+
+/** Poll `check` with a cap: the page's item list and enter handler resolve asynchronously. */
+async function until(check: () => boolean, timeoutMs = 3_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  while (!check() && Date.now() < deadline) await settle(25)
+}
 
 function orch(tasks: unknown[], startWorkItem: () => Promise<unknown>) {
   return { listTasks: () => tasks, listWorkItems: async () => ({ items: [ITEM] }), startWorkItem } as never
@@ -28,12 +34,11 @@ test("enter on an already-started issue opens its task, never a second start", a
     />,
     { width: 90, height: 12, providers: { notifications: true } },
   )
-  await settle(150)
-  expect(await frame()).toContain("→ issue-412-fix")
+  await waitForFrameText(frame, "→ issue-412-fix")
   mockInput.pressEnter()
-  await settle(150)
+  await until(() => opened.length === 1)
   mockInput.pressEnter()
-  await settle(150)
+  await until(() => opened.length === 2)
   expect(starts).toBe(0)
   expect(opened).toEqual(["T1", "T1"])
 })
@@ -42,7 +47,7 @@ test("Windows project spellings select and reuse the existing linked task", asyn
   let starts = 0
   const opened: string[] = []
   const linked = { id: "T1", repo: "C:\\Projects\\demo", title: "windows-issue", linkedWorkItem: { number: 412 } }
-  const { mockInput } = await renderComponent(
+  const { frame, mockInput } = await renderComponent(
     <WorkItemsPage
       orchestrator={orch(
         [{ id: "other", repo: "C:/Projects/other" }, { id: "main", repo: "C:/Projects/demo" }, linked],
@@ -55,9 +60,9 @@ test("Windows project spellings select and reuse the existing linked task", asyn
     />,
     { width: 90, height: 12, providers: { notifications: true } },
   )
-  await settle(150)
+  await waitForFrameText(frame, "Fix the thing")
   mockInput.pressEnter()
-  await settle(150)
+  await until(() => opened.length > 0)
   expect(starts).toBe(0)
   expect(opened).toEqual(["T1"])
 })
@@ -77,9 +82,8 @@ test("a task on another repo or issue does not count as linked", async () => {
     />,
     { width: 90, height: 12, providers: { notifications: true } },
   )
-  await settle(150)
-  expect(await frame()).not.toContain("→ ")
+  expect(await waitForFrameText(frame, "Fix the thing")).not.toContain("→ ")
   mockInput.pressEnter()
-  await settle(150)
+  await until(() => starts > 0)
   expect(starts).toBe(1)
 })

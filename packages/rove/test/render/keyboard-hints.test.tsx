@@ -6,7 +6,7 @@
  * toggle, and the onboarding wizard's "Keyboard basics" page.
  */
 
-import { describe, expect, it } from "bun:test"
+import { afterEach, describe, expect, it } from "bun:test"
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -121,6 +121,12 @@ function KvSeed(props: { entries: readonly [string, unknown][]; children?: React
   }, [])
   return <>{props.children}</>
 }
+
+const previousHome = process.env.ROVE_HOME_DIR
+afterEach(() => {
+  if (previousHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = previousHome
+})
 
 function withTempKvHome(): void {
   process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-hints-"))

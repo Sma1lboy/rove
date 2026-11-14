@@ -14,7 +14,9 @@ import { join } from "node:path"
 import { useEffect, useRef } from "react"
 import { NewTaskDialog } from "../../src/tui-react/component/new-task-dialog"
 import { useDialog } from "../../src/tui-react/ui/dialog"
-import { renderComponent, settle } from "./harness"
+import { isolateHome, renderComponent, settle } from "./harness"
+
+isolateHome()
 
 function repo(): string {
   const dir = mkdtempSync(join(tmpdir(), "rove-seeded-base-"))

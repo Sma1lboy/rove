@@ -13,7 +13,7 @@ import { useWorkspaceKeybindings } from "../../src/tui-react/workspace/host-keyb
 import type { HostPagesState } from "../../src/tui-react/workspace/host-pages"
 import { resetPrefixState } from "../../src/tui/lib/keymap-dispatch"
 import { resetPrefixHud } from "../../src/tui/lib/prefix-hud"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent, waitForFrameText } from "./harness"
 
 // The HUD feed is process-global: these chords would print `→ New task` into a later file's frames.
 afterEach(() => act(() => resetPrefixHud()))
@@ -110,7 +110,6 @@ async function pressNewTask(props: Parameters<typeof Driver>[0] & { bareCtrlN?: 
       providers: { dialog: true },
     },
   )
-  await settle()
   await act(async () => {
     if (props.bareCtrlN) {
       mockInput.pressKey("n", { ctrl: true })
@@ -118,7 +117,6 @@ async function pressNewTask(props: Parameters<typeof Driver>[0] & { bareCtrlN?: 
       mockInput.pressKey("a", { ctrl: true })
       mockInput.pressKey("n")
     }
-    await settle()
   })
   const text = await frame()
   act(() => destroy())
@@ -187,17 +185,16 @@ function SearchUnmountTransition() {
 }
 
 describe("prefix+n New task", () => {
-  it("opens the dialog from sidebar, files, and a non-input content pane", async () => {
-    for (const initialFocus of ["sidebar", "files", "workspace"] as const) {
-      expect(await pressNewTask({ initialFocus })).toContain("New task dialog opened")
-    }
+  it.each(["sidebar", "files", "workspace"] as const)("opens the dialog with %s focused", async (initialFocus) => {
+    expect(await pressNewTask({ initialFocus })).toContain("New task dialog opened")
   })
 
-  it("opens the dialog from every full-window page", async () => {
-    for (const openPage of ["kanban.board", "automations", "issues.github", "worktreesOpen", "updateOpen"] as const) {
+  it.each(["kanban.board", "automations", "issues.github", "worktreesOpen", "updateOpen"] as const)(
+    "opens the dialog from the %s full-window page",
+    async (openPage) => {
       expect(await pressNewTask({ initialFocus: "workspace", openPage })).toContain("New task dialog opened")
-    }
-  })
+    },
+  )
 
   it("leaves prefix+n unclaimed while the real sidebar search input is active", async () => {
     const text = await pressNewTask({ initialFocus: "sidebar", searchActive: true })
@@ -215,7 +212,6 @@ describe("prefix+n New task", () => {
     await act(async () => {
       await mockInput.typeText("/")
     })
-    await settle()
     let text = await frame()
     expect(text).toContain("/")
 
@@ -223,21 +219,17 @@ describe("prefix+n New task", () => {
     await act(async () => {
       await mockMouse.click(text.split("\n")[updateRow]!.indexOf("Update chip") + 1, updateRow)
     })
-    await settle()
-    text = await frame()
-    expect(text).toContain("Close Update")
+    text = await waitForFrameText(frame, "Close Update")
 
     const closeRow = text.split("\n").findIndex((line) => line.includes("Close Update"))
     await act(async () => {
       await mockMouse.click(text.split("\n")[closeRow]!.indexOf("Close Update") + 1, closeRow)
     })
-    await settle()
     act(() => {
       mockInput.pressKey("a", { ctrl: true })
       mockInput.pressKey("n")
     })
-    await settle()
-    expect(await frame()).toContain("New task dialog opened")
+    await waitForFrameText(frame, "New task dialog opened")
     resetPrefixState()
   })
 

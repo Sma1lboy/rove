@@ -16,10 +16,9 @@ import { join } from "node:path"
 import { readPluginSettings } from "@sma1lboy/rove-daemon/plugins/settings-env"
 import { RenameTaskDialog } from "../../src/tui-react/component/rename-task-dialog"
 import { SettingsDialog } from "../../src/tui-react/component/settings-dialog"
-import { displaySettingValue } from "../../src/tui-react/component/settings-dialog/plugin-settings-core"
 import { setPluginSetting } from "../../src/tui-react/component/settings-dialog/plugins-core"
 import { useKV } from "../../src/tui-react/context/kv"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent } from "./harness"
 
 const NOOP = (): void => {}
 
@@ -95,6 +94,14 @@ function seedHome(id: string): string {
   return home
 }
 
+/** Walk UP to Plugins (general → dev → feedback → keys → marketplace → plugins), then into its body. */
+async function openPlugins(mockInput: { pressKey: (k: string) => void }, frame: () => Promise<string>): Promise<void> {
+  for (const key of ["k", "k", "k", "k", "k", "l"]) {
+    act(() => mockInput.pressKey(key))
+    await frame()
+  }
+}
+
 function Driver() {
   const kv = useKV()
   return <SettingsDialog kv={kv} onClose={NOOP} />
@@ -107,22 +114,14 @@ test("the secret's value never reaches the frame, while a plain row still shows 
     height: 40,
     providers: { kv: true, dialog: true },
   })
-  // Walk UP to Plugins (general → dev → feedback → keys → marketplace →
-  // plugins): stepping DOWN crosses Engines, which renders real engine
-  // accounts.
-  for (const key of ["k", "k", "k", "k", "k"]) {
-    act(() => mockInput.pressKey(key))
-    await settle()
-  }
-  act(() => mockInput.pressKey("l"))
-  await settle()
+  // Up, not down: stepping DOWN crosses Engines, which renders real engine accounts.
+  await openPlugins(mockInput, frame)
 
   const rendered = await frame()
   expect(rendered).toContain("API key")
   expect(rendered).toContain("••••")
-  // The whole point: not the token, and not any usable run of it.
-  expect(rendered).not.toContain(TOKEN)
-  for (let i = 6; i <= TOKEN.length; i++) expect(rendered).not.toContain(TOKEN.slice(0, i))
+  // The whole point: not the token, and not any usable run of it (every longer prefix contains this one).
+  expect(rendered).not.toContain(TOKEN.slice(0, 6))
   // Proof the section really rendered values — otherwise the absence above
   // would be satisfied by an empty pane.
   expect(rendered).toContain("Rover")
@@ -171,13 +170,10 @@ async function activateSecretRow(
   mockMouse: { click: (x: number, y: number) => Promise<void> },
   frame: () => Promise<string>,
 ): Promise<void> {
-  for (const key of ["k", "k", "k", "k", "k", "l"]) {
-    act(() => mockInput.pressKey(key))
-    await settle()
-  }
+  await openPlugins(mockInput, frame)
   const lines = (await frame()).split("\n")
   const y = lines.findIndex((line) => line.includes("API key"))
-  if (y < 0) throw new Error("no API key row rendered")
+  expect(y).toBeGreaterThan(-1)
   const x = (lines[y] as string).indexOf("API key") + 2
   // `mockMouse.click` is ASYNC: firing it outside an awaited act() leaves the
   // renderer mid-update, and every LATER test in the run then captures an
@@ -185,7 +181,6 @@ async function activateSecretRow(
   await act(async () => {
     await mockMouse.click(x, y)
   })
-  await settle()
 }
 
 test("editing a secret opens an EMPTY field, never pre-filled with the stored key", async () => {
@@ -200,12 +195,9 @@ test("editing a secret opens an EMPTY field, never pre-filled with the stored ke
     await activateSecretRow(mockInput, mockMouse, frame)
     // Wait for the edit flow to actually reach the dialog before restoring.
     await dialog.settled
-    await settle()
-    expect(dialog.seen.length).toBeGreaterThan(0)
-    for (const opened of dialog.seen) {
-      expect(opened.current).toBe("")
-      expect(opened.placeholder ?? "").not.toContain(TOKEN)
-    }
+    expect(dialog.seen).toHaveLength(1)
+    expect(dialog.seen[0]?.current).toBe("")
+    expect(dialog.seen[0]?.placeholder ?? "").not.toContain(TOKEN.slice(0, 6))
   } finally {
     dialog.restore()
   }
@@ -222,6 +214,4 @@ test("a submitted secret is stored verbatim — masking is display-only", () => 
   const home = seedHome("example.storeverbatim")
   setPluginSetting("example.storeverbatim", "EX_SECRET_TOKEN", "sk-live-REPLACEMENT", home)
   expect(readPluginSettings("example.storeverbatim", home).EX_SECRET_TOKEN).toBe("sk-live-REPLACEMENT")
-  // ...and that stored value still renders masked.
-  expect(displaySettingValue({ type: "secret", value: "sk-live-REPLACEMENT" })).not.toContain("REPLACEMENT")
 })

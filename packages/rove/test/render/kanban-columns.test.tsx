@@ -10,13 +10,28 @@
  *   - a card whose linked engine is blocked leads its column, and the header
  *     says how many need you.
  */
-import { expect, test } from "bun:test"
+import { afterEach, beforeEach, expect, test } from "bun:test"
+import { mkdtempSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { KanbanPage } from "../../src/bundled-plugins/kanban/kanban-page"
 import type { TaskEngineState } from "../../src/client/remote-orchestrator-payloads"
 import { setTransparentBackground } from "../../src/tui-react/context/theme"
 import { act, renderComponent, settle } from "./harness"
 
 const REPO = "/repos/rove"
+
+// The board lists the user's saved repos too; a fresh home keeps the real ones out.
+const previousHome = process.env.ROVE_HOME_DIR
+beforeEach(() => {
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-kanban-columns-"))
+})
+afterEach(() => {
+  if (previousHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = previousHome
+  // The harness default; leaving it flipped would silently retheme every later test.
+  setTransparentBackground(true)
+})
 
 function issue(id: number, over: Record<string, unknown> = {}) {
   return { id, title: `story-${id}`, status: "open", created: "2026-08-01", body: "", ...over }
@@ -156,11 +171,11 @@ test("a card is see-through in transparent mode and solid outside it", async () 
     )
     await settle()
     const captured = await spans()
-    const seen = new Set<string>()
-    for (const line of captured.lines) {
-      for (const span of line.spans) if (span.text.includes("story-1")) seen.add(String(span.bg))
-    }
-    return [...seen]
+    const seen = captured.lines
+      .flatMap((line) => line.spans)
+      .filter((span) => span.text.includes("story-1"))
+      .map((span) => String(span.bg))
+    return [...new Set(seen)]
   }
 
   setTransparentBackground(true)
@@ -174,10 +189,6 @@ test("a card is see-through in transparent mode and solid outside it", async () 
   expect(opaque).toHaveLength(1)
   // Opaque mode is untouched: the card keeps its tinted surface.
   expect(opaque[0]).toContain("1.00)")
-
-  // The harness default; leaving it flipped would silently retheme every test
-  // that runs after this one.
-  setTransparentBackground(true)
 })
 
 /**

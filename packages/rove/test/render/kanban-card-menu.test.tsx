@@ -13,7 +13,9 @@
 
 import { expect, test } from "bun:test"
 import { KanbanPage } from "../../src/bundled-plugins/kanban/kanban-page"
-import { act, renderComponent, settle, waitForFrameText } from "./harness"
+import { act, isolateHome, renderComponent, settle, waitForFrameText } from "./harness"
+
+isolateHome()
 
 const REPO = "/repos/rove"
 // Short enough to stay on ONE line inside the card: the title wraps at the

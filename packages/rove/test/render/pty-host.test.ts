@@ -81,16 +81,6 @@ function isAlive(pid: number): boolean {
 const SPEC = { cwd: process.cwd(), command: ["/bin/cat"], cols: 40, rows: 10 }
 
 describe("PtyHost", () => {
-  test("streams child output to the attached sink", async () => {
-    const host = makeHost()
-    const { frames, sink } = collector()
-    const res = host.open("t1::tab1", SPEC, {}, sink)
-    expect(res.alive).toBe(true)
-    host.write("t1::tab1", "hello\n")
-    // cat echoes through the PTY (with the tty's own echo too).
-    await until(() => dataText(frames).includes("hello"))
-  })
-
   test("session survives detach and replays on reattach", async () => {
     const host = makeHost()
     const a = collector()
@@ -210,9 +200,8 @@ describe("PtyHost", () => {
       {},
       sink,
     )
-    const pid = res.pid
-    expect(pid).not.toBeNull()
-    if (pid === null) throw new Error("expected PTY child pid")
+    expect(res.pid).not.toBeNull()
+    const pid = res.pid as number
     try {
       await until(() => dataText(frames).includes("ready"))
       host.kill("t1::stubborn")

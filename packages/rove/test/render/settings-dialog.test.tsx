@@ -11,14 +11,29 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { SettingsDialog } from "../../src/tui-react/component/settings-dialog"
-import { useKV } from "../../src/tui-react/context/kv"
+import { type KVContext, useKV } from "../../src/tui-react/context/kv"
+import { devRows, rowIndex } from "../../src/tui/component/settings-dialog/model"
 import { PREFIX_TAP_PRESENTATION_KEY } from "../../src/tui/lib/prefix-tap-presentation"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent, waitForFrameText } from "./harness"
 
 const NOOP = (): void => {}
 
+let kv: KVContext | undefined
+
+/** One key per act + render pass: keys that land in the same pass act on a stale cursor. */
+async function pressTimes(
+  h: { mockInput: { pressKey(k: string): void }; frame(): Promise<string> },
+  key: string,
+  n: number,
+) {
+  for (let i = 0; i < n; i++) {
+    act(() => h.mockInput.pressKey(key))
+    await h.frame()
+  }
+}
+
 function Driver() {
-  const kv = useKV()
+  kv = useKV()
   return <SettingsDialog kv={kv} onClose={NOOP} />
 }
 
@@ -26,6 +41,7 @@ describe("SettingsDialog", () => {
   // Marketplace queries GitHub the moment it is opened, and every test here
   // that walks past that section would otherwise make a real request.
   const realFetch = globalThis.fetch
+  const savedHome = process.env.ROVE_HOME_DIR
   beforeAll(() => {
     globalThis.fetch = (async () => ({
       ok: true,
@@ -34,6 +50,8 @@ describe("SettingsDialog", () => {
   })
   afterAll(() => {
     globalThis.fetch = realFetch
+    if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+    else process.env.ROVE_HOME_DIR = savedHome
   })
 
   it("walks every section with the real j chord and renders each body", async () => {
@@ -52,7 +70,6 @@ describe("SettingsDialog", () => {
 
     const press = async (key: string): Promise<string> => {
       act(() => mockInput.pressKey(key))
-      await settle()
       return await frame()
     }
 
@@ -70,10 +87,8 @@ describe("SettingsDialog", () => {
     expect(text).toContain("swift      Claude · sonnet · engine default")
     text = await press("j") // → Plugins
     expect(text).toContain("Kanban and Issues are first-party mods")
-    text = await press("j") // → Marketplace
-    await settle(120)
-    text = await frame()
-    expect(text).toContain("you/rove-demo")
+    await press("j") // → Marketplace
+    text = await waitForFrameText(frame, "you/rove-demo")
     expect(text).toContain("★7")
     text = await press("j") // → Keybindings
     expect(text).toContain("Command layer (ctrl+a)")
@@ -90,26 +105,22 @@ describe("SettingsDialog", () => {
   it("selects and persists the prefix-tap presentation with ordinary Settings keys", async () => {
     const home = mkdtempSync(join(tmpdir(), "rove-prefix-setting-"))
     process.env.ROVE_HOME_DIR = home
-    const { frame, mockInput } = await renderComponent(<Driver />, {
+    const h = await renderComponent(<Driver />, {
       width: 110,
       // Tall enough for a whole section inside the page's scroll viewport.
       height: 90,
       providers: { kv: true, dialog: true },
     })
+    const { frame, mockInput } = h
 
     // General → Engines → Auto routing → Plugins → Marketplace → Keybindings.
-    for (let i = 0; i < 5; i++) {
-      act(() => mockInput.pressKey("j"))
-      await settle()
-    }
+    await pressTimes(h, "j", 5)
     expect(await frame()).toContain("(●) On-screen entries + complete guide (default)")
 
-    act(() => mockInput.pressKey("l"))
-    await settle()
-    act(() => mockInput.pressKey("j"))
-    await settle()
+    await pressTimes(h, "l", 1)
+    await pressTimes(h, "j", 1)
     act(() => mockInput.pressEnter())
-    await settle(320)
+    act(() => kv?.flush())
 
     expect(await frame()).toContain("(●) Complete guide only")
     const persisted = JSON.parse(readFileSync(join(home, ".config", "rove", "state.json"), "utf8")) as Record<
@@ -122,28 +133,22 @@ describe("SettingsDialog", () => {
   it("Dev → Reload settings applies a hand edit to state.json in place", async () => {
     const home = mkdtempSync(join(tmpdir(), "rove-reload-setting-"))
     process.env.ROVE_HOME_DIR = home
-    const { frame, mockInput } = await renderComponent(<Driver />, {
+    const h = await renderComponent(<Driver />, {
       width: 110,
       height: 90,
       providers: { kv: true, dialog: true },
     })
-    const press = async (key: string): Promise<string> => {
-      act(() => mockInput.pressKey(key))
-      await settle()
-      return await frame()
-    }
-
-    let text = await press("k") // General wraps up to Dev
-    expect(text).toContain("[ ] Remote projects")
+    const { frame, mockInput } = h
+    await pressTimes(h, "k", 1) // General wraps up to Dev
+    expect(await frame()).toContain("[ ] Remote projects")
 
     mkdirSync(join(home, ".config", "rove"), { recursive: true })
     writeFileSync(join(home, ".config", "rove", "state.json"), JSON.stringify({ "experimental.remoteProjects": true }))
-    await press("l")
-    let row = 0
-    while (!text.includes("▸ [enter] Reload") && row++ < 6) text = await press("j")
+    await pressTimes(h, "l", 1)
+    // No orchestrator prop, so no daemon-restart row.
+    await pressTimes(h, "j", rowIndex(devRows(false), "dev-reload"))
     act(() => mockInput.pressEnter())
-    await settle()
-    text = await frame()
+    const text = await frame()
     expect(text).toContain("Reloaded: 1 changed.")
     expect(text).toContain("[x] Remote projects")
   })

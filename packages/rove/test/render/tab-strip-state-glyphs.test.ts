@@ -34,7 +34,7 @@ describe("tab strip status agrees with the sidebar rail", () => {
       b: attention("error"),
       c: attention("dead"),
     })
-    for (const tab of ["a", "b", "c"]) expect(chipAttentionKind(turns?.get(tab) ?? "")).toBe("error")
+    expect(["a", "b", "c"].map((tab) => chipAttentionKind(turns?.get(tab) ?? ""))).toEqual(["error", "error", "error"])
   })
 
   it("toasts an unseen finish and a question, never a restored session", () => {

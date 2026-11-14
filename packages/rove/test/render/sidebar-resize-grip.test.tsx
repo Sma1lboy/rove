@@ -58,9 +58,9 @@ test("a drag that leaves the grip still resizes, by the cursor's travel", async 
   await mockMouse.pressDown(EDGE_X, ROW_Y)
   // Each step leaves the grip's column further behind — the case that silently
   // did nothing while the grip tried to own the gesture itself.
-  for (const x of [30, 38, 45]) {
-    await mockMouse.moveTo(x, ROW_Y)
-  }
+  await mockMouse.moveTo(30, ROW_Y)
+  await mockMouse.moveTo(38, ROW_Y)
+  await mockMouse.moveTo(45, ROW_Y)
   await mockMouse.release(45, ROW_Y)
   await rerender()
 
@@ -110,11 +110,12 @@ test("two quick drags are two resizes, not a double-click", async () => {
     height: 12,
   })
 
-  for (const _ of [0, 1]) {
-    await mockMouse.pressDown(EDGE_X, ROW_Y)
-    await mockMouse.moveTo(40, ROW_Y)
-    await mockMouse.release(40, ROW_Y)
-  }
+  await mockMouse.pressDown(EDGE_X, ROW_Y)
+  await mockMouse.moveTo(40, ROW_Y)
+  await mockMouse.release(40, ROW_Y)
+  await mockMouse.pressDown(EDGE_X, ROW_Y)
+  await mockMouse.moveTo(40, ROW_Y)
+  await mockMouse.release(40, ROW_Y)
   await rerender()
 
   // Both releases land inside the double-click window, and both gestures
@@ -130,7 +131,9 @@ test("the width is committed once, on release, not per motion", async () => {
     { width: 60, height: 12 },
   )
   await mockMouse.pressDown(EDGE_X, ROW_Y)
-  for (const x of [30, 38, 45]) await mockMouse.moveTo(x, ROW_Y)
+  await mockMouse.moveTo(30, ROW_Y)
+  await mockMouse.moveTo(38, ROW_Y)
+  await mockMouse.moveTo(45, ROW_Y)
   expect(committed).toEqual([])
   await mockMouse.release(45, ROW_Y)
   await rerender()

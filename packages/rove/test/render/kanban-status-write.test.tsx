@@ -15,7 +15,9 @@
 
 import { expect, test } from "bun:test"
 import { KanbanPage } from "../../src/bundled-plugins/kanban/kanban-page"
-import { act, renderComponent, settle } from "./harness"
+import { act, isolateHome, renderComponent, settle } from "./harness"
+
+isolateHome()
 
 const REPO = "/repos/rove"
 const STORY = { id: 1, title: "Drop the retry loop", status: "open", created: "2026-08-01", body: "" }
@@ -62,7 +64,10 @@ test("the drawer's status choice reaches the store as a setStatus op", async () 
   expect(await frame()).toContain("STATUS")
 
   // Focus opens on WORKSPACE for a startable story; tab wraps round to it.
-  for (let i = 0; i < 4; i++) act(() => mockInput.pressTab())
+  act(() => mockInput.pressTab())
+  act(() => mockInput.pressTab())
+  act(() => mockInput.pressTab())
+  act(() => mockInput.pressTab())
   act(() => mockInput.pressArrow("right"))
   act(() => mockInput.pressEscape())
   await settle()

@@ -16,13 +16,18 @@ import { act, renderComponent, settle } from "./harness"
  * with no pty and vanish. Attachment (the pane's data subscription) comes after
  * that render.
  */
-async function acquiredPty(harness: ScriptedPtyRegistry, timeoutMs = 2_000) {
+async function acquiredPty(harness: ScriptedPtyRegistry) {
+  await until(() => harness.ptys.at(-1)?.attached === true, "no pty attached")
+  return harness.last()
+}
+
+/** Poll `done` until it holds; throws `message` after `timeoutMs`. */
+async function until(done: () => boolean, message: string, timeoutMs = 2_000): Promise<void> {
   const deadline = Date.now() + timeoutMs
-  while (!harness.ptys.at(-1)?.attached) {
-    if (Date.now() >= deadline) throw new Error(`no pty attached within ${timeoutMs}ms`)
+  while (!done()) {
+    if (Date.now() >= deadline) throw new Error(`${message} within ${timeoutMs}ms`)
     await settle(10)
   }
-  return harness.last()
 }
 
 function ComposerProbe() {
@@ -81,16 +86,12 @@ test("kitty modifier, text, keypad, and navigation events are re-encoded for the
     "\x1b[1;1:1A",
     "\x1b[57442;1:3u",
   ]
-  act(() => {
-    for (const event of wireEvents) mockInput.pressKey(event)
-  })
-  await settle()
+  act(() => mockInput.pressKey(wireEvents.join("")))
 
   const expected =
     "a\x03😀𠀀\r\x1b[D\x1b[C\x1b[A\x1b[B\x1b[5~\x1b[6~\x1b[H\x1b[F\x1b[2~\x1b[3~" +
     "\x1b[2~\x1b[5~\x1b[6~\x1b[17~\x1b[19~\x1b[20~\x1b[21~\x1b[23~\x1b[24~\x1b[A"
-  const deadline = Date.now() + 5_000
-  while (harness.last().writeLog.join("") !== expected && Date.now() < deadline) await settle(25)
+  await until(() => harness.last().writeLog.join("") === expected, "PTY writes did not match", 4_000).catch(() => {})
   expect(harness.last().writeLog.join("")).toBe(expected)
 })
 

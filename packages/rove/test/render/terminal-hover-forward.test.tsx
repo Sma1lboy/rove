@@ -28,8 +28,8 @@ test("hover over the pane is forwarded as pane-local motion", async () => {
   await act(async () => {
     await handle?.frame()
   })
-  if (!handle) throw new Error("terminal mount failed")
-  const mounted = handle
+  expect(handle).toBeDefined()
+  const mounted = handle as RenderHandle
   await act(async () => {
     harness.last().feed("a\r\nb\r\nc")
     await mounted.frame()

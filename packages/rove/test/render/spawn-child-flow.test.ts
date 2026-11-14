@@ -4,7 +4,7 @@
  * orchestrator: a shared child of the current task, then select + enter it.
  */
 
-import { describe, expect, test } from "bun:test"
+import { beforeEach, describe, expect, test } from "bun:test"
 import { forkFirstTab } from "../../src/tui-react/workspace/fork-chat-tab"
 import { runSpawnChild } from "../../src/tui-react/workspace/quick-fork"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
@@ -39,6 +39,9 @@ function stub(fail?: Error) {
 }
 
 describe("runSpawnChild", () => {
+  // The fork test writes "kid"'s tabs into the module-level map; the others read it.
+  beforeEach(() => tabsByTask.clear())
+
   test("spawns a child that shares the directory, then selects and enters it", async () => {
     const s = stub()
     const id = await runSpawnChild(s.orch, { parentTaskId: "parent", vendor: "codex" }, s.hooks)

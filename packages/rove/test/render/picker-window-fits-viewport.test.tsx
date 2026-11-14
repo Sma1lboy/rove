@@ -9,7 +9,7 @@
  * uncalled helper renders exactly like the bug.
  */
 
-import { expect, test } from "bun:test"
+import { afterEach, expect, test } from "bun:test"
 import { execSync } from "node:child_process"
 import { mkdirSync, mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
@@ -17,7 +17,13 @@ import { join } from "node:path"
 import { BranchPickerDialogView } from "../../src/tui-react/component/branch-picker-dialog"
 import { NewTaskDialogView } from "../../src/tui-react/component/new-task-dialog/dialog"
 import { PICKER_MAX_VISIBLE } from "../../src/tui/component/new-task-dialog/state"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent, settle, waitForFrameText } from "./harness"
+
+const previousHome = process.env.ROVE_HOME_DIR
+afterEach(() => {
+  if (previousHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = previousHome
+})
 
 /** More branches than any window will show, so the cap is what bounds it. */
 function repoWithBranches(count: number): string {
@@ -87,8 +93,8 @@ async function cloneTabFrame(height: number, parent: string): Promise<string> {
   await act(async () => {
     await mockInput.typeText("c") // browse the children we just made
   })
-  await settle(400)
-  return await frame()
+  // The directory listing is async: wait for its first child to land.
+  return await waitForFrameText(frame, "child-00/")
 }
 
 /** Picker rows: the indented `<name>/` entries, excluding the `↓ N more`
