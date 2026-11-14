@@ -49,6 +49,38 @@ describe("send handler", () => {
     expect(result).toMatchObject({ ok: true, taskId: "abc", started: true })
   })
 
+  it("opens a new session in the checkout when the project row has no tab open", async () => {
+    const main = taskFixture({ id: "main", kind: "main", branch: "", worktreePath: "/repo/x" })
+    const client = new FakeClient({
+      "task.get": () => ({ task: main }),
+      "task.openDir": (payload) => ({ task: taskFixture({ id: "fresh", kind: "dir", ...(payload as object) }) }),
+    })
+    const { calls, deliver } = recordingDelivery()
+    const result = await invokeVerb("send", ["--task-id", "main", "--prompt", "fix the rail"], {
+      client,
+      runtime: stubRuntime({ deliverPrompt: deliver }),
+    })
+    expect(client.requests.find((request) => request.name === "task.openDir")?.payload).toMatchObject({
+      dir: "/repo/x",
+    })
+    expect(calls[0].target.id).toBe("fresh")
+    expect(result).toMatchObject({ taskId: "fresh", newSession: true, viaProject: "main" })
+  })
+
+  it("delivers into the project row's conversation while its tab is open", async () => {
+    const client = new FakeClient({ "task.get": () => ({ task: taskFixture({ id: "main", kind: "main" }) }) })
+    const { calls, deliver } = recordingDelivery()
+    const result = await invokeVerb("send", ["--task-id", "main", "--prompt", "hi"], {
+      client,
+      runtime: stubRuntime({
+        deliverPrompt: deliver,
+        taskTabs: async () => ({ tabs: [{ id: "tab-1", kind: "engine", alive: true }] as never, running: true }),
+      }),
+    })
+    expect(calls[0].target.id).toBe("main")
+    expect(result).not.toHaveProperty("newSession")
+  })
+
   it("reports a prompt that did not land", async () => {
     const client = new FakeClient({ "task.get": () => ({ task: taskFixture() }) })
     await expectApiError(

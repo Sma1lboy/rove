@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 127 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 128 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -287,7 +287,7 @@ Find your section by what you were ASKED, not by Rove's noun for it:
 | which engines exist, report a Rove problem or idea | discover / feedback |
 | an error code came back, `nextCommandArgs` | Error codes |
 
-When the user says anything in Rove itself is awkward, broken or missing, offer to file it right away: draft a short title and body, show it, and on their OK run `rove feedback --kind bug|idea|question --title … --body-file -` (body on stdin), then share the URL. If it prints a prefilled link instead, hand that over and say to run `gh auth login`. Only for Rove; another project's bug is a `send` to its main task.
+When the user says anything in Rove itself is awkward, broken or missing, offer to file it right away: draft a short title and body, show it, and on their OK run `rove feedback --kind bug|idea|question --title … --body-file -` (body on stdin), then share the URL. If it prints a prefilled link instead, hand that over and say to run `gh auth login`. Only for Rove; another project's bug is a `send` to that project's row (`list`, `kind: "main"`), which starts a new session there, or to the task the user named.
 
 Reach for `schema` when the binary and that file disagree.
 

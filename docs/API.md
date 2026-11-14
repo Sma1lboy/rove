@@ -1290,6 +1290,12 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   unresolvable base reads `null` and never refuses. `--allow-empty` states an
   intentional empty success (an investigation, a review) and delivers.
 
+  **A project's main row is not a standing conversation.** A `send` to a
+  `kind: "main"` task with no tab open (and no `--tab`) starts a new session
+  in that checkout and delivers there: the reply's `taskId` is the new
+  session, with `newSession: true` and `viaProject` naming the row addressed.
+  While the row has a tab open, the send lands in it as usual.
+
   **Delivery result fields.** Before writing a byte, delivery waits for the
   engine to announce bracketed paste (DECSET 2004), which is the engine
   saying it has taken its tty into raw mode and started reading. This is not
