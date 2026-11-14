@@ -24,9 +24,9 @@
 #   - Releases page: every published build gets its own prerelease entry,
 #     tagged `v<version>`, listing the changesets it adds over the previous
 #     build. Never marked Latest. The tag is created with GITHUB_TOKEN, so it
-#     does not fire release.yml, and the app's release lists take `vX.Y.Z`
-#     only. A failure here does not fail the run: the npm publish already
-#     happened.
+#     does not fire release.yml. The app's version picker lists `vX.Y.Z`
+#     only; its update notes show these entries to a build on `next`. A
+#     failure here does not fail the run: the npm publish already happened.
 
 name: Next
 

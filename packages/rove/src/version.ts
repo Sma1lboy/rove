@@ -272,10 +272,12 @@ export type ReleaseSummary = {
   url: string
 }
 
-function versionFromTagName(tagName: unknown): string | null {
+/** `vX.Y.Z` → `X.Y.Z`. A build tag (`vX.Y.Z-next.N`) counts only when it is on `channel`. */
+function versionFromTagName(tagName: unknown, channel?: ReleaseChannel): string | null {
   if (typeof tagName !== "string") return null
-  const match = tagName.match(/^v(\d+\.\d+\.\d+)$/)
-  return match?.[1] ?? null
+  const match = tagName.match(/^v\d+\.\d+\.\d+(?:-([a-z]+)\.\d+)?$/)
+  if (!match || (match[1] && match[1] !== channel)) return null
+  return tagName.slice(1)
 }
 
 /** The languages release notes come in; English is the release body itself. */
@@ -332,79 +334,82 @@ export async function fetchReleaseNotes(version: string, locale: NotesLocale = "
   }
 }
 
-/** Notes for every release in (`current`, `latest`], newest first, so skipped releases show too. */
-export async function fetchReleaseNotesRange(args: {
-  current: string
-  latest: string
-  limit?: number
-  locale?: NotesLocale
-}): Promise<ReleaseNotesRangeItem[]> {
+const RELEASES_PER_PAGE = 100
+// ponytail: gives up after 1000 releases; read git tags instead if `next` builds ever outnumber that between two stable releases.
+const MAX_RELEASE_PAGES = 10
+
+/**
+ * Walks the Releases list newest first until `visit` answers false. It pages because every `next` build
+ * adds a prerelease entry, so the first page can hold no stable release at all. A failed page ends the walk.
+ */
+async function walkReleases(visit: (release: ReleaseJson) => boolean): Promise<void> {
   const slug = repoSlug()
-  if (!slug) return []
-  const limit = args.limit ?? 100
-  const ctrl = new AbortController()
-  const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS)
-  try {
-    const res = await fetch(`https://api.github.com/repos/${slug}/releases?per_page=${limit}`, {
-      signal: ctrl.signal,
-      headers: {
-        accept: "application/vnd.github+json",
-        "x-github-api-version": "2022-11-28",
-      },
-    })
-    if (!res.ok) return []
-    const body = (await res.json()) as ReleaseJson[]
-    if (!Array.isArray(body)) return []
-    const inRange = body.flatMap((release) => {
-      const version = versionFromTagName(release.tag_name)
-      if (!version || typeof release.html_url !== "string" || typeof release.body !== "string") return []
-      if (compareSemver(version, args.current) <= 0) return []
-      if (compareSemver(version, args.latest) > 0) return []
-      return [{ version, url: release.html_url, release: { ...release, body: release.body } }]
-    })
-    return await Promise.all(
-      inRange.map(async ({ version, url, release }) => ({
-        version,
-        url,
-        body: await notesBody(release, args.locale ?? "en", ctrl.signal),
-      })),
-    )
-  } catch {
-    return []
-  } finally {
-    clearTimeout(timer)
+  if (!slug) return
+  for (let page = 1; page <= MAX_RELEASE_PAGES; page++) {
+    let body: unknown
+    try {
+      const res = await fetch(
+        `https://api.github.com/repos/${slug}/releases?per_page=${RELEASES_PER_PAGE}&page=${page}`,
+        {
+          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+          headers: {
+            accept: "application/vnd.github+json",
+            "x-github-api-version": "2022-11-28",
+          },
+        },
+      )
+      if (!res.ok) return
+      body = await res.json()
+    } catch {
+      return
+    }
+    if (!Array.isArray(body)) return
+    for (const release of body as ReleaseJson[]) if (!visit(release)) return
+    if (body.length < RELEASES_PER_PAGE) return
   }
 }
 
-/** Recent releases for the version picker; bodies come per row via {@link fetchReleaseNotes} to save API budget. */
+/**
+ * Notes for every release in (`current`, `latest`], newest first, so skipped releases show too. Stable
+ * releases always; builds of `latest`'s own channel when it is one, since each carries its own notes.
+ */
+export async function fetchReleaseNotesRange(args: {
+  current: string
+  latest: string
+  locale?: NotesLocale
+}): Promise<ReleaseNotesRangeItem[]> {
+  const channel = channelFor(args.latest)
+  const inRange: { version: string; url: string; release: ReleaseJson & { body: string } }[] = []
+  await walkReleases((release) => {
+    const version = versionFromTagName(release.tag_name, channel)
+    if (!version) return true
+    // Newest first: nothing below the running version is in range.
+    if (!isNewerSemver(version, args.current)) return false
+    if (isNewerSemver(version, args.latest)) return true
+    if (typeof release.html_url === "string" && typeof release.body === "string") {
+      inRange.push({ version, url: release.html_url, release: { ...release, body: release.body } })
+    }
+    return true
+  })
+  const signal = AbortSignal.timeout(FETCH_TIMEOUT_MS)
+  return Promise.all(
+    inRange.map(async ({ version, url, release }) => ({
+      version,
+      url,
+      body: await notesBody(release, args.locale ?? "en", signal),
+    })),
+  )
+}
+
+/** Recent stable releases for the version picker; bodies come per row via {@link fetchReleaseNotes} to save API budget. */
 export async function fetchReleaseSummaries(limit = 12): Promise<ReleaseSummary[]> {
-  const slug = repoSlug()
-  if (!slug) return []
-  const ctrl = new AbortController()
-  const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS)
-  try {
-    const res = await fetch(`https://api.github.com/repos/${slug}/releases?per_page=${limit}`, {
-      signal: ctrl.signal,
-      headers: {
-        accept: "application/vnd.github+json",
-        "x-github-api-version": "2022-11-28",
-      },
-    })
-    if (!res.ok) return []
-    const body = (await res.json()) as { tag_name?: unknown; html_url?: unknown }[]
-    if (!Array.isArray(body)) return []
-    return body
-      .map((release) => {
-        const version = versionFromTagName(release.tag_name)
-        if (!version || typeof release.html_url !== "string") return null
-        return { version, url: release.html_url }
-      })
-      .filter((release): release is ReleaseSummary => release !== null)
-  } catch {
-    return []
-  } finally {
-    clearTimeout(timer)
-  }
+  const summaries: ReleaseSummary[] = []
+  await walkReleases((release) => {
+    const version = versionFromTagName(release.tag_name)
+    if (version && typeof release.html_url === "string") summaries.push({ version, url: release.html_url })
+    return summaries.length < limit
+  })
+  return summaries
 }
 
 /** Fallback URL when fetchReleaseNotes can't reach GitHub. */
