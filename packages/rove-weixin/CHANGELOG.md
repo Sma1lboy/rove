@@ -1,5 +1,12 @@
 # rove-weixin
 
+## 0.0.55
+
+### Patch Changes
+
+- Updated dependencies [[`b2aa991`](https://github.com/Sma1lboy/rove/commit/b2aa991e73102d315d4492030c0ce04f42c0dfff), [`aa63efd`](https://github.com/Sma1lboy/rove/commit/aa63efda36bfea1274a6bf4fd68654b2279fee48), [`d826960`](https://github.com/Sma1lboy/rove/commit/d8269608e0faa189b5c51148c32091c537604d14), [`fb52cd0`](https://github.com/Sma1lboy/rove/commit/fb52cd0cf510d72d96b3ac9edeb55c08890eb0d3), [`a7bd9b6`](https://github.com/Sma1lboy/rove/commit/a7bd9b6b78d42a56afbd39a17864f9f12deb5695), [`2f82215`](https://github.com/Sma1lboy/rove/commit/2f82215f4c8fd50fade0289383f8b94fb8efbfb5), [`09614c9`](https://github.com/Sma1lboy/rove/commit/09614c9e3500c2a0b8736c5b463024702fda144c), [`b12df46`](https://github.com/Sma1lboy/rove/commit/b12df46be4113ced45e7e270215cd511963afb74), [`791acbc`](https://github.com/Sma1lboy/rove/commit/791acbcce96d00018dcd37898fbd065f9ad90942), [`0c86ba9`](https://github.com/Sma1lboy/rove/commit/0c86ba9587404d6f73f0e1805d63a0e61f00be0b), [`43ebf45`](https://github.com/Sma1lboy/rove/commit/43ebf4562503fdedb9eda61f342acafa308a6f3b), [`cfbee53`](https://github.com/Sma1lboy/rove/commit/cfbee53cf99c95dc75ca0e4ede5452ff71369f32), [`3dd876d`](https://github.com/Sma1lboy/rove/commit/3dd876d5260efd11e610576675edae01e5c32a55), [`cee5635`](https://github.com/Sma1lboy/rove/commit/cee56350b2993f93755bf7b63930465e1cfd4383), [`80cda97`](https://github.com/Sma1lboy/rove/commit/80cda975faf4f791b6e5c79b13203de502768216), [`de3ee7a`](https://github.com/Sma1lboy/rove/commit/de3ee7ae8b60d9e00a196f9ae7c0d12c70472fde), [`c1524c8`](https://github.com/Sma1lboy/rove/commit/c1524c86584896cfb86a824c84e4936cbecb9893), [`14d85da`](https://github.com/Sma1lboy/rove/commit/14d85da443a8ca56b060301770e0163fb3ebd700), [`9157c47`](https://github.com/Sma1lboy/rove/commit/9157c4757263f740a4f61188b4f75090272b951a), [`80f9fe7`](https://github.com/Sma1lboy/rove/commit/80f9fe7e5939273dd8256a6bd140124dac74ce62), [`efcefb2`](https://github.com/Sma1lboy/rove/commit/efcefb21e35a10644c8c17a2a24e47c2c64ccd85)]:
+  - @sma1lboy/rove@0.9.294
+
 ## 0.0.54
 
 ### Patch Changes

@@ -1,5 +1,57 @@
 # Changelog
 
+## 0.9.294
+
+### Patch Changes
+
+- [#2039](https://github.com/Sma1lboy/rove/pull/2039) [`b2aa991`](https://github.com/Sma1lboy/rove/commit/b2aa991e73102d315d4492030c0ce04f42c0dfff) Archiving a task now ends its sessions. Every engine and shell process of the task and its child tasks is stopped; the worktree, branch and conversations are kept, and a tab reopens its conversation after you unarchive. A task that is still working asks first, and `rove api archive --force` stops it. Removing a project also closes the sessions that ran in its main checkout. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2044](https://github.com/Sma1lboy/rove/pull/2044) [`aa63efd`](https://github.com/Sma1lboy/rove/commit/aa63efda36bfea1274a6bf4fd68654b2279fee48) The web Browser panel no longer goes blank about a minute after a page loads. The page stays until you change the address or close the tab. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2042](https://github.com/Sma1lboy/rove/pull/2042) [`d826960`](https://github.com/Sma1lboy/rove/commit/d8269608e0faa189b5c51148c32091c537604d14) In the web client, a Files row now has a right-click menu: attach it as context, copy its relative path, absolute path or name, open its diff, show it in Finder, or open a terminal in its folder. A blank Browser tab lists the pages the task's dev servers serve, one click each. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2036](https://github.com/Sma1lboy/rove/pull/2036) [`fb52cd0`](https://github.com/Sma1lboy/rove/commit/fb52cd0cf510d72d96b3ac9edeb55c08890eb0d3) You can now update Rove on another machine without logging in to it. `rove machine update <alias>` (or with no alias, every machine) has that machine install the newest build of your channel and restart itself; on the web, a machine that runs an older build shows `[ update rove ]` in the Machines overview. Sessions on that machine keep running.
+
+  `rove daemon restart` on a machine where systemd runs Rove now restarts it through systemd. Before, it started a second copy outside systemd and the two fought over the same socket. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2038](https://github.com/Sma1lboy/rove/pull/2038) [`a7bd9b6`](https://github.com/Sma1lboy/rove/commit/a7bd9b6b78d42a56afbd39a17864f9f12deb5695) Your other machines now keep up with this one. A registered machine that connects on an older Rove is updated from here on its own, once nothing is running in its Rove; it is never downgraded. Set `"machines.autoUpdate": false` in `state.json` to keep updating by hand with `rove machine update`.
+
+  Updating a machine no longer restarts its Rove when there was nothing newer to install. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2065](https://github.com/Sma1lboy/rove/pull/2065) [`2f82215`](https://github.com/Sma1lboy/rove/commit/2f82215f4c8fd50fade0289383f8b94fb8efbfb5) `next` and `nightly` builds now report their own version. They used to print the previous stable version, which made `rove update --next` fail its install check after a successful install. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2040](https://github.com/Sma1lboy/rove/pull/2040) [`09614c9`](https://github.com/Sma1lboy/rove/commit/09614c9e3500c2a0b8736c5b463024702fda144c) The web Files pane now shows `[ open :PORT ]` for every port where a task's own processes serve a page, so a dev server an agent started opens in the Browser panel with nothing to set up. The `.rove/run.sh` run action (`[ run ]` / `[ stop ]`, with `run.portBase` and `run.portCount`) is removed: start the dev server from the agent or a shell tab instead. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2067](https://github.com/Sma1lboy/rove/pull/2067) [`b12df46`](https://github.com/Sma1lboy/rove/commit/b12df46be4113ced45e7e270215cd511963afb74) Web: the side panel's automatic width is a share of the space beside the task list instead of a fixed size, so unfolding or widening the task list narrows the terminal and the panel together. With three panel columns open the terminal was held at its 320px minimum; it now keeps two fifths of the row. A width you dragged stays as you set it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2049](https://github.com/Sma1lboy/rove/pull/2049) [`791acbc`](https://github.com/Sma1lboy/rove/commit/791acbcce96d00018dcd37898fbd065f9ad90942) In the web client, opening a task from the folded sidebar no longer flashes the previous task's terminal over the sidebar. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2066](https://github.com/Sma1lboy/rove/pull/2066) [`0c86ba9`](https://github.com/Sma1lboy/rove/commit/0c86ba9587404d6f73f0e1805d63a0e61f00be0b) The version picker lists releases again. It had gone empty because it read only the newest 12 entries on the Releases page, and every `next` build now adds one there. The update notes had the same limit at 100 entries and are fixed too. On the `next` channel, the update page now shows what each build changed. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2041](https://github.com/Sma1lboy/rove/pull/2041) [`43ebf45`](https://github.com/Sma1lboy/rove/commit/43ebf4562503fdedb9eda61f342acafa308a6f3b) The toast after archiving a task is now just "Archived <task>". — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2070](https://github.com/Sma1lboy/rove/pull/2070) [`cfbee53`](https://github.com/Sma1lboy/rove/commit/cfbee53cf99c95dc75ca0e4ede5452ff71369f32) Web: switching back to a task no longer shows its terminal blank for a moment. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2069](https://github.com/Sma1lboy/rove/pull/2069) [`3dd876d`](https://github.com/Sma1lboy/rove/commit/3dd876d5260efd11e610576675edae01e5c32a55) Web: a terminal no longer goes blank or shows wrong characters after a long session. Once enough distinct coloured characters had been drawn (pasted images get there fastest), the terminal's renderer began failing on every frame and stopped painting text, and a terminal in the background could come back with other characters in place of its own. Reloading the page was the only way out. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2071](https://github.com/Sma1lboy/rove/pull/2071) [`cee5635`](https://github.com/Sma1lboy/rove/commit/cee56350b2993f93755bf7b63930465e1cfd4383) Web: a terminal that fell behind on output (a burst of output, or the page in a background tab while the agent worked) no longer comes back mostly blank with stray characters. Catching up replaces the screen from a buffer that begins partway through a redraw; the agent is now asked to redraw afterwards, as it already was on reconnect. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2068](https://github.com/Sma1lboy/rove/pull/2068) [`80cda97`](https://github.com/Sma1lboy/rove/commit/80cda975faf4f791b6e5c79b13203de502768216) Web: typing a long phrase with an input method (Chinese pinyin, Japanese) no longer pushes the terminal sideways. Once the uncommitted text ran past the terminal's right edge, the browser scrolled the whole terminal left to follow it, cutting off the start of every line. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2048](https://github.com/Sma1lboy/rove/pull/2048) [`de3ee7a`](https://github.com/Sma1lboy/rove/commit/de3ee7ae8b60d9e00a196f9ae7c0d12c70472fde) Fix web task clicks leaving the Update and Worktrees pages, including clicks on the already selected task. Keep restoring the open page after a reload. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2043](https://github.com/Sma1lboy/rove/pull/2043) [`c1524c8`](https://github.com/Sma1lboy/rove/commit/c1524c86584896cfb86a824c84e4936cbecb9893) Failure toasts now say what failed and why, without the extra clause about what stayed unchanged. Clicking a toast about a task (a finished turn, an answer needed, PR checks landing) opens that task and tab; in the web app those toasts have an Open button. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2035](https://github.com/Sma1lboy/rove/pull/2035) [`14d85da`](https://github.com/Sma1lboy/rove/commit/14d85da443a8ca56b060301770e0163fb3ebd700) fix(web): a repository picked in New session is cloned into `~/.rove/repos/<host>/<owner>/<name>`, not into your home folder. It is the folder `rove api add --clone` uses, and a repository already cloned there is opened instead of cloned again. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2045](https://github.com/Sma1lboy/rove/pull/2045) [`9157c47`](https://github.com/Sma1lboy/rove/commit/9157c4757263f740a4f61188b4f75090272b951a) Web: a folded sidebar opened by hovering the left edge stays open while you move through a right-click menu opened from it, and closes once the menu does. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2037](https://github.com/Sma1lboy/rove/pull/2037) [`80f9fe7`](https://github.com/Sma1lboy/rove/commit/80f9fe7e5939273dd8256a6bd140124dac74ce62) fix(web): Shift+Enter in a web terminal adds a new line to the engine's prompt instead of sending it, as it does in the terminal app.
+
+  Honor the context-usage collector’s configured polling cadence. — [@lincleejun](https://github.com/lincleejun)
+
+- [#2056](https://github.com/Sma1lboy/rove/pull/2056) [`efcefb2`](https://github.com/Sma1lboy/rove/commit/efcefb21e35a10644c8c17a2a24e47c2c64ccd85) Web: a notification toast's `[ Open ]` button stays on the first line at the right edge in monospace, instead of dropping to its own left-aligned line when the title wraps. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.293
 
 ### Patch Changes
