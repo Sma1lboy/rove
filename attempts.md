@@ -455,3 +455,11 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Next:** per-op counts are at floor on every path (switch 6 commits = click, ref detach, echo, mount, resize, acquire; typing 1 of each; idle 0). Further nightly attempts need a new scenario (e.g. an engine tab streaming output, many tasks in the sidebar, a split pane) to expose new counts — owner call whether to extend perf-measure.
 
 **Sandbox:** bun 1.3.14 from npm. `/opt/pw-browsers/chromium_headless_shell-1243` already has `chrome-headless-shell-linux64/`; a dir symlink `/tmp/pwshim/chromium_headless_shell-1243` → it (plus a 1228 alias) was enough. One measure run takes ~75 s.
+
+## 2026-11-14 — notes, no attempt (main 80cda97)
+
+**No regression.** One run, exit 0, nothing past tolerance in either direction, so the baseline is unchanged. Counts held at floor: switch commit.root/workspace 6, sidebar 2, frame 2.4, overlay 3, stateNotify/stateListener 2, spawns 0; typing 1/key everywhere. Timings: boot.firstFrame 533.9, boot.ready 1612, switch.shown 168, typing.echo 136.8, cli-startup 31.8. idle.commit.root/workspace/frame 1 (tolerance 1): a single commit at sec 5 after firstFrame, the late tail of the boot burst described on 11-12 (fast boot.ready pulls it into the window), not a timer — the 5 s pollers would fire twice. No open `perf:` issues.
+
+**No attempt:** every measured per-op count is at its floor (see 11-13), and the one known saving (3× `git rev-parse` per `rove api add`) lies outside every measured phase, so it cannot count under the rules. Same owner call as 11-13: extend perf-measure with a new scenario (streaming engine tab, many sidebar tasks, split pane), and/or make the idle phase wait for 2 s of quiet instead of a fixed 3 s.
+
+**Sandbox:** bun 1.3.14 from npm. The harness asks for headless shell rev 1228; `/opt/pw-browsers/chromium_headless_shell-1243` already contains `chrome-headless-shell-linux64/` (no `chrome-linux/`), so dir symlinks `/tmp/pwshim/chromium_headless_shell-{1228,1243}` → it are all that's needed. The per-file `chrome-linux/*` recipe in the routine prompt does not match this image.
