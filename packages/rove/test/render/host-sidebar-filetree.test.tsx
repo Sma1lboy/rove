@@ -6,7 +6,7 @@
  * real keys — the hint-extinguish contract IS a keypress side effect.
  */
 
-import { afterEach, describe, expect, it } from "bun:test"
+import { describe, expect, it } from "bun:test"
 import { execSync } from "node:child_process"
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
@@ -16,7 +16,7 @@ import { HostFilesPane } from "../../src/tui-react/workspace/host-files-pane"
 import { HostSidebar, type HostSidebarProps } from "../../src/tui-react/workspace/host-sidebar"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
-import { act, renderComponent, settle, waitForFrameText } from "./harness"
+import { act, isolateHome, renderComponent, settle, waitForFrameText } from "./harness"
 
 const NOOP = (): void => {}
 
@@ -78,11 +78,7 @@ function sidebarProps(over: Partial<HostSidebarProps> = {}): HostSidebarProps {
   }
 }
 
-const ORIGINAL_HOME_DIR = process.env.ROVE_HOME_DIR
-afterEach(() => {
-  if (ORIGINAL_HOME_DIR === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
-  else process.env.ROVE_HOME_DIR = ORIGINAL_HOME_DIR
-})
+isolateHome()
 
 function withTempKvHome(): void {
   process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-panes-"))

@@ -282,6 +282,9 @@ export async function renderComponent(ui: ReactNode, options: RenderOptions = {}
   }
 }
 
+// Process-wide fallback home: a file that restores `ROVE_HOME_DIR` restores to this, so a late kv flush never reaches the real `~/.rove`.
+process.env.ROVE_HOME_DIR ??= mkdtempSync(join(tmpdir(), "rove-render-process-home-"))
+
 /** Point `ROVE_HOME_DIR` at a fresh temp dir for this file, restoring it after, so `kv: true` never touches the real `~/.rove`. */
 export function isolateHome(): void {
   const saved = process.env.ROVE_HOME_DIR

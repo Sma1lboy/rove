@@ -21,6 +21,9 @@ import { terminalTabsKey } from "../../src/tui-react/workspace/terminal-tabs-per
 import { tabActivationListeners, tabsByTask, takeTabClose } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import type { TabsState } from "../../src/tui/workspace/terminal-tabs-core"
 import { type TabsSyncDaemon, attachTabsDaemon, flushTabs } from "../tui-react/tabs-sync-daemon"
+import { isolateHome } from "./harness"
+
+isolateHome()
 
 function state(ids: readonly string[], activeId = ids[0] ?? "tab-1"): TabsState {
   return {

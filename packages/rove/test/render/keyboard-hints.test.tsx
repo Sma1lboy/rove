@@ -6,7 +6,7 @@
  * toggle, and the onboarding wizard's "Keyboard basics" page.
  */
 
-import { afterEach, describe, expect, it } from "bun:test"
+import { describe, expect, it } from "bun:test"
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -27,7 +27,14 @@ import { KEY_HINTS_ENABLED_KEY, PANE_HINT_USED_KEYS } from "../../src/tui/lib/ke
 import { resetPrefixState } from "../../src/tui/lib/keymap-dispatch"
 import { PREFIX_GUIDE_DELAY_MS } from "../../src/tui/lib/prefix-hud"
 import { PREFIX_TAP_PRESENTATION_KEY } from "../../src/tui/lib/prefix-tap-presentation"
-import { act, installAdvanceablePrefixHudClock, renderComponent, settle, waitForFrameText } from "./harness"
+import {
+  act,
+  installAdvanceablePrefixHudClock,
+  isolateHome,
+  renderComponent,
+  settle,
+  waitForFrameText,
+} from "./harness"
 
 const NOOP = (): void => {}
 
@@ -122,11 +129,7 @@ function KvSeed(props: { entries: readonly [string, unknown][]; children?: React
   return <>{props.children}</>
 }
 
-const previousHome = process.env.ROVE_HOME_DIR
-afterEach(() => {
-  if (previousHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
-  else process.env.ROVE_HOME_DIR = previousHome
-})
+isolateHome()
 
 function withTempKvHome(): void {
   process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-hints-"))
