@@ -164,7 +164,7 @@ export const TERM_PANE = "relative flex min-w-0 flex-1 flex-col"
 /** The terminal and its overlays; the touch key row and the composer sit under it, outside. */
 export const TERM_BODY = "relative flex min-h-0 min-w-0 flex-1 flex-col"
 /** No padding: the fit addon sizes the grid from this box minus `.xterm`'s padding (tailwind.css), not its own. `term-host` stays for those xterm rules. */
-export const TERM_HOST = "term-host relative min-h-0 min-w-0 flex-1 touch-none overflow-hidden"
+export const TERM_HOST = "term-host relative min-h-0 min-w-0 flex-1 touch-none overflow-clip"
 /** Kitty placeholder images, over xterm's canvas and under its decorations. */
 export const TERM_IMAGES = "pointer-events-none absolute inset-0 z-5 h-full w-full"
 /** The terminal's own box (term-pool.ts); a leaving one is held over its successor until that one has painted. */
