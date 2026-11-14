@@ -341,6 +341,23 @@ describe("fetchReleaseSummaries", () => {
     ])
   })
 
+  it("finds stable releases behind a full page of next builds", async () => {
+    const url = (tag: string) => `https://github.com/Sma1lboy/rove/releases/tag/${tag}`
+    const pages: Record<string, unknown[]> = {
+      "1": Array.from({ length: 100 }, (_, i) => ({ tag_name: `v0.5.24-next.${100 - i}`, html_url: url("next") })),
+      "2": [{ tag_name: "v0.5.23", html_url: url("v0.5.23") }],
+    }
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (request: string) => {
+        const page = new URL(request).searchParams.get("page") ?? ""
+        return new Response(JSON.stringify(pages[page] ?? []), { status: 200 })
+      }),
+    )
+
+    await expect(fetchReleaseSummaries()).resolves.toEqual([{ version: "0.5.23", url: url("v0.5.23") }])
+  })
+
   it("falls back to an empty list on a non-array body and on a network error", async () => {
     vi.stubGlobal(
       "fetch",
@@ -384,6 +401,31 @@ describe("fetchReleaseNotesRange", () => {
       { version: "0.7.12", url: "https://github.com/Sma1lboy/rove/releases/tag/v0.7.12", body: "latest" },
       { version: "0.7.11", url: "https://github.com/Sma1lboy/rove/releases/tag/v0.7.11", body: "middle" },
     ])
+  })
+
+  it("lists a next build's own notes when updating along the next channel, and not for a stable update", async () => {
+    const release = (tag: string) => ({ tag_name: tag, html_url: `https://gh/${tag}`, body: tag })
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        return new Response(
+          JSON.stringify([
+            release("v0.7.12-next.3"),
+            release("v0.7.12-next.2"),
+            release("v0.7.12-next.1"),
+            release("v0.7.11"),
+            release("v0.7.10"),
+          ]),
+          { status: 200 },
+        )
+      }),
+    )
+
+    const versions = async (current: string, latest: string) =>
+      (await fetchReleaseNotesRange({ current, latest })).map((item) => item.version)
+    await expect(versions("0.7.12-next.1", "0.7.12-next.3")).resolves.toEqual(["0.7.12-next.3", "0.7.12-next.2"])
+    await expect(versions("0.7.10", "0.7.12-next.2")).resolves.toEqual(["0.7.12-next.2", "0.7.12-next.1", "0.7.11"])
+    await expect(versions("0.7.10", "0.7.11")).resolves.toEqual(["0.7.11"])
   })
 
   it("reads the Chinese asset in zh, and the English body where a release has none or it fails", async () => {
