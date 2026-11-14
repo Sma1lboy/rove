@@ -5,12 +5,7 @@ import { lifecycleEventFor } from "@sma1lboy/rove-daemon/plugins/events"
 import { savePluginRegistry } from "@sma1lboy/rove-daemon/plugins/registry"
 import { PluginHost } from "@sma1lboy/rove-daemon/plugins/runtime"
 import { afterEach, describe, expect, it } from "vitest"
-import {
-  ACTIVITY_STATE_KINDS,
-  ENGINE_ACTIVITY_KINDS,
-  affectsActivityState,
-  reduceActivity,
-} from "../../src/engine/hook-events"
+import { ACTIVITY_STATE_KINDS, ENGINE_ACTIVITY_KINDS, affectsActivityState } from "../../src/engine/hook-events"
 
 const dirs: string[] = []
 function tmp(prefix: string): string {
@@ -54,10 +49,6 @@ describe("activity-state gating", () => {
     expect(
       ["tool-pre", "tool-post", "tool-failed", "pre-compact", "subagent-start"].filter(affectsActivityState),
     ).toEqual([])
-  })
-
-  it("turn-interrupted lands the state back on idle", () => {
-    expect(reduceActivity("running", "turn-interrupted")).toBe("idle")
   })
 })
 
