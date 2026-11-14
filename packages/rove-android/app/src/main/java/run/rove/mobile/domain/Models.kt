@@ -47,7 +47,10 @@ data class TaskRow(
 /** `unreadable` = tracked, but git failed on the Mac. */
 @Serializable data class TaskChanges(val added: Int? = null, val deleted: Int? = null, val ahead: Int? = null,
                                      val behind: Int? = null, val unreadable: Boolean? = null)
-@Serializable data class Engine(val id: String, val name: String)
+@Serializable data class Engine(val id: String, val name: String, val icon: EngineIcon? = null)
+/** The registry's brand mark (`engines.list`): SVG path data; a path without `fill` takes the client's ink. */
+@Serializable data class EngineIcon(val viewBox: String, val paths: List<EngineIconPath> = emptyList())
+@Serializable data class EngineIconPath(val d: String, val evenodd: Boolean = false, val fill: String? = null)
 /** One attention-inbox item (iOS `AttentionItem`); `at` is ms since epoch. */
 @Serializable data class Attention(val taskId: String? = null, val tabId: String? = null, val state: String = "",
                                    val unread: Boolean = false, val at: Double = 0.0, val resumeAt: String? = null,
