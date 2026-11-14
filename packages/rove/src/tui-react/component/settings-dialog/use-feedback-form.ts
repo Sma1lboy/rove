@@ -1,7 +1,7 @@
 /** The Feedback section's form: draft, status line, and filing it as an issue. */
 
 import { errorMessage } from "@/lib/error-message"
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { failureHint } from "../../../lib/failure-hint"
 import { submitFeedback } from "../../../lib/feedback"
 import { useT } from "../../i18n"
@@ -11,12 +11,20 @@ export function useFeedbackForm(onSent: () => void) {
   const [title, setTitleRaw] = useState("")
   const [body, setBodyRaw] = useState("")
   const [status, setStatus] = useState({ text: "", warn: false })
+  // A second Enter while gh is filing would open a duplicate public issue.
+  const sending = useRef(false)
   const show = (text: string, warn = false) => setStatus({ text, warn })
 
   function send(): void {
+    if (sending.current) return
+    sending.current = true
     show(t("settings.feedback.submitting"))
+    void file()
+  }
+
+  async function file(): Promise<void> {
     try {
-      const result = submitFeedback({ title, body })
+      const result = await submitFeedback({ title, body })
       if (!result.filed) {
         // The draft stays in the form; the prefilled link is the way out.
         show(t("settings.feedback.notFiled", { hint: result.hint, url: result.url }), true)
@@ -28,6 +36,8 @@ export function useFeedbackForm(onSent: () => void) {
       onSent()
     } catch (err) {
       show(t("settings.feedback.error", { message: errorMessage(err), hint: failureHint(err) }), true)
+    } finally {
+      sending.current = false
     }
   }
 

@@ -1,18 +1,17 @@
-import type { spawnSync } from "node:child_process"
 import { describe, expect, it, vi } from "vitest"
 import { environmentBlock, issueCreateArgv, newIssueUrl, submitFeedback } from "../../src/lib/feedback.ts"
 
 const ENV = "---\nReported from Rove:\n- rove: 9.9.9"
-const deps = (spawn: unknown) => ({ spawn: spawn as typeof spawnSync, repoSlug: () => "Sma1lboy/rove", env: () => ENV })
+const ok = (stdout: string) => ({ ok: true, stdout, stderr: "" })
+const deps = (run: ReturnType<typeof vi.fn>) => ({ run, repoSlug: () => "Sma1lboy/rove", env: () => ENV })
 
 describe("submitFeedback", () => {
-  it("runs gh issue create with a kind label, the body on stdin plus the env block, and parses the URL", () => {
-    const spawn = vi.fn().mockReturnValue({
-      status: 0,
-      stdout: "https://github.com/Sma1lboy/rove/issues/42\n",
-      stderr: "",
-    })
-    const result = submitFeedback({ title: " A small idea ", body: "Please add the thing.", kind: "idea" }, deps(spawn))
+  it("runs gh issue create with a kind label, the body on stdin plus the env block, and parses the URL", async () => {
+    const spawn = vi.fn().mockResolvedValue(ok("https://github.com/Sma1lboy/rove/issues/42\n"))
+    const result = await submitFeedback(
+      { title: " A small idea ", body: "Please add the thing.", kind: "idea" },
+      deps(spawn),
+    )
     expect(result).toEqual({ filed: true, url: "https://github.com/Sma1lboy/rove/issues/42", number: 42 })
     expect(spawn).toHaveBeenCalledOnce()
     const [cmd, argv, opts] = spawn.mock.calls[0] as [string, string[], { input: string }]
@@ -32,25 +31,25 @@ describe("submitFeedback", () => {
     expect(opts.input).toBe(`Please add the thing.\n\n${ENV}`)
   })
 
-  it("maps bug and question to their labels and defaults to bug", () => {
+  it("maps bug and question to their labels and defaults to bug", async () => {
     expect(issueCreateArgv("o/r", "t", "bug")).toContain("bug")
     expect(issueCreateArgv("o/r", "t", "question")).toContain("question")
-    const spawn = vi.fn().mockReturnValue({ status: 0, stdout: "https://github.com/o/r/issues/1", stderr: "" })
-    submitFeedback({ title: "t", body: "b" }, deps(spawn))
+    const spawn = vi.fn().mockResolvedValue(ok("https://github.com/o/r/issues/1"))
+    await submitFeedback({ title: "t", body: "b" }, deps(spawn))
     expect((spawn.mock.calls[0]?.[1] as string[]).includes("bug")).toBe(true)
   })
 
   it.each([
-    ["gh is not installed", { error: new Error("spawnSync gh ENOENT"), status: null, stdout: "", stderr: "" }],
+    ["gh is not installed", { ok: false, error: "spawn gh ENOENT", stdout: "", stderr: "" }],
     [
       "gh is not signed in",
-      { status: 4, stdout: "", stderr: "To get started with GitHub CLI, please run: gh auth login" },
+      { ok: false, stdout: "", stderr: "To get started with GitHub CLI, please run: gh auth login" },
     ],
-    ["gh prints no URL", { status: 0, stdout: "", stderr: "" }],
-  ])("returns a prefilled new-issue link when %s", (_why, reply) => {
-    const result = submitFeedback(
+    ["gh prints no URL", ok("")],
+  ])("returns a prefilled new-issue link when %s", async (_why, reply) => {
+    const result = await submitFeedback(
       { title: "Board lags", body: "It lags & stutters", kind: "bug" },
-      deps(vi.fn().mockReturnValue(reply)),
+      deps(vi.fn().mockResolvedValue(reply)),
     )
     expect(result.filed).toBe(false)
     const fallback = result as Extract<typeof result, { filed: false }>
@@ -67,10 +66,10 @@ describe("submitFeedback", () => {
     expect(url.searchParams.get("body")?.length).toBeLessThan(4100)
   })
 
-  it("rejects a blank title or body before spawning anything", () => {
+  it("rejects a blank title or body before spawning anything", async () => {
     const spawn = vi.fn()
-    expect(() => submitFeedback({ title: "  ", body: "B" }, deps(spawn))).toThrow("feedback title is required")
-    expect(() => submitFeedback({ title: "T", body: " " }, deps(spawn))).toThrow("feedback body is required")
+    await expect(submitFeedback({ title: "  ", body: "B" }, deps(spawn))).rejects.toThrow("feedback title is required")
+    await expect(submitFeedback({ title: "T", body: " " }, deps(spawn))).rejects.toThrow("feedback body is required")
     expect(spawn).not.toHaveBeenCalled()
   })
 })
