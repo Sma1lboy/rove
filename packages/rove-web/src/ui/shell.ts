@@ -24,7 +24,7 @@ export const appClass = (o: {
       ? `is-narrow narrow-${o.surface} grid-cols-[minmax(0,1fr)]`
       : o.zen
         ? "grid-cols-[var(--rail-w,minmax(220px,280px))_1fr]"
-        : "grid-cols-[var(--rail-w,minmax(220px,280px))_1fr_var(--panel-w,clamp(300px,28vw,440px))]",
+        : "grid-cols-[var(--rail-w,minmax(220px,280px))_minmax(0,1fr)_minmax(0,var(--panel-w,33%))]",
     o.zen ? "is-zen" : "",
     o.expanded ? "is-panel-expanded" : "",
     o.folded ? "is-rail-folded" : "",

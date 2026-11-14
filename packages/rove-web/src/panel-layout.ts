@@ -48,10 +48,3 @@ export function clampPanelWidth(px: number, railPx: number, viewport = window.in
   const max = Math.max(PANEL_MIN_PX, viewport - railPx - MIN_WORKSPACE_WIDTH * CELL_PX)
   return Math.max(PANEL_MIN_PX, Math.min(max, Math.round(px)))
 }
-
-/** The automatic width when columns share the panel: one column's default width each. null = a single column, which the grid's own default sizes. */
-export function autoPanelWidth(columns: number, railPx: number, viewport = window.innerWidth): number | null {
-  if (columns < 2) return null
-  const one = Math.max(300, Math.min(440, viewport * 0.28))
-  return clampPanelWidth(one * columns, railPx, viewport)
-}

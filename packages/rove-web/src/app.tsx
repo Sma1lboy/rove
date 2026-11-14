@@ -7,13 +7,13 @@ import { DaemonBanner, refreshRove, useDaemonHealth } from "./daemon-health.tsx"
 import { DocumentTitle } from "./document-title.tsx"
 import { useEscapeInterrupt } from "./esc-interrupt.ts"
 import { t, useLocale } from "./i18n/index.ts"
-import { enterWorkspace, narrowPane, surfaceFor, useNarrow } from "./layout.ts"
+import { CELL_PX, MIN_WORKSPACE_WIDTH, enterWorkspace, narrowPane, surfaceFor, useNarrow } from "./layout.ts"
 import { maybeAskLegacyAdopt } from "./legacy-adopt-prompt.tsx"
 import { LoginScreen } from "./login-view.tsx"
 import { passwordLoginOn } from "./login.ts"
 import { type AppModel, selectedRow } from "./model.ts"
 import { Overlays } from "./overlays.tsx"
-import { autoPanelWidth, clampPanelWidth, panelExpanded, panelWidth } from "./panel-layout.ts"
+import { PANEL_MIN_PX, clampPanelWidth, panelExpanded, panelWidth } from "./panel-layout.ts"
 import { usePanelShown, useTaskPanel } from "./panel-state.ts"
 import { usePluginChords } from "./plugin-keys.ts"
 import { PrefixHud } from "./prefix-guide.tsx"
@@ -118,14 +118,19 @@ function Shell({ model }: { model: AppModel }) {
     [model, surface, pageOn, composing],
   )
   const openPx = clampRailWidth(pinned ?? RAIL_DEFAULT_PX)
-  const panelRailPx = folded ? 0 : openPx
-  const panelPx =
-    panelPinned === null ? autoPanelWidth(panelColumns, panelRailPx) : clampPanelWidth(panelPinned, panelRailPx)
+  const panelPx = panelPinned === null ? null : clampPanelWidth(panelPinned, folded ? 0 : openPx)
+  // Unpinned, the panel is a share of what the rail leaves rather than a size of its own, so opening the rail
+  // narrows the browser and the terminal together instead of crushing the terminal. The terminal keeps
+  // `MIN_WORKSPACE_WIDTH` of that row.
+  const share = Math.max(1, panelColumns)
+  const autoW =
+    `max(${PANEL_MIN_PX}px, min(calc((100% - var(--rail-w)) * ${share} / ${share + 2}), ` +
+    `calc(100% - var(--rail-w) - ${MIN_WORKSPACE_WIDTH * CELL_PX}px)))`
   // The open width rides along while folded, so the rail's contents keep it as the column slides shut.
   const railVars = {
     "--rail-w": `${folded ? 0 : openPx}px`,
     "--rail-open-w": `${openPx}px`,
-    "--panel-w": panelPx === null ? undefined : `${panelPx}px`,
+    "--panel-w": panelPx !== null ? `${panelPx}px` : autoW,
   } as CSSProperties
   return (
     <div className={APP_SHELL}>
