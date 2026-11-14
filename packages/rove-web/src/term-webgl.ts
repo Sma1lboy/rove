@@ -33,30 +33,50 @@ function trimCanvasFonts(): void {
   })
 }
 
+/**
+ * addon-webgl 0.19 keeps a cleared page's glyph list and counts texture versions per page. An atlas that is cleared
+ * after each merge grows those lists until a merge can no longer spread one (`RangeError` on every draw: the screen
+ * stops painting), and a terminal sharing the atlas keeps a texture whose version equals that of the page now at its
+ * index (other glyphs, or none). So an atlas is never cleared, it is replaced: `normal` and `400` draw alike and are
+ * different atlases. Every terminal takes the same weight within a frame, so they go on sharing one.
+ */
+let weight: "normal" | "400" = "normal"
+let turned = 0
+function turnAtlas(): void {
+  if (turned) return
+  weight = weight === "normal" ? "400" : "normal"
+  turned = requestAnimationFrame(() => {
+    turned = 0
+  })
+}
+
 /** Load the WebGL renderer on an opened terminal; without WebGL the DOM renderer stays. Dispose after `term.dispose()`. */
 export function loadWebgl(term: Terminal): { dispose(): void } {
   let webgl: WebglAddon | null = null
   let glCanvas: HTMLCanvasElement | null = null
+  // A full atlas merges its pages, and rows drawn from a dropped page are blank or garbled until they change; the
+  // atlas also keeps each glyph as first drawn, before a late font (the symbols face, bold) arrived. Kitty image
+  // placeholders (a distinct glyph per cell) fill it in one paste. The merge's event fires inside a draw, so the
+  // terminal moves to the new atlas on the next frame.
+  let moving = 0
+  const freshAtlas = () => {
+    turnAtlas()
+    if (moving) return
+    moving = requestAnimationFrame(() => {
+      moving = 0
+      term.options.fontWeight = weight
+    })
+  }
   try {
     trimCanvasFonts()
+    term.options.fontWeight = weight
     const before = new Set(term.element?.querySelectorAll("canvas"))
     const addon = new WebglAddon()
     addon.onContextLoss(() => {
       addon.dispose()
       webgl = null
     })
-    // A full atlas merges its pages, and rows drawn from a dropped page are never redrawn: blank or garbled until
-    // they change. Kitty image placeholders (a distinct glyph per cell) fill it in one paste. The event fires mid-merge,
-    // so a refresh then can still draw from the stale page: rebuild the atlas on the next frame instead.
-    let rebuild = 0
-    addon.onRemoveTextureAtlasCanvas(() => {
-      if (rebuild) return
-      rebuild = requestAnimationFrame(() => {
-        rebuild = 0
-        webgl?.clearTextureAtlas()
-        term.refresh(0, term.rows - 1)
-      })
-    })
+    addon.onRemoveTextureAtlasCanvas(freshAtlas)
     term.loadAddon(addon)
     webgl = addon
     glCanvas =
@@ -82,16 +102,11 @@ export function loadWebgl(term: Terminal): { dispose(): void } {
       // Without the device-pixel box the addon never re-sizes its canvas after a render.
     }
   }
-  // The atlas keeps each glyph as first drawn: redraw once a late font (the symbols face, bold) arrives.
-  const onFontLoaded = () => {
-    if (!webgl) return
-    webgl.clearTextureAtlas()
-    term.refresh(0, term.rows - 1)
-  }
-  document.fonts.addEventListener("loadingdone", onFontLoaded)
+  document.fonts.addEventListener("loadingdone", freshAtlas)
   return {
     dispose() {
-      document.fonts.removeEventListener("loadingdone", onFontLoaded)
+      document.fonts.removeEventListener("loadingdone", freshAtlas)
+      if (moving) cancelAnimationFrame(moving)
       repaint.disconnect()
       // A disposed renderer keeps its context until GC; past ~16 the browser kills the oldest, maybe a parked one's.
       glCanvas?.getContext("webgl2")?.getExtension("WEBGL_lose_context")?.loseContext()
