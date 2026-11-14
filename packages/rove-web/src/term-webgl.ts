@@ -104,15 +104,22 @@ export function loadWebgl(term: Terminal): { dispose(): void } {
   // The atlas keeps each glyph as first drawn: redraw once a late font (the symbols face, bold) arrives. Moving to a
   // new atlas here blanks a terminal for two frames on a task switch, whose views load fonts; a font arrives a few
   // times a page, so the clear's growth stays small.
-  const onFontLoaded = () => {
+  const redraw = () => {
     if (!webgl) return
     webgl.clearTextureAtlas()
     term.refresh(0, term.rows - 1)
   }
-  document.fonts.addEventListener("loadingdone", onFontLoaded)
+  document.fonts.addEventListener("loadingdone", redraw)
+  // A hidden tab can lose its canvas or atlas texture to GPU memory pressure with the context still alive, and
+  // xterm redraws nothing that did not change: rebuild both when the tab is shown again.
+  const onShown = () => {
+    if (document.visibilityState === "visible") redraw()
+  }
+  document.addEventListener("visibilitychange", onShown)
   return {
     dispose() {
-      document.fonts.removeEventListener("loadingdone", onFontLoaded)
+      document.fonts.removeEventListener("loadingdone", redraw)
+      document.removeEventListener("visibilitychange", onShown)
       if (moving) cancelAnimationFrame(moving)
       repaint.disconnect()
       // A disposed renderer keeps its context until GC; past ~16 the browser kills the oldest, maybe a parked one's.
