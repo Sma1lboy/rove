@@ -11,6 +11,8 @@ import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { roveApiInvocation } from "../../engine/interactive-command.ts"
 import { taskCwd } from "../../orchestrator/task-tree.ts"
+import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
+import { isRemoteRepoKey } from "../../state/remote-repos.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { activityView, readActivityRegistry } from "./activity-view.ts"
@@ -99,6 +101,14 @@ async function resolveSendTask(
   return { taskId: active, tab }
 }
 
+/** A project's main row is no standing conversation: with no tab open, a send to it starts a session of its own in that checkout. */
+async function idleProjectRow(ctx: VerbContext, task: SerializedTask): Promise<boolean> {
+  if (task.kind !== "main" || isRemoteRepoKey(task.repo)) return false
+  const { tabs, running } = await ctx.runtime.taskTabs(task.id, taskEngineArgv(task))
+  // No pty host to ask is not "nothing open".
+  return running !== null && !tabs.some((row) => row.alive)
+}
+
 /** Taking back a dead-tab replacement whose handoff did not complete (`handoff-replace.ts`). */
 interface ReplaceRollback {
   undo?: () => Promise<void>
@@ -167,9 +177,17 @@ async function sendNow(ctx: VerbContext, rollback: ReplaceRollback): Promise<unk
     )
   }
   const sendTo = await resolveSendTask(ctx, daemon, tab)
-  const taskId = sendTo.taskId
+  let taskId = sendTo.taskId
   tab = sendTo.tab
-  const res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+  let res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+  const viaProject = tab === undefined && (await idleProjectRow(ctx, res.task)) ? taskId : undefined
+  if (viaProject) {
+    res = await daemon.request<{ task: SerializedTask }>("task.openDir", {
+      dir: res.task.worktreePath,
+      title: deriveTitleFromPrompt(prompt),
+    })
+    taskId = res.task.id
+  }
   if (replace && tab) prompt = [await handoffBrief(ctx, res.task, tab, "send"), prompt].filter(Boolean).join("\n\n")
   // Before ANY delivery path (--plain included: a verbatim false claim is the
   // same false claim) — a refused report must never reach the coordinator.
@@ -285,6 +303,8 @@ async function sendNow(ctx: VerbContext, rollback: ReplaceRollback): Promise<unk
   return {
     ok: true,
     taskId,
+    // The project row addressed had no conversation open, so this prompt started its own session.
+    ...(viaProject ? { newSession: true, viaProject } : {}),
     ...(replacedTab ? { replacedTab } : {}),
     session: delivered.session,
     ...(deliveryId ? { deliveryId } : {}),
