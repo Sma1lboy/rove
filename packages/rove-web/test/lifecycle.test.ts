@@ -1,5 +1,6 @@
 import { afterEach, expect, mock, spyOn, test } from "bun:test"
 import { BridgeClient } from "../src/bridge.ts"
+import * as i18n from "../src/i18n/index.ts"
 import { AppModel } from "../src/model.ts"
 import { createStore } from "../src/store.ts"
 
@@ -50,7 +51,10 @@ mock.module("@xterm/addon-fit", () => ({ FitAddon: Addon }))
 mock.module("@xterm/addon-unicode11", () => ({ Unicode11Addon: Addon }))
 mock.module("@xterm/addon-web-links", () => ({ WebLinksAddon: Addon }))
 mock.module("@xterm/addon-webgl", () => ({ WebglAddon: Addon }))
+// Bun's module mocks outlive this file, so keep the real catalogs for files that load i18n after it.
+const realI18n = { ...i18n }
 mock.module("../src/i18n/index.ts", () => ({
+  ...realI18n,
   t: (key: string) => key,
   tFrom: (_catalogs: unknown, key: string) => key,
   useLocale() {},
