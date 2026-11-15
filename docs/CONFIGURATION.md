@@ -364,6 +364,20 @@ All default to on.
 Error toasts always show, even with toasts off. See
 [Notifications](#notifications-and-sound) for how they're delivered.
 
+### Pull requests
+
+| Key | Type | What it does |
+|---|---|---|
+| `pr.refreshSeconds` | integer | How often an open PR's status and checks are re-read in the background, 30-3600 (default 30). `0` stops background refresh |
+
+Each refresh is one `gh` call per task with an open PR, so a slower cadence
+saves GitHub API quota when many tasks have PRs. Merged, closed and missing
+PRs keep their own slower cadence. With `0`, PR marks keep their last
+reading, and anything waiting on CI (checks-resolved toasts, CI auto-fix)
+waits until refresh is back on. No Settings row: set it with `rove config`.
+The daemon rereads it within 30 seconds, no restart; any other value falls
+back to the default.
+
 ### Zen mode
 
 Zen hides the Files pane so the active workspace gets the freed width. The

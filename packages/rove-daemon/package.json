@@ -81,6 +81,7 @@
     "./daemon/pr-review-comments": "./src/daemon/pr-review-comments.ts",
     "./daemon/pr-rerun-checks": "./src/daemon/pr-rerun-checks.ts",
     "./daemon/pr-status-collector": "./src/daemon/pr-status-collector.ts",
+    "./daemon/pr-refresh-setting": "./src/daemon/pr-refresh-setting.ts",
     "./daemon/session-prs": "./src/daemon/session-prs.ts",
     "./daemon/stop-reason": "./src/daemon/stop-reason.ts",
     "./daemon/process-tree": "./src/daemon/process-tree.ts",
