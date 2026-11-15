@@ -7,7 +7,7 @@
 import { NARROW_BREAKPOINT, narrowSurface } from "@sma1lboy/rove/src/tui-react/lib/narrow-mode.ts"
 import { useSyncExternalStore } from "react"
 import { createStore } from "./store.ts"
-import { type PageId, compareGroup, page } from "./ui.ts"
+import { type PageId, compareGroup, page, sessionsRepo } from "./ui.ts"
 
 /** The page's 12px monospace cell, roughly; the TUI's cell budgets are scaled by it. */
 export const CELL_PX = 8
@@ -29,6 +29,11 @@ export function openPage(id: PageId): void {
 export function openCompare(groupId: string): void {
   compareGroup.set(groupId)
   openPage("compare")
+}
+/** The Sessions page on one project (`""` = all): its live and archived sessions. Opens from a project header's menu. */
+export function openSessions(repo: string): void {
+  sessionsRepo.set(repo)
+  openPage("sessions")
 }
 
 let narrowQuery: MediaQueryList | undefined

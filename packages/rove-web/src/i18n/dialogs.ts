@@ -49,6 +49,7 @@ export const en = {
     land: "Land into base branch",
     delete: "Delete",
     removeSession: "Remove session",
+    viewSessions: "View all sessions",
     more: "More",
     copied: "copied {text}",
     copyFailed: "the browser refused the clipboard",
@@ -152,6 +153,15 @@ export const en = {
     branchTypeRef: "Type a branch or ref to start from",
     branchRemoteDefault: "Its current branch",
   },
+  sessions: {
+    title: "Sessions",
+    active: "Active",
+    archived: "Archived",
+    allProjects: "all projects",
+    emptyActive: "No sessions here. Start one from New task.",
+    emptyArchived: "Nothing archived here. Archive a session from its row menu.",
+    keys: "tab project · a archived · enter open · q close",
+  },
   search: {
     tasks: "Tasks",
     /** A matched task that is archived; picking it unarchives it. {repo} is its project */
@@ -233,6 +243,7 @@ export const zh: typeof en = {
     land: "合入基础分支",
     delete: "删除",
     removeSession: "移除会话",
+    viewSessions: "查看全部会话",
     more: "更多",
     copied: "已复制 {text}",
     copyFailed: "浏览器拒绝了剪贴板访问",
@@ -335,6 +346,15 @@ export const zh: typeof en = {
     remoteLoading: "正在读取 {machine} 上的项目…",
     branchTypeRef: "输入要基于的分支或 ref",
     branchRemoteDefault: "它当前的分支",
+  },
+  sessions: {
+    title: "会话",
+    active: "进行中",
+    archived: "已归档",
+    allProjects: "全部项目",
+    emptyActive: "这里还没有会话。从「新建任务」开始一个。",
+    emptyArchived: "这里没有已归档的会话。在会话的右键菜单里归档。",
+    keys: "tab 切换项目 · a 已归档 · enter 打开 · q 关闭",
   },
   search: {
     tasks: "任务",

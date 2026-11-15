@@ -104,7 +104,17 @@ export interface Preview {
   readonly file?: true
 }
 
-const PAGE_IDS = ["worktrees", "update", "kanban", "routines", "issues", "mods", "compare", "usage"] as const
+const PAGE_IDS = [
+  "worktrees",
+  "update",
+  "kanban",
+  "routines",
+  "issues",
+  "mods",
+  "compare",
+  "usage",
+  "sessions",
+] as const
 export type PageId = (typeof PAGE_IDS)[number]
 
 /** A store a reload of this browser tab comes back to (`sessionStorage`); blocked storage or a corrupt entry starts empty. */
@@ -130,6 +140,10 @@ export const page = keptAcrossReload<PageId>("rove.web.page", (raw) => PAGE_IDS.
 export const routineFocus = createStore<string | null>(null)
 /** The parallel round (`groupId`) the Compare page shows; kept with the page, which is empty without it. */
 export const compareGroup = keptAcrossReload<string>("rove.web.compareGroup", (raw) =>
+  typeof raw === "string" ? raw : null,
+)
+/** The project the Sessions page lists; `""` = every project. Kept with the page. */
+export const sessionsRepo = keptAcrossReload<string>("rove.web.sessionsRepo", (raw) =>
   typeof raw === "string" ? raw : null,
 )
 /** The terminal stream this page has attached (`task::tab`); Files `a` pastes into it. */
