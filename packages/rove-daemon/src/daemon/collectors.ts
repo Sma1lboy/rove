@@ -27,6 +27,7 @@ import {
   defaultKeybindingsPath,
   startKeybindingsWatcher,
 } from "./keybindings-watcher.ts"
+import { makePrRefreshReader } from "./pr-refresh-setting.ts"
 import { DEFAULT_PR_STATUS_POLL_MS, startPrStatusPoller } from "./pr-status-collector.ts"
 import type { PtyOwnerResolver } from "./pty-exit-watch.ts"
 import { DEFAULT_QUOTA_RESUME_TICK_MS, startQuotaResumeRunner } from "./quota-resume.ts"
@@ -309,6 +310,8 @@ export function startDaemonCollectors(
     undefined,
     // An opted-in task with an open PR is watched too: CI turning red overnight is what it waits for.
     () => needsPrPoll(orch.listTasks()) || (activity?.workingTaskIds().length ?? 0) > 0,
+    undefined,
+    makePrRefreshReader(),
   )
 
   // Ungated: its job is resuming rate-limited engines while nobody is attached.
