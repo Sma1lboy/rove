@@ -20,6 +20,8 @@ import {
   rowAt,
   sectionRows,
 } from "../../../tui/component/settings-dialog/model"
+import { settingsSearchIndex } from "../../../tui/component/settings-dialog/search"
+import { tKeys } from "../../../tui/i18n"
 import { toggleKeyHints } from "../../../tui/lib/keyboard-hints"
 import { LOCALE_KEY } from "../../../tui/lib/persisted-ui-prefs"
 import type { VendorId } from "../../../types/task"
@@ -46,6 +48,7 @@ import { KeybindingsSettingsSection } from "./sections-keybindings"
 import { MarketplaceSettingsSection } from "./sections-marketplace"
 import { DevSettingsSection, FeedbackSettingsSection } from "./sections-misc"
 import { PluginSettingsSection } from "./sections-plugins"
+import { SettingsSearchView, useSettingsSearch } from "./settings-search"
 import { useAppearanceSettings } from "./use-appearance-settings"
 import { useAutoRoutingSettings } from "./use-auto-routing-settings"
 import { useClassifierSettings } from "./use-classifier-settings"
@@ -53,6 +56,7 @@ import { useEngineSettings } from "./use-engine-settings"
 import { useFeedbackForm } from "./use-feedback-form"
 import { useKeybindingEditor } from "./use-keybinding-editor"
 import { useAccountProbes, useEngineIntegrations, useMarketplace, usePluginSettings } from "./use-section-data"
+import { useSettingsNavKeys } from "./use-settings-nav-keys"
 import { useSettingsPrefs } from "./use-settings-prefs"
 import { useUpdateCheck } from "./use-update-check"
 
@@ -256,83 +260,38 @@ export function SettingsDialog(props: SettingsDialogProps) {
     return row?.kind === "keybinding" ? row.bindingId : null
   }
 
+  const search = useSettingsSearch({
+    enabled: dialog.stack.length === 0 && !editingFeedback && !keyEditor.recording,
+    index: () =>
+      settingsSearchIndex(
+        { engineList: engines.engineList(), plugins: [], marketplace: [], hasDaemon },
+        { t, bindingLabel: (id) => tKeys("desc", id), engineName: engines.engineName },
+      ),
+    jump: (hit) => {
+      switchSection(hit.section)
+      setLevel("body")
+      setBodyRow(hit.index)
+    },
+  })
+
   function activateBodyRow(): void {
     const row = rowAt(bodyRows(), bodyRow)
     if (!row) return
     ;(rowActivators[row.kind] as (row: SettingsRow) => void)(row)
   }
 
-  useBindings(() => ({
-    // Suspend our navigation keys while a sub-dialog (the engine-command /
-    // custom-editor text input) is open so `l`/`j`/`k`/`h` reach the input
-    // instead of being eaten here.
-    enabled: dialog.stack.length === 0 && !editingFeedback,
-    bindings: [
-      { key: "down", cmd: () => moveCursor(1) },
-      { key: "up", cmd: () => moveCursor(-1) },
-      { key: "j", cmd: () => moveCursor(1) },
-      { key: "k", cmd: () => moveCursor(-1) },
-      { key: "tab", cmd: () => moveCursor(1) },
-      { key: "right", cmd: enterBody },
-      { key: "l", cmd: enterBody },
-      { key: "left", cmd: () => setLevel("sidebar") },
-      { key: "h", cmd: () => setLevel("sidebar") },
-      {
-        key: "return",
-        cmd: () => {
-          if (level === "sidebar") {
-            enterBody()
-            return
-          }
-          activateBodyRow()
-        },
-      },
-      {
-        // Engines section only: `r` renames the focused engine's display
-        // label, `x` resets a built-in (or removes a custom) engine.
-        key: "r",
-        cmd: () => {
-          const v = currentEngineRow()
-          if (v) void engines.renameEngine(v)
-        },
-      },
-      {
-        key: "x",
-        cmd: () => {
-          const v = currentEngineRow()
-          if (v) engines.resetEngine(v)
-          const id = currentKeyRow()
-          if (id) keyEditor.unbind(id)
-        },
-      },
-      {
-        // Keybindings section: `x` above unbinds the focused binding, `backspace` restores its default.
-        key: "backspace",
-        cmd: () => {
-          const id = currentKeyRow()
-          if (id) keyEditor.reset(id)
-        },
-      },
-      {
-        // Engines section: `d` sets the focused engine as the global default.
-        key: "d",
-        cmd: () => {
-          const v = currentEngineRow()
-          if (v) engines.chooseDefaultEngine(v)
-        },
-      },
-      {
-        // Engines section: `space` switches the focused engine on or off.
-        // PROPOSED chord — surfaced for sign-off, see docs/KEYBINDINGS.md.
-        key: "space",
-        cmd: () => {
-          const v = currentEngineRow()
-          if (v) engines.toggleEngineEnabled(v)
-        },
-      },
-    ],
-  }))
-
+  useSettingsNavKeys({
+    enabled: dialog.stack.length === 0 && !editingFeedback && !search.active,
+    level: () => level,
+    setLevel,
+    move: moveCursor,
+    enterBody,
+    activate: activateBodyRow,
+    engineRow: currentEngineRow,
+    keyRow: currentKeyRow,
+    engines,
+    keyEditor,
+  })
   // Feedback-form navigation, live only while that form holds focus —
   // Tab/Shift+Tab step the fields so typed letters reach the inputs.
   useBindings(() => ({
@@ -349,7 +308,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
   // Close keys live here because only this page knows a text field has focus:
   // while one does, `q` is a letter, so only escape and ctrl+c close.
   useBindings(() => ({
-    enabled: dialog.stack.length === 0,
+    enabled: dialog.stack.length === 0 && !search.active,
     bindings: pageCloseBindings(props.onClose).filter((b) => !editingFeedback || b.key !== "q"),
   }))
 
@@ -470,7 +429,13 @@ export function SettingsDialog(props: SettingsDialogProps) {
 
   return (
     <box flexDirection="column" flexGrow={1}>
+      {search.active ? (
+        <box flexGrow={1} flexShrink={1} paddingLeft={padX} paddingRight={padX} paddingBottom={1}>
+          <SettingsSearchView search={search} />
+        </box>
+      ) : null}
       <scrollbox
+        visible={!search.active}
         ref={follow.scrollRef}
         flexGrow={1}
         flexShrink={1}
@@ -482,7 +447,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
       {/* Floating footer: the page content scrolls, this line does not —
           the nav hint is exactly what you want when a long section has
           scrolled its own header out of sight. */}
-      <box paddingLeft={padX} paddingRight={padX}>
+      <box paddingLeft={padX} paddingRight={padX} visible={!search.active}>
         {navHint}
       </box>
     </box>

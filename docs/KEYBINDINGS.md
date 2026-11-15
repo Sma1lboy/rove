@@ -362,6 +362,7 @@ active only while the page has focus.
 | GitHub Issues | `j`/`k` select; `tab` changes repo; `a` toggles "assigned to me"; `r` refreshes; `enter` starts a Task |
 | Worktrees | `j`/`k` or arrows select; `l` lands; `d` starts removal; see [Managing worktrees](WORKTREES.md) |
 | Update | `j`/`k` selects an action; `u` updates; `r` opens the release page; `enter` runs the selected action |
+| Settings | `/` searches every section (PROPOSED); `↑`/`↓` pick a result, `enter` jumps to that row, `esc` leaves the search |
 | Settings → Engines | `j`/`k` move; `space` switches the focused engine on or off; `r` renames its display label; `d` makes it the global default; `x` resets a built-in engine (or removes a custom one) |
 | Settings → Keybindings | `j`/`k` move; `enter` records a new key for the focused binding (`esc` cancels); `backspace` restores its default; `x` unbinds it |
 
