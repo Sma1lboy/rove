@@ -142,6 +142,7 @@ describe("treeMenuItems", () => {
       "copyPath",
       "openEditor",
       "changeEngine",
+      "archive",
       "delete",
     ])
   })
