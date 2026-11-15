@@ -58,13 +58,23 @@ export function loadWebgl(term: Terminal): { dispose(): void } {
   // Kitty image placeholders (a distinct glyph per cell) fill it in one paste. The merge's event fires inside a draw,
   // so the terminal moves to the new atlas on the next frame.
   let moving = 0
-  const freshAtlas = () => {
-    turnAtlas()
+  const move = () => {
     if (moving) return
     moving = requestAnimationFrame(() => {
       moving = 0
       term.options.fontWeight = weight
     })
+  }
+  const freshAtlas = () => {
+    turnAtlas()
+    move()
+  }
+  // A GPU reset empties the atlas's page canvases while its glyph cache still lists them, and the addon rebuilds
+  // an atlas only when one terminal owns it: sharers re-upload the empty pages, so every glyph drawn before the
+  // reset is blank. Contexts come back frames apart, so each terminal leaves the atlas it was on, not `turnAtlas`.
+  const onRestored = () => {
+    weight = term.options.fontWeight === "normal" ? "400" : "normal"
+    move()
   }
   try {
     trimCanvasFonts()
@@ -94,6 +104,7 @@ export function loadWebgl(term: Terminal): { dispose(): void } {
       renderer._renderRows(0, term.rows - 1)
     }
   })
+  glCanvas?.addEventListener("webglcontextrestored", onRestored)
   if (glCanvas) {
     try {
       repaint.observe(glCanvas, { box: "device-pixel-content-box" })
@@ -120,6 +131,7 @@ export function loadWebgl(term: Terminal): { dispose(): void } {
     dispose() {
       document.fonts.removeEventListener("loadingdone", redraw)
       document.removeEventListener("visibilitychange", onShown)
+      glCanvas?.removeEventListener("webglcontextrestored", onRestored)
       if (moving) cancelAnimationFrame(moving)
       repaint.disconnect()
       // A disposed renderer keeps its context until GC; past ~16 the browser kills the oldest, maybe a parked one's.
