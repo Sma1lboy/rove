@@ -2140,7 +2140,9 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   `running` or `permission_needed`; `--force` stops it and archives anyway. A project's `main` session can be archived like any other; opening the
   project again restores it. The sidebar and the rail do not list
   archived tasks. To bring one back from the interface, open the command
-  palette (`ctrl+a` `/`), type its title and pick it. A project whose other
+  palette (`ctrl+a` `/`), type its title and pick it; the web client also
+  lists them per project on its Sessions page (a project header's menu,
+  View all sessions). A project whose other
   tasks are all archived is hidden like any idle project.
 
 ## worktree
