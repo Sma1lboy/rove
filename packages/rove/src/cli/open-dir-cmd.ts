@@ -71,8 +71,12 @@ export async function runOpenDirectory(arg: string): Promise<void> {
     daemon: async (client) => {
       let taskId: string
       if (projectRoot) {
-        const res = await client.request<{ task: { id: string } }>("task.ensureMain", { repo: projectRoot })
+        const res = await client.request<{ task: { id: string; archived?: boolean } }>("task.ensureMain", {
+          repo: projectRoot,
+        })
         taskId = res.task.id
+        // An archived main session comes back when its project is opened.
+        if (res.task.archived) await client.request("task.archive", { taskId, archived: false })
       } else {
         taskId = (await client.request<{ taskId: string }>("task.openDir", { dir })).taskId
       }
@@ -80,6 +84,7 @@ export async function runOpenDirectory(arg: string): Promise<void> {
     },
     local: async (orch) => {
       const task = projectRoot ? await orch.ensureMainTask(projectRoot) : await orch.openDirectoryTask({ dir })
+      if (task.archived) await orch.setArchived(task.id, false)
       const { writeLastActiveTaskId } = await import("../state/last-active.ts")
       writeLastActiveTaskId(String(task.id))
     },

@@ -133,6 +133,9 @@ export async function createTaskFlow(ctx: CreateTaskContext, seed?: CreateTaskSe
   if (result.mode === "open") {
     try {
       const main = await orch.ensureMainTask(repo)
+      // An archived main session comes back when its project is opened.
+      if (main.archived)
+        await ("archiveTask" in orch ? orch.archiveTask(main.id, false) : orch.setArchived(main.id, false))
       await ctx.reload?.()
       ctx.selectTask?.(main.id)
       await ctx.enterTask?.(main.id)

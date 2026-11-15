@@ -181,7 +181,7 @@ rove api land --task-id a              # merge the winning branch
   verbatim) so a caller can self-heal without parsing prose.
   A refusal the daemon raises keeps its own machine code — `DIRTY_WORKTREE`,
   `LAND_CONFLICT`, `MISSING_REF`, `ISSUE_NOT_FOUND`, `TASK_DELETING`,
-  `TASK_BUSY`, `MAIN_TASK`, `GIT_COMMAND_FAILED`, `BAD_EVENT_KIND`, the
+  `TASK_BUSY`, `GIT_COMMAND_FAILED`, `BAD_EVENT_KIND`, the
   `EMPTY_BRANCH` pair — in
   `code`, not in the prose. `RPC_ERROR` now means what it says: the daemon
   failed without naming a reason. Never match on `message`; it is written for
@@ -2137,8 +2137,8 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   is every task they changed. A child unarchived on its own while its parent
   stays archived shows as a top-level row until the parent comes back.
   `archive` is refused with `TASK_BUSY` while an engine in the subtree is
-  `running` or `permission_needed`; `--force` stops it and archives anyway. A project's `main` task cannot be archived (`MAIN_TASK`), because
-  it is the project row itself. The sidebar and the rail do not list
+  `running` or `permission_needed`; `--force` stops it and archives anyway. A project's `main` session can be archived like any other; opening the
+  project again restores it. The sidebar and the rail do not list
   archived tasks. To bring one back from the interface, open the command
   palette (`ctrl+a` `/`), type its title and pick it. A project whose other
   tasks are all archived is hidden like any idle project.

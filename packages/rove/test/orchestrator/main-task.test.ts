@@ -147,6 +147,16 @@ describe("ensureMainTask", () => {
     expect(second.id).toBe(first.id)
     expect(orch.listTasks().filter((t) => t.kind === "main")).toHaveLength(1)
   })
+
+  test("a project's main session can be archived; the project keeps that one main row", async () => {
+    const main = await orch.ensureMainTask(repo)
+    await orch.setArchived(main.id, true)
+
+    const again = await orch.ensureMainTask(repo)
+
+    expect(again).toMatchObject({ id: main.id, archived: true })
+    expect(orch.listTasks().filter((t) => t.kind === "main")).toHaveLength(1)
+  })
 })
 
 describe("forgetProject", () => {

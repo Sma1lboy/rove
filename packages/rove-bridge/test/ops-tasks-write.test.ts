@@ -346,19 +346,19 @@ describe("task.archive", () => {
     expect(restored.calls.at(-1)).toEqual({ verb: "unarchive", argv: [`--task-id=${T}`] })
   })
 
-  test.each([
-    ["TASK_BUSY: an engine is still working or waiting on you in t1", "TASK_BUSY"],
-    ["MAIN_TASK: a project's main checkout cannot be archived", "MAIN_TASK"],
-  ])("the daemon's %p refusal reaches the page as stable code %s, prefix stripped", async (message, code) => {
-    const client = {
-      request: async () => {
-        throw new Error(message)
-      },
-    } as unknown as RoveDaemonClient
-    await expect(
-      TASK_OPS["task.archive"]?.run({ taskId: T, archived: true }, { api: createBridgeApi(client) }),
-    ).rejects.toMatchObject({ name: "BridgeError", code, message: message.slice(code.length + 2) })
-  })
+  test.each([["TASK_BUSY: an engine is still working or waiting on you in t1", "TASK_BUSY"]])(
+    "the daemon's %p refusal reaches the page as stable code %s, prefix stripped",
+    async (message, code) => {
+      const client = {
+        request: async () => {
+          throw new Error(message)
+        },
+      } as unknown as RoveDaemonClient
+      await expect(
+        TASK_OPS["task.archive"]?.run({ taskId: T, archived: true }, { api: createBridgeApi(client) }),
+      ).rejects.toMatchObject({ name: "BridgeError", code, message: message.slice(code.length + 2) })
+    },
+  )
 
   test("bad args are refused", async () => {
     await refused("task.archive", { taskId: T })

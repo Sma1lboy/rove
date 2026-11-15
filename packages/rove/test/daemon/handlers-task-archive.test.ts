@@ -1,8 +1,7 @@
 /**
  * `task.archive`: hide or restore a task together with its descendants.
- * Archiving ends the subtree's sessions; the guards are the busy refusal (a
- * row that still needs eyes must not be stopped by accident) and the
- * project's `main` checkout, which is the project row itself.
+ * Archiving ends the subtree's sessions; the one guard is the busy refusal (a
+ * row that still needs eyes must not be stopped by accident).
  */
 
 import { describe, expect, it } from "vitest"
@@ -93,9 +92,10 @@ describe("task.archive", () => {
     expect(restore.calls).toHaveLength(3)
   })
 
-  it("refuses a project's main checkout and an unknown task", async () => {
+  it("archives a project's main session like any other and refuses an unknown task", async () => {
+    const main = archiveCtx()
+    expect(await dispatch("task.archive", { taskId: "m", archived: true }, main.ctx)).toEqual({ archived: ["m"] })
     const { ctx, calls } = archiveCtx()
-    await expect(dispatch("task.archive", { taskId: "m", archived: true }, ctx)).rejects.toThrow(/^MAIN_TASK: /)
     await expect(dispatch("task.archive", { taskId: "nope", archived: true }, ctx)).rejects.toThrow(
       "task not found: nope",
     )

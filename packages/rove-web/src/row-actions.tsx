@@ -407,14 +407,12 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
   })
   items.push({ label: t("menu.copy"), section: "copy", children: copies })
 
-  // Hides the row and its children, stopping nothing; a project's main is the project itself.
-  if (task.kind !== "main") {
-    items.push({
-      label: tc("tasks", task.archived ? "menu.unarchive" : "menu.archive"),
-      section: "danger",
-      run: () => void archiveFlow(model, task),
-    })
-  }
+  // Hides the row and its children; opening the project again brings an archived main back.
+  items.push({
+    label: tc("tasks", task.archived ? "menu.unarchive" : "menu.archive"),
+    section: "danger",
+    run: () => void archiveFlow(model, task),
+  })
   items.push({
     // Say what goes: a conversation (in a folder, or a project's main) or a task with its worktree.
     label: t("menu.removeSession"),
