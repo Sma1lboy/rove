@@ -87,6 +87,28 @@ describe("send refuses an empty-branch success report", () => {
     expect(calls).toHaveLength(0)
   })
 
+  it("a refusal aimed at an idle project row opens no new session there", async () => {
+    const client = new FakeClient({
+      "task.get": (payload) => {
+        const { taskId } = payload as { taskId: string }
+        if (taskId === "worker-1") return { task: taskFixture({ id: "worker-1", branch: "fix/thing", kind: "task" }) }
+        return { task: taskFixture({ id: taskId, kind: "main", branch: "" }) }
+      },
+      "task.openDir": () => ({ task: taskFixture({ id: "fresh", kind: "dir" }) }),
+    })
+    const { calls, deliver } = recordingDelivery()
+    await expectApiError(
+      () =>
+        invokeVerb("send", ["--task-id", "coord-1", "--prompt", "succeeded: done"], {
+          client,
+          runtime: stubRuntime({ deliverPrompt: deliver, ...emptyBranch }),
+        }),
+      "EMPTY_SUCCESS_REPORT",
+    )
+    expect(client.requests.map((request) => request.name)).not.toContain("task.openDir")
+    expect(calls).toHaveLength(0)
+  })
+
   it("hands back an executable recovery path naming the escape hatch", async () => {
     const { deliver } = recordingDelivery()
     try {

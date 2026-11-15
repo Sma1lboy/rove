@@ -180,6 +180,11 @@ async function sendNow(ctx: VerbContext, rollback: ReplaceRollback): Promise<unk
   let taskId = sendTo.taskId
   tab = sendTo.tab
   let res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+  if (replace && tab) prompt = [await handoffBrief(ctx, res.task, tab, "send"), prompt].filter(Boolean).join("\n\n")
+  // Before ANY delivery path (--plain included: a verbatim false claim is the
+  // same false claim) — a refused report must never reach the coordinator.
+  await assertNotEmptySuccess(daemon, ctx, prompt)
+  // Only after every refusal above: a refused send must not leave a new session row behind.
   const viaProject = tab === undefined && (await idleProjectRow(ctx, res.task)) ? taskId : undefined
   if (viaProject) {
     res = await daemon.request<{ task: SerializedTask }>("task.openDir", {
@@ -188,10 +193,6 @@ async function sendNow(ctx: VerbContext, rollback: ReplaceRollback): Promise<unk
     })
     taskId = res.task.id
   }
-  if (replace && tab) prompt = [await handoffBrief(ctx, res.task, tab, "send"), prompt].filter(Boolean).join("\n\n")
-  // Before ANY delivery path (--plain included: a verbatim false claim is the
-  // same false claim) — a refused report must never reach the coordinator.
-  await assertNotEmptySuccess(daemon, ctx, prompt)
   let replacedTab: string | undefined
   if (replace && tab) {
     // A dead tab's slot is the new engine's: same task and tab, no child (docs/SESSIONS.md).
