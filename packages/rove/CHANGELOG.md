@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.9.295
+
+### Patch Changes
+
+- [#2080](https://github.com/Sma1lboy/rove/pull/2080) [`605a1d3`](https://github.com/Sma1lboy/rove/commit/605a1d363d453fc9500231220413eb301d294f5c) Every session can be archived now, a project's main session included: the row menu offers Archive on it in the terminal and on the web, and `rove api archive` no longer refuses it with `MAIN_TASK`. Opening the project again (New task → Open, the web's Open project, or `rove <dir>`) brings an archived main session back. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2077](https://github.com/Sma1lboy/rove/pull/2077) [`6936a32`](https://github.com/Sma1lboy/rove/commit/6936a3229bf2b4878e9aec9b0e60511fe2920a3b) Docs: the CLI reference now covers `rove machine` and lists the verbs tab completion really offers, and the API reference documents `row-token` and `routine-create --webhook`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2079](https://github.com/Sma1lboy/rove/pull/2079) [`1afab37`](https://github.com/Sma1lboy/rove/commit/1afab376195c7682f265c3922c0dcf035b0d0bd3) Settings → Engines no longer offers the on/off switch or "Make default" for an engine whose program is not on this machine, in the terminal and on the web. The project list also leaves out a saved project whose folder is gone (renamed, or on an unmounted drive); it comes back when the folder does. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2076](https://github.com/Sma1lboy/rove/pull/2076) [`ff08a16`](https://github.com/Sma1lboy/rove/commit/ff08a164b486dd0da0b3504476d73fdc8bfd4e79) Set how often open PRs refresh their status and checks with `pr.refreshSeconds` in `state.json` (30-3600 seconds, or `0` to pause background refresh); the daemon picks up the change without a restart, so many open PRs no longer have to spend GitHub API quota every 30 seconds. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2073](https://github.com/Sma1lboy/rove/pull/2073) [`41978bb`](https://github.com/Sma1lboy/rove/commit/41978bb195bafd97c44066fdecd622620220169f) `rove api send` to a project's main row with no tab open starts a new session in that checkout instead of reviving the row. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2075](https://github.com/Sma1lboy/rove/pull/2075) [`f53fa14`](https://github.com/Sma1lboy/rove/commit/f53fa14dab9961ce23bab072b64f937de869b02e) A `rove api send` that is refused as an empty-branch `succeeded:` report no longer leaves a new, empty session behind when it was addressed to a project row with no tab open; the session is opened only once the send is allowed through. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2081](https://github.com/Sma1lboy/rove/pull/2081) [`598a49d`](https://github.com/Sma1lboy/rove/commit/598a49db0cf7cd36f0ecfb2ffe810cbaff182520) The web terminal no longer loses most of its characters after the browser's graphics process resets (a driver restart, sleep and wake, or the browser reclaiming GPU memory): text drawn before the reset came back blank while newly seen characters still drew. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2074](https://github.com/Sma1lboy/rove/pull/2074) [`2deff57`](https://github.com/Sma1lboy/rove/commit/2deff576510334bbf6832c7fae328bb9e6531157) Web: the terminal redraws when you come back to its browser tab, so it no longer shows blank or garbled text after another GPU-heavy tab was in front. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2078](https://github.com/Sma1lboy/rove/pull/2078) [`d75e678`](https://github.com/Sma1lboy/rove/commit/d75e678309b15a1282035a965f77001cb1c83b91) Web: the side panel (Files, Diff, Browser) shows only beside its own task. New task and pages such as Routines no longer keep the last task's Browser on the right. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.294
 
 ### Patch Changes
