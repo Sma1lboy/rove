@@ -220,18 +220,19 @@ Completes two levels: the subcommand, then its verb.
 
 ```text
 rove <TAB>          completions add remove adopt export repo api daemon …
-rove daemon <TAB>   status start stop restart
-rove machine <TAB>  add doctor remove list
+rove daemon <TAB>   status start stop restart relay
+rove machine <TAB>  add doctor update remove list tunnel inbound primary
 rove theme <TAB>    list add remove
 rove api routine-<TAB>   routine-list routine-create routine-update …
 ```
 
-`api`, `daemon`, `machine`, `plugin`, `repo`, `skill` and `theme` carry verbs;
+`api`, `daemon`, `machine`, `plugin`, `repo`, `skill`, `theme` and `weixin`
+carry verbs;
 the rest take flags only, and get no second level rather than an invented one.
 Flags are never completed — each subcommand owns its own.
 
 Both levels are derived, not transcribed. The `api` verbs come from the same
-registry `rove api schema` enumerates, and the other six from a table each
+registry `rove api schema` enumerates, and the other seven from a table each
 command validates its own argv against — so a verb the CLI accepts but the
 completion script omits is not a state the two can reach. Regenerate the
 script after upgrading Rove to pick up new verbs.
@@ -469,6 +470,22 @@ hanging: `rove api prompt` returns `reason: "no-gui"` at once, and
 > attached TUI is told the code is being swapped and offers `ctrl+a` `r` to
 > reload itself too. Settings → Dev → **Restart backend** does both in one
 > step. Hosted engine sessions live in the PTY host and survive all of it.
+
+## machine
+
+```bash
+rove machine add <ssh-target>   # register a machine (--alias, --port, --identity, --yes)
+rove machine doctor [alias]     # re-check registered machines and offer fixes
+rove machine update [alias]     # update Rove there and restart its daemon; every machine without an alias
+rove machine remove <alias>     # forget it; nothing on that machine is touched
+rove machine list
+rove machine tunnel <alias>     # keep a reverse tunnel so <alias> can reach this machine
+rove machine inbound [allow|deny <class>]   # what other machines' hubs may run here
+rove machine primary [<path>] [--clear]     # the checkout a repo id resolves to here
+```
+
+The other computers running Rove, each reached over SSH. Walkthrough and
+options: [Machines](MACHINES.md).
 
 ## weixin
 
