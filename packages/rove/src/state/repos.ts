@@ -9,7 +9,7 @@
  */
 
 import { execFile, spawnSync } from "node:child_process"
-import { realpathSync } from "node:fs"
+import { existsSync, realpathSync } from "node:fs"
 import { promisify } from "node:util"
 import { pathIdentity, samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { kvStatePath } from "../env.ts"
@@ -145,8 +145,14 @@ export function statePath(): string {
   return kvStatePath()
 }
 
-export function getSavedRepos(): readonly string[] {
+/** `savedRepos` as written on disk, gone directories included. */
+export function storedRepos(): readonly string[] {
   return readSavedRepos(loadStateFile())
+}
+
+/** A project whose directory is gone (renamed, unmounted) is not offered; its entry stays on disk and returns with the directory. */
+export function getSavedRepos(): readonly string[] {
+  return storedRepos().filter((repo) => isRemoteRepoKey(repo) || existsSync(repo))
 }
 
 /**
@@ -242,7 +248,7 @@ export function addSavedRepo(absPath: string, opts: AddSavedRepoOpts = {}): AddR
   const normalized = resolveMainRepoRoot(absPath)
   // Gate the RESOLVED path so a subdirectory of a rejected repo can't slip through.
   const rejected = opts.skipGate ? null : projectRejection(normalized, isGitRepo, opts.intent ?? "explicit")
-  if (rejected) return { added: false, path: normalized, total: getSavedRepos().length, rejected }
+  if (rejected) return { added: false, path: normalized, total: storedRepos().length, rejected }
   let result: AddResult = { added: false, path: normalized, total: 0 }
   updateStateFile((state) => {
     const cur = readSavedRepos(state)
@@ -283,7 +289,7 @@ export function backfillSavedReposFromProjects(mainRepos: readonly string[]): re
  */
 export function normalizeSavedRepos(): void {
   // Resolve (a subprocess per entry) outside the read-merge-write window.
-  const cur = getSavedRepos()
+  const cur = storedRepos()
   const seen = new Set<string>()
   const next: string[] = []
   let changed = false

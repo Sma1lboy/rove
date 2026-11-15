@@ -104,6 +104,10 @@ export function EngineSettingsSection(
           ? theme.error
           : theme.textMuted
 
+  // An engine whose CLI is not on this machine has nothing to install into or
+  // switch on: no hook count, no lit "Install", no available/off mark.
+  const present = (vendor: VendorId) => byVendor.get(vendor)?.binary.found !== false
+
   const nameText = (vendor: VendorId): string => props.displayName(vendor)
   const subText = (vendor: VendorId): string => {
     const from = props.renamedFrom(vendor)
@@ -122,9 +126,6 @@ export function EngineSettingsSection(
   const markWidth = Math.max(displayWidth(availableLabel), displayWidth(offLabel))
   const defaultLabel = t("settings.engines.defaultMark")
 
-  // An engine whose CLI is not on this machine has nothing to install into:
-  // it neither counts toward the total nor keeps "Install" lit.
-  const present = (vendor: VendorId) => byVendor.get(vendor)?.binary.found !== false
   const installCount = props.needsHookInstall.filter(present).length
   const removeCount = props.hooksInstalled.length
   const hookable = (props.integrations ?? []).filter((row) => row.hooksSupported && present(row.vendor))
@@ -202,7 +203,7 @@ export function EngineSettingsSection(
                   props.toggleEngine(vendor)
                 }}
               >
-                {pad(enabled ? availableLabel : offLabel, markWidth)}
+                {pad(present(vendor) ? (enabled ? availableLabel : offLabel) : "", markWidth)}
               </text>
               <text
                 fg={on(isDefault ? theme.accent : theme.textMuted)}

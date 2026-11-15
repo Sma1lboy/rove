@@ -6,10 +6,11 @@
  * with its live prefix/timeout values.
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "bun:test"
+import { afterAll, beforeAll, describe, expect, it, spyOn } from "bun:test"
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import * as engineStatus from "../../src/engine/engine-status"
 import { SettingsDialog } from "../../src/tui-react/component/settings-dialog"
 import { type KVContext, useKV } from "../../src/tui-react/context/kv"
 import { devRows, rowIndex } from "../../src/tui/component/settings-dialog/model"
@@ -42,6 +43,10 @@ describe("SettingsDialog", () => {
   // that walks past that section would otherwise make a real request.
   const realFetch = globalThis.fetch
   const savedHome = process.env.ROVE_HOME_DIR
+  // Which CLIs are installed is a fact about the machine running the suite.
+  const probe = spyOn(engineStatus, "detectEngineStatuses").mockImplementation(async (vendors) =>
+    vendors.map((vendor) => ({ vendor, binary: { found: true, path: `/bin/${vendor}` }, account: null })),
+  )
   beforeAll(() => {
     globalThis.fetch = (async () => ({
       ok: true,
@@ -49,6 +54,7 @@ describe("SettingsDialog", () => {
     })) as unknown as typeof fetch
   })
   afterAll(() => {
+    probe.mockRestore()
     globalThis.fetch = realFetch
     if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
     else process.env.ROVE_HOME_DIR = savedHome

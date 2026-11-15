@@ -98,6 +98,14 @@ export function SettingsDialog(props: SettingsDialogProps) {
 
   // Lazily-probed section data (accounts / plugins) — see ./use-section-data.
   const engineStatuses = useAccountProbes(section, engines.engineList())
+  // An engine Rove cannot start has nothing to switch on or make the default.
+  const startable = (v: VendorId) => engineStatuses?.find((s) => s.vendor === v)?.binary.found !== false
+  const toggleEngine = (v: VendorId) => {
+    if (startable(v)) engines.toggleEngineEnabled(v)
+  }
+  const chooseDefault = (v: VendorId) => {
+    if (startable(v)) engines.chooseDefaultEngine(v)
+  }
   // What Rove installed INTO each engine (hooks) — read separately from the
   // account probe above, and re-read after the install row runs.
   const integrations = useEngineIntegrations(section, engines.engineList())
@@ -318,7 +326,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
         key: "d",
         cmd: () => {
           const v = currentEngineRow()
-          if (v) engines.chooseDefaultEngine(v)
+          if (v) chooseDefault(v)
         },
       },
       {
@@ -327,7 +335,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
         key: "space",
         cmd: () => {
           const v = currentEngineRow()
-          if (v) engines.toggleEngineEnabled(v)
+          if (v) toggleEngine(v)
         },
       },
     ],
@@ -399,8 +407,8 @@ export function SettingsDialog(props: SettingsDialogProps) {
               isCustom={engines.isCustomEngine}
               engineProtocol={engines.engineProtocol}
               isEnabled={engines.isEngineEnabled}
-              toggleEngine={engines.toggleEngineEnabled}
-              chooseDefault={engines.chooseDefaultEngine}
+              toggleEngine={toggleEngine}
+              chooseDefault={chooseDefault}
               displayName={engines.engineName}
               renamedFrom={engines.engineRenamedFromName}
               commandText={engines.engineCommandText}
