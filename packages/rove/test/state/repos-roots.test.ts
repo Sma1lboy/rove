@@ -18,13 +18,13 @@ import { afterEach, beforeEach, describe, expect, test } from "vitest"
 import {
   addSavedRepo,
   getRemoteRepos,
-  getSavedRepos,
   inspectRepo,
   normalizeSavedRepos,
   remoteRepoKey,
   resolveMainRepoRoot,
   resolveRepoRoot,
   statePath,
+  storedRepos,
 } from "../../src/state/repos.ts"
 
 let tmpHome: string
@@ -144,7 +144,7 @@ describe("normalizeSavedRepos", () => {
     addSavedRepo("/already/canonical", { skipGate: true })
     const before = fs.statSync(statePath()).mtimeMs
     normalizeSavedRepos()
-    expect(getSavedRepos()).toEqual(["/already/canonical"])
+    expect(storedRepos()).toEqual(["/already/canonical"])
     expect(fs.statSync(statePath()).mtimeMs).toBe(before)
   })
 })

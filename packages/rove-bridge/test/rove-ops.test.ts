@@ -445,14 +445,17 @@ describe("repos.list", () => {
     const home = mkdtempSync(join(tmpdir(), "rove-bridge-repos-"))
     process.env.ROVE_HOME_DIR = home
     try {
-      addSavedRepo("/work/app", { skipGate: true })
+      // A real directory: a saved project whose directory is gone is not listed.
+      const app = join(home, "app")
+      mkdirSync(app)
+      addSavedRepo(app, { skipGate: true })
       const tasks = [
-        task({ id: "m", kind: "main", repo: "/work/app" }),
+        task({ id: "m", kind: "main", repo: app }),
         task({ id: "nf", kind: "dir", repo: home, noProject: true }),
         task({ id: "rt", kind: "dir", repo: join(home, ".rove", "routines", "r1"), noProject: true }),
       ]
       const client = { request: async () => ({ tasks }) } as unknown as RoveDaemonClient
-      expect(await createRoveOps(client).repos()).toEqual(["/work/app"])
+      expect(await createRoveOps(client).repos()).toEqual([app])
     } finally {
       restoreEnv("ROVE_HOME_DIR", prev)
     }

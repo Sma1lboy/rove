@@ -6,10 +6,11 @@
  * failure mode a snapshot of the row list would miss.
  */
 
-import { afterAll, expect, test } from "bun:test"
+import { afterAll, expect, spyOn, test } from "bun:test"
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import * as engineStatus from "../../src/engine/engine-status"
 import { SettingsDialog } from "../../src/tui-react/component/settings-dialog"
 import { useKV } from "../../src/tui-react/context/kv"
 import { act, renderComponent, waitForFrameText } from "./harness"
@@ -18,7 +19,16 @@ const NOOP = (): void => {}
 
 // Each case points ROVE_HOME_DIR at a temp home with renamed engines; later files must not read it.
 const savedHome = process.env.ROVE_HOME_DIR
+// Which CLIs are installed is a fact about the machine running the suite; only "aider" is missing here.
+const probe = spyOn(engineStatus, "detectEngineStatuses").mockImplementation(async (vendors) =>
+  vendors.map((vendor) => ({
+    vendor,
+    binary: vendor === "aider" ? { found: false, error: "not found" } : { found: true, path: `/bin/${vendor}` },
+    account: null,
+  })),
+)
 afterAll(() => {
+  probe.mockRestore()
   if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
   else process.env.ROVE_HOME_DIR = savedHome
 })
@@ -115,11 +125,12 @@ test("one line per engine; a renamed engine keeps its registry name as a subtitl
   const codexRow = lines.find((l) => l.includes("Work Codex") && l.includes("●")) ?? ""
   expect(codexRow).toContain("(Codex)")
   expect(markOf(text, "Work Codex")).toBe("available")
-  // A custom engine says so, and a command that points nowhere is "Not on PATH", switched off.
+  // A custom engine says so, and a command that points nowhere is "Not on PATH".
   const aiderRow = lines.find((l) => l.includes("Aider") && l.includes("●")) ?? ""
   expect(aiderRow).toContain("(custom)")
   expect(aiderRow).toContain("Not on PATH")
-  expect(markOf(text, "Aider")).toBe("off")
+  // An engine that cannot start has nothing to switch: no mark at all.
+  expect(markOf(text, "Aider")).toBeUndefined()
   // The details follow the cursor: Work Codex's facts, its default command.
   expect(text).toMatch(/Command\s+codex/)
   expect(text).toContain("Engine integrations")
