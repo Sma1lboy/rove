@@ -65,10 +65,10 @@ describe("the row menu", () => {
       (item) => item.action === "archive",
     )
 
-  test("offers Archive on a task, Unarchive on an archived one, and nothing on a project's main", () => {
+  test("offers Archive on every session, a project's main included, and Unarchive on an archived one", () => {
     expect(actions({}).map((item) => item.labelKey)).toEqual(["tasks.menu.archive"])
     expect(actions({ archived: true }).map((item) => item.labelKey)).toEqual(["tasks.menu.unarchive"])
-    expect(actions({ kind: "main", branch: "" })).toEqual([])
+    expect(actions({ kind: "main", branch: "" }).map((item) => item.labelKey)).toEqual(["tasks.menu.archive"])
   })
 
   test("archive is not toned as danger: it removes nothing", () => {
@@ -135,12 +135,12 @@ describe("archiveTaskAction", () => {
     expect([...h.info, ...h.errors]).toEqual([])
   })
 
-  test("any other refusal is an error naming the daemon's reason, without its code", async () => {
+  test("any other failure is an error naming the daemon's reason", async () => {
     const h = harness(async () => {
-      throw new Error("MAIN_TASK: a project's main checkout cannot be archived")
+      throw new Error("task not found: m")
     })
     expect(await archiveTaskAction(h.deps, { id: toTaskId("m"), title: "rove" })).toBe(false)
     expect(h.asked).toEqual([])
-    expect(h.errors).toEqual(['tasks.archive.failed {"error":"a project\'s main checkout cannot be archived"}'])
+    expect(h.errors).toEqual(['tasks.archive.failed {"error":"task not found: m"}'])
   })
 })

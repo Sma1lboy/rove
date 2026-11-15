@@ -10,7 +10,7 @@ import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import type { Task } from "../../types/task"
 
 const BUSY_RE = /\bTASK_BUSY: /
-const REFUSAL_RE = /\b(?:TASK_BUSY|MAIN_TASK): ([\s\S]*)$/
+const REFUSAL_RE = /\bTASK_BUSY: ([\s\S]*)$/
 
 export interface ArchiveTaskDeps {
   readonly orchestrator: Pick<RemoteOrchestrator, "archiveTask">

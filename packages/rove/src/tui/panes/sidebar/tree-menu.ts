@@ -171,10 +171,8 @@ function taskVerbs(task: Task, ctx: TreeMenuContext): TreeMenuItem[] {
   if (workspaceCapabilities(task).ownsBranch && task.branch !== "") {
     verbs.push({ action: "land", labelKey: "tasks.menu.land" })
   }
-  // Menu-only. Hides the row and its children; a project's main is the project itself.
-  if (task.kind !== "main") {
-    verbs.push({ action: "archive", labelKey: task.archived === true ? "tasks.menu.unarchive" : "tasks.menu.archive" })
-  }
+  // Menu-only. Hides the row and its children; opening the project again brings an archived main back.
+  verbs.push({ action: "archive", labelKey: task.archived === true ? "tasks.menu.unarchive" : "tasks.menu.archive" })
   // Say what goes: a `dir` task is a conversation in a folder the user owns; a project's main row ends its
   // conversation and stays listed (Remove project lives on the project header).
   verbs.push({

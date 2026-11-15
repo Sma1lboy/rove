@@ -1,7 +1,7 @@
 /**
  * `task.archive`: hide or restore a task and its descendants, Inbox rows included. Archiving
  * ends their sessions (a hidden row must not keep processes alive); the worktree, branch and
- * each tab's conversation stay. The guards are a busy engine and a project's `main`.
+ * each tab's conversation stay. The one guard is a busy engine.
  */
 
 import { logDaemonError } from "./crash-log.ts"
@@ -23,8 +23,6 @@ export const ARCHIVE_HANDLERS: readonly DaemonRequestHandler[] = [
       const { archived } = payload
       const task = ctx.orch.getTask(taskId)
       if (!task) throw new Error(`task not found: ${taskId}`)
-      // A project's main checkout is the project row itself; hiding it would hide the project.
-      if (task.kind === "main") throw new Error("MAIN_TASK: a project's main checkout cannot be archived")
       // The task and every descendant move together: a hidden parent must not leave a visible orphan.
       const ids = subtreeIds(ctx.orch.listTasks(), taskId)
       if (archived && optionalBoolean(payload, "force") !== true) {

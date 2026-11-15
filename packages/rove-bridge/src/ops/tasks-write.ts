@@ -356,7 +356,9 @@ export const TASK_WRITE_OPS: OpTable = {
     // takes any real git repo rather than only a known one.
     const problem = await taskOpDeps.validateRepoPath(repo)
     if (problem) throw new BridgeError("BAD_ARGS", problem)
-    const res = await c.api.rpc<{ task: { id: string } }>("task.ensureMain", { repo })
+    const res = await c.api.rpc<{ task: { id: string; archived?: boolean } }>("task.ensureMain", { repo })
+    // Opening a project whose main session was archived brings that session back.
+    if (res.task.archived) await c.api.rpc("task.archive", { taskId: res.task.id, archived: false })
     return { taskId: res.task.id }
   }),
   // A session in the project's own checkout (New session, Worktree off). Its own top-level row, not a

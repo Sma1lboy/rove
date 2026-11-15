@@ -96,6 +96,17 @@ describe("createTaskFlow — opening a project instead of branching off it", () 
     expect(h.reload).toHaveBeenCalled()
   })
 
+  test("an archived main session comes back when its project is opened", async () => {
+    const archiveTask = vi.fn(async () => {})
+    const h = makeCtx({ submit: OPEN, ensureMainTask: async () => ({ ...HIDDEN_MAIN, archived: true }) })
+    Object.assign(h.ctx.orch as object, { archiveTask })
+
+    await createTaskFlow(h.ctx)
+
+    expect(archiveTask).toHaveBeenCalledWith("main-codefox", false)
+    expect(h.selectTask).toHaveBeenCalledWith("main-codefox")
+  })
+
   test("creates no task — that is the bug it exists to fix", async () => {
     // Submitting the same repo through the default path leaves the user with
     // an extra worktree and still no project. Asserting the absence is the
