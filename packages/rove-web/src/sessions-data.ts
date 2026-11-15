@@ -20,10 +20,14 @@ export function sessionRows(
   tab: SessionsTab,
 ): TaskRow[] {
   const from = tab === "archived" ? (payload?.archived ?? []) : (payload?.tasks ?? [])
-  return from
-    .filter((task) => repo === null || (!isNoProject(task) && repoKey(task.repo) === repoKey(repo)))
-    .filter((task) => tab === "archived" || task.kind !== "main" || tabs[task.id]?.length !== 0)
-    .sort((a, b) => stamp(b) - stamp(a))
+  return (
+    from
+      // A routine's runs belong to the Routines page, as in the rail.
+      .filter((task) => !task.routine)
+      .filter((task) => repo === null || (!isNoProject(task) && repoKey(task.repo) === repoKey(repo)))
+      .filter((task) => tab === "archived" || task.kind !== "main" || tabs[task.id]?.length !== 0)
+      .sort((a, b) => stamp(b) - stamp(a))
+  )
 }
 
 /** Every project with a session, live or archived: an archived-only project is in no rail header. */
@@ -31,7 +35,7 @@ export function sessionRepos(payload: TasksPayload | null | undefined): string[]
   const seen = new Set<string>()
   const out: string[] = []
   for (const task of [...(payload?.tasks ?? []), ...(payload?.archived ?? [])]) {
-    if (isNoProject(task) || task.repo.startsWith("ssh://")) continue
+    if (task.routine || isNoProject(task) || task.repo.startsWith("ssh://")) continue
     const key = repoKey(task.repo)
     if (seen.has(key)) continue
     seen.add(key)

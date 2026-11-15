@@ -11,6 +11,7 @@ const payload = {
     row("new", { updatedAt: "2026-11-05T00:00:00Z" }),
     row("idle-main", { kind: "main" }),
     row("elsewhere", { repo: "/r/site" }),
+    row("nightly-run", { routine: true, updatedAt: "2026-11-09T00:00:00Z" }),
   ],
   archived: [row("gone", { archived: true }), row("gone-main", { repo: "/r/docs", kind: "main", archived: true })],
 } as unknown as TasksPayload

@@ -102,15 +102,17 @@ export function SessionsView({ model }: { model: AppModel }) {
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
     <div className={`group/pane ${PAGE_SCROLL}`} tabIndex={0} ref={root}>
       <div className={PG_TOP}>
-        <h1 className={PAGE_TITLE}>{t("sessions.title")}</h1>
-        <Tabs
-          tabs={[
-            { id: "active", label: t("sessions.active") },
-            { id: "archived", label: t("sessions.archived") },
-          ]}
-          value={tab}
-          onChange={flip}
-        />
+        <div className="flex min-w-0 items-center gap-3">
+          <h1 className={PAGE_TITLE}>{t("sessions.title")}</h1>
+          <Tabs
+            tabs={[
+              { id: "active", label: t("sessions.active") },
+              { id: "archived", label: t("sessions.archived") },
+            ]}
+            value={tab}
+            onChange={flip}
+          />
+        </div>
         <span className={`mono touch:empty:hidden! text-muted ${pgHintClass(true)}`}>
           {repo ? projectLabel(repo, repos) : t("sessions.allProjects")}
         </span>
