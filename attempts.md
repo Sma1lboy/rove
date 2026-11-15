@@ -463,3 +463,11 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **No attempt:** every measured per-op count is at its floor (see 11-13), and the one known saving (3× `git rev-parse` per `rove api add`) lies outside every measured phase, so it cannot count under the rules. Same owner call as 11-13: extend perf-measure with a new scenario (streaming engine tab, many sidebar tasks, split pane), and/or make the idle phase wait for 2 s of quiet instead of a fixed 3 s.
 
 **Sandbox:** bun 1.3.14 from npm. The harness asks for headless shell rev 1228; `/opt/pw-browsers/chromium_headless_shell-1243` already contains `chrome-headless-shell-linux64/` (no `chrome-linux/`), so dir symlinks `/tmp/pwshim/chromium_headless_shell-{1228,1243}` → it are all that's needed. The per-file `chrome-linux/*` recipe in the routine prompt does not match this image.
+
+## 2026-11-15 — notes, no attempt (main 2deff57)
+
+**No regression.** Run 1 exited 1 on boot.firstFrame 623.7 → 968.5 only; run 2 exited 0 (firstFrame 472.6, boot.ready 2105) with nothing past tolerance in either direction, so the baseline is unchanged. Counts at floor: switch commit.root/workspace 6, sidebar 2, frame 2.7, overlay 3, stateNotify/stateListener 2, spawns 0; typing 1/key everywhere; idle 0 commits/frames. Timings: switch.shown 172, typing.echo 135.3, cli-startup 37.2, vt-1mb-parse 129.5 (inside tolerance). 6 commits since 80cda97; one touched `packages/rove/src` (#2073, send to idle main row), off the measured paths. No open `perf:` issues. Tonight's history line is run 2.
+
+**No attempt:** same as 11-13/11-14 — every measured per-op count is at its floor, and the known saving (3× `git rev-parse` per `rove api add`) is outside every measured phase. The owner call stands: extend perf-measure with a new scenario (streaming engine tab, many sidebar tasks, split pane) so nightly runs have something to optimize.
+
+**Sandbox:** bun 1.3.14 from npm (first `bun install` fails on rove-desktop's postinstall; a second run passes). Dir symlinks `/tmp/pwshim/chromium_headless_shell-{1243,1228}` → `/opt/pw-browsers/chromium_headless_shell-1243` are all that's needed; the harness asks for 1228.
