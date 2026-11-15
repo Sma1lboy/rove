@@ -10,7 +10,7 @@ import type { TabRow, TaskRow } from "rove-bridge/protocol"
 import { ChoiceDialog, ConfirmDialog, TextDialog } from "./dialogs.tsx"
 import { ChangeEngineDialog, type EngineCurrent } from "./engine-dialog.tsx"
 import { t } from "./i18n/index.ts"
-import { openCompare } from "./layout.ts"
+import { openCompare, openSessions } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { moveMode, reorderingMain, setMoveMode } from "./move-mode.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
@@ -91,6 +91,7 @@ export function projectMenu(model: AppModel, repo: string, info: ProjectInfo): M
       run: () => enterMoveMode(main),
     })
   }
+  items.push({ label: t("menu.viewSessions"), section: "open", run: () => openSessions(repo) })
   items.push({
     label: tc("tasks", "menu.fieldNotes"),
     section: "notes",
@@ -116,6 +117,7 @@ export function ungroupedMenu(model: AppModel): MenuItem[] {
       section: "open",
       run: () => void openScratchShell(model).catch((e) => toast(String(e), "error")),
     },
+    { label: t("menu.viewSessions"), section: "open", run: () => openSessions("") },
   ]
 }
 

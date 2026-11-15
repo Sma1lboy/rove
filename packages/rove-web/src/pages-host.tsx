@@ -15,6 +15,7 @@ import { ModsView } from "./mods-view.tsx"
 import { startNewTask } from "./new-session-view.tsx"
 import { useCopy } from "./pages-kit.ts"
 import { RoutinesView } from "./routines-view.tsx"
+import { SessionsView } from "./sessions-view.tsx"
 import { useStore } from "./store.ts"
 import { type PageId, page } from "./ui.ts"
 import { RAIL_NAV } from "./ui/page.ts"
@@ -74,5 +75,7 @@ export function PagesHost({ model, page: current }: { model: AppModel; page: Pag
     <CompareView model={model} />
   ) : current === "usage" ? (
     <UsageView model={model} />
+  ) : current === "sessions" ? (
+    <SessionsView model={model} />
   ) : null
 }
