@@ -1621,6 +1621,17 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   and returns `{ value }` or `{ cancelled, reason }`. `reason` is
   `cancelled`, `timeout`, or `no-gui`: with no front-end attached to show the
   dialog, it returns at once instead of waiting out the timeout.
+- `row-token --task-id ID (--text LABEL | --clear) [--ttl SECONDS] [--key SLOT]
+  [--tone info|success|warning|error|muted]`: put one short label on a task's
+  sidebar/board row, the surface a plugin paints its own state on. The text is
+  trimmed to 24 characters and expires after `--ttl` seconds (default 60,
+  clamped to 1-3600), so a plugin refreshes it to keep it. A plugin has two
+  slots per task, picked with `--key` (default `default`); writing a key again
+  replaces its token. `--tone` names a role the theme colours. `--clear`
+  removes the token at `--key`, or every token of yours on the row without
+  one. Neither `--text` nor `--clear` is `MISSING_TEXT`. Returns
+  `{ ok, token }`, or `{ ok, cleared }` with `--clear`. See
+  [Plugin authoring](./PLUGIN-AUTHORING.md#task-row-tokens).
 - `engine-report --kind KIND [--task-id ID] [--engine ID] [--tab TAB]
   [--detail JSON]`: report a normalized engine-activity verb for a task,
   the public face of the `engine.reportEvent` RPC the built-in hook adapters
@@ -1864,7 +1875,7 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
 - `routine-create (--repo PATH | --no-repo) --name N (--prompt TEXT | --prompt-file PATH | --script CMD [--script-timeout SEC]) --schedule CRON
   [--vendor V] [--model M] [--effort LEVEL] [--base-branch B] [--precheck CMD] [--precheck-timeout SEC]
   [--grace MIN] [--persistent-session [--new-conversation]] [--disabled] [--target-task ID --target-tab TAB]
-  [--notify]`: schedule a prompt (or, with `--script`, a shell command
+  [--notify] [--webhook]`: schedule a prompt (or, with `--script`, a shell command
   with no engine: [Script routines](./ROUTINES.md#script-routines-no-engine-at-all); `--notify` hands each run's
   response to the bound chat agent). Script routines cannot set `--vendor`, `--model`, `--effort`,
   `--base-branch`, `--persistent-session`, `--target-task`, or `--target-tab`. Pass exactly one
