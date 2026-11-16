@@ -100,9 +100,9 @@ describe("RemoteOrchestrator RPC wire mapping", () => {
     expect(request).toHaveBeenCalledWith("task.move", { taskId: "t1", direction: "down" })
   })
 
-  it("moveTaskToTop rides task.move as the `top` direction", async () => {
-    await orch.moveTaskToTop("t1")
-    expect(request).toHaveBeenCalledWith("task.move", { taskId: "t1", direction: "top" })
+  it("moveProject names the project it lands beside and the side", async () => {
+    await orch.moveProject("/repos/a", "/repos/b", "before")
+    expect(request).toHaveBeenCalledWith("project.move", { repo: "/repos/a", target: "/repos/b", side: "before" })
   })
 
   it("dismissAttention targets exactly one task+tab episode", async () => {
