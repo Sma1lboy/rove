@@ -9,14 +9,14 @@ describe("task.openCheckout", () => {
     taskOpDeps.validateRepoPath = () => null
     const { result, calls } = await run(
       "task.openCheckout",
-      { repo: "/var/work/rove", engine: "codex", title: "fix login" },
+      { repo: "/var/work/rove", engine: "codex", title: "fix login", model: "gpt-5" },
       { "task.ensureMain": { task: { id: "M1", repo: "/private/var/work/rove" } }, "task.openDir": { taskId: "S1" } },
     )
     expect(result).toEqual({ taskId: "S1" })
     expect(calls.map((c) => ("rpc" in c ? c.rpc : c.verb))).toEqual(["engine-list", "task.ensureMain", "task.openDir"])
     expect(calls.at(-1)).toEqual({
       rpc: "task.openDir",
-      payload: { dir: "/private/var/work/rove", vendor: "codex", title: "fix login" },
+      payload: { dir: "/private/var/work/rove", vendor: "codex", title: "fix login", model: "gpt-5" },
     })
   })
 

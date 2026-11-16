@@ -230,11 +230,13 @@ describe("Start with Worktree off", () => {
       "codex",
       "fix the flaky login test",
       "fix the flaky login test @a.png",
+      undefined,
+      "gpt-5",
     )
 
     expect(id).toBe("S1")
     expect(calls).toEqual([
-      ["task.openCheckout", { repo: "/w/rove", engine: "codex", title: "fix the flaky login test" }],
+      ["task.openCheckout", { repo: "/w/rove", engine: "codex", title: "fix the flaky login test", model: "gpt-5" }],
       ["tab.new", { taskId: "S1", kind: "engine", engine: "codex", prompt: "fix the flaky login test @a.png" }],
     ])
   })

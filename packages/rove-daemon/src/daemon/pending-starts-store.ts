@@ -21,7 +21,13 @@ import { OWNER_ONLY_FILE_MODE } from "./owner-only.ts"
  */
 export type PendingStartCreate =
   | { readonly via: "add"; readonly params: ApiParams }
-  | { readonly via: "dir"; readonly dir: string; readonly project: boolean; readonly vendor?: string }
+  | {
+      readonly via: "dir"
+      readonly dir: string
+      readonly project: boolean
+      readonly vendor?: string
+      readonly model?: string
+    }
 
 export interface PendingStart {
   readonly id: string

@@ -29,11 +29,13 @@ function parseCreate(raw: unknown): PendingStartCreate {
   const create = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {}
   if (create.via === "dir") {
     const vendor = optionalString(create, "vendor")
+    const model = optionalString(create, "model")
     return {
       via: "dir",
       dir: requireString(create, "dir"),
       project: optionalBoolean(create, "project") === true,
       ...(vendor ? { vendor } : {}),
+      ...(model ? { model } : {}),
     }
   }
   if (create.via !== "add") throw new Error("create.via must be add or dir")

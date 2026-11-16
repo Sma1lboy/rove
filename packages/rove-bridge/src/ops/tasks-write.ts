@@ -371,6 +371,7 @@ export const TASK_WRITE_OPS: OpTable = {
     const title = optText(a, "title", 200)
     const engineGiven = a.engine !== undefined && a.engine !== null && a.engine !== ""
     const engine = engineGiven ? await engineId(a, "engine", c) : undefined
+    const mdl = optModel(a)
     const later = scheduledStart(a)
     if (later) {
       // Nothing is created now, the project row included: the daemon opens both when the start is due.
@@ -379,7 +380,13 @@ export const TASK_WRITE_OPS: OpTable = {
         ...later,
         title: title ?? deriveTitleFromPrompt(later.prompt),
         repo,
-        create: { via: "dir", dir: repo, project: !problem, ...(vendor ? { vendor } : {}) },
+        create: {
+          via: "dir",
+          dir: repo,
+          project: !problem,
+          ...(vendor ? { vendor } : {}),
+          ...(mdl ? { model: mdl } : {}),
+        },
       })
       if (engine) taskOpDeps.rememberEngine(repo, engine)
       return { pendingStartId: pending.id }
@@ -390,6 +397,7 @@ export const TASK_WRITE_OPS: OpTable = {
       dir,
       vendor: engine ?? taskOpDeps.preferredEngine(dir),
       ...(title ? { title } : {}),
+      ...(mdl ? { model: mdl } : {}),
     })
     if (engine) taskOpDeps.rememberEngine(dir, engine)
     return { taskId: res.taskId }
