@@ -18,7 +18,7 @@ import run.rove.mobile.R
 import run.rove.mobile.data.BridgeFailure
 
 /** iOS `NewTaskView` (existing mode) when [taskId] is null, `NewSessionSheet` (same-worktree tab) otherwise. */
-@Composable fun CreateSheet(model: AppModel, taskId: String?, dismiss: () -> Unit, created: (String) -> Unit) {
+@Composable fun CreateSheet(model: AppModel, taskId: String?, dismiss: () -> Unit, created: (taskId: String, tabId: String?) -> Unit) {
     val engines by model.engines.collectAsStateWithLifecycle()
     val repos by model.repos.collectAsStateWithLifecycle()
     val tasks by model.tasks.collectAsStateWithLifecycle()
@@ -44,9 +44,13 @@ import run.rove.mobile.data.BridgeFailure
         busy = true; error = null
         scope.launch {
             try {
-                val id = if (taskId == null) model.repository.createTask(repo, engine, title.trim(), prompt.trim())
-                else model.repository.newTab(taskId, engine, prompt.trim())
-                model.refresh(); created(id)
+                if (taskId == null) {
+                    val id = model.repository.createTask(repo, engine, title.trim(), prompt.trim())
+                    model.refresh(); created(id, null)
+                } else {
+                    val opened = model.repository.newTab(taskId, engine, prompt.trim())
+                    model.refresh(); created(opened.taskId ?: taskId, opened.tabId)
+                }
             } catch (e: CancellationException) { throw e }
             catch (e: BridgeFailure) { error = "${e.code}: ${e.message}" }
             catch (_: Exception) { error = failed }
