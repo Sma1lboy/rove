@@ -140,4 +140,16 @@ final class FilesTests: XCTestCase {
         XCTAssertEqual(WorktreesLogic.age(ms: 10_000_000_000 - 3 * 86_400_000, now: now), "3d")
         XCTAssertNil(WorktreesLogic.age(ms: 0, now: now))
     }
+
+    func testChecksShowOnlyForAnOpenPRHereAndWordTheMergeState() throws {
+        var row = TaskRow(id: "t", title: "t", group: .idle, pr: TaskPR(number: 4, lifecycle: "open", checkState: "failing"))
+        XCTAssertTrue(ChecksLogic.applies(row))
+        row.machine = TaskMachine(id: "studio")
+        XCTAssertFalse(ChecksLogic.applies(row))
+        XCTAssertFalse(ChecksLogic.applies(TaskRow(id: "m", title: "m", group: .idle, pr: TaskPR(number: 4, lifecycle: "merged", checkState: "passing"))))
+        XCTAssertEqual([42_000, 192_000, 3_900_000].map { ChecksLogic.duration(ms: $0) }, ["42s", "3m12s", "1h05m"])
+        let json = #"{"outcome":"ok","checks":[],"mergeable":"CONFLICTING","mergeState":"BEHIND","review":"APPROVED","draft":true}"#
+        let reply = try JSONDecoder().decode(ChecksReply.self, from: Data(json.utf8))
+        XCTAssertEqual(ChecksLogic.mergeParts(reply).map(\.text), ["draft", "conflicts", "approved"])
+    }
 }

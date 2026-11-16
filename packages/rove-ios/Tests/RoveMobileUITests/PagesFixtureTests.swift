@@ -156,6 +156,18 @@ final class PagesFixtureTests: XCTestCase {
         XCTAssertTrue(log.entries().contains { $0.op == "task.fixChecks" && $0.args["taskId"] as? String == "T-FAIL" })
     }
 
+    func testAFailedCheckOpensItsLogInFiles() throws {
+        let url = try fixture()
+        pair(url)
+        waitFor(element("task-T-FAIL"), "failing row").tap()
+        waitFor(element("diffLink"), "diff link").tap()
+        waitFor(element("checksToggle"), "checks summary")
+        waitFor(element("checkLog-e2e (chromium)"), "log button").tap()
+        let log = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Received: 318442")).firstMatch
+        waitFor(log, "log tail", timeout: 8)
+        checkpoint("fx-checks")
+    }
+
     func testLandAsksTheBridgeBeforeConfirming() throws {
         let url = try fixture()
         let log = try XCTUnwrap(FixtureLog(socketURL: url))
