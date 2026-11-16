@@ -22,7 +22,11 @@ export async function mergeTaskList(local: { tasks?: SerializedTask[] }): Promis
     if (!remote) continue
     // The alias, not the hostname — see `MachineStatus.hostLabel`.
     const hostLabel = entry.alias
-    for (const task of remote) tasks.push({ ...task, origin: { machineId: entry.alias, hostLabel } })
+    for (const task of remote) {
+      // A machine one version behind still sends its project rows as `main`.
+      const kind = (task.kind as string) === "main" ? "dir" : task.kind
+      tasks.push({ ...task, kind, origin: { machineId: entry.alias, hostLabel } })
+    }
   }
   return { tasks }
 }
