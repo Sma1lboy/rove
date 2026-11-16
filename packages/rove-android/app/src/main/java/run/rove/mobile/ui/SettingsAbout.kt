@@ -15,6 +15,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import run.rove.mobile.R
 import run.rove.mobile.data.*
@@ -81,7 +83,7 @@ private const val PrivacyAsset = "docs/PRIVACY.md"
             SettingsInfoRow(stringResource(R.string.settings_tasks), info?.taskCount?.toString() ?: dash)
         }
         (daemon as? SettingsLoad.Failed)?.let { ErrorLine(it.message) }
-        UpdateSection(model)
+        UpdateSection(model) { load() }
         Hint(stringResource(R.string.settings_about_language))
         Hint(stringResource(R.string.settings_about_mac_side))
         Column(Modifier.fillMaxWidth().tile()) {
@@ -98,8 +100,8 @@ private const val PrivacyAsset = "docs/PRIVACY.md"
     }
 }
 
-/** The web's Settings › Check for updates: the Mac asks the registry. There is no update button: the phone names the command instead. */
-@Composable private fun UpdateSection(model: AppModel) {
+/** The web's Update page: the Mac asks the registry, Update now runs `rove update` there, then Restart Rove moves onto it. */
+@Composable private fun UpdateSection(model: AppModel, restarted: suspend () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val updates = remember { UpdateSettingsState() }
@@ -114,6 +116,26 @@ private const val PrivacyAsset = "docs/PRIVACY.md"
     val locale = LocalConfiguration.current.locales[0].language.takeIf { it == "zh" } ?: "en"
     val result = (check as? SettingsLoad.Loaded)?.value
     val latest = result?.info
+    var run by remember { mutableStateOf<UpdateRun?>(null) }
+    var polling by remember { mutableStateOf(true) }
+    var confirming by remember { mutableStateOf(false) }
+    var restarting by remember { mutableStateOf(false) }
+    var restartError by remember { mutableStateOf<String?>(null) }
+    // Follows a run another client started too; stops once the installer exits or the bridge cannot say.
+    LaunchedEffect(polling) {
+        while (polling) {
+            val status = settingsCatching { model.repository.updateStatus() }
+            run = status.getOrNull() ?: run
+            if (status.getOrNull()?.running != true) polling = false else delay(1_000)
+        }
+    }
+    // The restarted bridge is a new process with no run to report: back on the new build, start over.
+    val connection by model.bridge.state.collectAsState()
+    LaunchedEffect(connection) {
+        if (restarting && connection is Connection.Connected) { restarting = false; run = null; restarted() }
+    }
+    // Installed but not yet running: the old bridge still reports the update, and installing twice does nothing.
+    val installed = run?.code == 0
     prefs?.let { current ->
         FormSection(stringResource(R.string.settings_channel)) {
             ChoiceTiles(channelName.keys.toList(), current.updateChannel, { channelName.getValue(it) }) { picked ->
@@ -128,6 +150,13 @@ private const val PrivacyAsset = "docs/PRIVACY.md"
             Hint(stringResource(R.string.settings_update_notify_hint))
         }
     }
+    if (confirming) SettingsConfirmSheet(stringResource(R.string.settings_update_confirm_title), stringResource(R.string.settings_updates),
+        stringResource(R.string.settings_update_confirm_body), stringResource(R.string.settings_update_now), { confirming = false }, run = {
+            try { run = model.repository.startUpdate() }
+            // Another client already started it: follow that run.
+            catch (e: BridgeFailure) { if (e.code != "BUSY") throw e }
+            polling = true
+        })
     FormSection(stringResource(R.string.settings_updates)) {
         Column(Modifier.fillMaxWidth().tile()) {
             Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).pressable(enabled = check != SettingsLoad.Loading) {
@@ -146,7 +175,11 @@ private const val PrivacyAsset = "docs/PRIVACY.md"
             latest == null -> Hint(stringResource(R.string.settings_update_unknown))
             else -> {
                 Text(stringResource(R.string.settings_update_available, latest.latest), color = Rove.c.accent, style = Rove.mono(13, FontWeight.Medium))
-                Hint(stringResource(R.string.settings_update_command))
+                if (run?.running != true && !installed) {
+                    Column(Modifier.fillMaxWidth().tile()) {
+                        DocumentRow(stringResource(R.string.settings_update_now)) { confirming = true }
+                    }
+                }
                 result.notes.firstOrNull()?.url?.let { url ->
                     Column(Modifier.fillMaxWidth().tile()) {
                         DocumentRow(stringResource(R.string.settings_update_open_release)) { context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
@@ -154,7 +187,37 @@ private const val PrivacyAsset = "docs/PRIVACY.md"
                 }
             }
         }
+        run?.let { UpdateRunLines(it, latest?.latest.orEmpty(), restarting) }
+        if (installed) {
+            PrimaryBar(stringResource(R.string.settings_update_restart), busy = restarting) {
+                restarting = true; restartError = null
+                scope.launch {
+                    // A refusal re-arms the button; the dropped socket is the restart itself.
+                    try { model.repository.restartRove() }
+                    catch (e: BridgeFailure) { if (e.code != "DISCONNECTED") { restarting = false; restartError = e.message } }
+                    catch (e: CancellationException) { throw e }
+                    catch (_: Exception) {}
+                }
+            }
+        }
+        restartError?.let { ErrorLine(it) }
     }
+}
+
+@Composable private fun UpdateRunLines(run: UpdateRun, latest: String, restarting: Boolean) {
+    if (run.output.isNotBlank()) {
+        SelectionContainer(Modifier.fillMaxWidth().tile().padding(10.dp)) {
+            // The tail is where npm reports success or the error.
+            Text(run.output.trimEnd().lines().takeLast(12).joinToString("\n"), color = Rove.c.muted, style = Rove.mono(11))
+        }
+    }
+    val (line, tint) = when {
+        run.running -> stringResource(R.string.settings_update_running, run.command) to Rove.c.muted
+        run.code == 0 && restarting -> stringResource(R.string.settings_update_restarting) to Rove.c.muted
+        run.code == 0 -> stringResource(R.string.settings_update_installed, latest) to Rove.c.success
+        else -> stringResource(R.string.settings_update_failed, run.code ?: 1) to Rove.c.error
+    }
+    Text(line, Modifier.fillMaxWidth(), color = tint, style = Rove.mono(12))
 }
 
 @Composable private fun DocumentRow(label: String, open: () -> Unit) {

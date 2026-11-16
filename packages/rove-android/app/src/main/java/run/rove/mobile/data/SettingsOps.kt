@@ -3,6 +3,7 @@ package run.rove.mobile.data
 import android.content.Context
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -58,7 +59,7 @@ object NotificationPrefs {
     fun markAsked(context: Context) = prefs(context).edit().putBoolean(ASKED, true).apply()
 }
 
-/** Asks the registry through the Mac, past the bridge's cache. Read-only: installing stays a command on the Mac. */
+/** Asks the registry through the Mac, past the bridge's cache. */
 suspend fun RoveRepository.checkForUpdate(locale: String, channel: String?): UpdateCheck =
     wireJson.decodeFromJsonElement(bridge.request("update.check",
         if (channel != null) args("force" to true, "locale" to locale, "channel" to channel) else args("force" to true, "locale" to locale)))
@@ -68,3 +69,11 @@ suspend fun RoveRepository.updatePrefs(): UpdatePrefs =
     wireJson.decodeFromJsonElement(bridge.request("prefs.get").getValue("prefs"))
 suspend fun RoveRepository.setUpdateChannel(channel: String) { bridge.request("prefs.set", args("key" to "updateChannel", "value" to channel)) }
 suspend fun RoveRepository.setUpdateNotify(notify: Boolean) { bridge.request("prefs.set", args("key" to "updateNotify", "value" to notify)) }
+
+/** Starts `rove update` on the Mac, on its stored channel; `BUSY` means a run is already going. */
+suspend fun RoveRepository.startUpdate(): UpdateRun? =
+    bridge.request("update.run")["status"]?.let { if (it is JsonNull) null else wireJson.decodeFromJsonElement(it) }
+suspend fun RoveRepository.updateStatus(): UpdateRun? =
+    bridge.request("update.status")["status"]?.let { if (it is JsonNull) null else wireJson.decodeFromJsonElement(it) }
+/** Restarts the daemon and the bridge onto the installed build; the socket drops and the client reconnects. */
+suspend fun RoveRepository.restartRove() { bridge.request("update.restart") }
