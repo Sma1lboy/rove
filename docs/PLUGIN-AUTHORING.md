@@ -655,8 +655,10 @@ Rove → mod  {"type":"event","event":{"event":"task.created","taskId":"…",…
 Stdout is the protocol, so log to stderr (it lands in `log.jsonl`). A mod
 that exits loses its panes and is restarted after 1s, backing off to 30s; a
 run longer than a minute resets the backoff. Editing the `[mod]` command in
-the manifest restarts it; for a code change, disable and re-enable the
-plugin. The mod gets the usual environment contract with
+the manifest restarts it, and so does saving a file that command names inside
+the plugin root (`mod.ts` in `["bun", "mod.ts"]`): the mod comes back on the
+new code within a second. A file it only imports does not: save the entry
+too, or disable and re-enable the plugin. The mod gets the usual environment contract with
 `ROVE_PLUGIN_EVENT=mod`; read live state the events do not carry from the
 daemon socket (`RoveSocket`), as the example does.
 

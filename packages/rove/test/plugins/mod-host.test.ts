@@ -59,7 +59,7 @@ process.stdout.write(JSON.stringify({ type: "subscribe", events: ["task.opened"]
 draw()
 `
 
-function startHost(): { host: PluginHost; latest: () => readonly ModPaneView[]; home: string } {
+function startHost(): { host: PluginHost; latest: () => readonly ModPaneView[]; home: string; root: string } {
   const home = mkdtempSync(join(tmpdir(), "rove-mod-home-"))
   const root = mkdtempSync(join(tmpdir(), "rove-mod-root-"))
   dirs.push(home, root)
@@ -86,7 +86,7 @@ function startHost(): { host: PluginHost; latest: () => readonly ModPaneView[]; 
   })
   hosts.push(host)
   host.start()
-  return { host, latest: () => panes, home }
+  return { host, latest: () => panes, home, root }
 }
 
 function textStartingWith(panes: readonly ModPaneView[], prefix: string): string | undefined {
@@ -155,5 +155,14 @@ describe("mods", () => {
     host.pressMod("t.counter", "main", "inc")
     await waitFor(() => countText(latest()) === "Count: 1")
     expect(lastText(latest())).toBe("Last: task.opened T1")
+  })
+
+  it("restarts a mod on its new code when its source file is saved", async () => {
+    const { latest, root } = startHost()
+    await waitFor(() => countText(latest()) === "Count: 0")
+
+    writeFileSync(join(root, "mod.cjs"), COUNTER_MOD.replace('"Count: "', '"Total: "'))
+
+    await waitFor(() => textStartingWith(latest(), "Total:") === "Total: 0")
   })
 })

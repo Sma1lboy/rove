@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 129 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 130 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -478,6 +478,67 @@ rove api row-token --task-id <id> --key doing --clear
 24 characters, two `--key` slots per task. Without `--keep` the label fades
 after `--ttl` seconds (default 60): use that for state that is only true while
 you are running.
+
+### Asked for a new piece of UI? Write a mod
+
+"Add a panel that shows X", "give me a button that does Y": that is a mod, a
+small program of yours that Rove draws natively in the TUI and the web at
+once. No daemon restart, no Rove source change. Put it in its own directory
+(`~/.config/rove/mods/<name>/` unless the user names one), two files:
+
+```toml
+# rove-plugin.toml
+id = "local.todo-board"
+name = "Todo board"
+version = "0.1.0"
+min_rove_version = "0.9.0"
+platforms = ["linux", "macos", "windows"]
+
+[mod]
+command = ["node", "mod.mjs"]
+```
+
+```js
+// mod.mjs: JSON lines on stdio. stdout is the protocol; log to stderr.
+import { execFileSync } from "node:child_process"
+import { createInterface } from "node:readline"
+
+const rove = (...args) => JSON.parse(execFileSync(process.env.ROVE_BIN_PATH, ["api", ...args], { encoding: "utf8" }))
+function draw() {
+  const { tasks } = rove("list")
+  const tree = { type: "box", gap: 1, children: [
+    { type: "text", text: `${tasks.length} tasks`, bold: true },
+    ...tasks.slice(0, 30).map((t) => ({ type: "text", text: t.title, tone: "muted" })),
+    { type: "button", key: "refresh", label: "Refresh" },
+  ] }
+  console.log(JSON.stringify({ type: "pane", id: "main", title: "Todo board", tree }))
+}
+createInterface({ input: process.stdin }).on("line", (line) => {
+  const msg = JSON.parse(line) // {"type":"press","pane","key"} | {"type":"submit",…,"value"} | {"type":"event","event"}
+  if (msg.type === "press" && msg.key === "refresh") draw()
+})
+console.log(JSON.stringify({ type: "subscribe", events: ["task.created", "task.changed"] }))
+draw()
+```
+
+```bash
+rove plugin link ~/.config/rove/mods/todo-board   # once; it appears under Mods in the rail within a second
+rove plugin log local.todo-board                  # a refused tree or a crash says why here
+```
+
+- The whole vocabulary: `box` (`direction` row/column, `gap`, `padding` 0-3,
+  `border`, `children`), `text` (`text`, `tone`, `bold`), `button` (`key`,
+  `label` ≤40), `input` (`key`, `placeholder`, `value`). `tone` is `info`,
+  `success`, `warning`, `error` or `muted`. Anything else refuses the whole
+  tree and the last good one stays up. No table or list element: build rows
+  from boxes. If the request needs more than this, say so instead of faking it.
+- Saving the file named in `command` restarts the mod on the new code; so does
+  editing the manifest. Nothing else to run. The mod's state is its process's:
+  keep what must survive a restart in `$ROVE_PLUGIN_STATE_DIR`.
+- A mod draws on the Mods page only. It cannot add to a task row (that is
+  `row-token`, above) or change an existing Rove screen.
+- Any language works; it is only the wire. Details:
+  `docs/PLUGIN-AUTHORING.md` § Mods.
 
 ## Asking the owner (decision gates)
 
