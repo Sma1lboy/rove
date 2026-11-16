@@ -21,11 +21,11 @@ States seeded in run 3: a failing `--script` routine run twice under one name fo
 | Task list: projects, tasks, marks, `↩ Recent` | home | opened | Task list | has, no Recent row |
 | Row labels | task list, `rove api row-token` | read only | Task row | missing: the row field `rowTokens`; it lands in `TaskRowView.kt`, which #1998 changes, so it waits for #1998 |
 | Engine mark before a task title | task list | opened | Task row | #1998 adds the static brand mark; the status-coloured mark, its Appearance setting and the returning-user notice are missing |
-| Row menu, `More` fold | long-press a row | opened | Row menu | has land, copy, move, change engine, remove and the fold; #2096 adds archive on a project's main row; retry, compare, continue in another engine, scheduled start and ending a main's conversation still missing |
+| Row menu, `More` fold | long-press a row | opened | Row menu | has land, copy, move, change engine, remove, archive on a project's main row and the fold; retry, compare, continue in another engine, scheduled start and ending a main's conversation still missing |
 | Project menu | long-press a project | opened on web, Android read only | Project menu | has: field notes, move, remove |
 | Archived fold | end of the list on Android | read only | Archived fold | Android keeps its fold |
 | Sessions page | rail, project header menu | read only | Archived fold | not planned: the web added it because its rail lists no archived sessions; Android's fold already lists them with Unarchive and Remove |
-| New session | `New task` | opened | Create sheet | partial: no branch, folder, machine chip or automatic placement, `Later`, start from a task's branch, GitHub project picker and clone; a task needs its first prompt. #2097 opens the child task a `+` on a busy main starts |
+| New session | `New task` | opened | Create sheet | partial: no branch, folder, machine chip or automatic placement, `Later`, start from a task's branch, GitHub project picker and clone; a task needs its first prompt. The child task a `+` on a busy main starts opens (#2097) |
 | Terminal, key row | tap a task | opened | Task detail | has |
 | Message bar: hold to talk, type instead | engine tab | opened | Composer | typing has; voice missing |
 | Attachments | message bar | read only | Composer | images and PDFs up to 5 MB; the web sends any file up to 500 MB in parts (`attachment.part`) |
@@ -42,7 +42,7 @@ States seeded in run 3: a failing `--script` routine run twice under one name fo
 | Mods | rail when present | read only, none in fixture | Mods as a gate only | missing |
 | Machines | rail when registered | read only, none in fixture | none | missing |
 | Usage page | usage chips, which a phone does not show | read only | Settings › Usage | has its own usage screen |
-| Update | Settings › About | opened, Update now run against the fake installer | Settings › About | channel and notify since #1819; #2095 adds `Update now` and `Restart Rove` |
+| Update | Settings › About | opened, Update now run against the fake installer | Settings › About | has channel, notify, `Update now` and `Restart Rove` |
 | Worktrees | no phone rail entry | read only | Worktrees | Android has more than the phone rail |
 | Search | none since #1673 (command palette) | not on a phone | Search | Android keeps its page |
 | Dispatch | removed from the web (#1673) | gone | none | no longer a gap |
@@ -86,7 +86,7 @@ An op exists in `packages/rove-bridge/src/ops` for each unless the row says othe
 | New session: branch, folder, machine and automatic placement, `Later`, from a task's branch | `repo.branches`, `fs.subdirs`, `machines.list`, `task.spawn` | L |
 | Settings › General and Appearance | `prefs.get`, `prefs.set`, `theme.*` | L |
 
-Run 4's code-reading find, the `+` sheet dropping the `taskId` of the `tab.new` reply, was real: on the emulator a second `+` on a main started a child task that never opened. #2097 fixes it.
+Run 4's code-reading find, the `+` sheet dropping the `taskId` of the `tab.new` reply, was real: on the emulator a second `+` on a main started a child task that never opened. #2097 fixed it.
 
 Found in run 4: Android read the `output.read` terminal tail as one string, but the bridge sends a list of rows, so the engine history's terminal fallback failed to decode; #1997 fixes it. iOS `OutputEnvelope` decodes the same field as a string and likely has the same bug. On the web phone, the engine-mark notice showed twice, stacked, on first load.
 
