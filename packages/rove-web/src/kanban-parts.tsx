@@ -32,9 +32,12 @@ export function useEngines(model: AppModel): { engines: readonly EngineOption[];
     return last ? offeredEngines(last.engines) : []
   })
   useEffect(() => {
-    requestRemembered<{ engines: Row[] }>(model, "engines.list")
-      .then((res) => setRows(offeredEngines(res.engines)))
-      .catch(() => setRows([]))
+    // On every (re)connect: a board restored with the page mounts before the socket is up.
+    return model.client.onOpen(() => {
+      requestRemembered<{ engines: Row[] }>(model, "engines.list")
+        .then((res) => setRows(offeredEngines(res.engines)))
+        .catch(() => {})
+    })
   }, [model])
   return { engines: rows, defaultEngine: defaultEngineId(rows) }
 }
