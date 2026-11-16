@@ -70,6 +70,7 @@ struct DiffFilesView: View {
                     Button { Task { await load() } } label: { TileLabel(text: String(localized: "retry"), tint: Theme.accent) }
                         .buttonStyle(.pressable).accessibilityIdentifier("retryButton")
                 } else {
+                    ChecksSection(taskId: taskId, refresh: refresh)
                     scopeHeader
                     if !loaded {
                         HStack(spacing: 8) { BrailleSpinner(size: 14, tint: Theme.muted); Text("loading").font(Theme.mono(12)).foregroundStyle(Theme.muted) }

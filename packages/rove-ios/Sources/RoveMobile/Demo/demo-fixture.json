@@ -299,6 +299,24 @@
       { "alias": "narwhal", "hostLabel": "narwhal", "state": "offline", "version": null, "reason": "refused" }
     ]
   },
+  "pr.checks": {
+    "outcome": "ok",
+    "total": 4,
+    "checks": [
+      { "name": "e2e (chromium)", "state": "fail", "durationMs": 412000, "startedAt": { "$ago_min": 40, "$as": "ms" }, "completedAt": { "$ago_min": 33, "$as": "ms" }, "url": "https://example.test/runs/88/job/1", "runId": "88" },
+      { "name": "visual", "state": "pending", "durationMs": null, "startedAt": { "$ago_min": 6, "$as": "ms" }, "completedAt": null, "url": "https://example.test/runs/88/job/2", "runId": "88" },
+      { "name": "lint", "state": "pass", "durationMs": 52000, "startedAt": { "$ago_min": 40, "$as": "ms" }, "completedAt": { "$ago_min": 39, "$as": "ms" }, "url": "https://example.test/runs/88/job/3", "runId": "88" },
+      { "name": "unit", "state": "pass", "durationMs": 191000, "startedAt": { "$ago_min": 40, "$as": "ms" }, "completedAt": { "$ago_min": 37, "$as": "ms" }, "url": "https://example.test/runs/88/job/4", "runId": "88" }
+    ],
+    "mergeable": "MERGEABLE",
+    "mergeState": "UNSTABLE",
+    "review": "REVIEW_REQUIRED",
+    "draft": false
+  },
+  "pr.checkLog": {
+    "outcome": "ok",
+    "tail": "  ✘ hero.spec.ts:14 › hero image loads under 200 KB\n    Expected: < 204800\n    Received: 318442\nError: Process completed with exit code 1."
+  },
   "task.syncBase": { "baseRef": "main", "alreadyCurrent": false },
   "task.fixChecks": { "outcome": "sent" },
   "task.landPreflight": { "landedOn": "main", "ahead": 2 },

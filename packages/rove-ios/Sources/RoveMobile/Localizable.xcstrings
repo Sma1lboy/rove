@@ -196,6 +196,16 @@
         }
       }
     },
+    "%lld failed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 个失败"
+          }
+        }
+      }
+    },
     "%lld file" : {
       "localizations" : {
         "zh-Hans" : {
@@ -242,6 +252,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld 条消息"
+          }
+        }
+      }
+    },
+    "%lld more not shown" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还有 %lld 个未显示"
           }
         }
       }
@@ -306,6 +326,16 @@
         }
       }
     },
+    "%lld running" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 个进行中"
+          }
+        }
+      }
+    },
     "%lld task(s) not searched: another machine's, or an engine rove cannot read." : {
       "localizations" : {
         "zh-Hans" : {
@@ -352,6 +382,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$lld 条未发送 · 共 %2$lld 条"
+          }
+        }
+      }
+    },
+    "%lld/%lld passed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld/%lld 通过"
           }
         }
       }
@@ -568,6 +608,16 @@
         }
       }
     },
+    "approved" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已批准"
+          }
+        }
+      }
+    },
     "Archive" : {
       "localizations" : {
         "zh-Hans" : {
@@ -688,6 +738,26 @@
         }
       }
     },
+    "behind base" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "落后于基线"
+          }
+        }
+      }
+    },
+    "blocked" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "被阻塞"
+          }
+        }
+      }
+    },
     "Both take effect on the next session rebuild." : {
       "localizations" : {
         "zh-Hans" : {
@@ -718,12 +788,32 @@
         }
       }
     },
+    "changes requested" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要求修改"
+          }
+        }
+      }
+    },
     "Changes the title only. The git branch keeps its name." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "只修改标题，git 分支名保持不变。"
+          }
+        }
+      }
+    },
+    "checks not passing" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "检查未通过"
           }
         }
       }
@@ -804,6 +894,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "请先提交工作树里的改动，再同步：%@"
+          }
+        }
+      }
+    },
+    "conflicts" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有冲突"
           }
         }
       }
@@ -914,6 +1014,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "归档失败：%@"
+          }
+        }
+      }
+    },
+    "couldn't read the log: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "读不到日志：%@"
+          }
+        }
+      }
+    },
+    "couldn't read the PR: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "读不到这个 PR：%@"
           }
         }
       }
@@ -1034,6 +1154,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "完成"
+          }
+        }
+      }
+    },
+    "draft" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "草稿"
           }
         }
       }
@@ -1238,6 +1368,16 @@
         }
       }
     },
+    "hide" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收起"
+          }
+        }
+      }
+    },
     "Info" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1394,6 +1534,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "实时"
+          }
+        }
+      }
+    },
+    "loading checks" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在读取检查"
+          }
+        }
+      }
+    },
+    "log" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日志"
           }
         }
       }
@@ -1648,12 +1808,32 @@
         }
       }
     },
+    "no checks" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有检查"
+          }
+        }
+      }
+    },
     "No failing check logs to read — the run may have expired, or the checks are no longer red" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "没有可读的失败检查日志——运行记录可能已过期，或检查已不再是红的"
+          }
+        }
+      }
+    },
+    "no log excerpt for this job" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这个作业没有日志摘录"
           }
         }
       }
@@ -2218,6 +2398,16 @@
         }
       }
     },
+    "review required" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要评审"
+          }
+        }
+      }
+    },
     "rove is not installed there" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2274,6 +2464,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "再次运行（%@）"
+          }
+        }
+      }
+    },
+    "running %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已运行 %@"
           }
         }
       }
