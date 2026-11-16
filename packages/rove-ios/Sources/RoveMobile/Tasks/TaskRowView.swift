@@ -90,8 +90,18 @@ struct TaskRowView: View {
         return HStack(spacing: 6) {
             if !changes.isEmpty { MarkText(segments: changes) }
             if !drift.isEmpty { MarkText(segments: drift) }
+            if let starts = TaskRowMarks.startsAt(row.startsAt) {
+                Text("◷ \(starts)").font(Theme.mono(11)).foregroundStyle(Theme.muted).lineLimit(1).fixedSize()
+                    .accessibilityLabel(String(localized: "Starts \(starts)"))
+            }
             if let pr = row.pr { PRTag(pr: pr, chip: TaskRowMarks.chipKind(row), stale: row.prChipStale) }
             else if let mark = TaskRowMarks.prMark(kind: row.prChip, stale: row.prChipStale) { MarkText(segments: [mark]) }
+            else if let pr = row.sessionPrs.last { PRTag(pr: pr) }
+            let more = TaskRowMarks.prs(row).count - 1
+            if more > 0 {
+                Text("+\(more)").font(Theme.mono(11, .medium)).foregroundStyle(Theme.muted).fixedSize()
+                    .accessibilityLabel(String(localized: "\(more + 1) PRs"))
+            }
         }
         .layoutPriority(1)
     }

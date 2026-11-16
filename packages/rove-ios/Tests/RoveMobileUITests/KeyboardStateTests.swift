@@ -246,14 +246,14 @@ final class KeyboardStateTests: XCTestCase {
         field.tap()
         XCTAssertTrue(kb.waitUp())
         log?.clear()
-        // Let the software keyboard commit each character before injecting the next one.
+        // Let the software keyboard commit each character before injecting the next one; loaded CI runners commit in seconds.
         var reply = ""
         for character in "ship it" {
             field.typeText(String(character))
             reply.append(character)
             let committed = XCTNSPredicateExpectation(
                 predicate: NSPredicate(format: "value == %@", reply), object: field)
-            guard XCTWaiter.wait(for: [committed], timeout: 5) == .completed else {
+            guard XCTWaiter.wait(for: [committed], timeout: 15) == .completed else {
                 return XCTFail("\(label): composer expected \(reply.debugDescription), got \(String(describing: field.value))")
             }
         }

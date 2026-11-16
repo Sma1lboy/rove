@@ -127,6 +127,16 @@ final class TaskActionHost {
         } catch { fail(error) }
     }
 
+    /// `task.startScheduledNow` / `task.cancelScheduledStart` on a task held for a later start.
+    func scheduledStart(_ taskId: String, now: Bool) async {
+        guard let model else { return }
+        do {
+            _ = try await model.client.request(now ? "task.startScheduledNow" : "task.cancelScheduledStart", ["taskId": taskId], as: EmptyResult.self)
+            await didMutate(taskId)
+            show(now ? String(localized: "started") : String(localized: "scheduled start cancelled"))
+        } catch { fail(error) }
+    }
+
     /// Merges the task's base into its worktree.
     func syncBase(_ taskId: String) async {
         guard let model else { return }
@@ -235,6 +245,19 @@ struct TaskActionItems: View {
                 }
                 .accessibilityIdentifier("actionFixChecks")
             }
+            if row?.startsAt != nil {
+                Button { Task { await host.scheduledStart(taskId, now: true) } } label: { Label("Start now", systemImage: "play") }
+                    .accessibilityIdentifier("actionStartNow")
+                Button { Task { await host.scheduledStart(taskId, now: false) } } label: { Label("Cancel scheduled start", systemImage: "clock.badge.xmark") }
+                    .accessibilityIdentifier("actionCancelStart")
+            }
+            if let row {
+                ForEach(TaskRowMarks.prs(row), id: \.self) { pr in
+                    if let url = pr.url.flatMap(URL.init(string:)) {
+                        Link(destination: url) { Label(TaskActionLogic.openPRLabel(pr), systemImage: "arrow.up.right.square") }
+                    }
+                }
+            }
             Divider()
             Button { host.request = .engine(taskId: taskId) } label: { Label("Change engine…", systemImage: "cpu") }
                 .accessibilityIdentifier("actionEngine")
@@ -291,13 +314,11 @@ struct TaskActionItems: View {
                 }
             }
             Divider()
-            if row?.kind != "main" {
-                let archived = host.model?.store.isArchived(taskId) == true
-                Button { Task { await host.toggleArchived(taskId) } } label: {
-                    Label(archived ? "Unarchive" : "Archive", systemImage: archived ? "tray.and.arrow.up" : "archivebox")
-                }
-                .accessibilityIdentifier("actionArchive")
+            let archived = host.model?.store.isArchived(taskId) == true
+            Button { Task { await host.toggleArchived(taskId) } } label: {
+                Label(archived ? "Unarchive" : "Archive", systemImage: archived ? "tray.and.arrow.up" : "archivebox")
             }
+            .accessibilityIdentifier("actionArchive")
             Button(role: .destructive) { host.request = .delete(taskId: taskId) } label: {
                 Label(plan.delete.menuTitle, systemImage: plan.delete.menuSymbol)
             }
