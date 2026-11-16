@@ -50,7 +50,7 @@ import run.rove.mobile.R
                 null -> saved.SaveableStateProvider("list") {
                     TaskListScreen(model, onSelect = { open(Route.Task(it)) }, onCreate = { create = true }, open = open)
                 }
-                is Route.Task -> key(top) { TaskDetailScreen(model, top.id, pop, top.tab) }
+                is Route.Task -> key(top) { TaskDetailScreen(model, top.id, pop, top.tab, open) }
                 Route.Inbox -> InboxScreen(model, pop, open)
                 Route.Board -> BoardScreen(model, pop, open)
                 Route.Routines -> RoutinesScreen(model, pop, open)
@@ -61,7 +61,7 @@ import run.rove.mobile.R
             }
         }
     }
-    if (create) CreateSheet(model, null, { create = false }, { open(Route.Task(it)); create = false })
+    if (create) CreateSheet(model, null, { create = false }, { id, _ -> open(Route.Task(id)); create = false })
     if (error != null) AlertDialog(onDismissRequest = { model.error.value = null }, containerColor = Rove.c.paper,
         title = { Text(stringResource(R.string.app_error_title), color = Rove.c.ink, style = Rove.face(17, FontWeight.SemiBold)) },
         text = { Text(error!!, color = Rove.c.muted, style = Rove.mono(13)) },
