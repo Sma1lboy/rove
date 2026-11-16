@@ -521,9 +521,9 @@ import { setRowToken, clearRowToken } from "@sma1lboy/rove-plugin-sdk"
 await setRowToken(taskId, "@ana", { key: "claim", ttlSeconds: 600, tone: "info" })
 ```
 
-### Every token expires
+### A token expires unless it is kept
 
-**This is not optional and it is the point.** A token carries a TTL (default
+**Expiry is the default and it is the point.** A token carries a TTL (default
 60s, max 1h); readers drop it when it lapses, and the host republishes at each
 expiry so a label **fades on its own**. Keep a label by re-writing it — the
 same `--key` replaces the token and renews its deadline.
@@ -531,9 +531,14 @@ same `--key` replaces the token and renews its deadline.
 So the label on screen is evidence that your plugin is alive and still
 believes what it says, not a record that something once wrote it. Disable your
 plugin, kill it, let it crash: every label it painted is gone within its TTL,
-with nothing to clean up. Tokens are in memory only — a daemon restart clears
-them, deliberately, because restoring a claim whose author is gone is exactly
-the stale state the TTL prevents.
+with nothing to clean up. These tokens are in memory only — a daemon restart
+clears them, deliberately, because restoring a claim whose author is gone is
+exactly the stale state the TTL prevents.
+
+`rove api row-token --keep` is the other kind: a label with no deadline, saved
+to disk, there until it is replaced, cleared or its task is deleted. It is for
+a fact someone set once (an agent asked to label its task), not for state your
+plugin must be running to vouch for. Nothing removes it when its writer dies.
 
 `clearRowToken()` exists for the moment you *know* a label is wrong. Waiting
 out the TTL is the normal removal.
@@ -561,7 +566,7 @@ engine name belongs in one: the engine adapter owns that vocabulary
   title and branch; past that a token stops being a label and becomes the row.
 - **2 slots per plugin per task.** How many plugins are installed is the
   user's own decision; one plugin filling the row is not.
-- **TTL 1s…1h**, clamped. "Forever" is not expressible.
+- **TTL 1s…1h**, clamped. "Forever" is `--keep`, never a long TTL.
 - `source` is your `ROVE_PLUGIN_ID`, carried for attribution and the quota
   above. It is not authenticated — a plugin already runs arbitrary code as the
   user — so treat it as a label, not a permission.

@@ -144,7 +144,8 @@ group for scripts and agents — see the [API reference](API.md#read).
 
 A **plugin** may add its own short label to the right-hand cluster, with a
 deadline: it fades when the plugin stops refreshing it, so a plugin that dies
-cannot leave stale words on your rows. See
+cannot leave stale words on your rows. A label written with
+`rove api row-token --keep` has no deadline and stays until it is cleared. See
 [Plugin authoring](PLUGIN-AUTHORING.md#task-row-tokens).
 
 Session state belongs to the engine tab that runs it, so the state glyph sits

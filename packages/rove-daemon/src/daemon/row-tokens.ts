@@ -2,12 +2,15 @@
  * Plugin-written task-row tokens — the one place a third party can put
  * characters on a task row (who claimed it, what queue it is in).
  *
- * ## In memory, never on disk
+ * ## A deadline by default
  *
- * A token is a CLAIM WITH A DEADLINE: every write carries a TTL, readers drop
+ * A token is a CLAIM WITH A DEADLINE: a write carries a TTL, readers drop
  * what has expired, and a timer republishes at the next expiry so a dead
- * plugin's label fades on its own. Persisting would let a daemon restart
- * restore labels whose author is gone.
+ * plugin's label fades on its own. Those live in memory only: a daemon restart
+ * must not restore labels whose author is gone.
+ *
+ * A write with `keep` is the exception the writer asks for by name: no
+ * deadline, saved to disk, there until replaced, cleared or the task is deleted.
  *
  * ## What a plugin may say
  *
@@ -21,6 +24,8 @@
  * code as the user, so the store does not pretend to authenticate it.
  */
 
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
+import { dirname } from "node:path"
 import type { DaemonEventBus } from "./event-bus.ts"
 
 /** Semantic role, resolved to a colour by whatever theme is active. */
@@ -56,6 +61,8 @@ export const ROW_TOKEN_MAX_PER_SOURCE = 2
 export const ROW_TOKEN_MIN_TTL_MS = 1_000
 export const ROW_TOKEN_MAX_TTL_MS = 3_600_000
 export const ROW_TOKEN_DEFAULT_TTL_MS = 60_000
+/** `expiresAt` of a kept token: finite and JSON-safe, so every reader's `expiresAt > now` check keeps it. */
+export const ROW_TOKEN_KEPT = Number.MAX_SAFE_INTEGER
 
 export function clampRowTokenTtl(ms: number | undefined): number {
   if (ms === undefined || !Number.isFinite(ms)) return ROW_TOKEN_DEFAULT_TTL_MS
@@ -80,6 +87,8 @@ export interface RowTokenWrite {
   readonly text: string
   readonly tone?: RowTokenTone
   readonly ttlMs?: number
+  /** No deadline, and saved across daemon restarts; `ttlMs` is ignored. */
+  readonly keep?: boolean
 }
 
 /** taskId → the tokens currently on that row. */
@@ -93,11 +102,17 @@ export type RowTokenMap = Readonly<Record<string, readonly RowToken[]>>
 export class RowTokenStore {
   private readonly byTask = new Map<string, RowToken[]>()
   private timer: ReturnType<typeof setTimeout> | undefined
+  /** The kept tokens as last written to `path`, to skip a write that changes nothing. */
+  private saved = "{}"
 
+  /** `path`: where kept tokens are saved; omitted = nothing survives a restart. */
   constructor(
     private readonly bus: Pick<DaemonEventBus, "publish">,
     private readonly now: () => number = Date.now,
-  ) {}
+    private readonly path?: string,
+  ) {
+    if (path) this.load(path)
+  }
 
   /** Write (or refresh) one token. Returns the token as stored. */
   set(write: RowTokenWrite): RowToken {
@@ -106,7 +121,7 @@ export class RowTokenStore {
       key: write.key,
       text: normalizeRowTokenText(write.text),
       ...(write.tone ? { tone: write.tone } : {}),
-      expiresAt: this.now() + clampRowTokenTtl(write.ttlMs),
+      expiresAt: write.keep ? ROW_TOKEN_KEPT : this.now() + clampRowTokenTtl(write.ttlMs),
     }
     const live = this.liveTokens(write.taskId).filter((t) => !(t.source === token.source && t.key === token.key))
     live.push(token)
@@ -133,6 +148,7 @@ export class RowTokenStore {
   /** Every token of a task whose record is gone. */
   clearTask(taskId: string): void {
     if (!this.byTask.delete(taskId)) return
+    this.save()
     this.publish()
   }
 
@@ -161,7 +177,60 @@ export class RowTokenStore {
   private store(taskId: string, tokens: readonly RowToken[]): void {
     if (tokens.length > 0) this.byTask.set(taskId, [...tokens])
     else this.byTask.delete(taskId)
+    this.save()
     this.publish()
+  }
+
+  private load(path: string): void {
+    let raw: unknown
+    try {
+      raw = JSON.parse(readFileSync(path, "utf8"))
+    } catch {
+      return
+    }
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return
+    for (const [taskId, list] of Object.entries(raw)) {
+      if (!Array.isArray(list)) continue
+      const tokens = list.flatMap((t: Partial<RowToken> | null): RowToken[] =>
+        typeof t?.source === "string" && typeof t.key === "string" && typeof t.text === "string" && t.text.length > 0
+          ? [
+              {
+                source: t.source,
+                key: t.key,
+                text: normalizeRowTokenText(t.text),
+                ...(isRowTokenTone(t.tone) ? { tone: t.tone } : {}),
+                expiresAt: ROW_TOKEN_KEPT,
+              },
+            ]
+          : [],
+      )
+      if (tokens.length > 0) this.byTask.set(taskId, tokens)
+    }
+    this.saved = this.keptJson()
+  }
+
+  private keptJson(): string {
+    const out: Record<string, Omit<RowToken, "expiresAt">[]> = {}
+    for (const [taskId, tokens] of this.byTask) {
+      const kept = tokens.filter((t) => t.expiresAt === ROW_TOKEN_KEPT).map(({ expiresAt: _, ...rest }) => rest)
+      if (kept.length > 0) out[taskId] = kept
+    }
+    return JSON.stringify(out)
+  }
+
+  /** Best effort: a label that fails to save is still on screen until the restart. */
+  private save(): void {
+    if (!this.path) return
+    const json = this.keptJson()
+    if (json === this.saved) return
+    try {
+      mkdirSync(dirname(this.path), { recursive: true })
+      writeFileSync(`${this.path}.tmp`, json)
+      renameSync(`${this.path}.tmp`, this.path)
+      this.saved = json
+    } catch {
+      // Next change retries.
+    }
   }
 
   /**
@@ -175,7 +244,9 @@ export class RowTokenStore {
     if (this.timer) clearTimeout(this.timer)
     this.timer = undefined
     let next = Number.POSITIVE_INFINITY
-    for (const list of Object.values(tokens)) for (const token of list) next = Math.min(next, token.expiresAt)
+    for (const list of Object.values(tokens)) {
+      for (const token of list) if (token.expiresAt !== ROW_TOKEN_KEPT) next = Math.min(next, token.expiresAt)
+    }
     if (!Number.isFinite(next)) return
     this.timer = setTimeout(
       () => {

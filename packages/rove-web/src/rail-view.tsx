@@ -34,6 +34,7 @@ import { railStateRows, rowRepo, withStateCounts } from "./rail-states.ts"
 import { type NavRow, type RowFold, foldProjects, railRows } from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu, ungroupedMenu } from "./row-actions.tsx"
 import { useRowTip } from "./row-tip.tsx"
+import { RowTokens } from "./row-tokens.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import { paneEdits, taskSplitItems } from "./split-actions.tsx"
 import { StartsChip } from "./starts-chip.tsx"
@@ -419,6 +420,7 @@ function RailRow(props: {
         {row.attempt ?? task.label}
       </span>
       <span className={`${CHIPS} ml-auto items-center`}>
+        <RowTokens tokens={task.rowTokens} />
         {props.repo && <span className="max-w-24 truncate text-subtle">{props.repo}</span>}
         {row.level !== undefined && <span className="text-subtle">{row.level}</span>}
         {(task.extraRepoCount ?? 0) > 0 && (

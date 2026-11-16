@@ -217,6 +217,11 @@ export function defaultDeliveriesPath(homeDir = readRoveHomeDirEnv() ?? homedir(
   return join(homeDir, ROVE_STATE_DIR_BASENAME, "deliveries.json")
 }
 
+/** Kept task-row tokens (`row-tokens.ts`). */
+export function defaultRowTokensPath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
+  return join(homeDir, ROVE_STATE_DIR_BASENAME, "row-tokens.json")
+}
+
 /** PTY sidecar bearer token (`web-token.ts`). Its own 0600 file, not a
  *  `state.json` field: state.json gets pasted into bug reports, and this file
  *  can be chmod'd whole and rotated with one `rm`. */
