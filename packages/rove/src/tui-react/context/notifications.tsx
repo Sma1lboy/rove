@@ -4,18 +4,21 @@
  * transforms and the "error toasts always show" invariant live in
  * `src/tui/lib/notify-state.ts`. Toggles come from KV, else (render tests,
  * mock host) a one-time `state.json` snapshot. A `silent` input keeps the
- * toast and the unread mark but skips the audible half (dispatched tasks).
+ * toast and the unread mark but skips the audible half (dispatched tasks); a
+ * muted task keeps only the unread mark, plus an error's toast.
  */
 import { useRenderer } from "@opentui/react"
 import { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import { loadStateFile } from "../../state/store"
 import {
   FINISHED_ALERTS_KEY,
+  MUTED_TASKS_KEY,
   type NotificationKind,
   type NotifyInput,
   TOAST_DURATION_MS,
   type Toast,
   addUnread,
+  mutedTaskIds,
   osc9,
   removeUnread,
   shouldAlert,
@@ -51,6 +54,7 @@ export function NotificationsProvider(props: { children?: ReactNode }) {
       "notifications.toast.enabled":
         (kv?.get("notifications.toast.enabled") as boolean | undefined) ?? snapshot["notifications.toast.enabled"],
       [FINISHED_ALERTS_KEY]: (kv?.get(FINISHED_ALERTS_KEY) as boolean | undefined) ?? snapshot[FINISHED_ALERTS_KEY],
+      mutedTasks: mutedTaskIds(kv ? kv.get(MUTED_TASKS_KEY) : snapshot[MUTED_TASKS_KEY]),
     }),
     [kv, snapshot],
   )
@@ -74,14 +78,15 @@ export function NotificationsProvider(props: { children?: ReactNode }) {
     (input: NotifyInput): void => {
       // The unread dot is passive, so neither toggle gates it.
       setUnread((prev) => addUnread(prev, input))
-      if (!shouldAlert(input, (prefs[FINISHED_ALERTS_KEY] as boolean | undefined) !== false)) return
+      const muted = input.taskId !== "" && prefs.mutedTasks.has(input.taskId)
+      if (!shouldAlert(input, (prefs[FINISHED_ALERTS_KEY] as boolean | undefined) !== false, muted)) return
 
       // One toggle for BEL + chime + OSC 9. OSC 9 matters over SSH: it rides
       // the stream to the LOCAL terminal (iTerm2/kitty/WezTerm/Ghostty raise
       // an OS notification; others ignore it), unlike `afplay`, which rings
       // on the remote box.
       const soundEnabled = (prefs["notifications.sound.enabled"] as boolean | undefined) !== false
-      if (shouldPlaySound(input, soundEnabled)) {
+      if (shouldPlaySound(input, soundEnabled, muted)) {
         // Through the renderer: its native thread owns fd 1 while `useThread`
         // is on (all but Linux), so a bare write could split a frame's escapes.
         writeThroughRenderer(renderer, `\x07${osc9(`Rove — ${input.title}`)}`)

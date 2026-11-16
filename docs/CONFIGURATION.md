@@ -351,7 +351,7 @@ keep the buffer they were born with.
 
 ### Notifications
 
-All default to on.
+The switches all default to on.
 
 | Key | Type | What it does |
 |---|---|---|
@@ -360,6 +360,7 @@ All default to on.
 | `notifications.sound.volume` | number | Chime level, 0-1 (default 0.4) |
 | `notifications.crossTask.enabled` | boolean | Toasts for tasks you aren't looking at |
 | `notifications.finished.enabled` | boolean | Alerts for finished turns; off, only approvals and errors toast or ring |
+| `notifications.mutedTasks` | string[] | Task ids whose notifications are muted (default `[]`). Toggle one from its sidebar row's right-click menu, **Mute notifications** |
 
 Error toasts always show, even with toasts off. See
 [Notifications](#notifications-and-sound) for how they're delivered.
@@ -568,7 +569,10 @@ Three kinds: `done` (green), `needs_input` (yellow), `error` (red). Yellow and
 red outrank green when both fire for the same tab. With **Settings → General →
 Finished turns** off (`notifications.finished.enabled`), a finished turn only
 lights its unread dot, so the toast and chime are left for an agent waiting on
-you or one that failed. Three delivery channels:
+you or one that failed. To quiet one noisy task without touching the rest, right-click its sidebar row
+and pick **Mute notifications**: it keeps its unread dot, but stops toasting and
+ringing. Its errors still toast, silently. **Unmute notifications** in the same
+menu turns it back on. Three delivery channels:
 
 - **Toasts.** In-TUI, 4.5 seconds. Error toasts always show, even with
   toasts disabled: a failure shouldn't vanish because you turned off

@@ -97,9 +97,10 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
       // Another machine's worktree path means nothing on this filesystem.
       const local = (row.task.origin?.machineId ?? "local") === "local"
       const operationPaused = local && pausedGitOperation(row.task.worktreePath) !== null
-      openAt(row, { operationPaused }, x, y)
+      const notificationsMuted = actions.isNotificationsMuted?.(row.task.id) === true
+      openAt(row, { operationPaused, notificationsMuted }, x, y)
     },
-    [tree.rows, openAt, setCursorIndex],
+    [tree.rows, openAt, setCursorIndex, actions.isNotificationsMuted],
   )
 
   const openForProject = useCallback(
@@ -206,6 +207,9 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
           break
         case "setStatus":
           actions.onSetStatusRequest?.(taskId)
+          break
+        case "muteNotifications":
+          actions.onToggleMuteRequest?.(taskId)
           break
         case "moveToProject":
           actions.onMoveToProjectRequest?.(taskId)

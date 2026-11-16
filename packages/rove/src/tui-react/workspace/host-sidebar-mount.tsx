@@ -10,6 +10,7 @@ import type { Task } from "@/types/task"
 import type { VendorId } from "@/types/vendor"
 import type { MutableRefObject } from "react"
 import { RAIL_FOLD_STYLE_KEY } from "../../state/sidebar-collapsed.ts"
+import { MUTED_TASKS_KEY, mutedTaskIds, toggleMutedTask } from "../../tui/lib/notify-state"
 import type { TaskSortMode } from "../../tui/panes/sidebar/groups"
 import type { FocusContextValue } from "../context/focus"
 import { useKV } from "../context/kv"
@@ -118,6 +119,9 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
       onSyncBaseRequest={(id) => void actions.syncBase(id)}
       onRenameRequest={(id) => void actions.renameTask(id)}
       onPinRequest={(id) => void actions.togglePin(id)}
+      isNotificationsMuted={(id) => mutedTaskIds(kv.get(MUTED_TASKS_KEY)).has(id)}
+      // `update`, not `set`: another client's mutes on disk survive the toggle.
+      onToggleMuteRequest={(id) => void kv.update(MUTED_TASKS_KEY, (current) => toggleMutedTask(current, id))}
       onSetStatusRequest={(id) => void actions.setStatus(id)}
       onMoveToProjectRequest={(id) => void actions.moveToProject(id)}
       onCopyRequest={(id, field, tabId) => actions.copyTaskField(id, field, tabId)}
