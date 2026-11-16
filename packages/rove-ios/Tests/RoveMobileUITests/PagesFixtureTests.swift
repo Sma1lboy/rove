@@ -156,6 +156,22 @@ final class PagesFixtureTests: XCTestCase {
         XCTAssertTrue(log.entries().contains { $0.op == "task.fixChecks" && $0.args["taskId"] as? String == "T-FAIL" })
     }
 
+    func testAHeldStartShowsItsTimeAndStartsNowFromTheRowMenu() throws {
+        let url = try fixture()
+        let log = try XCTUnwrap(FixtureLog(socketURL: url))
+        pair(url)
+        let row = waitFor(element("task-T-LATER"), "later row")
+        checkpoint("fx-later-row")
+        row.press(forDuration: 1.2)
+        let item = waitFor(element("actionStartNow"), "start now item")
+        XCTAssertTrue(element("actionCancelStart").exists)
+        XCTAssertTrue(button(startingWith: "Open PR #32").exists)
+        checkpoint("fx-later-menu")
+        item.tap()
+        waitFor(element("actionBanner"), "start result", timeout: 5)
+        XCTAssertTrue(log.entries().contains { $0.op == "task.startScheduledNow" && $0.args["taskId"] as? String == "T-LATER" })
+    }
+
     func testLandAsksTheBridgeBeforeConfirming() throws {
         let url = try fixture()
         let log = try XCTUnwrap(FixtureLog(socketURL: url))
