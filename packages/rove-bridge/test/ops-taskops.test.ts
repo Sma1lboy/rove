@@ -278,13 +278,13 @@ describe("task.openScratch", () => {
   test("always opens the Mac's home as a scratch dir task; the client names no directory", async () => {
     const { result, calls } = await run(
       "task.openScratch",
-      { dir: "/etc", engine: "codex" },
+      { dir: "/etc", engine: "codex", model: "gpt-5" },
       { "task.openDir": { taskId: "S1" } },
     )
     expect(result).toEqual({ taskId: "S1" })
     expect(calls.at(-1)).toEqual({
       rpc: "task.openDir",
-      payload: { dir: "/home/me", scratch: true, vendor: "codex" },
+      payload: { dir: "/home/me", scratch: true, vendor: "codex", model: "gpt-5" },
     })
   })
 

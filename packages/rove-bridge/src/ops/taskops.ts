@@ -30,7 +30,7 @@ import type { TabsState } from "@sma1lboy/rove/src/tui/workspace/terminal-tab-sh
 import { moveTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
 import { BridgeError, optStr } from "../protocol.ts"
 import { flag, isAbsPath, oneOf, tabId, taskId } from "./args.ts"
-import { effortLevel, engineId, model, taskOpDeps } from "./tasks-shared.ts"
+import { effortLevel, engineId, model, optModel, taskOpDeps } from "./tasks-shared.ts"
 import type { Args, BridgeApi, OpContext, OpTable } from "./types.ts"
 
 /** More names than a picker can show; the client filters the rest by typing. */
@@ -299,10 +299,12 @@ export function taskOps(deps: TaskOpsDeps = realDeps): OpTable {
         const home = deps.homeDir()
         // Scratch remembers its own last engine, keyed by $HOME like any project; `+` reuses it.
         const picked = optStr(a, "engine") === undefined ? undefined : await engineId(a, "engine", ctx)
+        const mdl = optModel(a)
         const res = await ctx.api.rpc<{ taskId: string }>("task.openDir", {
           dir: home,
           scratch: true,
           vendor: picked ?? taskOpDeps.preferredEngine(home),
+          ...(mdl ? { model: mdl } : {}),
         })
         if (picked) taskOpDeps.rememberEngine(home, picked)
         return { taskId: res.taskId }

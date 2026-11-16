@@ -262,7 +262,8 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
       if (plainNow && fresh.length > 1) throw new Error(t("newSession.plainMulti"))
       let created: string | undefined
       let compared: string | undefined
-      if (ungrouped) created = await startUngrouped(model.client.request.bind(model.client), engineId, prompt)
+      if (ungrouped)
+        created = await startUngrouped(model.client.request.bind(model.client), engineId, prompt, modelValue)
       else if ((list.length === 1 && !worktree) || plainNow)
         created = await startInCheckout(
           model.client.request.bind(model.client),
@@ -271,6 +272,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           prompt,
           first,
           at,
+          modelValue,
         )
       else {
         const commandFrom = retryCommandFrom(seed, engineId)
@@ -480,7 +482,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           </div>
           <div className={C.BAR_GROUP_END}>
             <EngineChip choice={shown} picks={picks} available={compareAvailable} missing={shown.missing} />
-            {!inPlace && !(remote && engineThere) && !ungrouped && !picks.comparing && models.length > 0 && (
+            {!(remote && engineThere) && !picks.comparing && models.length > 0 && (
               <ModelChip models={models} model={modelValue} onModel={setPickedModel} />
             )}
             <ComposerMore

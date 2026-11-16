@@ -90,6 +90,7 @@ async function createPendingStart(deps: ScheduledStartDeps, start: PendingStart)
   const task = await deps.orch.openDirectoryTask({
     dir,
     ...(create.vendor ? { vendor: create.vendor as DaemonTask["vendor"] } : {}),
+    ...(create.model ? { model: create.model } : {}),
     ...(start.title ? { title: start.title } : {}),
   })
   await deps.orch.setPrompt(task.id, start.prompt)
