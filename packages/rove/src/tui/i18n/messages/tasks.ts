@@ -86,6 +86,9 @@ export const en = {
     /** Only while a merge/rebase/cherry-pick/revert is paused in the worktree. */
     resolveConflicts: "Resolve conflicts",
     land: "Land into base branch",
+    /** Menu-only: the task keeps its unread dot; toasts and chime stop (errors still toast). */
+    muteNotifications: "Mute notifications",
+    unmuteNotifications: "Unmute notifications",
     /** Hide the task and its children from the sidebar; nothing is stopped or removed. Menu-only. */
     archive: "Archive",
     unarchive: "Unarchive",
@@ -347,6 +350,8 @@ export const zh: typeof en = {
     syncBase: "同步基础分支",
     resolveConflicts: "让 agent 解决冲突",
     land: "合入基础分支",
+    muteNotifications: "静音通知",
+    unmuteNotifications: "取消静音通知",
     archive: "归档",
     unarchive: "取消归档",
     delete: "移除会话",

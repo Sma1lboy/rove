@@ -49,6 +49,8 @@ function sidebarProps(over: Partial<HostSidebarProps> = {}): HostSidebarProps {
     onDeleteRequest: NOOP,
     onRenameRequest: NOOP,
     onPinRequest: NOOP,
+    isNotificationsMuted: () => false,
+    onToggleMuteRequest: NOOP,
     onArchiveRequest: NOOP,
     onSetStatusRequest: NOOP,
     onMoveToProjectRequest: NOOP,

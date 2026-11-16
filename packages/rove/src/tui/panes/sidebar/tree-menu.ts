@@ -5,7 +5,7 @@
  * entry routes to an existing callback.
  *
  * Exceptions (`newTaskFromBranch`, `setStatus`, `copyId`, `copyBranch`, `copyPath`, `land`, `fieldNotes`,
- * `runAgain`, `moveToTop`, `toggleFold`, `resolveConflicts`, `archive`) are menu-only until the owner agrees a chord (AGENTS.md,
+ * `runAgain`, `moveToTop`, `toggleFold`, `resolveConflicts`, `muteNotifications`, `archive`) are menu-only until the owner agrees a chord (AGENTS.md,
  * "Keybindings"); then the entry mirrors it like the rest.
  *
  * "New chat" routes to the row's workspace ctrl+e picker, like pressing the
@@ -40,6 +40,7 @@ export type TreeMenuAction =
   | "moveToTop"
   | "runAgain"
   | "setStatus"
+  | "muteNotifications"
   | "copyId"
   | "copyBranch"
   | "copyPath"
@@ -74,6 +75,8 @@ export interface TreeMenuContext {
   readonly projectFirst?: boolean
   /** Task rows: the worktree has a merge/rebase/cherry-pick/revert stopped on conflicts. */
   readonly operationPaused?: boolean
+  /** Task rows: the task's toasts and chime are muted (`notifications.mutedTasks`). */
+  readonly notificationsMuted?: boolean
   /** Project rows: the Scratch section header, which stands for no repo. */
   readonly scratchSection?: boolean
 }
@@ -135,6 +138,11 @@ function taskVerbs(task: Task, ctx: TreeMenuContext): TreeMenuItem[] {
   if (task.prompt !== undefined) verbs.push({ action: "runAgain", labelKey: "tasks.menu.runAgain" })
   // Otherwise status is only settable via `rove api update --status`. Not danger-toned.
   verbs.push({ action: "setStatus", labelKey: "tasks.menu.setStatus" })
+  // Menu-only. A noisy task keeps its unread dot but stops toasting and ringing.
+  verbs.push({
+    action: "muteNotifications",
+    labelKey: ctx.notificationsMuted === true ? "tasks.menu.unmuteNotifications" : "tasks.menu.muteNotifications",
+  })
   // Menu-only. Top-level, local, single-repo rows only: the rest refuse (`rove api update --project`).
   if (canMoveToProject(task)) verbs.push({ action: "moveToProject", labelKey: "tasks.menu.moveToProject" })
   // The id `rove api ... --task-id` takes; recorded at creation, so always offered.

@@ -31,6 +31,9 @@ export type SidebarTaskCallbacks = {
   onRenameRequest?: (taskId: string) => void
   /** Shift+P only; a bare `p` binds nothing, so a mistype can't churn the pin flag. */
   onPinRequest?: (taskId: string) => void
+  /** Whether the task's notifications are muted; the row menu labels its toggle from it. */
+  isNotificationsMuted?: (taskId: string) => boolean
+  onToggleMuteRequest?: (taskId: string) => void
   /** Set the task's board status. Menu-only, no chord. */
   onSetStatusRequest?: (taskId: string) => void
   /** Regroup the task under another project via a picker. Menu-only, no chord. */

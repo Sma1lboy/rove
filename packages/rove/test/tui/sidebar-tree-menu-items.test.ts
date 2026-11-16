@@ -82,6 +82,7 @@ describe("treeMenuItems", () => {
       "pin",
       "reorder",
       "setStatus",
+      "muteNotifications",
       "moveToProject",
       "copyId",
       "copyBranch",
@@ -94,6 +95,13 @@ describe("treeMenuItems", () => {
       "archive",
       "delete",
     ])
+  })
+
+  test("the mute entry reads Unmute while the task is muted", () => {
+    const label = (notificationsMuted: boolean) =>
+      treeMenuItems(worktreeRow(), { notificationsMuted }).find((item) => item.action === "muteNotifications")?.labelKey
+    expect(label(false)).toBe("tasks.menu.muteNotifications")
+    expect(label(true)).toBe("tasks.menu.unmuteNotifications")
   })
 
   test("New task from this branch reaches only a local single-repo managed branch", () => {
@@ -138,6 +146,7 @@ describe("treeMenuItems", () => {
       "rename",
       "reorder",
       "setStatus",
+      "muteNotifications",
       "copyId",
       "copyPath",
       "openEditor",
