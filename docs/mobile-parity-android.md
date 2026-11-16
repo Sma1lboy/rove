@@ -2,15 +2,15 @@
 
 The web client at 390 wide (`packages/rove-web`, narrow layout below 560 px) is the reference for what `packages/rove-android` should offer. A routine updates this page each run; open `[routine] parity-android:` PRs carry the work in progress.
 
-Last run: run 4, 2026-11-12, `main` at `79b458b67`, web 0.9.291. Run 3 was 2026-11-09 at `2363c73e9`. Since run 3 the web gained engine marks on task rows with a status-mark setting and a one-time notice, a swipe back to the task list, a voice-first New task, a machine chip in New task that can place a task itself, attachments of any type up to 500 MB sent in parts, Restart Rove after Update now, and a new task from a task's branch. Archived tasks left the web's sidebar (#1901); the command palette brings one back.
+Last run: run 5, 2026-11-16, `main` at `a29383a48`, web 0.9.295. Run 4 was 2026-11-12 at `79b458b67`. Since run 4 the web gained a Sessions page per project (active and archived, opened from the project header and the rail), row labels on task rows (`rove api row-token`, `--keep`), archiving a project's main session, a project picker in New session that finds GitHub repos and clones a picked one into `~/.rove/repos`, updating Rove on another machine, and a Usage page drawn as one statement. The rest were terminal and layout fixes with nothing to carry over.
 
 ## How the pages were listed
 
-The web has no page-listing tool. The list comes from `PageId` in `packages/rove-web/src/ui.ts`, the rail, `SECTION_GROUPS` in `settings-sections.ts` and the panel switch on the task page. Pages marked **opened** were opened at 390x844 with Playwright touch emulation against `rove --web` in a throwaway `HOME`. **Read only** means the row comes from source because the fixture could not reach the page. The column keeps the last run that opened a page; run 4 opened the task list, the Inbox with a reply sent, Settings › Appearance and Settings › Engines.
+The web has no page-listing tool. The list comes from `PageId` in `packages/rove-web/src/ui.ts`, the rail, `SECTION_GROUPS` in `settings-sections.ts` and the panel switch on the task page. Pages marked **opened** were opened at 390x844 with Playwright touch emulation against `rove --web` in a throwaway `HOME`. **Read only** means the row comes from source because the fixture could not reach the page. The column keeps the last run that opened a page; run 5 opened the task list, the row menu of a project's main row, Settings › About and the Update page.
 
 Android frames come from the allen emulator `rove_test` sized with `wm size 1024x2216` (390x844 dp), paired through `10.0.2.2` to a `rove --web` bound to allen's loopback in a throwaway `HOME`. The web frames in this run's PRs load that same bridge through an SSH tunnel, so both clients show the same data. Fake `claude` and `codex` scripts stand in for the engines.
 
-States seeded in run 3: a failing `--script` routine run twice under one name for the Inbox, `engine-report --kind awaiting-input` for a tab at a menu, a second repo for move to project, and a commit on a task branch for land. Run 4 added a live claude task with one finished turn (`engine-report --kind turn-complete`) and a codex task, and rebuilt `rove-web/dist` in the fixture checkout: a stale build had hidden the engine marks.
+States seeded in run 3: a failing `--script` routine run twice under one name for the Inbox, `engine-report --kind awaiting-input` for a tab at a menu, a second repo for move to project, and a commit on a task branch for land. Run 4 added a live claude task with one finished turn (`engine-report --kind turn-complete`) and a codex task, and rebuilt `rove-web/dist` in the fixture checkout: a stale build had hidden the engine marks. Run 5 set `ROVE_FAKE_UPDATE=99.0.0` and put a fake `sh` first on the fixture's PATH that answers the `curl … | sh` installer, so Update now and Restart Rove ran end to end without installing anything.
 
 ## Pages and states
 
@@ -19,11 +19,13 @@ States seeded in run 3: a failing `--script` routine run twice under one name fo
 | Pair / log in | first load | read only | Pairing screen | has |
 | Welcome (first run) | first load, no projects | read only | none | missing |
 | Task list: projects, tasks, marks, `↩ Recent` | home | opened | Task list | has, no Recent row |
+| Row labels | task list, `rove api row-token` | read only | Task row | missing: the row field `rowTokens`; it lands in `TaskRowView.kt`, which #1998 changes, so it waits for #1998 |
 | Engine mark before a task title | task list | opened | Task row | #1998 adds the static brand mark; the status-coloured mark, its Appearance setting and the returning-user notice are missing |
-| Row menu, `More` fold | long-press a row | opened | Row menu | #1818 adds land, copy, move, change engine, remove and the fold; retry, compare, continue in another engine, scheduled start still missing |
+| Row menu, `More` fold | long-press a row | opened | Row menu | has land, copy, move, change engine, remove and the fold; #2096 adds archive on a project's main row; retry, compare, continue in another engine, scheduled start and ending a main's conversation still missing |
 | Project menu | long-press a project | opened on web, Android read only | Project menu | has: field notes, move, remove |
-| Archived fold | end of the list on Android; the web palette since #1901 | read only | Archived fold | Android keeps its fold |
-| New session | `New task` | opened | Create sheet | partial: no branch, folder, machine chip or automatic placement, `Later`, start from a task's branch; a task needs its first prompt |
+| Archived fold | end of the list on Android | read only | Archived fold | Android keeps its fold |
+| Sessions page | rail, project header menu | read only | Archived fold | not planned: the web added it because its rail lists no archived sessions; Android's fold already lists them with Unarchive and Remove |
+| New session | `New task` | opened | Create sheet | partial: no branch, folder, machine chip or automatic placement, `Later`, start from a task's branch, GitHub project picker and clone; a task needs its first prompt. #2097 opens the child task a `+` on a busy main starts |
 | Terminal, key row | tap a task | opened | Task detail | has |
 | Message bar: hold to talk, type instead | engine tab | opened | Composer | typing has; voice missing |
 | Attachments | message bar | read only | Composer | images and PDFs up to 5 MB; the web sends any file up to 500 MB in parts (`attachment.part`) |
@@ -40,7 +42,7 @@ States seeded in run 3: a failing `--script` routine run twice under one name fo
 | Mods | rail when present | read only, none in fixture | Mods as a gate only | missing |
 | Machines | rail when registered | read only, none in fixture | none | missing |
 | Usage page | usage chips, which a phone does not show | read only | Settings › Usage | has its own usage screen |
-| Update | Settings › About | control opened | Settings › About | channel and notify since #1819; `Update now` and `Restart Rove` missing (`update.run`, `update.restart`) |
+| Update | Settings › About | opened, Update now run against the fake installer | Settings › About | channel and notify since #1819; #2095 adds `Update now` and `Restart Rove` |
 | Worktrees | no phone rail entry | read only | Worktrees | Android has more than the phone rail |
 | Search | none since #1673 (command palette) | not on a phone | Search | Android keeps its page |
 | Dispatch | removed from the web (#1673) | gone | none | no longer a gap |
@@ -64,7 +66,9 @@ An op exists in `packages/rove-bridge/src/ops` for each unless the row says othe
 | --- | --- | --- |
 | A task's other PRs on its row | row field `sessionPrs` | S |
 | Files browser, file preview, create PR | `files.list`, `file.read`, `tab.requestPR` | M |
-| Update now, then Restart Rove | `update.run`, `update.status`, `update.restart` | S |
+| Row labels on task rows, after #1998 | row field `rowTokens` | S |
+| End a project's main conversation from its row | `task.delete` on a main row | S |
+| GitHub project picker and clone in New session | `github.repos`, `repo.clone` | M |
 | Status-coloured engine mark and the task status setting | `prefs.get`, `prefs.set` (`statusMark`) | M |
 | Attach any file up to 500 MB | `attachment.part` | M |
 | Machines page | `machines.list`, `machines.repos` | M |
@@ -82,8 +86,10 @@ An op exists in `packages/rove-bridge/src/ops` for each unless the row says othe
 | New session: branch, folder, machine and automatic placement, `Later`, from a task's branch | `repo.branches`, `fs.subdirs`, `machines.list`, `task.spawn` | L |
 | Settings › General and Appearance | `prefs.get`, `prefs.set`, `theme.*` | L |
 
-From reading the code, not run: the `+` sheet in task detail drops the `taskId` in the `tab.new` reply, so a prompt that starts a child task does not open that child.
+Run 4's code-reading find, the `+` sheet dropping the `taskId` of the `tab.new` reply, was real: on the emulator a second `+` on a main started a child task that never opened. #2097 fixes it.
 
 Found in run 4: Android read the `output.read` terminal tail as one string, but the bridge sends a list of rows, so the engine history's terminal fallback failed to decode; #1997 fixes it. iOS `OutputEnvelope` decodes the same field as a string and likely has the same bug. On the web phone, the engine-mark notice showed twice, stacked, on first load.
+
+Found in run 5, web: at 390 wide, Settings › About › Open Update page renders the Update page under Settings, so its Update now and Restart Rove buttons cannot be tapped (`elementFromPoint` hits the Settings page).
 
 Backend gaps found: none. Every missing feature above has an op.
