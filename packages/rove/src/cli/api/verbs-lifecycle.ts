@@ -123,7 +123,7 @@ export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
     name: "archive",
     group: "lifecycle",
     summary:
-      "Hide a task from the sidebar and the default `list`, and end its sessions: every engine and shell process of the task is stopped, while the worktree, branch, transcript and each tab's conversation stay, so after `unarchive` a tab reopens the conversation it had. `get-task` and `delete` keep working on it by id, and a `send` starts the engine again. Applies to the task and every descendant (its child tasks, recursively) together. Refused with TASK_BUSY while an engine in the subtree is running or waiting on you — pass --force to stop it and archive anyway. A project's `main` session can be archived too, and opening the project again restores it. Undo with `unarchive`; `list --archived` finds archived tasks. Returns { taskId, archived, ids } — `ids` is every task hidden.",
+      "Hide a task from the sidebar and the default `list`, and end its sessions: every engine and shell process of the task is stopped, while the worktree, branch, transcript and each tab's conversation stay, so after `unarchive` a tab reopens the conversation it had. `get-task` and `delete` keep working on it by id, and a `send` starts the engine again. Applies to the task and every descendant (its child tasks, recursively) together. Refused with TASK_BUSY while an engine in the subtree is running or waiting on you — pass --force to stop it and archive anyway. Undo with `unarchive`; `list --archived` finds archived tasks. Returns { taskId, archived, ids } — `ids` is every task hidden.",
     flags: [
       F.taskId(),
       {

@@ -104,8 +104,8 @@ describe("trackedWorktrees", () => {
       task({ id: "remote", repo: "ssh://dev@build-box", worktreePath: "/remote/wt/remote" }),
       task({ id: "backlog", worktreePath: "" }),
       // Two rows sharing a worktree path — the first in list order wins.
-      task({ id: "main1", kind: "main", repo: "/repo", worktreePath: "/repo", vendor: "claude" }),
-      task({ id: "main2", kind: "main", repo: "/repo", worktreePath: "/repo", vendor: "codex" }),
+      task({ id: "main1", kind: "dir", repo: "/repo", worktreePath: "/repo", vendor: "claude" }),
+      task({ id: "main2", kind: "dir", repo: "/repo", worktreePath: "/repo", vendor: "codex" }),
     ]
     const map = trackedWorktrees(tasks, "claude")
     expect([...map.keys()].sort()).toEqual(["/repo", "/wt/a"])

@@ -113,7 +113,7 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
       onNewTaskFromBranchRequest={(id) => void actions.createTaskFromBranch(id)}
       onOpenScratch={props.openScratch}
       onDeleteRequest={(id) => void actions.deleteTask(id)}
-      onForgetProjectRequest={(id) => void actions.forgetProject(id)}
+      onForgetProjectRequest={(repo) => void actions.forgetProject(repo)}
       onLandRequest={(id) => void actions.landTask(id)}
       onArchiveRequest={(id) => void actions.archiveTask(id)}
       onSyncBaseRequest={(id) => void actions.syncBase(id)}
@@ -136,7 +136,7 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
       onRunAgainRequest={(id) => void actions.confirmRunAgain(id).then((task) => task && props.runAgain(task))}
       moveMode={props.moveMode}
       onMoveRequest={(id, delta) => void actions.moveTask(id, delta)}
-      onMoveToTopRequest={(id) => void actions.moveTaskToTop(id)}
+      onMoveProjectRequest={(repo, target, side) => void actions.moveProject(repo, target, side)}
       onMoveModeExit={props.exitMoveMode}
       onLocalMergeRequest={props.onLocalMergeRequest}
       onSearchActiveChange={props.onSearchActiveChange}

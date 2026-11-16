@@ -95,6 +95,9 @@ export async function initDaemonStores(
   const tabs = new TabsStore(runtime.tabsPersistence, bus)
   tabs.init()
   tabs.sweep((taskId) => orch.getTask(taskId) !== undefined, orch.listTasks().length > 0)
+  await orch
+    .settleProjectRows((taskId) => (tabs.get(taskId).state?.tabs.length ?? 0) > 0)
+    .catch((err) => logDaemonError("project-rows", err))
   const aliases = new AliasKeeper({ orch, tabs })
   // Extra engine tabs become child tasks and dead aliases are released before any client reads the index.
   const tasks = orch.listTasks()

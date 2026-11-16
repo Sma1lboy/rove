@@ -5,12 +5,10 @@ import { DEFAULT_GLYPHS, type GlyphSet } from "@/tui/lib/glyphs"
 import type { Task } from "@/types/task"
 import { isBuiltinVendor } from "@/types/vendor"
 import type { RowStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
-import { repoBasename } from "./groups"
 
 export type SidebarTone = "success" | "warning" | "primary" | "textMuted" | "error"
 
 export interface SidebarRowView {
-  readonly isMain: boolean
   readonly titleText: string
   readonly subtitleText: string
   readonly loading: boolean
@@ -83,10 +81,9 @@ function deletionSubtitle(failed: boolean): string {
 /**
  * Custom engines have no transcript for the activity monitor, so liveness
  * isn't tracked. `undefined` vendor means the built-in default
- * ({@link DEFAULT_TASK_VENDOR}), not custom; `main` rows have no session.
+ * ({@link DEFAULT_TASK_VENDOR}), not custom.
  */
 function isCustomEngineTask(task: Task): boolean {
-  if (task.kind === "main") return false
   return task.vendor !== undefined && !isBuiltinVendor(task.vendor)
 }
 
@@ -121,14 +118,13 @@ export function buildSidebarRowView(opts: {
   readonly spinnerFrame: number
   readonly subtitleBudget: number
   readonly truncateBranch: (branch: string, budget: number) => string
-  /** Checked-out branch of a `main` row's repo root (its `task.branch` is always `""`). */
+  /** Checked-out branch of a `dir` row's directory (its `task.branch` is always `""`). */
   readonly mainBranch?: string
   /** The glyph preset; braille when absent. */
   readonly glyphs?: GlyphSet
 }): SidebarRowView {
   const { task, status } = opts
-  const isMain = task.kind === "main"
-  const branch = isMain ? (opts.mainBranch ?? "") : task.branch
+  const branch = task.branch || (opts.mainBranch ?? "")
   const glyphs = opts.glyphs ?? DEFAULT_GLYPHS
   const mark = rowStatusGlyph(status, glyphs)
   // A custom engine nobody reports on is untracked, not idle: the subtitle
@@ -161,8 +157,7 @@ export function buildSidebarRowView(opts: {
           ? opts.truncateBranch(branchWithMarks, opts.subtitleBudget)
           : opts.truncateBranch(fallbackSubtitle, opts.subtitleBudget)
   return {
-    isMain,
-    titleText: isMain ? repoBasename(task.repo) : task.title,
+    titleText: task.title,
     subtitleText,
     loading,
     stateGlyph,

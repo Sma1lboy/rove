@@ -236,7 +236,7 @@ export function AdoptTab({
           } catch (err) {
             // A repo the bridge has never seen becomes a project first, as the TUI's auto-save does.
             if (!(err instanceof BridgeRequestError && err.code === "UNKNOWN_REPO")) throw err
-            await model.client.request("task.openMain", { repo: repoPath })
+            await model.client.request("project.ensure", { repo: repoPath })
             res = await model.client.request<{ taskId: string }>("worktree.adopt", args)
           }
           last = res.taskId

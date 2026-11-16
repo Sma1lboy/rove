@@ -68,16 +68,14 @@ describe("rail", () => {
     ])
   })
 
-  test("a sort reorders tasks but the project's main checkout stays first", () => {
-    const main = { ...row("m", "/w/a", 3), kind: "main", title: "zzz" }
+  test("a sort reorders a project's tasks", () => {
     const tasks = [
-      main,
       { ...row("x", "/w/a", 0), title: "beta", label: "beta", rank: 1 },
       { ...row("y", "/w/a", 1), title: "alpha", label: "alpha", rank: 0 },
     ]
-    expect(groupByProject(tasks, "name")[0].tasks.map((t) => t.id)).toEqual(["m", "y", "x"])
-    expect(groupByProject(tasks, "attention")[0].tasks.map((t) => t.id)).toEqual(["m", "y", "x"])
-    expect(groupByProject(tasks, "default")[0].tasks.map((t) => t.id)).toEqual(["m", "x", "y"])
+    expect(groupByProject(tasks, "name")[0].tasks.map((t) => t.id)).toEqual(["y", "x"])
+    expect(groupByProject(tasks, "attention")[0].tasks.map((t) => t.id)).toEqual(["y", "x"])
+    expect(groupByProject(tasks, "default")[0].tasks.map((t) => t.id)).toEqual(["x", "y"])
   })
 
   test("`/` keeps a hit's ancestors: a task hit keeps its children, a child hit keeps its parent", () => {
@@ -313,9 +311,9 @@ describe("a task's PR mark", () => {
     expect(prEntries([parent, child]).map((entry) => [entry.task.id, entry.mark.checks])).toEqual([["c", "failing"]])
   })
 
-  test("a main task's session PRs list beside a child's, one entry per URL", () => {
+  test("a parent's session PRs list beside a child's, one entry per URL", () => {
     const url = (n: number) => `https://github.com/o/r/pull/${n}`
-    const main = {
+    const parent = {
       id: "m",
       repo: "/r",
       pr: null,
@@ -330,7 +328,7 @@ describe("a task's PR mark", () => {
       pr: { number: 2, url: url(2), lifecycle: "open", checkState: "passing" },
       prChip: "passing",
     } as unknown as TaskRow
-    const entries = prEntries([main, child])
+    const entries = prEntries([parent, child])
     expect(entries.map((entry) => entry.pr.url)).toEqual([url(1), url(2)])
     expect(entries.map((entry) => entry.mark.state)).toEqual(["merged", "open"])
     expect(entries[1]?.mark.checks).toBe("passing")

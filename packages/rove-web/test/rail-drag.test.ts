@@ -6,26 +6,21 @@ import { type NavRow, groupByProject } from "../src/rail.ts"
 const task = (id: string, repo: string, order: number, extra: Partial<TaskRow> = {}): TaskRow =>
   ({ id, title: id, label: id, repo, kind: "task", branch: id, rank: 1, order, ...extra }) as TaskRow
 
-const mainA = task("mainA", "/a", 0, { kind: "main" })
-const mainB = task("mainB", "/b", 1, { kind: "main" })
-const mainC = task("mainC", "/c", 2, { kind: "main" })
 const a1 = task("a1", "/a", 3)
 const b1 = task("b1", "/b", 4)
 const a2 = task("a2", "/a", 5)
 const a3 = task("a3", "/a", 6)
 const pinned = task("ap", "/a", 7, { pinned: true })
-const tasks = [a3, mainC, a1, pinned, mainA, b1, a2, mainB]
+const tasks = [a3, a1, pinned, b1, a2]
 
 test("a drop counts places among the rows the daemon moves together", () => {
-  expect(dragSteps(tasks, mainC, mainA)).toBe(-2)
   expect(dragSteps(tasks, a1, a3)).toBe(2)
   expect(dragSteps(tasks, a3, a2)).toBe(-1)
 })
 
-test("a drop across projects, pins or kinds is refused", () => {
+test("a drop across projects or pins is refused", () => {
   expect(dragSteps(tasks, a1, b1)).toBeNull()
   expect(dragSteps(tasks, a1, pinned)).toBeNull()
-  expect(dragSteps(tasks, a1, mainA)).toBeNull()
   expect(dragSteps(tasks, a1, a1)).toBeNull()
 })
 
@@ -53,18 +48,17 @@ test("the preview moves a row with every child task nested under it", () => {
   expect(ids(previewDrop(rows, "A", "B", "below"))).toEqual(["B", "b1", "A", "a1", "a1-kid", "a1-grandkid", "a2"])
 })
 
-test("pinned tasks follow the project's main row in every sort, keeping their own order", () => {
+test("pinned tasks head their project in every sort, keeping their own order", () => {
   const at = (iso: string) => ({ createdAt: iso })
   const list = [
     task("x1", "/x", 1, at("2026-01-04T00:00:00Z")),
     task("xp1", "/x", 2, { pinned: true, ...at("2026-01-01T00:00:00Z") }),
     task("x2", "/x", 3, at("2026-01-05T00:00:00Z")),
     task("xp2", "/x", 4, { pinned: true, ...at("2026-01-02T00:00:00Z") }),
-    task("xm", "/x", 5, { kind: "main" }),
   ]
   const ids = (sort: "default" | "recent") => groupByProject(list, sort)[0]?.tasks.map((t) => t.id)
-  expect(ids("default")).toEqual(["xm", "xp1", "xp2", "x1", "x2"])
-  expect(ids("recent")).toEqual(["xm", "xp2", "xp1", "x2", "x1"])
+  expect(ids("default")).toEqual(["xp1", "xp2", "x1", "x2"])
+  expect(ids("recent")).toEqual(["xp2", "xp1", "x2", "x1"])
 })
 
 test("a drag stays among the tasks with its pin: it never pins or unpins", () => {

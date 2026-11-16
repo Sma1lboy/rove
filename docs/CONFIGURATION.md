@@ -449,8 +449,8 @@ starting with `-`, are ignored.
 A directory is cloned only when all of these hold; otherwise it is skipped
 without a message, exactly as before:
 
-- the project is local (not SSH) and the task owns a worktree (project-main and
-  directory tasks do not);
+- the project is local (not SSH) and the task owns a worktree (directory tasks do
+  not);
 - git reports the directory as ignored and containing no tracked file;
 - it is absent from the new worktree;
 - source and worktree are on the same APFS volume (`st_dev` match).

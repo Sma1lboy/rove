@@ -24,7 +24,7 @@ export type CreatePRDeps = {
 export function createPRAction(deps: CreatePRDeps): () => Promise<void> {
   const gather = deps.gather ?? gatherPRPromptState
   const build = deps.build ?? buildPRPrompt
-  /** On the target branch (a project main session) it toasts instead. */
+  /** On the target branch (a session in the project's checkout) it toasts instead. */
   return async function createPR(): Promise<void> {
     const wt = deps.worktree
     const send = deps.sendToEngineFn.current

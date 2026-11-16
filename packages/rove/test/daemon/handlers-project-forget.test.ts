@@ -1,21 +1,18 @@
-/** `project.forget`: the removed project's `main` row takes its sessions with it. */
+/** `project.forget`: un-saves the repo; its rows and their sessions stay. */
 
 import { expect, it } from "vitest"
 import type { Task } from "../../src/types/task.ts"
 import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
 
-it("ends the sessions of the main row it removes, and of no other task", async () => {
-  let tasks = [
-    { ...TASK, id: "m", kind: "main" },
-    { ...TASK, id: "child", parentTaskId: "m" },
-    { ...TASK, id: "m2", kind: "main" },
-  ] as Task[]
+it("forgets the repo and ends no session", async () => {
+  const tasks = [{ ...TASK, id: "d", kind: "dir" }] as Task[]
+  const forgotten: string[] = []
   const stopped: string[] = []
   const { ctx } = fakeCtx({
     listTasks: () => tasks,
     getTask: (id: string) => tasks.find((t) => t.id === id),
-    forgetProject: async () => {
-      tasks = tasks.filter((t) => t.id !== "m")
+    forgetProject: async (repo: string) => {
+      forgotten.push(repo)
     },
   })
   const runtime = {
@@ -25,5 +22,6 @@ it("ends the sessions of the main row it removes, and of no other task", async (
     },
   } as typeof ctx.runtime
   await dispatch("project.forget", { repo: "/repo" }, { ...ctx, runtime })
-  expect(stopped).toEqual(["m"])
+  expect(forgotten).toEqual(["/repo"])
+  expect(stopped).toEqual([])
 })

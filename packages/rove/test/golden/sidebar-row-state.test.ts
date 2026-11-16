@@ -34,8 +34,8 @@ import { prChipBlock, statusChipBlock } from "./sidebar-chip-blocks"
 import {
   OMITTED_FIELDS,
   RECORDED_FIELDS,
+  checkoutRowBlock,
   loadingAgreementBlock,
-  mainRowBlock,
   spinnerBlock,
   statusCrossProduct,
   statusVsActivityBlock,
@@ -62,7 +62,7 @@ test("sidebar row state matrix matches the committed golden", () => {
   const document = goldenDocument("sidebar row state — buildSidebarRowView over its full input space", [
     { title: "daemon row status x deletion (claude cross product)", lines: statusCrossProduct() },
     { title: "vendor-sensitive subtitles", lines: vendorBlock() },
-    { title: "project (main) rows — branch resolved from the repo checkout", lines: mainRowBlock() },
+    { title: "rows with no stored branch — branch resolved from the checkout", lines: checkoutRowBlock() },
     { title: "engine-owned spinner frame sets + withSpinnerFrame overlay", lines: spinnerBlock() },
     { title: "rowIsLoading agrees with the view's own loading", lines: loadingAgreementBlock() },
     { title: "subagent marks ride the animation only", lines: subagentBlock() },
@@ -161,7 +161,7 @@ test("every row the matrix produces has a non-empty glyph and subtitle", () => {
 
 /**
  * The golden records a chosen SUBSET of `SidebarRowView`'s fields, and the
- * first cut of this suite chose it wrong — `isMain`, `titleText` and
+ * first cut of this suite chose it wrong — `titleText` and
  * `materializing` were all absent, so those could regress without moving a
  * line. This makes the subset a decision the type system enforces: a field
  * added to the interface belongs in RECORDED_FIELDS or in the documented

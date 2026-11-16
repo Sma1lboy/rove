@@ -48,8 +48,8 @@ move regroups the rows only: the checkout, branch, terminals and running
 engine stay exactly where they are, so the conversation keeps resuming. A
 worktree task remembers the repo that cut it, so Remove session, Land and
 forks still run in that repo, and moving it back clears the link. Children
-follow their parent; a child, a project's main task, a routine session and a
-multi-repo task are not movable on their own.
+follow their parent; a child, a routine session and a multi-repo task are not
+movable on their own.
 
 ## Ignored directories are cloned in
 
@@ -86,7 +86,7 @@ and uses no extra disk until either side writes. Rove never falls back to a
 full copy. When the volume cannot clone files, `add --fork` fails with
 `FORK_UNSUPPORTED` and creates nothing, and the TUI and web start the task
 the old way and say that the uncommitted work stays in the original. The same
-refusal covers a project's main checkout, a `rove .` directory task, a
+refusal covers a directory task (a project's own checkout included), a
 multi-repo task and a remote (SSH) project.
 
 Not carried over: state git keeps in the original's git directory outside the
@@ -376,8 +376,8 @@ A checkpoint holds tracked edits and files you never `git add`ed. Gitignored
 files (`node_modules/`, build output, `.env`) are left out. It does not touch
 your branch, your index or `HEAD`, and a turn that changed nothing takes no new
 one. The newest 100 per task are kept. Only a task's own worktree is covered —
-a project's main checkout and a directory task are your own files, and get no
-checkpoints. A nested repo or submodule is recorded as a pointer, not its
+a directory task (a project's own checkout included) is your own files, and
+gets no checkpoints. A nested repo or submodule is recorded as a pointer, not its
 files; `checkpoint` reports those paths as `uncaptured`.
 
 ```

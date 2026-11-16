@@ -161,17 +161,6 @@ describe("renameBranchFlow", () => {
     expect(reload).toHaveBeenCalledTimes(1)
   })
 
-  test("a `main` (project) row is a no-op — its branch isn't rove's to rename", async () => {
-    const tasks = [makeTask({ id: "m1", kind: "main" })]
-    const orch = makeOrch()
-    const { ctx, promptText } = makeCtx({ tasks, orch, promptTextResult: "x" })
-
-    await renameBranchFlow(ctx, "m1")
-
-    expect(promptText).not.toHaveBeenCalled()
-    expect(orch.setBranch).not.toHaveBeenCalled()
-  })
-
   test("cancelled prompt skips the RPC", async () => {
     const tasks = [makeTask({ id: "t1" })]
     const orch = makeOrch()
@@ -432,8 +421,8 @@ describe("copyTaskFieldFlow", () => {
     expect(notifyInfo.mock.calls[0][0]).toContain("--tab tab-3")
   })
 
-  test("an empty branch (main/dir row) copies nothing and shows no toast", async () => {
-    const tasks = [makeTask({ id: "t1", branch: "", kind: "main" })]
+  test("an empty branch (dir row) copies nothing and shows no toast", async () => {
+    const tasks = [makeTask({ id: "t1", branch: "", kind: "dir" })]
     const { ctx, copyText, notifyInfo } = makeCtx({ tasks, orch: makeOrch() })
 
     await copyTaskFieldFlow(ctx, "t1", "branch")

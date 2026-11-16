@@ -3,8 +3,8 @@
  * every session and carry only the engine's directory; the match is the task
  * whose `worktreePath` is the cwd or its LONGEST prefix — worktrees live under
  * `~/.rove/worktrees/`, legacy `~/.rove/worktrees/`, or repo-local
- * `.rove/`/`.rove/`/`.claude/worktrees/`, and a `main` task's path is the repo
- * root, so the more specific one must win.
+ * `.rove/`/`.rove/`/`.claude/worktrees/`, and a `dir` task's path may be the
+ * repo root, so the more specific one must win.
  *
  * A prefix alone isn't enough: a different repo nested under a tracked root
  * (a clone under `refs/`, a `.dev-sandbox` checkout, any repo under a `$HOME`
@@ -94,8 +94,8 @@ export function matchTaskByCwd(tasks: ReadonlyArray<CwdMatchTask>, cwd: string):
 
 /**
  * Every task whose worktree is exactly `worktreePath`, owner first. Unlike
- * {@link matchTaskByCwd}, an untracked worktree must not match the parent
- * `main` task (repo root). Sharers of one directory all match.
+ * {@link matchTaskByCwd}, an untracked worktree must not match a `dir` task
+ * at the repo root. Sharers of one directory all match.
  */
 export function tasksAtWorktreePath(tasks: ReadonlyArray<CwdMatchTask>, worktreePath: string): string[] {
   const target = normalize(worktreePath)

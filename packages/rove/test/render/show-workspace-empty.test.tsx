@@ -91,9 +91,9 @@ describe("a task whose last tab was closed", () => {
     expect(await frameForTask(SELECTED)).toContain("No sessions here")
   })
 
-  it.each(["main", "dir"] as const)("waits for a choice before a never-opened %s task starts", async (kind) => {
+  it("waits for a choice before a never-opened dir task starts", async () => {
     resetTabsSyncForTests()
-    expect(await frameForTask({ ...SELECTED, kind })).toContain("No sessions here")
+    expect(await frameForTask({ ...SELECTED, kind: "dir" })).toContain("No sessions here")
     expect(tabsByTask.has("t1")).toBe(false)
   })
 

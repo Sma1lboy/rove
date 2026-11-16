@@ -58,14 +58,14 @@ function daemonStatus(rollup: RowStatus): TaskStatus {
 describe("task rows", () => {
   const now = 10_000_000
 
-  test("groups like `rove api context` and sorts what needs a person first, main tasks included", () => {
+  test("groups like `rove api context` and sorts what needs a person first", () => {
     const rows = taskRows(
-      [task({ id: "busy" }), task({ id: "blocked" }), task({ id: "main", kind: "main" }), task({ id: "dark" })],
+      [task({ id: "busy" }), task({ id: "blocked" }), task({ id: "idle", kind: "dir" }), task({ id: "dark" })],
       {
         tasks: {
           busy: daemonStatus({ kind: "running", state: "running", since: now - 1000 }),
           blocked: daemonStatus({ kind: "needs-input", state: "permission_needed", since: now - 1000 }),
-          main: daemonStatus({ kind: "idle", state: "idle", since: now - 1000 }),
+          idle: daemonStatus({ kind: "idle", state: "idle", since: now - 1000 }),
         },
         liveness: true,
       },
@@ -75,7 +75,7 @@ describe("task rows", () => {
     expect(rows.map((r) => [r.id, r.group])).toEqual([
       ["blocked", "waiting-on-you"],
       ["busy", "working"],
-      ["main", "idle"],
+      ["idle", "idle"],
       // No activity reading is "could not look", never idle.
       ["dark", "unknown"],
     ])
@@ -450,7 +450,7 @@ describe("repos.list", () => {
       mkdirSync(app)
       addSavedRepo(app, { skipGate: true })
       const tasks = [
-        task({ id: "m", kind: "main", repo: app }),
+        task({ id: "m", kind: "dir", repo: app }),
         task({ id: "nf", kind: "dir", repo: home, noProject: true }),
         task({ id: "rt", kind: "dir", repo: join(home, ".rove", "routines", "r1"), noProject: true }),
       ]

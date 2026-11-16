@@ -17,11 +17,10 @@ function fakeClient(replies: Record<string, unknown>) {
 }
 
 describe("startStory in the project", () => {
-  test("lands on the child task the bridge made, not on the main checkout", async () => {
+  test("opens a session of its own in the checkout and starts the story's prompt there", async () => {
     const { client, calls } = fakeClient({
       "issue.prompt": { title: "T", prompt: "do it" },
-      "task.openMain": { taskId: "MAIN" },
-      "tab.new": { tabId: "tab-1", taskId: "KID" },
+      "task.openCheckout": { taskId: "S1" },
     })
 
     const res = await startStory(client, {
@@ -31,9 +30,9 @@ describe("startStory in the project", () => {
       placement: "project",
     })
 
-    expect(res).toEqual({ taskId: "KID", tabId: "tab-1", warnings: [] })
+    expect(res).toEqual({ taskId: "S1", warnings: [] })
     expect(calls.find((c) => c.op === "tab.new")?.args).toEqual({
-      taskId: "MAIN",
+      taskId: "S1",
       kind: "engine",
       engine: "codex",
       prompt: "do it",

@@ -175,7 +175,7 @@ layout, not the exact output of this exercise.
    task titles if you have many tasks.
 
 **The isolation boundary is a managed Task.** Extra tabs and splits share its
-files. Project-main tasks and `rove .` directory tasks use your existing
+files. Directory tasks (`rove .`, or "the project itself") use your existing
 checkout; they do not create an isolated branch/worktree. This exercise
 specifically creates two managed tasks via `n`.
 

@@ -6,9 +6,9 @@
  *
  *   1. cwd at/inside a MANAGED task's worktree → FOLD into it as a tab.
  *      Checked first: `resolveMainRepoRoot` maps a linked worktree to the
- *      MAIN checkout, so rule 2 would misfold into the main task.
+ *      MAIN checkout, so rule 2 would misfold into a session there.
  *   2. cwd, or the repo root adopt would pin (a subdir shell), equals a
- *      main/dir task's directory → FOLD. Main rows win over dir rows.
+ *      dir task's directory → FOLD.
  *   3. No owner → adopt into the repo; an UNFAMILIAR repo also gets the
  *      save-as-project hint (about savedRepos, not the move).
  *   4. No repo, or no live harness → stay in Scratch.
@@ -19,7 +19,7 @@ import { pathWithin, samePath } from "@sma1lboy/rove-daemon/path-identity"
 /** A non-scratch task that could already own the shell's cwd. */
 export interface ScratchOwnerTask {
   readonly id: string
-  readonly kind: "main" | "task" | "dir"
+  readonly kind: "task" | "dir"
   /** The task's directory (worktreePath), canonicalized like `cwd`. */
   readonly dir: string
   /** Set on a child running in another task's directory; the owner, not the child, absorbs the shell. */
@@ -51,12 +51,10 @@ export function decideScratchAdopt(input: ScratchAdoptInput): ScratchAdoptDecisi
     const managed = owners.find((task) => task.kind === "task" && pathWithin(task.dir, cwd) !== null)
     if (managed) return { kind: "fold", taskId: managed.id }
   }
-  for (const kind of ["main", "dir"] as const) {
-    const owned = owners.find(
-      (task) => task.kind === kind && (samePath(task.dir, input.cwd) || samePath(task.dir, input.repoRoot)),
-    )
-    if (owned) return { kind: "fold", taskId: owned.id }
-  }
+  const owned = owners.find(
+    (task) => task.kind === "dir" && (samePath(task.dir, input.cwd) || samePath(task.dir, input.repoRoot)),
+  )
+  if (owned) return { kind: "fold", taskId: owned.id }
   return {
     kind: "adopt",
     repo: input.repoRoot,

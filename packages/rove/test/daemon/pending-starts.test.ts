@@ -20,7 +20,7 @@ function harness(store: PendingStartsStore, invoke: (verb: string, params: ApiPa
       getTask: () => undefined,
       setScheduledStart: async () => {},
       setPrompt: async (id, p) => void calls.push(`prompt:${id}:${p}`),
-      ensureMainTask: async (repo) => ({ id: "main", repo }) as DaemonTask,
+      ensureProject: async (repo) => repo,
       openDirectoryTask: async (input) => {
         calls.push(`openDir:${input.dir}:${input.title}`)
         return { id: "d1" } as DaemonTask

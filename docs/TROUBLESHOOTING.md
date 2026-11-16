@@ -449,7 +449,7 @@ one home.
 This happens when a shell overrides `ROVE_DAEMON_SOCKET_PATH` but leaves
 `ROVE_HOME_DIR` pointing at a home another daemon is already serving. Letting
 both run is worse than the refusal: neither can see the other, so their task
-lists diverge permanently, the project-main row gets written twice, and
+lists diverge permanently, `savedRepos` gets written twice, and
 `automations.json` and `.config/rove/state.json` are raced as well.
 
 Either stop the incumbent, or give the new daemon its own home:

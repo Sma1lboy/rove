@@ -21,14 +21,6 @@ export class TaskNotFoundError extends Error {
   }
 }
 
-/** Main tasks are bound to a saved repo entry, not a Rove-allocated worktree. */
-export class CannotDeleteMainTaskError extends Error {
-  constructor() {
-    super("cannot delete a main task; remove the repo from saved repos instead")
-    this.name = "CannotDeleteMainTaskError"
-  }
-}
-
 /**
  * Stable sentinel in {@link DirtyWorktreeError}'s message. The daemon RPC layer
  * rebuilds errors as `new Error(message)` (`name` does NOT survive the wire),
@@ -396,7 +388,7 @@ export class ExtraRepoNotGitError extends Error {
 export const FORK_UNSUPPORTED_CODE = "FORK_UNSUPPORTED"
 
 /**
- * A fork that clones the parent's worktree cannot run here (no clone-capable volume, a main/dir/multi-repo/remote
+ * A fork that clones the parent's worktree cannot run here (no clone-capable volume, a dir/multi-repo/remote
  * parent). Nothing is left behind when it is thrown, so callers can fall back to a plain new task.
  */
 export class ForkUnsupportedError extends Error {

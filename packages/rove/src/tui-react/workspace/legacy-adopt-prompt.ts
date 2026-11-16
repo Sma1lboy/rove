@@ -21,7 +21,8 @@ const LISTED = 6
 
 export interface LegacyAdoptOrchestrator {
   legacyAdoptedTasks(): Promise<readonly Task[]>
-  ensureMainTask(repo: string): Promise<Task>
+  ensureProject(repo: string): Promise<string>
+  openDirectoryTask(input: { dir: string; title?: string }): Promise<Task>
 }
 
 function repoName(repo: string): string {
@@ -49,21 +50,26 @@ export function legacyAdoptPrompt(tasks: readonly Task[]): string {
 async function startCleanupSession(orch: LegacyAdoptOrchestrator, tasks: readonly Task[]): Promise<string> {
   const first = tasks[0]
   if (!first) throw new Error("nothing to clean up")
-  // A repo with no project row of its own (never opened as a project) still gets the session, in its own worktree.
-  const main = await orch.ensureMainTask(first.repo).catch(() => null)
+  // A repo that may not be a project still gets the session, in its own worktree.
+  const root = await orch.ensureProject(first.repo).catch(() => null)
+  const session = root
+    ? await orch.openDirectoryTask({ dir: root, title: t("tasks.confirm.legacyAdoptSessionTitle") })
+    : null
   const client = new RoveDaemonClient(defaultDaemonSocketPath())
   try {
-    const envelope = await client.request<ApiEnvelope<{ task: { id: string } }>>("api.invoke", {
-      verb: "add",
+    const envelope = await client.request<ApiEnvelope<{ task?: { id: string } }>>("api.invoke", {
+      verb: session ? "send" : "add",
       params: {
-        // `add` refuses --repo next to --no-worktree: the parent decides the directory.
-        ...(main ? { parent: main.id, "no-worktree": true } : { repo: first.repo }),
-        title: t("tasks.confirm.legacyAdoptSessionTitle"),
+        ...(session
+          ? { "task-id": String(session.id) }
+          : { repo: first.repo, title: t("tasks.confirm.legacyAdoptSessionTitle") }),
         prompt: legacyAdoptPrompt(tasks),
       },
     })
     if (!envelope.ok) throw new Error(`${envelope.error.code}: ${envelope.error.message}`)
-    return envelope.result.task.id
+    const id = session ? String(session.id) : envelope.result.task?.id
+    if (!id) throw new Error("add returned no task")
+    return id
   } finally {
     client.close()
   }

@@ -80,6 +80,7 @@ async function bootWith(baseline: unknown[]): Promise<{ harness: DaemonHarness; 
     },
     listTasks: () => baseline,
     getTask: () => undefined,
+    settleProjectRows: async () => {},
   } as unknown as Orchestrator
   const harness = await bootDaemonHarness({
     orchestrator,

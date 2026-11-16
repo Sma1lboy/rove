@@ -91,8 +91,8 @@ export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
       // The owner first, then every child sharing the directory.
       const holderIds = tasksAtWorktreePath(tasks, path)
       const taskId = holderIds[0]
-      // A `dir` task's path is the user's own directory and a `main` task's
-      // the project checkout; removing either deletes files Rove never made.
+      // A `dir` task's path is the user's own directory (a project checkout
+      // included); removing it deletes files Rove never made.
       // Sibling destructive paths refuse these kinds too (`deleteTask`,
       // `ensureWorktree`, `land`), and `clearWorktreePath` skips them.
       const borrowed = holderIds

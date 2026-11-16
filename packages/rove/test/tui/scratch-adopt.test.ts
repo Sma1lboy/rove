@@ -79,23 +79,22 @@ describe("decideScratchAdopt", () => {
 
   // --- fold instead of minting a duplicate row ----------------------------
 
-  const mainTask: ScratchOwnerTask = { id: "T-main", kind: "main", dir: "/repos/rove" }
   const managed: ScratchOwnerTask = { id: "T-wt", kind: "task", dir: "/wt/rove/feature-x" }
   const dirTask: ScratchOwnerTask = { id: "T-dir", kind: "dir", dir: "/repos/rove" }
 
-  it("cwd exactly a main task's directory → fold into it", () => {
+  it("cwd exactly a dir task's directory → fold into it", () => {
     expect(
       decideScratchAdopt({
         cwd: "/repos/rove",
         repoRoot: "/repos/rove",
         harnessLive: true,
         knownRepos: known,
-        ownerTasks: [mainTask],
+        ownerTasks: [dirTask],
       }),
-    ).toEqual({ kind: "fold", taskId: "T-main" })
+    ).toEqual({ kind: "fold", taskId: "T-dir" })
   })
 
-  it("cwd inside a managed task's worktree → fold into that task, not the main row", () => {
+  it("cwd inside a managed task's worktree → fold into that task, not the checkout's row", () => {
     // resolveMainRepoRoot maps a linked worktree back to the MAIN checkout,
     // so the managed subtree check must win over the repo-root match.
     expect(
@@ -104,33 +103,21 @@ describe("decideScratchAdopt", () => {
         repoRoot: "/repos/rove",
         harnessLive: true,
         knownRepos: known,
-        ownerTasks: [mainTask, managed],
+        ownerTasks: [dirTask, managed],
       }),
     ).toEqual({ kind: "fold", taskId: "T-wt" })
   })
 
-  it("cwd in a SUBDIR of the main checkout still folds — the adopt would pin the same root", () => {
+  it("cwd in a SUBDIR of a dir task at the repo root still folds — the adopt would pin the same root", () => {
     expect(
       decideScratchAdopt({
         cwd: "/repos/rove/packages/rove",
         repoRoot: "/repos/rove",
         harnessLive: true,
         knownRepos: known,
-        ownerTasks: [mainTask],
+        ownerTasks: [dirTask],
       }),
-    ).toEqual({ kind: "fold", taskId: "T-main" })
-  })
-
-  it("main row wins over a dir row for the same directory", () => {
-    expect(
-      decideScratchAdopt({
-        cwd: "/repos/rove",
-        repoRoot: "/repos/rove",
-        harnessLive: true,
-        knownRepos: known,
-        ownerTasks: [dirTask, mainTask],
-      }),
-    ).toEqual({ kind: "fold", taskId: "T-main" })
+    ).toEqual({ kind: "fold", taskId: "T-dir" })
   })
 
   it("cwd with no owning task → the existing adopt path (no fold)", () => {
@@ -140,7 +127,7 @@ describe("decideScratchAdopt", () => {
         repoRoot: "/repos/other",
         harnessLive: true,
         knownRepos: known,
-        ownerTasks: [mainTask, managed, dirTask],
+        ownerTasks: [managed, dirTask],
       }),
     ).toEqual({ kind: "adopt", repo: "/repos/other", known: false })
   })

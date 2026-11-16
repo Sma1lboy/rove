@@ -163,7 +163,7 @@ Notes:
   chips keep operating on a git branch. A non-git backend exports to one (or
   is a git branch underneath, as LayerFS/Freestyle argue it should be). This
   keeps `land.ts`, `land-preflight.ts` and `sync-base.ts` almost untouched.
-- **`borrowed` absorbs `kind: "main"` and `kind: "dir"`.** It is a backend
+- **`borrowed` absorbs `kind: "dir"`.** It is a backend
   whose `materialize` is "use this existing directory" and whose `dispose` is
   "forget". The ~35 lifecycle `task.kind ===` checks (orchestrator, daemon,
   CLI; all `if` chains, no `switch`) become capability checks. UI grouping can keep `kind`.

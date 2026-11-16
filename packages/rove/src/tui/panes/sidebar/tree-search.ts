@@ -12,8 +12,8 @@ import { type TreeRow, worktreeRowLabel } from "./tree-core"
 
 /**
  * Fields matched ONE AT A TIME (see `matchesRow`). A worktree row starts from
- * the label `worktreeRowLabel` renders: a `main` row shows its LIVE HEAD (stored
- * `branch` is `""`), a `dir` row its path (its auto-generated title is hidden).
+ * the label `worktreeRowLabel` renders: a `dir` row shows its LIVE HEAD (stored
+ * `branch` is `""`), else its path (its auto-generated title is hidden).
  *
  * `liveBranch` resolves the polled HEAD for branchless rows (see
  * {@link rowLiveBranchPath}); without it the stored branch is used.

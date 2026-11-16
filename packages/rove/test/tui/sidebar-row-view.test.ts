@@ -111,7 +111,7 @@ describe("rowIsLoading / anyRowLoading (spinner gate)", () => {
     const cases = [
       { task: task({ status: "in_progress" }) },
       { task: task({ status: "backlog" }) },
-      { task: task({ kind: "main", branch: "", status: "in_progress" }) },
+      { task: task({ kind: "dir", branch: "", status: "in_progress" }) },
       { task: task({ status: "done" }), status: { kind: "busy" as const, reason: "job" as const, since: 1 } },
       { task: task({}), status: { kind: "running" as const, since: 1, state: "running" as const } },
       { task: task({}), status: { kind: "needs-input" as const, since: 1, state: "permission_needed" as const } },

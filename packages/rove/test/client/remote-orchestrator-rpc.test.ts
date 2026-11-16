@@ -63,9 +63,9 @@ describe("RemoteOrchestrator RPC wire mapping", () => {
     expect("modelEffort" in payload).toBe(false)
   })
 
-  it("ensureMainTask / ensureWorktree / forgetProject", async () => {
-    await orch.ensureMainTask("/repo")
-    expect(request).toHaveBeenCalledWith("task.ensureMain", { repo: "/repo" })
+  it("ensureProject / ensureWorktree / forgetProject", async () => {
+    await orch.ensureProject("/repo")
+    expect(request).toHaveBeenCalledWith("project.ensure", { repo: "/repo" })
     await expect(orch.ensureWorktree("t1")).resolves.toBe("/wt")
     expect(request).toHaveBeenCalledWith("task.ensureWorktree", { taskId: "t1" })
     await orch.forgetProject("/repo")

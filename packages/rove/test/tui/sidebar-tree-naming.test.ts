@@ -47,8 +47,8 @@ describe("rowLiveBranchPath", () => {
     expect(rowLiveBranchPath(task("a", { branch: "feat/a" }))).toBe("")
   })
 
-  test("main and dir rows resolve their own checkout's HEAD", () => {
-    expect(rowLiveBranchPath(task("m", { kind: "main", branch: "", worktreePath: "/repos/rove" }))).toBe("/repos/rove")
+  test("dir rows resolve their own checkout's HEAD", () => {
+    expect(rowLiveBranchPath(task("m", { kind: "dir", branch: "", worktreePath: "/repos/rove" }))).toBe("/repos/rove")
     // A scratch shell is a dir task: opened inside a repo it IS on a branch,
     // and showing its path instead read as a different kind of row.
     const scratch = task("s", {
@@ -88,23 +88,10 @@ describe("worktreeRowLabel", () => {
     expect(worktreeRowLabel(task("a", { branch: "feat/a", title: " " }))).toBe("feat/a")
   })
 
-  test("a main row keeps its live HEAD even when the conversation is named", () => {
-    const main = task("m", { kind: "main", branch: "", title: "rove" })
+  test("a session in the repo's checkout keeps its live HEAD until the conversation is named", () => {
+    const main = task("m", { kind: "dir", branch: "", title: "rove", worktreePath: "/repos/rove" })
     expect(worktreeRowLabel(main, { liveBranch: "main" })).toBe("main")
     expect(worktreeRowLabel(main, { liveBranch: "main", liveTitle: "Plan the release" })).toBe("Plan the release")
-  })
-
-  test("a renamed main row is named by its title over the live HEAD; the repo-name default is not", () => {
-    const renamed = task("m", { kind: "main", branch: "", title: "Plan the release" })
-    expect(worktreeRowLabel(renamed, { liveBranch: "main" })).toBe("Plan the release")
-    expect(worktreeRowLabel(renamed, { liveBranch: "main", liveTitle: "Engine's name" })).toBe("Engine's name")
-  })
-
-  test("a main row's live HEAD outranks its (empty) stored branch", () => {
-    const main = task("m", { kind: "main", branch: "", title: "rove", worktreePath: "/repos/rove" })
-    expect(worktreeRowLabel(main, { liveBranch: "main" })).toBe("main")
-    // HEAD not resolved yet (poller cold) → title fallback, same as before.
-    expect(worktreeRowLabel(main, { home: "/Users/me" })).toBe("rove")
   })
 
   test("a branchless dir task is named by its tail-truncated path — its stored title is ignored", () => {

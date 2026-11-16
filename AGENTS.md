@@ -1,6 +1,6 @@
 # Rove
 
-Rove is a local-first terminal UI for running many AI coding sessions at once, with git worktrees and local engine processes. A managed Task = git worktree + branch + terminal tabs; project-main and directory Tasks reuse an existing checkout or directory and own no worktree or branch. The TUI is the product; engine adapters (Claude Code default, Codex behind the same engine-owned contract) are execution backends.
+Rove is a local-first terminal UI for running many AI coding sessions at once, with git worktrees and local engine processes. A managed Task = git worktree + branch + terminal tabs; directory Tasks reuse an existing checkout or directory and own no worktree or branch. The TUI is the product; engine adapters (Claude Code default, Codex behind the same engine-owned contract) are execution backends.
 
 This codebase is yours: what it's for and how it's built are your call, and you'll keep building on it.
 

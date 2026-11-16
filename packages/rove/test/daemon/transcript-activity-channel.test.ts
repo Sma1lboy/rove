@@ -48,6 +48,7 @@ function fakeOrchestrator(worktreePath: string): Orchestrator {
       return () => {}
     },
     listTasks: () => [task],
+    settleProjectRows: async () => {},
   } as unknown as Orchestrator
 }
 

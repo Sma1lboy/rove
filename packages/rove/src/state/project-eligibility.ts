@@ -1,11 +1,6 @@
 /**
- * Who may become a PROJECT — the gate every path minting a `kind:"main"` row
- * or a `savedRepos` entry passes through. The mutators apply it themselves, so
- * no caller can forget it.
- *
- * Rows that slip through are UNREMOVABLE: `task.delete` refuses a main row
- * ("remove the repo from saved repos instead") while `rove remove` refuses a
- * repo never in `savedRepos`.
+ * Who may become a PROJECT — the gate every path minting a `savedRepos` entry
+ * passes through. The mutators apply it themselves, so no caller can forget it.
  *
  * Not a taste filter (that's the user's Forget action): it rejects only paths
  * structurally incapable of being a project — throwaway dirs and Rove's own

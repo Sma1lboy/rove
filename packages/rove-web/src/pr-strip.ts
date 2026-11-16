@@ -30,7 +30,7 @@ function prStateActions(task: TaskRow): readonly PrAction[] {
     const own = task.kind === "task" && !task.noWorktree && !task.machine && !task.archived
     return own && !task.sessionPrs?.length ? ["createPR"] : []
   }
-  if (pr.lifecycle === "merged") return task.archived || task.kind === "main" ? [] : ["archive"]
+  if (pr.lifecycle === "merged") return task.archived ? [] : ["archive"]
   if (pr.lifecycle !== "open" && pr.lifecycle !== "ready_to_merge") return []
   const out: PrAction[] = []
   if ((pr.mergeable ?? "").toUpperCase() === "CONFLICTING" || task.prChip === "conflict") out.push("conflicts")

@@ -191,25 +191,20 @@ The selected Task answers these actions whether the cursor is on its worktree
 row or one of its tab rows:
 
 - `r` changes the Task title. `b` opens a filterable local-branch picker and
-  can also rename the current branch by accepting a new name. Project-main
+  can also rename the current branch by accepting a new name. Directory
   rows do not rename the repository's checked-out branch.
 - `v` cycles through detected and custom engines. The new engine applies when
   the Task's engine session is reopened; it does not replace a running turn.
 - `o` opens the Task directory in the configured GUI/workspace editor.
 - `shift+p` pins or unpins a managed Task. `shift+m`, followed by `j`/`k`,
   reorders the row under the cursor at its own level: a tab moves within its
-  Task, a Task moves within its repo group, and a project-main row moves the
-  whole project. Moves stop at the edges (no wrap-around), and the new order
-  persists across restarts. A project-main row with no tab open, not selected
-  and with no child Tasks is not listed (the header stands for it): the
-  header's **Reorder project** and **Move to top** still work, and Reorder lists
-  the row while the project moves.
-- `d` is kind-aware: on a project-main row it ends the conversation (kills the
-  sessions, closes the tabs; the project stays saved, the repo and worktrees stay
-  on disk, and the project leaves the rail until it has a session again), removes only the Rove record for a directory Task, or removes a
-  managed Task and its worktree after the dirty-worktree safety check. A Task
-  or project main with child Tasks asks whether to keep the children or delete
-  them too. **Remove project** is on the project header's menu.
+  Task, and a Task moves within its repo group. Moves stop at the edges (no
+  wrap-around), and the new order persists across restarts. A whole project
+  moves from its header's menu: **Move to top**, **Move up**, **Move down**.
+- `d` is kind-aware: it removes only the Rove record for a directory Task
+  (a session in a project's own checkout included), or removes a managed Task
+  and its worktree after the dirty-worktree safety check. A Task with child
+  Tasks asks whether to keep the children or delete them too. **Remove project** is on the project header's menu.
 
 Right-clicking a row opens the same verbs as a menu, plus **Run again** on any
 Task that still has its brief. Rove stores the prompt a Task was created with,
@@ -421,10 +416,10 @@ mode selector and use the left/right arrows (or `h`/`l`).
   takes the highlighted row and moves on to the branch field.
   For a repository Rove already tracks as a project, an extra **opens** row
   appears: leave it on "a new task worktree" for the behaviour above, or
-  choose "the project itself" to open that repository's own checkout instead
-  of branching off it. That is how you return to a project that left the
-  sidebar after you closed its last tab — the branch field disappears,
-  because opening a checkout forks from nothing.
+  choose "the project itself" to start a new session in that repository's own
+  checkout instead of branching off it. That is how you return to a project
+  that left the sidebar after you closed its last tab — the branch field
+  disappears, because opening a checkout forks from nothing.
 - **For New Repo** clones a Git URL into a chosen parent directory, derives an
   available folder name, then creates a task from the requested base branch.
   The parent-directory field browses the same way the repo field does, `tab`

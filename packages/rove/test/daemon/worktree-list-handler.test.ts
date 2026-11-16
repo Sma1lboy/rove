@@ -225,27 +225,27 @@ describe("worktree.remove", () => {
     } as unknown as DaemonHandlerContext
   }
 
-  it.each([
-    ["dir", "user-directory"],
-    ["main", "project-checkout"],
-  ])("refuses to delete a %s task's own directory, and leaves it on disk", async (kind, dir) => {
-    const wt = join(root, dir)
-    execSync(`git worktree add -b feature/${kind}-task ${JSON.stringify(wt)}`, { cwd: repo, env: gitEnv })
+  it.each([["dir", "user-directory"]])(
+    "refuses to delete a %s task's own directory, and leaves it on disk",
+    async (kind, dir) => {
+      const wt = join(root, dir)
+      execSync(`git worktree add -b feature/${kind}-task ${JSON.stringify(wt)}`, { cwd: repo, env: gitEnv })
 
-    await expect(
-      dispatchDaemonRequest(
-        createDaemonHandlerRegistry(),
-        "worktree.remove",
-        { path: wt },
-        ctxWithTask({ id: `task-${kind}`, worktreePath: wt, kind }),
-      ),
-    ).rejects.toThrow(new RegExp(`^${NOT_A_ROVE_WORKTREE}: `))
-    expect(existsSync(wt)).toBe(true)
-  })
+      await expect(
+        dispatchDaemonRequest(
+          createDaemonHandlerRegistry(),
+          "worktree.remove",
+          { path: wt },
+          ctxWithTask({ id: `task-${kind}`, worktreePath: wt, kind }),
+        ),
+      ).rejects.toThrow(new RegExp(`^${NOT_A_ROVE_WORKTREE}: `))
+      expect(existsSync(wt)).toBe(true)
+    },
+  )
 
   // Positive control: the guard reads `kind`, not "this path owns a task".
   // Without this, a guard that refused every tracked worktree would pass the
-  // two tests above while breaking the handler's entire purpose.
+  // test above while breaking the handler's entire purpose.
   it("still removes a managed task's worktree", async () => {
     const wt = join(root, "managed-worktree")
     execSync(`git worktree add -b feature/managed ${JSON.stringify(wt)}`, { cwd: repo, env: gitEnv })

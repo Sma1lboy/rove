@@ -25,7 +25,7 @@ export interface PaneLaunchOpts {
   readonly socketPath: string
   readonly binPath: string
   /** Injected as `ROVE_PLUGIN_TASK_ID`: matching cwd against `worktreePath`
-   *  is ambiguous for project-main and directory tasks, which share a cwd. */
+   *  is ambiguous for directory tasks, which can share a cwd. */
   readonly taskId?: string
 }
 

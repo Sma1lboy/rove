@@ -5,6 +5,7 @@
  * in `handlers-lifecycle.ts`.
  */
 
+import { resolve } from "node:path"
 import { type SkipVerdict, deliveryFooter } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
@@ -12,7 +13,6 @@ import { hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { roveApiInvocation } from "../../engine/interactive-command.ts"
 import { taskCwd } from "../../orchestrator/task-tree.ts"
 import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
-import { isRemoteRepoKey } from "../../state/remote-repos.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { activityView, readActivityRegistry } from "./activity-view.ts"
@@ -101,14 +101,6 @@ async function resolveSendTask(
   return { taskId: active, tab }
 }
 
-/** A project's main row is no standing conversation: with no tab open, a send to it starts a session of its own in that checkout. */
-async function idleProjectRow(ctx: VerbContext, task: SerializedTask): Promise<boolean> {
-  if (task.kind !== "main" || isRemoteRepoKey(task.repo)) return false
-  const { tabs, running } = await ctx.runtime.taskTabs(task.id, taskEngineArgv(task))
-  // No pty host to ask is not "nothing open".
-  return running !== null && !tabs.some((row) => row.alive)
-}
-
 /** Taking back a dead-tab replacement whose handoff did not complete (`handoff-replace.ts`). */
 interface ReplaceRollback {
   undo?: () => Promise<void>
@@ -176,22 +168,35 @@ async function sendNow(ctx: VerbContext, rollback: ReplaceRollback): Promise<unk
       helpStep("send"),
     )
   }
-  const sendTo = await resolveSendTask(ctx, daemon, tab)
-  let taskId = sendTo.taskId
-  tab = sendTo.tab
-  let res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
-  if (replace && tab) prompt = [await handoffBrief(ctx, res.task, tab, "send"), prompt].filter(Boolean).join("\n\n")
-  // Before ANY delivery path (--plain included: a verbatim false claim is the
-  // same false claim) — a refused report must never reach the coordinator.
-  await assertNotEmptySuccess(daemon, ctx, prompt)
-  // Only after every refusal above: a refused send must not leave a new session row behind.
-  const viaProject = tab === undefined && (await idleProjectRow(ctx, res.task)) ? taskId : undefined
+  // `--repo`: a project has no standing conversation, so the prompt opens a session of its own in that checkout.
+  const viaProject = ctx.args.str("repo")
+  if (viaProject && (ctx.args.str("task-id") || tab || replace)) {
+    throw new ApiError(
+      "--repo starts a new session in that project's checkout; it conflicts with --task-id, --tab and --replace",
+      "CONFLICTING_FLAGS",
+      helpStep("send"),
+    )
+  }
+  let taskId: string
+  let res: { task: SerializedTask }
   if (viaProject) {
+    // Only after every refusal: a refused send must not leave a new session row behind.
+    await assertNotEmptySuccess(daemon, ctx, prompt)
+    const saved = await daemon.request<{ repo: string }>("project.ensure", { repo: resolve(viaProject) })
     res = await daemon.request<{ task: SerializedTask }>("task.openDir", {
-      dir: res.task.worktreePath,
+      dir: saved.repo,
       title: deriveTitleFromPrompt(prompt),
     })
     taskId = res.task.id
+  } else {
+    const sendTo = await resolveSendTask(ctx, daemon, tab)
+    taskId = sendTo.taskId
+    tab = sendTo.tab
+    res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+    if (replace && tab) prompt = [await handoffBrief(ctx, res.task, tab, "send"), prompt].filter(Boolean).join("\n\n")
+    // Before ANY delivery path (--plain included: a verbatim false claim is the
+    // same false claim) — a refused report must never reach the coordinator.
+    await assertNotEmptySuccess(daemon, ctx, prompt)
   }
   let replacedTab: string | undefined
   if (replace && tab) {
@@ -304,8 +309,8 @@ async function sendNow(ctx: VerbContext, rollback: ReplaceRollback): Promise<unk
   return {
     ok: true,
     taskId,
-    // The project row addressed had no conversation open, so this prompt started its own session.
-    ...(viaProject ? { newSession: true, viaProject } : {}),
+    // `--repo`: this prompt started its own session.
+    ...(viaProject ? { newSession: true } : {}),
     ...(replacedTab ? { replacedTab } : {}),
     session: delivered.session,
     ...(deliveryId ? { deliveryId } : {}),

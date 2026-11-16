@@ -5,13 +5,12 @@ Six nouns explain Rove: **Task**, **Worktree**, **Terminal Tab**, **Engine**,
 
 ## Task
 
-A Task is one workspace record you're tracking. Rove has three Task kinds:
+A Task is one workspace record you're tracking. Rove has two Task kinds:
 
 | Kind | Directory | Git isolation |
 |---|---|---|
-| Project main | A saved repository's existing checkout | Uses the checkout as-is; no Rove-created branch or worktree |
 | Managed task | A Rove-created worktree | Own branch and worktree |
-| Directory task | An existing directory opened with `rove .` | Uses the directory as-is; it need not be a git repository |
+| Directory task | An existing directory opened with `rove .`, or a saved project's own checkout | Uses the directory as-is; it need not be a git repository |
 
 For a managed task, the product unit is:
 
@@ -21,8 +20,8 @@ Managed task = git worktree + branch + terminal tabs
 
 A Task is a **workspace, not a conversation**. Its Terminal Tabs all run in
 the same directory. Only managed tasks get Rove-created branch/worktree
-isolation; project-main and directory tasks deliberately reuse directories you
-already own.
+isolation; directory tasks (a session in a project's own checkout included)
+deliberately reuse directories you already own.
 
 A **New shell** from a Task row is not a Scratch shell: it is a child Task sharing the row's directory, listed under it, whose `tab-1` is the login shell. When that shell exits the row stays, empty, and is never deleted for it.
 
@@ -39,8 +38,8 @@ auto-removed. A scratch row earns a permanent place
 two ways: rename it (naming is the keep gesture), or start a coding harness
 inside a git repository. Rove detects the live harness plus the shell's
 settled directory and quietly migrates the row into that repository's project
-group. If the settled directory already belongs to a Task (the project's
-main checkout, a directory Task's directory, or inside a managed Task's
+group. If the settled directory already belongs to a Task (a directory
+Task's directory, or inside a managed Task's
 worktree), the shell folds into that Task as a new terminal tab, running
 session and all, instead of becoming a duplicate row.
 
@@ -57,11 +56,10 @@ does not draw it: the one mark in that cell is the PR's, and the status is
 something you already know because you set it
 (see [TUI](./TUI.md#status-glyphs-in-the-sidebar)).
 
-**Delete is explicit and kind-aware.** A project-main Task cannot go through
-Task deletion; pressing `d` on its row instead forgets the saved project and
-synthetic main row while keeping the repository, branches, worktrees, and
-managed Tasks. Deleting a directory Task removes only its Rove record, never
-the directory.
+**Delete is explicit and kind-aware.** Deleting a directory Task removes only
+its Rove record, never the directory. Forgetting a project (**Remove project**
+on its header's menu) un-saves the repository and keeps every Task, branch and
+worktree.
 Deleting a managed Task removes its worktree after the dirty-worktree safety
 check. **The task branch stays.** Git is the durable record of the work;
 pass `--delete-branch` on `rove api delete` to drop it too. That runs
@@ -100,7 +98,7 @@ use rather than suffixing it. That's what makes running many tasks at once safe:
 working trees that can't overwrite each other or your main checkout. Edits
 cross over only when you merge.
 
-Project-main and directory Tasks are the exceptions: they point at an existing
+Directory Tasks are the exception: they point at an existing
 checkout or directory. Use a managed Task when you want isolation.
 
 The worktree outlives everything else. Killing a session, quitting the TUI,
@@ -132,20 +130,14 @@ only when that wrapping shell exits or Rove explicitly closes it.
 
 **Closing the last tab is "done for now", not "forget".** Close every tab of a
 managed Task and its row stays in the sidebar; entering it again opens a fresh
-tab in the same worktree. A project's main checkout row is listed only while it
-has a tab open, is selected, or has child Tasks under it: a tabless main row is
-not a row, and a project whose only row it was (or a directory Task with no tab)
-leaves the sidebar, header and row together. The project header and its other
-Tasks stay. Nothing is deleted: the main Task record and the saved repository
-both stay on disk. `rove api send` to a main Task with no tab open does not
-bring the row back: it starts a new session in that checkout. To bring the row
-back, open New task (`n`), pick the same repository, and choose "the project itself" instead of a
-new task worktree (see [TUI](./TUI.md#creating-a-task)). Forgetting a project
-(`d` on its row) is the separate, un-saving gesture. A project whose checkout
-directory is gone (deleted or moved) is forgotten on the same terms, by the
-daemon, without being asked: the row and the saved entry go, nothing on disk is
-touched. A directory that vanished together with its parent is read as an
-unmounted volume, not a deletion, and its project stays for the remount.
+tab in the same worktree. A project whose only row is a directory Task with no
+tab open leaves the sidebar, header and row together. Nothing is deleted: the
+Task record and the saved repository both stay on disk. A project has no
+standing conversation: to start one in its own checkout, open New task (`n`),
+pick the same repository, and choose "the project itself" instead of a new task
+worktree (see [TUI](./TUI.md#creating-a-task)), or `rove api send --repo PATH`.
+Forgetting a project (**Remove project** on its header's menu) is the separate,
+un-saving gesture.
 
 A Task-level reasoning-effort choice is forwarded when the engine supports it.
 A child task runs the engine it was started with, so conversations in one
@@ -246,10 +238,10 @@ available in Rove's Inbox when you return.
 
 ## Glossary
 
-- **Task.** A tracked workspace record: project main, managed worktree, or
-  existing directory.
+- **Task.** A tracked workspace record: managed worktree, or existing
+  directory (a project's own checkout included).
 - **Worktree.** A git working tree on disk. Rove creates one for each managed
-  Task; project-main and directory Tasks reuse existing directories.
+  Task; directory Tasks reuse existing directories.
 - **Terminal Tab.** An engine, shell, command/editor, or read-only content
   surface inside a Task. N per Task.
 - **Engine.** The coding-agent CLI a task runs on.

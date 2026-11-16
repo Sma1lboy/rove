@@ -1,7 +1,6 @@
 /**
  * Reorder (TUI sidebar move mode): Shift+M, `ctrl+a m` or the menu turns it on, then j/k move
- * the cursor row at its own level: a task within its project, a main
- * row the whole project. Every level stops at its edge. Enter or Esc leaves.
+ * the cursor row at its own level: a task within its project. Every level stops at its edge. Enter or Esc leaves.
  */
 
 import type { AppModel } from "./model.ts"
@@ -14,9 +13,6 @@ import { toast } from "./ui.ts"
 
 export const moveMode = createStore(false)
 
-/** The main whose header Reorder is on: its row stays listed while it moves, though it has no tab. */
-export const reorderingMain = createStore<string | null>(null)
-
 /** Reorder edits the stored manual order, so any other sort switches to manual first (with a toast). */
 export function setMoveMode(on: boolean): void {
   if (on && (railSort.get() !== "default" || railGroup.get() === "state")) {
@@ -24,7 +20,6 @@ export function setMoveMode(on: boolean): void {
     setRailGroup("project")
     toast(tc("tasks", "sort.reorderSwitched"))
   }
-  if (!on) reorderingMain.set(null)
   moveMode.set(on)
 }
 
@@ -34,7 +29,6 @@ type Movable = Extract<NavRow, { kind: "task" }>
 export async function moveRow(model: AppModel, row: Movable, delta: -1 | 1): Promise<void> {
   const direction = delta < 0 ? "up" : "down"
   try {
-    // A main row stands for its project: the daemon moves the whole group.
     await model.client.request("task.move", { taskId: row.task.id, direction })
   } catch (err) {
     toast(tc("tasks", "toast.moveFailed", { error: err instanceof Error ? err.message : String(err) }), "error")

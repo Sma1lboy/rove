@@ -1,15 +1,12 @@
 import { describe, expect, it } from "vitest"
 import {
-  buildProjectOptions,
-  buildRows,
-  cursorIndexForProjectScope,
+  type SidebarRow,
   reconcileSidebarRows,
   repoBasename,
   resolveCursorTarget,
   sameSidebarRowTask,
   sidebarProjectKey,
   sidebarProjectLabel,
-  splitSidebarRows,
 } from "../../src/tui/panes/sidebar/groups.ts"
 import type { Task } from "../../src/types/task.ts"
 import { toTaskId } from "../../src/types/task.ts"
@@ -38,228 +35,9 @@ function task(overrides: Omit<Partial<Task>, "id"> & { id: string; title: string
   } as Task
 }
 
-function ids(rows: ReturnType<typeof buildRows>): string[] {
-  return rows.map((row) => String(row.task.id))
+function rows(tasks: readonly Task[]): SidebarRow[] {
+  return tasks.map((t, flatIndex) => ({ kind: "task", task: t, flatIndex }))
 }
-
-describe("sidebar task ordering", () => {
-  it("keeps default order as projects, pinned tasks, then persisted task order", () => {
-    const rows = buildRows(
-      [
-        task({ id: "regular-a", title: "a" }),
-        task({ id: "project", title: "repo", kind: "main", repo: "/repo/zeta" }),
-        task({ id: "regular-b", title: "b" }),
-        task({ id: "pinned", title: "pinned", pinned: true }),
-      ],
-      "",
-      "default",
-    )
-
-    expect(ids(rows)).toEqual(["project", "pinned", "regular-a", "regular-b"])
-  })
-
-  it("orders each section newest-created first in recent mode, whatever was touched since", () => {
-    const rows = buildRows(
-      [
-        task({ id: "old", title: "old", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-02-01T00:00:00.000Z" }),
-        task({ id: "new", title: "new", createdAt: "2026-01-03T00:00:00.000Z" }),
-        task({ id: "pinned-old", title: "pinned old", pinned: true, createdAt: "2026-01-02T00:00:00.000Z" }),
-        task({ id: "pinned-new", title: "pinned new", pinned: true, createdAt: "2026-01-04T00:00:00.000Z" }),
-      ],
-      "",
-      "recent",
-    )
-
-    expect(ids(rows)).toEqual(["pinned-new", "pinned-old", "new", "old"])
-  })
-
-  it("projects sit tight in recent mode — stored order, not reshuffled by use", () => {
-    // Projects render STORED order (save order): zeta was
-    // saved first and used more recently, but neither recency nor alphabet
-    // reshuffles the projects section — only move mode reorders it.
-    const rows = buildRows(
-      [
-        task({
-          id: "z",
-          title: "zeta",
-          kind: "main",
-          repo: "/repo/zeta",
-          updatedAt: "2026-06-10T00:00:00.000Z",
-        }),
-        task({
-          id: "a",
-          title: "alpha",
-          kind: "main",
-          repo: "/repo/alpha",
-          updatedAt: "2020-01-01T00:00:00.000Z",
-        }),
-        task({ id: "reg", title: "reg" }),
-      ],
-      "",
-      "recent",
-    )
-    // zeta first — stored order wins over both alphabet and recency.
-    expect(ids(rows)).toEqual(["z", "a", "reg"])
-  })
-
-  it("shows one project row when stale duplicate main tasks share a repo", () => {
-    const rows = buildRows(
-      [
-        task({ id: "project-a", title: "rove", kind: "main", repo: "/repo/rove" }),
-        task({ id: "project-b", title: "rove copy", kind: "main", repo: "/repo/rove/" }),
-        task({ id: "regular", title: "task" }),
-      ],
-      "",
-      "default",
-    )
-
-    expect(ids(rows)).toEqual(["project-a", "regular"])
-  })
-
-  it("does not collapse distinct projects just because their basenames match", () => {
-    const rows = buildRows(
-      [
-        task({ id: "project-a", title: "rove", kind: "main", repo: "/repo/a/rove" }),
-        task({ id: "project-b", title: "rove", kind: "main", repo: "/repo/b/rove" }),
-      ],
-      "",
-      "default",
-    )
-
-    expect(ids(rows)).toEqual(["project-a", "project-b"])
-  })
-
-  it("scopes both the project rows and regular tasks to the filtered project", () => {
-    const rows = buildRows(
-      [
-        task({ id: "project-rove", title: "rove", kind: "main", repo: "/repo/rove" }),
-        task({ id: "project-pochi", title: "pochi", kind: "main", repo: "/repo/pochi" }),
-        task({ id: "rove-a", title: "rove a", repo: "/repo/rove" }),
-        task({ id: "pochi-a", title: "pochi a", repo: "/repo/pochi" }),
-      ],
-      "",
-      "default",
-      "/repo/rove",
-    )
-
-    expect(ids(rows)).toEqual(["project-rove", "rove-a"])
-  })
-
-  it("composes project filtering with recent task ordering", () => {
-    const rows = buildRows(
-      [
-        task({ id: "rove-old", title: "old", repo: "/repo/rove", createdAt: "2026-01-01T00:00:00.000Z" }),
-        task({ id: "pochi-new", title: "other", repo: "/repo/pochi", createdAt: "2026-01-05T00:00:00.000Z" }),
-        task({ id: "rove-new", title: "new", repo: "/repo/rove", createdAt: "2026-01-03T00:00:00.000Z" }),
-      ],
-      "",
-      "recent",
-      "/repo/rove",
-    )
-
-    expect(ids(rows)).toEqual(["rove-new", "rove-old"])
-  })
-})
-
-describe("sidebar row sections", () => {
-  it("splits projects and tasks without changing their flat cursor indexes", () => {
-    const rows = buildRows(
-      [
-        task({ id: "task-a", title: "task a", repo: "/repo/rove" }),
-        task({ id: "project-rove", title: "rove", kind: "main", repo: "/repo/rove" }),
-        task({ id: "project-pochi", title: "pochi", kind: "main", repo: "/repo/pochi" }),
-        task({ id: "task-b", title: "task b", repo: "/repo/pochi" }),
-      ],
-      "",
-      "default",
-    )
-
-    const sections = splitSidebarRows(rows)
-
-    expect(ids(sections.projectRows)).toEqual(["project-rove", "project-pochi"])
-    expect(ids(sections.taskRows)).toEqual(["task-a", "task-b"])
-    expect(sections.projectRows.map((row) => row.flatIndex)).toEqual([0, 1])
-    expect(sections.taskRows.map((row) => row.flatIndex)).toEqual([2, 3])
-  })
-})
-
-describe("sidebar project filter options", () => {
-  it("includes saved project rows even when the current view has no tasks for them", () => {
-    const options = buildProjectOptions([
-      task({ id: "project-rove", title: "rove", kind: "main", repo: "/repo/rove" }),
-      task({ id: "project-pochi", title: "pochi", kind: "main", repo: "/repo/pochi" }),
-      task({ id: "rove-active", title: "active", repo: "/repo/rove" }),
-    ])
-
-    expect(options).toEqual([
-      { repo: "/repo/rove", label: "rove", count: 1 },
-      { repo: "/repo/pochi", label: "pochi", count: 0 },
-    ])
-  })
-
-  it("counts tasks in the active view and disambiguates basename collisions", () => {
-    const options = buildProjectOptions([
-      task({ id: "project-a", title: "rove", kind: "main", repo: "/repo/a/rove" }),
-      task({ id: "project-b", title: "rove", kind: "main", repo: "/repo/b/rove" }),
-      task({ id: "task-a", title: "a", repo: "/repo/a/rove" }),
-      task({ id: "task-b", title: "b", repo: "/repo/b/rove" }),
-    ])
-
-    expect(options).toEqual([
-      { repo: "/repo/a/rove", label: "a/rove", count: 1 },
-      { repo: "/repo/b/rove", label: "b/rove", count: 1 },
-    ])
-  })
-})
-
-describe("sidebar project filter cursor", () => {
-  it("lands on the first task in the project scope instead of the PROJECTS header rows", () => {
-    const rows = buildRows(
-      [
-        task({ id: "project-rove", title: "rove", kind: "main", repo: "/repo/rove" }),
-        task({ id: "project-marketing", title: "marketing", kind: "main", repo: "/repo/marketingharness" }),
-        task({ id: "marketing-a", title: "marketing a", repo: "/repo/marketingharness" }),
-        task({ id: "rove-a", title: "rove a", repo: "/repo/rove" }),
-      ],
-      "",
-      "default",
-      "/repo/rove",
-    )
-
-    expect(ids(rows)).toEqual(["project-rove", "rove-a"])
-    expect(cursorIndexForProjectScope(rows, "/repo/rove")).toBe(1)
-  })
-
-  it("falls back to the project main row when the filtered project has no tasks in view", () => {
-    const rows = buildRows(
-      [
-        task({ id: "project-rove", title: "rove", kind: "main", repo: "/repo/rove" }),
-        task({ id: "project-marketing", title: "marketing", kind: "main", repo: "/repo/marketingharness" }),
-        task({ id: "marketing-a", title: "marketing a", repo: "/repo/marketingharness" }),
-      ],
-      "",
-      "default",
-      "/repo/rove",
-    )
-
-    expect(ids(rows)).toEqual(["project-rove"])
-    expect(cursorIndexForProjectScope(rows, "/repo/rove")).toBe(0)
-  })
-
-  it("keeps all-project scope at the top row", () => {
-    const rows = buildRows(
-      [
-        task({ id: "project-rove", title: "rove", kind: "main", repo: "/repo/rove" }),
-        task({ id: "rove-a", title: "rove a", repo: "/repo/rove" }),
-      ],
-      "",
-      "default",
-      null,
-    )
-
-    expect(cursorIndexForProjectScope(rows, null)).toBe(0)
-  })
-})
 
 /**
  * Identity contract for the sidebar's row reconciler (docs/DESIGN.md §5.5).
@@ -279,24 +57,23 @@ describe("sidebar project filter cursor", () => {
 describe("reconcileSidebarRows", () => {
   it("a content-identical snapshot push returns the PREVIOUS array itself (no downstream notify)", () => {
     // Simulates the daemon echo: all-new Task objects, identical content.
-    const prev = buildRows([task({ id: "a", title: "a" }), task({ id: "b", title: "b" })])
-    const next = buildRows([task({ id: "a", title: "a" }), task({ id: "b", title: "b" })])
+    const prev = rows([task({ id: "a", title: "a" }), task({ id: "b", title: "b" })])
+    const next = rows([task({ id: "a", title: "a" }), task({ id: "b", title: "b" })])
     expect(reconcileSidebarRows(prev, next)).toBe(prev)
   })
 
   it("an updatedAt-only bump (setActiveTask recency touch) does not re-key any row", () => {
-    const prev = buildRows([task({ id: "a", title: "a" }), task({ id: "b", title: "b" })])
-    const next = buildRows(
-      [task({ id: "a", title: "a", updatedAt: "2026-06-10T12:00:00.000Z" }), task({ id: "b", title: "b" })],
-      "",
-      "default",
-    )
+    const prev = rows([task({ id: "a", title: "a" }), task({ id: "b", title: "b" })])
+    const next = rows([
+      task({ id: "a", title: "a", updatedAt: "2026-06-10T12:00:00.000Z" }),
+      task({ id: "b", title: "b" }),
+    ])
     expect(reconcileSidebarRows(prev, next)).toBe(prev)
   })
 
   it("a changed task gets a fresh row; unchanged siblings keep their previous object identity", () => {
-    const prev = buildRows([task({ id: "a", title: "a" }), task({ id: "b", title: "b" })])
-    const next = buildRows([task({ id: "a", title: "renamed" }), task({ id: "b", title: "b" })], "", "default")
+    const prev = rows([task({ id: "a", title: "a" }), task({ id: "b", title: "b" })])
+    const next = rows([task({ id: "a", title: "renamed" }), task({ id: "b", title: "b" })])
     const out = reconcileSidebarRows(prev, next)
     expect(out).not.toBe(prev)
     expect(out[0]).toBe(next[0]) // title changed → fresh object (renderer captures task non-reactively)
@@ -304,8 +81,8 @@ describe("reconcileSidebarRows", () => {
   })
 
   it("a reorder breaks reuse via flatIndex (renderer captures flatIndex non-reactively)", () => {
-    const prev = buildRows([task({ id: "a", title: "a" }), task({ id: "b", title: "b" })])
-    const next = buildRows([task({ id: "b", title: "b" }), task({ id: "a", title: "a" })])
+    const prev = rows([task({ id: "a", title: "a" }), task({ id: "b", title: "b" })])
+    const next = rows([task({ id: "b", title: "b" }), task({ id: "a", title: "a" })])
     const out = reconcileSidebarRows(prev, next)
     expect(out).not.toBe(prev)
     expect(out[0]).toBe(next[0])
@@ -313,8 +90,8 @@ describe("reconcileSidebarRows", () => {
   })
 
   it("appending a task reuses every existing row", () => {
-    const prev = buildRows([task({ id: "a", title: "a" })])
-    const next = buildRows([task({ id: "a", title: "a" }), task({ id: "b", title: "b" })])
+    const prev = rows([task({ id: "a", title: "a" })])
+    const next = rows([task({ id: "a", title: "a" }), task({ id: "b", title: "b" })])
     const out = reconcileSidebarRows(prev, next)
     expect(out).not.toBe(prev)
     expect(out[0]).toBe(prev[0])
@@ -322,7 +99,7 @@ describe("reconcileSidebarRows", () => {
   })
 
   it("empty prev passes next through untouched", () => {
-    const next = buildRows([task({ id: "a", title: "a" })])
+    const next = rows([task({ id: "a", title: "a" })])
     expect(reconcileSidebarRows([], next)).toBe(next)
   })
 })

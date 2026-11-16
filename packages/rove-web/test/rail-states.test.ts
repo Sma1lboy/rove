@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import type { RowStatus, TaskRow } from "rove-bridge/protocol"
-import { dropIdleMains } from "../src/rail-idle.ts"
-import { railStateRows, stateOf, withStateCounts } from "../src/rail-states.ts"
+import { railStateRows, stateOf } from "../src/rail-states.ts"
 import { foldProjects } from "../src/rail.ts"
 
 const status = (kind: RowStatus["kind"]): RowStatus => ({ kind, since: 0 })
@@ -74,13 +73,5 @@ describe("the by-state rail", () => {
     const head = rows[0]
     expect(head?.kind === "state" && head.count).toBe(2)
     expect(foldProjects(rows, new Set(["state:working"])).map((row) => row.id)).toEqual(["state:working"])
-  })
-
-  test("a header counts the rows left after tab-less mains are dropped", () => {
-    const { rows } = railStateRows(input([task("m", { kind: "main" }), task("a"), task("b")]))
-    const shown = withStateCounts(dropIdleMains(rows, { m: [] }, null, true))
-    const head = shown[0]
-    expect(shown.map((row) => row.id)).toEqual(["state:idle", "a", "b"])
-    expect(head?.kind === "state" && head.count).toBe(2)
   })
 })

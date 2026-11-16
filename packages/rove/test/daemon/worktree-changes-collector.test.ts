@@ -86,19 +86,19 @@ describe("trackedWorktreePaths", () => {
       task({ id: "a" }),
       task({ id: "remote", repo: "ssh://dev@build-box", worktreePath: "/remote/wt/remote" }),
       task({ id: "backlog", worktreePath: "" }),
-      // Two main rows of the same repo share worktreePath = repo root.
-      task({ id: "main1", kind: "main", repo: "/repo", worktreePath: "/repo" }),
-      task({ id: "main2", kind: "main", repo: "/repo", worktreePath: "/repo" }),
+      // Two dir rows of the same repo share worktreePath = repo root.
+      task({ id: "main1", kind: "dir", repo: "/repo", worktreePath: "/repo" }),
+      task({ id: "main2", kind: "dir", repo: "/repo", worktreePath: "/repo" }),
     ]
     expect([...trackedWorktreePaths(tasks).keys()].sort()).toEqual(["/repo", "/wt/a"])
   })
 
   test("carries each path's recorded base ref, and the first task that has one wins", () => {
-    // A `main` row records no base and shares the repo root with a based task;
+    // A `dir` row records no base and shares the repo root with a based task;
     // whichever order they list in, the based task's answer must survive — the
     // behind count is measured against it.
     const tasks = [
-      task({ id: "main", kind: "main", repo: "/repo", worktreePath: "/repo" }),
+      task({ id: "main", kind: "dir", repo: "/repo", worktreePath: "/repo" }),
       task({ id: "based", repo: "/repo", worktreePath: "/repo", baseRef: "release/2.x" }),
       task({ id: "a", baseRef: "origin/main" }),
       task({ id: "none" }),

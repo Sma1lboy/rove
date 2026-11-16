@@ -16,14 +16,13 @@ import type { TaskEngineState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
 import { useCallback, useMemo, useRef, useState } from "react"
 import { currentBranch } from "../../../tui/panes/sidebar/git-head"
-import { type TaskSortMode, sidebarProjectKeyResolver } from "../../../tui/panes/sidebar/groups"
+import type { TaskSortMode } from "../../../tui/panes/sidebar/groups"
 import { type MachineLayerEntry, applyMachineLayer } from "../../../tui/panes/sidebar/machine-layer"
 import {
   type TreeRow,
   buildRowsFromGroups,
   conversationTitleOf,
   filterTreeRows,
-  mainTaskIdOfProject,
   rowLiveBranchPath,
   treeFlatIds,
   withRecentRow,
@@ -51,8 +50,6 @@ export interface TreeStateOpts {
   /** Registered machines: stamps each remote row with its machine's state (the cloud mark).
    *  Absent/empty: rows come back untouched. */
   readonly machines?: readonly MachineLayerEntry[]
-  /** The main whose project Reorder is on: its row stays listed while moving, though it has no tab. */
-  readonly reorderingTaskId?: string | null
 }
 
 /** KV key holding the ids of tasks whose children are folded away. */
@@ -82,16 +79,12 @@ export interface TreeState {
   readonly activeRowId: string | null
   /** A non-empty query has pruned the tree to its matches. */
   readonly searching: boolean
-  /** The project a task belongs to, or null for a project-less `dir` task. */
-  readonly projectIdOfTask: (taskId: string) => string | null
-  /** The task whose move reorders this project (its `main` checkout). */
-  readonly mainTaskIdOfProject: (projectId: string) => string | null
   /** Fold or unfold a task's children. */
   readonly toggleTaskFold: (taskId: string) => void
 }
 
 export function useTreeState(opts: TreeStateOpts): TreeState {
-  const { tasks, kv, selectedTaskId, reorderingTaskId } = opts
+  const { tasks, kv, selectedTaskId } = opts
   const query = opts.query ?? ""
   const searching = query.trim() !== ""
 
@@ -125,17 +118,11 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
     [kv],
   )
 
-  // A tabless main row stays listed while it is selected or its project is being reordered.
-  const keepTaskIds = useMemo(
-    () => new Set([selectedTaskId, reorderingTaskId].filter((id): id is string => typeof id === "string")),
-    [selectedTaskId, reorderingTaskId],
-  )
   const { groups, tabsByTask } = useSidebarGroups({
     tasks,
     kv,
     sortMode: opts.sortMode,
     engineState: opts.engineState,
-    keepTaskIds,
   })
 
   const recentTask = opts.recentTask ?? null
@@ -178,30 +165,12 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
   // One task = one conversation, so the row naming what the right pane shows is the task's.
   const activeRowId = selectedTaskId
 
-  const mainTaskOfProject = useCallback(
-    (projectId: string): string | null => mainTaskIdOfProject(tasks, projectId),
-    [tasks],
-  )
-  // The merged project a task sits under — another machine's checkout of the
-  // same repo answers the home checkout's key, as the tree renders it.
-  const projectKeyOf = useMemo(() => sidebarProjectKeyResolver(tasks), [tasks])
-  const projectIdOfTask = useCallback(
-    (taskId: string): string | null => {
-      const task = tasks.find((candidate) => candidate.id === taskId)
-      if (!task || task.kind === "dir") return null
-      return projectKeyOf(task)
-    },
-    [tasks, projectKeyOf],
-  )
-
   return {
     rows,
     flatIds,
     totalCount,
     activeRowId,
     searching,
-    projectIdOfTask,
-    mainTaskIdOfProject: mainTaskOfProject,
     toggleTaskFold,
   }
 }

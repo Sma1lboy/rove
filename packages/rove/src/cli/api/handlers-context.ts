@@ -56,12 +56,12 @@ export async function loadContext(
         )
   const inScope = (repo: string): boolean => filter === null || filter.matches(repo)
 
-  // Before the unit-of-work filter: inbox items about `main` still count.
+  // Before the unit-of-work filter: inbox items about `dir` sessions still count.
   const repoTaskIds = new Set(allTasks.filter((task) => inScope(task.repo)).map((task) => task.id))
 
   const tasks = allTasks.filter(
     (task) =>
-      // Only worktree tasks are units of work (not `main`, not `dir`).
+      // Only worktree tasks are units of work (not `dir`).
       (task.kind ?? "task") === "task" &&
       inScope(task.repo) &&
       // Being removed = spent; a FAILED deletion is waiting on a person.

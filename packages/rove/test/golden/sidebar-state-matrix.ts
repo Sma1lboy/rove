@@ -100,7 +100,7 @@ export function task(over: Partial<Task> = {}): Task {
  *
  * Hand-picking a subset is how a golden quietly reintroduces the sampling
  * problem it exists to remove: recording only glyph/tone/loading/subtitle
- * lets `isMain`, `titleText` and `materializing` (which selects the sweep bar
+ * lets `titleText` and `materializing` (which selects the sweep bar
  * over the shimmer) all regress without moving a single line.
  * {@link RECORDED_FIELDS} is therefore checked
  * against the real object's keys by the test — adding a field to the interface
@@ -110,15 +110,7 @@ export function task(over: Partial<Task> = {}): Task {
  * printed in full by {@link spinnerBlock}, so repeating it on every status row
  * would be noise, not coverage.
  */
-export const RECORDED_FIELDS = [
-  "isMain",
-  "titleText",
-  "stateGlyph",
-  "tone",
-  "loading",
-  "materializing",
-  "subtitleText",
-] as const
+export const RECORDED_FIELDS = ["titleText", "stateGlyph", "tone", "loading", "materializing", "subtitleText"] as const
 
 export const OMITTED_FIELDS = ["spinnerFrames"] as const
 
@@ -126,7 +118,6 @@ export const OMITTED_FIELDS = ["spinnerFrames"] as const
  *  moved rather than reflowing the whole line. */
 function row(inputs: readonly string[], view: SidebarRowView): string {
   const cells = [
-    `main=${view.isMain ? 1 : 0}`,
     pad(`title=${view.titleText}`, 22),
     pad(`glyph=${view.stateGlyph}`, 9),
     pad(`tone=${view.tone}`, 16),
@@ -196,14 +187,14 @@ export function vendorBlock(): string[] {
   })
 }
 
-/** A project (`main`) row resolves its branch from the repo checkout, not from
- *  `task.branch` — and falls back to a neutral dash when the caller has none. */
-export function mainRowBlock(): string[] {
+/** A row with no stored branch (a session in an existing checkout) resolves its
+ *  branch from that checkout — and falls back to a neutral dash when the caller has none. */
+export function checkoutRowBlock(): string[] {
   const lines: string[] = []
   for (const mainBranch of ["main", "feat/long-running-branch", ""]) {
     for (const [name, status] of STATUSES) {
       const view = build({
-        task: task({ kind: "main", branch: "", title: "rove" }),
+        task: task({ kind: "dir", branch: "", title: "rove" }),
         status,
         mainBranch,
       })

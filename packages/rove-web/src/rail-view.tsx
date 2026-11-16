@@ -2,7 +2,7 @@
 
 import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
 import type { MouseEvent } from "react"
-import { useEffect, useRef } from "react"
+import { useRef } from "react"
 import type { RowStatus, TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
 import { useEngineIcons } from "./engine-icons.ts"
 import { markHintUsed } from "./hint-state.ts"
@@ -11,7 +11,7 @@ import { InboxDialog } from "./inbox-view.tsx"
 import { enterWorkspace, openSessions } from "./layout.ts"
 import { CloudMark, rowCloud, useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
-import { moveMode, reorderingMain } from "./move-mode.ts"
+import { moveMode } from "./move-mode.ts"
 import { startNewTask, startNewUngrouped } from "./new-session-view.tsx"
 import { PageNav } from "./pages-host.tsx"
 import { PrChip } from "./pr-chip.tsx"
@@ -22,7 +22,6 @@ import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
 import { RailFoot } from "./rail-foot.tsx"
 import { mostUrgentStatus, statusMark } from "./rail-glyphs.ts"
 import { railGroup } from "./rail-group.ts"
-import { dropIdleMains, useIdleTabs } from "./rail-idle.ts"
 import { openTaskRow, useRailFilters, useRailKeys } from "./rail-keys.ts"
 import { repoLabel } from "./rail-labels.ts"
 import { peekRail, railFolded, railPeek } from "./rail-layout.ts"
@@ -84,18 +83,15 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const tabs = useStore(model.tabs)
   const engineIcons = useEngineIcons(model)
   useStatusMarkNotice(model, payload?.tasks.length)
-  const tabsSettled = useStore(model.tabsSettled)
   const selection = useStore(model.selection)
   const tasks = payload?.tasks ?? []
   const unread = payload?.attention.filter((row) => row.unread).length ?? 0
   const selectedId = selection.taskId
-  const idleTabs = useIdleTabs(tasks, tabs, tabsSettled)
   const byId = new Map([...tasks, ...remoteTasks].map((task) => [task.id, task]))
 
   const filters = useRailFilters()
   const moving = useStore(moveMode)
   const byState = useStore(railGroup) === "state"
-  const reordering = useStore(reorderingMain)
   const build = (query: string) =>
     (byState ? railStateRows : railRows)({
       tasks,
@@ -111,33 +107,27 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   // Archived tasks are not listed: the palette finds them by title and brings one back.
   const rows = filters.search.active
     ? built.rows
-    : foldProjects(
-        withPanes(
-          withStateCounts(dropIdleMains(built.rows, idleTabs, selection.taskId, tabsSettled, reordering)),
-          tabs,
-        ),
-        filters.collapsed,
-      )
+    : foldProjects(withPanes(withStateCounts(built.rows), tabs), filters.collapsed)
   const stops = (all: readonly NavRow[]) =>
     all.filter((row) => row.kind !== "project" && row.kind !== "state" && row.kind !== "round")
   const words = (locale === "zh" ? tasksZh : tasksEn).machine
   const offline = new Set(machines.filter((m) => m.state !== "online").map((m) => m.alias))
-  const firstMovable = groups.find((group) => group.tasks.some((task) => task.kind === "main"))?.repo
-  const projectInfo = (repo: string): ProjectInfo => ({
-    mainTaskId: groups.find((group) => group.repo === repo)?.tasks.find((task) => task.kind === "main")?.id ?? null,
-    label: repoLabel(repo),
-    first: repo === firstMovable,
-  })
+  // This machine's projects in rail order: the ones a header menu can move among.
+  const movable = groups.filter((group) => !group.noProject && group.machine === undefined).map((group) => group.repo)
+  const projectInfo = (repo: string): ProjectInfo => {
+    const at = movable.indexOf(repo)
+    return {
+      label: repoLabel(repo),
+      local: at >= 0,
+      top: at > 0 ? (movable[0] ?? null) : null,
+      above: at > 0 ? (movable[at - 1] ?? null) : null,
+      below: at >= 0 ? (movable[at + 1] ?? null) : null,
+    }
+  }
   const drag = useRowDrag(model, tasks, !filters.search.active && !byState, filters.sort === "default")
   const { place, dragging } = drag.places(rows)
   const openSettings = () => dialog.set(<SettingsDialog model={model} />)
   const keys = useRailKeys(model, rows, filters, { selectedId, onNewTask: startNewTask, onSettings: openSettings })
-  // Header Reorder lists the main it moves; the cursor goes to it so j/k drag its project.
-  const reorderShown = reordering !== null && rows.some((row) => row.id === reordering)
-  const setCursor = keys.setCursor
-  useEffect(() => {
-    if (reorderShown && reordering !== null) setCursor(reordering)
-  }, [reorderShown, reordering, setCursor])
   const total = stops(build("").rows).length
   const rail = useRef<HTMLElement>(null)
   // Folded, the rail stays mounted and slides off to the left; inert so nothing in it takes focus or clicks,
@@ -251,13 +241,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
                     : () => startNewTask(row.repo, row.machine)
                   : undefined
               }
-              moving={
-                moving &&
-                row.machine === undefined &&
-                (row.kind === "project"
-                  ? !row.noProject && projectInfo(row.repo).mainTaskId === keys.cursor
-                  : row.id === keys.cursor && !(row.kind === "task" && row.task.kind === "main"))
-              }
+              moving={moving && row.machine === undefined && row.kind !== "project" && row.id === keys.cursor}
               prTasks={
                 row.kind === "task"
                   ? [row.task, ...(row.fold?.descendantIds ?? []).flatMap((id) => byId.get(id) ?? [])]
@@ -280,16 +264,13 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
                 // Another machine's project has no checkout here, so its header has no menu; its
                 // tasks do (their verbs run on that machine, `taskMenu` drops the local-only ones).
                 if (row.kind === "project" && row.machine !== undefined) return
-                // Ungrouped is no repo and has no main row to stand in for it: it offers only its two starts.
+                // Ungrouped is no repo: it offers only its two starts.
                 if (row.kind === "project" && row.noProject) {
                   openMenu(e, ungroupedMenu(model))
                   return
                 }
-                // The menu's target is the cursor, as the TUI's (a project header stands in with its main row).
                 if (row.kind === "project") {
-                  const info = projectInfo(row.repo)
-                  if (info.mainTaskId && rows.some((r) => r.id === info.mainTaskId)) keys.setCursor(info.mainTaskId)
-                  openMenu(e, projectMenu(model, row.repo, info))
+                  openMenu(e, projectMenu(model, row.repo, projectInfo(row.repo)))
                   return
                 }
                 if (row.kind !== "task") return

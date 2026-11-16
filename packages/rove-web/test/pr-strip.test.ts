@@ -8,7 +8,6 @@ const task = (over: Partial<TaskRow> = {}): TaskRow => ({ id: "t", kind: "task",
 describe("prActions", () => {
   test("a worktree task with no PR offers create; other kinds, remote and archived rows do not", () => {
     expect(prActions(task())).toEqual(["createPR"])
-    expect(prActions(task({ kind: "main" }))).toEqual([])
     expect(prActions(task({ kind: "dir" }))).toEqual([])
     expect(prActions(task({ noWorktree: true }))).toEqual([])
     expect(prActions(task({ archived: true }))).toEqual([])
@@ -44,7 +43,7 @@ describe("prActions", () => {
     expect(prActions(task({ changes: dirty, pr: pr({ checkState: "failing" }) }))).toEqual(["commit", "fixCI"])
     expect(prActions(task({ changes: { added: 0, deleted: 0 } }))).toEqual(["createPR"])
     expect(prActions(task({ changes: { unreadable: true } }))).toEqual(["createPR"])
-    expect(prActions(task({ changes: dirty, kind: "main" }))).toEqual([])
+    expect(prActions(task({ changes: dirty, kind: "dir" }))).toEqual([])
     expect(prActions(task({ changes: dirty, machine: { id: "m", label: "m" } }))).toEqual([])
   })
 })

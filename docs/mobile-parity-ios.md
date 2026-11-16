@@ -58,7 +58,6 @@ Web 手机版（`packages/rove-web`，390 宽）是功能和布局的参照，�
 | Diff 基线选择 | `diff-base-picker.tsx` | `diff.refs`、`diff.files` | **缺** |
 | 行首引擎标记（状态色、Appearance 可换回圆点） | `ui/engine-icon.tsx`、`status-mark.ts` | `engines.list` 的 `icon`（SVG path） | **缺**：SwiftUI 没有现成的 SVG path 解析，要写一个小 parser 或换成 bridge 发图片 |
 | Sessions 页 | `sessions-view.tsx`、`sessions-data.ts` | 只用 `tasks.subscribe` 的 `archived` | 大体已对齐：iOS 列表底部有 Archived 折叠行，行菜单有 Unarchive；没有按项目的独立页 |
-| main 会话归档 | `row-actions.tsx` | `task.archive` | **有 PR** [#2091](https://github.com/Sma1lboy/rove/pull/2091) |
 | New session 机器选择（Auto）、「agent 在哪跑」 | `new-session-machine.tsx`、`new-session-more.tsx` | `task.spawn` 的 `machine` 等 | **缺**，和下面「在别的机器上新建」一起做 |
 | Files 行的长按菜单 | `files-view.tsx` | 已有 op | **缺** |
 | Snippets | `settings-snippets.tsx`、`snippet-suggest.tsx` | `snippets.*` | **缺** |

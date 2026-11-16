@@ -1,17 +1,11 @@
 /**
  * Pure list-shaping helpers for the sidebar pane. Selected-task repo/branch
  * metadata lives in the topbar, not here.
- *
- * {@link buildRows} emits one flat ordered list (no per-project nesting);
- * the renderer draws it as two sections, PROJECTS (`main` rows) then TASKS.
- * Because every `main` row precedes every task row, the divider sits at the
- * first non-main index.
  */
 
 import { reconcileStableRows } from "@/tui/lib/stable-rows"
 import type { Task } from "@/types/task"
 import { pathIdentity, pathSyntax } from "@sma1lboy/rove-daemon/path-identity"
-import { fuzzyMatch } from "./fuzzy"
 
 /**
  * `attention` ranks by derived task group (what needs a person next). Its
@@ -22,73 +16,6 @@ export type TaskSortMode = "default" | "recent" | "attention" | "name"
 
 /** One visible sidebar row; kept a discriminated union so new row kinds slot in. */
 export type SidebarRow = { kind: "task"; task: Task; flatIndex: number }
-export type SidebarProjectOption = { repo: string; label: string; count: number }
-export type SidebarRowSections = {
-  projectRows: SidebarRow[]
-  taskRows: SidebarRow[]
-}
-
-/**
- * Flat row list; `flatIndex` is the row's position in the navigable id list.
- *
- * Order: `main` rows (stored order, one per repo), then `pinned` tasks, then
- * the rest — a stable partition, not a sort, because regular-task order is
- * the orchestrator's (ULID/createdAt) and a sort would scramble it.
- *
- * `searchQuery`: case-insensitive subsequence filter over
- * `title + " " + basename(repo)`, applied before partitioning.
- * `projectFilter` scopes BOTH sections: the filter label sits on the PROJECTS
- * header, so out-of-scope main rows hide too.
- */
-export function buildRows(
-  tasks: readonly Task[],
-  searchQuery?: string,
-  sortMode: TaskSortMode = "default",
-  projectFilter?: string | null,
-): SidebarRow[] {
-  const q = searchQuery?.trim() ?? ""
-  const projectKey = projectFilter ? sidebarProjectKey(projectFilter) : null
-  const filtered = q ? tasks.filter((t) => fuzzyMatch(q, `${t.title} ${repoBasename(t.repo)}`)) : tasks
-  const main: Task[] = []
-  const pinnedRegular: Task[] = []
-  const regular: Task[] = []
-  const seenMainRepos = new Set<string>()
-  for (const t of filtered) {
-    if (t.kind === "main") {
-      const key = sidebarProjectKey(t.repo)
-      if (projectKey && key !== projectKey) continue
-      if (seenMainRepos.has(key)) continue
-      seenMainRepos.add(key)
-      main.push(t)
-      continue
-    }
-    if (projectKey && sidebarProjectKey(t.repo) !== projectKey) continue
-    if (t.pinned === true) pinnedRegular.push(t)
-    else regular.push(t)
-  }
-  // Projects keep tasks.json (save) order so the list never reshuffles on its
-  // own; a sort reorders tasks only. Manual reorder goes through `moveTask`.
-  const compare = sortMode === "recent" ? compareNewest : sortMode === "name" ? compareName : null
-  if (compare) {
-    pinnedRegular.sort(compare)
-    regular.sort(compare)
-  }
-  const rows: SidebarRow[] = []
-  let flatIndex = 0
-  for (const task of main) {
-    rows.push({ kind: "task", task, flatIndex })
-    flatIndex++
-  }
-  for (const task of pinnedRegular) {
-    rows.push({ kind: "task", task, flatIndex })
-    flatIndex++
-  }
-  for (const task of regular) {
-    rows.push({ kind: "task", task, flatIndex })
-    flatIndex++
-  }
-  return rows
-}
 
 /**
  * Newest-created first: the `recent` sort. Not `updatedAt`, which also moves on bookkeeping
@@ -122,8 +49,7 @@ function taskTime(task: Task): number {
 }
 
 /**
- * Repo basename; a trailing slash doesn't change it. Main rows show this
- * instead of `task.title`, a stored copy that drifts if the dir is renamed.
+ * Repo basename; a trailing slash doesn't change it.
  */
 export function repoBasename(repo: string): string {
   return pathSyntax(repo).basename(repo) || repo
@@ -190,7 +116,7 @@ export function sidebarProjectKeyResolver(tasks: readonly Task[]): ProjectKeyOf 
     const key = sidebarProjectKeyOfTask(task)
     const id = repoIdOf.get(key)
     if (!id) continue
-    const rank = (isLocalTask(task) ? 0 : 2) + (task.kind === "main" ? 0 : 1)
+    const rank = isLocalTask(task) ? 0 : 1
     const current = home.get(id)
     if (!current || rank < current.rank) home.set(id, { key, rank })
   }
@@ -282,39 +208,6 @@ function pathTail(repo: string): string {
   return syntax.normalize(repo).split(syntax.sep).filter(Boolean).slice(-2).join("/")
 }
 
-export function buildProjectOptions(tasks: readonly Task[]): SidebarProjectOption[] {
-  const byKey = new Map<string, { repo: string; count: number }>()
-  for (const task of tasks) {
-    // A `dir` task has no project; don't mint a phantom filter entry.
-    if (task.kind === "dir") continue
-    const key = sidebarProjectKey(task.repo)
-    const next = byKey.get(key) ?? { repo: task.repo, count: 0 }
-    if (task.kind === "main") {
-      next.repo = task.repo
-    } else {
-      next.count += 1
-    }
-    byKey.set(key, next)
-  }
-  const repos = [...byKey.values()].map((entry) => entry.repo)
-  // Stored order — matches the sidebar's PROJECTS section (no re-sort).
-  return [...byKey.values()].map((entry) => ({
-    repo: entry.repo,
-    label: sidebarProjectLabel(entry.repo, repos),
-    count: entry.count,
-  }))
-}
-
-export function cursorIndexForProjectScope(rows: readonly SidebarRow[], projectFilter?: string | null): number {
-  if (rows.length === 0) return -1
-  if (!projectFilter) return rows[0]?.flatIndex ?? -1
-  const projectKey = sidebarProjectKey(projectFilter)
-  const firstTask = rows.find((row) => row.task.kind !== "main" && sidebarProjectKey(row.task.repo) === projectKey)
-  if (firstTask) return firstTask.flatIndex
-  const projectRow = rows.find((row) => row.task.kind === "main" && sidebarProjectKey(row.task.repo) === projectKey)
-  return projectRow?.flatIndex ?? rows[0]?.flatIndex ?? -1
-}
-
 /**
  * Target cursor index after the selection or flat id list changed — sole
  * owner of the "follow selection / clamp into range" policy. `cursor` is -1
@@ -340,20 +233,6 @@ export function resolveCursorTarget(selectedId: string | null, flatIds: readonly
   if (len === 0) return -1
   if (cursor < 0 || cursor >= len) return len - 1
   return cursor
-}
-
-/**
- * Render-only partition so PROJECTS and TASKS get separate scrollboxes; the
- * flat list stays the navigation source of truth (indexes, identity unchanged).
- */
-export function splitSidebarRows(rows: readonly SidebarRow[]): SidebarRowSections {
-  const projectRows: SidebarRow[] = []
-  const taskRows: SidebarRow[] = []
-  for (const row of rows) {
-    if (row.task.kind === "main") projectRows.push(row)
-    else taskRows.push(row)
-  }
-  return { projectRows, taskRows }
 }
 
 /**

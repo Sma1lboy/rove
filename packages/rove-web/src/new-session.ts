@@ -173,7 +173,7 @@ export async function startUngrouped(request: Request, engine: string, prompt: s
 
 /**
  * Start a session in the project's own checkout (Worktree off): a top-level row of that project, titled
- * from `prompt`. It is never a conversation opened on the project's main task, which would nest it there.
+ * from `prompt`.
  * `message` is what the engine receives (the prompt plus attachment refs); it defaults to the prompt.
  * With `at` nothing is created now: the daemon opens the session with the message at that time (the Routines
  * page lists it), so there is no task id to return.

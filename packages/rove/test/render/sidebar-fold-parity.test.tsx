@@ -39,7 +39,7 @@ function task(id: string, over: Partial<Task> = {}): Task {
     ...over,
   }
 }
-const main = (id: string, repo: string) => task(id, { kind: "main", repo, branch: "", worktreePath: repo })
+const dir = (id: string, repo: string) => task(id, { kind: "dir", repo, branch: "", worktreePath: repo })
 
 /**
  * One fixture drives BOTH paths, so the comparison cannot drift: the rail
@@ -102,13 +102,6 @@ const FIXTURES: ReadonlyArray<{
   tabs: Record<string, readonly string[]>
 }> = [
   {
-    // The bug this file exists for: a repo closed down to its main checkout
-    // with the last tab shut.
-    name: "a project closed down to nothing",
-    tasks: [main("dead", "/work/dead"), task("live", { repo: "/work/api" })],
-    tabs: { dead: [], live: ["tab-1"] },
-  },
-  {
     // tasks.json interleaves by creation order, so this is the ordinary case,
     // not an exotic one.
     name: "two projects interleaved in the store",
@@ -133,7 +126,7 @@ const FIXTURES: ReadonlyArray<{
   },
   {
     name: "tabs that have never mounted since restart",
-    tasks: [main("m", "/work/api"), main("n", "/work/web")],
+    tasks: [dir("m", "/work/api"), dir("n", "/work/web")],
     tabs: {},
   },
 ]
@@ -141,18 +134,6 @@ const FIXTURES: ReadonlyArray<{
 test.each([...FIXTURES])("the fold heads the same sections, in the same order — $name", async (fixture) => {
   const tabs = seed(fixture.tabs)
   expect(await railDividers(fixture.tasks)).toEqual(treeHeads(fixture.tasks, tabs))
-})
-
-test("the closed-down project is in neither surface, not merely ordered the same", async () => {
-  // The parity property above would also be satisfied by both surfaces showing
-  // the dead project. This pins the direction.
-  const tasks = [main("dead", "/work/dead"), task("live", { repo: "/work/api" })]
-  const tabs = seed({ dead: [], live: ["tab-1"] })
-
-  expect(treeHeads(tasks, tabs)).toEqual(["a"])
-  const dividers = await railDividers(tasks)
-  expect(dividers).toEqual(["a"])
-  expect(dividers).not.toContain("d")
 })
 
 test("the fold draws no cell for a routine session", async () => {

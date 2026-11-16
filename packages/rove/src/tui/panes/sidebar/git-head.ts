@@ -1,5 +1,5 @@
 /**
- * Git-HEAD poller for the sidebar's main-task rows' live branch hint
+ * Git-HEAD poller for the sidebar's `dir` rows' live branch hint
  * (`○ rove   main`), computed at display time so an external checkout shows
  * on the next render.
  *

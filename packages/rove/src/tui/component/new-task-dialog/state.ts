@@ -27,9 +27,8 @@ import { DEFAULT_BASE_REF } from "../../lib/git-snapshot"
  *   - create (default) — fresh task on `repo` at `baseRef`.
  *   - adopt — import existing worktrees; the caller loops
  *     `orchestrator.adoptWorktree` over `adopt`.
- *   - open — open `repo`'s own checkout (its `main` row). The only way back to
- *     a hidden project (`isClosedDownProject`): every other path mints a
- *     `kind: "task"`, leaving an extra worktree and still no project row.
+ *   - open — a new session in `repo`'s own checkout. The way back to a hidden
+ *     project (`isClosedDownProject`) without minting a worktree.
  */
 export type NewTaskInput =
   | {
@@ -80,7 +79,7 @@ export type NewTaskDialogOptions = {
   /** Adopt-tab discovery of unlinked worktrees on `repo`; omit to disable adoption. */
   discoverAdoptable?: (repo: string) => Promise<readonly AdoptableWorktree[]>
   /**
-   * Repos with a project checkout (a `main` task), trailing slashes trimmed.
+   * Saved projects, trailing slashes trimmed.
    * Only these get "open the project" ({@link offersProjectIntent}); empty =
    * the choice never appears.
    */
@@ -364,9 +363,9 @@ export function resolveBaseRef(typed: string, filteredBranches: readonly string[
 
 /**
  * What submitting the Existing tab does: "task" (default) branches a fresh
- * worktree; "project" opens the repo's own checkout (`main` row). "project" is
+ * worktree; "project" starts a session in the repo's own checkout. "project" is
  * how a project hidden by closing its last tab (`isClosedDownProject`) comes
- * back — `createTask` always mints a `kind: "task"`.
+ * back without a worktree — `createTask` always mints a `kind: "task"`.
  */
 export type ExistingIntent = "task" | "project"
 

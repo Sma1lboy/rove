@@ -203,7 +203,7 @@ export interface DaemonTask {
   readonly repo: string
   readonly branch: string
   readonly worktreePath: string
-  readonly kind?: "main" | "task" | "dir"
+  readonly kind?: "task" | "dir"
   /** Dir task with no settled cwd (sidebar Scratch section); cleared when named or adopted. */
   readonly scratch?: boolean
   /** Dir task a projectless routine made; sorts into the Ungrouped group with Scratch. */
@@ -312,7 +312,10 @@ export interface DaemonOrchestrator extends CheckpointOrchestrator {
     parentTaskId?: string // nest under this task, stored as its top-level ancestor
     workspace?: TaskWorkspace
   }): Promise<DaemonTask>
-  ensureMainTask(repo: string): Promise<DaemonTask>
+  /** Saves `repo` as a project; resolves its normalized key. */
+  ensureProject(repo: string): Promise<string>
+  /** Rows loaded from a stored `main` row: dropped when they hold nothing, else ordinary from here on. */
+  settleProjectRows(hasTabs: (taskId: string) => boolean): Promise<void>
   /** Open an existing directory as a standalone `kind:"dir"` task (`rove .`).
    *  `scratch` marks it a temp shell task for the sidebar's Scratch section. */
   openDirectoryTask(input: {

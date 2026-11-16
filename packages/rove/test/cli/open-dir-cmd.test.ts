@@ -15,7 +15,8 @@ const mocks = vi.hoisted(() => ({
   /** Git toplevel of the opened dir. Equal to the dir = it IS a repo root. */
   repoRootOf: vi.fn((p: string) => p),
   isGitRepo: vi.fn(() => false),
-  ensureMainTask: vi.fn(async (repo: string) => ({ id: 456, kind: "main", repo })),
+  ensureProject: vi.fn(async (repo: string) => repo),
+  openDirectoryTask: vi.fn(async (args: { dir: string }) => ({ id: 123, dir: args.dir })),
 }))
 
 vi.mock("../../src/state/repos.ts", () => ({
@@ -49,11 +50,11 @@ vi.mock("../../src/orchestrator/index/store.ts", () => ({
 vi.mock("../../src/orchestrator/worktree/manager.ts", () => ({ GitWorktreeManager: class {} }))
 vi.mock("../../src/orchestrator/core.ts", () => ({
   Orchestrator: class {
-    async openDirectoryTask(args: { dir: string }) {
-      return { id: 123, dir: args.dir }
+    openDirectoryTask(args: { dir: string }) {
+      return mocks.openDirectoryTask(args)
     }
-    ensureMainTask(repo: string) {
-      return mocks.ensureMainTask(repo)
+    ensureProject(repo: string) {
+      return mocks.ensureProject(repo)
     }
   },
 }))
@@ -79,7 +80,8 @@ beforeEach(() => {
   // Default: not a repo — the dir-task path every pre-existing test expects.
   mocks.repoRootOf.mockReset().mockImplementation((p: string) => p)
   mocks.isGitRepo.mockReset().mockReturnValue(false)
-  mocks.ensureMainTask.mockReset().mockImplementation(async (repo: string) => ({ id: 456, kind: "main", repo }))
+  mocks.ensureProject.mockClear()
+  mocks.openDirectoryTask.mockClear()
 })
 
 afterEach(() => {
@@ -152,37 +154,35 @@ describe("runOpenDirectory", () => {
       mocks.repoRootOf.mockImplementation((p: string) => p)
     }
 
-    it("ensures the project's main row instead of a throwaway dir task", async () => {
+    it("saves the project and opens a new session in its checkout", async () => {
       asRepoRoot()
       mocks.connectIfRunning.mockResolvedValue(null)
 
       await runOpenDirectory("./my-repo")
 
-      // The row the sidebar shows as the PROJECT — not a `dir` task beside it.
-      expect(mocks.ensureMainTask).toHaveBeenCalledWith(expect.stringContaining("my-repo"))
-      expect(mocks.writeLastActiveTaskId).toHaveBeenCalledWith("456")
+      expect(mocks.ensureProject).toHaveBeenCalledWith(expect.stringContaining("my-repo"))
+      expect(mocks.openDirectoryTask).toHaveBeenCalledWith({ dir: expect.stringContaining("my-repo") })
+      expect(mocks.writeLastActiveTaskId).toHaveBeenCalledWith("123")
     })
 
-    it("routes through task.ensureMain over a running daemon", async () => {
+    it("routes through project.ensure + task.openDir over a running daemon", async () => {
       asRepoRoot()
       const client = {
-        request: vi.fn().mockResolvedValue({ task: { id: "daemon-main-1" } }),
+        request: vi.fn(async (name: string) => (name === "project.ensure" ? { repo: "/r/my-repo" } : { taskId: "s1" })),
         close: vi.fn(),
       }
       mocks.connectIfRunning.mockResolvedValue(client)
 
       await runOpenDirectory("./my-repo")
 
-      expect(client.request).toHaveBeenCalledWith("task.ensureMain", {
-        repo: expect.stringContaining("my-repo"),
-      })
-      expect(client.request).toHaveBeenCalledWith("task.setActive", { taskId: "daemon-main-1" })
-      expect(client.request).not.toHaveBeenCalledWith("task.openDir", expect.anything())
+      expect(client.request).toHaveBeenCalledWith("project.ensure", { repo: expect.stringContaining("my-repo") })
+      expect(client.request).toHaveBeenCalledWith("task.openDir", { dir: "/r/my-repo" })
+      expect(client.request).toHaveBeenCalledWith("task.setActive", { taskId: "s1" })
     })
 
     it("keeps the dir task for a SUBDIRECTORY of a repo", async () => {
       // Opening `my-repo/packages/app` must not silently re-target the whole
-      // monorepo — and must not mint a project named after a subdirectory.
+      // monorepo — and must not save a project named after a subdirectory.
       mocks.statSync.mockReturnValue({ isDirectory: () => true })
       mocks.isGitRepo.mockReturnValue(true)
       mocks.repoRootOf.mockImplementation(() => "/somewhere/my-repo")
@@ -190,7 +190,7 @@ describe("runOpenDirectory", () => {
 
       await runOpenDirectory("./my-repo/packages/app")
 
-      expect(mocks.ensureMainTask).not.toHaveBeenCalled()
+      expect(mocks.ensureProject).not.toHaveBeenCalled()
       expect(mocks.writeLastActiveTaskId).toHaveBeenCalledWith("123")
     })
 
@@ -203,7 +203,7 @@ describe("runOpenDirectory", () => {
 
       await runOpenDirectory("/tmp/x/.dev-sandbox/fake-repo")
 
-      expect(mocks.ensureMainTask).not.toHaveBeenCalled()
+      expect(mocks.ensureProject).not.toHaveBeenCalled()
       expect(mocks.writeLastActiveTaskId).toHaveBeenCalledWith("123")
     })
   })

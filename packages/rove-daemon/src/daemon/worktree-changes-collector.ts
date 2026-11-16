@@ -19,7 +19,7 @@
  *     accelerator, never an authority; unreadable falls through to a real poll.
  *
  * Scope: tasks with a LOCAL worktree (`ssh://` skipped). Deleted tasks drop
- * on the next tick; tasks sharing a path (`main` rows) dedupe on the path key.
+ * on the next tick; tasks sharing a path (sessions in one checkout) dedupe on the path key.
  *
  * Publish contract: the FULL map, only when membership or a value changed, so
  * the bus's last-value replay gives a late subscriber everything in one frame.
@@ -101,7 +101,7 @@ export function trackedWorktreePaths(tasks: readonly Task[]): Map<string, string
       if (!repo.worktreePath) continue
       if (isRemoteRepoKey(repo.repo) || isRemoteRepoKey(repo.worktreePath)) continue
       // First repo that RECORDS a base ref wins: `get` === undefined covers "not
-      // seen" and "seen, no base", so a `main` row can't erase it in any order.
+      // seen" and "seen, no base", so a `dir` row can't erase it in any order.
       if (paths.get(repo.worktreePath) === undefined) paths.set(repo.worktreePath, repo.baseRef)
     }
   }

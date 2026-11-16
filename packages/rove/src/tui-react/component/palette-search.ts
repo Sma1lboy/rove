@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { type SearchResult, searchTasks } from "../../engine/session-search"
 import { fuzzyMatch } from "../../tui/panes/sidebar/fuzzy"
+import { isNamedDir } from "../../tui/panes/sidebar/tree-labels"
 import type { Task } from "../../types/task"
 
 export const MIN_CHARS = 2
@@ -28,8 +29,8 @@ export type SaidState =
 export function matchingTasks(tasks: readonly Task[], query: string): readonly Task[] {
   const q = query.trim()
   if (!q) return []
-  // A scratch shell shows no title, so its title must not match.
-  return tasks.filter((task) => task.kind !== "dir" && fuzzyMatch(q, task.title))
+  // A title the sidebar does not show (a scratch shell, an auto-named session) must not match.
+  return tasks.filter((task) => (task.kind !== "dir" || isNamedDir(task)) && fuzzyMatch(q, task.title))
 }
 
 /** Conversation hits for `query`; a reply for an older query never lands. */

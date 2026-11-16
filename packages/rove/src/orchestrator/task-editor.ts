@@ -68,7 +68,7 @@ export class TaskEditor {
    * placeholder-derived default (`new-task`, or legacy `rove/`/`rove/`), so a
    * prompt-auto-named task gets a real branch. Fires at most once: after that
    * the branch no longer matches, so later titles / manual `setBranch` are
-   * never clobbered. Skipped for `main` and unmaterialised tasks
+   * never clobbered. Skipped for `dir` and unmaterialised tasks
    * (`ensureWorktree` derives theirs from the title).
    *
    * Best-effort — failures are logged, never thrown (the title already
@@ -97,18 +97,14 @@ export class TaskEditor {
   /**
    * Materialised: `git branch -m` (moves HEAD too, so a running session keeps
    * streaming). Unmaterialised: records the name for `ensureWorktree`.
-   * Rejected for `main`/`dir`, which track their checkout's own branch.
+   * Rejected for `dir`, which tracks its checkout's own branch.
    */
   async setBranch(id: TaskId | string, branch: string): Promise<void> {
     const trimmed = branch.trim()
     if (!trimmed) throw new Error("setBranch: branch is required (empty or whitespace-only rejected)")
     const task = this.requireTask(id)
     if (!workspaceCapabilities(task).ownsBranch) {
-      throw new Error(
-        task.kind === "main"
-          ? "setBranch: a main task tracks the repo's own branch; rename it with git directly"
-          : "setBranch: a directory task tracks its own checkout; rename branches with git directly",
-      )
+      throw new Error("setBranch: a directory task tracks its own checkout; rename branches with git directly")
     }
     if (task.branch === trimmed) return
     // Every repo of a multi-repo task still on the shared name renames with it, or none does.
@@ -200,10 +196,8 @@ export class TaskEditor {
     })
   }
 
-  /** No-op for `main` (always pinned). */
   async setPinned(id: TaskId | string, pinned?: boolean): Promise<void> {
     const task = this.requireTask(id)
-    if (task.kind === "main") return
     const next = pinned ?? !task.pinned
     if ((task.pinned ?? false) === next) return
     await this.store.update(task.id, { pinned: next })
@@ -246,9 +240,6 @@ export class TaskEditor {
   async setParent(id: TaskId | string, parentId: string | null, replyTab?: string): Promise<ReparentResult> {
     const task = this.requireTask(id)
     if (task.deletion) throw new TaskDeletingError(String(task.id))
-    if (task.kind === "main") {
-      throw new ReparentRefusedError("TASK_NOT_MOVABLE", `${task.id} is a project's main task — it is the project`)
-    }
     if (task.routine) {
       throw new ReparentRefusedError(
         "TASK_NOT_MOVABLE",
@@ -329,16 +320,15 @@ export class TaskEditor {
   }
 
   /**
-   * Within the visible partition: mains among mains (store order IS project
-   * order); tasks within their repo (a cross-repo swap would be invisible or
-   * jump groups) and pinned flag. Edge-stop, never wrap.
+   * Within the visible partition: tasks within their repo (a cross-repo swap
+   * would be invisible or jump groups) and pinned flag. Edge-stop, never wrap.
    */
   async moveTask(id: TaskId | string, delta: -1 | 1): Promise<void> {
     const task = this.requireTask(id)
     await this.store.move(task.id, delta, movePartition(this.store.list(), task))
   }
 
-  /** {@link moveTask} to the head of the same partition; a main = project to the top. */
+  /** {@link moveTask} to the head of the same partition. */
   async moveTaskToTop(id: TaskId | string): Promise<void> {
     const task = this.requireTask(id)
     await this.store.moveToFront(task.id, movePartition(this.store.list(), task))
@@ -346,7 +336,7 @@ export class TaskEditor {
 
   /**
    * Every task of `repo` as one block, keeping their order. A project sits where its first task does
-   * (main or not; its tasks may be interleaved with others'), so "before" lands ahead of `target`'s first
+   * (its tasks may be interleaved with others'), so "before" lands ahead of `target`'s first
    * task and "after" ahead of the first task of the project that follows `target`, or at the end.
    * Projectless rows (Scratch, a projectless routine's runs) belong to no project and never move with one.
    */

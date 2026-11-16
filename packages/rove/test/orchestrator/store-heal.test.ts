@@ -4,14 +4,7 @@ import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 
-/**
- * Self-heal-on-load coercion (`coerceTask`). The bug it guards (the rove
- * project stuck showing "working"): a `main` (project-root) task has NO
- * session lifecycle that maintains its status, so an old auto-done flip
- * plus the done→in_progress heal left the project permanently in_progress,
- * which the Tasks pane reads as the "working" chip. A main row must heal to
- * a neutral `backlog`; only real tasks keep the done→in_progress heal.
- */
+/** Self-heal-on-load coercion (`coerceTask`). */
 describe("TaskIndexStore self-heal on load", () => {
   let home: string
 
@@ -41,13 +34,6 @@ describe("TaskIndexStore self-heal on load", () => {
       ...over,
     }
   }
-
-  it("resets a main task stuck at in_progress back to backlog", async () => {
-    await writeTasks([baseRow({ kind: "main", status: "in_progress" })])
-    const store = new TaskIndexStore({ homeDir: home })
-    const { tasks } = await store.load()
-    expect(tasks[0]?.status).toBe("backlog")
-  })
 
   it("leaves a done TASK alone (archive concept removed; done is legitimate)", async () => {
     await writeTasks([baseRow({ id: "01HXTASKAAAAAAAAAAAAAAAAA", kind: "task", status: "done" })])

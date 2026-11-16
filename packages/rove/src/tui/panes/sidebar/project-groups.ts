@@ -49,23 +49,13 @@ export interface SidebarGroup {
 export interface SidebarGroupInput {
   readonly tasks: readonly Task[]
   /** Tabs per task id, read only for size, as a tri-state: absent = "never
-   *  mounted since restart" (every task on a fresh TUI), not "has no tabs" —
-   *  unless {@link tabsDaemonBacked}, which reads absent as none for a main row. */
+   *  mounted since restart" (every task on a fresh TUI), not "has no tabs". */
   readonly tabsByTask: ReadonlyMap<string, { readonly length: number }>
-  /** `tabsByTask` is the daemon's tab store (or on its way from it): it holds a
-   *  record for every task with tabs, so a main row with no entry has no tabs,
-   *  as a fresh `rove api add --repo` main. Absent from a TUI with no daemon
-   *  store, where no entry only says "never opened". */
-  readonly tabsDaemonBacked?: boolean
   /** Task sort applied within each group. Defaults to input order. */
   readonly sortMode?: TaskSortMode
   /** Live activity per task id — read only by `attention` sort, which ranks by
    *  the derived task group and so needs the entry, not just its state. */
   readonly activityOf?: (taskId: string) => TaskEngineState | undefined
-  /** Tasks a tabless main row stays listed for: the selection, and the project
-   *  whose Reorder is on. Any other main with known-empty tabs and no child
-   *  task is not a row (see {@link idleMainIds}). */
-  readonly keepTaskIds?: ReadonlySet<string>
 }
 
 /** One project while it is being gathered: the home checkout plus every machine's tasks. */
@@ -73,21 +63,17 @@ interface ProjectEntry {
   repo: string
   repoId?: string
   machineId: string
-  /** The home checkout's main has been seen (it heads `mains`). */
-  homeMain: boolean
-  mains: Task[]
-  rest: Task[]
+  /** A task of the home checkout has been seen: it names the header. */
+  home: boolean
+  tasks: Task[]
 }
 
 /**
- * A project closed down to nothing: its only row is the main checkout (or an
- * opened `dir`) and that row's tabs are KNOWN and empty. Hidden, not deleted —
- * the main task and `savedRepos` entry stay (unlike Forget, which un-saves).
+ * A project closed down to nothing: its only row is a session in an existing
+ * directory and that row's tabs are KNOWN and empty. Hidden, not deleted — the
+ * row and the `savedRepos` entry stay (unlike Forget, which un-saves).
  *
- * Way back: new-task dialog → Existing → "the project itself" (`mode: "open"`
- * → `ensureMainTask`), offered exactly for repos with a main row. Every other
- * submit path goes through `createTask`, which mints a worktree and would
- * leave no project row. A `dir` row comes back via `rove .`.
+ * Way back: new-task dialog → Existing → "the project itself", or `rove .`.
  *
  * Narrow on purpose: any worktree task under the project keeps it visible
  * (those rows are the way back to that work), and an absent tabs entry never
@@ -95,39 +81,8 @@ interface ProjectEntry {
  */
 function isClosedDownProject(tasks: readonly Task[], tabsByTask: SidebarGroupInput["tabsByTask"]): boolean {
   const only = tasks.length === 1 ? tasks[0] : undefined
-  if (!only || (only.kind !== "main" && only.kind !== "dir")) return false
+  if (!only || only.kind !== "dir") return false
   return tabsByTask.get(only.id)?.length === 0
-}
-
-/**
- * Main rows with nothing to show: no tabs, not selected or held open, and no
- * child task nested under them. Hidden, not deleted — the main still anchors
- * the project (header, order, `rove api send`), and the row is back the moment
- * it has a tab, a child or the selection.
- *
- * "No tabs" is a known-empty entry, or — for a task on this computer, against
- * the daemon's store, which keeps a record for every task that has tabs — no
- * entry at all. Without that store an absent entry is "never mounted since
- * restart" and never hides, as in {@link isClosedDownProject}; a task on
- * another machine is never in the daemon's store here, so absent never hides it.
- * Before `tabs.list` lands the daemon-backed reading already holds, so a main
- * row never shows and then vanishes at boot.
- *
- * Way back to a hidden main row: New task → Existing → "the project itself"
- * (selects it), or the header's Reorder, which holds it open while moving.
- */
-function idleMainIds(input: SidebarGroupInput, tasks: readonly Task[]): ReadonlySet<string> {
-  const parents = new Set<string>()
-  for (const task of tasks)
-    if (task.parentTaskId !== undefined && task.routine === undefined) parents.add(task.parentTaskId)
-  const idle = new Set<string>()
-  for (const task of tasks) {
-    if (task.kind !== "main" || input.keepTaskIds?.has(task.id) || parents.has(task.id)) continue
-    const tabs = input.tabsByTask.get(task.id)
-    const local = (task.origin?.machineId ?? "local") === "local"
-    if (tabs ? tabs.length === 0 : local && input.tabsDaemonBacked === true) idle.add(task.id)
-  }
-  return idle
 }
 
 /** Not on its way out (a queued or running delete leaves every list at once) and not a bare checkout under its parent. */
@@ -149,15 +104,9 @@ function isRoutineRun(task: Task): boolean {
  * project, its tasks from every machine under it; which machine a row lives
  * on is the row's business (`task.origin`), not a section of its own.
  *
- * Projects follow their MAIN task's stored order (the partition `moveTask`
- * reorders, so project move-mode visibly moves the header); keying on any
- * task's order would make a main swap a no-op, since mains and regular tasks
- * interleave in tasks.json. Main-less projects append in first-seen order.
- *
- * A `main` task belongs to its group rather than being it — the header is a
- * repo, not a checkout — so main carries tabs like any worktree. `dir` tasks
- * group under their directory (`repo` IS the directory); loose after the last
- * project they would read as that project's rows.
+ * A project sits where its first task does in the stored order (`moveProject`
+ * moves the whole block). `dir` tasks group under their directory (`repo` IS
+ * the directory); loose after the last project they would read as that project's rows.
  */
 export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
   // In-flight deletions leave the sidebar before teardown: the daemon
@@ -166,9 +115,8 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
   // before that write — so nothing hides for a delete that didn't happen.
   // `error` stays visible: the failed task returning (with its `delete failed`
   // caption) is the only thing that corrects the vanished row.
-  // Archived tasks leave too (the palette finds them by title),
-  // so a project left with only its main folds like any idle project; so do
-  // routine runs, so a project with only scheduled output folds the same way.
+  // Archived tasks leave too (the palette finds them by title); so do
+  // routine runs, so a project with only scheduled output folds away.
   const tasks = input.tasks.filter((task) => isListed(task) && task.archived !== true && !isRoutineRun(task))
   const { tabsByTask } = input
   const sortMode = input.sortMode ?? "default"
@@ -195,59 +143,31 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
     const entry = byProject.get(key) ?? {
       repo: task.repo,
       machineId: task.origin?.machineId ?? "local",
-      homeMain: false,
-      mains: [],
-      rest: [],
+      home: false,
+      tasks: [],
     }
     if (!entry.repoId && task.repoId) entry.repoId = task.repoId
-    // The header names the HOME checkout (the one the key came from), its
-    // main's `repo` winning so the header stays stable if they disagree.
-    const home = sidebarProjectKeyOfTask(task) === key
-    if (home && !entry.homeMain) {
+    // The header names the HOME checkout (the one the key came from).
+    if (!entry.home && sidebarProjectKeyOfTask(task) === key) {
       entry.repo = task.repo
       entry.machineId = task.origin?.machineId ?? "local"
-      entry.homeMain = task.kind === "main"
-      // The home main heads the project; other machines' mains follow it.
-      if (entry.homeMain) {
-        entry.mains.unshift(task)
-        byProject.set(key, entry)
-        continue
-      }
+      entry.home = true
     }
-    if (task.kind === "main") entry.mains.push(task)
-    else entry.rest.push(task)
+    entry.tasks.push(task)
     byProject.set(key, entry)
   }
 
-  // Mains' stored order, then main-less projects first-seen (see above).
-  const orderedKeys: string[] = []
-  const seen = new Set<string>()
-  for (const task of tasks) {
-    if (task.kind !== "main") continue
-    const key = keyOf(task)
-    if (!seen.has(key)) {
-      seen.add(key)
-      orderedKeys.push(key)
-    }
-  }
-  for (const key of byProject.keys()) {
-    if (!seen.has(key)) {
-      seen.add(key)
-      orderedKeys.push(key)
-    }
-  }
-
-  // Mains stay first; only regular worktrees reorder.
+  // First-seen: the map's insertion order.
+  const orderedKeys = [...byProject.keys()]
   const ordered = new Map<string, Task[]>()
   for (const [key, entry] of byProject) {
-    if (compare) entry.rest.sort(compare)
-    ordered.set(key, [...entry.mains, ...entry.rest])
+    if (compare) entry.tasks.sort(compare)
+    ordered.set(key, entry.tasks)
   }
 
   // Labels disambiguate against every other VISIBLE project (`~/work/api` vs
   // `~/oss/api` must not both read `api`). Hidden projects are dropped first
   // so they can't influence that.
-  const idle = idleMainIds(input, tasks)
   const visibleKeys = orderedKeys.filter((key) => {
     const list = ordered.get(key)
     return list ? !isClosedDownProject(list, tabsByTask) : false
@@ -274,16 +194,12 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
     const list = ordered.get(key)
     const project = labelled.get(key)
     if (!entry || !list || !project) continue
-    // A project left with no row at all keeps its main: closing it down is `isClosedDownProject`'s call, on
-    // known-empty tabs only, so a repo that was just saved never vanishes on an absent entry.
-    const kept = list.filter((task) => !idle.has(task.id))
-    const shown = kept.length > 0 ? kept : list
     groups.push({
       key,
       repo: entry.repo,
       label: sidebarRepoLabel(project, projects),
       machineId: entry.machineId,
-      tasks: shown,
+      tasks: list,
     })
   }
   return groups

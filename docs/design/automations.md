@@ -35,8 +35,8 @@ are `kind: "dir"` tasks (`openDirectoryTask`, so no worktree or branch, and
 it never hits the project-eligibility gate that refuses Rove's own state
 dirs) with `noProject: true`. They are never `scratch`, so the Scratch
 lifecycle (delete on last-tab exit, adopt, rename) does not apply, and
-startup promotion and `MainTaskCoordinator` skip `noProject` rows even when
-the directory is a git root. A standing session carries the `routine` link,
+no project is saved for a `noProject` row even when the directory is a git
+root. A standing session carries the `routine` link,
 so it reuses and revives in the same directory; a fresh run is an ordinary
 row. Both sort into the sidebar's **Ungrouped** group with Scratch
 (`kind === "dir" && (scratch || noProject)`).
@@ -122,8 +122,8 @@ looks exactly like a quiet one.
 TUI sidebar nor the web rail lists it ([`project-groups.ts`](../../packages/rove/src/tui/panes/sidebar/project-groups.ts),
 web `railRows`): schedule output never competes with tasks a human opened. A run's task stays openable
 from the Routines page (`enter` opens the latest run, a click opens any recent one) and reachable from the
-Inbox — hiding a ROW, not a task. A project left with only its idle main checkout once the runs are
-gone closes down like any other.
+Inbox — hiding a ROW, not a task. A project left with no other task once the runs are gone has no
+header.
 
 ## Scheduling
 

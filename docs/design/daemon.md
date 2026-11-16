@@ -237,8 +237,7 @@ TUI may show any task at any time.
 > `socket-guard.ts` watches only its own. Override `*_DAEMON_SOCKET_PATH` while
 > leaving `*_HOME_DIR` alone (what the harness and capture isolation recipes
 > do) and two daemons serve one state root, invisible to each other: their task
-> lists diverge permanently, `ensureMainTask` writes the project-main row
-> twice, and `automations.json` and `.config/rove/state.json` race as well — so
+> lists diverge permanently, `savedRepos` is written twice, and `automations.json` and `.config/rove/state.json` race as well — so
 > a lock around the task index would not have been enough. Before calling the
 > orchestrator factory, `home-owner.ts` acquires an exclusive SQLite transaction
 > on `<home>/.rove/daemon.owner.lock`. The lease covers migration, core/store

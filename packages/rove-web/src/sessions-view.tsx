@@ -32,13 +32,12 @@ import { Tabs } from "./ui/tabs.tsx"
 export function SessionsView({ model }: { model: AppModel }) {
   const { common } = useCopy()
   const payload = useStore(model.tasks)
-  const tabs = useStore(model.tabs)
   const scope = useStore(sessionsRepo) ?? ""
   const [tab, setTab] = useState<SessionsTab>("active")
   const [cursor, setCursor] = useState(0)
   const repos = sessionRepos(payload)
   const repo = scope === "" ? null : scope
-  const rows = sessionRows(payload, tabs, repo, tab)
+  const rows = sessionRows(payload, repo, tab)
   const at = Math.min(cursor, Math.max(0, rows.length - 1))
 
   const root = useRef<HTMLDivElement>(null)

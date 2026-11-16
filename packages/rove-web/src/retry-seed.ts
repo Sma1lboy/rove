@@ -25,7 +25,7 @@ export function retrySeed(task: RetryRow, brief: RetryBrief): NewSessionStart {
     ...(task.machine ? { machine: task.machine.id } : {}),
     prompt: brief.prompt,
     ...(brief.engine ? { engine: brief.engine } : {}),
-    // A project's own checkout (main, or a directory task) retries in place; a managed task in a worktree.
+    // A directory task (a project's own checkout included) retries in place; a managed task in a worktree.
     worktree: task.kind === "task",
     retryOf: { id: task.id, label: task.label },
   }

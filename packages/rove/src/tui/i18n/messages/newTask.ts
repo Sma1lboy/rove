@@ -37,7 +37,7 @@ export const en = {
     folderName: "FOLDER NAME",
     baseBranch: "BASE BRANCH",
     adoptFilter: "FILTER (PATH GLOB)",
-    /** Existing tab: task vs project — only for a repo with a main row. */
+    /** Existing tab: task vs project — only for a saved project. */
     opens: "OPENS",
   },
 
@@ -148,7 +148,7 @@ export const zh: typeof en = {
     folderName: "文件夹名",
     baseBranch: "基准分支",
     adoptFilter: "过滤（路径 glob）",
-    /** Existing tab: task vs project — only for a repo with a main row. */
+    /** Existing tab: task vs project — only for a saved project. */
     opens: "打开",
   },
 

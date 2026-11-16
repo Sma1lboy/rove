@@ -18,12 +18,12 @@ const PATH_LABEL_MAX = 24
 
 /**
  * The checkout whose live HEAD names this row, or `""` when the row stores its
- * own branch. `main` and `dir` store none and move freely; a scratch shell
+ * own branch. A `dir` row stores none and moves freely; a scratch shell
  * opened inside a repo IS on a branch and should read like its sibling rows.
  * Not-a-repo falls back to the path (the poller answers `""`).
  */
 export function rowLiveBranchPath(task: Task): string {
-  if (task.kind !== "main" && task.kind !== "dir") return ""
+  if (task.kind !== "dir") return ""
   return task.worktreePath || task.repo || ""
 }
 
@@ -50,13 +50,18 @@ export function conversationTitleOf(
 /** The `<dir>-xxxx` title `openDirectoryTaskRow` mints when no title is given. */
 const AUTO_DIR_TITLE = /^\S+-[0-9a-z]{4}$/
 
+/** A `dir` title a person or a prompt gave, not the repo's name (an adopted scratch) or the auto-minted `<dir>-xxxx`. */
+export function isNamedDir(task: Task): boolean {
+  const title = task.title.trim()
+  return task.kind === "dir" && title !== repoBasename(task.repo) && !AUTO_DIR_TITLE.test(title)
+}
+
 /**
  * A row is a conversation, so it is named like one: the engine session's own
  * title (`liveTitle`, from {@link conversationTitleOf}), else the task's
  * title, else its branch. The task title names `task` rows and children; a
- * `main` row only when it was renamed (it starts as the repo name, which would
- * hide the live HEAD), else it reads its live HEAD, and a `dir` row its
- * tail-truncated directory unless it was named (a prompt-derived or renamed
+ * `dir` row reads its live HEAD, else its tail-truncated directory, unless it
+ * was named (a prompt-derived or renamed
  * title; the auto-minted `jacksonc-xxxx` and repo-name titles are noise, and
  * this needs no data migration). Then the path; then
  * "scratch", never blank. The branch stays searchable (`tree-search.ts`).
@@ -71,10 +76,8 @@ export function worktreeRowLabel(
   const live = opts.liveTitle?.trim()
   if (live) return live
   const title = task.title.trim()
-  const renamedMain = task.kind === "main" && title !== "" && title !== repoBasename(task.repo)
-  // A `dir` title a person or a prompt gave, not the repo's name (an adopted scratch) or the auto-minted `<dir>-xxxx`.
-  const namedDir = task.kind === "dir" && title !== repoBasename(task.repo) && !AUTO_DIR_TITLE.test(title)
-  if (title && (task.parentTaskId !== undefined || task.kind === "task" || renamedMain || namedDir)) return title
+  const namedDir = isNamedDir(task)
+  if (title && (task.parentTaskId !== undefined || task.kind === "task" || namedDir)) return title
   const branch = (opts.liveBranch ?? task.branch) || task.branch
   if (branch) return branch
   if (task.kind !== "dir" && task.title) return task.title

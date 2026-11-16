@@ -15,7 +15,7 @@ const REPO_KEY_PREFIX = "lastActiveVendor."
 /**
  * Validate one persisted value; undefined lets the chain fall through.
  * A DISABLED engine falls through too: headless paths (`rove api add`,
- * quick-fork, main-task) resolve through these layers, not the TUI picker.
+ * quick-fork, project checkout) resolve through these layers, not the TUI picker.
  */
 function validVendor(value: string | undefined, customIds: readonly string[]): VendorId | undefined {
   const v = value?.trim()

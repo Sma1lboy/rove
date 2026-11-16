@@ -25,7 +25,7 @@ describe("diffTask", () => {
 
   it("flags worktreeCreated for a task-kind empty→set transition only", () => {
     expect(diffTask(task({ worktreePath: "" }), task())?.worktreeCreated).toBe(true)
-    expect(diffTask(task({ kind: "main", worktreePath: "" }), task({ kind: "main" }))?.worktreeCreated).toBe(false)
+    expect(diffTask(task({ kind: "dir", worktreePath: "" }), task({ kind: "dir" }))?.worktreeCreated).toBe(false)
     // Path CHANGE (move) is a task.changed field, not a new worktree.
     expect(diffTask(task(), task({ worktreePath: "/other" }))?.worktreeCreated).toBe(false)
   })
@@ -35,6 +35,6 @@ describe("bornWithWorktree", () => {
   it("true only for task-kind rows created with a path", () => {
     expect(bornWithWorktree(task())).toBe(true)
     expect(bornWithWorktree(task({ worktreePath: "" }))).toBe(false)
-    expect(bornWithWorktree(task({ kind: "main" }))).toBe(false)
+    expect(bornWithWorktree(task({ kind: "dir" }))).toBe(false)
   })
 })

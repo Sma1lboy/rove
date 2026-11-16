@@ -106,24 +106,24 @@ describe("workspace-owned checkpoints", { timeout: DURABLE_WRITE_TIMEOUT_MS }, (
   })
 
   it("a sharer whose owner is not a managed task is not checkpointable", async () => {
-    const main = await store.create({
+    const owner = await store.create({
       repo,
-      title: "main",
-      branch: "main",
+      title: "checkout",
+      branch: "",
       worktreePath: repo,
       status: "backlog",
-      kind: "main",
+      kind: "dir",
       vendor: "claude",
     })
     const child = await store.create({
       repo,
-      title: "child of main",
+      title: "child of checkout",
       branch: "main",
       worktreePath: repo,
       status: "backlog",
       kind: "task",
       vendor: "claude",
-      sharesWorkspaceOf: main.id,
+      sharesWorkspaceOf: owner.id,
     })
     expect(orch.canCheckpoint(child.id)).toBe(false)
     await expect(orch.takeCheckpoint(child.id)).rejects.toThrow(/^NOT_CHECKPOINTABLE:/)

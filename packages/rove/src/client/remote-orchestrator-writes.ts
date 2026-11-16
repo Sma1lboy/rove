@@ -51,9 +51,9 @@ export async function createTaskOp(
   return deserializeTask(res.task)
 }
 
-export async function ensureMainTaskOp(client: RoveDaemonClient, repo: string): Promise<Task> {
-  const res = await client.request<{ task: SerializedTask }>("task.ensureMain", { repo })
-  return deserializeTask(res.task)
+export async function ensureProjectOp(client: RoveDaemonClient, repo: string): Promise<string> {
+  const res = await client.request<{ repo: string }>("project.ensure", { repo })
+  return res.repo
 }
 
 /** Open a directory as a `kind:"dir"` task; `scratch` puts it in the sidebar's Scratch section. */
@@ -157,6 +157,15 @@ export async function moveTaskOp(client: RoveDaemonClient, id: TaskId | string, 
     taskId: String(id),
     direction: delta < 0 ? "up" : "down",
   })
+}
+
+export async function moveProjectOp(
+  client: RoveDaemonClient,
+  repo: string,
+  target: string,
+  side: "before" | "after",
+): Promise<void> {
+  await client.request("project.move", { repo, target, side })
 }
 
 export async function moveTaskToTopOp(client: RoveDaemonClient, id: TaskId | string): Promise<void> {
