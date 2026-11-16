@@ -48,11 +48,10 @@ import { Chevron } from "./ui/chevron.tsx"
 import { EngineIcon, type EngineIconData } from "./ui/engine-icon.tsx"
 import { Legend } from "./ui/legend.tsx"
 import { INBOX_CHIP } from "./ui/overlay.ts"
+import { ProjectActions } from "./ui/project-actions.tsx"
 import {
   CHILD_INDENT,
   FOLD_TOGGLE,
-  PROJECT_ADD,
-  PROJECT_SESSIONS,
   PROJECT_TOGGLE,
   RAIL,
   RAIL_CURSOR,
@@ -377,19 +376,12 @@ function RailRow(props: {
           <Chevron right={props.collapsed} className={projectChevron(!!props.collapsed)} />
         </button>
         {props.onNewTask && row.kind === "project" && (
-          <button
-            type="button"
-            className={PROJECT_SESSIONS}
-            title={t("menu.viewSessions")}
-            onClick={() => openSessions(row.noProject ? "" : row.repo)}
-          >
-            ≡
-          </button>
-        )}
-        {props.onNewTask && row.kind === "project" && (
-          <button type="button" className={PROJECT_ADD} title={t("rail.newTask")} onClick={props.onNewTask}>
-            +
-          </button>
+          <ProjectActions
+            sessionsTitle={t("menu.viewSessions")}
+            onSessions={() => openSessions(row.noProject ? "" : row.repo)}
+            newTaskTitle={t("rail.newTask")}
+            onNewTask={props.onNewTask}
+          />
         )}
       </h2>
     )
