@@ -411,9 +411,7 @@ export class RemoteOrchestrator {
   archiveTask = (id: TaskId | string, archived: boolean, force?: boolean): Promise<void> =>
     writes.archiveTaskOp(this.client, id, archived, force)
   moveTask = (id: TaskId | string, delta: -1 | 1): Promise<void> => writes.moveTaskOp(this.client, id, delta)
-  moveTaskToTop = (id: TaskId | string): Promise<void> => writes.moveTaskToTopOp(this.client, id)
-  moveProject = (repo: string, target: string, side: "before" | "after"): Promise<void> =>
-    writes.moveProjectOp(this.client, repo, target, side)
+  moveProject = (from: string, to: string, at: "before" | "after") => writes.moveProjectOp(this.client, from, to, at)
   setStatus = (id: TaskId | string, status: TaskStatus): Promise<void> => writes.setStatusOp(this.client, id, status)
   setPrompt = (id: TaskId | string, prompt: string): Promise<void> => writes.setPromptOp(this.client, id, prompt)
   deleteTask = (id: TaskId | string, opts?: TaskDeleteOptions): Promise<writes.TaskDeleteReply> =>

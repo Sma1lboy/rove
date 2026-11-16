@@ -159,17 +159,8 @@ export async function moveTaskOp(client: RoveDaemonClient, id: TaskId | string, 
   })
 }
 
-export async function moveProjectOp(
-  client: RoveDaemonClient,
-  repo: string,
-  target: string,
-  side: "before" | "after",
-): Promise<void> {
-  await client.request("project.move", { repo, target, side })
-}
-
-export async function moveTaskToTopOp(client: RoveDaemonClient, id: TaskId | string): Promise<void> {
-  await client.request("task.move", { taskId: String(id), direction: "top" })
+export async function moveProjectOp(c: RoveDaemonClient, repo: string, target: string, side: "before" | "after") {
+  await c.request("project.move", { repo, target, side })
 }
 
 /** Record a task's brief. "Run again" copies it onto the fork so the child can

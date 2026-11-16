@@ -41,3 +41,36 @@ describe("task.openCheckout", () => {
     await refused("task.openCheckout", { repo: "rel" })
   })
 })
+
+describe("task.openMain and project.ensure", () => {
+  test("openMain needs a usable git repo, not a known one, and opens a new session in its checkout", async () => {
+    taskOpDeps.validateRepoPath = () => null
+    const { result, calls } = await run(
+      "task.openMain",
+      { repo: "/work/fresh" },
+      { "project.ensure": { repo: "/private/work/fresh" }, "task.openDir": { taskId: "S1" } },
+    )
+    expect(calls).toEqual([
+      { rpc: "project.ensure", payload: { repo: "/work/fresh" } },
+      { rpc: "task.openDir", payload: { dir: "/private/work/fresh", vendor: "claude" } },
+    ])
+    expect(result).toEqual({ taskId: "S1" })
+    taskOpDeps.validateRepoPath = () => "not a git repo"
+    await refused("task.openMain", { repo: "/etc" })
+    await refused("task.openMain", { repo: "rel" })
+  })
+
+  test("project.ensure saves any usable git repo and answers the daemon's key for it", async () => {
+    taskOpDeps.validateRepoPath = () => null
+    const { result, calls } = await run(
+      "project.ensure",
+      { repo: "/work/fresh" },
+      { "project.ensure": { repo: "/private/work/fresh" } },
+    )
+    expect(calls).toEqual([{ rpc: "project.ensure", payload: { repo: "/work/fresh" } }])
+    expect(result).toEqual({ repo: "/private/work/fresh" })
+    taskOpDeps.validateRepoPath = () => "not a git repo"
+    await refused("project.ensure", { repo: "/etc" })
+    await refused("project.ensure", { repo: "rel" })
+  })
+})
