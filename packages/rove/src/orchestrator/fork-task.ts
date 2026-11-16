@@ -43,7 +43,7 @@ export async function forkTaskRow(
   if (!parent) throw new TaskNotFoundError(input.forkFrom)
   if (parent.deletion) throw new TaskDeletingError(String(parent.id))
   if (!workspaceCapabilities(parent).ownsDirectory) {
-    throw new ForkUnsupportedError("a main or directory task has no Rove-created worktree to clone")
+    throw new ForkUnsupportedError("a directory task has no Rove-created worktree to clone")
   }
   if (isRemoteRepoKey(parent.repo)) throw new ForkUnsupportedError("a remote project's worktree cannot be cloned")
   if (parent.extraRepos?.length) {

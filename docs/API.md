@@ -291,7 +291,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `PARENT_IS_SELF` | `update --parent` names the task itself. |
 | `PARENT_CYCLE` | `update --parent` names one of the task's own descendants. |
 | `PARENT_IN_GROUP` | `update --group G --parent ID` where `ID` is itself a task of round `G`. |
-| `TASK_NOT_MOVABLE` | `update --parent` on a project's main task or a routine session. |
+| `TASK_NOT_MOVABLE` | `update --parent` on a routine session. |
 | `TIER_UNAVAILABLE` | Auto routing is not configured, or the tier's target cannot start (engine not listed, not logged in, model/effort its engine cannot carry). |
 | `PARTIAL_FANOUT` | A parallel round with at least one failure (exit 3). |
 | `SKIPPED` | `should-run` or `send --if-runnable` refused the tick (exit 3). The verdict is the stdout payload, not an error envelope. |
@@ -583,7 +583,7 @@ edits (`set-vendor`, `rename`,
   exactly the ones injected into a fresh session here, so a coordinator
   briefs its workers from what those workers will read.
 
-  Only worktree tasks are listed: the repo's `main` seat and `dir` entries
+  Only worktree tasks are listed: `dir` entries
   are not anybody's turn, and a worktree already being removed is spent (a
   deletion that *failed* is listed, as `waiting-on-you`). `--limit` defaults
   to 20 and drops the quiet tail, reporting `omittedTasks`. Repo resolution
@@ -899,7 +899,7 @@ edits (`set-vendor`, `rename`,
   replaces `--repo`, and `--repo`, `--base-branch`, `--base-for`, `--count`
   and `--agents` conflict with it (`CONFLICTING_FLAGS`). The title defaults to
   `<original title> (fork)`, not the prompt's first line. Refused with
-  `FORK_UNSUPPORTED`, nothing created, for a main or directory task, a
+  `FORK_UNSUPPORTED`, nothing created, for a directory task, a
   multi-repo or remote task, or a worktree on a volume that cannot clone files;
   see [Fork a task with its uncommitted work](./WORKTREES.md#fork-a-task-with-its-uncommitted-work).
 
@@ -974,7 +974,7 @@ edits (`set-vendor`, `rename`,
   becomes an entry of `.task.extraRepos[]`
   (`{name, repo, branch, worktreePath, baseRef?}`; `name` is the repo's
   directory name, `-2`-suffixed on a clash; the paths are empty until the
-  worktrees exist). Extras never create a project row. Every repo gets its own
+  worktrees exist). Extras never become projects. Every repo gets its own
   worktree on the SAME branch name, created together on first enter and
   all-or-nothing: if any repo fails, the worktrees and fresh branches already
   cut are removed and the task stays unmaterialised. A repo where that branch
@@ -1038,8 +1038,7 @@ edits (`set-vendor`, `rename`,
   two verbs ask different questions: `rove add` registers a PROJECT, and the
   eligibility gate exists to stop throwaway checkouts becoming permanent
   sidebar rows. `add --repo` creates a TASK, and the same gate still runs —
-  it just skips minting the project row and the `savedRepos` entry instead
-  of failing the call. So the task appears under a header derived from its
+  it just skips the `savedRepos` entry instead of failing the call. So the task appears under a header derived from its
   own repo, and disappears with it.
 
 A create issued from inside a Rove engine tab records
@@ -1084,9 +1083,9 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 
   **Where the child works.** A nested task in the parent's own repo is cut from
   the parent's *current* branch tip instead of the repo's default base, unless
-  `--base-branch`, `--fork` or several `--repo` name the fork point. A main
-  checkout cuts from its HEAD; a `dir` task inside a git repo gets a worktree at
-  the repo root and runs in the same relative subdirectory; a `dir` task outside
+  `--base-branch`, `--fork` or several `--repo` name the fork point. A `dir`
+  task inside a git repo (a project's own checkout included) cuts from its
+  HEAD, gets a worktree of the repo and runs in the same relative subdirectory; a `dir` task outside
   any repo fails `NOT_A_GIT_REPO`. The branch tip is read when `add` runs, even
   though the checkout itself waits for the first prompt. `--no-worktree` shares
   the parent's directory instead, which suits parallel reading and review; two
@@ -1286,15 +1285,16 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   a report is what a coordinator acts on — `land`'s `EMPTY_BRANCH` catches
   the same mismatch two steps later, after the coordinator has believed it.
   The check is deliberately narrow: it needs a verified sender identity, a
-  managed (non-`main`, non-`dir`) task, and a definite `ahead === 0` — an
+  managed (non-`dir`) task, and a definite `ahead === 0` — an
   unresolvable base reads `null` and never refuses. `--allow-empty` states an
   intentional empty success (an investigation, a review) and delivers.
 
-  **A project's main row is not a standing conversation.** A `send` to a
-  `kind: "main"` task with no tab open (and no `--tab`) starts a new session
-  in that checkout and delivers there: the reply's `taskId` is the new
-  session, with `newSession: true` and `viaProject` naming the row addressed.
-  While the row has a tab open, the send lands in it as usual.
+  **`--repo PATH` starts a new session.** A project has no standing
+  conversation to send to: `send --repo PATH` saves `PATH` as a project if it
+  is not one, starts a new session in its own checkout (no worktree) and
+  delivers there. The reply's `taskId` is the new session, with
+  `newSession: true`. `--repo` conflicts with `--task-id`, `--tab` and
+  `--replace` (`CONFLICTING_FLAGS`).
 
   **Delivery result fields.** Before writing a byte, delivery waits for the
   engine to announce bracketed paste (DECSET 2004), which is the engine
@@ -1406,7 +1406,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
     anything — the text reached nobody.
 - `note --task-id ID --text TEXT`: file a one-line field note (a resolved,
   repo-level gotcha). Appended to the repo's durable note store, so every
-  future session on this repo (worktree or main) starts with it in its
+  future session on this repo (worktree or checkout) starts with it in its
   system prompt. It starts no turn in any running session.
 - `note-list --repo PATH`: read a repo's accumulated field notes, newest
   first. Returns `{ notes }`, each carrying the `id` `note-delete` takes. The
@@ -1719,20 +1719,20 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
     the task: a `--task-id` on another machine runs there, so a parent that is
     not on that machine is `PARENT_NOT_FOUND`. Other refusals leave every row
     as it was: `PARENT_IS_SELF`, `PARENT_CYCLE` (the parent descends from the
-    task), `TASK_NOT_MOVABLE` (a project's main task, or a routine session),
+    task), `TASK_NOT_MOVABLE` (a routine session),
     `REMOTE_PARENT_UNSUPPORTED` (either task lives on a remote project).
   - `--project PATH`: move a top-level task (and its children) under the
     project at `PATH`: an Ungrouped session after it cloned or `git init`-ed
     its repo, or a task created in the wrong project. `PATH` may be any
     directory inside the repo; it names the repo's main checkout, which
-    becomes a project (its main row is created) if it was not one. Only the
+    becomes a project (a saved repo) if it was not one. Only the
     grouping changes: the PTYs, cwd, worktree and branch stay where they are,
     so a running engine keeps its conversation. The result's `.project` is
     `{ repo, moved, note }`, `moved` listing every row regrouped. A worktree
     task keeps a `gitRepo` link to the repo that cut its checkout, so delete,
     land and forks still run there; moving it back clears the link. Refusals,
     before anything is written: `NOT_A_GIT_REPO`, `SAME_PROJECT`,
-    `TASK_NOT_MOVABLE` (a project's main task, a routine session, or a
+    `TASK_NOT_MOVABLE` (a routine session or a
     multi-repo task), `CHILD_NOT_MOVABLE` (move the parent instead),
     `REMOTE_MOVE_UNSUPPORTED`. The TUI and web row menus offer the same move
     as "Move to project…".
@@ -1797,7 +1797,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 
 - `pr-attach --url URL|N [--task-id ID]`: show a pull request on a task's row.
   The daemon's PR poller only follows a task's own branch, so a PR its session
-  opened from another directory (a `main` coordinator's hand-made worktree) is
+  opened from another directory (a coordinator's hand-made worktree) is
   invisible until attached. Run it once after `gh pr create`, from any
   directory. `--url` takes a GitHub PR URL (a trailing `/files` or `#fragment`
   is dropped) or a bare number, which `gh pr view` resolves in the current
@@ -2141,13 +2141,12 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   is every task they changed. A child unarchived on its own while its parent
   stays archived shows as a top-level row until the parent comes back.
   `archive` is refused with `TASK_BUSY` while an engine in the subtree is
-  `running` or `permission_needed`; `--force` stops it and archives anyway. A project's `main` session can be archived like any other; opening the
-  project again restores it. The sidebar and the rail do not list
+  `running` or `permission_needed`; `--force` stops it and archives anyway. The sidebar and the rail do not list
   archived tasks. To bring one back from the interface, open the command
   palette (`ctrl+a` `/`), type its title and pick it; the web client also
   lists them per project on its Sessions page (the rail's Sessions row, or a project header's
-  View all sessions for that project alone). A project whose other
-  tasks are all archived is hidden like any idle project.
+  View all sessions for that project alone). A project whose
+  tasks are all archived has no header.
 
 ## worktree
 
@@ -2178,7 +2177,7 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   checkpoints: [{ n, ref, commit, tree, at, tabId? }] }`; each `ref` is
   `refs/rove/checkpoints/<workspaceTaskId>/<n>` in the owning repo, so
   `git diff <ref>` and `git restore --source=<ref>` work without Rove. Managed
-  tasks only: a project's main checkout and a directory task are your own
+  tasks only: a directory task (a project's own checkout included) is your own
   checkout, so they get `NOT_CHECKPOINTABLE`.
 
   Checkpoints belong to the workspace owner. A child that shares its parent's

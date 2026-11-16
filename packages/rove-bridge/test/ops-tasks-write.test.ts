@@ -388,21 +388,7 @@ describe("project and notes", () => {
   )
 })
 
-describe("task.openMain and worktree.adopt", () => {
-  test("openMain needs a usable git repo, not a known one, so a fresh clone can open", async () => {
-    taskOpDeps.validateRepoPath = () => null
-    const { result, calls } = await run(
-      "task.openMain",
-      { repo: "/work/fresh" },
-      { "task.ensureMain": { task: { id: "M1" } } },
-    )
-    expect(calls.at(-1)).toEqual({ rpc: "task.ensureMain", payload: { repo: "/work/fresh" } })
-    expect(result).toEqual({ taskId: "M1" })
-    taskOpDeps.validateRepoPath = () => "not a git repo"
-    await refused("task.openMain", { repo: "/etc" })
-    await refused("task.openMain", { repo: "rel" })
-  })
-
+describe("worktree.adopt", () => {
   test("adopt only takes a worktree discovery lists, and sends the engine as vendor", async () => {
     const replies = {
       "worktree.discoverAdoptable": { worktrees: [{ path: "/w/a" }], unreadable: [] },
@@ -428,34 +414,32 @@ describe("task.openMain and worktree.adopt", () => {
 describe("worktree.legacyCleanup", () => {
   const leftovers = { tasks: [{ id: T, title: "a", repo: REPO, worktreePath: "/w/a" }] }
 
-  test("starts a no-worktree session under the first row's project main", async () => {
+  test("opens a session in the first row's project checkout and sends it the prompt", async () => {
     const { result, calls } = await run(
       "worktree.legacyCleanup",
       { title: "Remove leftover sessions", prompt: "- x" },
       {
         "worktree.legacyAdopted": leftovers,
-        "task.ensureMain": { task: { id: "M1" } },
-        add: { taskId: "S1" },
+        "project.ensure": { repo: REPO },
+        "task.openDir": { taskId: "S1" },
+        send: {},
       },
     )
-    expect(calls.find((c) => "rpc" in c && c.rpc === "task.ensureMain")).toEqual({
-      rpc: "task.ensureMain",
-      payload: { repo: REPO },
-    })
-    expect(calls.at(-1)).toEqual({
-      verb: "add",
-      argv: ["--parent=M1", "--no-worktree=true", "--title=Remove leftover sessions", "--prompt=- x"],
-    })
+    expect(calls.slice(1)).toEqual([
+      { rpc: "project.ensure", payload: { repo: REPO } },
+      { rpc: "task.openDir", payload: { dir: REPO, title: "Remove leftover sessions" } },
+      { verb: "send", argv: ["--task-id=S1", "--prompt=- x"] },
+    ])
     expect(result).toEqual({ taskId: "S1" })
   })
 
-  test("falls back to a plain add on the repo when the daemon refuses a project row", async () => {
+  test("falls back to a plain add on the repo when the daemon refuses to save the project", async () => {
     const { result, calls } = await run(
       "worktree.legacyCleanup",
       { title: "t", prompt: "p" },
       {
         "worktree.legacyAdopted": leftovers,
-        "task.ensureMain": () => {
+        "project.ensure": () => {
           throw new Error("refused")
         },
         add: { taskId: "S2" },

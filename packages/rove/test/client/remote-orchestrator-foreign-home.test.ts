@@ -26,7 +26,7 @@ const FOREIGN_TASK = {
   repo: "/sandbox/repo",
   branch: "sandbox/branch",
   worktreePath: "/sandbox/wt",
-  kind: "main",
+  kind: "dir",
   status: "backlog",
   pinned: false,
   vendor: "claude",

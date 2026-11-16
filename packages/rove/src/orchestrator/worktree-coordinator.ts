@@ -40,7 +40,7 @@ const WORKTREE_NAME_RE = /^[A-Za-z0-9_][A-Za-z0-9._-]*$/
 /** Injected so the Orchestrator and this dedupe identically. */
 type CanonPath = (p: string) => string
 
-/** Ensures the repo's main row; called INSIDE the adopt lock. */
+/** Saves the repo as a project; called INSIDE the adopt lock. */
 type EnsureProject = (repo: string) => Promise<unknown>
 
 export interface AdoptWorktreeInput {
@@ -88,7 +88,6 @@ export class WorktreeCoordinator {
     this.slugs = new SlugAllocator((repo) =>
       this.store
         .list()
-        .filter((t) => t.kind !== "main")
         .flatMap((t) => [
           ...(samePath(gitRepoOf(t), repo) ? [t.worktreePath] : []),
           ...(t.extraRepos ?? []).filter((x) => samePath(x.repo, repo)).map((x) => x.worktreePath),
@@ -286,7 +285,7 @@ export class WorktreeCoordinator {
     }
     const branch = input.branch?.trim() || match.branch
     const title = (input.title ?? basename(match.path)).trim() || PLACEHOLDER_TASK_TITLE
-    // Like createTask: brings the project's main row into existence.
+    // Like createTask: saves the repo as a project.
     await this.ensureProject(input.repo)
     return this.store.create({
       repo: input.repo,

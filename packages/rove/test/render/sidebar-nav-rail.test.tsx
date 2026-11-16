@@ -30,12 +30,10 @@ function task(id: string, over: Partial<Task> = {}): Task {
   }
 }
 
-const MAIN = task("m", { kind: "main", branch: "", worktreePath: "/repos/rove" })
-
 function tree(over: Partial<Parameters<typeof SidebarTree>[0]> = {}) {
   return (
     <SidebarTree
-      tasks={[MAIN, task("a"), task("b")]}
+      tasks={[task("a"), task("b")]}
       selectedId="a"
       onSelect={() => {}}
       focused={true}

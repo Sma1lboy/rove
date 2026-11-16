@@ -1,7 +1,7 @@
 /**
  * `pr-attach`: record a pull request on a task's row. The branch-based PR poller
  * only sees a task's own branch; this is the one input for PRs its session opened
- * from any other directory (a `main` coordinator's hand-made worktrees).
+ * from any other directory (a coordinator's hand-made worktrees).
  */
 
 import { canonicalPrUrl } from "@sma1lboy/rove-daemon/daemon/session-prs"

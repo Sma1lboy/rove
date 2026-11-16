@@ -1,7 +1,6 @@
 /**
- * Dispatcher opt-in (docs/design/dispatcher.md), gating both the daemon's
- * dispatch feeder (radar digests → each repo's main session) and the
- * spawn-time `withDispatcherProtocol` prompt. Read fresh from state.json at
+ * Dispatcher opt-in (docs/design/dispatcher.md), gating field-note filing
+ * and recall in the spawn-time worktree protocol. Read fresh from state.json at
  * each decision, so toggling needs no daemon restart. Off by default.
  */
 

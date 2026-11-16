@@ -1,19 +1,16 @@
 /**
  * Opening a project's own checkout from the new-task picker.
  *
- * A submit path through `createTask` mints a `kind: "task"`, so picking a
- * repo that already has a project row would add a worktree beside the
- * project and still produce no project row.
- *
- * `mode: "open"` is the way back. These pin it: the
- * flow calls `ensureMainTask` (idempotent — it RESOLVES the existing main row
- * rather than creating a second one), lands on it, and creates no task.
+ * A submit path through `createTask` mints a `kind: "task"` with a worktree.
+ * `mode: "open"` instead saves the project (`ensureProject`) and starts a new
+ * session in the checkout itself (`openDirectoryTask`), then lands on it.
  */
 
-import { describe, expect, test, vi } from "vitest"
+import { beforeEach, describe, expect, test, vi } from "vitest"
 
+const saved = vi.hoisted(() => ({ repos: ["/repos/codefox"] }))
 vi.mock("../../src/state/repos", () => ({
-  getSavedRepos: () => ["/repos/codefox"],
+  getSavedRepos: () => saved.repos,
   addSavedRepo: (path: string) => ({ added: false, path, total: 1 }),
 }))
 vi.mock("../../src/engine/account-detect", () => ({
@@ -26,18 +23,11 @@ import { type CreateTaskContext, createTaskFlow } from "../../src/tui/lib/task-c
 import type { Task } from "../../src/types/task"
 
 /** `Task.id` is a branded string; tests name rows with plain literals. */
-const task = (over: { id: string; kind?: string; repo?: string }): Task =>
-  ({ repo: "/repos/codefox", ...over }) as unknown as Task
+const SESSION = { id: "session-codefox", kind: "dir", repo: "/repos/codefox" } as unknown as Task
 
-/** The hidden project's surviving row: a main task whose tabs are all closed. */
-const HIDDEN_MAIN = task({ id: "main-codefox", kind: "main", repo: "/repos/codefox" })
-
-function makeCtx(opts: {
-  submit: NewTaskInput | undefined
-  tasks?: readonly Task[]
-  ensureMainTask?: (repo: string) => Promise<Task>
-}) {
-  const ensureMainTask = vi.fn(opts.ensureMainTask ?? (async () => HIDDEN_MAIN))
+function makeCtx(opts: { submit: NewTaskInput | undefined; ensureProject?: (repo: string) => Promise<string> }) {
+  const ensureProject = vi.fn(opts.ensureProject ?? (async (repo: string) => repo))
+  const openDirectoryTask = vi.fn(async (_opts: { dir: string; vendor?: string }) => SESSION)
   const createTask = vi.fn(async () => ({ id: "created" }))
   const notifyInfo = vi.fn()
   const notifyError = vi.fn()
@@ -48,8 +38,13 @@ function makeCtx(opts: {
   /** What the dialog was handed — the assertion target for the gating half. */
   let seenOptions: NewTaskDialogOptions | undefined
   const ctx: CreateTaskContext = {
-    orch: { ensureMainTask, createTask, discoverAdoptableWorktrees: async () => [] } as unknown as RoveOrchestrator,
-    tasks: () => opts.tasks ?? [HIDDEN_MAIN],
+    orch: {
+      ensureProject,
+      openDirectoryTask,
+      createTask,
+      discoverAdoptableWorktrees: async () => [],
+    } as unknown as RoveOrchestrator,
+    tasks: () => [],
     confirm: async () => true,
     promptText: async () => undefined,
     logger,
@@ -69,7 +64,8 @@ function makeCtx(opts: {
   }
   return {
     ctx,
-    ensureMainTask,
+    ensureProject,
+    openDirectoryTask,
     createTask,
     notifyInfo,
     notifyError,
@@ -84,33 +80,21 @@ function makeCtx(opts: {
 const OPEN: NewTaskInput = { mode: "open", repo: "/repos/codefox", vendor: "claude" as never }
 
 describe("createTaskFlow — opening a project instead of branching off it", () => {
-  test("resolves the repo's existing main row and enters it", async () => {
+  test("starts a session in the repo's own checkout and enters it", async () => {
     const h = makeCtx({ submit: OPEN })
 
     await createTaskFlow(h.ctx)
 
-    expect(h.ensureMainTask).toHaveBeenCalledWith("/repos/codefox")
-    // The whole point: the hidden project's OWN row comes back, focused.
-    expect(h.selectTask).toHaveBeenCalledWith("main-codefox")
-    expect(h.enterTask).toHaveBeenCalledWith("main-codefox")
+    expect(h.ensureProject).toHaveBeenCalledWith("/repos/codefox")
+    expect(h.openDirectoryTask).toHaveBeenCalledWith({ dir: "/repos/codefox", vendor: "claude" })
+    expect(h.selectTask).toHaveBeenCalledWith("session-codefox")
+    expect(h.enterTask).toHaveBeenCalledWith("session-codefox")
     expect(h.reload).toHaveBeenCalled()
   })
 
-  test("an archived main session comes back when its project is opened", async () => {
-    const archiveTask = vi.fn(async () => {})
-    const h = makeCtx({ submit: OPEN, ensureMainTask: async () => ({ ...HIDDEN_MAIN, archived: true }) })
-    Object.assign(h.ctx.orch as object, { archiveTask })
-
-    await createTaskFlow(h.ctx)
-
-    expect(archiveTask).toHaveBeenCalledWith("main-codefox", false)
-    expect(h.selectTask).toHaveBeenCalledWith("main-codefox")
-  })
-
   test("creates no task — that is the bug it exists to fix", async () => {
-    // Submitting the same repo through the default path leaves the user with
-    // an extra worktree and still no project. Asserting the absence is the
-    // only thing that separates the two paths: both end with a task selected.
+    // Asserting the absence is the only thing that separates this path from
+    // the default one: both end with a task selected.
     const h = makeCtx({ submit: OPEN })
 
     await createTaskFlow(h.ctx)
@@ -129,7 +113,7 @@ describe("createTaskFlow — opening a project instead of branching off it", () 
   test("a failure surfaces instead of closing the dialog on nothing", async () => {
     const h = makeCtx({
       submit: OPEN,
-      ensureMainTask: async () => {
+      ensureProject: async () => {
         throw new Error("repo is gone")
       },
     })
@@ -138,40 +122,31 @@ describe("createTaskFlow — opening a project instead of branching off it", () 
 
     expect(h.notifyError).toHaveBeenCalledTimes(1)
     expect(String(h.notifyError.mock.calls[0][0])).toContain("repo is gone")
+    expect(h.openDirectoryTask).not.toHaveBeenCalled()
     expect(h.enterTask).not.toHaveBeenCalled()
   })
 })
 
 describe("which repos the dialog may offer the project choice for", () => {
-  test("names a repo that has a main row", async () => {
+  beforeEach(() => {
+    saved.repos = ["/repos/codefox"]
+  })
+
+  test("names a saved project", async () => {
     const h = makeCtx({ submit: undefined })
 
     await createTaskFlow(h.ctx)
 
     expect(h.options()?.mainRepos?.has("/repos/codefox")).toBe(true)
-  })
-
-  test("omits a repo whose only rows are worktree tasks", async () => {
-    // No main row means no project checkout to open — offering the choice
-    // would put a control on the tab whose second option does nothing.
-    const h = makeCtx({
-      submit: undefined,
-      tasks: [task({ id: "a", kind: "task", repo: "/repos/orphan" })],
-    })
-
-    await createTaskFlow(h.ctx)
-
     expect(h.options()?.mainRepos?.has("/repos/orphan")).toBe(false)
   })
 
-  test("matches a repo path recorded with a trailing slash", async () => {
+  test("matches a repo path saved with a trailing slash", async () => {
     // The sidebar groups on the slash-trimmed key, so the dialog must too —
     // otherwise a project stored one way is unreachable from a path typed
     // the other way.
-    const h = makeCtx({
-      submit: undefined,
-      tasks: [task({ id: "m", kind: "main", repo: "/repos/codefox/" })],
-    })
+    saved.repos = ["/repos/codefox/"]
+    const h = makeCtx({ submit: undefined })
 
     await createTaskFlow(h.ctx)
 

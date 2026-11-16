@@ -9,9 +9,9 @@ const session = (url: string, prStatus?: never) =>
   ({ url, addedAt: "2026-10-27T00:00:00.000Z", ...(prStatus ? { status: prStatus } : {}) }) as never
 
 describe("sidebarPrChip", () => {
-  test("a main task with no PR of its own shows the chip of a PR its session attached", () => {
+  test("a task with no PR of its own shows the chip of a PR its session attached", () => {
     const main = {
-      kind: "main",
+      kind: "dir",
       sessionPrs: [session("https://github.com/o/r/pull/1", status("failing"))],
     } as unknown as Task
     expect(prChip(main)).toBeNull()
@@ -27,7 +27,7 @@ describe("sidebarPrChip", () => {
   })
 
   test("an attached PR not polled yet draws nothing", () => {
-    const main = { kind: "main", sessionPrs: [session("https://github.com/o/r/pull/3")] } as unknown as Task
+    const main = { kind: "dir", sessionPrs: [session("https://github.com/o/r/pull/3")] } as unknown as Task
     expect(sidebarPrChip(main)).toBeNull()
   })
 })

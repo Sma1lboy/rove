@@ -42,9 +42,8 @@ describe("digest handler", () => {
           taskFixture({ id: "fresh", repo: "/repo/x", updatedAt: inWindow }),
           taskFixture({ id: "stale", repo: "/repo/x", updatedAt: outOfWindow }),
           taskFixture({ id: "other", repo: "/repo/y", updatedAt: inWindow }),
-          // The dispatcher seat is not a unit of work — counting it would
-          // park a permanent +1 in the total.
-          taskFixture({ id: "main", kind: "main", repo: "/repo/x", updatedAt: inWindow }),
+          // A directory session is not a unit of work.
+          taskFixture({ id: "dir", kind: "dir", repo: "/repo/x", updatedAt: inWindow }),
         ],
       }),
       "automation.list": () => ({ automations: [] }),

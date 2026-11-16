@@ -32,7 +32,6 @@ const fake = vi.hoisted(() => ({
   keychainSupported: true,
   deleteKeychainPassword: vi.fn((_ref: { service: string; account: string }) => true),
   forgetProject: vi.fn(async (_repo: string) => {}),
-  ensureMainTask: vi.fn(async (repo: string) => ({ id: "main-1", kind: "main", repo })),
   daemonClient: null as null | { request: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> },
 }))
 
@@ -64,9 +63,6 @@ vi.mock("../../src/orchestrator/core.ts", () => ({
     }
     async forgetProject(repo: string) {
       await fake.forgetProject(repo)
-    }
-    async ensureMainTask(repo: string) {
-      return fake.ensureMainTask(repo)
     }
     async adoptWorktree(args: { worktreePath: string }) {
       return fake.adoptWorktree(args)
@@ -139,9 +135,6 @@ describe("rove add", () => {
     await runCli("add", "/repo")
     expect(fake.addSavedRepo).toHaveBeenCalledWith("/repo")
     expect(logText()).toContain("added /repo (1 saved repo total)")
-    // The repo's main task (= the sidebar PROJECTS row) is provisioned even
-    // when there are no worktrees to adopt — no daemon running → in-process.
-    expect(fake.ensureMainTask).toHaveBeenCalledWith("/repo")
   })
 
   test("rejects a non-git path with exit 1 before polluting the picker", async () => {
@@ -188,10 +181,6 @@ describe("rove add", () => {
     // The in-process orchestrator write path is NOT used when the daemon answers.
     expect(fake.adoptWorktree).not.toHaveBeenCalled()
     expect(logText()).toContain("adopted rove/a → task d1 (via-daemon)")
-    // Main-task provisioning also rides the daemon so the live TUI's
-    // PROJECTS list gains the repo immediately.
-    expect(request).toHaveBeenCalledWith("task.ensureMain", { repo: "/repo" })
-    expect(fake.ensureMainTask).not.toHaveBeenCalled()
   })
 })
 

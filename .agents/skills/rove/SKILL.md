@@ -3,13 +3,13 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 130 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 131 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
 Use `rove api` to manage local coding tasks. Managed Tasks created by API
-automation own a git Worktree and branch plus Hosted PTY engine tabs; project
-main and directory Tasks reuse existing directories. API automation works
+automation own a git Worktree and branch plus Hosted PTY engine tabs;
+directory Tasks reuse existing directories. API automation works
 without an open TUI; prompted `send` and `add` ensure a target engine tab.
 
 ## Inside a Rove session, Rove verbs come first
@@ -79,7 +79,7 @@ user asks for Rove by name.
 
 | Term | What it is | Isolation it gives | Users also say |
 |---|---|---|---|
-| **Task** | one tracked workspace record — managed worktree, saved-project main, or existing directory | managed Tasks own files + branch; main/directory Tasks reuse files | "a task", "a new one", "a separate attempt" |
+| **Task** | one tracked workspace record — managed worktree or existing directory | managed Tasks own files + branch; directory Tasks reuse files | "a task", "a new one", "a separate attempt" |
 | **Worktree** | the isolated git working tree a managed Task owns (`.task.worktreePath`) — a filesystem address, never shown in the UI | — | "workspace", "this checkout", "this branch", "here" |
 | **Terminal Tab** | one engine, shell, command, or content surface inside a Task | an engine tab has its own conversation, but every tab uses the SAME Task files | "tab", "chattab", "another chat", "a second agent on this" |
 | **Split** | the tree that divides ONE Terminal Tab into several regions (the `pane-open` verb's unit; a leaf is not called a pane) | none — same session's screen, same files | "split it", "side by side", "put the logs next to it" |
@@ -148,6 +148,7 @@ the first row that fits:
 | "try it N ways", "compare approaches" | N new tasks | `rove api add --repo "$PWD" --count N --prompt "…"` |
 | "branch off this and keep my uncommitted changes", "fork this task" | a sibling task cloned from THIS worktree, edits and untracked files included | `rove api add --fork "$ROVE_TASK_ID" --prompt "…"` (refused with `FORK_UNSUPPORTED` where the volume cannot clone; then plain `add --repo` starts from the last commit) |
 | "split", "side by side", "keep an eye on X while…" | a new region in the CURRENT tab | `rove api pane-open --command "…"` |
+| a request for ANOTHER repo on this machine: "ask the X project", "file this with X" | a new session in that repo's own checkout (no worktree) | `rove api send --repo <path> --prompt "…"` |
 | names a tab: "tell the agent in tab 3" | that exact tab | `rove api send --task-id <id> --tab tab-3 --prompt "…"` |
 | a LOCATION word: "in this workspace/worktree/checkout", "on this branch", "here", "same task" | a shared CHILD of THIS task (same directory) | `rove api add --no-worktree --prompt "…"` |
 | names an ENGINE for the same files: "let codex take over here", "try this one with claude instead" | a shared child of THIS task on that engine | `rove api add --no-worktree --command codex --prompt "…"` |
@@ -351,6 +352,7 @@ rove api ports --task-id <id>
 # through review feedback. `unavailable` = gh could not be asked, not "none".
 rove api review-comments --task-id <id>
 rove api send --task-id <id> --tab tab-3 --prompt "<turn>"  # exact alive tab
+rove api send --repo <path> --prompt "<turn>"                # another project: a new session in its checkout
 rove api add --parent <id> --no-worktree --prompt "<turn>"  # shared child; reply taskId != <id> if a child was made
 # Same directory, DIFFERENT agent (the TUI's ctrl+e pick); the parent's engine stays.
 rove api add --parent <id> --no-worktree --command codex --prompt "<turn>"

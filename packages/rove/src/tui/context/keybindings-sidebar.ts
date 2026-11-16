@@ -66,8 +66,7 @@ export const SIDEBAR_BINDINGS: readonly RoveBinding[] = [
   },
   {
     // Explicit shift+p (see sidebar.localMerge); a stray lowercase `p` matches
-    // nothing, so it can't churn the flag. Pinned tasks float to the top, just
-    // below the "main" rows, which ignore it (implicitly pinned).
+    // nothing, so it can't churn the flag. Pinned tasks float to the top.
     id: "sidebar.pin",
     scope: "sidebar",
     keys: ["shift+p"],

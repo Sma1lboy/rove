@@ -177,7 +177,7 @@ function groupingInputs(status: RowStatusInput | null): {
   return { activity, liveTaskIds: status.liveness ? live : null }
 }
 
-/** Fold `context`'s grouping over EVERY task (main/dir included) and join display fields. */
+/** Fold `context`'s grouping over EVERY task (dir included) and join display fields. */
 export function taskRows(
   tasks: readonly SerializedTask[],
   status: RowStatusInput | null,

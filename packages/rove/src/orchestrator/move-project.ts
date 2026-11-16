@@ -14,15 +14,12 @@ import type { TaskIndexStore } from "./index/store.ts"
 
 export interface MoveProjectDeps {
   readonly store: TaskIndexStore
-  /** Brings the target's project row into existence; returns it (its `repo` is the normalized key). */
-  readonly ensureMainTask: (repo: string) => Promise<Task>
+  /** Saves the target as a project; returns its normalized repo key. */
+  readonly ensureProject: (repo: string) => Promise<string>
 }
 
-/** Refusals are decided before the project row is minted, so a rejected move leaves nothing behind. */
+/** Refusals are decided before the project is saved, so a rejected move leaves nothing behind. */
 function refuse(task: Task, targetRepo: string, tasks: readonly Task[]): void {
-  if (task.kind === "main") {
-    throw new MoveRefusedError("TASK_NOT_MOVABLE", `${task.id} is a project's main task — it is the project`)
-  }
   if (task.routine) {
     throw new MoveRefusedError(
       "TASK_NOT_MOVABLE",
@@ -69,8 +66,7 @@ export async function moveTaskToProjectRow(
   const tasks = deps.store.list()
   refuse(task, repo, tasks)
 
-  const main = await deps.ensureMainTask(repo)
-  const target = main.repo
+  const target = await deps.ensureProject(repo)
   const moved = subtreeIds(tasks, String(task.id))
   for (const rowId of moved) {
     const row = tasks.find((t) => String(t.id) === rowId)

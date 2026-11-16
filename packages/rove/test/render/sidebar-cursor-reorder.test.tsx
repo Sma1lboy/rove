@@ -13,7 +13,7 @@ const projects: Task[] = ["alpha", "bravo", "charlie"].map((id) => ({
   repo: `/repos/${id}`,
   branch: "",
   worktreePath: `/repos/${id}`,
-  kind: "main",
+  kind: "dir",
   status: "in_progress",
   createdAt: "2026-08-01T00:00:00.000Z",
   updatedAt: "2026-08-01T00:00:00.000Z",
@@ -30,16 +30,7 @@ async function mount() {
     updateTasks = setTasks
     select = setSelectedId
     return (
-      <SidebarTree
-        tasks={tasks}
-        selectedId={selectedId}
-        onSelect={(id) => chosen.push(id)}
-        onMoveToTopRequest={(id) =>
-          setTasks((rows) => [...rows.filter((row) => row.id === id), ...rows.filter((row) => row.id !== id)])
-        }
-        focused={true}
-        width={40}
-      />
+      <SidebarTree tasks={tasks} selectedId={selectedId} onSelect={(id) => chosen.push(id)} focused={true} width={40} />
     )
   }
   const handle = await renderComponent(<Host />, { width: 40, height: 24 })
@@ -58,22 +49,6 @@ async function mount() {
     select: (id: string) => act(() => select(id)),
   }
 }
-
-test("Move to top keeps the cursor on the project's main row", async () => {
-  const { frame, mockMouse, mockInput, input, chosen } = await mount()
-  const row = (await frame()).split("\n").findIndex((line) => line.includes("charlie"))
-  expect(row).toBeGreaterThan(-1)
-  await act(async () => {
-    await mockMouse.click(2, row, 2)
-  })
-  expect(await frame()).toContain("Move to top")
-  await input(() => mockInput.typeText("j"))
-  await input(() => mockInput.pressEnter())
-  const reordered = await frame()
-  expect(reordered.indexOf("charlie")).toBeLessThan(reordered.indexOf("alpha"))
-  await input(() => mockInput.pressEnter())
-  expect(chosen).toEqual(["charlie"])
-})
 
 test("j/k walking survives a poll rebuild, while an external selection still follows", async () => {
   const { mockInput, input, chosen, select } = await mount()

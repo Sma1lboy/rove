@@ -209,19 +209,18 @@ describe("New session composer", () => {
 })
 
 describe("Start with Worktree off", () => {
-  /** A bridge whose project already runs a conversation in its main task: the old path nested the new session there. */
+  /** A bridge that answers `task.openCheckout` with a new row. */
   function bridge() {
     const calls: Array<[string, Record<string, unknown> | undefined]> = []
     const request = async <T>(op: string, args?: Record<string, unknown>): Promise<T> => {
       calls.push([op, args])
       if (op === "task.openCheckout") return { taskId: "S1" } as T
-      if (op === "task.openMain") return { taskId: "MAIN" } as T
       return {} as T
     }
     return { calls, request }
   }
 
-  test("the session is a row of its own, titled from the prompt, and the engine starts in that row, never in the main task", async () => {
+  test("the session is a row of its own, titled from the prompt, and the engine starts in that row", async () => {
     const { calls, request } = bridge()
 
     const id = await startInCheckout(

@@ -37,13 +37,13 @@ describe("archived tasks in the feed", () => {
   })
 
   test("leave `tasks` (so every client hides them) and travel in `archived`, local and remote alike", async () => {
-    const local = [task("main", { kind: "main" }), task("live"), task("gone", { archived: true })]
+    const local = [task("dir", { kind: "dir" }), task("live"), task("gone", { archived: true })]
     const client = {
       request: async (name: string) => (name === "task.list" ? { tasks: local } : { items: [] }),
     } as unknown as RoveDaemonClient
     const far = task("far", { archived: true, origin: { machineId: "mac", hostLabel: "mac" } } as never)
     const payload = await createRoveOps(client, signals([far])).tasks()
-    expect(payload.tasks.map((r) => r.id).sort()).toEqual(["live", "main"])
+    expect(payload.tasks.map((r) => r.id).sort()).toEqual(["dir", "live"])
     expect(payload.archived?.map((r) => r.id)).toEqual(["gone", "far"])
     expect(payload.archived?.find((r) => r.id === "far")?.machine?.id).toBe("mac")
   })

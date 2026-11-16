@@ -24,6 +24,7 @@ function fakeOrchestrator(): Orchestrator {
       return () => {}
     },
     listTasks: () => [],
+    settleProjectRows: async () => {},
   } as unknown as Orchestrator
 }
 

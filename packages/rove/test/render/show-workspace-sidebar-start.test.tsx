@@ -21,15 +21,14 @@ afterEach(() => {
   for (const reset of restore.splice(0)) reset()
 })
 
-type Kind = "main" | "dir"
 type Timing = "before mount" | "while mounted"
 
-/** Mount ShowWorkspace for a `kind` checkout and issue the sidebar's explicit start `timing` the mount. */
-async function startFromSidebar(kind: Kind, action: "chat" | "shell", timing: Timing) {
-  const id = toTaskId(`sidebar-start-${kind}-${action}-${timing}`)
+/** Mount ShowWorkspace for a `dir` checkout and issue the sidebar's explicit start `timing` the mount. */
+async function startFromSidebar(action: "chat" | "shell", timing: Timing) {
+  const id = toTaskId(`sidebar-start-${action}-${timing}`)
   const task: Task = {
     id,
-    kind,
+    kind: "dir",
     title: "Checkout",
     repo: "/tmp/checkout",
     worktreePath: "/tmp/checkout",
@@ -77,9 +76,9 @@ async function startFromSidebar(kind: Kind, action: "chat" | "shell", timing: Ti
 
 const TIMINGS: Timing[] = ["before mount", "while mounted"]
 
-describe.each(["main", "dir"] as const)("%s sidebar New chat", (kind) => {
+describe("dir sidebar New chat", () => {
   it.each(TIMINGS)("consumes an explicit start %s", async (timing) => {
-    const { id, view } = await startFromSidebar(kind, "chat", timing)
+    const { id, view } = await startFromSidebar("chat", timing)
     await waitForFrameText(view.frame, "New conversation", { timeoutMs: 1000 })
     expect(tabsByTask.has(id)).toBe(false)
     await act(async () => {
@@ -96,9 +95,9 @@ describe.each(["main", "dir"] as const)("%s sidebar New chat", (kind) => {
   })
 })
 
-describe.each(["main", "dir"] as const)("%s sidebar New shell", (kind) => {
+describe("dir sidebar New shell", () => {
   it.each(TIMINGS)("consumes an explicit start %s", async (timing) => {
-    const { id, view, spawned } = await startFromSidebar(kind, "shell", timing)
+    const { id, view, spawned } = await startFromSidebar("shell", timing)
     // A shell is its own row: a child task whose tab-1 is the shell, not a tab of this task.
     await waitForFrameText(view.frame, "No sessions here", { timeoutMs: 1000 })
     expect(spawned).toHaveLength(1)

@@ -60,10 +60,10 @@ describe("createMigratedChild", () => {
     expect(pinned.command).toBeUndefined()
   })
 
-  it("is stored as a dir row under a main or dir parent, so it never counts as a second main", async () => {
-    const main = await parentRow("main")
-    const child = await orch.createMigratedChild({ parentTaskId: main.id, title: "second" })
-    expect(child).toMatchObject({ kind: "dir", branch: "", sharesWorkspaceOf: main.id })
+  it("is stored as a dir row sharing a dir parent's checkout", async () => {
+    const dir = await parentRow("dir")
+    const child = await orch.createMigratedChild({ parentTaskId: dir.id, title: "second" })
+    expect(child).toMatchObject({ kind: "dir", branch: "", sharesWorkspaceOf: dir.id })
   })
 
   it("clears the alias once, durably", async () => {

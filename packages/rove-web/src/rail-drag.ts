@@ -1,6 +1,5 @@
 /**
- * Drag to reorder: a project header among projects (`project.move`, the whole project, with or without a
- * main checkout), a task among its project's tasks with its pin, as the TUI's move mode does with keys. A drag never
+ * Drag to reorder: a project header among projects (`project.move`, the whole project), a task among its project's tasks with its pin, as the TUI's move mode does with keys. A drag never
  * pins or unpins. While dragging, the rows slide to where
  * the drop would leave them; there is no insertion line. They slide by transform, not by reordering
  * the DOM: Chrome cancels a drag whose source node moves. Any sort drags; a drop outside manual
@@ -113,11 +112,11 @@ export function useRowDrag(
   }
   const taskOf = (row: NavRow): TaskRow | null => {
     if (!enabled || row.machine !== undefined) return null
-    // Any project moves, main checkout or not; Ungrouped is not one.
+    // Any project moves; Ungrouped is not one.
     if (row.kind === "project")
       return row.noProject ? null : (tasks.find((task) => task.repo === row.repo && !isNoProject(task)) ?? null)
     // Only top-level tasks move: a child's place is under its parent, and the daemon orders the flat list.
-    return row.kind === "task" && row.depth === 1 && row.task.kind !== "main" ? row.task : null
+    return row.kind === "task" && row.depth === 1 ? row.task : null
   }
   const props = (row: NavRow): DragProps | undefined => {
     const task = taskOf(row)

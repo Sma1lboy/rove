@@ -287,7 +287,7 @@ This table is the one-line index. **Per-event trigger semantics, exact
 | `quota.exhausted` / `quota.resumed` | rate-limit auto-resume armed / delivered its continue prompt | `vendor`, `resumeAt` / `delivered` |
 | `session.exited` | a hosted PTY child died abnormally (the crash signal; the engine's own `session.end` hook never fires on a crash) | `tabId`, `pid`, `code`, `signal`, `exitedAt`, `tail` |
 | `plugin.enabled` / `plugin.disabled` | YOUR plugin was enabled/disabled in the registry (delivered only to the affected plugin). Registry membership only — a manifest that stops parsing does not fire teardown | `pluginId` |
-| `task.opened` / `project.opened` | the user selects/enters a task / project row | |
+| `task.opened` | the user selects/enters a task row (`project.opened` stays in the contract but never fires) | |
 | `file.will-open` / `file.opened` / `file.closed` | Files-pane open, before/after; editor tab closed | `path`, `via: plugin\|editor\|external` |
 | `tab.opened` / `tab.closed` | a workspace tab appeared/went away (restores don't fire) | `tabId`, `kind`, `title`, `vendor`, `purpose` |
 | `agent.running` / `agent.idle` / `agent.turn-complete` / `agent.permission-needed` / `agent.rate-limited` / `agent.error` | activity-STATE transitions, deduped per task+tab | `tabId` when the source state identifies a tab |

@@ -452,12 +452,10 @@ something tree-shaped inside it:
 - `prefix+m` (`task.moveMode`) — the same global move mode, scope-aware
   since issue #43: `j`/`k` drag the cursor row at its **own level**. A tab
   row moves within its task's tab list (persisted in the tab snapshot), a
-  task row moves within its repo group (`moveTask` partitions by repo), and
-  a `main` row — the nearest navigable stand-in for the group header — drags
-  the whole project, riding on `moveTask` reordering mains among mains. No
-  new chord and no new daemon verb; every level stops at the edges (no
-  wrap). A repo with no main checkout has no project row to move, and the
-  chord is a silent no-op there.
+  task row moves within its repo group (`moveTask` partitions by repo). No
+  new chord; every level stops at the edges (no wrap). A whole project moves
+  from its header's menu (Move to top / up / down, `project.move`), since a
+  project is not a row.
 
 Right-click on any row opens that row's menu. The entries are exactly what
 the row's own chords already do, so the menu never becomes a second place
@@ -475,7 +473,7 @@ His muscle memory went to the prefix route, which was unbound (the HUD showed
 uppercase and the capital press must land.
 
 The handler also guards the target branch: firing it on a session sitting on
-the PR base (a project main session) surfaces a toast instead of sending the
+the PR base (a session in the project's own checkout) surfaces a toast instead of sending the
 engine a doomed `gh pr create`.
 
 ## Other placements
@@ -926,6 +924,9 @@ row's conversation and closes its tabs; the project, repo, branches and
 worktrees stay. A main with child tasks asks whether to keep or delete them
 too, like any task. Remove project is menu-only, on the project header
 (`forgetProject` carries no chord).
+
+Superseded 2026-11-16: a project has no main row. `d` on a session in the
+project's checkout deletes it like any directory row.
 
 ## DECLINED: `a` in the web preview asks in chat (2026-10-31)
 

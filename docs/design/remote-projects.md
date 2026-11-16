@@ -6,7 +6,7 @@
 
 ## Goal
 
-A Rove **project** (a saved repo, a `kind:"main"` task) can be **remote**: it carries SSH connection + a remote base path. A task created under a remote project:
+A Rove **project** (a saved repo) can be **remote**: it carries SSH connection + a remote base path. A task created under a remote project:
 
 - creates its git **worktree on the remote host** (the same `git worktree add` flow, run over SSH),
 - should run the **engine (claude/codex) on the remote host** by having the local standalone PTY Host own an `ssh -tt … 'cd <remote-wt> && <engine>'` child, and

@@ -4,7 +4,6 @@ import {
   SCRATCH_SECTION_ID,
   type TreeTab,
   buildTreeRows,
-  mainTaskIdOfProject,
   parseRowId,
   projectKeysOf,
   treeFlatIds,
@@ -39,20 +38,18 @@ function rows(over: Partial<Parameters<typeof buildTreeRows>[0]> = {}) {
 }
 
 describe("buildTreeRows", () => {
-  test("groups worktrees under one project header, main first", () => {
+  test("groups worktrees and a session in the checkout under one project header, in stored order", () => {
     const result = rows({
       tasks: [
         task("b", { branch: "feat/b" }),
-        task("m", { kind: "main", repo: "/repos/rove", branch: "", worktreePath: "/repos/rove" }),
+        task("m", { kind: "dir", repo: "/repos/rove", branch: "", worktreePath: "/repos/rove" }),
         task("a", { branch: "feat/a" }),
       ],
     })
     expect(result.map((r) => [r.kind, r.id])).toEqual([
       ["project", "/repos/rove"],
-      // main is a worktree row, not the project row: the project is a repo,
-      // the main checkout is a checkout, and only the latter carries tabs.
-      ["worktree", "m"],
       ["worktree", "b"],
+      ["worktree", "m"],
       ["worktree", "a"],
     ])
   })
@@ -62,31 +59,6 @@ describe("buildTreeRows", () => {
       tasks: [task("z", { repo: "/repos/zebra" }), task("a", { repo: "/repos/apple" })],
     })
     expect(result.filter((r) => r.kind === "project").map((r) => r.id)).toEqual(["/repos/zebra", "/repos/apple"])
-  })
-
-  test("project order follows the MAINS' stored order, not first-seen task order", () => {
-    // The move-mode contract: `moveTask` on a main swaps it among mains, so
-    // the tree must key project order on main order — an older regular task
-    // must not anchor its project ahead of the swap (that made project
-    // move-mode read as a no-op).
-    const result = rows({
-      tasks: [
-        task("old-z-task", { repo: "/repos/zebra" }),
-        task("m-apple", { kind: "main", repo: "/repos/apple", worktreePath: "/repos/apple" }),
-        task("m-zebra", { kind: "main", repo: "/repos/zebra", worktreePath: "/repos/zebra" }),
-      ],
-    })
-    expect(result.filter((r) => r.kind === "project").map((r) => r.id)).toEqual(["/repos/apple", "/repos/zebra"])
-  })
-
-  test("a main-less project appends after the main-ordered ones", () => {
-    const result = rows({
-      tasks: [
-        task("loose", { repo: "/repos/no-main" }),
-        task("m", { kind: "main", repo: "/repos/rove", worktreePath: "/repos/rove" }),
-      ],
-    })
-    expect(result.filter((r) => r.kind === "project").map((r) => r.id)).toEqual(["/repos/rove", "/repos/no-main"])
   })
 
   test("tabs never become rows — a task is one conversation", () => {
@@ -110,7 +82,7 @@ describe("buildTreeRows", () => {
   test("scratch tasks render in one Scratch section above every project", () => {
     const result = rows({
       tasks: [
-        task("m", { kind: "main", repo: "/repos/rove", branch: "", worktreePath: "/repos/rove" }),
+        task("m", { kind: "dir", repo: "/repos/rove", branch: "", worktreePath: "/repos/rove" }),
         task("s1", { kind: "dir", scratch: true, repo: "/Users/me" }),
         task("s2", { kind: "dir", scratch: true, repo: "/Users/me" }),
       ],
@@ -128,7 +100,7 @@ describe("buildTreeRows", () => {
     const result = rows({
       tasks: [
         task("s", { kind: "dir", scratch: true, repo: "/Users/me" }),
-        task("m", { kind: "main", repo: "/repos/rove", branch: "", worktreePath: "/repos/rove" }),
+        task("m", { kind: "dir", repo: "/repos/rove", branch: "", worktreePath: "/repos/rove" }),
       ],
       tabsByTask: new Map([["s", [tab("tab-1"), tab("tab-2")]]]),
     })
@@ -141,30 +113,28 @@ describe("buildTreeRows", () => {
     expect(treeFlatIds(result)).toEqual(["s", "m"])
   })
 
-  test("recent sort reorders regular worktrees newest-created first while keeping main first", () => {
+  test("recent sort reorders worktrees newest-created first", () => {
     const result = rows({
       sortMode: "recent",
       tasks: [
         task("older", { repo: "/repos/rove", createdAt: "2026-08-01T00:00:00.000Z" }),
-        task("m", { kind: "main", repo: "/repos/rove", branch: "", worktreePath: "/repos/rove" }),
         task("newer", { repo: "/repos/rove", createdAt: "2026-08-02T00:00:00.000Z" }),
       ],
     })
-    expect(result.filter((r) => r.kind === "worktree").map((r) => r.id)).toEqual(["m", "newer", "older"])
+    expect(result.filter((r) => r.kind === "worktree").map((r) => r.id)).toEqual(["newer", "older"])
   })
 
-  test("name sort orders worktrees A→Z, case-blind and numbers by value, main still first", () => {
+  test("name sort orders worktrees A→Z, case-blind and numbers by value", () => {
     const result = rows({
       sortMode: "name",
       tasks: [
         task("t10", { title: "task 10" }),
-        task("m", { kind: "main", repo: "/repos/rove", branch: "", worktreePath: "/repos/rove", title: "zz main" }),
         task("beta", { title: "beta" }),
         task("t2", { title: "Task 2" }),
         task("alpha", { title: "Alpha" }),
       ],
     })
-    expect(result.filter((r) => r.kind === "worktree").map((r) => r.id)).toEqual(["m", "alpha", "beta", "t2", "t10"])
+    expect(result.filter((r) => r.kind === "worktree").map((r) => r.id)).toEqual(["alpha", "beta", "t2", "t10"])
   })
 
   test("attention sort floats blocked worktrees, then unread completions", () => {
@@ -182,21 +152,6 @@ describe("buildTreeRows", () => {
       tasks: [task("quiet", { updatedAt: at }), task("landed", { updatedAt: at }), task("stuck", { updatedAt: at })],
     })
     expect(result.filter((r) => r.kind === "worktree").map((r) => r.id)).toEqual(["stuck", "landed", "quiet"])
-  })
-
-  test("attention sort keeps the main checkout first, like recent does", () => {
-    const result = rows({
-      sortMode: "attention",
-      // An `error` must be 20s old to count as waiting on a person (the
-      // derived group's debounce), so the fixture dates it past that.
-      activityOf: (id) => (id === "stuck" ? { state: "error", at: Date.now() - 30_000 } : undefined),
-      tasks: [
-        task("quiet", { repo: "/repos/rove" }),
-        task("m", { kind: "main", repo: "/repos/rove", branch: "", worktreePath: "/repos/rove" }),
-        task("stuck", { repo: "/repos/rove" }),
-      ],
-    })
-    expect(result.filter((r) => r.kind === "worktree").map((r) => r.id)).toEqual(["m", "stuck", "quiet"])
   })
 
   test("attention sort with no activity reader degrades to recency, not to a crash", () => {
@@ -247,29 +202,6 @@ describe("projectKeysOf", () => {
   })
 })
 
-describe("mainTaskIdOfProject", () => {
-  const tasks = [
-    task("rove-wt", { repo: "/repos/rove" }),
-    task("rove-main", { kind: "main", repo: "/repos/rove", branch: "main", worktreePath: "/repos/rove" }),
-    task("fox-main", { kind: "main", repo: "/repos/foxychat", branch: "main", worktreePath: "/repos/foxychat" }),
-  ]
-
-  test("finds the repo's main checkout, not its first task", () => {
-    // Project reorder rides on the MAIN row (mains move among mains), so
-    // picking the first task of the repo would move nothing.
-    expect(mainTaskIdOfProject(tasks, "/repos/rove")).toBe("rove-main")
-    expect(mainTaskIdOfProject(tasks, "/repos/foxychat")).toBe("fox-main")
-  })
-
-  test("a project with no main checkout has nothing to move", () => {
-    expect(mainTaskIdOfProject([task("only", { repo: "/repos/orphan" })], "/repos/orphan")).toBeNull()
-  })
-
-  test("an unknown project is null, not a throw", () => {
-    expect(mainTaskIdOfProject(tasks, "/repos/nope")).toBeNull()
-  })
-})
-
 // `tabRowActivity` is covered by the golden matrix
 // (`test/golden/sidebar-row-state.golden.txt`, "which entry a TAB row may
 // read"), which enumerates its whole truth table — tabActivity present/absent
@@ -294,16 +226,8 @@ describe("withRecentRow", () => {
 })
 
 describe("a project closed down to nothing", () => {
-  const mainOf = (repo: string, id = "m") => task(id, { kind: "main", repo, title: repo.split("/").pop() ?? repo })
-
-  test("hides the project when its only row is main and its tabs are closed", () => {
-    const out = rows({
-      tasks: [mainOf("/repos/codefox")],
-      // KNOWN and empty — the user closed the last tab.
-      tabsByTask: new Map([["m", []]]),
-    })
-    expect(out).toEqual([])
-  })
+  const dirOf = (repo: string, id = "m") =>
+    task(id, { kind: "dir", repo, branch: "", worktreePath: repo, title: repo.split("/").pop() ?? repo })
 
   test("hides a closed-down `dir` row too — the same gesture on the same kind of row", () => {
     // A directory opened with `rove .` folds away like a project does. It has
@@ -316,22 +240,15 @@ describe("a project closed down to nothing", () => {
   })
 
   test("still shows a `dir` row whose tabs are unknown", () => {
-    // Same fresh-TUI carve-out the main rule has: absent ≠ empty.
+    // Absent from the map = never mounted since restart, which is every row on
+    // a cold boot. Hiding on that would make the sidebar start empty.
     const dir = task("d", { kind: "dir", repo: "/Users/me/i/notes", branch: "", worktreePath: "/Users/me/i/notes" })
     expect(rows({ tasks: [dir], tabsByTask: new Map() }).map((r) => r.kind)).toEqual(["project", "worktree"])
   })
 
-  test("still shows it when its tabs are merely UNKNOWN (fresh TUI)", () => {
-    // Absent from the map = never mounted since restart, which is every
-    // project on a cold boot. Hiding on that would make the sidebar start
-    // empty — the difference this whole rule turns on.
-    const out = rows({ tasks: [mainOf("/repos/codefox")], tabsByTask: new Map() })
-    expect(out.map((r) => r.kind)).toEqual(["project", "worktree"])
-  })
-
   test("still shows it while any tab is open", () => {
     const out = rows({
-      tasks: [mainOf("/repos/codefox")],
+      tasks: [dirOf("/repos/codefox")],
       tabsByTask: new Map([["m", [tab("t1")]]]),
     })
     expect(out.map((r) => r.kind)).toEqual(["project", "worktree"])
@@ -339,7 +256,7 @@ describe("a project closed down to nothing", () => {
 
   test("hiding one project does not disturb the others", () => {
     const out = rows({
-      tasks: [mainOf("/repos/codefox", "m1"), mainOf("/repos/rove", "m2")],
+      tasks: [dirOf("/repos/codefox", "m1"), dirOf("/repos/rove", "m2")],
       tabsByTask: new Map([
         ["m1", []],
         ["m2", [tab("t1")]],
@@ -349,9 +266,7 @@ describe("a project closed down to nothing", () => {
   })
 
   test("keeps a project whose ONLY row is a worktree task with no tabs", () => {
-    // A main-less project (the tree supports these — "then main-less projects
-    // in first-seen order"). Hiding it would strand the task: no main row
-    // means nothing to re-open it from.
+    // Hiding it would strand the task: nothing else re-opens it.
     const out = rows({
       tasks: [task("a", { repo: "/repos/orphan" })],
       tabsByTask: new Map([["a", []]]),
@@ -362,20 +277,15 @@ describe("a project closed down to nothing", () => {
   test("a hidden project is not navigable", () => {
     // The cursor indexes flatIds; leaving a hidden project's row in there
     // would let j/k land on something the user cannot see.
-    const out = rows({ tasks: [mainOf("/repos/codefox")], tabsByTask: new Map([["m", []]]) })
+    const out = rows({ tasks: [dirOf("/repos/codefox")], tabsByTask: new Map([["m", []]]) })
     expect(treeFlatIds(out)).toEqual([])
   })
 
-  // The other half of the guard: the tests above pin that the project GOES,
-  // and the way back is `mode: "open"` →
-  // `ensureMainTask` (test/tui/create-task-flow-open-project.test.ts). What
-  // belongs HERE is the tree's side of that round trip.
-  test("the hidden project returns as soon as its main has a tab again", () => {
-    const tasks = [mainOf("/repos/codefox")]
+  test("the hidden project returns as soon as its row has a tab again", () => {
+    const tasks = [dirOf("/repos/codefox")]
     const hidden = rows({ tasks, tabsByTask: new Map([["m", []]]) })
     expect(hidden).toEqual([])
 
-    // What opening the project does: its main row gets a session again.
     const back = rows({ tasks, tabsByTask: new Map([["m", [tab("t1")]]]) })
     expect(back.map((r) => r.kind)).toEqual(["project", "worktree"])
     // And it is reachable — a row you can see but not move the cursor to

@@ -136,11 +136,7 @@ function useRepoField(model: AppModel, initial: string | undefined): RepoField {
     }
   }, [model, expanded])
 
-  const mainRepos = new Set(
-    (model.tasks.get()?.tasks ?? [])
-      .filter((task) => task.kind === "main")
-      .map((task) => task.repo.replace(/\/+$/, "")),
-  )
+  const mainRepos = new Set(saved.map((path) => path.replace(/\/+$/, "")))
   const names = browsing ? (browse?.names ?? []) : []
   const savedRows = filterText(saved, text)
   const items: readonly Suggestion[] = browsing

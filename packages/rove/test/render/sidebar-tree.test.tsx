@@ -43,8 +43,6 @@ function seedTabs(taskId: string, tabIds: readonly string[]): void {
   })
 }
 
-const MAIN = task("m", { kind: "main", branch: "", worktreePath: "/repos/rove" })
-
 /** One input inside act, then a render pass. */
 async function step(frame: () => Promise<string>, fire: () => unknown): Promise<void> {
   act(() => {
@@ -56,7 +54,7 @@ async function step(frame: () => Promise<string>, fire: () => unknown): Promise<
 function tree(over: Partial<Parameters<typeof SidebarTree>[0]> = {}) {
   return (
     <SidebarTree
-      tasks={[MAIN, task("a"), task("b")]}
+      tasks={[task("a"), task("b")]}
       selectedId="a"
       onSelect={() => {}}
       focused={true}
@@ -69,7 +67,7 @@ function tree(over: Partial<Parameters<typeof SidebarTree>[0]> = {}) {
 test("a child task is its own row: j reaches it and enter selects it", async () => {
   tabsByTask.clear()
   const chosen: string[] = []
-  const tasks = [MAIN, task("a"), task("kid", { parentTaskId: toTaskId("a") }), task("b")]
+  const tasks = [task("a"), task("kid", { parentTaskId: toTaskId("a") }), task("b")]
   const { frame, mockInput } = await renderComponent(tree({ tasks, onSelect: (id) => chosen.push(id) }), {
     width: 28,
     height: 20,
@@ -89,7 +87,7 @@ test("j/k move the cursor over worktree rows", async () => {
     height: 20,
   })
 
-  // No tabs seeded, so every row is a worktree: m, a, b — cursor starts on
+  // No tabs seeded, so every row is a worktree: a, b — cursor starts on
   // the selected `a`. `selectedId` is a fixed prop here (a real host would
   // re-render with the new one and the follow effect would re-anchor), so
   // the cursor moves freely: j lands on `b`, k returns to `a`.
@@ -119,7 +117,7 @@ test("keys stay dead while another pane holds focus", async () => {
 
 test("escape leaves search and restores the full tree", async () => {
   tabsByTask.clear()
-  const tasks = [MAIN, task("a", { title: "alpha" }), task("b", { title: "bravo" })]
+  const tasks = [task("a", { title: "alpha" }), task("b", { title: "bravo" })]
   const { frame, mockInput } = await renderComponent(tree({ tasks }), { width: 28, height: 20 })
 
   await step(frame, () => mockInput.typeText("/"))
@@ -137,14 +135,14 @@ test("escape leaves search and restores the full tree", async () => {
 test("move mode on a TASK row moves the task itself within its repo group", async () => {
   tabsByTask.clear()
   const moves: Array<[string, number]> = []
-  const tasks = [MAIN, task("a"), task("x", { repo: "/repos/foxychat", branch: "feat/x" })]
+  const tasks = [task("a"), task("x", { repo: "/repos/foxychat", branch: "feat/x" })]
   const { frame, mockInput } = await renderComponent(
     tree({ tasks, moveMode: true, onMoveRequest: (id, delta) => moves.push([id, delta]) }),
     { width: 28, height: 20 },
   )
 
-  // The cursor sits on `a` — a regular task, so j/k move IT (the repo-group
-  // partition lives in moveTask), not its project's main.
+  // The cursor sits on `a`, so j/k move IT (the repo-group partition lives
+  // in moveTask), not its project.
   await step(frame, () => mockInput.typeText("j"))
   await step(frame, () => mockInput.typeText("k"))
 
@@ -155,22 +153,6 @@ test("move mode on a TASK row moves the task itself within its repo group", asyn
   // …the cursor did NOT walk (j/k belong to the drag), and the dragged ROW
   // wears the chip — not the project header.
   expect(await frame()).toContain(" move")
-})
-
-test("move mode on a MAIN row drags the whole project", async () => {
-  // Project order is the mains' stored order, so moving the main IS moving
-  // the group. Scoped to the main row: no other row drags its project.
-  tabsByTask.clear()
-  const moves: Array<[string, number]> = []
-  const tasks = [MAIN, task("a")]
-  const { frame, mockInput } = await renderComponent(
-    tree({ tasks, selectedId: "m", moveMode: true, onMoveRequest: (id, delta) => moves.push([id, delta]) }),
-    { width: 28, height: 20 },
-  )
-
-  // Cursor anchors on the selected `m` (the repo's own checkout row).
-  await step(frame, () => mockInput.typeText("j"))
-  expect(moves).toEqual([["m", 1]])
 })
 
 test("escape leaves move mode", async () => {

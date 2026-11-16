@@ -1,6 +1,6 @@
 /**
  * Archived tasks in the sidebar: gone from every project (so a project left
- * with only its main folds like any idle one) and listed nowhere else in the
+ * with only a closed session in its checkout folds like any idle one) and listed nowhere else in the
  * tree, and the row menu that hides or restores them.
  */
 
@@ -26,14 +26,14 @@ function task(id: string, over: Partial<Task> = {}): Task {
   }
 }
 
-const main = (id: string, repo: string) => task(id, { kind: "main", repo, branch: "", worktreePath: repo })
+const checkout = (id: string, repo: string) => task(id, { kind: "dir", repo, branch: "", worktreePath: repo })
 const tabs = (entries: Record<string, number>) => new Map(Object.entries(entries).map(([id, n]) => [id, { length: n }]))
 
 describe("archived tasks leave the projects", () => {
   test("a worktree-only checkout is never a sidebar row, with or without a parent", () => {
     const result = buildSidebarGroups({
       tasks: [
-        main("m", "/repos/rove"),
+        checkout("m", "/repos/rove"),
         task("parent"),
         task("checkout", { worktreeOnly: true, parentTaskId: toTaskId("parent") }),
         task("orphan", { worktreeOnly: true }),
@@ -45,14 +45,14 @@ describe("archived tasks leave the projects", () => {
 
   test("an archived row is in no group; its live siblings stay", () => {
     const result = buildSidebarGroups({
-      tasks: [main("m", "/repos/rove"), task("live"), task("gone", { archived: true })],
+      tasks: [checkout("m", "/repos/rove"), task("live"), task("gone", { archived: true })],
       tabsByTask: new Map(),
     })
     expect(result.map((g) => g.tasks.map((t) => t.id))).toEqual([["m", "live"]])
   })
 
   test("a project whose only other rows are archived folds like an idle project", () => {
-    const tasks = [main("m", "/repos/api"), task("gone", { repo: "/repos/api", archived: true })]
+    const tasks = [checkout("m", "/repos/api"), task("gone", { repo: "/repos/api", archived: true })]
     expect(buildSidebarGroups({ tasks, tabsByTask: tabs({ m: 0 }) })).toEqual([])
     // Unknown tabs never hide, archived or not.
     expect(buildSidebarGroups({ tasks, tabsByTask: new Map() })).toHaveLength(1)
@@ -65,10 +65,9 @@ describe("the row menu", () => {
       (item) => item.action === "archive",
     )
 
-  test("offers Archive on every session, a project's main included, and Unarchive on an archived one", () => {
+  test("offers Archive on every session and Unarchive on an archived one", () => {
     expect(actions({}).map((item) => item.labelKey)).toEqual(["tasks.menu.archive"])
     expect(actions({ archived: true }).map((item) => item.labelKey)).toEqual(["tasks.menu.unarchive"])
-    expect(actions({ kind: "main", branch: "" }).map((item) => item.labelKey)).toEqual(["tasks.menu.archive"])
   })
 
   test("archive is not toned as danger: it removes nothing", () => {

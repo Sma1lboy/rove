@@ -239,7 +239,7 @@ describe("update --parent", () => {
         branch: "rove/c",
         parentTaskId: top.id as TaskId,
       })
-      const main = await makeTask({ kind: "main", title: "x", branch: "", worktreePath: "/repo/x" })
+      const routine = await makeTask({ title: "nightly", routine: { automationId: "a1" } })
       const remote = await makeTask({
         title: "remote",
         repo: "ssh://dev@box/work/x",
@@ -254,7 +254,7 @@ describe("update --parent", () => {
       await refused(["--task-id", top.id, "--parent", top.id], "PARENT_IS_SELF")
       await refused(["--task-id", top.id, "--parent", child.id], "PARENT_CYCLE")
       await refused(["--task-id", top.id, "--parent", "01NOSUCHTASKONTHISMACHINE"], "PARENT_NOT_FOUND")
-      await refused(["--task-id", main.id, "--parent", top.id], "TASK_NOT_MOVABLE")
+      await refused(["--task-id", routine.id, "--parent", top.id], "TASK_NOT_MOVABLE")
       await refused(["--task-id", child.id, "--parent", remote.id], "REMOTE_PARENT_UNSUPPORTED")
       await refused(["--task-id", remote.id, "--parent", top.id], "REMOTE_PARENT_UNSUPPORTED")
       // A refused move comes first: the (unrevertable) branch rename beside it is never attempted.

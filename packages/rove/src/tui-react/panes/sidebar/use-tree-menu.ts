@@ -60,6 +60,11 @@ interface OpenMenu {
   readonly y: number
 }
 
+/** This daemon's projects, in sidebar order: another machine's is read-only here, and Ungrouped is no project. */
+function movableProjects(rows: readonly TreeRow[]): TreeRow[] {
+  return rows.filter((row) => row.kind === "project" && row.machineId === "local" && row.id !== SCRATCH_SECTION_ID)
+}
+
 export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
   const t = useT()
   const { tree, activateRow, setCursorIndex, actions } = deps
@@ -111,26 +116,13 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
         openAt(row, { scratchSection: true }, x, y)
         return
       }
-      // Only THIS daemon's mains are in the move partition; another machine's
-      // project is read-only here.
-      const movable = (candidate: TreeRow): boolean =>
-        candidate.kind === "project" &&
-        candidate.machineId === "local" &&
-        tree.mainTaskIdOfProject(candidate.id) !== null
-      const mainId = movable(row) ? tree.mainTaskIdOfProject(projectId) : null
-      // The header has no cursor slot; its main row stands in, so "Reorder
-      // project" starts move mode where j/k drag the project. A main row
-      // with nothing to show is not listed: the Reorder entry brings it back
-      // for the move (`SidebarTree` holds it), so the entries follow the main
-      // task, not its row.
-      const mainIndex = mainId === null ? -1 : tree.flatIds.indexOf(mainId)
-      if (mainIndex >= 0) setCursorIndex(mainIndex)
-      const firstMovable = tree.rows.find(movable)
-      // A search that dropped the main row leaves nothing to hold open for the move.
-      const projectMovable = mainId !== null && (mainIndex >= 0 || !tree.searching)
-      openAt(row, { projectMovable, projectFirst: firstMovable?.id === projectId }, x, y)
+      const movable = movableProjects(tree.rows)
+      const at = movable.findIndex((candidate) => candidate.id === projectId)
+      // A search hides projects, so "up" and "down" would name a neighbour that is not the real one.
+      const projectMovable = at >= 0 && !tree.searching
+      openAt(row, { projectMovable, projectFirst: at === 0, projectLast: at === movable.length - 1 }, x, y)
     },
-    [tree.rows, tree.flatIds, tree.searching, tree.mainTaskIdOfProject, openAt, setCursorIndex],
+    [tree.rows, tree.searching, openAt],
   )
 
   const close = useCallback((): void => setMenu(null), [])
@@ -162,14 +154,15 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
         if (action === "newScratchShell") actions.onOpenScratch?.(undefined)
         if (action === "newTask") deps.onAddTask?.()
         if (action === "fieldNotes") actions.onFieldNotesRequest?.(row.repo)
-        const mainId = deps.tree.mainTaskIdOfProject(row.id)
-        if (!mainId) return
-        // Not `d`'s flow: that is the main row's delete, which ends its conversation and keeps the project.
-        if (action === "forgetProject") actions.onForgetProjectRequest?.(mainId)
-        if (action === "moveToTop") actions.onMoveToTopRequest?.(mainId)
-        // Already moving: the cursor is on this main now, so j/k drag it — a
-        // toggle would leave move mode instead.
-        if (action === "reorder" && !actions.moveMode) actions.onLocalMergeRequest?.(mainId)
+        if (action === "forgetProject") actions.onForgetProjectRequest?.(row.repo)
+        const movable = movableProjects(deps.tree.rows)
+        const at = movable.findIndex((candidate) => candidate.id === row.id)
+        const beside = (target: TreeRow | undefined, side: "before" | "after"): void => {
+          if (target?.kind === "project") actions.onMoveProjectRequest?.(row.repo, target.repo, side)
+        }
+        if (action === "moveToTop") beside(movable[0], "before")
+        if (action === "moveProjectUp") beside(movable[at - 1], "before")
+        if (action === "moveProjectDown") beside(movable[at + 1], "after")
         return
       }
       const taskId = row.task.id
@@ -258,7 +251,7 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
           break
       }
     },
-    [menu, activateRow, actions, deps.onAddTask, deps.onNewTab, deps.tree.mainTaskIdOfProject, tree.toggleTaskFold],
+    [menu, activateRow, actions, deps.onAddTask, deps.onNewTab, deps.tree.rows, tree.toggleTaskFold],
   )
 
   const pickCurrent = useCallback((): void => fire(menu?.actions[cursor]), [fire, menu, cursor])

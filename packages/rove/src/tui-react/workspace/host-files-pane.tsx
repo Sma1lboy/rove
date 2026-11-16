@@ -50,9 +50,6 @@ export const HostFilesPane = memo(function HostFilesPane(props: {
   readonly focused: boolean
   /** Stable identities (`useFilesPaneActions`), or the memo never holds. */
   readonly actions: FilesPaneActions
-  /** A `"main"` row IS the root checkout (no task branch to PR from), so the
-   *  header withholds the Create PR chip; `"dir"` rows keep it. */
-  readonly taskKind: "main" | "task" | "dir" | undefined
   /** Remote host of the worktree: the path means nothing locally, so the pane names the machine instead. */
   readonly remoteHost?: string
   /** A reachable task on another machine: its tree is read there. Absent while the machine is
@@ -97,7 +94,7 @@ export const HostFilesPane = memo(function HostFilesPane(props: {
               onMention={props.actions.onMention}
               onZenToggle={props.actions.onZenToggle}
               // prefix+P is GLOBAL, so it still fires here and explains itself with a toast.
-              onCreatePR={props.taskKind === "main" ? undefined : props.actions.onCreatePR}
+              onCreatePR={props.actions.onCreatePR}
             />
           )}
         </PaneErrorBoundary>

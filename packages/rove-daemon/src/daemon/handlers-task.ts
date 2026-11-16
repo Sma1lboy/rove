@@ -426,12 +426,10 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
-    name: "task.ensureMain",
+    name: "project.ensure",
     blocking: true,
     async handle(payload, ctx) {
-      const repo = requireString(payload, "repo")
-      const task = await ctx.orch.ensureMainTask(repo)
-      return { task: serializeTask(task) }
+      return { repo: await ctx.orch.ensureProject(requireString(payload, "repo")) }
     },
   },
   {

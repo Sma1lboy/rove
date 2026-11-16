@@ -31,7 +31,6 @@ function task(id: string, over: Partial<Task> = {}): Task {
   }
 }
 
-const MAIN = task("m", { kind: "main", branch: "", worktreePath: "/repos/rove" })
 const RIGHT = 2
 
 /** One input inside act, then a render pass. */
@@ -45,7 +44,7 @@ async function step(frame: () => Promise<string>, fire: () => unknown): Promise<
 function tree(over: Partial<Parameters<typeof SidebarTree>[0]> = {}) {
   return (
     <SidebarTree
-      tasks={[MAIN, task("a"), task("b")]}
+      tasks={[task("a"), task("b")]}
       selectedId="a"
       onSelect={() => {}}
       focused={true}
@@ -90,7 +89,7 @@ test("right-click on a project header offers the project's own actions", async (
 
   const after = await frame()
   expect(after).toContain("New task")
-  // Menu-only: `d` on the project's main row ends its conversation instead of forgetting the project.
+  // Menu-only: no chord forgets a project.
   expect(after).toContain("Remove project")
   // This entry is the only in-product reader of the repo's durable notes.
   expect(after).toContain("Field notes")
@@ -99,75 +98,45 @@ test("right-click on a project header offers the project's own actions", async (
   expect(after).not.toContain("Delete")
 })
 
-test("a lower project's header moves it to the top; the topmost one isn't offered that", async () => {
+test("a project header's move verbs name the neighbour it lands beside", async () => {
   tabsByTask.clear()
-  const FOXY = task("f", { kind: "main", repo: "/repos/foxy", branch: "", worktreePath: "/repos/foxy" })
-  const moved: string[] = []
-  const reordered: string[] = []
+  const moves: Array<[string, string, string]> = []
   const { frame, mockMouse, mockInput } = await renderComponent(
     tree({
-      tasks: [MAIN, task("a"), FOXY],
-      onMoveToTopRequest: (id) => moved.push(id),
-      onLocalMergeRequest: (id) => reordered.push(id),
+      tasks: [task("a"), task("f", { repo: "/repos/foxy" })],
+      onMoveProjectRequest: (repo, target, side) => moves.push([repo, target, side]),
     }),
     { width: 40, height: 24 },
   )
   await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "foxy"), RIGHT))
   expect(await frame()).toContain("Move to top")
-  expect(await frame()).toContain("Reorder project")
+  expect(await frame()).toContain("Move up")
+  expect(await frame()).not.toContain("Move down")
 
-  // New task → Move to top. Both verbs act on the project's MAIN.
+  // New task → Move to top.
   await step(frame, () => mockInput.typeText("j"))
   await step(frame, () => mockInput.pressEnter())
-  expect(moved).toEqual(["f"])
+  expect(moves).toEqual([["/repos/foxy", "/repos/rove", "before"]])
 
-  await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "foxy"), RIGHT))
-  await step(frame, () => mockInput.typeText("jj"))
-  await step(frame, () => mockInput.pressEnter())
-  expect(reordered).toEqual(["f"])
-
-  // Already first: only Reorder.
+  // Already first: only Move down.
   await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "rove"), RIGHT))
   expect(await frame()).not.toContain("Move to top")
-  expect(await frame()).toContain("Reorder project")
+  expect(await frame()).not.toContain("Move up")
+  expect(await frame()).toContain("Move down")
 })
 
-test("Reorder project while already in move mode keeps it on, now dragging that project", async () => {
-  tabsByTask.clear()
-  const FOXY = task("f", { kind: "main", repo: "/repos/foxy", branch: "", worktreePath: "/repos/foxy" })
-  const toggles: string[] = []
-  const moves: Array<[string, number]> = []
-  const { frame, mockMouse, mockInput } = await renderComponent(
-    tree({
-      tasks: [MAIN, task("a"), FOXY],
-      moveMode: true,
-      onLocalMergeRequest: (id) => toggles.push(id),
-      onMoveRequest: (id, delta) => moves.push([id, delta]),
-    }),
-    { width: 40, height: 24 },
-  )
-  await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "foxy"), RIGHT))
-  await step(frame, () => mockInput.typeText("jj"))
-  await step(frame, () => mockInput.pressEnter())
-  // A toggle here would have LEFT move mode.
-  expect(toggles).toEqual([])
-
-  await step(frame, () => mockInput.typeText("k"))
-  expect(moves).toEqual([["f", -1]])
-})
-
-test("another machine's project offers no move verbs — its main isn't in this daemon's partition", async () => {
+test("another machine's project offers no move verbs — it isn't in this daemon's partition", async () => {
   tabsByTask.clear()
   const origin = { machineId: "mac", hostLabel: "mac" }
-  const REMOTE = task("r", { kind: "main", repo: "/repos/remote", branch: "", worktreePath: "/repos/remote", origin })
-  const { frame, mockMouse } = await renderComponent(tree({ tasks: [MAIN, task("a"), REMOTE] }), {
+  const REMOTE = task("r", { repo: "/repos/remote", origin })
+  const { frame, mockMouse } = await renderComponent(tree({ tasks: [task("a"), REMOTE] }), {
     width: 40,
     height: 24,
   })
   await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "remote"), RIGHT))
   expect(await frame()).toContain("New task")
   expect(await frame()).not.toContain("Move to top")
-  expect(await frame()).not.toContain("Reorder project")
+  expect(await frame()).not.toContain("Move down")
 })
 
 test("left-click still activates the row it lands on", async () => {
@@ -186,7 +155,7 @@ test("left-click still activates the row it lands on", async () => {
 
 test("a parent's menu folds its children away", async () => {
   tabsByTask.clear()
-  const tasks = [MAIN, task("a"), task("kid", { parentTaskId: toTaskId("a") })]
+  const tasks = [task("a"), task("kid", { parentTaskId: toTaskId("a") })]
   const { frame, mockMouse, mockInput } = await renderComponent(tree({ tasks }), { width: 40, height: 24 })
   expect(await frame()).toContain("kid")
   await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT))

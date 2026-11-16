@@ -7,7 +7,7 @@ import { availableEngineIds } from "@/engine/account-detect"
 import { errorMessage } from "@/lib/error-message"
 import { addSavedRepo, getSavedRepos, resolveMainRepoRoot } from "@/state/repos"
 import { t } from "@/tui/i18n"
-import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "@/types/task"
+import { DEFAULT_TASK_VENDOR, type VendorId } from "@/types/task"
 import type { NewTaskDialogOptions, NewTaskInput } from "../component/new-task-dialog/state"
 import type { TaskActionContext } from "./task-actions"
 
@@ -65,15 +65,9 @@ export interface CreateTaskContext extends TaskActionContext {
 /** "Creating task…" and the failure that ends it share one toast slot, so a failure never sits under a ✓. */
 const CREATE_TOAST = "task-create"
 
-/** Repo roots with a `main` task, trailing slashes trimmed as the sidebar groups them. */
-function mainRepoSet(tasks: readonly Task[]): ReadonlySet<string> {
-  const out = new Set<string>()
-  for (const task of tasks) {
-    if (task.kind !== "main") continue
-    const key = task.repo.trim().replace(/[\\/]+$/, "")
-    if (key) out.add(key)
-  }
-  return out
+/** The saved projects, trailing slashes trimmed as the sidebar groups them. */
+function projectSet(repos: readonly string[]): ReadonlySet<string> {
+  return new Set(repos.map((repo) => repo.trim().replace(/[\\/]+$/, "")).filter(Boolean))
 }
 
 /** A repo path as its main checkout; a path git cannot read stays as given, for the daemon to refuse by name. */
@@ -108,9 +102,8 @@ export async function createTaskFlow(ctx: CreateTaskContext, seed?: CreateTaskSe
     defaultVendor,
     availableVendors,
     discoverAdoptable: orch ? (repo) => orch.discoverAdoptableWorktrees(repo) : undefined,
-    // "Open the project" is offered only for these. From live tasks, not
-    // savedRepos: a saved repo with no main row has no project to open.
-    mainRepos: mainRepoSet(ctx.tasks()),
+    // "Open the project" is offered only for these.
+    mainRepos: projectSet(repos),
     ...(seed ? { initialBaseRef: seed.baseRef } : {}),
   })
   if (!result) return
@@ -127,20 +120,15 @@ export async function createTaskFlow(ctx: CreateTaskContext, seed?: CreateTaskSe
     ctx.notifyError?.(t("tasks.toast.noDaemonWorktree"))
     return
   }
-  // "Open the project": the repo's OWN checkout. `ensureMainTask` is idempotent,
-  // so it both revives a sidebar-hidden project and creates a missing row.
-  // Ahead of the "Creating task…" toast: this is navigation, nothing is created.
+  // "Open the project": a new session in the repo's OWN checkout, no worktree.
   if (result.mode === "open") {
     try {
-      const main = await orch.ensureMainTask(repo)
-      // An archived main session comes back when its project is opened.
-      if (main.archived)
-        await ("archiveTask" in orch ? orch.archiveTask(main.id, false) : orch.setArchived(main.id, false))
+      const session = await orch.openDirectoryTask({ dir: await orch.ensureProject(repo), vendor: result.vendor })
       await ctx.reload?.()
-      ctx.selectTask?.(main.id)
-      await ctx.enterTask?.(main.id)
+      ctx.selectTask?.(session.id)
+      await ctx.enterTask?.(session.id)
     } catch (err) {
-      ctx.logger.error(`${ctx.logPrefix} ensureMainTask failed:`, err)
+      ctx.logger.error(`${ctx.logPrefix} open project failed:`, err)
       ctx.notifyError?.(t("newTask.open.failed", { error: errorMessage(err) }))
     }
     return

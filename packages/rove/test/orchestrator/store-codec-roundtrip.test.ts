@@ -57,6 +57,7 @@ const FULL_TASK: DeepRequired<Omit<Task, "origin" | "repoId">> = {
   branch: "fix/round-trip",
   worktreePath: "/repo/.worktrees/round-trip",
   kind: "dir",
+  fromProjectRow: true,
   scratch: true,
   noProject: true,
   routine: { automationId: "auto-1" },
@@ -212,5 +213,11 @@ describe("tasks.json codec round-trip", () => {
     const row = { ...JSON.parse(JSON.stringify(FULL_TASK)), workspace: { backend: "from-the-future" } }
     const [loaded] = normalizeIndex({ version: 3, tasks: [row] }, "round-trip-test").tasks
     expect(loaded && "workspace" in loaded).toBe(false)
+  })
+
+  it("loads a stored project row as a session in its checkout, flagged for the boot settle", () => {
+    const row = { ...JSON.parse(JSON.stringify(FULL_TASK)), kind: "main", fromProjectRow: undefined }
+    const [loaded] = normalizeIndex({ version: 3, tasks: [row] }, "round-trip-test").tasks
+    expect(loaded).toMatchObject({ kind: "dir", fromProjectRow: true })
   })
 })

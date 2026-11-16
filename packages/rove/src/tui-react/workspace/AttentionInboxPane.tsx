@@ -336,8 +336,7 @@ export function AttentionInboxPane(props: {
             }
             if (row.kind === "recent") {
               const project = sidebarProjectLabel(row.task.repo, repos)
-              // A `main` task IS its repo: basename, matching the sidebar.
-              const title = row.task.kind === "main" ? project : row.task.title
+              const title = row.task.title
               const tab = taskTabLabel(row.task.id, row.tabId, row.task, props.kv)
               // Same identity grammar as an episode row: `project › tab`
               // once we know which tab you were last on, task title below.

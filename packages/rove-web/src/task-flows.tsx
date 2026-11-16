@@ -6,7 +6,7 @@
  */
 
 import { isDiskFull } from "@sma1lboy/rove/src/lib/error-message.ts"
-import type { TabRow, TaskRow } from "rove-bridge/protocol"
+import type { TaskRow } from "rove-bridge/protocol"
 import { BridgeRequestError } from "./bridge.ts"
 import { ConfirmDialog, errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
@@ -247,60 +247,6 @@ export function deleteTaskDialog(model: AppModel, task: Pick<TaskRow, "id" | "ti
 }
 
 /**
- * A project's main checkout is never deleted (`task.delete` refuses it): its Delete ends the conversation —
- * every tab closes, so the sessions die — and the project stays listed, nothing on disk touched. With
- * children the dialog also offers to delete them first, each subtree as a normal delete (force retry included).
- */
-export function endMainConversationDialog(model: AppModel, task: TaskRow) {
-  const children = childrenOf(model, task.id)
-  const hasChildren = children.length > 0
-  const title = task.label
-  const endConversation = async () => {
-    const { tabs } = await model.client.request<{ tabs: readonly TabRow[] }>("task.tabs", { taskId: task.id })
-    for (const tab of tabs) await model.closeTab(task.id, tab.id)
-  }
-  // The child whose delete was refused, so the force confirm names it rather than the project.
-  let blocked: string | undefined
-  const endWithChildren = async (force: boolean) => {
-    for (const child of children) {
-      try {
-        await model.act("task.delete", {
-          taskId: child.id,
-          cascade: true,
-          ...(force ? { force: true } : {}),
-        })
-      } catch (err) {
-        blocked = child.title
-        throw err
-      }
-    }
-    await endConversation()
-  }
-  return (
-    <ConfirmDialog
-      title={
-        hasChildren
-          ? tc("tasks", "confirm.childrenTitle", { title, count: String(children.length) })
-          : tc("tasks", "confirm.deleteTitleDir", { title })
-      }
-      body={tc("tasks", hasChildren ? "confirm.childrenBodyMain" : "confirm.deleteBodyMain")}
-      confirmLabel={tc("tasks", hasChildren ? "confirm.childrenKeepMain" : "confirm.deleteConfirm")}
-      onConfirm={endConversation}
-      {...(hasChildren
-        ? { secondary: { label: tc("tasks", "confirm.childrenCascadeMain"), onConfirm: () => endWithChildren(false) } }
-        : {})}
-      escalate={{
-        when: (err) => err instanceof BridgeRequestError && err.code === "DIRTY_WORKTREE",
-        label: tc("tasks", "confirm.forceDeleteConfirm"),
-        title: tc("tasks", "confirm.forceDeleteTitle", { title }),
-        body: (err) => `${tc("worktrees", "delete.forceBody", { branch: blocked ?? title })}\n\n${errorText(err)}`,
-        run: () => endWithChildren(true),
-      }}
-    />
-  )
-}
-
-/**
  * Row menu Archive / Unarchive (`archive-task-action.ts`): hide or restore the task and its children.
  * No confirm, since nothing stops; only the daemon's TASK_BUSY refusal (an engine still working or
  * waiting on you) asks once, and "Archive anyway" retries with force.
@@ -330,7 +276,7 @@ export async function archiveFlow(model: AppModel, task: Pick<TaskRow, "id" | "l
   }
 }
 
-/** The project row's Delete: the repo and its tasks stay on disk, only the list entry goes. */
+/** The project header's Remove project: the repo and its tasks stay on disk, only the list entry goes. */
 export function forgetProjectDialog(model: AppModel, repo: string, title: string) {
   return (
     <ConfirmDialog

@@ -12,7 +12,7 @@ const PARENT = { ...TASK, id: "p" } as Task
 const CHILD = { ...TASK, id: "c", parentTaskId: "p" } as Task
 const GRANDCHILD = { ...TASK, id: "g", parentTaskId: "c" } as Task
 const OTHER = { ...TASK, id: "o" } as Task
-const MAIN = { ...TASK, id: "m", kind: "main" } as Task
+const MAIN = { ...TASK, id: "m", kind: "dir" } as Task
 const TASKS = [PARENT, CHILD, GRANDCHILD, OTHER, MAIN]
 
 function archiveCtx(states: Record<string, string> = {}) {
@@ -92,7 +92,7 @@ describe("task.archive", () => {
     expect(restore.calls).toHaveLength(3)
   })
 
-  it("archives a project's main session like any other and refuses an unknown task", async () => {
+  it("archives a project checkout session like any other and refuses an unknown task", async () => {
     const main = archiveCtx()
     expect(await dispatch("task.archive", { taskId: "m", archived: true }, main.ctx)).toEqual({ archived: ["m"] })
     const { ctx, calls } = archiveCtx()

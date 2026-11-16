@@ -74,7 +74,6 @@ function task(id: string, over: Partial<Task> = {}): Task {
  * Neighbouring stops always disagree, so walking the whole cycle proves each
  * press advanced exactly one step.
  */
-const MAIN = task("m", { kind: "main", branch: "", worktreePath: "/repos/rove" })
 const OLDER = task("aaa", { title: "Zebra", updatedAt: "2026-08-01T00:00:00.000Z" })
 const NEWER = task("zzz", { title: "Apple", updatedAt: "2026-08-20T00:00:00.000Z" })
 
@@ -117,7 +116,7 @@ function SortHost() {
   const kv = useKV()
   const host = useSidebarHostState({
     kv,
-    tasks: [MAIN, OLDER, NEWER],
+    tasks: [OLDER, NEWER],
     focusSidebar: () => {},
     notify: (message) => notices.push(message),
   })
@@ -146,7 +145,7 @@ function SortHost() {
   })
   return (
     <SidebarTree
-      tasks={[MAIN, OLDER, NEWER]}
+      tasks={[OLDER, NEWER]}
       selectedId={OLDER.id}
       onSelect={() => {}}
       focused={focus.focused === "sidebar"}

@@ -27,8 +27,7 @@ export type TreeRowShared = {
   /** The unread-lamp digest keys on THIS, not `activeRowId`: that id needs
    *  the live tab map, which is cold right after a restart. */
   readonly selectedTaskId: string | null
-  /** Row wearing the move chip. Null outside move mode, and while a `main`
-   *  row drags its project (the header wears it then). */
+  /** Row wearing the move chip. Null outside move mode. */
   readonly movingRowId?: string | null
   /** Keyed by FLAT INDEX so one scroll-follow lookup covers every row. */
   readonly rowEls: Map<number, BoxRenderable>

@@ -1,12 +1,7 @@
 import { errorMessage } from "../lib/error-message.ts"
 import type { Task, TaskId } from "../types/task.ts"
 import { canonPath } from "./core-helpers.ts"
-import {
-  CannotDeleteMainTaskError,
-  type DirtyFinding,
-  DirtyWorktreeError,
-  WorktreeRemoveFailedError,
-} from "./errors.ts"
+import { type DirtyFinding, DirtyWorktreeError, WorktreeRemoveFailedError } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
 import { gitRepoOf, subtreeIds, taskRepos, taskWorktreePaths } from "./task-tree.ts"
 import {
@@ -74,7 +69,6 @@ export class TaskDeletionCoordinator {
   async prepare(id: TaskId | string, opts?: TaskDeletionOpts): Promise<boolean> {
     const task = this.store.get(id)
     if (!task) return false
-    if (task.kind === "main") throw new CannotDeleteMainTaskError()
     if (isLeaving(task)) return true
     // Gate + queue per directory, one at a time: two rows deleted together would
     // each see the other as a survivor, skip the dirty gate, and the last one
@@ -93,7 +87,7 @@ export class TaskDeletionCoordinator {
     const force = opts?.force === true
     const doomed = this.targets(task.id, opts)
       .map((targetId) => this.store.get(targetId))
-      .filter((t): t is Task => t !== undefined && t.kind !== "main" && !isLeaving(t))
+      .filter((t): t is Task => t !== undefined && !isLeaving(t))
     const leaving = new Set(doomed.map((t) => String(t.id)))
     // Rows already on their way out don't keep a directory alive.
     const survivors = this.store.list().filter((t) => !leaving.has(String(t.id)) && !isLeaving(t))

@@ -135,8 +135,8 @@ needs numbers, not when you want to know what a task is doing.
 
 <!-- generated:begin drive -->
 ```text
-send               --task-id --prompt|--prompt-file --tab --replace --command --respawn
-                   --plain --allow-empty --expect-report --if-runnable --queue
+send               --task-id --repo --prompt|--prompt-file --tab --replace --command
+                   --respawn --plain --allow-empty --expect-report --if-runnable --queue
 dispatch           --task-id(REQ) --prompt|--prompt-file(REQ) --tab
 interrupt          --task-id --group --all --tab
 resume-quota       --task-id --all

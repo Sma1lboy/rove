@@ -32,8 +32,8 @@ export {
 export type { RemoteAuthConfig, RemoteRepoConfig } from "./remote-repos.ts"
 
 /**
- * Resolve `absPath` to its git toplevel. A "main" task's worktreePath must be
- * the repo root: FileTree's `git ls-files --full-name` emits toplevel-relative
+ * Resolve `absPath` to its git toplevel. A project checkout session's
+ * worktreePath must be the repo root: FileTree's `git ls-files --full-name` emits toplevel-relative
  * paths, so a saved subdirectory would render rooted at the monorepo root.
  *
  * Returns `absPath` itself when it isn't in a git repo, or already is the
@@ -230,7 +230,7 @@ export interface AddSavedRepoOpts {
  *
  * The input is stored as the repository's PRIMARY checkout
  * ({@link resolveMainRepoRoot}): a subdirectory or linked worktree never mints
- * a second project row. The returned `path` is that normalized form.
+ * a second project. The returned `path` is that normalized form.
  *
  * `resolveMainRepoRoot`, not `resolveRepoRoot`, to match `rove api add --repo`:
  * `note.file` routing compares `t.repo === author.repo` as exact strings, and
@@ -264,12 +264,11 @@ export function addSavedRepo(absPath: string, opts: AddSavedRepoOpts = {}): AddR
 }
 
 /**
- * Backfill `savedRepos` from existing project rows, so sidebar projects and
- * new-task picker repos stay the same set (a row missing from `savedRepos` is
- * unpickable and, once hidden, unrecoverable).
+ * Backfill `savedRepos` from rows loaded from a stored `main` row, so sidebar
+ * projects and new-task picker repos stay the same set (a repo missing from
+ * `savedRepos` is unpickable).
  *
- * `mainRepos` are the caller's `kind:"main"` task repos (the daemon owns the
- * index). Gate failures are skipped, not healed — a leaked fixture row must
+ * `mainRepos` are those rows' repos (the daemon owns the index). Gate failures are skipped, not healed — a leaked fixture row must
  * not become MORE permanent. Returns the paths actually added.
  */
 export function backfillSavedReposFromProjects(mainRepos: readonly string[]): readonly string[] {

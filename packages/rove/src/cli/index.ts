@@ -60,24 +60,7 @@ async function runAddSubcommand(rest: readonly string[]): Promise<void> {
   } else {
     console.log(`already saved: ${result.path}`)
   }
-  // The sidebar's PROJECTS row IS the repo's `kind:"main"` task (idempotent).
-  await ensureProjectMainTask(result.path)
   await adoptAllWorktrees(result.path)
-}
-
-/** Via a running daemon so a live TUI updates, else locally. Best-effort:
- *  must not block the add. */
-async function ensureProjectMainTask(repo: string): Promise<void> {
-  try {
-    await (await bridge()).withDaemonOrLocal({
-      daemon: (client) => client.request("task.ensureMain", { repo }),
-      local: (orch) => orch.ensureMainTask(repo),
-    })
-  } catch (err) {
-    console.error(
-      `(skipped project main-task setup: ${errorMessage(err)}). Run ${CLI_NAME} doctor, then retry ${CLI_NAME} add.`,
-    )
-  }
 }
 
 const PURGE_FLAG = "--purge-credentials"
@@ -147,8 +130,7 @@ async function runRemoveSubcommand(rest: readonly string[]): Promise<void> {
   // project's `remoteRepos` entry, and the ref only lives there.
   const auth = getRemoteRepoConfig(target)?.auth
   const keychainRef = auth?.kind === "password" ? auth.keychainRef : null
-  // forgetProject also drops the main task (in the daemon task index, not
-  // state.json); removeSavedRepo alone would orphan the sidebar row.
+  // Through the daemon when one runs, so a live client sees the project go.
   await (await bridge()).withDaemonOrLocal({
     daemon: (client) => client.request("project.forget", { repo: target }),
     local: (orch) => orch.forgetProject(target),

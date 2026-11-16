@@ -54,8 +54,6 @@ export type WorkspaceTaskActionDeps = {
   activateTask: (id: string) => Promise<void>
   /** Reclaim a deleted task's terminal-tab snapshot. */
   forgetTaskTabs: (taskId: string) => void
-  /** Close every tab of a task whose row stays (a project main's ended conversation). */
-  closeTaskTabs?: (taskId: string) => void
   /** New-task dialog with a first message: create the task and run its engine on it. */
   startWithPrompt?: CreateTaskContext["startWithPrompt"]
 }
@@ -65,8 +63,8 @@ export type WorkspaceTaskActions = {
   /** The new-task dialog seeded with a task's repo and branch as the base. */
   createTaskFromBranch: (id: string) => Promise<void>
   deleteTask: (id: string) => Promise<void>
-  /** Project-header menu "Remove project": un-save the repo; the main row's own delete ends its conversation instead. */
-  forgetProject: (id: string) => Promise<void>
+  /** Project-header menu "Remove project": un-save the repo. */
+  forgetProject: (repo: string) => Promise<void>
   renameTask: (id: string) => Promise<void>
   renameBranch: (id: string) => Promise<void>
   cycleVendor: (id: string) => Promise<void>
@@ -76,8 +74,8 @@ export type WorkspaceTaskActions = {
   setVendor: (id: string, vendor: VendorId) => Promise<void>
   togglePin: (id: string) => Promise<void>
   moveTask: (id: string, delta: -1 | 1) => Promise<void>
-  /** Project-row menu "Move to top", on the project's main. */
-  moveTaskToTop: (id: string) => Promise<void>
+  /** Project-header menu: the whole project beside another one. */
+  moveProject: (repo: string, target: string, side: "before" | "after") => Promise<void>
   /** Tree-menu "Set status" — a picker over the six board statuses. */
   setStatus: (id: string) => Promise<void>
   /** Tree-menu "Move to project…": a picker over the other saved projects; regroups only. */
@@ -135,7 +133,6 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
         moveSelection(taskId, nextTask)
       }
     })(),
-    onConversationEnded: (taskId) => deps.closeTaskTabs?.(taskId),
   }
 
   async function togglePin(id: string): Promise<void> {
@@ -152,8 +149,8 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     })
   }
 
-  async function moveTaskToTop(id: string): Promise<void> {
-    await orchestrator.moveTaskToTop(id).catch((err) => {
+  async function moveProject(repo: string, target: string, side: "before" | "after"): Promise<void> {
+    await orchestrator.moveProject(repo, target, side).catch((err) => {
       notifyError(t("tasks.toast.moveFailed", { error: userFacingErrorMessage(err) }))
     })
   }
@@ -249,7 +246,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
       if (task?.branch) await createTaskFlow(taskActions, { repo: task.repo, baseRef: task.branch })
     },
     deleteTask: (id) => deleteTaskFlow(taskActions, id),
-    forgetProject: (id) => forgetProjectFlow(taskActions, id),
+    forgetProject: (repo) => forgetProjectFlow(taskActions, repo),
     renameTask: (id) => renameTaskFlow(taskActions, id),
     renameBranch,
     cycleVendor: (id) => cycleVendorFlow(taskActions, id),
@@ -260,7 +257,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     },
     togglePin,
     moveTask,
-    moveTaskToTop,
+    moveProject,
     setStatus: (id) => setStatusFlow(taskActions, id),
     moveToProject: (id) => moveToProjectFlow(taskActions, id),
     copyTaskField: (id, field, tabId) => {

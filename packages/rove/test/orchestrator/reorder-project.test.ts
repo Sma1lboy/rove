@@ -1,4 +1,4 @@
-/** `moveProject`: a project, main checkout or not, moves as one block of the store order the rail reads. */
+/** `moveProject`: a project moves as one block of the store order the rail reads. */
 
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
@@ -30,9 +30,9 @@ describe("moveProject", () => {
   // The rail places a project at its first task in the store.
   const projectOrder = (tasks = orch.listTasks()) => [...new Set(tasks.filter((t) => !t.scratch).map((t) => t.repo))]
 
-  it("moves a project with no main checkout as one block, its own order kept", async () => {
-    await row("/a", "a", { kind: "main" })
-    await row("/b", "b", { kind: "main" })
+  it("moves a project as one block, its own order kept", async () => {
+    await row("/a", "a", { kind: "dir" })
+    await row("/b", "b", { kind: "dir" })
     await row("/dir", "d1", { kind: "dir" })
     await row("/a", "a-task")
     await row("/dir", "d2", { kind: "dir" })

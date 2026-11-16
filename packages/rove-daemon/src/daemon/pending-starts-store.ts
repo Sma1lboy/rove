@@ -16,7 +16,7 @@ import { OWNER_ONLY_FILE_MODE } from "./owner-only.ts"
 
 /**
  * What to create when the start is due. `add`: the verb's flags as the caller would have passed them, the
- * prompt excepted. `dir`: a session in a directory (a project's own checkout), its project row first when
+ * prompt excepted. `dir`: a session in a directory (a project's own checkout), saving the project first when
  * `project` is set.
  */
 export type PendingStartCreate =

@@ -3,10 +3,7 @@
  * via `issue-update --status`, never by editing repo files. Placement is WHERE it
  * runs (jump-or-stay is the separate `IssueChatStart.jump` toggle):
  *   - `worktree`        — a new worktree task with its own workspace.
- *   - `projectWorktree` — same task, but also a chattab in the PROJECT
- *                         workspace (`EngineTab.ptyTask` viewport tab).
- *   - `project`         — no worktree: a chattab on the main-task checkout
- *                         (`task.ensureMain`).
+ *   - `project`         — no worktree: a session of its own in the project's checkout.
  */
 
 import type { Issue } from "@sma1lboy/rove-daemon/daemon/issues-store"
@@ -17,7 +14,7 @@ import {
 import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { attachmentLabel } from "../tui/lib/attachments"
 
-export type IssueChatPlacement = "worktree" | "projectWorktree" | "project"
+export type IssueChatPlacement = "worktree" | "project"
 
 /** Capitalized product name ("Rove") — mirror of rove-harness's `cli-name.ts`. */
 function displayProductName(): string {
@@ -51,7 +48,7 @@ export function withImagePlaceholders(body: string, paths: readonly string[]): s
 }
 
 /** Drawer order: the isolated task workspace (the product unit) first. */
-export const ISSUE_CHAT_PLACEMENTS: readonly IssueChatPlacement[] = ["worktree", "projectWorktree", "project"]
+export const ISSUE_CHAT_PLACEMENTS: readonly IssueChatPlacement[] = ["worktree", "project"]
 
 /** Same `#id title` shape the web uses. */
 export function issueChatTaskTitle(issue: Issue): string {

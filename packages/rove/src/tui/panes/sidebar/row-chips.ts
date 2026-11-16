@@ -37,7 +37,7 @@ export function prChip(task: Task, glyphs: GlyphSet = DEFAULT_GLYPHS): { glyph: 
 
 /**
  * What the sidebar draws: {@link prChip} over the task's own PRs plus the polled PRs its session
- * attached (`rove api pr-attach`), so a main task with no branch of its own still shows one.
+ * attached (`rove api pr-attach`), so a `dir` task with no branch of its own still shows one.
  */
 export function sidebarPrChip(
   task: Task,

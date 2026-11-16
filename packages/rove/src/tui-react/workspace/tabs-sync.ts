@@ -78,16 +78,6 @@ export function tabsLoaded(): boolean {
   return loaded
 }
 
-/**
- * True while this TUI is wired to the daemon's tab store (loading or loaded). The daemon holds a record for
- * every task that has tabs, so against it "no record" means no tabs — or, until `tabs.list` lands, nothing
- * known yet, which the sidebar reads the same way so a row never shows and then vanishes at startup.
- * False (render tests, a TUI without a daemon, a `tabs.list` that failed): no record may only mean "never opened".
- */
-export function tabsDaemonBacked(): boolean {
-  return transport !== null && !listFailed
-}
-
 /** The shared tabs this TUI shows for `taskId`: confirmed state with its in-flight ops folded on top. */
 function sharedView(task: TaskTabs): SharedTabs | null {
   let state = task.confirmed

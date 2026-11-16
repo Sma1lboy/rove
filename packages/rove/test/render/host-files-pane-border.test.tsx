@@ -39,7 +39,6 @@ function mounted(worktree: string, initial: "workspace" | "files") {
         prBaseRef={undefined}
         focused={false}
         actions={{ onOpenFile: NOOP, onOpenDiff: NOOP, onMention: NOOP, onZenToggle: NOOP, onCreatePR: NOOP }}
-        taskKind="task"
       />
     </FocusProvider>
   )

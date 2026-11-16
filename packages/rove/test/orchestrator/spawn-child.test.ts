@@ -41,15 +41,15 @@ function commit(cwd: string, file: string): string {
   return git(cwd, "rev-parse", "HEAD")
 }
 
-/** The project's main row, without the project-eligibility gate a tmp repo fails. */
-function mainRow(): Promise<Task> {
+/** A session in the repo's own checkout. */
+function checkoutRow(): Promise<Task> {
   return store.create({
     repo,
-    title: "main",
+    title: "checkout",
     branch: "",
     worktreePath: repo,
     status: "backlog",
-    kind: "main",
+    kind: "dir",
     vendor: "claude",
   })
 }
@@ -74,8 +74,8 @@ afterEach(() => {
 })
 
 describe("worktree children", () => {
-  test("a main checkout's child branches from its HEAD, with its own directory", async () => {
-    const parent = await mainRow()
+  test("a checkout session's child branches from its HEAD, with its own directory", async () => {
+    const parent = await checkoutRow()
     const tip = commit(repo, "after-init.txt")
 
     const { task, parentDirty } = await orch.spawnChildTask({ parentTaskId: parent.id, worktree: true })
@@ -100,7 +100,7 @@ describe("worktree children", () => {
   })
 
   test("reports uncommitted work in the parent without carrying it", async () => {
-    const parent = await mainRow()
+    const parent = await checkoutRow()
     fs.writeFileSync(path.join(repo, "wip.txt"), "uncommitted\n")
 
     const { task, parentDirty } = await orch.spawnChildTask({ parentTaskId: parent.id, worktree: true })
@@ -146,7 +146,7 @@ describe("a lazy worktree child (what `add` creates)", () => {
   })
 
   test("carries add's engine fields, group and branch onto the row", async () => {
-    const parent = await mainRow()
+    const parent = await checkoutRow()
 
     const { task } = await orch.spawnChildTask({
       parentTaskId: parent.id,
@@ -185,7 +185,7 @@ describe("createTask under a parent", () => {
 
 describe("a worktree child whose checkout cannot be recorded", () => {
   test("leaves no row, directory or branch behind", async () => {
-    const parent = await mainRow()
+    const parent = await checkoutRow()
     const branchesBefore = git(repo, "branch", "--list")
     const update = store.update.bind(store)
     vi.spyOn(store, "update").mockImplementation((id, patch) => {
@@ -202,8 +202,8 @@ describe("a worktree child whose checkout cannot be recorded", () => {
 })
 
 describe("shared children", () => {
-  test("a child of main shares the checkout as a dir row that is not the project row", async () => {
-    const parent = await mainRow()
+  test("a child of a checkout session shares the checkout as a dir row", async () => {
+    const parent = await checkoutRow()
 
     const { task } = await orch.spawnChildTask({ parentTaskId: parent.id, worktree: false })
 
@@ -226,7 +226,7 @@ describe("shared children", () => {
   })
 
   test("a conversation started from a child is its sibling, sharing the directory's owner", async () => {
-    const owner = await mainRow()
+    const owner = await checkoutRow()
     const { task: child } = await orch.spawnChildTask({ parentTaskId: owner.id, worktree: false })
 
     const { task: sibling } = await orch.spawnChildTask({ parentTaskId: child.id, worktree: false })
@@ -236,7 +236,7 @@ describe("shared children", () => {
   })
 
   test("a child with its own worktree hands its directory, not its place in the tree, to what it starts", async () => {
-    const root = await mainRow()
+    const root = await checkoutRow()
     const { task: isolated } = await orch.spawnChildTask({ parentTaskId: root.id, worktree: true })
 
     const { task: sibling } = await orch.spawnChildTask({ parentTaskId: isolated.id, worktree: false })
@@ -244,17 +244,6 @@ describe("shared children", () => {
     expect(sibling.parentTaskId).toBe(root.id)
     expect(sibling.sharesWorkspaceOf).toBe(isolated.id)
     expect(sibling.worktreePath).toBe(orch.getTask(isolated.id)?.worktreePath)
-  })
-
-  test("a shared child on a repo root is never promoted to, or adopted as, the project row", async () => {
-    const parent = await orch.openDirectoryTask({ dir: repo })
-    await orch.spawnChildTask({ parentTaskId: parent.id, worktree: false })
-
-    await orch.init()
-
-    const rows = store.list()
-    expect(rows.filter((t) => t.kind === "main")).toHaveLength(1)
-    expect(rows.find((t) => t.sharesWorkspaceOf)?.kind).toBe("dir")
   })
 })
 

@@ -67,7 +67,7 @@ function sidebarProps(over: Partial<HostSidebarProps> = {}): HostSidebarProps {
     onNewTaskFromBranchRequest: NOOP,
     moveMode: false,
     onMoveRequest: NOOP,
-    onMoveToTopRequest: NOOP,
+    onMoveProjectRequest: NOOP,
     onMoveModeExit: NOOP,
     onLocalMergeRequest: NOOP,
     onSearchActiveChange: NOOP,
@@ -180,7 +180,6 @@ describe("HostFilesPane", () => {
             onZenToggle: NOOP,
             onCreatePR: NOOP,
           }}
-          taskKind="task"
         />,
         24,
       ),

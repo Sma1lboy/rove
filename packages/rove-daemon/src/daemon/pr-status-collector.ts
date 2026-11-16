@@ -100,7 +100,7 @@ export type PrViewRunner = (worktreePath: string, branch: string, pinned?: numbe
 /** Finds one PR by its URL, from any cwd. Never `empty`: an unknown PR is an `error`. */
 export type PrUrlRunner = (url: string) => Promise<PrViewResult>
 
-/** A real branch on a LOCAL worktree; `main` rows and remote projects are skipped. */
+/** A real branch on a LOCAL worktree; branchless `dir` rows and remote projects are skipped. */
 export function isPrPollable(task: Task): boolean {
   return isRepoPollable(task, task)
 }

@@ -1,6 +1,6 @@
 /** What the Sessions page lists: one project's sessions (or every project's), live or archived, newest first. */
 
-import type { TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
+import type { TaskRow, TasksPayload } from "rove-bridge/protocol"
 import { repoKey } from "./pages-kit.ts"
 import { isNoProject } from "./rail.ts"
 
@@ -10,12 +10,10 @@ export type SessionsTab = "active" | "archived"
 const stamp = (task: TaskRow): number => Date.parse(task.updatedAt ?? task.createdAt ?? "") || 0
 
 /**
- * `repo` null = every project, sessions in no folder included. A project's main session with no tab open is not a
- * session yet (the rail hides it the same way); one whose tabs are not read yet stays.
+ * `repo` null = every project, sessions in no folder included.
  */
 export function sessionRows(
   payload: TasksPayload | null | undefined,
-  tabs: Readonly<Record<string, readonly TabRow[]>>,
   repo: string | null,
   tab: SessionsTab,
 ): TaskRow[] {
@@ -25,7 +23,6 @@ export function sessionRows(
       // A routine's runs belong to the Routines page, as in the rail.
       .filter((task) => !task.routine)
       .filter((task) => repo === null || (!isNoProject(task) && repoKey(task.repo) === repoKey(repo)))
-      .filter((task) => tab === "archived" || task.kind !== "main" || tabs[task.id]?.length !== 0)
       .sort((a, b) => stamp(b) - stamp(a))
   )
 }

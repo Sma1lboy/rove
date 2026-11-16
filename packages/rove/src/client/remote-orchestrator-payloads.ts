@@ -330,7 +330,8 @@ export function deserializeTask(s: SerializedTask): Task {
     repo: s.repo,
     branch: s.branch,
     worktreePath: s.worktreePath,
-    kind: s.kind,
+    // A daemon one version behind (another machine) still sends its project rows as `main`.
+    kind: (s.kind as string) === "main" ? "dir" : s.kind,
     ...(s.scratch ? { scratch: true } : {}),
     ...(s.noProject ? { noProject: true } : {}),
     ...(s.routine ? { routine: s.routine } : {}),

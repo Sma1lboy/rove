@@ -18,13 +18,7 @@ import {
   remoteRowCaption,
 } from "../../src/tui/panes/sidebar/machine-layer.ts"
 import { buildSidebarGroups } from "../../src/tui/panes/sidebar/project-groups.ts"
-import {
-  type TreeRow,
-  buildTreeRows,
-  filterTreeRows,
-  mainTaskIdOfProject,
-  projectKeysOf,
-} from "../../src/tui/panes/sidebar/tree-core.ts"
+import { type TreeRow, buildTreeRows, filterTreeRows, projectKeysOf } from "../../src/tui/panes/sidebar/tree-core.ts"
 import { type Task, toTaskId } from "../../src/types/task.ts"
 
 function task(over: Omit<Partial<Task>, "id"> & { id: string; repo: string }): Task {
@@ -32,7 +26,7 @@ function task(over: Omit<Partial<Task>, "id"> & { id: string; repo: string }): T
     title: "t",
     branch: "",
     worktreePath: over.repo,
-    kind: "main",
+    kind: "dir",
     status: "active",
     pinned: false,
     createdAt: "2026-09-09T00:00:00Z",
@@ -50,9 +44,9 @@ const MAC_ONLINE: MachineLayerEntry = { alias: "mac", hostLabel: "mac-mini", sta
 /** rove checked out here AND on the mac, a task on each. */
 function mergedTasks(macOrigin: Task["origin"] = MAC): Task[] {
   return [
-    task({ id: "local-main", repo: "/i/rove", repoId: ROVE_ID }),
+    task({ id: "local-checkout", repo: "/i/rove", repoId: ROVE_ID }),
     task({ id: "local-task", kind: "task", repo: "/i/rove", branch: "feat/here", repoId: ROVE_ID }),
-    task({ id: "mac-main", repo: "/Users/n/rove", repoId: ROVE_ID, origin: macOrigin }),
+    task({ id: "mac-checkout", repo: "/Users/n/rove", repoId: ROVE_ID, origin: macOrigin }),
     task({
       id: "mac-task",
       kind: "task",
@@ -86,9 +80,9 @@ describe("applyMachineLayer", () => {
     // No machine header rows, no extra indent; only the mac rows carry the mark.
     expect(rows.every((row) => row.kind === "project" || row.depth === 1)).toBe(true)
     expect(worktrees(rows)).toEqual([
-      { id: "local-main", remote: undefined },
-      { id: "mac-main", remote: { host: "mac-mini", state: "online", version: "0.9.259" } },
+      { id: "local-checkout", remote: undefined },
       { id: "local-task", remote: undefined },
+      { id: "mac-checkout", remote: { host: "mac-mini", state: "online", version: "0.9.259" } },
       { id: "mac-task", remote: { host: "mac-mini", state: "online", version: "0.9.259" } },
     ])
   })
@@ -100,7 +94,7 @@ describe("applyMachineLayer", () => {
     ])
     // A laptop with a closed lid has not stopped having these tasks.
     expect(worktrees(rows).filter((row) => row.remote)).toEqual([
-      { id: "mac-main", remote: { host: "mac-mini", state: "offline" } },
+      { id: "mac-checkout", remote: { host: "mac-mini", state: "offline" } },
       { id: "mac-task", remote: { host: "mac-mini", state: "offline" } },
     ])
   })
@@ -158,19 +152,17 @@ describe("merged projects", () => {
     const tasks = [...mergedTasks().slice(2), ...mergedTasks().slice(0, 2)]
     const [group] = buildSidebarGroups({ tasks, tabsByTask: NO_TABS })
     expect(group).toMatchObject({ repo: "/i/rove", machineId: "local", key: sidebarProjectKey("/i/rove") })
-    // Forget / reorder act on THIS machine's main, never the mac's.
-    expect(mainTaskIdOfProject(tasks, group?.key ?? "")).toBe("local-main")
     expect(projectKeysOf(tasks)).toEqual([sidebarProjectKey("/i/rove")])
   })
 
   it("project actions pick the first machine's checkout when the repo is not here", () => {
     const tasks = [
-      task({ id: "mac-main", repo: "/Users/n/rove", repoId: ROVE_ID, origin: MAC }),
-      task({ id: "vps-main", repo: "/srv/rove", repoId: ROVE_ID, origin: { machineId: "vps", hostLabel: "vps" } }),
+      task({ id: "mac-checkout", repo: "/Users/n/rove", repoId: ROVE_ID, origin: MAC }),
+      task({ id: "vps-checkout", repo: "/srv/rove", repoId: ROVE_ID, origin: { machineId: "vps", hostLabel: "vps" } }),
     ]
     const [group] = buildSidebarGroups({ tasks, tabsByTask: NO_TABS })
     expect(group).toMatchObject({ repo: "/Users/n/rove", machineId: "mac" })
-    expect(group?.tasks.map((t) => String(t.id))).toEqual(["mac-main", "vps-main"])
+    expect(group?.tasks.map((t) => String(t.id))).toEqual(["mac-checkout", "vps-checkout"])
   })
 
   it("keeps per-machine projects apart when no repoId is known", () => {

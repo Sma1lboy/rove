@@ -87,7 +87,7 @@ export interface TerminalTabsProps {
   repo?: string
   /** Every repo of a multi-repo task (`taskRepos`), exposed to its engine and shell tabs. */
   repos?: readonly TaskRepoView[]
-  taskKind?: "main" | "task" | "dir"
+  taskKind?: "task" | "dir"
   /** Scratch task: tab-1 is a BARE SHELL unless it was opened onto an engine
    *  (`engineScratchTasks`), and the last tab exiting deletes the task via
    *  `onScratchExit` instead of recycling into an engine tab. */

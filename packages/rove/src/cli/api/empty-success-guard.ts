@@ -15,8 +15,8 @@ import { ApiError, type VerbContext } from "./types.ts"
  * worker from reporting at all:
  *   - only a VERIFIED self session (the same identity `send` already trusts
  *     for dispatcher routing) — an unverified env names a stranger's branch;
- *   - only a MANAGED task: `main`/`dir` tasks have no Rove-created branch, and
- *     an agent on a main checkout legitimately reads `ahead: 0`;
+ *   - only a MANAGED task: `dir` tasks have no Rove-created branch, and
+ *     an agent on a project's own checkout legitimately reads `ahead: 0`;
  *   - only a DEFINITE `ahead === 0`. An unresolvable base reads null — an
  *     honest unknown, never grounds to refuse.
  *
