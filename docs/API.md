@@ -2145,8 +2145,8 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   project again restores it. The sidebar and the rail do not list
   archived tasks. To bring one back from the interface, open the command
   palette (`ctrl+a` `/`), type its title and pick it; the web client also
-  lists them per project on its Sessions page (a project header's menu,
-  View all sessions). A project whose other
+  lists them per project on its Sessions page (the rail's Sessions row, or a project header's
+  View all sessions for that project alone). A project whose other
   tasks are all archived is hidden like any idle project.
 
 ## worktree

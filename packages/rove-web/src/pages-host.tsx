@@ -9,7 +9,7 @@ import { CompareView } from "./compare-view.tsx"
 import { t } from "./i18n/index.ts"
 import { IssuesView } from "./issues-view.tsx"
 import { KanbanView } from "./kanban-view.tsx"
-import { openPage } from "./layout.ts"
+import { openPage, openSessions } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { ModsView } from "./mods-view.tsx"
 import { startNewTask } from "./new-session-view.tsx"
@@ -57,6 +57,10 @@ export function PageNav({ model }: { model: AppModel }) {
           {nav[item.label]}
         </RailNavRow>
       ))}
+      {/* Every project's sessions, the archived ones included: the rail lists none of those. */}
+      <RailNavRow active={open === "sessions"} onSelect={() => openSessions("")}>
+        {t("sessions.title")}
+      </RailNavRow>
     </div>
   )
 }
