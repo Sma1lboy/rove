@@ -8,7 +8,7 @@ import { useEngineIcons } from "./engine-icons.ts"
 import { markHintUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
-import { enterWorkspace } from "./layout.ts"
+import { enterWorkspace, openSessions } from "./layout.ts"
 import { CloudMark, rowCloud, useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { moveMode, reorderingMain } from "./move-mode.ts"
@@ -52,6 +52,7 @@ import {
   CHILD_INDENT,
   FOLD_TOGGLE,
   PROJECT_ADD,
+  PROJECT_SESSIONS,
   PROJECT_TOGGLE,
   RAIL,
   RAIL_CURSOR,
@@ -375,6 +376,16 @@ function RailRow(props: {
           {row.kind === "state" && <span className="font-normal text-subtle">{row.count}</span>}
           <Chevron right={props.collapsed} className={projectChevron(!!props.collapsed)} />
         </button>
+        {props.onNewTask && row.kind === "project" && (
+          <button
+            type="button"
+            className={PROJECT_SESSIONS}
+            title={t("menu.viewSessions")}
+            onClick={() => openSessions(row.noProject ? "" : row.repo)}
+          >
+            ≡
+          </button>
+        )}
         {props.onNewTask && row.kind === "project" && (
           <button type="button" className={PROJECT_ADD} title={t("rail.newTask")} onClick={props.onNewTask}>
             +
