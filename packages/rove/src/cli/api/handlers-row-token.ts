@@ -1,8 +1,8 @@
 /**
- * `row-token` — put one label on a task row, with a deadline.
+ * `row-token` — put one label on a task row, with a deadline unless `--keep`.
  *
- * The plugin-facing half of `row-tokens.ts`: the label FADES at its TTL
- * rather than outliving its writer. See docs/PLUGIN-AUTHORING.md § Task-row
+ * The CLI half of `row-tokens.ts`: a label FADES at its TTL rather than
+ * outliving its writer, and one written with `--keep` stays. See docs/PLUGIN-AUTHORING.md § Task-row
  * tokens for what stays host-owned.
  */
 
@@ -31,19 +31,21 @@ async function rowToken(ctx: VerbContext): Promise<unknown> {
   const key = args.str("key")
   const tone = args.str("tone")
   const ttl = args.int("ttl")
+  const keep = args.bool("keep") === true
   return simpleRpc(ctx, "task.rowToken", {
     taskId,
     source: sourceOf(),
     ...(key ? { key } : {}),
     ...(clear ? { clear: true } : { text, ...(tone ? { tone } : {}) }),
     ...(ttl !== undefined ? { ttlMs: ttl * 1000 } : {}),
+    ...(keep && !clear ? { keep: true } : {}),
   })
 }
 
 export const ROW_TOKEN_VERB: VerbSpec = {
   name: "row-token",
   group: "drive",
-  summary: `Put one short label on a task's sidebar/board row, with a TTL — the surface a coordination plugin paints its own state on. Every token EXPIRES (default ${DEFAULT_TTL_SECONDS}s, max 1h): a plugin refreshes the label to keep it, and one that dies has its labels fade instead of leaving stale state on screen. A plugin writes into its own slot (\`ROVE_PLUGIN_ID\` + --key, 2 slots per plugin per task) and can say nothing else: the derived group, the activity badge, the PR chip, the title and the branch are host-owned. \`--tone\` names a ROLE, not a colour, so the active theme still decides how it looks. Text is trimmed to ${ROW_TOKEN_MAX_TEXT} characters. Returns { ok, token } (or { ok, cleared } with --clear).`,
+  summary: `Put one short label on a task's sidebar/board row, with a TTL — the surface a coordination plugin paints its own state on. A token EXPIRES (default ${DEFAULT_TTL_SECONDS}s, max 1h): a plugin refreshes the label to keep it, and one that dies has its labels fade instead of leaving stale state on screen. --keep writes one with no deadline that survives a daemon restart, there until replaced, cleared or the task is deleted: for a fact someone set once (an agent told to label its task), not for state a process must be alive to vouch for. A plugin writes into its own slot (\`ROVE_PLUGIN_ID\` + --key, 2 slots per plugin per task) and can say nothing else: the derived group, the activity badge, the PR chip, the title and the branch are host-owned. \`--tone\` names a ROLE, not a colour, so the active theme still decides how it looks. Text is trimmed to ${ROW_TOKEN_MAX_TEXT} characters. Returns { ok, token } (or { ok, cleared } with --clear).`,
   flags: [
     F.taskId(true),
     {
@@ -58,6 +60,12 @@ export const ROW_TOKEN_VERB: VerbSpec = {
       default: String(DEFAULT_TTL_SECONDS),
       placeholder: "SECONDS",
       description: "How long the label survives without a refresh (1…3600, clamped).",
+    },
+    {
+      name: "keep",
+      type: "bool",
+      description:
+        "No deadline: the label is saved and stays until replaced, cleared or the task is deleted. --ttl is ignored.",
     },
     {
       name: "key",

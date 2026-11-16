@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 128 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 129 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -463,6 +463,21 @@ rove api panel-show --view browser --url http://localhost:5173
   panel opens on the page that is looking at that task, without taking focus
   or switching task; every other page remembers the view for later. Open it
   when it helps what the human is doing, not for every file you touch.
+
+### A label on a task's row
+
+Asked to show something on a task's row in the task list ("label this task
+with what it is doing"), write a row token. `--keep` makes it stay, daemon
+restarts included, until you replace or clear it:
+
+```bash
+rove api row-token --task-id <id> --key doing --text "refactoring login" --keep
+rove api row-token --task-id <id> --key doing --clear
+```
+
+24 characters, two `--key` slots per task. Without `--keep` the label fades
+after `--ttl` seconds (default 60): use that for state that is only true while
+you are running.
 
 ## Asking the owner (decision gates)
 

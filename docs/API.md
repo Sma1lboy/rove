@@ -1621,11 +1621,15 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   and returns `{ value }` or `{ cancelled, reason }`. `reason` is
   `cancelled`, `timeout`, or `no-gui`: with no front-end attached to show the
   dialog, it returns at once instead of waiting out the timeout.
-- `row-token --task-id ID (--text LABEL | --clear) [--ttl SECONDS] [--key SLOT]
-  [--tone info|success|warning|error|muted]`: put one short label on a task's
-  sidebar/board row, the surface a plugin paints its own state on. The text is
+- `row-token --task-id ID (--text LABEL | --clear) [--ttl SECONDS | --keep]
+  [--key SLOT] [--tone info|success|warning|error|muted]`: put one short label
+  on a task's row (TUI sidebar, web task list, board), the surface a plugin
+  paints its own state on. The text is
   trimmed to 24 characters and expires after `--ttl` seconds (default 60,
-  clamped to 1-3600), so a plugin refreshes it to keep it. A plugin has two
+  clamped to 1-3600), so a plugin refreshes it to keep it. `--keep` writes it
+  with no deadline instead: saved to `~/.rove/row-tokens.json`, it survives a
+  daemon restart and stays until replaced, cleared or the task is deleted. A
+  writer has two
   slots per task, picked with `--key` (default `default`); writing a key again
   replaces its token. `--tone` names a role the theme colours. `--clear`
   removes the token at `--key`, or every token of yours on the row without
