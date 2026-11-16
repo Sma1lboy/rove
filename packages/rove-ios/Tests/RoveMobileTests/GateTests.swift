@@ -91,4 +91,21 @@ final class GateTests: XCTestCase {
                        "attention.dismiss [\"d-1\", \"T1\"]")
         XCTAssertNil(dismissal(AttentionItem(taskId: "T1", state: "decision_needed", unread: true, at: 1, gateId: "g-1")))
     }
+
+    func testAnInboxRowPeeksOnlyAtATabItCanReachAndTrimsTheTail() {
+        let mine = TaskRow(id: "t", title: "t", group: .waitingOnYou)
+        var away = mine; away.machine = TaskMachine(id: "studio")
+        func item(_ state: String, tab: String? = "tab-1", gate: String? = nil) -> AttentionItem {
+            AttentionItem(taskId: "t", tabId: tab, state: state, unread: true, at: 0, gateId: gate)
+        }
+        XCTAssertEqual(InboxLogic.peekMode(item("turn_complete"), task: mine), .reply)
+        XCTAssertEqual(InboxLogic.peekMode(item("permission_needed"), task: mine), .menu)
+        XCTAssertEqual(InboxLogic.peekMode(item("dead"), task: mine), .readonly)
+        XCTAssertNil(InboxLogic.peekMode(item("decision_needed", gate: "g"), task: mine))
+        XCTAssertNil(InboxLogic.peekMode(item("turn_complete", tab: nil), task: mine))
+        XCTAssertNil(InboxLogic.peekMode(item("turn_complete"), task: away))
+        XCTAssertNil(InboxLogic.peekMode(item("turn_complete"), task: nil))
+        XCTAssertEqual(InboxLogic.tail(["", "a  ", "", "b", "  "]), ["a", "", "b"])
+        XCTAssertEqual(InboxLogic.tail((1...20).map(String.init)).count, InboxLogic.peekLines)
+    }
 }

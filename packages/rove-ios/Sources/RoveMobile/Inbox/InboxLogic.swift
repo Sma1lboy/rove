@@ -11,6 +11,23 @@ struct Visit: Codable, Hashable {
 /// Ordering and wording for the Inbox, after `tui-react/workspace/attention-inbox-core.ts`.
 enum InboxLogic {
     static let recentLimit = 5
+    static let peekLines = 12
+
+    /// How a row's peek answers its tab; nil = no peek. A decision has its own sheet, a routine and another
+    /// machine's task have no tab here to read.
+    static func peekMode(_ item: AttentionItem, task: TaskRow?) -> PeekMode? {
+        guard let task, task.machine == nil, item.tabId != nil, item.gateId == nil,
+              !item.state.hasPrefix("routine_") else { return nil }
+        if item.state == "dead" { return .readonly }
+        return item.state == "permission_needed" ? .menu : .reply
+    }
+
+    /// The tab's last lines as the engine left them: row padding trimmed, blank rows around the text dropped.
+    static func tail(_ rows: [String]) -> [String] {
+        let trimmed = rows.map { $0.replacingOccurrences(of: "\\s+$", with: "", options: .regularExpression) }
+        guard let last = trimmed.lastIndex(where: { !$0.isEmpty }), let first = trimmed.firstIndex(where: { !$0.isEmpty }) else { return [] }
+        return Array(trimmed[max(first, last + 1 - peekLines)...last])
+    }
 
     /// Stopped until a person acts: everything except a plain finished turn.
     static func isBlocking(_ item: AttentionItem) -> Bool { item.state != "turn_complete" }
