@@ -471,3 +471,11 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **No attempt:** same as 11-13/11-14 — every measured per-op count is at its floor, and the known saving (3× `git rev-parse` per `rove api add`) is outside every measured phase. The owner call stands: extend perf-measure with a new scenario (streaming engine tab, many sidebar tasks, split pane) so nightly runs have something to optimize.
 
 **Sandbox:** bun 1.3.14 from npm (first `bun install` fails on rove-desktop's postinstall; a second run passes). Dir symlinks `/tmp/pwshim/chromium_headless_shell-{1243,1228}` → `/opt/pw-browsers/chromium_headless_shell-1243` are all that's needed; the harness asks for 1228.
+
+## 2026-11-16 — notes, no attempt (main b2a4432)
+
+**No regression.** Run 1 exited 1 on a slow cold boot (boot.firstFrame 623.7 → 1045.9, boot.ready 2474 → 4478) plus the 11-12 boot-burst artifact in the idle window (idle.stateNotify 7, stateListener 18, commit.root/workspace 5, sidebar 3, frame 4 — the exact burst shape, here landing late because boot was slow). Run 2 exited 0 with nothing past tolerance (firstFrame 515.2, boot.ready 2153, idle all 0). Counts at floor: switch commit.root/workspace 6, sidebar 2, frame 2.4; typing 1/key everywhere. Timings: switch.shown 193, typing.echo 139.5, cli-startup 39.6. 17 commits since 2deff57, mostly web; 12 files under `packages/rove/src` touched (task rows, tree menu, task-create flow), none on the switch/typing path. No open `perf:` issues. Baseline unchanged. Tonight's history line is run 2.
+
+**No attempt:** every measured per-op count is still at its floor (11-13). The idle-window burst has now false-flagged twice (11-12, 11-16); making the idle phase wait for ~2 s with no counter row instead of a fixed 3 s after `boot.ready` would remove it. Owner call stands: that harness change, and a new scenario (streaming engine tab, many sidebar tasks, split pane) so nightly runs have something to optimize.
+
+**Sandbox:** bun 1.3.14 from npm with `ELECTRON_SKIP_BINARY_DOWNLOAD=1`; dir symlinks `/tmp/pwshim/chromium_headless_shell-{1243,1228}` → `/opt/pw-browsers/chromium_headless_shell-1243`. ~75 s per run.
