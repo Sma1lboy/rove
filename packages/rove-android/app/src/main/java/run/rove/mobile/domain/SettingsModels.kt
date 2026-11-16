@@ -134,5 +134,8 @@ enum class NotificationAccess {
 @kotlinx.serialization.Serializable data class UpdateInfo(val latest: String = "", val hasUpdate: Boolean = false)
 @kotlinx.serialization.Serializable data class ReleaseNotes(val version: String = "", val body: String = "", val url: String? = null)
 
+/** The bridge's last `update.run`: `code` is null while the installer runs; `output` is its tail. */
+@kotlinx.serialization.Serializable data class UpdateRun(val running: Boolean = false, val command: String = "", val code: Int? = null, val output: String = "")
+
 /** The two `prefs.get` keys Settings › About shows; `latest` is the channel called stable. */
 @Serializable data class UpdatePrefs(val updateChannel: String = "latest", val updateNotify: Boolean = true)
