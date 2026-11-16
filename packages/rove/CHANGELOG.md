@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.9.296
+
+### Patch Changes
+
+- [#2087](https://github.com/Sma1lboy/rove/pull/2087) [`ba29e8a`](https://github.com/Sma1lboy/rove/commit/ba29e8abc617f5547f15f8a30e275dc409c92ffc) A mod restarts on its new code when you save its file, with no disable and re-enable, and the rove skill teaches an agent to write one when asked for a new piece of UI. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2099](https://github.com/Sma1lboy/rove/pull/2099) [`c9849fd`](https://github.com/Sma1lboy/rove/commit/c9849fdc431098296b17231bbb482a4d52d92427) Mute one task's notifications from its sidebar row's right-click menu: a muted task keeps its unread dot but stops toasting and ringing, and its errors still toast without a chime. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2085](https://github.com/Sma1lboy/rove/pull/2085) [`d2d917d`](https://github.com/Sma1lboy/rove/commit/d2d917dfdd02a61a8af64817b1a2e9c1dd4bbe78) The web task list shows the labels plugins and agents put on a task's row, and `rove api row-token --keep` writes a label that stays across daemon restarts until it is cleared. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2086](https://github.com/Sma1lboy/rove/pull/2086) [`57b8c99`](https://github.com/Sma1lboy/rove/commit/57b8c99b6b7960f376b5da080f545ea780777f43) The web client's New session draws its engine and model chips at once instead of waiting for the engine list each time: it reuses the list the page read when it opened and the one from the last visit. A composer restored by a page reload no longer stays without those chips. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2089](https://github.com/Sma1lboy/rove/pull/2089) [`23464ae`](https://github.com/Sma1lboy/rove/commit/23464aec47a46db29384c4584f0b5c6c218186e1) In the web client's Kanban card, pressing Enter to confirm an input-method candidate in the title no longer jumps to the description. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2088](https://github.com/Sma1lboy/rove/pull/2088) [`d265762`](https://github.com/Sma1lboy/rove/commit/d2657620973bcc8857cf27ba5ff580a6d06dfdac) The web client's New session model chip reads "Default" until you pick a model, instead of "Model". — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2084](https://github.com/Sma1lboy/rove/pull/2084) [`2e4db65`](https://github.com/Sma1lboy/rove/commit/2e4db65ae01892a4a77ca19a048f2af2ef5d7950) The web client's New session shows the model chip with Worktree off and with No folder too, and the session starts on the model you picked. It used to appear only for worktree sessions. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2090](https://github.com/Sma1lboy/rove/pull/2090) [`b2a4432`](https://github.com/Sma1lboy/rove/commit/b2a4432610e66634a35fc35eaf4ccae21eabcbde) The web client's Sessions page is now easy to find: it has its own row under Routines in the sidebar, and each project header shows a button for that project's sessions beside the +. The thin bar that appeared at the left edge of a hovered sidebar row is gone. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2083](https://github.com/Sma1lboy/rove/pull/2083) [`4f30de3`](https://github.com/Sma1lboy/rove/commit/4f30de31ce183455a44a102fa62b448ce62d15e5) The web client has a Sessions page: a project's sessions as Active and Archived lists, so an archived session can be seen, opened and unarchived without searching for its title. Open it from a project header's menu (View all sessions); Tab switches project, and a project with only archived sessions is listed there too. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.295
 
 ### Patch Changes

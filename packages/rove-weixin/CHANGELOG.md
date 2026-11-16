@@ -1,5 +1,12 @@
 # rove-weixin
 
+## 0.0.57
+
+### Patch Changes
+
+- Updated dependencies [[`ba29e8a`](https://github.com/Sma1lboy/rove/commit/ba29e8abc617f5547f15f8a30e275dc409c92ffc), [`c9849fd`](https://github.com/Sma1lboy/rove/commit/c9849fdc431098296b17231bbb482a4d52d92427), [`d2d917d`](https://github.com/Sma1lboy/rove/commit/d2d917dfdd02a61a8af64817b1a2e9c1dd4bbe78), [`57b8c99`](https://github.com/Sma1lboy/rove/commit/57b8c99b6b7960f376b5da080f545ea780777f43), [`23464ae`](https://github.com/Sma1lboy/rove/commit/23464aec47a46db29384c4584f0b5c6c218186e1), [`d265762`](https://github.com/Sma1lboy/rove/commit/d2657620973bcc8857cf27ba5ff580a6d06dfdac), [`2e4db65`](https://github.com/Sma1lboy/rove/commit/2e4db65ae01892a4a77ca19a048f2af2ef5d7950), [`b2a4432`](https://github.com/Sma1lboy/rove/commit/b2a4432610e66634a35fc35eaf4ccae21eabcbde), [`4f30de3`](https://github.com/Sma1lboy/rove/commit/4f30de31ce183455a44a102fa62b448ce62d15e5)]:
+  - @sma1lboy/rove@0.9.296
+
 ## 0.0.56
 
 ### Patch Changes
