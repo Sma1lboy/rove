@@ -75,10 +75,8 @@ describe.skipIf(!nodePty)("Pure TUI open-worktree keys (behavior)", () => {
     marker = join(env.home, "editor-opens.log")
     const stateDir = join(env.home, ".config", "rove")
     await mkdir(stateDir, { recursive: true })
-    // Both flags: `onboarded` alone means "the questions were asked" (it is
-    // set before the wizard renders), not "the wizard finished". Without the
-    // primer, this launch gets the wizard instead of the TUI.
-    await writeFile(join(stateDir, "state.json"), JSON.stringify({ onboarded: true, onboardedPrimer: true }))
+    // Already greeted: a first launch opens the welcome dialog over the sidebar, which takes the keys.
+    await writeFile(join(stateDir, "state.json"), JSON.stringify({ welcomed: true }))
     const codeShim = join(env.bin, "code")
     await writeFile(codeShim, `#!/bin/sh\nprintf '%s\\n' "$1" >> "${marker}"\n`)
     await chmod(codeShim, 0o755)
@@ -91,7 +89,8 @@ describe.skipIf(!nodePty)("Pure TUI open-worktree keys (behavior)", () => {
   })
 
   it("opens the selected worktree with sidebar o and global ctrl+a then o", async () => {
-    const child = nodePty!.spawn("bun", [DIST_ROVE_CLI], {
+    // `rove <repo>` opens a session in the checkout: a saved project alone lists no row to select.
+    const child = nodePty!.spawn("bun", [DIST_ROVE_CLI, repo], {
       cols: 140,
       rows: 40,
       cwd: repo,
