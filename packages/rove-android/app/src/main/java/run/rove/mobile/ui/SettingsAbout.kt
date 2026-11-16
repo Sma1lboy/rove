@@ -132,7 +132,7 @@ private const val PrivacyAsset = "docs/PRIVACY.md"
     // The restarted bridge is a new process with no run to report: back on the new build, start over.
     val connection by model.bridge.state.collectAsState()
     LaunchedEffect(connection) {
-        if (restarting && connection is Connection.Connected) { restarting = false; run = null; restarted() }
+        if (restarting && connection is Connection.Connected) { restarting = false; run = null; updates.forgetCheck(); restarted() }
     }
     // Installed but not yet running: the old bridge still reports the update, and installing twice does nothing.
     val installed = run?.code == 0
