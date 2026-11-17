@@ -343,6 +343,15 @@ once a task has more than one tab. (An older
 Scrollback changes apply to terminals started *after* the change; live ones
 keep the buffer they were born with.
 
+### Usage
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `usage.show` | `used` \| `left` | `used` | Whether plan quota and context percentages, in the footer and in Settings → General, count what is used or what is left |
+
+Only the number flips: a window's colour still warns as it fills, whichever
+way it reads. Settings → General → Usage cycles it.
+
 ### Prompt snippets
 
 | Key | Type | Default | What it does |
