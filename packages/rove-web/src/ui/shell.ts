@@ -137,10 +137,6 @@ export const HELP_TITLE = "m-0 mb-1 font-sans text-meta font-bold normal-nums te
 export const HELP_ROW = `flex gap-3 py-px ${META}`
 export const HELP_CAP = "min-w-[14ch] text-ink"
 
-/** Daemon out-of-date banner (TUI VersionSkewBanner). */
-export const DAEMON_BANNER =
-  "flex flex-wrap items-baseline gap-3 [border-bottom:var(--hairline)_solid_var(--warning)] bg-inset px-3.5 py-1 text-meta text-warning [&_span]:text-muted"
-
 /** The prefix HUD, bottom-left over the rail as the TUI's. */
 export const PREFIX_HUD = `keys-only fixed bottom-[34px] left-3 z-40 min-w-55 rounded-sm border-hairline border-line bg-surface px-3 py-2 font-mono text-meta ${FONT_RESET} text-ink shadow-popover`
 /** A HUD line rises in, then sinks out at `--hud-out`; one brought back after the guide only sinks. */
