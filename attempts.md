@@ -489,3 +489,5 @@ Run 1 (patched) exited 0, nothing past tolerance: firstFrame 416.1, boot.ready 1
 **Owner calls still open:** idle phase should wait for quiet instead of a fixed 3 s; a new scenario so nightly has counts to optimize. Also: perf-golden's fake orchestrator could import `fakeOrchestrator` so daemon contract changes can't silently break it again.
 
 **Sandbox:** bun 1.3.14 from npm, `ELECTRON_SKIP_BINARY_DOWNLOAD=1`; dir symlinks `/tmp/pwshim/chromium_headless_shell-{1243,1228}` → `/opt/pw-browsers/chromium_headless_shell-1243`.
+
+**Update 2026-11-17:** #2102 merged. Next run needs no local patch to perf-golden.ts.
