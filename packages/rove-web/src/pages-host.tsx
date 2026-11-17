@@ -20,6 +20,7 @@ import { useStore } from "./store.ts"
 import { type PageId, page } from "./ui.ts"
 import { RAIL_NAV } from "./ui/page.ts"
 import { RailNavRow } from "./ui/rail-nav.tsx"
+import { UpdateBadge, UpdateView } from "./update-view.tsx"
 import { UsageView } from "./usage-page.tsx"
 
 interface NavItem {
@@ -57,6 +58,10 @@ export function PageNav({ model }: { model: AppModel }) {
           {nav[item.label]}
         </RailNavRow>
       ))}
+      <RailNavRow active={open === "update"} onSelect={() => openPage("update")}>
+        {t("rail.update")}
+        <UpdateBadge />
+      </RailNavRow>
     </div>
   )
 }
@@ -77,5 +82,7 @@ export function PagesHost({ model, page: current }: { model: AppModel; page: Pag
     <UsageView model={model} />
   ) : current === "sessions" ? (
     <SessionsView model={model} />
+  ) : current === "update" ? (
+    <UpdateView client={model.client} />
   ) : null
 }

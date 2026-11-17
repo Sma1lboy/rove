@@ -42,7 +42,7 @@ import { useStatusMarkStyle } from "./status-mark.ts"
 import { useStore } from "./store.ts"
 import { todoCount } from "./task-todos.ts"
 import { tc } from "./tui-copy.ts"
-import { type MenuItem, dialog, menu, tuckRare } from "./ui.ts"
+import { type MenuItem, dialog, menu, page, tuckRare } from "./ui.ts"
 import { Chevron } from "./ui/chevron.tsx"
 import { EngineIcon, type EngineIconData } from "./ui/engine-icon.tsx"
 import { Legend } from "./ui/legend.tsx"
@@ -64,7 +64,6 @@ import { RefreshRoveButton } from "./ui/refresh-rove-button.tsx"
 import { CHIPS, ROW_TITLE_RAIL, ROW_TITLE_RUNNING, rowClass } from "./ui/row.ts"
 import { BRACKET, HEAD_CHIP, WORDMARK } from "./ui/shell.ts"
 import { StatusDots } from "./ui/status-dots.tsx"
-import { UpdateChip } from "./update-view.tsx"
 import { WelcomePane } from "./welcome-view.tsx"
 
 /** Right click opens the row's menu where the pointer is (TUI tree menu). */
@@ -86,6 +85,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const tasks = payload?.tasks ?? []
   const unread = payload?.attention.filter((row) => row.unread).length ?? 0
   const selectedId = selection.taskId
+  const activeTaskId = useStore(page) === null ? selectedId : null
   const byId = new Map([...tasks, ...remoteTasks].map((task) => [task.id, task]))
 
   const filters = useRailFilters()
@@ -164,7 +164,6 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
           </button>
           <ShortcutBadge model={model} bindingId="inbox.show" head />
         </span>
-        <UpdateChip />
         <RefreshRoveButton client={model.client} railBar={!narrow} />
       </header>
       {moving && (
@@ -203,7 +202,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
           ) : row.kind === "pane" ? (
             <PaneRowView
               key={row.id}
-              model={model}
+              selectedTabId={row.task.id === activeTaskId ? selection.tabId : null}
               row={row}
               guides={treeGuides(rows, i)}
               cursor={row.id === keys.cursor}
@@ -227,7 +226,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
               repo={byState && row.kind === "task" && row.depth === 1 ? rowRepo(row.task) : undefined}
               tabs={row.kind === "task" ? tabs[row.task.id] : undefined}
               engineIcon={row.kind === "task" ? engineIcons.get(row.task.engine?.id ?? "") : undefined}
-              selected={row.id === selectedId}
+              selected={row.id === activeTaskId}
               cursor={row.id === keys.cursor && dragging === null}
               stale={row.machine !== undefined && offline.has(row.machine)}
               collapsed={(row.kind === "project" || row.kind === "state") && filters.collapsed.has(row.id)}
