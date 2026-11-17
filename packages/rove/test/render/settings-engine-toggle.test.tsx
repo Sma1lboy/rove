@@ -11,8 +11,9 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import * as engineStatus from "../../src/engine/engine-status"
+import { loadStateFile, patchStateFile } from "../../src/state/store"
 import { SettingsDialog } from "../../src/tui-react/component/settings-dialog"
-import { useKV } from "../../src/tui-react/context/kv"
+import { type KVContext, useKV } from "../../src/tui-react/context/kv"
 import { act, renderComponent, waitForFrameText } from "./harness"
 
 const NOOP = (): void => {}
@@ -64,6 +65,36 @@ test("space switches the focused engine off and back on", async () => {
   // A literal space — "space" as a key NAME would type those five letters.
   expect(markOf(await press(" "), "Codex")).toBe("off")
   expect(markOf(await press(" "), "Codex")).toBe("available")
+})
+
+test("switching an engine off keeps the one another client switched off a moment earlier", async () => {
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-engine-two-clients-"))
+  const win: { kv?: KVContext } = {}
+  function Window() {
+    win.kv = useKV()
+    return <SettingsDialog kv={win.kv} onClose={NOOP} />
+  }
+  const { frame, mockInput } = await renderComponent(<Window />, {
+    width: 110,
+    height: 40,
+    providers: { kv: true, dialog: true },
+  })
+  const press = async (key: string): Promise<string> => {
+    act(() => mockInput.pressKey(key))
+    return await frame()
+  }
+  await press("j") // → Engines
+  await press("l")
+  await press("j") // Codex
+
+  // The phone's switch is on disk; the daemon's push has not reached this window yet.
+  patchStateFile({ disabledEngineIds: ["copilot"] })
+  const after = await press(" ")
+  act(() => void win.kv?.flush())
+
+  expect(loadStateFile().disabledEngineIds).toEqual(["copilot", "codex"])
+  expect(markOf(after, "Codex")).toBe("off")
+  expect(markOf(after, "Copilot")).toBe("off")
 })
 
 test("clicking the available mark toggles it instead of opening the command editor", async () => {
