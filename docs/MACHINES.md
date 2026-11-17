@@ -304,7 +304,7 @@ with `--engine-there`: `--count`, `--agents`, `--fork`, `--tier`,
 `--worktree-only`, `--workspace`, `--no-worktree`, `--isolate-in`, several
 `--repo`, and any `add` to a Windows machine.
 
-In the sidebar of `rove --web` the task sits under its project, grouped by
+In the TUI and web sidebars the task sits under its project, grouped by
 repo id like any other task of that repo.
 
 `--repo`, `--clone`, `--allow-fork`, `--branch` and `--base-branch` mean what

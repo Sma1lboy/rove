@@ -92,6 +92,15 @@ describe("a project closed down to nothing", () => {
     expect(result.map((g) => g.key)).toEqual(["/work/dead", "/work/api"])
   })
 
+  test("a remote worktree stays under its project after its last tab closes", () => {
+    const remote = {
+      ...checkout("remote", "/links/deck/rove"),
+      workspace: { backend: "remote" as const },
+      repoId: "github.com/org/rove",
+    }
+    expect(groups([remote], tabs({ remote: 0 })).map((group) => group.tasks)).toEqual([[remote]])
+  })
+
   test("returns as soon as that session has a tab again", () => {
     expect(groups([dead], tabs({ dead: 1 })).map((g) => g.key)).toEqual(["/work/dead"])
   })
