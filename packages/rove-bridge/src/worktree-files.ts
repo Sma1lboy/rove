@@ -42,11 +42,13 @@ export function withPageUrl<P extends { taskId: string; view: string; path?: str
 
 const notFound = () => new Response("not found\n", { status: 404, headers: { "Cache-Control": "no-store" } })
 
+export interface WorktreeFiles {
+  readonly token: string
+  readonly api: BridgeApi
+}
+
 /** The file, a refusal, or null when `req` is not for this route. */
-export async function serveWorktreeFile(
-  req: Request,
-  deps: { readonly token: string; readonly api: BridgeApi },
-): Promise<Response | null> {
+export async function serveWorktreeFile(req: Request, deps: WorktreeFiles): Promise<Response | null> {
   const url = new URL(req.url)
   if (!url.pathname.startsWith(PREFIX)) return null
   if (req.method !== "GET" && req.method !== "HEAD") return new Response("method not allowed\n", { status: 405 })

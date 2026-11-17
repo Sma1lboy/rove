@@ -7,12 +7,13 @@
 import { stat } from "node:fs/promises"
 import { extname, resolve, sep } from "node:path"
 import { gzipSync } from "node:zlib"
+import { type WorktreeFiles, serveWorktreeFile } from "./worktree-files.ts"
 
 export interface WebRoot {
   /** Directory holding the built client (`index.html` + `assets/`). */
   readonly root: string
-  /** Answers its own paths first (a task's worktree files): the shell's client-route fallback would take any path. */
-  readonly pages?: (req: Request) => Promise<Response | null>
+  /** Serve tasks' worktree files (`worktree-files.ts`), ahead of the shell's client-route fallback. */
+  readonly worktrees?: WorktreeFiles
 }
 
 /**
@@ -45,7 +46,7 @@ async function gzipFile(path: string): Promise<Uint8Array> {
 
 /** A static response, or null when `req` is not a static GET/HEAD. */
 export async function serveWebFile(web: WebRoot, req: Request): Promise<Response | null> {
-  const page = await web.pages?.(req)
+  const page = web.worktrees ? await serveWorktreeFile(req, web.worktrees) : null
   if (page) return page
   if (req.method !== "GET" && req.method !== "HEAD") return null
   const root = resolve(web.root)
