@@ -62,6 +62,7 @@ import {
   projectHead,
   railBody,
 } from "./ui/rail.ts"
+import { RefreshRoveButton } from "./ui/refresh-rove-button.tsx"
 import { CHIPS, ROW_TITLE_RAIL, ROW_TITLE_RUNNING, rowClass } from "./ui/row.ts"
 import { BRACKET, HEAD_CHIP, WORDMARK } from "./ui/shell.ts"
 import { StatusDots } from "./ui/status-dots.tsx"
@@ -166,6 +167,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
           <ShortcutBadge model={model} bindingId="inbox.show" head />
         </span>
         <UpdateChip />
+        <RefreshRoveButton client={model.client} railBar={!narrow} />
       </header>
       {moving && (
         <div className={`${RAIL_SEARCH} mono`}>

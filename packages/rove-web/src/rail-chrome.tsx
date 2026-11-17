@@ -7,6 +7,7 @@
 import { formatChord } from "@sma1lboy/rove/src/tui/lib/chord-glyphs.ts"
 import { paneHintTokens } from "@sma1lboy/rove/src/tui/lib/keyboard-hints.ts"
 import { type PointerEvent, useRef } from "react"
+import type { BridgeClient } from "./bridge.ts"
 import { type HintPane, hintsUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { hintText, tasksText, workspaceText } from "./keymap-text.ts"
@@ -23,6 +24,7 @@ import { useStore } from "./store.ts"
 import { dragLayout } from "./ui.ts"
 import { Legend } from "./ui/legend.tsx"
 import { ICON_BUTTON_DOT, RAIL_BAR, iconButton } from "./ui/panel.ts"
+import { RefreshRoveButton } from "./ui/refresh-rove-button.tsx"
 import { ResizeGrip } from "./ui/resize-grip.tsx"
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { NARROW_BACK, NARROW_BAR, NARROW_SWITCH, NARROW_TAB, NARROW_TITLE, PANE_HINT } from "./ui/shell.ts"
@@ -156,7 +158,7 @@ const TERMINAL_ICON = (
  * Narrow layout, content panel: the way back to the list the viewport has no room to show beside it.
  * In a task it names the task and switches between the terminal and the side panel's views, the desktop's right column.
  */
-export function NarrowBackBar({ taskId, title }: { taskId?: string; title?: string }) {
+export function NarrowBackBar({ client, taskId, title }: { client: BridgeClient; taskId?: string; title?: string }) {
   useLocale()
   const view = useStore(narrowView)
   return (
@@ -191,6 +193,7 @@ export function NarrowBackBar({ taskId, title }: { taskId?: string; title?: stri
           })}
         </span>
       )}
+      <RefreshRoveButton client={client} />
     </div>
   )
 }

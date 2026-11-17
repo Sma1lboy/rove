@@ -3,7 +3,7 @@
 import { type CSSProperties, useEffect, useState } from "react"
 import { backSwiping } from "./back-swipe.ts"
 import { ConnectScreen } from "./connect-view.tsx"
-import { DaemonBanner, refreshRove, useDaemonHealth } from "./daemon-health.tsx"
+import { useDaemonHealth } from "./daemon-health.tsx"
 import { DocumentTitle } from "./document-title.tsx"
 import { useEscapeInterrupt } from "./esc-interrupt.ts"
 import { t, useLocale } from "./i18n/index.ts"
@@ -135,7 +135,6 @@ function Shell({ model }: { model: AppModel }) {
   } as CSSProperties
   return (
     <div className={APP_SHELL}>
-      <DaemonBanner onRefresh={() => refreshRove(model.client)} />
       <div
         className={appClass({
           zen: zenOn || !panelShown || (!task && !remoteTask) || narrow,

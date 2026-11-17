@@ -10,13 +10,10 @@ import { useEffect } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { ConfirmDialog } from "./dialogs.tsx"
 import { everyVisible } from "./every-visible.ts"
-import { t, useLocale } from "./i18n/index.ts"
-import { createStore, useStore } from "./store.ts"
+import { t } from "./i18n/index.ts"
+import { createStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
 import { dialog, toast } from "./ui.ts"
-import { DAEMON_BANNER } from "./ui/shell.ts"
-import { LINK } from "./ui/text.ts"
-import { prefixHint, userKeys } from "./user-keys.ts"
 
 interface DaemonHealth {
   readonly stale: boolean
@@ -61,7 +58,7 @@ export function refreshRove(client: BridgeClient): void {
   dialog.set(
     <ConfirmDialog
       title={tc("update", "refresh.confirmTitle")}
-      body={tc("update", "refresh.confirmBody")}
+      body={t("layout.refreshConfirm")}
       confirmLabel={tc("update", "refresh.confirmLabel")}
       onConfirm={async () => {
         await client.request("daemon.restart")
@@ -73,26 +70,5 @@ export function refreshRove(client: BridgeClient): void {
         throw new Error(t("layout.refreshTimeout"))
       }}
     />,
-  )
-}
-
-export function DaemonBanner({ onRefresh }: { onRefresh: () => void }) {
-  useLocale()
-  const { stale, daemonVersion, bridgeVersion } = useStore(daemonHealth)
-  useStore(userKeys)
-  if (!stale) return null
-  const hint = tc("update", "skew.hint", {
-    daemon: daemonVersion ? `v${daemonVersion}` : tc("update", "skew.olderBuild"),
-    clientVersion: bridgeVersion ?? "",
-    keys: prefixHint("app.refresh"),
-  })
-  return (
-    <div className={`mono ${DAEMON_BANNER}`} role="alert">
-      <b>{tc("update", "skew.title")}</b>
-      <span>{hint}</span>
-      <button type="button" className={LINK} onClick={onRefresh}>
-        {tc("update", "refresh.confirmLabel")}
-      </button>
-    </div>
   )
 }
