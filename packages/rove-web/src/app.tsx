@@ -126,10 +126,11 @@ function Shell({ model }: { model: AppModel }) {
   const autoW =
     `max(${PANEL_MIN_PX}px, min(calc((100% - var(--rail-w)) * ${share} / ${share + 2}), ` +
     `calc(100% - var(--rail-w) - ${MIN_WORKSPACE_WIDTH * CELL_PX}px)))`
-  // The open width rides along while folded, so the rail's contents keep it as the column slides shut.
+  // The rail's contents keep a width of their own while the column is shut: folded, it floats at the default
+  // width, since a width dragged for the docked column (often a narrow one) is not one picked for the overlay.
   const railVars = {
     "--rail-w": `${folded ? 0 : openPx}px`,
-    "--rail-open-w": `${openPx}px`,
+    "--rail-open-w": `${folded ? clampRailWidth(RAIL_DEFAULT_PX) : openPx}px`,
     "--panel-w": panelPx !== null ? `${panelPx}px` : autoW,
   } as CSSProperties
   return (
