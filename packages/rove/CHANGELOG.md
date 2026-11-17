@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.9.298
+
+### Patch Changes
+
+- [#2105](https://github.com/Sma1lboy/rove/pull/2105) [`b97e479`](https://github.com/Sma1lboy/rove/commit/b97e479dfaa614848648077fcd57bca969f340cc) Switching an engine off (or adding or removing a custom engine) in Settings → Engines no longer undoes the switch another window or the web made a moment earlier: the TUI now changes just that one engine in the list instead of writing back its own copy of the whole list. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2114](https://github.com/Sma1lboy/rove/pull/2114) [`fd7a3cf`](https://github.com/Sma1lboy/rove/commit/fd7a3cf699f4f4c475e9691fd45e7b5783ba22f3) The web's folded task list now floats at the default width when you hover the left edge, instead of at whatever width you last dragged the docked list to. Unfolding brings your dragged width back. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2102](https://github.com/Sma1lboy/rove/pull/2102) [`48e9202`](https://github.com/Sma1lboy/rove/commit/48e92027ec68f47c9e0804c2d76ae29c78a2ea5d) `bun run perf:golden` runs again: its daemon benchmark's stand-in orchestrator answers the boot step that settles project rows. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2112](https://github.com/Sma1lboy/rove/pull/2112) [`f8b5f81`](https://github.com/Sma1lboy/rove/commit/f8b5f81a5d272aac06967279d1130e724b785f87) A session's row now follows the engine actually running in it. Quit one engine to the shell and start another by hand (say Codex inside a Claude session) and the web rail shows that engine's icon, and the running status appears within a few seconds instead of up to a minute later. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2103](https://github.com/Sma1lboy/rove/pull/2103) [`03d0f12`](https://github.com/Sma1lboy/rove/commit/03d0f12e00d3177d79037efd6210bb0dd5fcdbda) - `rove api send --repo` reads its path like every other repo flag: a leading `~` expands, a relative path from the daemon or web bridge is refused instead of silently meaning the daemon's own directory, and a remote project's `ssh://` key reaches that project instead of turning into a bogus local path. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2110](https://github.com/Sma1lboy/rove/pull/2110) [`0a6cf05`](https://github.com/Sma1lboy/rove/commit/0a6cf0503e2b7c8e2aafaa5f780c4c5779c1a606) Match web sidebar ordering for pinned tasks and for projects sorted by name or newest task. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2109](https://github.com/Sma1lboy/rove/pull/2109) [`49d0b3f`](https://github.com/Sma1lboy/rove/commit/49d0b3fbc0d6d7c4c3af8e94cac161b5957897db) Keep remote workspace projects visible in the TUI sidebar after their last tab closes. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2113](https://github.com/Sma1lboy/rove/pull/2113) [`22c8ce5`](https://github.com/Sma1lboy/rove/commit/22c8ce56636a3cd361ab97c71f4a34847ae05ad3) Files attached to a new session with No folder picked now reach the engine. That start sent only the typed text, so an attached image was dropped. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2104](https://github.com/Sma1lboy/rove/pull/2104) [`5de1503`](https://github.com/Sma1lboy/rove/commit/5de15031493b190f76b967520cb014e0383271f4) - Usage percentages can read as what is left: Settings → General → Usage flips the footer's quota and context chips and the Settings meters between used and left. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2111](https://github.com/Sma1lboy/rove/pull/2111) [`cbb2350`](https://github.com/Sma1lboy/rove/commit/cbb2350b90c46e27576f4ddb1ce0902ad5e9630a) The web's New session has a Shell entry at the end of the Engine menu: it opens a plain terminal instead of an agent, in a new worktree, the project's checkout or no folder. Anything typed in the box runs as its first command. `rove api tab-new --kind shell --own` does the same from a script. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2107](https://github.com/Sma1lboy/rove/pull/2107) [`2c82f1c`](https://github.com/Sma1lboy/rove/commit/2c82f1c17e432fd631ff5864fb15c69aea675b3f) Restart on the web Update page no longer kills `rove --web`: after an update it comes back on the new build instead of exiting. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.297
 
 ### Patch Changes
