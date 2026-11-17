@@ -66,6 +66,20 @@ describe("send handler", () => {
     expect(result).toMatchObject({ taskId: "fresh", newSession: true })
   })
 
+  it("--repo keeps a remote project's ssh key verbatim", async () => {
+    const client = new FakeClient({
+      "project.ensure": (payload) => ({ repo: (payload as { repo: string }).repo }),
+      "task.openDir": (payload) => ({ task: taskFixture({ id: "fresh", kind: "dir", ...(payload as object) }) }),
+    })
+    await invokeVerb("send", ["--repo", "ssh://me@box/srv/app", "--prompt", "fix the rail"], {
+      client,
+      runtime: stubRuntime({ deliverPrompt: recordingDelivery().deliver }),
+    })
+    expect(client.requests.find((request) => request.name === "project.ensure")?.payload).toEqual({
+      repo: "ssh://me@box/srv/app",
+    })
+  })
+
   it("reports a prompt that did not land", async () => {
     const client = new FakeClient({ "task.get": () => ({ task: taskFixture() }) })
     await expectApiError(

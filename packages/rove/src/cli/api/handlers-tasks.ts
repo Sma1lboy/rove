@@ -5,7 +5,6 @@
  * in `handlers-lifecycle.ts`.
  */
 
-import { resolve } from "node:path"
 import { type SkipVerdict, deliveryFooter } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
@@ -169,7 +168,8 @@ async function sendNow(ctx: VerbContext, rollback: ReplaceRollback): Promise<unk
     )
   }
   // `--repo`: a project has no standing conversation, so the prompt opens a session of its own in that checkout.
-  const viaProject = ctx.args.str("repo")
+  const rawRepo = ctx.args.str("repo")
+  const viaProject = rawRepo === undefined ? undefined : ctx.args.repoPath("repo", rawRepo)
   if (viaProject && (ctx.args.str("task-id") || tab || replace)) {
     throw new ApiError(
       "--repo starts a new session in that project's checkout; it conflicts with --task-id, --tab and --replace",
@@ -182,7 +182,7 @@ async function sendNow(ctx: VerbContext, rollback: ReplaceRollback): Promise<unk
   if (viaProject) {
     // Only after every refusal: a refused send must not leave a new session row behind.
     await assertNotEmptySuccess(daemon, ctx, prompt)
-    const saved = await daemon.request<{ repo: string }>("project.ensure", { repo: resolve(viaProject) })
+    const saved = await daemon.request<{ repo: string }>("project.ensure", { repo: viaProject })
     res = await daemon.request<{ task: SerializedTask }>("task.openDir", {
       dir: saved.repo,
       title: deriveTitleFromPrompt(prompt),
