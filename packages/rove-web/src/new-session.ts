@@ -162,12 +162,12 @@ type Request = <T>(op: string, args?: Record<string, unknown>) => Promise<T>
 
 /**
  * Start an Ungrouped session (no project, in the home directory): the rail's Scratch row, then its
- * engine tab carrying the prompt.
+ * engine tab carrying `message` (the prompt plus attachment refs).
  */
-export async function startUngrouped(request: Request, engine: string, prompt: string, model = ""): Promise<string> {
+export async function startUngrouped(request: Request, engine: string, message: string, model = ""): Promise<string> {
   const pick = engine ? { engine } : {}
   const { taskId } = await request<{ taskId: string }>("task.openScratch", { ...pick, ...(model ? { model } : {}) })
-  await request("tab.new", { taskId, kind: "engine", ...pick, prompt: prompt.trim() })
+  await request("tab.new", { taskId, kind: "engine", ...pick, prompt: message.trim() })
   return taskId
 }
 

@@ -271,7 +271,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
       if (sh.on) {
         const place = ungrouped ? null : (checkout ?? { repos: picked, branch: branchName.trim() })
         created = await startShell(request, place, prompt)
-      } else if (ungrouped) created = await startUngrouped(request, engineId, prompt, modelValue)
+      } else if (ungrouped) created = await startUngrouped(request, engineId, first, modelValue)
       else if (checkout !== null)
         created = await startInCheckout(request, checkout, engineId, prompt, first, at, modelValue)
       else {
