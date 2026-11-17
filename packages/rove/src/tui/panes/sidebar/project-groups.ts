@@ -12,6 +12,7 @@
 import type { TaskEngineState } from "@/client/remote-orchestrator"
 import { isUnlistedCheckout } from "@/lib/worktree-only"
 import type { Task } from "@/types/task"
+import { workspaceBackendId } from "@sma1lboy/rove-daemon/workspace"
 import {
   type LabelledProject,
   type ProjectKeyOf,
@@ -81,7 +82,7 @@ interface ProjectEntry {
  */
 function isClosedDownProject(tasks: readonly Task[], tabsByTask: SidebarGroupInput["tabsByTask"]): boolean {
   const only = tasks.length === 1 ? tasks[0] : undefined
-  if (!only || only.kind !== "dir") return false
+  if (!only || workspaceBackendId(only) !== "borrowed") return false
   return tabsByTask.get(only.id)?.length === 0
 }
 
