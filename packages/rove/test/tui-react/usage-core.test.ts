@@ -67,6 +67,23 @@ describe("usageRows", () => {
     expect(rows[1]?.resetText).toBe("")
   })
 
+  it("read as what is left, the number and meter count down while the tone still follows use", () => {
+    const rows = usageRows(
+      {
+        windows: [
+          { kind: "session", label: "5h", percent: 96, resetsAt: null },
+          { kind: "weekly_all", label: "7d", percent: 104, resetsAt: null },
+        ],
+        capturedAt: NOW,
+      },
+      NOW,
+      "left",
+    )
+    expect(rows.map((r) => r.percentText)).toEqual(["  4%", "  0%"])
+    expect(rows.map((r) => r.tone)).toEqual(["crit", "crit"])
+    expect(rows[0]?.bar).toBe(ratioBar(0.04, USAGE_BAR_WIDTH))
+  })
+
   it("caps the label column so a long scoped model name cannot blow the layout", () => {
     const rows = usageRows(
       {

@@ -40,6 +40,7 @@ import {
   normalizeReleaseChannel,
   updateNotifyEnabled,
 } from "../../../state/update-channel"
+import { USAGE_SHOWS, USAGE_SHOW_KEY, type UsageShow, normalizeUsageShow } from "../../../state/usage-show"
 import {
   DEFAULT_WORKING_BORDER,
   WORKING_BORDER_KEY,
@@ -169,6 +170,13 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   function cycleTabStripMode(): void {
     const next = TAB_STRIP_MODES[(TAB_STRIP_MODES.indexOf(tabStripMode()) + 1) % TAB_STRIP_MODES.length]
     kv.set(TAB_STRIP_MODE_KEY, next)
+  }
+
+  function usageShow(): UsageShow {
+    return normalizeUsageShow(kv.get(USAGE_SHOW_KEY, undefined))
+  }
+  function cycleUsageShow(): void {
+    kv.set(USAGE_SHOW_KEY, USAGE_SHOWS[(USAGE_SHOWS.indexOf(usageShow()) + 1) % USAGE_SHOWS.length])
   }
 
   // Experimental flags (Dev section).
@@ -403,6 +411,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     editScrollbackRows,
     tabStripMode,
     cycleTabStripMode,
+    usageShow,
+    cycleUsageShow,
     worktreeKind,
     worktreeKindLabel,
     worktreeCustomPath,
