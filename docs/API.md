@@ -2146,8 +2146,7 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   `running` or `permission_needed`; `--force` stops it and archives anyway. The sidebar and the rail do not list
   archived tasks. To bring one back from the interface, open the command
   palette (`ctrl+a` `/`), type its title and pick it; the web client also
-  lists them per project on its Sessions page (the rail's Sessions row, or a project header's
-  View all sessions for that project alone). A project whose
+  lists them on the Sessions page. Click a project name in the rail to open its sessions. A project whose
   tasks are all archived has no header.
 
 ## worktree

@@ -8,7 +8,7 @@ import { useEngineIcons } from "./engine-icons.ts"
 import { markHintUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
-import { enterWorkspace, openSessions } from "./layout.ts"
+import { enterWorkspace } from "./layout.ts"
 import { CloudMark, rowCloud, useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { moveMode } from "./move-mode.ts"
@@ -47,18 +47,16 @@ import { Chevron } from "./ui/chevron.tsx"
 import { EngineIcon, type EngineIconData } from "./ui/engine-icon.tsx"
 import { Legend } from "./ui/legend.tsx"
 import { INBOX_CHIP } from "./ui/overlay.ts"
-import { ProjectActions } from "./ui/project-actions.tsx"
+import { GroupActions } from "./ui/project-actions.tsx"
 import {
   CHILD_INDENT,
   FOLD_TOGGLE,
-  PROJECT_TOGGLE,
   RAIL,
   RAIL_CURSOR,
   RAIL_EMPTY,
   RAIL_HEAD,
   RAIL_SEARCH,
   guideClass,
-  projectChevron,
   projectHead,
   railBody,
 } from "./ui/rail.ts"
@@ -344,28 +342,21 @@ function RailRow(props: {
       <h2
         className={projectHead({ moving: props.moving, dragging: props.dragging, grab: props.drag !== undefined })}
         onContextMenu={props.onMenu}
+        onKeyDown={(e) => {
+          // Let the focused header button activate before the rail handles the current task's keys.
+          if (e.key === "Enter" || e.key === " ") e.stopPropagation()
+        }}
         {...props.place}
         {...props.drag}
       >
-        <button
-          type="button"
-          className={PROJECT_TOGGLE}
-          title={row.kind === "project" && !row.noProject ? row.repo : undefined}
-          aria-expanded={!props.collapsed}
-          onClick={props.onClick}
-        >
-          <span className="truncate">{row.label}</span>
-          {row.kind === "state" && <span className="font-normal text-subtle">{row.count}</span>}
-          <Chevron right={props.collapsed} className={projectChevron(!!props.collapsed)} />
-        </button>
-        {props.onNewTask && row.kind === "project" && (
-          <ProjectActions
-            sessionsTitle={t("menu.viewSessions")}
-            onSessions={() => openSessions(row.noProject ? "" : row.repo)}
-            newTaskTitle={t("rail.newTask")}
-            onNewTask={props.onNewTask}
-          />
-        )}
+        <GroupActions
+          label={row.label}
+          repo={row.kind === "project" && !row.noProject ? row.repo : undefined}
+          count={row.kind === "state" ? row.count : undefined}
+          collapsed={!!props.collapsed}
+          onToggle={props.onClick}
+          onNewTask={props.onNewTask}
+        />
       </h2>
     )
   }

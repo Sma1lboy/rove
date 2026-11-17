@@ -1,7 +1,7 @@
 /**
  * The Sessions page: one project's sessions, or every project's, as Active and Archived lists. It is where an
  * archived session is seen again, since the rail lists none; a row opens its session and carries the rail's row menu
- * (Unarchive, Remove). Opens from a project header's menu. j/k move, Tab cycles projects, `a` flips the list,
+ * (Unarchive, Remove). Opens from a project header. j/k move, Tab cycles projects, `a` flips the list,
  * Enter opens, q/Esc close.
  */
 

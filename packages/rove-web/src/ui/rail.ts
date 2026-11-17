@@ -52,17 +52,17 @@ export const railBody = (sorting: boolean): string =>
 /** Keyboard cursor: shown only while the rail has focus, as the TUI sidebar's. */
 export const RAIL_CURSOR = "group-focus-within/rail:[box-shadow:inset_0_0_0_1px_var(--focus)]"
 
-/** A project section header, as Claude's sidebar: the name and a chevron fold it; + starts a task in it. Move mode washes it; a drag brightens and pops its name. */
+/** A project section header, as Claude's sidebar: the chevron folds the group and + starts a task in it. Move mode washes it; a drag brightens and pops its name. */
 export const projectHead = (o: { moving: boolean; dragging: boolean; grab: boolean }): string =>
   `group/head mx-2 mt-1.5 mb-1 flex items-center gap-1 font-mono text-meta font-semibold normal-nums not-first:mt-4.5 ${o.dragging ? "origin-left scale-[1.03] cursor-grabbing text-ink motion-reduce:scale-none" : "text-subtle"} ${o.grab && !o.dragging ? "cursor-grab [&>button:first-child]:cursor-grab" : ""} ${o.moving ? "bg-accent-soft after:font-mono after:text-meta after:font-medium after:normal-nums after:text-accent after:content-['move']" : ""}`
 const HIT =
   "touch:relative touch:after:absolute touch:after:-inset-x-1.5 touch:after:-inset-y-3 touch:after:content-['']"
-export const PROJECT_TOGGLE = `group/toggle -ml-1 inline-flex min-w-0 cursor-pointer items-center gap-1 rounded-xs border-none bg-transparent px-1 py-0.5 text-inherit [font:inherit] hover:text-ink ${HIT}`
-/** Hidden until the header is hovered or the toggle focused; always shown to a finger. A folded one always shows. */
+const PROJECT_BUTTON =
+  "inline-flex min-w-0 cursor-pointer items-center gap-1 rounded-xs border-none bg-transparent px-1 py-0.5 text-inherit [font:inherit] hover:text-ink touch:relative touch:after:absolute touch:after:inset-x-0 touch:after:-inset-y-3 touch:after:content-['']"
+export const PROJECT_NAME = `-ml-1 ${PROJECT_BUTTON}`
+export const PROJECT_TOGGLE = `group/toggle ${PROJECT_BUTTON}`
+/** Always show a folded chevron; an open one appears on hover, focus or touch. */
 export const projectChevron = (folded: boolean): string =>
   folded ? "" : "opacity-0 group-hover/head:opacity-100 group-focus-visible/toggle:opacity-100 touch:opacity-100"
-/** Centred on the task rows' status dots: the 3×3 mark is 11px wide (status-dots.tsx), so the 20px + overhangs by 4.5px. */
-/** The header's hover actions: Sessions, then +. The first takes the free space; + ends on the task rows' rightmost mark. */
-const PROJECT_ACT = `size-5 cursor-pointer rounded-xs border-none bg-transparent text-muted opacity-0 [font:400_var(--fs-display)/1_var(--sans)] group-hover/head:opacity-100 hover:bg-hover hover:text-ink focus-visible:opacity-100 touch:opacity-100 ${HIT}`
-export const PROJECT_ADD = `-mr-[4.5px] ${PROJECT_ACT}`
-export const PROJECT_SESSIONS = `ml-auto ${PROJECT_ACT}`
+/** The 20px + overhangs by 4.5px to centre on the task rows' 11px status dots. */
+export const PROJECT_ADD = `-mr-[4.5px] ml-auto size-5 shrink-0 cursor-pointer rounded-xs border-none bg-transparent text-muted opacity-0 [font:400_var(--fs-display)/1_var(--sans)] group-hover/head:opacity-100 hover:bg-hover hover:text-ink focus-visible:opacity-100 touch:opacity-100 ${HIT}`

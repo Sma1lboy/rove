@@ -114,7 +114,6 @@ export function ungroupedMenu(model: AppModel): MenuItem[] {
       section: "open",
       run: () => void openScratchShell(model).catch((e) => toast(String(e), "error")),
     },
-    { label: t("menu.viewSessions"), section: "open", run: () => openSessions("") },
   ]
 }
 
