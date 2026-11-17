@@ -6,6 +6,7 @@
 
 import { unlinkSync } from "node:fs"
 import { join } from "node:path"
+import { restartDaemon } from "@sma1lboy/rove-daemon/client/daemon-process"
 import { roveStateDir } from "@sma1lboy/rove/src/env.ts"
 import { replaceStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { BridgeError } from "../protocol.ts"
@@ -22,8 +23,8 @@ export interface DevDeps {
 
 /** Dynamic imports: a static edge from a render path to a CLI verb's module is a bundle-only TDZ crash (see `engine/hook-config-check.ts`). */
 const realDeps: DevDeps = {
+  // Static, unlike the two below: the page offers this right after an update, when the old lazy chunks are gone from disk.
   restartDaemon: async () => {
-    const { restartDaemon } = await import("@sma1lboy/rove-daemon/client/daemon-process")
     await restartDaemon()
   },
   installHooks: async () => {

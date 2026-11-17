@@ -7,6 +7,7 @@
  */
 
 import { spawn } from "node:child_process"
+import { restartDaemon } from "@sma1lboy/rove-daemon/client/daemon-process"
 import { relaunchSelf } from "@sma1lboy/rove/src/cli/self-relaunch.ts"
 import { updaterShell, updaterShellFailureHint } from "@sma1lboy/rove/src/lib/updater-shell.ts"
 
@@ -68,8 +69,9 @@ function installLatest(onOutput: (chunk: string) => void, onExit: (code: number)
 /** Startup flags that act once: replayed, they would sign every device out again. */
 const ONE_SHOT = new Set(["--rotate-token", "--rotate-relay"])
 
+// No `import()` on this path: it runs after the installer replaced the bundle's hashed chunks,
+// and a missing one is an unhandled rejection that kills the bridge instead of relaunching it.
 async function restartOntoInstalled(): Promise<void> {
-  const { restartDaemon } = await import("@sma1lboy/rove-daemon/client/daemon-process")
   // A daemon that would not restart must not keep the bridge on the old build: the page's banner offers it again.
   await restartDaemon().catch(() => undefined)
   const argv = process.argv.filter((arg) => !ONE_SHOT.has(arg))
