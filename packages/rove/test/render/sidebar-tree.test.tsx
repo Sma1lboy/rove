@@ -130,6 +130,46 @@ test("escape leaves search and restores the full tree", async () => {
   expect(text).toContain("bravo")
 })
 
+test("search enters a folded directory task by its original name and restores the project fold", async () => {
+  tabsByTask.clear()
+  const target = task("target", { kind: "dir", title: "Publish build notes", branch: "" })
+  tabsByTask.set(target.id, {
+    tabs: [{ kind: "engine", id: "tab-1", title: "Release checklist", ordinal: 1 }],
+    activeId: "tab-1",
+    nextOrdinal: 2,
+  })
+  const other = task("other", { repo: "/repos/other", title: "Other task" })
+  const entered: string[] = []
+  const { frame, mockInput, mockMouse } = await renderComponent(
+    tree({
+      tasks: [target, task("first", { repo: "/repos/other" }), other],
+      selectedId: other.id,
+      onActivate: (id) => entered.push(id),
+    }),
+    { width: 32, height: 22 },
+  )
+  const open = await waitForFrameText(frame, "Release checklist")
+  const header = open.split("\n").findIndex((line) => line.includes("rove"))
+  await mockMouse.click(2, header, 0)
+  expect(await frame()).not.toContain("Release checklist")
+  await step(frame, () => mockInput.typeText("/"))
+  await step(frame, () => mockInput.typeText("Publish build"))
+  expect(await frame()).toContain("Release checklist")
+  act(() => mockInput.pressEscape())
+  await waitForFrameText(frame, "▸ rove")
+  await step(frame, () => mockInput.pressEnter())
+  expect(entered).toEqual(["other"])
+  await step(frame, () => mockInput.typeText("/"))
+  await step(frame, () => mockInput.typeText("Publish build"))
+  await step(frame, () => mockInput.pressEnter())
+  expect(entered).toEqual(["other", "target"])
+  const closed = await frame()
+  expect(closed).toContain("▸ rove")
+  expect(closed).not.toContain("Release checklist")
+  await step(frame, () => mockInput.pressEnter())
+  expect(entered).toEqual(["other", "target", "other"])
+})
+
 // ─── Move mode is scope-aware: the cursor row's LEVEL moves ───
 
 test("move mode on a TASK row moves the task itself within its repo group", async () => {

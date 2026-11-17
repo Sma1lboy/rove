@@ -67,7 +67,7 @@ export function SidebarTree(props: SidebarTreeProps) {
     tasks: props.tasks,
     kv,
     selectedTaskId: props.selectedId,
-    query: search.active ? search.query : "",
+    query: search.active ? search.query : undefined,
     recentTask: props.recentTask ?? null,
     sortMode: props.sortMode,
     engineState: props.engineState,
@@ -114,8 +114,11 @@ export function SidebarTree(props: SidebarTreeProps) {
   const prevActiveRef = useRef<string | null>(null)
   // The row under the cursor LAST render; reorders follow its identity.
   const cursorRowIdRef = useRef<string | null>(null)
+  const wasSearching = useRef(false)
   const moveMode = props.moveMode === true
   useEffect(() => {
+    const leavingSearch = wasSearching.current && !search.active
+    wasSearching.current = search.active
     const ids = tree.flatIds
     // An external selection wins outside move mode; otherwise retain the cursor's row.
     if (moveMode || tree.activeRowId === prevActiveRef.current) {
@@ -134,9 +137,13 @@ export function SidebarTree(props: SidebarTreeProps) {
       if (at !== cursorRef.current) setCursorIndex(at)
       return
     }
+    if (leavingSearch) {
+      setCursorIndex(at >= 0 ? at : 0)
+      return
+    }
     if (cursorRef.current >= ids.length) setCursorIndex(Math.max(0, ids.length - 1))
     else if (cursorRef.current < 0 && ids.length > 0) setCursorIndex(at >= 0 ? at : 0)
-  }, [tree.flatIds, tree.activeRowId, moveMode, setCursorIndex])
+  }, [tree.flatIds, tree.activeRowId, moveMode, search.active, setCursorIndex])
   // Deps-less on purpose: runs after every commit, so when the follow effect
   // fires on a flatIds change it reads the PREVIOUS render's row id.
   useEffect(() => {
@@ -302,6 +309,8 @@ export function SidebarTree(props: SidebarTreeProps) {
         flatIndexOf={flatIndexOf}
         searching={search.active && search.query.trim().length > 0}
         shared={shared}
+        collapsedProjects={search.active ? undefined : tree.collapsedProjects}
+        onToggleProject={search.active ? undefined : tree.toggleProject}
         onProjectContextMenu={menu.openForProject}
         movingProjectId={moveMode ? cursorMove.projectId : null}
         setScrollRef={(r) => {

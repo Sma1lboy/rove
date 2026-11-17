@@ -48,7 +48,7 @@ export function SectionHeader(props: {
                   props.onContextMenu(evt.x, evt.y)
                   return
                 }
-                props.onPress?.()
+                if (evt.button === MouseButton.LEFT) props.onPress?.()
               }
             : undefined
         }

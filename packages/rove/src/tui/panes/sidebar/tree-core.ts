@@ -130,6 +130,7 @@ export interface TreeInput extends SidebarGroupInput {
 }
 
 export interface TreeRowsInput {
+  readonly collapsedProjects?: ReadonlySet<string>
   /** The sections to render, already selected, grouped and ordered. */
   readonly groups: readonly SidebarGroup[]
   readonly collapsedTasks?: ReadonlySet<string>
@@ -246,6 +247,7 @@ export function buildRowsFromGroups(input: TreeRowsInput): TreeRow[] {
       machineId: group.machineId,
       depth: 0,
     })
+    if (input.collapsedProjects?.has(group.key)) continue
     for (const task of top) pushTask(rows, task, 0, ctx)
   }
   return rows
