@@ -47,6 +47,7 @@ describe("executeVerb", () => {
     expect(await code("watch", { "task-ids": ["a"] })).toBe("CLI_ONLY_VERB")
     // No cwd to resolve against: a relative path would silently mean the daemon's cwd.
     expect(await code("note-list", { repo: "relative/repo" })).toBe("BAD_FLAG")
+    expect(await code("send", { repo: "relative/repo", prompt: "hi" })).toBe("BAD_FLAG")
     expect(client.request).not.toHaveBeenCalled()
     expect(await code("note-list", { repo: "/abs/repo" })).toBe("ok")
     expect(client.request).toHaveBeenCalledWith("note.list", { repo: "/abs/repo" })
