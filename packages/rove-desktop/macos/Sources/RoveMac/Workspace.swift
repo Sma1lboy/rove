@@ -1,24 +1,27 @@
 import AppKit
 import WebKit
 
-final class Workspace: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKScriptMessageHandler, NSToolbarDelegate {
+final class Workspace: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKScriptMessageHandler {
     let address: URL
     let window = WorkspaceWindow(contentRect: NSRect(x: 0, y: 0, width: 1240, height: 800),
-                          styleMask: [.titled, .resizable, .closable, .miniaturizable], backing: .buffered, defer: false)
+                          styleMask: [.titled, .resizable, .closable, .miniaturizable, .fullSizeContentView], backing: .buffered, defer: false)
     let web: WKWebView
     private var focusedID: String?
     private var panes: [String: NativePane] = [:]
-    private var items: [String: NSToolbarItem] = [:]
-    private let controls = ["fold", "back", "forward"]
+    private lazy var content = WorkspaceContent(web: web) { [weak self] action in self?.emit(["action": action]) }
 
     init(address: URL) {
         self.address = address
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.titlebarSeparatorStyle = .none
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .nonPersistent()
         self.web = WKWebView(frame: .zero, configuration: config)
         super.init()
         config.userContentController.add(self, name: "roveMac")
         web.navigationDelegate = self
+        window.contentView = content
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -26,17 +29,6 @@ final class Workspace: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavi
         window.minSize = NSSize(width: 720, height: 480)
         window.isReleasedWhenClosed = false
         window.delegate = self
-        window.toolbarStyle = .unifiedCompact
-        window.titleVisibility = .hidden
-        let toolbar = NSToolbar(identifier: "Rove Workspace")
-        toolbar.delegate = self
-        toolbar.displayMode = .iconOnly
-        window.toolbar = toolbar
-        let root = NSView()
-        window.contentView = root
-        web.frame = root.bounds
-        web.autoresizingMask = [.width, .height]
-        root.addSubview(web)
         window.center()
         installMenu()
         window.focusChanged = { [weak self] responder in
@@ -74,28 +66,6 @@ final class Workspace: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavi
         NSApp.mainMenu = menu
     }
 
-    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        controls.map { NSToolbarItem.Identifier($0) } + [NSToolbarItem.Identifier.flexibleSpace]
-    }
-    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { toolbarAllowedItemIdentifiers(toolbar) }
-    func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier,
-                 willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
-        let id = identifier.rawValue
-        let symbols = ["fold": ("Toggle Sidebar", "sidebar.left"), "back": ("Back", "chevron.backward"), "forward": ("Forward", "chevron.forward")]
-        guard let (label, symbol) = symbols[id] else { return nil }
-        let item = NSToolbarItem(itemIdentifier: identifier)
-        item.label = label
-        item.toolTip = label
-        item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
-        item.isNavigational = true
-        item.autovalidates = false
-        item.isEnabled = false
-        item.target = self
-        item.action = #selector(toolbarAction(_:))
-        items[id] = item
-        return item
-    }
-    @objc func toolbarAction(_ sender: NSToolbarItem) { emit(["action": sender.itemIdentifier.rawValue]) }
     func emit(_ event: [String: Any]) {
         web.callAsyncJavaScript("window.dispatchEvent(new CustomEvent('rove-mac',{detail:event})); return true",
                                 arguments: ["event": event], in: nil, in: .page, completionHandler: nil)
@@ -114,7 +84,7 @@ final class Workspace: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavi
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         for pane in panes.values { pane.view.removeFromSuperview() }
         panes.removeAll()
-        for item in items.values { item.isEnabled = false }
+        content.reset()
     }
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
         let origin = message.frameInfo.securityOrigin
@@ -125,14 +95,8 @@ final class Workspace: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavi
             if let dark = msg["dark"] as? Bool {
                 window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
             }
-            let folded = msg["folded"] as? Bool == true
-            let waiting = msg["waiting"] as? Bool == true
-            let label = folded ? "Show Sidebar" : "Hide Sidebar"
-            items["fold"]?.toolTip = waiting ? "\(label) · A task needs attention" : label
-            items["fold"]?.image = NSImage(systemSymbolName: "sidebar.left", accessibilityDescription: label)
-            items["fold"]?.isBordered = waiting
-            items["fold"]?.isEnabled = true
-            for key in ["back", "forward"] { items[key]?.isEnabled = msg[key] as? Bool == true }
+            content.update(folded: msg["folded"] as? Bool == true, waiting: msg["waiting"] as? Bool == true,
+                           back: msg["back"] as? Bool == true, forward: msg["forward"] as? Bool == true)
             return
         }
         guard let id = msg["id"] as? String else { return }
