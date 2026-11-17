@@ -12,6 +12,7 @@ import { type HintPane, hintsUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { hintText, tasksText, workspaceText } from "./keymap-text.ts"
 import { backToTasks, enterWorkspace } from "./layout.ts"
+import { macHost, useMacToolbar } from "./mac-host.ts"
 import type { AppModel } from "./model.ts"
 import { type NavPlace, go, isLive, navState, step } from "./nav-history.ts"
 import { LAUNCHED_KINDS, narrowView } from "./panel-layout.ts"
@@ -105,6 +106,15 @@ export function RailBar({ model }: { model: AppModel }) {
   const live = (place: NavPlace) => isLive(model, place)
   const fold = folded ? t("layout.railUnfold") : t("layout.railFold")
   const waiting = folded && (payload?.tasks ?? []).some(needsPerson)
+  useMacToolbar(
+    folded,
+    waiting,
+    step(nav, -1, live) >= 0,
+    step(nav, 1, live) >= 0,
+    (n) => go(model, n < 0 ? -1 : 1),
+    () => railFolded.set(!folded),
+  )
+  if (macHost) return null
   return (
     // The bar sits over a peeking rail's top: crossing it keeps the peek open rather than opening one.
     <div
