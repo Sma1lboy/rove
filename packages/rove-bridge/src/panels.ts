@@ -22,9 +22,9 @@ export class PanelFeed {
   push(panel: PanelShowPayload | null | undefined): void {
     if (!panel || typeof panel.taskId !== "string" || typeof panel.at !== "number" || !VIEWS.includes(panel.view))
       return
-    const { taskId, view, url, path, at } = panel
+    const { taskId, view, url, path, reload, at } = panel
     // Two requests can share a millisecond; the same one arriving twice is the replay.
-    const key = JSON.stringify([at, taskId, view, url, path])
+    const key = JSON.stringify([at, taskId, view, url, path, reload])
     if (at < this.lastAt || key === this.lastKey) return
     this.lastAt = at
     this.lastKey = key
@@ -35,6 +35,7 @@ export class PanelFeed {
       at,
       ...(typeof url === "string" ? { url } : {}),
       ...(typeof path === "string" ? { path } : {}),
+      ...(reload === true ? { reload } : {}),
     }
     for (const listener of this.listeners) listener(clean)
   }

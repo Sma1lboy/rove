@@ -147,12 +147,16 @@ export function closeBrowserTab(taskId: string, id: string): void {
   editBrowserColumn(taskId, (col) => closeTab(col, id))
 }
 
+/** Worktree pages whose file changed, by address: when, so a frame on it loads again. */
+export const pageReloads = createStore<Readonly<Record<string, number>>>({})
+
 /**
  * A `rove api panel-show` request: every page keeps the view in the task's panel, whatever page is
  * open; only a page that is on that task opens the panel.
  */
 export function applyPanelPush(push: PanelPush, hereTaskId: string | null): void {
-  const plan = planPanelPush(push, { taskId: hereTaskId, narrow: isNarrow() })
+  const plan = planPanelPush(push, { taskId: hereTaskId, narrow: isNarrow(), origin: window.location.origin })
+  if (plan.reload && plan.url) pageReloads.set({ ...pageReloads.get(), [plan.url]: push.at })
   editPanel(push.taskId, (panel) => applyPlan(panel, plan, push.at))
   if (plan.show) {
     panelOpen.set(true)

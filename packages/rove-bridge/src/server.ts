@@ -50,6 +50,7 @@ import type { TabFeed } from "./tab-feed.ts"
 import { type AttachResult, type PtyHostClient, TerminalForwarder } from "./terminal.ts"
 import type { WebLogin } from "./web-login.ts"
 import { type WebRoot, serveWebFile } from "./web-static.ts"
+import { serveWorktreeFile, worktreeFileUrl } from "./worktree-files.ts"
 
 export interface BridgeDeps {
   readonly token: string
@@ -433,6 +434,9 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         return Response.json({ open: local }, { headers: { "Cache-Control": "no-store" } })
       }
       if (!upgrade && deps.web) {
+        // Before the static files: their client-route fallback would answer any path with the app shell.
+        const page = await serveWorktreeFile(req, deps)
+        if (page) return page
         const file = await serveWebFile(deps.web, req)
         if (file) return file
       }
@@ -464,7 +468,12 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         deps.sockets?.add(ws)
         ws.data.unsubscribeNotices = deps.notices?.subscribe((n) => ws.send(pushEvent("notice", n))) ?? null
         ws.data.unsubscribePrompts = deps.prompts?.subscribe((p) => ws.send(pushEvent("prompt", p))) ?? null
-        ws.data.unsubscribePanels = deps.panels?.subscribe((p) => ws.send(pushEvent("panel", p))) ?? null
+        ws.data.unsubscribePanels =
+          deps.panels?.subscribe((p) => {
+            // A worktree file in the Browser: the address this bridge serves it at.
+            const page = p.view === "browser" && p.path ? { url: worktreeFileUrl(deps.token, p.taskId, p.path) } : {}
+            ws.send(pushEvent("panel", { ...p, ...page }))
+          }) ?? null
         if (deps.mods) {
           ws.send(pushEvent("mods", { panes: deps.mods.current() }))
           ws.data.unsubscribeMods = deps.mods.subscribe((panes) => ws.send(pushEvent("mods", { panes })))

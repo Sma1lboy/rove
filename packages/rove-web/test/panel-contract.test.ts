@@ -72,9 +72,24 @@ describe("a panel push", () => {
     expect(planPanelPush(push({ view: "files" }), here)).toEqual({ tab: "files", show: true })
   })
 
-  test("a path means nothing to the Browser, an address nothing to Files", () => {
+  test("a worktree file in the Browser opens at this page's address for it; a change only reloads it", () => {
+    const here = { taskId: "T1", narrow: false, origin: "https://rove.example.com" }
+    const page = { view: "browser" as const, path: "out/a.html", url: "/worktree/T1/k/out/a.html" }
+    expect(planPanelPush(push(page), here)).toEqual({
+      tab: "browser",
+      url: "https://rove.example.com/worktree/T1/k/out/a.html",
+      show: true,
+    })
+    expect(planPanelPush(push({ ...page, reload: true }), here)).toEqual({
+      tab: "browser",
+      url: "https://rove.example.com/worktree/T1/k/out/a.html",
+      show: false,
+      reload: true,
+    })
+  })
+
+  test("an address means nothing to Files", () => {
     const here = { taskId: "T1", narrow: false }
-    expect(planPanelPush(push({ view: "browser", path: "a.ts" }), here)).toEqual({ tab: "diff", show: true })
     expect(planPanelPush(push({ view: "files", url: "https://example.com/" }), here)).toEqual({
       tab: "files",
       show: true,

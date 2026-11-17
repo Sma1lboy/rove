@@ -24,7 +24,7 @@ export const PANEL_SHOW_VERB: VerbSpec = {
   name: "panel-show",
   group: "drive",
   summary:
-    "Bring up the web side panel on a view of a task: the Browser (--url), a file in the Files view or the Diff view (--path). Every web client remembers the view for the task; a web page currently on that task with a panel opens it (no focus steal, no task switch). A TUI has no panel: nothing happens there. Task defaults to $ROVE_TASK_ID, then the active task. Returns { shown (pages that open it now), remembered (web pages that keep it for later), viewers (as `viewers`, for the task), url? { reachable, frameable, reason? } }. `url.reachable: false` = a localhost URL and the viewer is remote; `url.frameable: false` = the site forbids framing (X-Frame-Options / CSP frame-ancestors) or was refused by the probe, so tell the human the link instead.",
+    "Bring up the web side panel on a view of a task: the Browser (--url, or --path for a worktree HTML file the bridge serves with its siblings and reloads when its directory changes; no server needed), a file in the Files view or the Diff view (--path). Every web client remembers the view for the task; a web page currently on that task with a panel opens it (no focus steal, no task switch). A TUI has no panel: nothing happens there. Task defaults to $ROVE_TASK_ID, then the active task. Returns { shown (pages that open it now), remembered (web pages that keep it for later), viewers (as `viewers`, for the task), url? { reachable, frameable, reason? } }. `url.reachable: false` = a localhost URL and the viewer is remote; `url.frameable: false` = the site forbids framing (X-Frame-Options / CSP frame-ancestors) or was refused by the probe, so tell the human the link instead.",
   flags: [
     F.taskId(false),
     {
@@ -44,7 +44,8 @@ export const PANEL_SHOW_VERB: VerbSpec = {
       name: "path",
       type: "string",
       placeholder: "FILE",
-      description: "Files / Diff view: a file relative to the task's worktree (no `..`).",
+      description:
+        "A file relative to the task's worktree (no `..`): shown by Files / Diff, framed and live-reloaded by the Browser.",
     },
   ],
   handler: async (ctx) => {

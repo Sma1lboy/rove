@@ -47,6 +47,12 @@ export function normalizeUrl(input: string): string | null {
   }
 }
 
+/** A task's worktree file the bridge serves next to this page (sandboxed: it never runs as this page). */
+export function isWorktreePage(url: string, page: Pick<Location, "origin">): boolean {
+  const target = new URL(url)
+  return target.origin === page.origin && target.pathname.startsWith("/worktree/")
+}
+
 /**
  * Whether a page at `page` (its `location`) may put `url` (from `normalizeUrl`) in an iframe. `local`:
  * this page is on the machine Rove runs on (the bridge says so in `hello`; a loopback page address
@@ -58,6 +64,7 @@ export function canFrame(
   local: boolean = isLoopbackHost(page.hostname),
 ): Frameable {
   const target = new URL(url)
+  if (isWorktreePage(url, page)) return "yes"
   if (target.origin === page.origin) return "self"
   // A loopback address is the Rove machine's own server, whatever the scheme.
   if (isLoopbackHost(target.hostname)) return local ? "yes" : "remote"

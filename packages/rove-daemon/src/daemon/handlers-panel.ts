@@ -5,7 +5,9 @@
  * it only reports who it expects to show it (`viewers`) and whether a page can be framed.
  */
 
-import { isAbsolute, normalize } from "node:path"
+import { type FSWatcher, watch } from "node:fs"
+import { stat } from "node:fs/promises"
+import { basename, dirname, isAbsolute, join, normalize } from "node:path"
 import { checkFrame, isLoopbackHost } from "./frame-check.ts"
 import { objectPayload, optionalString, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
@@ -55,6 +57,31 @@ async function judgeUrl(url: URL, viewers: readonly Viewer[]) {
   }
 }
 
+const RELOAD_DEBOUNCE_MS = 150
+/** One watched page per task: the latest `panel.show` replaces it. */
+const watchers = new Map<string, FSWatcher>()
+
+/**
+ * Re-publish a framed worktree file as `reload` when it or a sibling changes. The directory is watched,
+ * not the file: an editor's atomic save replaces the file and a file watch goes dead with it.
+ */
+function watchPage(taskId: string, file: string, publish: (at: number) => void): void {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    const w = watch(dirname(file), (_event, name) => {
+      // Dotfiles are editor swap files and the like, not the page.
+      if (name && basename(name.toString()).startsWith(".")) return
+      clearTimeout(timer)
+      timer = setTimeout(() => publish(Date.now()), RELOAD_DEBOUNCE_MS)
+    })
+    w.on("error", () => watchers.get(taskId) === w && watchers.delete(taskId))
+    w.unref()
+    watchers.set(taskId, w)
+  } catch {
+    // Not watchable (gone, a platform limit): the page still shows, it just does not follow edits.
+  }
+}
+
 export const PANEL_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "panel.show",
@@ -67,17 +94,31 @@ export const PANEL_HANDLERS: readonly DaemonRequestHandler[] = [
       const rawUrl = optionalString(p, "url")
       const rawPath = optionalString(p, "path")
       if (rawUrl !== undefined && view !== "browser") throw new Error("url is for the browser view only")
-      if (rawPath !== undefined && view === "browser") throw new Error("path is for the files and diff views only")
-      if (!ctx.orch.getTask(taskId)) throw new Error(`task not found: ${taskId}`)
+      if (rawPath !== undefined && rawUrl !== undefined) throw new Error("pass url or path, not both")
+      const task = ctx.orch.getTask(taskId)
+      if (!task) throw new Error(`task not found: ${taskId}`)
       const url = rawUrl === undefined ? undefined : validUrl(rawUrl)
       const path = rawPath === undefined ? undefined : validPath(rawPath)
-      ctx.bus.publish("panel.show", {
+      const page = view === "browser" && path ? join(task.worktreePath ?? "", path) : undefined
+      if (page !== undefined) {
+        if (!task.worktreePath) throw new Error(`task ${taskId} has no worktree yet`)
+        const isFile = await stat(page).then(
+          (s) => s.isFile(),
+          () => false,
+        )
+        if (!isFile) throw new Error(`no such file in the task's worktree: ${path}`)
+      }
+      const event = {
         taskId,
         view: view as (typeof PANEL_VIEWS)[number],
         ...(url ? { url: url.href } : {}),
         ...(path ? { path } : {}),
-        at: Date.now(),
-      })
+      }
+      watchers.get(taskId)?.close()
+      watchers.delete(taskId)
+      if (page !== undefined)
+        watchPage(taskId, page, (at) => ctx.bus.publish("panel.show", { ...event, reload: true, at }))
+      ctx.bus.publish("panel.show", { ...event, at: Date.now() })
       const all = ctx.rowStatus?.viewers() ?? []
       const viewers = all.filter((v) => v.taskId === taskId)
       return {

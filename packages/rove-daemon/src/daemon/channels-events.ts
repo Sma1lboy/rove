@@ -11,8 +11,10 @@ export interface PanelShowPayload {
   readonly view: "browser" | "files" | "diff"
   /** Browser view: the http(s) URL to load (absolute, as the daemon normalised it). */
   readonly url?: string
-  /** Files and Diff views: the file, relative to the task's worktree, never `..`. */
+  /** A file relative to the task's worktree, never `..`: Files / Diff show it, the Browser frames it from the bridge. */
   readonly path?: string
+  /** Browser view with `path`: the file changed on disk; reload a tab already on it, open nothing. */
+  readonly reload?: true
   /** Publish time (ms epoch) — the consumer-side dedupe key. */
   readonly at: number
 }

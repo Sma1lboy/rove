@@ -50,6 +50,8 @@ describe("canFrame", () => {
   test("the page's own origin is never framed", () => {
     expect(canFrame("http://127.0.0.1:7961/x", local)).toBe("self")
     expect(canFrame("https://rove.example.com/", remote)).toBe("self")
+    // A worktree file the bridge serves sandboxed is not this page.
+    expect(canFrame("https://rove.example.com/worktree/T1/k/a.html", remote)).toBe("yes")
   })
 })
 

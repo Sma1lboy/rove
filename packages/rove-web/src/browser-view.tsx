@@ -9,9 +9,10 @@ import { useEffect, useRef, useState } from "react"
 import { BrowserAnnotate } from "./browser-annotate.tsx"
 import { canCapture } from "./browser-capture.ts"
 import { type BrowserTab, browserUrl } from "./browser-tabs.ts"
-import { canFrame, frameNote, isLoopbackHost, normalizeUrl } from "./browser-url.ts"
+import { canFrame, frameNote, isLoopbackHost, isWorktreePage, normalizeUrl } from "./browser-url.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import { pageReloads } from "./panel-state.ts"
 import { usePagePorts } from "./ports-strip.tsx"
 import { useStore } from "./store.ts"
 import { Button } from "./ui/button.tsx"
@@ -86,6 +87,8 @@ export function BrowserView({
   const stage = useRef<HTMLDivElement>(null)
   const peerLocal = useStore(model.client.conn).hello?.peer?.local
   const verdict = url ? canFrame(url, window.location, peerLocal) : null
+  // A worktree file reloads when the agent changes it (`rove api panel-show --path`).
+  const changed = useStore(pageReloads)[url] ?? 0
 
   // An address set from outside (`rove api panel-show`, back / forward) loads like a typed one.
   useEffect(() => {
@@ -105,7 +108,8 @@ export function BrowserView({
 
   // An https page is asked first (`browser.probe`): a site that forbids framing never gets an iframe.
   const host = url ? new URL(url).hostname : ""
-  const needsProbe = verdict === "yes" && url.startsWith("https:") && !isLoopbackHost(host)
+  const needsProbe =
+    verdict === "yes" && url.startsWith("https:") && !isLoopbackHost(host) && !isWorktreePage(url, window.location)
   const { pending, probe } = useFrameProbe(model.client, url, needsProbe)
   const note = url && verdict ? frameNote(url, verdict, probe) : null
   const framed = verdict === "yes" && !note && !pending
@@ -201,7 +205,7 @@ export function BrowserView({
       {framed ? (
         <div ref={stage} className={BROWSER_STAGE}>
           <iframe
-            key={`${url}#${reloads}`}
+            key={`${url}#${reloads}#${changed}`}
             className={BROWSER_FRAME}
             src={url}
             title={url}
@@ -211,7 +215,7 @@ export function BrowserView({
           {annotating && (
             <BrowserAnnotate
               // Marks belong to the page they were drawn on.
-              key={`${url}#${reloads}`}
+              key={`${url}#${reloads}#${changed}`}
               model={model}
               taskId={taskId}
               url={url}
