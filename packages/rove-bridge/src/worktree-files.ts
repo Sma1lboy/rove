@@ -35,6 +35,11 @@ export function worktreeFileUrl(token: string, taskId: string, path: string): st
   return `${PREFIX}${encodeURIComponent(taskId)}/${keyOf(token, taskId)}/${rel}`
 }
 
+/** A `panel.show` for a worktree file in the Browser, with the address it is served at. */
+export function withPageUrl<P extends { taskId: string; view: string; path?: string }>(token: string, p: P): P {
+  return p.view === "browser" && p.path ? { ...p, url: worktreeFileUrl(token, p.taskId, p.path) } : p
+}
+
 const notFound = () => new Response("not found\n", { status: 404, headers: { "Cache-Control": "no-store" } })
 
 /** The file, a refusal, or null when `req` is not for this route. */

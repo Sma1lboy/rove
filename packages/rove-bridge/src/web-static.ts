@@ -11,6 +11,8 @@ import { gzipSync } from "node:zlib"
 export interface WebRoot {
   /** Directory holding the built client (`index.html` + `assets/`). */
   readonly root: string
+  /** Answers its own paths first (a task's worktree files): the shell's client-route fallback would take any path. */
+  readonly pages?: (req: Request) => Promise<Response | null>
 }
 
 /**
@@ -43,6 +45,8 @@ async function gzipFile(path: string): Promise<Uint8Array> {
 
 /** A static response, or null when `req` is not a static GET/HEAD. */
 export async function serveWebFile(web: WebRoot, req: Request): Promise<Response | null> {
+  const page = await web.pages?.(req)
+  if (page) return page
   if (req.method !== "GET" && req.method !== "HEAD") return null
   const root = resolve(web.root)
   let pathname: string

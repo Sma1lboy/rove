@@ -156,7 +156,8 @@ export const pageReloads = createStore<Readonly<Record<string, number>>>({})
  */
 export function applyPanelPush(push: PanelPush, hereTaskId: string | null): void {
   const plan = planPanelPush(push, { taskId: hereTaskId, narrow: isNarrow(), origin: window.location.origin })
-  if (plan.reload && plan.url) pageReloads.set({ ...pageReloads.get(), [plan.url]: push.at })
+  // A worktree file is read again on every push, as `--view files` does: the agent may have just rewritten it.
+  if (push.path && plan.url) pageReloads.set({ ...pageReloads.get(), [plan.url]: push.at })
   editPanel(push.taskId, (panel) => applyPlan(panel, plan, push.at))
   if (plan.show) {
     panelOpen.set(true)

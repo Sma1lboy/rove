@@ -8,7 +8,8 @@ import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { PanelFeed } from "../src/panels.ts"
-import { AUTH, connect, start, stopServers } from "./server-harness.ts"
+import { serveWorktreeFile, withPageUrl } from "../src/worktree-files.ts"
+import { AUTH, TOKEN, connect, start, stopServers } from "./server-harness.ts"
 
 afterEach(stopServers)
 
@@ -36,11 +37,11 @@ async function serve() {
       ({ task: { worktreePath: args.join(" ").includes("T1") ? root : null } }) as T,
     rpc: async <T>() => ({}) as T,
   }
-  const h = start({ panels, web: { root: web }, api })
+  const h = start({ panels, web: { root: web, pages: (req) => serveWorktreeFile(req, { token: TOKEN, api }) }, api })
   const page = await connect(h.url, AUTH)
   await page.call("ui.viewing", { taskId: null })
   const arrived = new Promise<void>((resolve) => page.ws.addEventListener("message", () => resolve()))
-  panels.push({ taskId: "T1", view: "browser", path: "out/report.html", at: Date.now() })
+  panels.push(withPageUrl(TOKEN, { taskId: "T1", view: "browser" as const, path: "out/report.html", at: Date.now() }))
   await arrived
   const url = (page.pushes[0] as { data: { url: string } }).data.url
   return { base: h.url.replace("ws:", "http:").replace(/\/$/, ""), url }
