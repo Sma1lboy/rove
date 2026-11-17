@@ -12,7 +12,7 @@ import { loadOrCreateToken } from "../src/auth.ts"
 import { newTabInvocation } from "../src/new-tab.ts"
 import { taskOpDeps } from "../src/ops/tasks-shared.ts"
 import type { BridgeApi } from "../src/ops/types.ts"
-import { type EngineRow, createRoveOps, engineFor, remoteRowStatus, taskRows } from "../src/rove-ops.ts"
+import { type EngineRow, createRoveOps, remoteRowStatus, taskRows } from "../src/rove-ops.ts"
 import { isolateTaskOpDeps } from "./task-ops-harness.ts"
 
 isolateTaskOpDeps()
@@ -131,25 +131,6 @@ describe("task rows", () => {
       now,
     )
     expect(row?.deleting).toBe(true)
-  })
-})
-
-describe("engine identity", () => {
-  test("an exact preset command wins over the protocol's builtin; unknown engines fall back to the vendor id", () => {
-    expect(engineFor(task({ id: "a", vendor: "alpha", command: "alpha --fast" } as never), ENGINES)).toEqual({
-      id: "alpha-fast",
-      name: "Alpha Fast",
-    })
-    expect(engineFor(task({ id: "b", vendor: "alpha" } as never), ENGINES)).toEqual({ id: "alpha", name: "Alpha" })
-    expect(engineFor(task({ id: "c", vendor: "zeta" } as never), ENGINES)).toEqual({ id: null, name: "zeta" })
-  })
-
-  test("a task on an engine switched off still shows that engine's name", () => {
-    const off = ENGINES.map((e) => (e.id === "alpha-fast" ? { ...e, enabled: false } : e))
-    expect(engineFor(task({ id: "d", vendor: "alpha", command: "alpha --fast" } as never), off)).toEqual({
-      id: "alpha-fast",
-      name: "Alpha Fast",
-    })
   })
 })
 

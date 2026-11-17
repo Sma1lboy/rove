@@ -291,12 +291,13 @@ async function startOwnedServer(
   const ownerOf: PtyOwnerResolver = (taskId, tabId, at) => stores.aliases.ownerOf(taskId, tabId, at)
   // Per-tick work is gated on subscribers so a gui-less daemon never polls
   // npm / git / gh for nobody.
+  const conversationOf = (taskId: string) => pinnedConversation(stores.tabs.get(taskId).state)
   const stopCollectors = startDaemonCollectors(
     orch,
     runtime,
     bus,
     (channel) => lifetime.hasSubscribersFor(channel),
-    { ...options, ownerOf, conversationOf: (taskId) => pinnedConversation(stores.tabs.get(taskId).state) },
+    { ...options, ownerOf, conversationOf, onLiveEngine: rowStatus.setEngine.bind(rowStatus) },
     quotaUsage,
     {
       store: automations,
