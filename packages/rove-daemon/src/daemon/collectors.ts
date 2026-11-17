@@ -65,6 +65,8 @@ export interface DaemonCollectorOptions {
   readonly automationTickMs?: number
   /** Whose a hosted PTY is (default: the child aliased to it, else the key's task); the server adds released aliases. */
   readonly ownerOf?: PtyOwnerResolver
+  /** Each walked tab's foreground engine (null = none), every observer tick. */
+  readonly onLiveEngine?: (taskId: string, tabId: string, vendor: string | null) => void
   /** The conversation a task's own engine tab pinned; names a task that shares its directory. */
   readonly conversationOf?: ConversationOf
 }
@@ -210,13 +212,17 @@ export function startDaemonCollectors(
   const stopStatusWatch = receiveStatus
     ? watchProgramStatus(receiveStatus, { homeDir: options.homeDir })
     : async () => {}
+  const upgradeProtocol = createProtocolUpgradeReporter(orch, runtime)
   // First tick immediately (restart seeding), then the slow poll.
   const stopActivityObserver = activity
     ? startActivityObserver(
         activity,
         {
           ...createActivityObserverIo(options.homeDir, runtime, activity, ownerOf),
-          onEngineEvidence: createProtocolUpgradeReporter(orch, runtime),
+          onEngineEvidence: (taskId, tabId, evidence) => {
+            options.onLiveEngine?.(taskId, tabId, evidence.walkVendor)
+            return upgradeProtocol(taskId, tabId, evidence)
+          },
           onProgramStatusEvent: receiveStatus,
         },
         () => hasSubscribersFor("engine-state"),

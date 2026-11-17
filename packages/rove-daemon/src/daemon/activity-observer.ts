@@ -306,8 +306,13 @@ export function startActivityObserver(
         tracks.delete(key)
       }
 
-      // Walk every `walkEvery` ticks, plus immediately for new or never-walked sessions.
-      const toWalk = live.filter((t) => walkTick || newborn.has(t.key) || t.vendor === undefined)
+      // Walk every `walkEvery` ticks, plus immediately for new or never-walked sessions, and for one the last walk
+      // found empty whose output moved since: an engine started by hand there would otherwise read "no engine" for
+      // a whole cadence, and that verdict rests the engine's own fresher `running`.
+      const toWalk = live.filter(
+        (t) =>
+          walkTick || newborn.has(t.key) || t.vendor === undefined || (t.vendor === null && t.lastActivityAt === now),
+      )
       if (toWalk.length > 0) {
         const pidByKey = new Map<string, number>()
         for (const s of sessions) {

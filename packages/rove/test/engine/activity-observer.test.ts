@@ -39,6 +39,7 @@ function world(
   opts: {
     silenceMs?: number
     correctAfterMs?: number
+    walkEveryTicks?: number
     walk?: (pid: number) => string | null
     sessions?: FakeSession[]
     scan?: (info: { key: string; sinceOffset: number }) => { offset: number; died: boolean } | null
@@ -86,7 +87,7 @@ function world(
       pollMs: 15,
       silenceMs: opts.silenceMs ?? 60,
       correctAfterMs: opts.correctAfterMs ?? 0,
-      walkEveryTicks: 2,
+      walkEveryTicks: opts.walkEveryTicks ?? 2,
       log: () => {},
     },
   )
@@ -257,6 +258,15 @@ describe("activity observer", () => {
     await wait(60)
     w.state.sessions = [session]
     session.totalBytes += 50
+    await waitFor(() => w.row("tab-1")?.state === "running")
+  })
+
+  it("an engine started by hand in a shell the last walk found empty is seen once its output moves, not a walk cadence later", async () => {
+    const w = world({ walkEveryTicks: 10_000 })
+    w.state.sessions = [{ key: KEY, alive: true, pid: 42, title: "zsh", totalBytes: 100 }]
+    await wait(40)
+    w.state.engines.set(42, "codex")
+    w.state.sessions = [{ key: KEY, alive: true, pid: 42, title: "⠋ building", totalBytes: 500 }]
     await waitFor(() => w.row("tab-1")?.state === "running")
   })
 

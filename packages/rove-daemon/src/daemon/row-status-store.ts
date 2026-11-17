@@ -70,6 +70,7 @@ export class RowStatusStore {
     { viewer: string; taskId: string; tabId: string | null; info: ViewerInfo }
   >()
   private readonly answered = new Map<string, number>()
+  private readonly engines = new Map<string, string>()
   private status: Record<string, TaskStatus> = {}
   private rev = 0
   private publishTimer: ReturnType<typeof setTimeout> | null = null
@@ -129,6 +130,15 @@ export class RowStatusStore {
   /** The user answered this tab's question; its `?` clears until the engine reports again. */
   setAnswered(taskId: string, tabId: string): void {
     this.answered.set(tabKey(taskId, tabId), this.now())
+    this.schedule()
+  }
+
+  /** The engine the observer's walk found in this tab's foreground; null = none. */
+  setEngine(taskId: string, tabId: string, vendor: string | null): void {
+    const key = tabKey(taskId, tabId)
+    if ((this.engines.get(key) ?? null) === vendor) return
+    if (vendor === null) this.engines.delete(key)
+    else this.engines.set(key, vendor)
     this.schedule()
   }
 
@@ -253,6 +263,7 @@ export class RowStatusStore {
           viewed: this.isViewed(task.id, tabId),
           ...(this.answered.has(key) ? { answeredAt: this.answered.get(key) } : {}),
           ...(session ? { session } : {}),
+          ...(this.engines.has(key) ? { engine: this.engines.get(key) } : {}),
         })
       }
       const tablessActivity = this.taskActivity.get(task.id)
