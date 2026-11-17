@@ -12,21 +12,15 @@ import { useEffect, useRef, useState } from "react"
 import { type BridgeClient, BridgeRequestError } from "./bridge.ts"
 import { DialogShell } from "./dialogs.tsx"
 import { locale, t, useLocale } from "./i18n/index.ts"
-import { isTouch } from "./key-hints.ts"
-import { openPage } from "./layout.ts"
 import { usePrefs } from "./prefs.ts"
 import { ReleaseNotes } from "./release-notes.tsx"
 import { createStore, useStore } from "./store.ts"
 import { dialog, page } from "./ui.ts"
 import { Button, buttonClass } from "./ui/button.tsx"
-import { PAGE_TITLE } from "./ui/page.ts"
-import { HEAD_CHIP } from "./ui/shell.ts"
-import { ACTIONS, KICKER, LINK } from "./ui/text.ts"
+import { PAGE_TITLE, PG_TOP } from "./ui/page.ts"
+import { ACTIONS, LINK } from "./ui/text.ts"
 import {
-  PAGE_HEAD,
   RELEASE_NOTES,
-  UPDATE_CHIP,
-  UPDATE_CHIP_VERSION,
   UPDATE_OUTPUT,
   UPDATE_PAGE,
   UPDATE_SCROLL,
@@ -68,23 +62,19 @@ export function checkForUpdate(client: BridgeClient, channel?: ReleaseChannel): 
   )
 }
 
-/** Rail head chip, as the TUI brand row's `↑ v`: only when the registry says newer. */
-export function UpdateChip() {
+/** The Update destination stays available when notifications are off or the build is current. */
+export function UpdateBadge() {
   const u = useCatalog()
   const state = useStore(updateState)
-  // `update.notify` off hides the passive chip; Settings' explicit check and the Update page still report.
   const { prefs } = usePrefs()
   if (!prefs.updateNotify || !state?.info?.hasUpdate) return null
   return (
-    // A narrow rail keeps only the arrow (the version is in the title); a wide one shows both.
-    <button
-      type="button"
-      className={`${KICKER} text-muted ${UPDATE_CHIP} ${HEAD_CHIP}`}
-      title={fill(u.chip, { version: state.info.latest })}
-      onClick={() => openPage("update")}
+    <span
+      className="ml-auto truncate pl-2 font-mono text-meta text-warning"
+      title={fill(u.available, { version: state.info.latest })}
     >
-      ↑<span className={UPDATE_CHIP_VERSION}> {state.info.latest}</span>
-    </button>
+      {fill(u.chip, { version: state.info.latest })}
+    </span>
   )
 }
 
@@ -141,6 +131,7 @@ export function UpdateView({ client }: { client: BridgeClient }) {
   const u = useCatalog()
   const state = useStore(updateState)
   const [checked, setChecked] = useState(false)
+  const autoRun = useStore(updateAutoRun)
   const [status, setStatus] = useState<string | null>(null)
   const { run, setRun, poll } = useUpdateRun(client)
   const host = useRef<HTMLDivElement>(null)
@@ -190,10 +181,10 @@ export function UpdateView({ client }: { client: BridgeClient }) {
   }
   // biome-ignore lint/correctness/useExhaustiveDependencies: fires once, when the check has answered
   useEffect(() => {
-    if (!checked || !updateAutoRun.get()) return
+    if (!checked || !autoRun) return
     updateAutoRun.set(false)
     if (hasUpdate) activate("update")
-  }, [checked, hasUpdate])
+  }, [checked, hasUpdate, autoRun])
   const onKey = (e: React.KeyboardEvent) => {
     // Ctrl+C closes, as the TUI's page bindings; a text selection keeps the browser's copy.
     if (e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "c" && !window.getSelection()?.toString()) {
@@ -215,13 +206,13 @@ export function UpdateView({ client }: { client: BridgeClient }) {
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
     <div className={UPDATE_PAGE} tabIndex={0} ref={host} onKeyDown={onKey}>
+      <div className={PG_TOP}>
+        <h1 className={PAGE_TITLE}>{t("rail.update")}</h1>
+        <Button title={u.closeHint} onClick={() => activate("close")}>
+          {u.actions.close}
+        </Button>
+      </div>
       <div className={UPDATE_SCROLL}>
-        <div className={PAGE_HEAD}>
-          <h1 className={PAGE_TITLE}>{u.pageTitle}</h1>
-          <button type="button" className={`${LINK} mono`} onClick={() => activate("close")}>
-            {isTouch() ? t("dialog.close") : u.closeHint}
-          </button>
-        </div>
         <p className={`mono ${UPDATE_VERSIONS}`}>
           <span className="text-muted">{u.current}</span> <b>v{current}</b>{" "}
           <span className="text-muted">{u.latest}</span>{" "}

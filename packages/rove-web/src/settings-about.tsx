@@ -17,6 +17,7 @@ import { lastReply, requestRemembered } from "./remembered.ts"
 import { ts } from "./settings-copy.ts"
 import { Choice, Group, Row, Toggle } from "./settings-rows.tsx"
 import { useStore } from "./store.ts"
+import { closeDialog } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import { SETTINGS_INPUT, SETTINGS_VALUE } from "./ui/settings.ts"
 import { checkForUpdate, updateState, useCatalog } from "./update-view.tsx"
@@ -67,7 +68,13 @@ function UpdateRows({ client }: { client: BridgeClient }) {
       />
       <Row label={ts("general.updates")} hint={ts("general.updateCheckHint")}>
         {phase === "done" && info?.hasUpdate && (
-          <Button variant="action" onClick={() => openPage("update")}>
+          <Button
+            variant="action"
+            onClick={() => {
+              closeDialog()
+              openPage("update")
+            }}
+          >
             {ts("general.updateOpenPage")}
           </Button>
         )}

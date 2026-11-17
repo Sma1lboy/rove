@@ -32,10 +32,11 @@ const SCENES: Record<string, Scene> = {
   "new-session": { click: "New task" },
   kanban: { click: "Kanban" },
   routines: { click: "Routines" },
+  update: { click: "Update" },
   issues: { click: "Issues" },
   settings: { click: "Settings" },
   ...Object.fromEntries(
-    ["worktrees", "update", "mods", "compare", "usage"].map((id) => [id, { storage: { "rove.web.page": JSON.stringify(id) } }]),
+    ["worktrees", "mods", "compare", "usage"].map((id) => [id, { storage: { "rove.web.page": JSON.stringify(id) } }]),
   ),
   // Last: once a task is open its terminal sits behind every later scene, blinking.
   workspace: { click: "Visual Fixture" },

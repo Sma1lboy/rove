@@ -22,7 +22,6 @@ import { newChatHere, openTab } from "./task-dialogs.tsx"
 import { dialog, newSession, page, toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import { PANE, PANE_WORKING, PLACEHOLDER, PLACEHOLDER_BOX, WORKSPACE, WORKSPACE_FRAME } from "./ui/shell.ts"
-import { UpdateView } from "./update-view.tsx"
 import { WelcomePane } from "./welcome-view.tsx"
 import { WorktreesView } from "./worktrees-view.tsx"
 
@@ -55,14 +54,6 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
     })
   }, [model])
   useEffect(() => trackNav(model), [model])
-  if (pageOn === "update") {
-    return (
-      <main className={`${WORKSPACE} ${WORKSPACE_FRAME}`}>
-        {narrow && <NarrowBackBar client={model.client} />}
-        <UpdateView client={model.client} />
-      </main>
-    )
-  }
   if (pageOn === "worktrees") {
     return (
       <main className={`${WORKSPACE} ${WORKSPACE_FRAME}`}>
