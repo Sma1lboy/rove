@@ -30,7 +30,7 @@ export function openCompare(groupId: string): void {
   compareGroup.set(groupId)
   openPage("compare")
 }
-/** The Sessions page on one project (`""` = all): its live and archived sessions. Opens from a project header's menu. */
+/** The Sessions page on one project (`""` = all): its live and archived sessions. */
 export function openSessions(repo: string): void {
   sessionsRepo.set(repo)
   openPage("sessions")
