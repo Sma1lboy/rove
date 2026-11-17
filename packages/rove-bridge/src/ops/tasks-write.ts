@@ -10,7 +10,7 @@ import { argvToParams } from "@sma1lboy/rove/src/cli/api/invoke.ts"
 import { AUTO_MACHINE } from "@sma1lboy/rove/src/machines/forward.ts"
 import { deriveTitleFromPrompt } from "@sma1lboy/rove/src/orchestrator/title.ts"
 import { BridgeError, optBool, optInt, optStr } from "../protocol.ts"
-import { absPath, bool, flag, oneOf, optOneOf, optText, taskId, text } from "./args.ts"
+import { absPath, bool, flag, oneOf, optOneOf, optShellLine, optText, taskId, text } from "./args.ts"
 import { commandFromTask } from "./tasks-command-from.ts"
 import {
   checkAgentEngines,
@@ -116,6 +116,12 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
       "start and a scheduled start each take no prompt, count, agents, machine or each other",
     )
   }
+  // A terminal in a new worktree, no engine: the checkout is cut as `--worktree-only`, then made a session by its shell tab.
+  const shell = optBool(args, "shell")
+  const shellLine = shell ? optShellLine(args, "type") : undefined
+  if (shell && (parallel || prompt || machine || later || start || engineGiven || mdl || effort)) {
+    throw new BridgeError("BAD_ARGS", "shell takes no prompt, engine, model, effort, machine or scheduled start")
+  }
   if (parallel && branch) throw new BridgeError("BAD_ARGS", "branch cannot be shared by parallel tasks")
   if (agentsGiven && engineGiven) throw new BridgeError("BAD_ARGS", "engine conflicts with agents")
   const plan = agentsGiven ? parseAgents(args) : undefined
@@ -144,6 +150,15 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
   if (pin) argv.push(flag("pin", "true"))
   if (prompt) argv.push(flag("prompt", prompt))
   if (start) argv.push(flag("start", "true"))
+  if (shell) {
+    const cut = await ctx.api.verb<{ taskId?: string }>("add", [...argv, flag("worktree-only", "true")])
+    if (typeof cut.taskId !== "string") throw new BridgeError("BAD_RESULT", "add returned no task id")
+    // Listed before the tab opens: a failed open leaves a row to retry in, not a hidden checkout.
+    await ctx.api.rpc("task.worktreeOnly", { taskId: cut.taskId, on: false })
+    const line = shellLine ? [flag("type", shellLine)] : []
+    await ctx.api.verb("tab-new", [flag("task-id", cut.taskId), flag("kind", "shell"), "--own", ...line])
+    return { taskIds: [cut.taskId] }
+  }
   if (later) {
     const pending = await ctx.api.rpc<{ id: string }>("pendingStart.add", {
       ...later,
@@ -256,7 +271,10 @@ async function archive(args: Args, ctx: OpContext): Promise<unknown> {
 }
 
 export const TASK_WRITE_OPS: OpTable = {
-  "task.spawn": write("verb add", spawn),
+  "task.spawn": write(
+    "verb add (`shell`: add --worktree-only + rpc task.worktreeOnly off + tab-new --kind shell --own)",
+    spawn,
+  ),
   "task.rename": write("verb update --task-id --title", (a, c) =>
     done(c.api.verb("update", [flag("task-id", taskId(a)), flag("title", text(a, "title", 200))])),
   ),

@@ -9,16 +9,10 @@ import { argvToParams } from "@sma1lboy/rove/src/cli/api/invoke.ts"
 import { kvStatePath } from "@sma1lboy/rove/src/env.ts"
 import { addSavedRepo } from "@sma1lboy/rove/src/state/repos.ts"
 import { loadOrCreateToken } from "../src/auth.ts"
+import { newTabInvocation } from "../src/new-tab.ts"
 import { taskOpDeps } from "../src/ops/tasks-shared.ts"
 import type { BridgeApi } from "../src/ops/types.ts"
-import {
-  type EngineRow,
-  createRoveOps,
-  engineFor,
-  newTabInvocation,
-  remoteRowStatus,
-  taskRows,
-} from "../src/rove-ops.ts"
+import { type EngineRow, createRoveOps, engineFor, remoteRowStatus, taskRows } from "../src/rove-ops.ts"
 import { isolateTaskOpDeps } from "./task-ops-harness.ts"
 
 isolateTaskOpDeps()
