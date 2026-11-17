@@ -479,3 +479,13 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **No attempt:** every measured per-op count is still at its floor (11-13). The idle-window burst has now false-flagged twice (11-12, 11-16); making the idle phase wait for ~2 s with no counter row instead of a fixed 3 s after `boot.ready` would remove it. Owner call stands: that harness change, and a new scenario (streaming engine tab, many sidebar tasks, split pane) so nightly runs have something to optimize.
 
 **Sandbox:** bun 1.3.14 from npm with `ELECTRON_SKIP_BINARY_DOWNLOAD=1`; dir symlinks `/tmp/pwshim/chromium_headless_shell-{1243,1228}` → `/opt/pw-browsers/chromium_headless_shell-1243`. ~75 s per run.
+
+## 2026-11-17 — tooling regression, fixed as a PR (main 4a510ee)
+
+**Tool regression, no product regression.** `perf:measure` died in its `perf:golden` step: #2100 (69f86b9) made daemon boot call `orch.settleProjectRows` (`rove-daemon/src/daemon/stores.ts:99`), and `scripts/perf-golden.ts`'s inline stand-in orchestrator lacked it → `TypeError`, then `JSON Parse error: Unexpected EOF` in perf-measure. Fix (one line, the no-op from `test/daemon/harness.ts`) is #2102 from `perf/nightly-2026-11-17`. Tonight's numbers were measured with that patch applied on top of main.
+
+Run 1 (patched) exited 0, nothing past tolerance: firstFrame 416.1, boot.ready 1753, switch.shown 149, typing.echo 132.1, cli-startup 31.1; switch commit.root/workspace 6, sidebar 2, frame 2.2; typing 1/key. idle.commit.root/workspace/frame 1 (inside tolerance 1) — the boot-burst tail again on a fast boot. Baseline unchanged. No optimization attempted (regression night).
+
+**Owner calls still open:** idle phase should wait for quiet instead of a fixed 3 s; a new scenario so nightly has counts to optimize. Also: perf-golden's fake orchestrator could import `fakeOrchestrator` so daemon contract changes can't silently break it again.
+
+**Sandbox:** bun 1.3.14 from npm, `ELECTRON_SKIP_BINARY_DOWNLOAD=1`; dir symlinks `/tmp/pwshim/chromium_headless_shell-{1243,1228}` → `/opt/pw-browsers/chromium_headless_shell-1243`.
