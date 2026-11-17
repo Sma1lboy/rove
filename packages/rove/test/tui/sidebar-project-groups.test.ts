@@ -55,6 +55,25 @@ describe("grouping", () => {
     expect(result[0]?.tasks.map((t) => t.id)).toEqual(["a1", "a2"])
   })
 
+  test.each(["default", "recent", "attention", "name"])("pinned tasks lead their project in %s order", (sortMode) => {
+    const first = task("Apple")
+    const pinned = task("Zebra", { pinned: true, createdAt: "2025-01-01T00:00:00Z" })
+    expect(groups([first, pinned], NO_TABS, { sortMode })[0]?.tasks).toEqual([pinned, first])
+  })
+
+  test("project headers sort by displayed name or newest member, including unpinned tasks", () => {
+    const tasks = [
+      task("oldest", { repo: "/repo/tool1", createdAt: "2025-01-01T00:00:00Z" }),
+      task("old", { repo: "/repo/tool10", pinned: true }),
+      task("older", { repo: "/repo/tool2", createdAt: "2026-08-02T00:00:00Z" }),
+      task("new", { repo: "/repo/tool10", createdAt: "2026-08-03T00:00:00Z" }),
+      task("scratch", { kind: "dir", scratch: true }),
+    ]
+    const labels = (sortMode: string) => groups(tasks, NO_TABS, { sortMode }).map((group) => group.label)
+    expect(labels("name")).toEqual(["Ungrouped", "tool1", "tool2", "tool10"])
+    expect(labels("recent")).toEqual(["Ungrouped", "tool10", "tool2", "tool1"])
+  })
+
   test("scratch is one bench at the FRONT, wherever the store put it", () => {
     const scratch = task("s1", { kind: "dir", repo: "/tmp/s", scratch: true })
     const result = groups([task("a1", { repo: "/work/api" }), scratch])

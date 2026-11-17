@@ -34,7 +34,7 @@ export function compareRecent(a: Task, b: Task): number {
   return String(b.id).localeCompare(String(a.id))
 }
 
-const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" })
+export const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" })
 
 /** A→Z by title, numbers in numeric order (`task 2` before `task 10`). */
 export function compareName(a: Task, b: Task): number {

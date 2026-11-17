@@ -14,12 +14,12 @@ import { isUnlistedCheckout } from "@/lib/worktree-only"
 import type { Task } from "@/types/task"
 import { workspaceBackendId } from "@sma1lboy/rove-daemon/workspace"
 import {
-  type LabelledProject,
   type ProjectKeyOf,
   type TaskSortMode,
   compareName,
   compareNewest,
   isNoProjectTask,
+  nameCollator,
   sidebarProjectKeyOfTask,
   sidebarProjectKeyResolver,
   sidebarRepoLabel,
@@ -64,6 +64,7 @@ interface ProjectEntry {
   repo: string
   repoId?: string
   machineId: string
+  newest: number
   /** A task of the home checkout has been seen: it names the header. */
   home: boolean
   tasks: Task[]
@@ -105,7 +106,7 @@ function isRoutineRun(task: Task): boolean {
  * project, its tasks from every machine under it; which machine a row lives
  * on is the row's business (`task.origin`), not a section of its own.
  *
- * A project sits where its first task does in the stored order (`moveProject`
+ * In manual order a project sits where its first task does (`moveProject`
  * moves the whole block). `dir` tasks group under their directory (`repo` IS
  * the directory); loose after the last project they would read as that project's rows.
  */
@@ -121,7 +122,6 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
   const tasks = input.tasks.filter((task) => isListed(task) && task.archived !== true && !isRoutineRun(task))
   const { tabsByTask } = input
   const sortMode = input.sortMode ?? "default"
-  // `default` keeps orchestrator order and sorts nothing.
   const compare =
     sortMode === "recent"
       ? compareNewest
@@ -134,7 +134,9 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
   // No-project tasks never mint a project header — their cwd is temporary or
   // synthetic, so it would name a home they don't have. One section above all projects.
   const scratchTasks = tasks.filter(isNoProjectTask)
-  if (compare) scratchTasks.sort(compare)
+  const pinnedFirst = (a: Task, b: Task) =>
+    Number(b.pinned === true) - Number(a.pinned === true) || (compare?.(a, b) ?? 0)
+  scratchTasks.sort(pinnedFirst)
 
   const keyOf = sidebarProjectKeyResolver(tasks)
   const byProject = new Map<string, ProjectEntry>()
@@ -145,6 +147,7 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
       repo: task.repo,
       machineId: task.origin?.machineId ?? "local",
       home: false,
+      newest: 0,
       tasks: [],
     }
     if (!entry.repoId && task.repoId) entry.repoId = task.repoId
@@ -154,53 +157,29 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
       entry.machineId = task.origin?.machineId ?? "local"
       entry.home = true
     }
+    if (sortMode === "recent") entry.newest = Math.max(entry.newest, Date.parse(task.createdAt) || 0)
     entry.tasks.push(task)
     byProject.set(key, entry)
   }
 
-  // First-seen: the map's insertion order.
-  const orderedKeys = [...byProject.keys()]
-  const ordered = new Map<string, Task[]>()
-  for (const [key, entry] of byProject) {
-    if (compare) entry.tasks.sort(compare)
-    ordered.set(key, entry.tasks)
-  }
-
-  // Labels disambiguate against every other VISIBLE project (`~/work/api` vs
-  // `~/oss/api` must not both read `api`). Hidden projects are dropped first
-  // so they can't influence that.
-  const visibleKeys = orderedKeys.filter((key) => {
-    const list = ordered.get(key)
-    return list ? !isClosedDownProject(list, tabsByTask) : false
-  })
-  const labelled = new Map<string, LabelledProject>()
-  for (const key of visibleKeys) {
-    const entry = byProject.get(key)
-    if (entry) labelled.set(key, { repo: entry.repo, ...(entry.repoId ? { repoId: entry.repoId } : {}) })
-  }
-  const projects = [...labelled.values()]
-
-  const groups: SidebarGroup[] = []
+  const visible = [...byProject.entries()].filter(([, entry]) => !isClosedDownProject(entry.tasks, tabsByTask))
+  const projects = visible.map(([, entry]) => entry)
+  if (sortMode === "recent") visible.sort(([, a], [, b]) => b.newest - a.newest)
+  const groups: SidebarGroup[] = visible.map(([key, entry]) => ({
+    key,
+    repo: entry.repo,
+    label: sidebarRepoLabel(entry, projects),
+    machineId: entry.machineId,
+    tasks: entry.tasks.sort(pinnedFirst),
+  }))
+  if (sortMode === "name") groups.sort((a, b) => nameCollator.compare(a.label, b.label))
   if (scratchTasks.length > 0) {
-    groups.push({
+    groups.unshift({
       key: SCRATCH_SECTION_ID,
       repo: "",
       label: UNGROUPED_SECTION_LABEL,
       machineId: "local",
       tasks: scratchTasks,
-    })
-  }
-  for (const key of visibleKeys) {
-    const entry = byProject.get(key)
-    const list = ordered.get(key)
-    const project = labelled.get(key)
-    if (!entry || !list || !project) continue
-    groups.push({
-      key,
-      repo: entry.repo,
-      label: sidebarRepoLabel(project, projects),
-      machineId: entry.machineId,
-      tasks: list,
     })
   }
   return groups
