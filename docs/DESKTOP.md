@@ -125,3 +125,16 @@ The app adds no Rove chords — the page's keybindings are the keybindings, and 
 menu carries only the platform's own (⌘Q, ⌘W, ⌘R, ⌘±, ⌘M). Closing the window
 quits the app, which stops the bridge it started; the daemon is shared with the
 TUI and keeps running.
+
+## Native terminal preview on macOS
+
+From a checkout on macOS 14 or later with Xcode installed, run:
+
+```sh
+bun run build
+bun --filter @sma1lboy/rove-desktop native:preview
+```
+
+The preview opens the workspace in WebKit. Its title bar has the system window controls, sidebar toggle and workspace history. Each visible terminal is an AppKit SwiftTerm view attached to the same hosted PTY used by the web client. Typing, composition, selection and scrolling go through that view. Closing the preview detaches the window and stops the bridge it started.
+
+To use a particular local or sandbox bridge, set `ROVE_DESKTOP_URL` to its loopback pairing URL before starting the preview. The packaged desktop downloads continue to use Electron.
