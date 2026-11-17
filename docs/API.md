@@ -1589,9 +1589,15 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   `{ok, taskId, tabId, revived, alive?, resumed, sessionId?}`.
 - `panel-show --view browser|files|diff [--url URL] [--path FILE]
   [--task-id ID]`: bring up the web side panel (Files / Diff / Browser) on a
-  task. `--url` (browser view; `http`/`https` only) loads a page; `--path`
-  (files and diff views) is a file relative to the task's worktree, with no
-  `..`. Broadcast over the daemon's `panel.show` channel and pushed to every
+  task. `--url` (browser view; `http`/`https` only) loads a page; `--path` is
+  a file relative to the task's worktree, with no `..`: the Files or Diff view
+  shows it, and the Browser view frames it (a local HTML file, no server
+  needed). The bridge serves that file and its siblings from the worktree at
+  `/worktree/<taskId>/<key>/<path>` (the key is handed only to authenticated
+  pages, symlinks may not leave the worktree, `.git` is never served), under a
+  CSP sandbox so the page cannot act as Rove's own; the panel reloads it
+  whenever a file in its directory changes, until the next `panel-show` for
+  the task. `--url` and `--path` are exclusive. Broadcast over the daemon's `panel.show` channel and pushed to every
   browser: each web page remembers the view for that task, and one currently
   on the task with a side panel opens it, without stealing focus or switching
   task. A TUI has no panel. Task defaults to `$ROVE_TASK_ID`, then the active

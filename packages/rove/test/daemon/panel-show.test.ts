@@ -3,9 +3,12 @@
  * about each screen, what `panel.show` broadcasts, and who it reports as showing it.
  */
 
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { RowStatusStore } from "@sma1lboy/rove-daemon/daemon/row-status-store"
 import type { DaemonHandlerContext } from "@sma1lboy/rove-daemon/daemon/server"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
 
 interface Reply {
@@ -142,11 +145,32 @@ describe("panel.show", () => {
     [{ view: "diff", path: "/etc/passwd" }, /relative/],
     [{ view: "pdf" }, /view must be one of/],
     [{ view: "files", url: "https://example.com" }, /browser view only/],
-    [{ view: "browser", path: "a.ts" }, /files and diff/],
+    [{ view: "browser", path: "missing.html" }, /no such file/],
+    [{ view: "browser", path: "a.html", url: "https://example.com" }, /url or path, not both/],
   ])("refuses %j", async (payload, message) => {
     const { ctx, rec } = harness()
     await expect(dispatch("panel.show", { taskId: "t1", ...payload }, ctx)).rejects.toThrow(message)
     expect(rec.published).toEqual([])
+  })
+
+  it("a worktree file opens in the Browser and is pushed again as a reload when it changes", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "rove-panel-"))
+    try {
+      writeFileSync(join(dir, "report.html"), "<p>one</p>")
+      const { ctx, rec } = fakeCtx({
+        getTask: (id: string) => (id === "t1" ? { ...TASK, worktreePath: dir } : undefined),
+      })
+      await dispatch("panel.show", { taskId: "t1", view: "browser", path: "report.html" }, ctx)
+      const shows = () => rec.published.filter((e) => e.channel === "panel.show").map((e) => e.payload)
+      expect(shows()).toEqual([{ taskId: "t1", view: "browser", path: "report.html", at: expect.any(Number) }])
+      writeFileSync(join(dir, "report.html"), "<p>two</p>")
+      await vi.waitFor(() => expect(shows()).toHaveLength(2), { timeout: 3000 })
+      expect(shows()[1]).toMatchObject({ taskId: "t1", view: "browser", path: "report.html", reload: true })
+      // The next request for the task ends the watch.
+      await dispatch("panel.show", { taskId: "t1", view: "diff" }, ctx)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 
   it("an unknown task is an error", async () => {

@@ -11,10 +11,12 @@ import { type TaskPanel, showBrowser, showDiff, showFile, showKind } from "./pan
 export interface PanelPush {
   readonly taskId: string
   readonly view: PanelKind
-  /** Browser view: an absolute http(s) address. */
+  /** Browser view: an http(s) address, or this page's own path to a worktree file (`/worktree/…`). */
   readonly url?: string
-  /** Files and Diff views: a file relative to the task's worktree. */
+  /** A file relative to the task's worktree (Browser: the one `url` serves). */
   readonly path?: string
+  /** That worktree file changed: reload a tab on it, open nothing. */
+  readonly reload?: true
   /** Publish time (ms epoch). */
   readonly at: number
 }
@@ -30,7 +32,8 @@ export function isPanelPush(data: unknown): data is PanelPush {
     VIEWS.includes(p.view) &&
     typeof p.at === "number" &&
     (p.url === undefined || typeof p.url === "string") &&
-    (p.path === undefined || typeof p.path === "string")
+    (p.path === undefined || typeof p.path === "string") &&
+    (p.reload === undefined || p.reload === true)
   )
 }
 
@@ -54,25 +57,35 @@ export interface PanelPlan {
   readonly path?: string
   /** Open the panel now: this page is on the task and has a side panel. */
   readonly show: boolean
+  /** Only reload the Browser tab on `url`. */
+  readonly reload?: true
 }
 
 /**
  * Every page remembers the view for the task; only a page that is on the task, with a side panel,
  * opens it, and it never moves to another task or takes focus.
  */
-export function planPanelPush(push: PanelPush, here: { taskId: string | null; narrow: boolean }): PanelPlan {
-  // A path with `--view files` is the file itself; otherwise its diff.
-  const tab: PanelKind = push.path ? (push.view === "files" ? "file" : "diff") : push.view
+export function planPanelPush(
+  push: PanelPush,
+  here: { taskId: string | null; narrow: boolean; origin?: string },
+): PanelPlan {
+  const browser = push.view === "browser"
+  // A path with `--view files` is the file itself; with Diff its diff; the Browser frames it.
+  const tab: PanelKind = push.path && !browser ? (push.view === "files" ? "file" : "diff") : push.view
+  // A worktree file's address is this page's own path.
+  const url = browser && push.url ? new URL(push.url, here.origin).href : undefined
+  if (push.reload) return url ? { tab, url, show: false, reload: true } : { tab, show: false }
   return {
     tab,
-    ...(push.view === "browser" && push.url ? { url: push.url } : {}),
-    ...(push.view !== "browser" && push.path ? { path: push.path } : {}),
+    ...(url ? { url } : {}),
+    ...(!browser && push.path ? { path: push.path } : {}),
     show: here.taskId === push.taskId && !here.narrow,
   }
 }
 
 /** The panel after a push (sent `at`): an address finds or opens its Browser tab, a path retargets the File or Diff column (read again if already on it), a kind alone opens its column. */
 export function applyPlan(panel: TaskPanel, plan: PanelPlan, at: number): TaskPanel {
+  if (plan.reload) return panel
   if (plan.url) return showBrowser(panel, plan.url)
   if (plan.path) return plan.tab === "file" ? showFile(panel, plan.path, at) : showDiff(panel, plan.path, "working", at)
   return showKind(panel, plan.tab)

@@ -215,7 +215,7 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
   // Same socket: like row status, it is a whole snapshot to resync after the daemon comes back.
   const dispatches = new DispatchFeed(statusClient)
   // `rove api panel-show`: an event, not a snapshot, so a replay after a reconnect is dropped by age.
-  const panels = new PanelFeed()
+  const panels = new PanelFeed(Date.now, sharedToken)
   statusClient.onChannel("panel.show", (panel) => panels.push(panel))
   let statusRetryMs = STATUS_RECONNECT_MS
   const syncStatus = async (): Promise<void> => {
@@ -392,7 +392,7 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
         runHere: (p) => executeVerb(verb, { params: p }, { client: verbClient, caller: REMOTE_CALLER }),
       }),
     ...(args.cloudflare ? { access: createAccessVerifier(args.cloudflare) } : {}),
-    ...(opts.web ? { web: opts.web } : {}),
+    ...(opts.web ? { web: { ...opts.web, worktrees: { token: sharedToken, api } } } : {}),
     ...(signIn ? { signIn } : {}),
     ...(opts.web
       ? {

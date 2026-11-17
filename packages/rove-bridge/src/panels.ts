@@ -7,6 +7,7 @@
 
 import type { ChannelPayloads } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { STALE_NOTICE_MS } from "./notices.ts"
+import { withPageUrl } from "./worktree-files.ts"
 
 export type PanelShowPayload = ChannelPayloads["panel.show"]
 
@@ -17,14 +18,18 @@ export class PanelFeed {
   private lastKey = ""
   private lastAt = 0
 
-  constructor(private readonly now: () => number = Date.now) {}
+  /** `token`: give a worktree file in the Browser the address this bridge serves it at. */
+  constructor(
+    private readonly now: () => number = Date.now,
+    private readonly token?: string,
+  ) {}
 
   push(panel: PanelShowPayload | null | undefined): void {
     if (!panel || typeof panel.taskId !== "string" || typeof panel.at !== "number" || !VIEWS.includes(panel.view))
       return
-    const { taskId, view, url, path, at } = panel
+    const { taskId, view, url, path, reload, at } = panel
     // Two requests can share a millisecond; the same one arriving twice is the replay.
-    const key = JSON.stringify([at, taskId, view, url, path])
+    const key = JSON.stringify([at, taskId, view, url, path, reload])
     if (at < this.lastAt || key === this.lastKey) return
     this.lastAt = at
     this.lastKey = key
@@ -35,8 +40,10 @@ export class PanelFeed {
       at,
       ...(typeof url === "string" ? { url } : {}),
       ...(typeof path === "string" ? { path } : {}),
+      ...(reload === true ? { reload } : {}),
     }
-    for (const listener of this.listeners) listener(clean)
+    const out = this.token === undefined ? clean : withPageUrl(this.token, clean)
+    for (const listener of this.listeners) listener(out)
   }
 
   subscribe(listener: (panel: PanelShowPayload) => void): () => void {

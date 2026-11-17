@@ -7,21 +7,24 @@
 import { stat } from "node:fs/promises"
 import { extname, resolve, sep } from "node:path"
 import { gzipSync } from "node:zlib"
+import { type WorktreeFiles, serveWorktreeFile } from "./worktree-files.ts"
 
 export interface WebRoot {
   /** Directory holding the built client (`index.html` + `assets/`). */
   readonly root: string
+  /** Serve tasks' worktree files (`worktree-files.ts`), ahead of the shell's client-route fallback. */
+  readonly worktrees?: WorktreeFiles
 }
 
 /**
  * The page keeps the bridge token in localStorage, so script and connection
  * sources are pinned to this origin; nothing may frame it. It may frame others
- * (the side panel's Browser view): https pages, and a dev server on this
- * machine. The client decides which of the two it tries.
+ * (the side panel's Browser view): https pages, a dev server on this
+ * machine, and a task's worktree file (`worktree-files.ts`, sandboxed). The client decides which of the two it tries.
  */
 const SECURITY_HEADERS: Readonly<Record<string, string>> = {
   "Content-Security-Policy":
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src https: http://localhost:* http://127.0.0.1:* http://[::1]:*; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https: http://localhost:* http://127.0.0.1:* http://[::1]:*; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "no-referrer",
 }
@@ -43,6 +46,8 @@ async function gzipFile(path: string): Promise<Uint8Array> {
 
 /** A static response, or null when `req` is not a static GET/HEAD. */
 export async function serveWebFile(web: WebRoot, req: Request): Promise<Response | null> {
+  const page = web.worktrees ? await serveWorktreeFile(req, web.worktrees) : null
+  if (page) return page
   if (req.method !== "GET" && req.method !== "HEAD") return null
   const root = resolve(web.root)
   let pathname: string
