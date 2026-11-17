@@ -21,6 +21,21 @@ function restoreEnv(key: string, prev: string | undefined): void {
 }
 
 describe("task.spawn", () => {
+  test("shell: the worktree is cut with no engine, listed, and its own first tab is a shell running the line", async () => {
+    const { calls, result } = await run(
+      "task.spawn",
+      { repo: "/Users/me/app", shell: true, title: "Shell", type: "bun dev" },
+      { add: { taskId: "N1", task: {} }, "tab-new": { tabId: "tab-1" } },
+    )
+    expect(calls).toEqual([
+      { verb: "add", argv: ["--repo=/Users/me/app", "--title=Shell", "--worktree-only=true"], machine: undefined },
+      { rpc: "task.worktreeOnly", payload: { taskId: "N1", on: false } },
+      { verb: "tab-new", argv: ["--task-id=N1", "--kind=shell", "--own", "--type=bun dev"], machine: undefined },
+    ])
+    expect(result).toEqual({ taskIds: ["N1"] })
+    await refused("task.spawn", { repo: "/Users/me/app", shell: true, prompt: "p" })
+  })
+
   test("on another machine the agent stays here by default: add runs in this daemon with the workspace there", async () => {
     const { calls } = await run(
       "task.spawn",

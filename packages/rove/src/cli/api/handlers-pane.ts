@@ -205,11 +205,12 @@ async function launchKind(ctx: VerbContext, daemon: DaemonRpc, task: SerializedT
 
 /**
  * A new shell is its own row: a shared child of `task` (same directory) whose `tab-1` is the login
- * shell. A fresh Ungrouped task is the exception, since its shell already IS the task.
+ * shell. A task with no tab yet is the exception when it is a fresh Ungrouped one or the caller asks
+ * (`asOwn`): its shell then IS the task.
  */
-async function openShellTab(ctx: VerbContext, daemon: DaemonRpc, task: SerializedTask, type?: string) {
+async function openShellTab(ctx: VerbContext, daemon: DaemonRpc, task: SerializedTask, type?: string, asOwn = false) {
   const taskId = task.id
-  const own = task.scratch === true && ((await readDaemonTabs(daemon, taskId))?.tabs.length ?? 0) === 0
+  const own = (task.scratch === true || asOwn) && ((await readDaemonTabs(daemon, taskId))?.tabs.length ?? 0) === 0
   const row = own ? task : await spawnSharedChild(daemon, taskId, undefined, SHELL_TASK_TITLE)
   try {
     const opened = await ctx.runtime.openTab(
@@ -303,6 +304,12 @@ export const TAB_NEW_VERB: VerbSpec = {
       description:
         "Shell tabs only: type TEXT into the new shell once it is up, then press Enter (e.g. a dev server's command). The tab stays a normal shell: Ctrl+C stops what it started.",
     },
+    {
+      name: "own",
+      type: "bool",
+      description:
+        "Shell tabs only: while the task has no tab yet, open the shell as the task's own tab-1 (a session that is a terminal, no engine) instead of a new child row. A task that already has a tab gets the child row as usual.",
+    },
   ],
   handler: async (ctx) => {
     const daemon = daemonOf(ctx)
@@ -320,8 +327,13 @@ export const TAB_NEW_VERB: VerbSpec = {
       )
     }
     const type = ctx.args.str("type")
-    if (type !== undefined && kind !== "shell") {
-      throw new ApiError("--type only applies to a shell tab; pass --kind shell", "BAD_FLAG", helpStep("tab-new"))
+    const asOwn = ctx.args.bool("own") === true
+    if ((type !== undefined || asOwn) && kind !== "shell") {
+      throw new ApiError(
+        "--type and --own only apply to a shell tab; pass --kind shell",
+        "BAD_FLAG",
+        helpStep("tab-new"),
+      )
     }
     const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
     // The project's last engine; the task's own when it is the same, so its model and effort carry over.
@@ -365,7 +377,7 @@ export const TAB_NEW_VERB: VerbSpec = {
         }
       })
     }
-    return openShellTab(ctx, daemon, task, type)
+    return openShellTab(ctx, daemon, task, type, asOwn)
   },
 }
 

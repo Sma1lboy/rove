@@ -18,6 +18,7 @@ import type { CredentialSockets } from "./credential-sockets.ts"
 import type { DispatchFeed } from "./dispatch-feed.ts"
 import { type TaskFeed, taskPusher } from "./feed.ts"
 import { dismissHitsOnlyGates } from "./gates.ts"
+import { newTabRequest } from "./new-tab.ts"
 import type { NoticeFeed } from "./notices.ts"
 import { absPath, oneOf } from "./ops/args.ts"
 import { AREA_OPS } from "./ops/index.ts"
@@ -211,27 +212,8 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
     }
     case "task.tabs":
       return { tabs: await ops.tabs(str(a, "taskId")) }
-    case "tab.new": {
-      const prompt = optStr(a, "prompt")
-      const kind = optStr(a, "kind") ?? "engine"
-      if (kind !== "shell" && kind !== "engine") throw new BridgeError("BAD_ARGS", "kind is shell|engine")
-      const engine = optStr(a, "engine")
-      const latest = optBool(a, "latest")
-      const replaceTab = optStr(a, "replaceTab")
-      if (kind === "shell" && (prompt !== undefined || engine !== undefined || latest || replaceTab !== undefined)) {
-        throw new BridgeError("BAD_ARGS", "a shell tab takes no prompt or engine")
-      }
-      if (replaceTab !== undefined && !/^tab-[A-Za-z0-9-]+$/.test(replaceTab)) {
-        throw new BridgeError("BAD_ARGS", "replaceTab is not a tab id")
-      }
-      return ops.newTab(str(a, "taskId"), {
-        kind,
-        prompt,
-        engine,
-        ...(latest ? { latest } : {}),
-        ...(replaceTab ? { replaceTab } : {}),
-      })
-    }
+    case "tab.new":
+      return ops.newTab(str(a, "taskId"), newTabRequest(a))
     case "tab.close":
       await ops.closeTab(str(a, "taskId"), str(a, "tabId"))
       return {}
