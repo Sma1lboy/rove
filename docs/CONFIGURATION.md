@@ -481,12 +481,13 @@ silently deletable.
 The current tree sidebar follows persisted project/task order and supports
 manual project reordering with `shift+m`. The `t` key cycles the task sort
 through four orders — `default` (shown as "manual": the persisted order, the
-one drag and move mode edit), `recent` (shown as "newest": newest created first; renaming, status
-or pin changes and selecting a task never reorder it), `attention`
+one drag and move mode edit), `recent` (shown as "newest": newest created first), `attention`
 (tasks blocked on you first, then ones whose turn landed unread,
 most recently changed inside each group), and `name` (A→Z by title, ignoring
 case, with numbers in numeric order so `task 2` comes before `task 10`).
-Projects keep their own order in every mode. The choice is saved as
+Pinned tasks lead their siblings in every mode. Newest orders projects by their newest task, and
+name orders them by the displayed project label. Manual and attention keep the
+stored project order. Ungrouped stays first. The choice is saved as
 `activeSortMode` and read back on startup; with none saved, or a value this
 build does not recognise, the sidebar starts on `recent`. The active order is
 named on the line above the task list (`sort: newest`). Reorder (`shift+m`,
