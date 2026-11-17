@@ -22,6 +22,8 @@ export function SidebarTreeBody(props: {
   /** Non-empty query open: "no matches" empty state instead of "nothing here yet". */
   readonly searching: boolean
   readonly shared: TreeRowShared
+  readonly collapsedProjects?: ReadonlySet<string>
+  readonly onToggleProject?: (id: string) => void
   readonly onProjectContextMenu?: (projectId: string, x: number, y: number) => void
   /** Project being dragged in move mode — wears the move chip. */
   readonly movingProjectId?: string | null
@@ -48,6 +50,8 @@ export function SidebarTreeBody(props: {
                 key={row.id}
                 label={isScratch ? t("tasks.header.scratch") : row.label}
                 suffix={props.movingProjectId === row.id ? t("tasks.moveChip") : undefined}
+                prefix={props.collapsedProjects?.has(row.id) ? "▸" : undefined}
+                onPress={() => props.onToggleProject?.(row.id)}
                 topPad={i > 0}
                 depth={row.depth}
                 onContextMenu={

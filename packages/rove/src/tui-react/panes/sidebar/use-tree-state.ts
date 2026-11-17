@@ -57,12 +57,14 @@ export const COLLAPSED_TASKS_KEY = "sidebar.collapsedTasks"
 /** KV key holding the ids of crowded parents the user opened past the automatic fold. */
 export const OPENED_TASKS_KEY = "sidebar.openedTasks"
 
+const COLLAPSED_PROJECTS_KEY = "sidebar.collapsedProjects"
+
 interface Folds {
   readonly collapsed: ReadonlySet<string>
   readonly opened: ReadonlySet<string>
 }
 
-function readTaskIds(kv: TabsSnapshotKv | null, key: string): ReadonlySet<string> {
+function readIds(kv: TabsSnapshotKv | null, key: string): ReadonlySet<string> {
   const stored = kv?.store[key]
   return new Set(Array.isArray(stored) ? stored.filter((id): id is string => typeof id === "string") : [])
 }
@@ -77,21 +79,30 @@ export interface TreeState {
   readonly totalCount: number
   /** The row id the right pane is currently showing. */
   readonly activeRowId: string | null
-  /** A non-empty query has pruned the tree to its matches. */
+  /** Search is open, including while its field is empty. */
   readonly searching: boolean
   /** Fold or unfold a task's children. */
+  readonly collapsedProjects: ReadonlySet<string>
+  readonly toggleProject: (id: string) => void
   readonly toggleTaskFold: (taskId: string) => void
 }
 
 export function useTreeState(opts: TreeStateOpts): TreeState {
   const { tasks, kv, selectedTaskId } = opts
   const query = opts.query ?? ""
-  const searching = query.trim() !== ""
+  const searching = opts.query !== undefined
+  const [collapsedProjects, setCollapsedProjects] = useState(() => readIds(kv, COLLAPSED_PROJECTS_KEY))
+  const toggleProject = (id: string): void => {
+    const next = new Set(collapsedProjects)
+    if (!next.delete(id)) next.add(id)
+    setCollapsedProjects(next)
+    kv?.set(COLLAPSED_PROJECTS_KEY, [...next])
+  }
 
   // The folds the user set by hand over the automatic rule.
   const [folds, setFolds] = useState<Folds>(() => ({
-    collapsed: readTaskIds(kv, COLLAPSED_TASKS_KEY),
-    opened: readTaskIds(kv, OPENED_TASKS_KEY),
+    collapsed: readIds(kv, COLLAPSED_TASKS_KEY),
+    opened: readIds(kv, OPENED_TASKS_KEY),
   }))
   // The latest folds and rows, so a toggle persists what it just built and flips what is on screen.
   const foldsRef = useRef(folds)
@@ -137,6 +148,7 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
     const all = buildRowsFromGroups({
       groups,
       conversationTitles,
+      collapsedProjects: searching ? undefined : collapsedProjects,
       collapsedTasks: searching ? undefined : folds.collapsed,
       openedTasks: folds.opened,
       selectedTaskId: selectedTaskId ?? undefined,
@@ -158,7 +170,19 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
       ),
       totalCount: total,
     }
-  }, [groups, tabsByTask, tasks, searching, query, recentTask, folds, selectedTaskId, machines, opts.branchTick])
+  }, [
+    groups,
+    tabsByTask,
+    tasks,
+    collapsedProjects,
+    searching,
+    query,
+    recentTask,
+    folds,
+    selectedTaskId,
+    machines,
+    opts.branchTick,
+  ])
   rowsRef.current = rows
   const flatIds = useMemo(() => treeFlatIds(rows), [rows])
 
@@ -171,6 +195,8 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
     totalCount,
     activeRowId,
     searching,
+    collapsedProjects,
+    toggleProject,
     toggleTaskFold,
   }
 }

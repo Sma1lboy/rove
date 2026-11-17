@@ -232,10 +232,10 @@ header's menu (**Move to top**, **Move up**, **Move down**).
 `h` / `l` fold directories on both tabs — on Changes they also expand
 and collapse untracked-directory rows.
 
-The sidebar is a tree (project → Task → Terminal Tab) and it never folds, so
-everything is always visible. Search (`/`) matches titles, repos, branches,
-and live tab titles, and keeps matching rows' parents so a hit is never
-orphaned.
+Click a project header to fold or unfold its tasks. Search (`/`) temporarily
+opens folded projects and task trees. It matches the conversation name, task
+title, repo or branch and keeps matching rows’ parents visible. Enter opens
+the highlighted task. Escape leaves search. Both restore the saved folds.
 
 Right-click any row for its context menu; `j`/`k` and `⏎` drive it, and a press
 anywhere else, or `esc`, dismisses it. Common row actions also have direct
