@@ -15,10 +15,16 @@ export interface RunResult {
 export function runAsync(
   cmd: string,
   args: readonly string[],
-  opts: { readonly cwd?: string; readonly timeoutMs?: number; readonly env?: NodeJS.ProcessEnv } = {},
+  opts: {
+    readonly cwd?: string
+    readonly timeoutMs?: number
+    readonly env?: NodeJS.ProcessEnv
+    /** Written to the child's stdin, which is then closed. */
+    readonly input?: string
+  } = {},
 ): Promise<RunResult> {
   return new Promise((resolve) => {
-    execFile(
+    const child = execFile(
       cmd,
       [...args],
       { cwd: opts.cwd, env: opts.env, timeout: opts.timeoutMs, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
@@ -28,5 +34,9 @@ export function runAsync(
         resolve({ ok: !err, stdout: stdout ?? "", stderr: stderr ?? "", ...(ran ? {} : { error: err.message }) })
       },
     )
+    if (opts.input === undefined) return
+    // A child that exits before reading stdin surfaces EPIPE here; its exit already settles the result.
+    child.stdin?.on("error", () => {})
+    child.stdin?.end(opts.input)
   })
 }

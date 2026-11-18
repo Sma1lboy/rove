@@ -84,7 +84,7 @@ export async function runFeedbackSubcommand(args: readonly string[]): Promise<vo
   const body = parsed.bodyFile ? readBodyFile(parsed.bodyFile) : parsed.body
   if (!body) usageError("--body or --body-file is required")
 
-  const result = submitFeedback({ title: parsed.title, body, kind: parsed.kind as FeedbackKind | undefined })
+  const result = await submitFeedback({ title: parsed.title, body, kind: parsed.kind as FeedbackKind | undefined })
   if (result.filed) {
     console.log(`filed issue #${result.number}: ${result.url}`)
     return

@@ -1,8 +1,8 @@
-import { spawnSync } from "node:child_process"
 import { arch, platform, release } from "node:os"
 import { getGlobalDefaultVendor } from "../state/vendor-prefs.ts"
 import { DEFAULT_TASK_VENDOR } from "../types/task.ts"
 import { CURRENT_VERSION, owningNpmPrefix, repoSlug } from "../version.ts"
+import { type RunResult, runAsync } from "./run-async.ts"
 
 /** What the reporter is filing; each maps to one repo label. */
 export const FEEDBACK_KINDS = ["bug", "idea", "question"] as const
@@ -14,10 +14,11 @@ const KIND_LABEL: Record<FeedbackKind, string> = { bug: "bug", idea: "enhancemen
 /** GitHub rejects very long prefilled-issue URLs; the body is cut to stay well under that. */
 const MAX_PREFILL_BODY = 4000
 
-type SpawnSync = typeof spawnSync
+/** `gh` gets this long to file before the report falls back to the prefilled link. */
+const GH_TIMEOUT_MS = 60_000
 
 type FeedbackDeps = {
-  spawn: SpawnSync
+  run: (cmd: string, args: readonly string[], opts: { input: string; timeoutMs: number }) => Promise<RunResult>
   repoSlug: () => string | null
   /** The environment block appended to the body. */
   env: () => string
@@ -85,8 +86,13 @@ const ISSUE_URL = /https:\/\/\S+\/issues\/(\d+)/
 /**
  * File a GitHub issue through the user's `gh`. Any `gh` failure (not installed, not signed in, no
  * access, offline) returns the prefilled new-issue link instead of throwing: the report is never lost.
+ * Async because the daemon, the web bridge and the TUI call it in-process: a sync spawn there
+ * stalls every other request (or the whole screen) for the network round trip.
  */
-export function submitFeedback(input: SubmitFeedbackInput, deps: Partial<FeedbackDeps> = {}): SubmitFeedbackResult {
+export async function submitFeedback(
+  input: SubmitFeedbackInput,
+  deps: Partial<FeedbackDeps> = {},
+): Promise<SubmitFeedbackResult> {
   const title = normalizeText(input.title, "feedback title")
   const kind = input.kind ?? DEFAULT_FEEDBACK_KIND
   const body = `${normalizeText(input.body, "feedback body")}\n\n${(deps.env ?? environmentBlock)()}`
@@ -99,14 +105,16 @@ export function submitFeedback(input: SubmitFeedbackInput, deps: Partial<Feedbac
     hint: `${why} Run \`gh auth login\` to file from here, or open the link to file it in your browser.`,
   })
 
-  const result = (deps.spawn ?? spawnSync)("gh", issueCreateArgv(slug, title, kind), { encoding: "utf8", input: body })
-  if (result.error) return fallback(`Could not run gh (${result.error.message}).`)
-  const stdout = String(result.stdout ?? "")
-  if ((result.status ?? 0) !== 0) {
-    const detail = String(result.stderr ?? "").trim()
+  const result = await (deps.run ?? runAsync)("gh", issueCreateArgv(slug, title, kind), {
+    input: body,
+    timeoutMs: GH_TIMEOUT_MS,
+  })
+  if (result.error) return fallback(`Could not run gh (${result.error}).`)
+  if (!result.ok) {
+    const detail = result.stderr.trim()
     return fallback(`gh could not create the issue${detail ? ` (${detail})` : ""}.`)
   }
-  const match = stdout.match(ISSUE_URL)
+  const match = result.stdout.match(ISSUE_URL)
   if (!match?.[1]) return fallback("gh did not print the new issue's URL.")
   return { filed: true, url: match[0], number: Number(match[1]) }
 }

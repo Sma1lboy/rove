@@ -114,6 +114,6 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
 export async function feedback(ctx: VerbContext): Promise<unknown> {
   const kind = ctx.args.str("kind") ?? DEFAULT_FEEDBACK_KIND
   if (!isFeedbackKind(kind)) throw new ApiError(`--kind must be one of ${FEEDBACK_KINDS.join(", ")}`, "BAD_FLAG")
-  const result = submitFeedback({ title: ctx.args.require("title"), body: ctx.args.require("body"), kind })
+  const result = await submitFeedback({ title: ctx.args.require("title"), body: ctx.args.require("body"), kind })
   return { ok: true, ...result }
 }
