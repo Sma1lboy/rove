@@ -27,7 +27,7 @@ import { linesFromBottom, viewportAfterWrite } from "./term-scroll.ts"
 import { attachWheelScroll, createSmoothScroll } from "./term-smooth.ts"
 import { attachTouchScroll } from "./term-touch.ts"
 import { createTyping } from "./term-typing.ts"
-import { loadWebgl } from "./term-webgl.ts"
+import { loadTerminalRenderer } from "./term-webgl.ts"
 
 /** Width of xterm's overlay scrollbar (its default is 14); it floats over the last column (`term-fit.ts`). */
 const SCROLLBAR_WIDTH = 8
@@ -95,7 +95,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
   term.unicode.activeVersion = "11"
   term.loadAddon(new WebLinksAddon())
   term.open(el)
-  const webgl = loadWebgl(term)
+  const renderer = loadTerminalRenderer(term, () => fit.fit())
   const images = attachKittyImages(term)
   fit.fit()
   // A reattach replays a ring that starts mid-repaint, so the screen is blank until the engine redraws.
@@ -494,7 +494,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
       }
       images.dispose()
       term.dispose()
-      webgl.dispose()
+      renderer.dispose()
     },
   }
 }

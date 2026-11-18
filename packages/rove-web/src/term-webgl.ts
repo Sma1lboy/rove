@@ -1,5 +1,6 @@
 /** The terminal's WebGL renderer: loading it, keeping its canvas painted, and giving its context back. */
 
+import type { CanvasAddon } from "@xterm/addon-canvas"
 import { WebglAddon } from "@xterm/addon-webgl"
 import type { Terminal } from "@xterm/xterm"
 
@@ -50,9 +51,24 @@ function turnAtlas(): void {
   })
 }
 
-/** Load the WebGL renderer on an opened terminal; without WebGL the DOM renderer stays. Dispose after `term.dispose()`. */
-export function loadWebgl(term: Terminal): { dispose(): void } {
+/** WebGL and Canvas 2D both tile block glyphs to the cell edges. Dispose after `term.dispose()`. */
+export function loadTerminalRenderer(term: Terminal, refit: () => void): { dispose(): void } {
   let webgl: WebglAddon | null = null
+  let canvas: CanvasAddon | null = null
+  let disposed = false
+  const fallback = async () => {
+    try {
+      const { CanvasAddon } = await import("@xterm/addon-canvas")
+      if (disposed) return
+      const addon = new CanvasAddon()
+      term.loadAddon(addon)
+      canvas = addon
+    } catch {
+      // xterm keeps its DOM renderer when Canvas 2D is also unavailable.
+      return
+    }
+    refit()
+  }
   let glCanvas: HTMLCanvasElement | null = null
   // A full atlas merges its pages, and rows drawn from a dropped page are blank or garbled until they change.
   // Kitty image placeholders (a distinct glyph per cell) fill it in one paste. The merge's event fires inside a draw,
@@ -84,6 +100,7 @@ export function loadWebgl(term: Terminal): { dispose(): void } {
     addon.onContextLoss(() => {
       addon.dispose()
       webgl = null
+      void fallback()
     })
     addon.onRemoveTextureAtlasCanvas(freshAtlas)
     term.loadAddon(addon)
@@ -93,7 +110,7 @@ export function loadWebgl(term: Terminal): { dispose(): void } {
         (c) => !before.has(c) && !c.classList.contains("xterm-link-layer"),
       ) ?? null
   } catch {
-    // The DOM renderer is slower but complete.
+    void fallback()
   }
   // addon-webgl 0.19 snaps its canvas to the device-pixel box in a ResizeObserver that runs after the frame's
   // render, which clears it until xterm 6's next rAF: a blank frame per resize. This observer runs after that
@@ -116,8 +133,9 @@ export function loadWebgl(term: Terminal): { dispose(): void } {
   // new atlas here blanks a terminal for two frames on a task switch, whose views load fonts; a font arrives a few
   // times a page, so the clear's growth stays small.
   const redraw = () => {
-    if (!webgl) return
-    webgl.clearTextureAtlas()
+    const renderer = webgl ?? canvas
+    if (!renderer) return
+    renderer.clearTextureAtlas()
     term.refresh(0, term.rows - 1)
   }
   document.fonts.addEventListener("loadingdone", redraw)
@@ -129,6 +147,7 @@ export function loadWebgl(term: Terminal): { dispose(): void } {
   document.addEventListener("visibilitychange", onShown)
   return {
     dispose() {
+      disposed = true
       document.fonts.removeEventListener("loadingdone", redraw)
       document.removeEventListener("visibilitychange", onShown)
       glCanvas?.removeEventListener("webglcontextrestored", onRestored)
