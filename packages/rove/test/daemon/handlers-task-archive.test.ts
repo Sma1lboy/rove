@@ -13,7 +13,9 @@ const CHILD = { ...TASK, id: "c", parentTaskId: "p" } as Task
 const GRANDCHILD = { ...TASK, id: "g", parentTaskId: "c" } as Task
 const OTHER = { ...TASK, id: "o" } as Task
 const MAIN = { ...TASK, id: "m", kind: "dir" } as Task
-const TASKS = [PARENT, CHILD, GRANDCHILD, OTHER, MAIN]
+/** A bare checkout OTHER cut with no parent: only `dispatcher` says whose it is. */
+const CHECKOUT = { ...TASK, id: "w", worktreeOnly: true, dispatcher: { taskId: "o", tabId: "tab-1" } } as Task
+const TASKS = [PARENT, CHILD, GRANDCHILD, OTHER, MAIN, CHECKOUT]
 
 function archiveCtx(states: Record<string, string> = {}) {
   const calls: Array<[string, boolean]> = []
@@ -47,6 +49,13 @@ describe("task.archive", () => {
       ["c", true],
       ["p", true],
     ])
+  })
+
+  it("takes along a bare checkout the task cut, which has no row to archive it from", async () => {
+    const { ctx } = archiveCtx()
+    await expect(dispatch("task.archive", { taskId: "o", archived: true }, ctx)).resolves.toEqual({
+      archived: ["w", "o"],
+    })
   })
 
   it("ends the sessions of every task it archives", async () => {

@@ -7,6 +7,7 @@ import { optionalNumber, optionalString, requireString } from "./handler-validat
 import { awaitingMenu } from "./handlers-queue.ts"
 import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
 import { ptyScopeFor } from "./pty-alias.ts"
+import { taskRetirer } from "./retire-task.ts"
 import { displayTaskTitle } from "./serialize-task.ts"
 
 /** The handler context's slice the delivery operations need. */
@@ -18,6 +19,7 @@ export function deliveryDepsOf(ctx: DaemonHandlerContext): DeliveryDeps {
     automations: ctx.automations,
     stopEngineTab: (taskId, tabId) =>
       ctx.runtime.stopTaskEngineTab(taskId, tabId, ptyScopeFor(ctx.orch.listTasks(), taskId)),
+    retireTask: taskRetirer(ctx.orch, ctx.deletions),
   }
 }
 

@@ -43,7 +43,7 @@ afterEach(async () => {
 /** A managed worktree task row, optionally a child of / sharer of another. */
 async function row(
   title: string,
-  extra: { parent?: Task; shares?: Task; path?: string; kind?: Task["kind"]; scratch?: true } = {},
+  extra: { parent?: Task; shares?: Task; path?: string; kind?: Task["kind"]; scratch?: true; checkoutOf?: Task } = {},
 ): Promise<Task> {
   const owner = extra.shares
   return store.create({
@@ -57,6 +57,9 @@ async function row(
     ...(extra.parent ? { parentTaskId: extra.parent.id } : {}),
     ...(owner ? { sharesWorkspaceOf: owner.id } : {}),
     ...(extra.scratch ? { scratch: true } : {}),
+    ...(extra.checkoutOf
+      ? { worktreeOnly: true, dispatcher: { taskId: String(extra.checkoutOf.id), tabId: "tab-1" } }
+      : {}),
   })
 }
 
@@ -272,5 +275,19 @@ describe("the branch of rows that share a directory", { timeout: DURABLE_WRITE_T
     await orch.ensureWorktree(sharer.id)
 
     expect(store.get(sharer.id)?.branch).toBe("moved-on")
+  })
+})
+
+describe("deleting a session that cut bare checkouts", { timeout: DURABLE_WRITE_TIMEOUT_MS }, () => {
+  it("deletes them with it, nested or not: nothing lists a row to delete them from", async () => {
+    const session = await row("session")
+    await row("nested", { checkoutOf: session, parent: session })
+    await row("loose", { checkoutOf: session })
+    await row("child", { parent: session })
+    await row("other")
+
+    await orch.deleteTask(session.id)
+
+    expect(ids().sort()).toEqual(["child", "other"])
   })
 })

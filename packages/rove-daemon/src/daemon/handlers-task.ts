@@ -5,7 +5,7 @@
  */
 
 import { isBuiltinModInstalled } from "../plugins/builtin-mods.ts"
-import { pickRepos, subtreeIds } from "../task-tree.ts"
+import { deletionTargets, pickRepos } from "../task-tree.ts"
 import type { DaemonTask, TaskDispatcher } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import {
@@ -247,9 +247,9 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       const force = optionalBoolean(payload, "force")
       const deleteBranch = optionalBoolean(payload, "deleteBranch")
       const cascade = optionalBoolean(payload, "cascade")
-      // Deepest first. Without `cascade` only the task itself goes and its
-      // children are promoted by `prepareTaskDeletion`.
-      const targets = cascade ? subtreeIds(ctx.orch.listTasks(), taskId) : [taskId]
+      // Deepest first. Without `cascade` the task's children are promoted by
+      // `prepareTaskDeletion`; its bare checkouts go with it either way.
+      const targets = deletionTargets(ctx.orch.listTasks(), taskId, cascade)
       // Audit before `prepareTaskDeletion`, which can throw: refusals get
       // recorded too. Read the tasks now; the runner removes them from the index.
       const tasks = new Map(targets.map((id) => [id, ctx.orch.getTask(id)]))
@@ -284,7 +284,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       return {
         taskId,
         queued: accepted,
-        ...(cascade ? { deleted: targets } : {}),
+        ...(targets.length > 1 ? { deleted: targets } : {}),
         ...(Object.keys(teardown).length > 0 ? { teardown } : {}),
       }
     },

@@ -14,6 +14,8 @@ export interface TreeTask {
   readonly sharesWorkspaceOf?: string
   readonly worktreePath?: string | null
   readonly cwdSubpath?: string
+  readonly worktreeOnly?: boolean
+  readonly dispatcher?: { readonly taskId: string } | null
 }
 
 /** Direct children, in list order. */
@@ -59,6 +61,27 @@ export function subtreeIds(tasks: readonly TreeTask[], id: string): string[] {
   }
   visit(id)
   return out
+}
+
+/**
+ * `ids` plus the bare checkouts (`add --worktree-only`) cut by those tasks, checkouts first. No client
+ * lists a row for one, so it leaves with its owner (its parent, else the session that cut it) or
+ * nothing ever would remove it.
+ */
+export function withOwnedCheckouts(tasks: readonly TreeTask[], ids: readonly string[]): string[] {
+  const covered = new Set(ids)
+  const owned = tasks.filter(
+    (task) =>
+      task.worktreeOnly === true &&
+      !covered.has(task.id) &&
+      covered.has(task.parentTaskId ?? task.dispatcher?.taskId ?? ""),
+  )
+  return [...owned.map((task) => task.id), ...ids]
+}
+
+/** Ids a deletion of `id` covers, deepest first: the task (its whole subtree with `cascade`) and their bare checkouts. */
+export function deletionTargets(tasks: readonly TreeTask[], id: string, cascade?: boolean): string[] {
+  return withOwnedCheckouts(tasks, cascade ? subtreeIds(tasks, id) : [id])
 }
 
 /** The directory the engine and shells of this task start in. */

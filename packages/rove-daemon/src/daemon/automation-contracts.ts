@@ -142,8 +142,8 @@ export interface AutomationRun {
   /** ISO-8601 event time. */
   readonly at: string
   /** The delivery armed for this run's prompt. Its report IS the run's
-   *  response: `response` and `deliveryStatus` are read from it, never stored
-   *  twice. */
+   *  response: `response` and `deliveryStatus` are read from it, and stored
+   *  here only once the delivery is gone. */
   readonly deliveryId?: string
   /** `routinePromptHash` of the prompt this run delivered; a standing session's next run sends it again only when it changed. */
   readonly promptHash?: string
@@ -153,9 +153,9 @@ export interface AutomationRun {
   readonly compactedAt?: string
   /** What the agent reported for THIS run. Never inferred from a transcript:
    *  no report, no response. Projected from the linked delivery by
-   *  `automation.runs`; stored only on runs that predate deliveries. */
+   *  `automation.runs`; stored on runs that predate deliveries, and on a run whose finished task was retired. */
   readonly response?: AutomationRunResponse
-  /** Projected from the linked delivery, never stored. */
+  /** Projected from the linked delivery; stored only for a run whose finished task was retired. */
   readonly deliveryStatus?: DeliveryStatus
 }
 

@@ -49,6 +49,7 @@ import { aliasedKeys, ptyScopeFor } from "./pty-alias.ts"
 import { type PtyOwnerResolver, startPtyExitWatch } from "./pty-exit-watch.ts"
 import { PtyLiveHold } from "./pty-live-hold.ts"
 import { clearResidentMarker, residentMarkerPath, resolveResident, writeResidentMarker } from "./resident.ts"
+import { taskRetirer } from "./retire-task.ts"
 import { RowStatusStore } from "./row-status-store.ts"
 import { createDispatchRunnability } from "./runnability.ts"
 import { serializeTask } from "./serialize-task.ts"
@@ -159,6 +160,7 @@ async function startOwnedServer(
     orch,
     automations,
     stopEngineTab: (taskId, tabId) => runtime.stopTaskEngineTab(taskId, tabId, ptyScopeFor(orch.listTasks(), taskId)),
+    retireTask: taskRetirer(orch, deletions),
   }
   const runnability = createDispatchRunnability(
     { orch, activity, gates, deliveries },
