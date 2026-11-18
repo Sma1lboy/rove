@@ -44,6 +44,8 @@ function Driver(props: {
   useBindings(() => ({ bindings: [{ key: "ctrl+]", cmd: () => setActiveId("tab-1") }] }))
   const menu = useTabStripMenu({
     taskId: "alpha",
+    vendor: "claude",
+    worktree: "/repo/alpha",
     tabs,
     activeId,
     select: setActiveId,
@@ -101,7 +103,7 @@ test("right-clicking an inactive tab opens its menu, and Rename acts on that tab
   expect(await frame()).not.toContain("Close other tabs")
 })
 
-test("an engine tab offers Continue in another engine and it acts on the clicked tab; a shell tab does not", async () => {
+test("an engine tab offers Continue in another engine and Copy session ID, acting on the clicked tab; a shell tab does not", async () => {
   const tabs: readonly TerminalTab[] = [
     { kind: "engine", id: "tab-1", title: "alpha-one", ordinal: 1 },
     { kind: "engine", id: "tab-2", title: "beta-two", ordinal: 2 },
@@ -114,14 +116,16 @@ test("an engine tab offers Continue in another engine and it acts on the clicked
   )
   const shell = cellOf(await frame(), "gamma-three")
   await act(async () => mockMouse.click(shell.x, shell.y, RIGHT))
-  expect(await waitForFrameText(frame, "Rename tab")).not.toContain("Continue in another engine")
+  const shellMenu = await waitForFrameText(frame, "Rename tab")
+  expect(shellMenu).not.toContain("Continue in another engine")
+  expect(shellMenu).not.toContain("Copy session ID")
   mockInput.pressEscape()
   // The lone ESC byte is held for opentui's escape-sequence window.
   await settle()
 
   const engine = cellOf(await frame(), "beta-two")
   await act(async () => mockMouse.click(engine.x, engine.y, RIGHT))
-  await waitForFrameText(frame, "Continue in another engine")
+  expect(await waitForFrameText(frame, "Continue in another engine")).toContain("Copy session ID")
   await act(async () => {
     mockInput.pressArrow("down")
     mockInput.pressEnter()
@@ -176,10 +180,10 @@ const CHANGES = [
   ["external selection", (_input: MenuInput, controls: MenuControls) => controls.select?.("tab-1")],
   ["disappearance", (_input: MenuInput, controls: MenuControls) => controls.remove?.()],
 ] as const
-/** Cursor moves from the menu's first row onto the verb: rename, continue, copy, close others, close. */
+/** Cursor moves from the menu's first row onto the verb: rename, continue, copy address, copy session, close others, close. */
 const ACTIONS = [
   ["rename", 0],
-  ["close", 4],
+  ["close", 5],
 ] as const
 
 test.each(

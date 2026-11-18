@@ -5,6 +5,8 @@
  * tab while it remains selected and present.
  */
 
+import { tabSessionId } from "@/engine/session-handoff-plan"
+import type { VendorId } from "@/types/vendor"
 import type { BoxRenderable } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
 import { type ReactNode, useRef, useState } from "react"
@@ -26,6 +28,9 @@ import { closeOtherTaskTabs } from "./terminal-tabs-close"
 
 export interface TabStripMenuDeps {
   readonly taskId: string
+  /** Task's engine and directory: an unpinned tab's session is the engine's newest here. */
+  readonly vendor: VendorId
+  readonly worktree: string
   readonly tabs: readonly TerminalTab[]
   readonly activeId: string
   /** Make the clicked tab active, so highlight and menu agree. */
@@ -94,15 +99,29 @@ export function useTabStripMenu(deps: TabStripMenuDeps): TabStripMenu {
       notif.notify({ kind: "error", taskId: deps.taskId, tabId, title: t("terminal.tab.tabGone") })
   }
 
-  const copyAddress = async (tabId: string): Promise<void> => {
-    const text = tabAddress(deps.taskId, tabId)
+  const copy = async (tabId: string, text: string, doneKey: string): Promise<void> => {
     const copied = await copyTextToSystemClipboard(text, (payload) => renderer?.copyToClipboardOSC52(payload))
     notif.notify({
       kind: copied ? "done" : "error",
       taskId: deps.taskId,
       tabId,
-      title: copied ? t("tasks.toast.copiedTab", { text }) : t("tasks.toast.copyFailed"),
+      title: copied ? t(doneKey, { text }) : t("tasks.toast.copyFailed"),
     })
+  }
+
+  const copySessionId = async (tabId: string): Promise<void> => {
+    const tab = deps.tabs.find((candidate) => candidate.id === tabId)
+    if (tab?.kind !== "engine") return
+    const sessionId = await tabSessionId(tab, tab.vendor ?? deps.vendor, deps.worktree)
+    if (sessionId) await copy(tabId, sessionId, "tasks.toast.copiedSession")
+    else
+      notif.notify({
+        kind: "error",
+        taskId: deps.taskId,
+        tabId,
+        title: t("terminal.tab.noSessionYet"),
+        hint: t("terminal.tab.noSessionYetHint"),
+      })
   }
 
   const fire = (action: TabStripMenuAction | undefined): void => {
@@ -114,7 +133,8 @@ export function useTabStripMenu(deps: TabStripMenuDeps): TabStripMenu {
     else if (action === "continueEngine") deps.continueEngine()
     else if (action === "close") deps.closeActive()
     else if (action === "closeOthers") void closeOthers(tabId)
-    else void copyAddress(tabId)
+    else if (action === "copySessionId") void copySessionId(tabId)
+    else void copy(tabId, tabAddress(deps.taskId, tabId), "tasks.toast.copiedTab")
   }
 
   // Wraps, like the sidebar's menu.

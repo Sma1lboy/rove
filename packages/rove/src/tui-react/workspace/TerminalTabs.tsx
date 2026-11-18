@@ -423,6 +423,8 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
 
   const tabMenu = useTabStripMenu({
     taskId: props.taskId,
+    vendor: props.vendor,
+    worktree: props.worktree,
     tabs: state.tabs,
     activeId: state.activeId,
     select: (tabId) => update(selectTab(stateRef.current, tabId)),

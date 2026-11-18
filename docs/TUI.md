@@ -37,8 +37,10 @@ folder)** and **New shell**, which open a Scratch Task in `$HOME`. Clicking anyw
 
 Right-clicking a tab in the workspace tab strip offers **Rename tab**, **Close
 tab**, **Copy tab address**, which copies the `--task-id … --tab …` pair that
-sends a `rove api send` to that one tab, and **Close other tabs** when the Task
-has several tabs (it confirms, then ends every other tab's session).
+sends a `rove api send` to that one tab, **Copy session ID** on an engine tab,
+which copies the id of the conversation it is running (to resume or look it up
+outside Rove), and **Close other tabs** when the Task has several tabs (it
+confirms, then ends every other tab's session).
 
 The Tasks rail sizes itself from the terminal — wider terminals get a wider
 rail, so branch names stop truncating. Drag its right edge to set the width
