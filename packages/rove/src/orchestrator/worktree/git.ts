@@ -11,6 +11,7 @@
 
 import { spawnSync } from "node:child_process"
 import { READ_ONLY_GIT_ENV } from "../../lib/git-env.ts"
+import { RepoHasNoCommitsError } from "../errors.ts"
 
 export interface GitRunOpts {
   /** Required — never defaulted. */
@@ -81,4 +82,11 @@ export function git(args: readonly string[], opts: GitRunOpts): GitRunResult {
   }
 
   return result
+}
+
+/** HEAD's commit sha; {@link RepoHasNoCommitsError} on an unborn HEAD instead of git's raw "ambiguous argument". */
+export function headCommit(cwd: string): string {
+  const r = git(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], { cwd, readOnly: true, allowFail: true })
+  if (r.exitCode !== 0) throw new RepoHasNoCommitsError(cwd)
+  return r.stdout.trim()
 }

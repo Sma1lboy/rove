@@ -12,7 +12,7 @@ import { ForkUnsupportedError, TaskDeletingError, TaskNotFoundError } from "./er
 import type { TaskIndexStore } from "./index/store.ts"
 import { gitRepoOf } from "./task-tree.ts"
 import { type WorkspaceRegistry, workspaceBackendId, workspaceCapabilities } from "./workspace/index.ts"
-import { git } from "./worktree/git.ts"
+import { headCommit } from "./worktree/git.ts"
 
 export interface ForkTaskDeps {
   readonly store: TaskIndexStore
@@ -53,7 +53,7 @@ export async function forkTaskRow(
   // Materialise a still-lazy parent first: forking it then clones a clean checkout, which is its true state.
   const parentPath = await deps.ensureWorktree(parent.id)
   // The clone starts at the parent's HEAD, whatever base the caller asked for.
-  const baseRef = git(["rev-parse", "HEAD"], { cwd: parentPath, readOnly: true }).stdout.trim()
+  const baseRef = headCommit(parentPath)
   const child = await deps.createRow({
     ...input,
     repo: gitRepoOf(parent),
