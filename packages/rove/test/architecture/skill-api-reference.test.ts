@@ -44,10 +44,10 @@ describe("api-flags.md flag tables are generated from the verb specs", () => {
 
   test("every verb group the binary serves has a section", () => {
     const sections = sectionsByGroup(reference())
-    for (const group of VERB_GROUP_IDS) {
-      expect(sections.get(group), `verb group "${group}" has no <!-- generated:begin --> region in api-flags.md`) //
-        .toBeTruthy()
-    }
+    expect(
+      VERB_GROUP_IDS.filter((group) => !sections.get(group)),
+      "verb groups with no <!-- generated:begin --> region in api-flags.md",
+    ).toEqual([])
   })
 })
 
@@ -64,12 +64,11 @@ describe("SKILL.md signposts the reference by intent", () => {
 
   test("every section of api-flags.md is reachable from a signpost row", () => {
     const signposted = signpostedSections()
-    for (const [group, section] of sectionsByGroup(reference())) {
-      expect(
-        signposted.has(section),
-        `verb group "${group}" lives in api-flags.md's "${section}" section, but no SKILL.md signpost row points there — an agent asked for it in the user's own words will never open the file`,
-      ).toBe(true)
-    }
+    const unreachable = [...sectionsByGroup(reference())].filter(([, section]) => !signposted.has(section))
+    expect(
+      unreachable,
+      "these api-flags.md sections have no SKILL.md signpost row — an agent asked for them in the user's own words will never open the file",
+    ).toEqual([])
   })
 })
 
@@ -97,10 +96,10 @@ describe("the error-code table names codes the source throws", () => {
       .filter((l) => /^\| `[A-Z][A-Z0-9_]+` \|/.test(l))
       .map((l) => l.split("`")[1])
     expect(codes.length).toBeGreaterThan(4)
-    for (const code of codes) {
-      expect(source.includes(`"${code}"`), `api-flags.md documents error code ${code}, which no source file throws`) //
-        .toBe(true)
-    }
+    expect(
+      codes.filter((code) => !source.includes(`"${code}"`)),
+      "api-flags.md documents error codes no source file throws",
+    ).toEqual([])
   })
 })
 

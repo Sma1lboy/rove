@@ -11,10 +11,10 @@ import { describe, expect, it } from "vitest"
 import type { Task } from "../../src/types/task.ts"
 import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
 
-const MAIN: Task = { ...TASK, id: "m1", kind: "main", title: "repo" } as Task
+const MAIN: Task = { ...TASK, id: "m1", kind: "dir", title: "repo" } as Task
 
 describe("note.file", () => {
-  it("stores the note with provenance and starts no turn on the repo's main session", async () => {
+  it("stores the note with provenance and starts no turn on the repo's own session", async () => {
     const { ctx, rec } = fakeCtx({
       getTask: (id: string) => (id === "t1" ? TASK : undefined),
       listTasks: () => [MAIN, TASK],

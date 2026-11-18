@@ -63,7 +63,11 @@ export function compositionFix(before: string, start: number, after: string): st
 }
 
 /** Follows edits of `term`'s textarea; `send` writes to the PTY. Returns its remover. */
-export function attachDictationGuard(term: Terminal, send: (data: string) => void): () => void {
+export function attachDictationGuard(
+  term: Terminal,
+  send: (data: string) => void,
+  onKey: (listener: () => void) => { dispose(): void } = (listener) => term.onKey(listener),
+): () => void {
   const area = term.textarea
   const host = term.element
   if (!area || !host) return () => {}
@@ -139,7 +143,7 @@ export function attachDictationGuard(term: Terminal, send: (data: string) => voi
   host.addEventListener("compositionend", onCompositionEnd)
   host.addEventListener("paste", onPaste, true)
   area.addEventListener("blur", endRun)
-  const typed = term.onKey(endRun)
+  const typed = onKey(endRun)
   return () => {
     host.removeEventListener("keydown", onKeyDown, true)
     host.removeEventListener("keyup", onKeyUp, true)

@@ -1,6 +1,6 @@
 /**
- * The delete half of the shared task flows (`task-actions.ts` re-exports it): deleting a task, ending a
- * project main's conversation, removing a project from the list, and tearing down what a delete removed.
+ * The delete half of the shared task flows (`task-actions.ts` re-exports it): deleting a task, removing a
+ * project from the list, and tearing down what a delete removed.
  */
 
 import type { RoveOrchestrator } from "@/client/remote-orchestrator"
@@ -70,62 +70,22 @@ export async function finishDeletedTaskFlow(opts: {
 }
 
 /** Project header → Remove project: only the list entry goes; the repo, its branches, worktrees and tasks stay on disk. */
-export async function forgetProjectFlow(ctx: TaskActionContext, taskId: string): Promise<void> {
+export async function forgetProjectFlow(ctx: TaskActionContext, repo: string): Promise<void> {
   if (!ctx.orch) return
-  const task = ctx.tasks().find((t) => t.id === taskId)
-  if (!task) return
   const ok = await ctx.confirm({
-    title: t("tasks.confirm.forgetProjectTitle", { title: repoBasename(task.repo) }),
+    title: t("tasks.confirm.forgetProjectTitle", { title: repoBasename(repo) }),
     body: t("tasks.confirm.forgetProjectBody"),
     cancelLabel: t("tasks.confirm.cancel"),
     confirmLabel: t("tasks.confirm.forgetProjectConfirm"),
   })
   if (!ok) return
   try {
-    await ctx.orch.forgetProject(task.repo)
+    await ctx.orch.forgetProject(repo)
   } catch (err) {
     ctx.logger.error(`${ctx.logPrefix} forget project failed:`, err)
     ctx.notifyError?.(t("tasks.toast.forgetProjectFailed", { error: errorMessage(err) }))
     return
   }
-  await ctx.reload?.()
-}
-
-/**
- * `deleteTask` refuses a project's main checkout, and deleting its row must not drop the project: it
- * ends the conversation (kills the sessions, forgets the tabs) and touches nothing on disk. With
- * children the dialog also offers to delete them, each through the ordinary delete round.
- */
-async function endMainConversationFlow(ctx: TaskActionContext, main: Task): Promise<void> {
-  const children = childrenOf(ctx.tasks(), main.id)
-  let cascade = false
-  if (children.length > 0 && ctx.pickChildren) {
-    const choice = await ctx.pickChildren({
-      title: t("tasks.confirm.childrenTitle", { title: main.title, count: String(children.length) }),
-      body: t("tasks.confirm.childrenBodyMain"),
-      promoteLabel: t("tasks.confirm.childrenKeepMain"),
-      cascadeLabel: t("tasks.confirm.childrenCascadeMain"),
-      cancelLabel: t("tasks.confirm.cancel"),
-    })
-    if (choice === undefined) return
-    cascade = choice === "cascade"
-  } else {
-    const ok = await ctx.confirm({
-      title: t("tasks.confirm.deleteTitleDir", { title: main.title }),
-      body: t("tasks.confirm.deleteBodyMain"),
-      cancelLabel: t("tasks.confirm.cancel"),
-      confirmLabel: t("tasks.confirm.deleteConfirm"),
-      danger: true,
-    })
-    if (!ok) return
-  }
-  if (cascade) {
-    // A child left standing (declined force, failure) stops the round before the conversation ends.
-    for (const child of children) if (!(await removeTask(ctx, child, { deleteBranch: false, cascade: true }))) return
-  }
-  // The host closes the task's tabs first (each ends its own session); the kill sweeps what no tab record names.
-  ctx.onConversationEnded?.(main.id)
-  await stopHostedTask(main.id, ctx.tasks(), ctx.logger, ctx.logPrefix)
   await ctx.reload?.()
 }
 
@@ -138,7 +98,6 @@ export async function deleteTaskFlow(ctx: TaskActionContext, taskId: string): Pr
   if (!ctx.orch) return
   const task = ctx.tasks().find((t) => t.id === taskId)
   if (!task) return
-  if (task.kind === "main") return endMainConversationFlow(ctx, task)
   // `-d` only: the forced retry below never deletes the branch, so an
   // unmerged branch can't vanish behind a dirty-worktree confirm.
   const deleteBranch = task.kind !== "dir" && ctx.deleteBranchOnDelete?.() === true

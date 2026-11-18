@@ -245,20 +245,16 @@ button:focus-visible {
  * (`SCROLLBAR_WIDTH` in term-mount.ts); a 1px inset leaves the page's 6px pill in the page's
  * thumb colours, which beat the theme colours xterm injects. Drop VS Code's black inset shadow.
  */
-.xterm .xterm-scrollable-element > .scrollbar > .slider {
+.term-host .xterm .xterm-scrollable-element > .scrollbar > .slider {
   border: 1px solid transparent;
   border-radius: 999px;
   background-clip: padding-box;
-}
-
-/* Hidden unless the user is scrolling the terminal (scroll-reveal.ts) or dragging the slider. */
-.term-host .xterm .xterm-scrollable-element > .scrollbar > .slider {
   background-color: var(--scroll-thumb);
   opacity: 0;
   transition: opacity 300ms linear;
 }
 
-.term-host[data-scrolling] .xterm .xterm-scrollable-element > .scrollbar > .slider,
+.term-host > [data-scrolling] .xterm .xterm-scrollable-element > .scrollbar > .slider,
 .term-host .xterm .xterm-scrollable-element > .scrollbar > .slider.active {
   opacity: 1;
   transition: none;

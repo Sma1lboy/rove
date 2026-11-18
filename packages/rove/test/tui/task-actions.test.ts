@@ -16,7 +16,7 @@
  * plain mocks. Hosted session operations are module-mocked.
  */
 
-import { type Mock, beforeEach, describe, expect, test, vi } from "vitest"
+import { beforeEach, describe, expect, test, vi } from "vitest"
 import { hostedTaskKeys, killHostedSessions, openHostedSessionHost } from "../../src/engine/hosted-session"
 import { DIRTY_WORKTREE_CODE } from "../../src/orchestrator/errors"
 
@@ -88,7 +88,6 @@ function makeCtx(opts: {
   notifyError: ReturnType<typeof vi.fn>
   notifyInfo: ReturnType<typeof vi.fn>
   onTaskDeleted: ReturnType<typeof vi.fn>
-  onConversationEnded: Mock
   reload: ReturnType<typeof vi.fn>
   pickChildren: ReturnType<typeof vi.fn>
 } {
@@ -98,7 +97,6 @@ function makeCtx(opts: {
   const notifyError = vi.fn()
   const notifyInfo = vi.fn()
   const onTaskDeleted = vi.fn()
-  const onConversationEnded = vi.fn()
   const reload = vi.fn(async () => {})
   const pickChildren = vi.fn(async () => (opts.childChoice === "dismiss" ? undefined : opts.childChoice))
   const ctx: TaskActionContext = {
@@ -113,13 +111,12 @@ function makeCtx(opts: {
     reload,
     updateActiveTask: opts.updateActiveTask,
     onTaskDeleted,
-    onConversationEnded,
     ...(opts.childChoice === undefined ? {} : { pickChildren }),
     ...(opts.deleteBranchOnDelete === undefined
       ? {}
       : { deleteBranchOnDelete: () => opts.deleteBranchOnDelete === true }),
   }
-  return { ctx, confirm, promptText, notifyError, notifyInfo, onTaskDeleted, onConversationEnded, reload, pickChildren }
+  return { ctx, confirm, promptText, notifyError, notifyInfo, onTaskDeleted, reload, pickChildren }
 }
 
 beforeEach(() => {
@@ -142,9 +139,10 @@ describe("deleteTaskFlow — dirty-worktree branch", () => {
   test("re-prompts on DIRTY_WORKTREE and force-deletes after explicit confirm", async () => {
     const tasks = [makeTask({ id: "t1", title: "dirty" }), makeTask({ id: "t2" })]
     const orch = makeOrch({
-      deleteTask: vi.fn(async (_id: string, o?: { force?: boolean }) => {
-        if (!o?.force) throw new Error(`${DIRTY_WORKTREE_CODE}: task t1 worktree has uncommitted changes: src/a.ts`)
-      }),
+      deleteTask: vi
+        .fn()
+        .mockRejectedValueOnce(new Error(`${DIRTY_WORKTREE_CODE}: task t1 worktree has uncommitted changes: src/a.ts`))
+        .mockResolvedValue(undefined),
     })
     const { ctx, confirm, onTaskDeleted, reload } = makeCtx({ tasks, orch, confirms: [true, true] })
 
@@ -196,9 +194,7 @@ describe("deleteTaskFlow — dirty-worktree branch", () => {
 
     // No force re-prompt for a non-DIRTY error.
     expect(confirm).toHaveBeenCalledTimes(1)
-    expect(notifyError).toHaveBeenCalledWith(
-      'Couldn\'t delete "t1" — the task and its worktree are untouched: daemon exploded',
-    )
+    expect(notifyError).toHaveBeenCalledWith('Couldn\'t delete "t1": daemon exploded')
     expect(killHostedSessions).not.toHaveBeenCalled()
     expect(onTaskDeleted).not.toHaveBeenCalled()
   })
@@ -230,9 +226,10 @@ describe("deleteTaskFlow — worktree.deleteBranch opt-in", () => {
   test("a forced retry of a dirty worktree keeps the branch", async () => {
     const tasks = [makeTask({ id: "t1" })]
     const orch = makeOrch({
-      deleteTask: vi.fn(async (_id: string, o?: { force?: boolean }) => {
-        if (!o?.force) throw new Error(`${DIRTY_WORKTREE_CODE}: task t1 worktree has uncommitted changes: a.ts`)
-      }),
+      deleteTask: vi
+        .fn()
+        .mockRejectedValueOnce(new Error(`${DIRTY_WORKTREE_CODE}: task t1 worktree has uncommitted changes: a.ts`))
+        .mockResolvedValue(undefined),
     })
     const { ctx } = makeCtx({ tasks, orch, confirms: [true, true], deleteBranchOnDelete: true })
 
@@ -329,9 +326,10 @@ describe("deleteTaskFlow — child tasks", () => {
 
   test("a forced retry of a dirty worktree keeps the cascade", async () => {
     const orch = makeOrch({
-      deleteTask: vi.fn(async (_id: string, o?: { force?: boolean }) => {
-        if (!o?.force) throw new Error(`${DIRTY_WORKTREE_CODE}: task p worktree has uncommitted changes: a.ts`)
-      }),
+      deleteTask: vi
+        .fn()
+        .mockRejectedValueOnce(new Error(`${DIRTY_WORKTREE_CODE}: task p worktree has uncommitted changes: a.ts`))
+        .mockResolvedValue(undefined),
     })
     const { ctx } = makeCtx({ tasks: family(), orch, confirms: [true, true], childChoice: "cascade" })
     await deleteTaskFlow(ctx, "p")
@@ -340,14 +338,11 @@ describe("deleteTaskFlow — child tasks", () => {
 })
 
 describe("forgetProjectFlow", () => {
-  const main = () =>
-    makeTask({ id: "m1", kind: "main", repo: "/repos/alpha", title: "alpha", worktreePath: "/repos/alpha" })
-
   test("forgets the project, no worktree teardown", async () => {
     const orch = makeOrch()
-    const { ctx, confirm, reload } = makeCtx({ tasks: [main()], orch, confirms: [true] })
+    const { ctx, confirm, reload } = makeCtx({ tasks: [], orch, confirms: [true] })
 
-    await forgetProjectFlow(ctx, "m1")
+    await forgetProjectFlow(ctx, "/repos/alpha")
 
     // Project-specific copy (the "remove" verb, not "delete").
     expect(confirm.mock.calls[0]?.[0]).toMatchObject({ title: `Remove project "alpha"?`, confirmLabel: "remove" })
@@ -357,20 +352,11 @@ describe("forgetProjectFlow", () => {
     expect(reload).toHaveBeenCalledTimes(1)
   })
 
-  test("the dialog names the repo even when the main row was renamed", async () => {
-    const renamed = { ...main(), title: "Plan the release" }
-    const { ctx, confirm } = makeCtx({ tasks: [renamed], orch: makeOrch(), confirms: [false] })
-
-    await forgetProjectFlow(ctx, "m1")
-
-    expect(confirm.mock.calls[0]?.[0]).toMatchObject({ title: `Remove project "alpha"?` })
-  })
-
   test("declined confirm leaves the project in place", async () => {
     const orch = makeOrch()
-    const { ctx } = makeCtx({ tasks: [main()], orch, confirms: [false] })
+    const { ctx } = makeCtx({ tasks: [], orch, confirms: [false] })
 
-    await forgetProjectFlow(ctx, "m1")
+    await forgetProjectFlow(ctx, "/repos/alpha")
 
     expect(orch.forgetProject).not.toHaveBeenCalled()
   })
@@ -381,94 +367,12 @@ describe("forgetProjectFlow", () => {
         throw new Error("daemon exploded")
       }),
     })
-    const { ctx, notifyError, reload } = makeCtx({ tasks: [main()], orch, confirms: [true] })
+    const { ctx, notifyError, reload } = makeCtx({ tasks: [], orch, confirms: [true] })
 
-    await forgetProjectFlow(ctx, "m1")
+    await forgetProjectFlow(ctx, "/repos/alpha")
 
-    expect(notifyError).toHaveBeenCalledWith(
-      "Couldn't remove the project — it stays in the projects list: daemon exploded",
-    )
+    expect(notifyError).toHaveBeenCalledWith("Couldn't remove the project: daemon exploded")
     expect(reload).not.toHaveBeenCalled()
-  })
-})
-
-describe("deleteTaskFlow — project (main) row", () => {
-  const main = () =>
-    makeTask({ id: "m1", kind: "main", repo: "/repos/alpha", title: "alpha", worktreePath: "/repos/alpha" })
-  const child = (id: string) => makeTask({ id, parentTaskId: "m1" as Task["parentTaskId"], repo: "/repos/alpha" })
-
-  test("ends the conversation and keeps the project: sessions killed, tabs dropped, nothing deleted", async () => {
-    const orch = makeOrch()
-    const { ctx, confirm, reload, onConversationEnded } = makeCtx({ tasks: [main()], orch, confirms: [true] })
-
-    await deleteTaskFlow(ctx, "m1")
-
-    expect(confirm.mock.calls[0]?.[0]).toMatchObject({ title: `Remove session "alpha"?`, danger: true })
-    expect(orch.deleteTask).not.toHaveBeenCalled()
-    expect(orch.forgetProject).not.toHaveBeenCalled()
-    expect(killHostedSessions).toHaveBeenCalledWith(expect.anything(), ["m1::tab-1"])
-    expect(onConversationEnded).toHaveBeenCalledWith("m1")
-    expect(reload).toHaveBeenCalledTimes(1)
-  })
-
-  test("a declined confirm ends nothing", async () => {
-    const { ctx, onConversationEnded } = makeCtx({ tasks: [main()], orch: makeOrch(), confirms: [false] })
-
-    await deleteTaskFlow(ctx, "m1")
-
-    expect(killHostedSessions).not.toHaveBeenCalled()
-    expect(onConversationEnded).not.toHaveBeenCalled()
-  })
-
-  test("with children, ending alone leaves them standing", async () => {
-    const orch = makeOrch()
-    const { ctx, pickChildren } = makeCtx({
-      tasks: [main(), child("c1")],
-      orch,
-      childChoice: "promote",
-    })
-
-    await deleteTaskFlow(ctx, "m1")
-
-    expect(pickChildren.mock.calls[0]?.[0]).toMatchObject({ title: `"alpha" has 1 child tasks` })
-    expect(orch.deleteTask).not.toHaveBeenCalled()
-    expect(killHostedSessions).toHaveBeenCalledTimes(1)
-  })
-
-  test("with children, the second choice deletes each child's subtree before ending the conversation", async () => {
-    const orch = makeOrch()
-    const { ctx, onConversationEnded } = makeCtx({
-      tasks: [main(), child("c1"), child("c2")],
-      orch,
-      childChoice: "cascade",
-    })
-
-    await deleteTaskFlow(ctx, "m1")
-
-    expect(orch.deleteTask.mock.calls).toEqual([
-      ["c1", { cascade: true }],
-      ["c2", { cascade: true }],
-    ])
-    expect(onConversationEnded).toHaveBeenCalledWith("m1")
-  })
-
-  test("a child whose delete is declined stops the round: the conversation is not ended", async () => {
-    const orch = makeOrch({
-      deleteTask: vi.fn(async () => {
-        throw new Error(`${DIRTY_WORKTREE_CODE}: task c1 worktree has uncommitted changes: a.ts`)
-      }),
-    })
-    const { ctx, onConversationEnded } = makeCtx({
-      tasks: [main(), child("c1")],
-      orch,
-      confirms: [false],
-      childChoice: "cascade",
-    })
-
-    await deleteTaskFlow(ctx, "m1")
-
-    expect(killHostedSessions).not.toHaveBeenCalled()
-    expect(onConversationEnded).not.toHaveBeenCalled()
   })
 })
 

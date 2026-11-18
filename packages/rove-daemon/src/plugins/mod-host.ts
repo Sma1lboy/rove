@@ -46,6 +46,8 @@ export interface ModSpec {
   readonly pluginId: string
   readonly root: string
   readonly mod: PluginCommandSpec
+  /** Changes when the mod's source does; a different one restarts the mod. Absent = never restarted for it. */
+  readonly stamp?: string
 }
 
 export interface ModHostOptions {
@@ -92,7 +94,14 @@ export class ModHost {
     const next = new Map(specs.map((s) => [s.pluginId, s]))
     for (const [id, running] of this.mods) {
       const spec = next.get(id)
-      if (!spec || spec.root !== running.spec.root || !sameCommand(spec.mod, running.spec.mod)) this.retire(id)
+      if (
+        !spec ||
+        spec.root !== running.spec.root ||
+        spec.stamp !== running.spec.stamp ||
+        !sameCommand(spec.mod, running.spec.mod)
+      ) {
+        this.retire(id)
+      }
     }
     for (const spec of specs) if (!this.mods.has(spec.pluginId)) this.launch(spec)
     this.publish()

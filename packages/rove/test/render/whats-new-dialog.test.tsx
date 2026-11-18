@@ -23,7 +23,7 @@
  */
 
 import { afterEach, expect, test } from "bun:test"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { WhatsNewDialogView, useWhatsNewDialog } from "../../src/tui-react/component/whats-new-dialog"
 import { currentLang, setLocaleLang } from "../../src/tui/i18n"
 import type { ReleaseNotesRangeItem } from "../../src/version.ts"
@@ -44,9 +44,10 @@ const NOTES: ReleaseNotesRangeItem[] = [
  *  print `waitForFrameText`'s frame dump instead of a bare bun timeout. */
 const BODY_TIMEOUT = { timeoutMs: 3_000 }
 
-/** For the frames with no markdown in them — a scroll position, a dismissal.
- *  Anything asserting a NOTE BODY waits on the text instead. */
-const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 120))
+/** One arrow press per act, so each scroll step renders. */
+async function pressArrow(input: { pressArrow: (dir: "up" | "down") => void }, dir: "up" | "down", times: number) {
+  for (let i = 0; i < times; i++) await act(async () => input.pressArrow(dir))
+}
 
 test("Chinese chrome translates the dialog, not the published note body", async () => {
   setLocaleLang("zh")
@@ -110,10 +111,10 @@ test("scrolling back up returns to the first release", async () => {
     { width: 80, height: 24 },
   )
   await waitForFrameText(frame, "LAST-LINE-0", BODY_TIMEOUT)
-  for (let i = 0; i < 25; i++) await act(async () => mockInput.pressArrow("down"))
+  await pressArrow(mockInput, "down", 25)
   await waitForFrameText(frame, "LAST-LINE-5", BODY_TIMEOUT)
   expect(await frame()).not.toContain("LAST-LINE-0")
-  for (let i = 0; i < 25; i++) await act(async () => mockInput.pressArrow("up"))
+  await pressArrow(mockInput, "up", 25)
   await waitForFrameText(frame, "LAST-LINE-0", BODY_TIMEOUT)
 })
 
@@ -144,24 +145,21 @@ test("the host hands What's New to the dialog stack, and clears its state on dis
   const open = await waitForFrameText(frame, "WHAT'S NEW", BODY_TIMEOUT)
   expect(open).toContain("workspace")
   await act(async () => mockInput.typeText("q"))
-  await settle()
   expect(await frame()).not.toContain("WHAT'S NEW")
   expect(closedCount).toBe(1)
 })
 
 test("it opens once — a re-render does not put it back", async () => {
   setLocaleLang("en")
+  let rerender = (): void => {}
   function Harness() {
     const [, bump] = useState(0)
+    rerender = () => bump((n) => n + 1)
     useWhatsNewDialog(
       "0.9.200",
       () => {},
       async () => NOTES,
     )
-    useEffect(() => {
-      const timer = setTimeout(() => bump(1), 10)
-      return () => clearTimeout(timer)
-    }, [])
     return <text>workspace</text>
   }
   const { frame, mockInput } = await renderComponent(<Harness />, {
@@ -169,8 +167,9 @@ test("it opens once — a re-render does not put it back", async () => {
     height: 24,
     providers: { dialog: true },
   })
-  await settle()
+  await waitForFrameText(frame, "WHAT'S NEW", BODY_TIMEOUT)
+  await act(async () => rerender())
   await act(async () => mockInput.typeText("q"))
-  await settle()
+  await act(async () => rerender())
   expect(await frame()).not.toContain("WHAT'S NEW")
 })

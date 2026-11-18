@@ -259,7 +259,7 @@ describe("the branch of rows that share a directory", { timeout: DURABLE_WRITE_T
 
     await orch.setBranch(first.id, "renamed")
 
-    for (const id of [owner.id, first.id, second.id]) expect(store.get(id)?.branch).toBe("renamed")
+    expect([owner, first, second].map((t) => store.get(t.id)?.branch)).toEqual(["renamed", "renamed", "renamed"])
     expect(store.get(other.id)?.branch).toBe("b/other")
     expect(worktrees.renameBranch).toHaveBeenCalledTimes(1)
   })

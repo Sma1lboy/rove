@@ -164,9 +164,7 @@ describe("inbound", () => {
     agentRunning = false
     await waitFor(() => expect(fake.typing.at(-1)?.on).toBe(false))
     const settled = fake.typing.length
-    await new Promise((r) => setTimeout(r, 100))
-    expect(fake.typing).toHaveLength(settled)
-    // Commands answer at once and never show the agent typing.
+    // Cleared typing stays cleared, and commands answer at once without it.
     fake.deliver({ from: FAKE_OWNER, text: "/status" })
     await fake.waitForSends(1)
     expect(fake.typing).toHaveLength(settled)

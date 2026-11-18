@@ -78,7 +78,7 @@ where the CLIs do — OMP's approval/question events, pi's `--fork`.
 | `plugin.enabled` / `plugin.disabled` | registry transition, delivered only to the affected plugin | ✅ |
 | `file.will-open` / `file.opened` | Files-pane open, before/after (`detail.path`, `detail.via: plugin\|editor\|external`) | ✅ |
 | `file.closed` | the editor tab left the tab strip (fires off the tab-delta seam) | ✅ |
-| `task.opened` / `project.opened` | the user selects/enters a task or project row | ✅ |
+| `task.opened` / `project.opened` | the user selects/enters a task row; `project.opened` never fires (a project is not a row) | ✅ |
 | `tab.opened` / `tab.closed` | a workspace tab appeared/went away; mount-time restores don't fire | ✅ |
 
 ### A. Session

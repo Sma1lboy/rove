@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "bun:test"
+import { afterAll, afterEach, expect, test } from "bun:test"
 import { KittyImages, placeholderDiacritics, resolvePlaceholder } from "../src/term-kitty.ts"
 
 const apc = (body: string) => `\x1b_G${body}\x1b\\`
@@ -11,7 +11,7 @@ globalThis.createImageBitmap = (async (blob: Blob) => {
 afterEach(() => {
   decoded.length = 0
 })
-process.on("exit", () => {
+afterAll(() => {
   globalThis.createImageBitmap = realBitmap
 })
 
@@ -32,16 +32,18 @@ async function feed(
   return store
 }
 
-test("a chunked PNG transmit and its virtual placement survive any split of the stream", async () => {
-  const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB"
-  const stream = `text${apc(`a=t,f=100,i=7,m=1,q=2;${png.slice(0, 16)}`)}${apc(`m=0;${png.slice(16)}`)}${apc("a=p,U=1,i=7,c=4,r=2,q=2")}more`
-  for (const step of [1, 3, 7, stream.length]) {
+const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB"
+const stream = `text${apc(`a=t,f=100,i=7,m=1,q=2;${png.slice(0, 16)}`)}${apc(`m=0;${png.slice(16)}`)}${apc("a=p,U=1,i=7,c=4,r=2,q=2")}more`
+
+test.each([1, 3, 7, stream.length])(
+  "a chunked PNG transmit and its virtual placement survive any split of the stream (%p bytes at a time)",
+  async (step) => {
     const store = await feed(stream, step, (s) => s.images.get(7)?.bitmap != null)
     expect(decoded.at(-1)).toEqual(Uint8Array.from(atob(png), (c) => c.charCodeAt(0)))
     const image = store.images.get(7)
     expect([image?.cols, image?.rows, image?.bitmap?.width]).toEqual([4, 2, 20])
-  }
-})
+  },
+)
 
 test("a delete by id forgets the image; an escape other than ST abandons the command", async () => {
   const store = await feed(

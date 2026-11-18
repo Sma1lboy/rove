@@ -100,7 +100,7 @@ export type PrViewRunner = (worktreePath: string, branch: string, pinned?: numbe
 /** Finds one PR by its URL, from any cwd. Never `empty`: an unknown PR is an `error`. */
 export type PrUrlRunner = (url: string) => Promise<PrViewResult>
 
-/** A real branch on a LOCAL worktree; `main` rows and remote projects are skipped. */
+/** A real branch on a LOCAL worktree; branchless `dir` rows and remote projects are skipped. */
 export function isPrPollable(task: Task): boolean {
   return isRepoPollable(task, task)
 }
@@ -324,6 +324,9 @@ interface DuePollRepo {
  * it asks whether its PR is green. `hasWorkingAgent` reads the in-memory
  * engine-activity registry (fed by the ungated `engine.reportEvent` path), so
  * it costs nothing; a parked daemon (no GUI, no live engine) still polls nobody.
+ *
+ * `refreshMs` is the user's open-PR cadence, read every tick: `0` pauses the
+ * poller, `undefined` keeps `intervalMs`. It cannot run faster than the tick.
  */
 export function startPrStatusPoller(
   orch: DaemonOrchestrator,
@@ -333,21 +336,25 @@ export function startPrStatusPoller(
   run: PrViewRunner = makeGhPrViewRunner(runtime.prStatus.classify, runtime.prStatus.viewFields),
   hasWorkingAgent?: () => boolean,
   runUrl: PrUrlRunner = makeGhPrUrlRunner(runtime.prStatus.classify, runtime.prStatus.viewFields),
+  refreshMs?: () => number | undefined,
 ): ReturnType<typeof startTicker> {
   const schedule: PrPollSchedule = new Map()
   return startTicker({
     name: "pr-status-poller",
     tickMs: intervalMs,
     ...(hasSubscribers ? { gate: () => hasSubscribers() || (hasWorkingAgent?.() ?? false) } : {}),
-    run: () =>
-      runPrStatusPass(orch, {
+    run: () => {
+      const cadence = refreshMs?.() ?? intervalMs
+      if (cadence <= 0) return undefined
+      return runPrStatusPass(orch, {
         runtime,
         run,
         runUrl,
         now: Date.now(),
         at: new Date().toISOString(),
         schedule,
-        tickMs: intervalMs,
-      }),
+        tickMs: Math.max(cadence, intervalMs),
+      })
+    },
   })
 }

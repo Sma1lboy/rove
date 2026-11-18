@@ -186,7 +186,13 @@ command = ["sh", "-c", "printf teardown > teardown.txt"]
     writeFileSync(join(root, "rove-plugin.toml"), BASE)
     register(home, "example.edit", root)
 
-    const host = new PluginHost({ homeDir: home, socketPath: "/tmp/fake.sock", binPath: "rove" })
+    const lines: string[] = []
+    const host = new PluginHost({
+      homeDir: home,
+      socketPath: "/tmp/fake.sock",
+      binPath: "rove",
+      log: (l) => lines.push(l),
+    })
     host.start()
     try {
       // The documented dev loop is "edit the manifest, watch the hook fire".
@@ -196,7 +202,7 @@ command = ["sh", "-c", "printf teardown > teardown.txt"]
         join(root, "rove-plugin.toml"),
         `${BASE}\n[[events]]\non = "task.created"\ncommand = ["sh", "-c", "printf hot > hot.txt"]\n`,
       )
-      await new Promise((r) => setTimeout(r, 600)) // poll + debounce
+      await waitFor(() => lines.some((l) => l.includes("plugin registry reloaded")))
       host.handleChannel(snapshotEvent(["a"]))
       host.handleChannel(snapshotEvent(["a", "b"]))
       await waitFor(() => read(root, "hot.txt") === "hot")
@@ -225,6 +231,7 @@ command = ["sh", "-c", "printf teardown > teardown.txt"]
       // would do it because the author fat-fingered a bracket.
       writeFileSync(join(root, "rove-plugin.toml"), `${BASE}\n[[events\n`)
       await waitFor(() => lines.some((l) => l.includes("manifest unreadable")))
+      // A hook that must NOT run emits nothing to await; give a wrongly spawned teardown time to write.
       await new Promise((r) => setTimeout(r, 400))
       expect(read(root, "teardown.txt")).toBe("")
     } finally {

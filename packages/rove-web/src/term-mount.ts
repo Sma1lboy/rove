@@ -19,13 +19,14 @@ import { createCover } from "./term-cover.ts"
 import { attachDictationGuard } from "./term-dictation.ts"
 import { OverlayFitAddon } from "./term-fit.ts"
 import { attachKittyImages } from "./term-images.ts"
-import { ctrlChord } from "./term-keys.ts"
+import { SHIFT_ENTER, ctrlChord, isCopyChord, isShiftEnter } from "./term-keys.ts"
 import { FONT_FAMILY, XTERM_THEME } from "./term-look.ts"
 import { osc52Text } from "./term-osc52.ts"
 import { createReplyGate } from "./term-replies.ts"
 import { linesFromBottom, viewportAfterWrite } from "./term-scroll.ts"
 import { attachWheelScroll, createSmoothScroll } from "./term-smooth.ts"
 import { attachTouchScroll } from "./term-touch.ts"
+import { createTyping } from "./term-typing.ts"
 import { loadWebgl } from "./term-webgl.ts"
 
 /** Width of xterm's overlay scrollbar (its default is 14); it floats over the last column (`term-fit.ts`). */
@@ -56,13 +57,6 @@ export interface MountOpts {
   readonly snapshot?: string
   /** The first replay is on screen (or the attach failed): what the view showed before can go. */
   readonly onPainted?: () => void
-}
-
-/** Copy chords the browser would not make on its own inside xterm's textarea: Cmd+C, Ctrl+Shift+C, and Ctrl+C with a selection. */
-function isCopyChord(e: KeyboardEvent): "interrupt-or-copy" | "copy" | null {
-  if (e.type !== "keydown" || e.key.toLowerCase() !== "c" || e.altKey) return null
-  if (e.metaKey || (e.ctrlKey && e.shiftKey)) return "copy"
-  return e.ctrlKey ? "interrupt-or-copy" : null
 }
 
 // Attachments are shared by stream within a connection, including pending replies.
@@ -145,11 +139,26 @@ export function mountTerminal(o: MountOpts): TermHandle {
     if (held) held.push({ bytes, chars: p.data.length })
     else if (stream) writeAcked(bytes, p.data.length)
   })
+  // A ring replay starts mid-repaint (even mid-sequence), so at an unchanged size it draws a mostly blank screen.
+  // A one-row size nudge makes the engine repaint in full (the host only SIGWINCHes on a size change).
+  const nudgeRepaint = (owner: string): Promise<unknown> => {
+    if (term.rows <= 2) return Promise.resolve()
+    return client
+      .request("term.resize", { stream: owner, cols: term.cols, rows: term.rows - 1 })
+      .then(() => new Promise((ok) => window.setTimeout(ok, 60)))
+      .then(() =>
+        stream === owner
+          ? client.request("term.resize", { stream: owner, cols: term.cols, rows: term.rows })
+          : undefined,
+      )
+  }
   // RIS and the replay are one chunk: a frame never paints between the wipe and the redraw.
   const offReset = client.on("term.reset", (raw) => {
     const p = resetPayload(raw)
     if (!p || p.stream !== expected || !stream || held) return
+    const owner = stream
     replies.replay((parsed) => writeAcked(withReset(decode(p.replay)), p.replay.length, parsed))
+    if (alive) void nudgeRepaint(owner).catch(() => {})
   })
   const offExit = client.on("term.exit", (raw) => {
     const p = streamPayload(raw)
@@ -225,20 +234,8 @@ export function mountTerminal(o: MountOpts): TermHandle {
       for (const h of held) writeAcked(h.bytes, h.chars)
       stream = res.stream
       alive = res.alive
-      // The ring replay of a long session starts mid-repaint, so a reattach at an unchanged size
-      // draws a mostly blank screen. A one-row size nudge makes the engine repaint in full (the
-      // host only SIGWINCHes on a size change).
       if (res.alive && term.rows > 2) {
-        const { cols, rows } = term
-        const owner = res.stream
-        void client
-          .request("term.resize", { stream: owner, cols, rows: rows - 1 })
-          .then(() => new Promise((ok) => window.setTimeout(ok, 60)))
-          .then(() =>
-            stream === owner
-              ? client.request("term.resize", { stream: owner, cols: term.cols, rows: term.rows })
-              : undefined,
-          )
+        void nudgeRepaint(res.stream)
           .then(() => window.setTimeout(cover.lower, 250))
           .catch(cover.lower)
       } else cover.lower()
@@ -275,7 +272,8 @@ export function mountTerminal(o: MountOpts): TermHandle {
       replies.forward(ctrlChord(data))
     } else replies.forward(data)
   })
-  const detachDictation = attachDictationGuard(term, (data) => replies.forward(data))
+  const typing = createTyping(term)
+  const detachDictation = attachDictationGuard(term, (data) => replies.forward(data), typing.onKey)
   // Every viewer of a PTY shares one size and the last to send wins; an inline TUI drawn for another
   // viewer's width leaves ghost frames here. The viewer the person is using claims it back: on focus,
   // and on a keystroke (throttled; the host ignores a size it already has).
@@ -285,7 +283,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
     claimedAt = Date.now()
     void client.request("term.resize", { stream, cols: term.cols, rows: term.rows }).catch(() => {})
   }
-  const keyed = term.onKey(() => {
+  const keyed = typing.onKey(() => {
     if (Date.now() - claimedAt > 1000) claimSize()
   })
   let resizeTimer: number | null = null
@@ -324,6 +322,12 @@ export function mountTerminal(o: MountOpts): TermHandle {
 
   // Copy: ctrl+c with a selection copies and drops it, otherwise it stays the interrupt (TUI `copySelectionIfAny`).
   term.attachCustomKeyEventHandler((e) => {
+    // Its keypress is swallowed too, or xterm would still send the CR.
+    if (isShiftEnter(e)) {
+      e.preventDefault()
+      if (e.type === "keydown") typing.input(SHIFT_ENTER)
+      return false
+    }
     // On a Mac, Ctrl+V would ask the engine to read the rove machine's clipboard, not this browser's.
     // Elsewhere it is the browser's own paste, which the paste event already covers.
     const ctrlV =
@@ -407,7 +411,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
     smooth.reset()
     if (linesFromBottom(term.buffer.active) > 0) term.scrollToBottom()
   }
-  const typed = term.onKey(followInput)
+  const typed = typing.onKey(followInput)
   textarea?.addEventListener("paste", followInput)
   textarea?.addEventListener("compositionend", followInput)
 
@@ -475,6 +479,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
       input.dispose()
       detachDictation()
       keyed.dispose()
+      typing.dispose()
       resize.dispose()
       offOpen()
       offData()

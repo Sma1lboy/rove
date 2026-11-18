@@ -10,7 +10,7 @@ import { execSync } from "node:child_process"
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterAll, beforeAll, describe, expect, test } from "vitest"
+import { afterEach, beforeEach, describe, expect, test } from "vitest"
 import { type Row, flattenTree, statusRows } from "../../src/tui/panes/filetree/rows.ts"
 import type { TreeNode } from "../../src/tui/panes/filetree/tree.ts"
 import { readWorktreeChanges } from "../../src/tui/panes/sidebar/worktree-changes.ts"
@@ -85,7 +85,8 @@ describe("statusRows / truncatePathTail", () => {
 describe("readWorktreeChanges", () => {
   let repo: string
 
-  beforeAll(() => {
+  // Per-test repo: the porcelain test dirties it, and the clean test must not depend on running first.
+  beforeEach(() => {
     repo = mkdtempSync(join(tmpdir(), "rove-wt-changes-"))
     execSync("git init -q -b main && git commit -q --allow-empty -m init", {
       cwd: repo,
@@ -99,7 +100,7 @@ describe("readWorktreeChanges", () => {
     })
   })
 
-  afterAll(() => {
+  afterEach(() => {
     rmSync(repo, { recursive: true, force: true })
   })
 

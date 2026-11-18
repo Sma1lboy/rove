@@ -17,7 +17,6 @@ import { FakeClient, expectApiError, stubRuntime, taskFixture } from "./api-hand
 
 const MB = 1024 * 1024
 
-const MAIN = taskFixture({ id: "main", kind: "main", worktreePath: "/repo/x" })
 const DIR = taskFixture({ id: "dir", kind: "dir", worktreePath: "/somewhere", repo: "/somewhere" })
 const SMALL = taskFixture({ id: "small", worktreePath: "/wt/small" })
 const BIG = taskFixture({
@@ -51,7 +50,7 @@ function client(tasks: Record<string, unknown>[]) {
 describe("worktree-usage", () => {
   it("ranks only task-owned worktrees, largest first, archived and extra repos included", async () => {
     const out = (await invokeVerb("worktree-usage", [], {
-      client: client([MAIN, DIR, SMALL, BIG, SHARED, GONE, DELETING]),
+      client: client([DIR, SMALL, BIG, SHARED, GONE, DELETING]),
       runtime: stubRuntime({ measureCheckout: measure(SIZES) }),
     })) as { tasks: { taskId: string; bytes: number; ignoredBytes: number; archived: boolean }[]; bytes: number }
     expect(out.tasks.map((t) => [t.taskId, t.bytes, t.ignoredBytes, t.archived])).toEqual([
@@ -76,8 +75,8 @@ describe("worktree-usage", () => {
   })
 
   it("--task-id refuses a task that owns no worktree", async () => {
-    const deps = { client: client([MAIN, SHARED]), runtime: stubRuntime({ measureCheckout: measure(SIZES) }) }
-    await expectApiError(() => invokeVerb("worktree-usage", ["--task-id", "main"], deps), "NO_WORKTREE")
+    const deps = { client: client([DIR, SHARED]), runtime: stubRuntime({ measureCheckout: measure(SIZES) }) }
+    await expectApiError(() => invokeVerb("worktree-usage", ["--task-id", "dir"], deps), "NO_WORKTREE")
     await expectApiError(() => invokeVerb("worktree-usage", ["--task-id", "shared"], deps), "NO_WORKTREE")
   })
 
@@ -222,17 +221,16 @@ describe("measurement failures", () => {
     })
   })
 
-  it.each([{ args: [] }, { args: ["--task-id", "small"] }])(
-    "keeps unreachable checkouts in API totals: %j",
-    async ({ args }) => {
-      const out = await invokeVerb("worktree-usage", args, {
-        client: client([SMALL]),
-        runtime: stubRuntime({ measureCheckout: (path) => measureCheckout(failedRemote(), path) }),
-      })
-      expect(out).toMatchObject({ bytes: null, ignoredBytes: null })
-      if (args.length === 0) expect(out).toMatchObject({ tasks: [{ taskId: "small", bytes: null }] })
-    },
-  )
+  it.each([
+    { args: [], expected: { bytes: null, ignoredBytes: null, tasks: [{ taskId: "small", bytes: null }] } },
+    { args: ["--task-id", "small"], expected: { bytes: null, ignoredBytes: null } },
+  ])("keeps unreachable checkouts in API totals: %j", async ({ args, expected }) => {
+    const out = await invokeVerb("worktree-usage", args, {
+      client: client([SMALL]),
+      runtime: stubRuntime({ measureCheckout: (path) => measureCheckout(failedRemote(), path) }),
+    })
+    expect(out).toMatchObject(expected)
+  })
 
   it("preserves salvage's partial results while strict measurement rejects a failed batch", async () => {
     const host = new LocalExecHost()

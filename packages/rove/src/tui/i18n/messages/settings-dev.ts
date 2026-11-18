@@ -31,7 +31,7 @@ export const en = {
       "Auto status flow: a backlog task moves to in_progress when its engine starts a turn, and new sessions get a system-prompt note telling the agent to set in_review itself when the work is done. Never touches done/canceled.",
     autoStatus: "Auto status flow",
     dispatcherHint:
-      "Field-notes dispatcher: task sessions file one-line gotchas (`rove api note`), the daemon forwards each to the repo's main session, and that session relays them to the in-flight tasks that benefit (`rove api dispatch`). Web-hosted sessions receive the relays today.",
+      "Field-notes dispatcher: task sessions file one-line gotchas (`rove api note`), and every session of that repo that starts later is handed them.",
     dispatcher: "Field-notes dispatcher",
   },
 }
@@ -62,7 +62,7 @@ export const zh: typeof en = {
       "自动状态流转：backlog 任务在其引擎开始一轮时移到 in_progress，新会话会拿到一条系统提示，告诉 agent 完成后自行设为 in_review。绝不触碰 done/canceled。",
     autoStatus: "自动状态流转",
     dispatcherHint:
-      "现场笔记调度器：任务会话提交一行经验（`rove api note`），daemon 将每条转发给仓库的主会话，主会话再把它们转达给能受益的进行中任务（`rove api dispatch`）。目前由 Web 托管的会话会收到转达。",
+      "现场笔记调度器：任务会话提交一行经验（`rove api note`），之后在该仓库启动的每个会话都会拿到这些笔记。",
     dispatcher: "现场笔记调度器",
   },
 }

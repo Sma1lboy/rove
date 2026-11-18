@@ -21,6 +21,9 @@ import { terminalTabsKey } from "../../src/tui-react/workspace/terminal-tabs-per
 import { tabActivationListeners, tabsByTask, takeTabClose } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import type { TabsState } from "../../src/tui/workspace/terminal-tabs-core"
 import { type TabsSyncDaemon, attachTabsDaemon, flushTabs } from "../tui-react/tabs-sync-daemon"
+import { isolateHome } from "./harness"
+
+isolateHome()
 
 function state(ids: readonly string[], activeId = ids[0] ?? "tab-1"): TabsState {
   return {
@@ -54,6 +57,22 @@ async function withDaemon(tasks: Record<string, TabsState>): Promise<TabsSyncDae
 
 const ids = (s: { tabs: readonly { id: string }[] } | null | undefined) => s?.tabs.map((tab) => tab.id)
 
+/** Run `close` with a mounted owner of `taskId` listening; returns the tab ids it claimed. */
+function claimingCloses(taskId: string, close: () => void): string[] {
+  const claimed: string[] = []
+  const listener = () => {
+    const id = takeTabClose(taskId)
+    if (id) claimed.push(id)
+  }
+  tabActivationListeners.add(listener)
+  try {
+    close()
+  } finally {
+    tabActivationListeners.delete(listener)
+  }
+  return claimed
+}
+
 beforeEach(() => resetTabsSyncForTests())
 
 afterEach(() => {
@@ -86,17 +105,7 @@ test("a mounted owner claims the request, and the background write does NOT also
   const { store } = await withDaemon({ t1: state(["tab-1", "tab-2"]) })
   const before = tabsByTask.get("t1")
   const daemonBefore = store.get("t1")
-  const claimed: string[] = []
-  const listener = () => {
-    const id = takeTabClose("t1")
-    if (id) claimed.push(id)
-  }
-  tabActivationListeners.add(listener)
-  try {
-    expect(closeTaskTab(fakeKv(), "t1", "tab-2")).toBe(true)
-  } finally {
-    tabActivationListeners.delete(listener)
-  }
+  const claimed = claimingCloses("t1", () => expect(closeTaskTab(fakeKv(), "t1", "tab-2")).toBe(true))
 
   expect(claimed).toEqual(["tab-2"])
   await flushTabs()
@@ -139,17 +148,7 @@ test("once the daemon's tabs loaded, a stale state.json snapshot is not consulte
 
 test("a mounted task does not claim a tab id it does not have", async () => {
   await withDaemon({ t1: state(["tab-1"]) })
-  const claimed: string[] = []
-  const listener = () => {
-    const id = takeTabClose("t1")
-    if (id) claimed.push(id)
-  }
-  tabActivationListeners.add(listener)
-  try {
-    expect(closeTaskTab(fakeKv(), "t1", "tab-9")).toBe(false)
-  } finally {
-    tabActivationListeners.delete(listener)
-  }
+  const claimed = claimingCloses("t1", () => expect(closeTaskTab(fakeKv(), "t1", "tab-9")).toBe(false))
   expect(claimed).toEqual([])
 })
 

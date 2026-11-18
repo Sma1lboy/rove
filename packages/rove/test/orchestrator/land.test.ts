@@ -156,17 +156,13 @@ describe("landTask", () => {
     git(["worktree", "add", "-b", "feat", wt], repo)
     fs.writeFileSync(path.join(wt, "wip.txt"), "uncommitted work\n")
 
-    try {
-      await landTask({ ...task("feat"), worktreePath: wt })
-      expect.unreachable("landTask should refuse an empty branch with a dirty worktree")
-    } catch (err) {
-      expect(err).toBeInstanceOf(EmptyBranchDirtyWorktreeError)
-      const msg = (err as Error).message
-      expect(msg).toContain(EMPTY_BRANCH_DIRTY_WORKTREE_CODE)
-      expect(msg).toContain("wip.txt")
-      expect(msg).toContain(wt)
-      expect(msg).toMatch(/commit them in the worktree/)
-    }
+    const err = await landTask({ ...task("feat"), worktreePath: wt }).catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(EmptyBranchDirtyWorktreeError)
+    const msg = (err as Error).message
+    expect(msg).toContain(EMPTY_BRANCH_DIRTY_WORKTREE_CODE)
+    expect(msg).toContain("wip.txt")
+    expect(msg).toContain(wt)
+    expect(msg).toMatch(/commit them in the worktree/)
     // The uncommitted file survives the refusal, and the base is untouched.
     expect(fs.existsSync(path.join(wt, "wip.txt"))).toBe(true)
     expect(fs.existsSync(path.join(repo, "wip.txt"))).toBe(false)

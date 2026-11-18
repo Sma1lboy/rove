@@ -19,7 +19,7 @@ export const DEFAULT_SCHEDULED_START_TICK_MS = 15_000
 export interface ScheduledStartDeps {
   readonly orch: Pick<
     DaemonOrchestrator,
-    "listTasks" | "getTask" | "setScheduledStart" | "setPrompt" | "ensureMainTask" | "openDirectoryTask"
+    "listTasks" | "getTask" | "setScheduledStart" | "setPrompt" | "ensureProject" | "openDirectoryTask"
   >
   readonly runtime: Pick<DaemonRuntimeAdapter, "startTaskSessionWithPrompt">
   readonly link: DaemonRpcClient | (() => DaemonRpcClient)
@@ -86,10 +86,11 @@ async function createPendingStart(deps: ScheduledStartDeps, start: PendingStart)
     const envelope = await deps.invoke("add", { ...create.params, prompt: start.prompt })
     return envelope.ok ? undefined : `${envelope.error.code}: ${envelope.error.message}`
   }
-  const dir = create.project ? (await deps.orch.ensureMainTask(create.dir)).repo : create.dir
+  const dir = create.project ? await deps.orch.ensureProject(create.dir) : create.dir
   const task = await deps.orch.openDirectoryTask({
     dir,
     ...(create.vendor ? { vendor: create.vendor as DaemonTask["vendor"] } : {}),
+    ...(create.model ? { model: create.model } : {}),
     ...(start.title ? { title: start.title } : {}),
   })
   await deps.orch.setPrompt(task.id, start.prompt)

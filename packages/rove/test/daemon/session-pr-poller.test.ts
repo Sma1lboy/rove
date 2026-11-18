@@ -48,10 +48,10 @@ const noJitter = (): number => 0.5
 
 const url = "https://github.com/o/r/pull/9"
 
-/** A `kind: "main"` task: no branch or worktree of its own, only the PRs its session attached. */
-async function makeMainTask(urls: string[] = [url]): Promise<string> {
+/** A `kind: "dir"` task: no branch of its own, only the PRs its session attached. */
+async function makeDirTask(urls: string[] = [url]): Promise<string> {
   const task = await orch.createTask({ repo: "/repo" })
-  await store.update(task.id, { kind: "main", sessionPrs: urls.map((u) => ({ url: u, addedAt: "t0" })) })
+  await store.update(task.id, { kind: "dir", sessionPrs: urls.map((u) => ({ url: u, addedAt: "t0" })) })
   return task.id
 }
 
@@ -66,8 +66,8 @@ function urlRunner(state: string, polled: string[] = []): PrUrlRunner {
 }
 
 describe("session PR polling", () => {
-  test("a main task's PR is polled by url, written on its entry, and re-polled on the tick cadence", async () => {
-    const id = await makeMainTask()
+  test("a dir task's PR is polled by url, written on its entry, and re-polled on the tick cadence", async () => {
+    const id = await makeDirTask()
     const branchRun = vi.fn(emptyRunner)
     const polled: string[] = []
     const schedule: PrPollSchedule = new Map()
@@ -97,7 +97,7 @@ describe("session PR polling", () => {
   })
 
   test("a merged PR backs off to the settled cadence", async () => {
-    const id = await makeMainTask()
+    const id = await makeDirTask()
     const schedule: PrPollSchedule = new Map()
     await runPrStatusPass(orch, {
       run: emptyRunner,
@@ -113,7 +113,7 @@ describe("session PR polling", () => {
 
   test("a gh error keeps the last status and backs off; each url keeps its own schedule", async () => {
     const other = "https://github.com/o/r/pull/10"
-    const id = await makeMainTask([url, other])
+    const id = await makeDirTask([url, other])
     const schedule: PrPollSchedule = new Map()
     const base = { run: emptyRunner, at: "t", schedule, rand: noJitter }
     await runPrStatusPass(orch, { ...base, runUrl: urlRunner("OPEN"), now: 0 })
@@ -125,8 +125,8 @@ describe("session PR polling", () => {
   })
 
   test("remote tasks are not polled, and keys of detached urls and deleted tasks are dropped", async () => {
-    const id = await makeMainTask()
-    const remote = await makeMainTask()
+    const id = await makeDirTask()
+    const remote = await makeDirTask()
     await store.update(remote, { repo: "ssh://host/repo" })
     const stale = { nextAllowedAt: 0, failures: 0 }
     const schedule: PrPollSchedule = new Map([

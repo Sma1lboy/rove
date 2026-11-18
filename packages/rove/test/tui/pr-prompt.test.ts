@@ -60,57 +60,23 @@ describe("buildPRPrompt (async git)", () => {
   })
 })
 
-// The per-repo override moved to the canonical `.rove/` convention spelling
-// (matching `.rove/init.sh`), with `.rove/` kept as a fallback so repos that
-// already committed one are not silently dropped back to the default.
 describe("per-repo pr-instructions override", () => {
   function writeInstructions(dir: string, relDir: string, body: string): void {
     mkdirSync(join(dir, relDir), { recursive: true })
     writeFileSync(join(dir, relDir, "pr-instructions.md"), body)
   }
 
-  test("reads the canonical .rove/pr-instructions.md", async () => {
+  test("reads .rove/pr-instructions.md", async () => {
     const dir = mkdtempSync(join(tmpdir(), "rove-pr-instructions-"))
     writeInstructions(dir, ".rove", "canonical template for {{branch}}")
     await expect(buildPRPrompt(dir, STATE)).resolves.toBe("canonical template for feature/x")
   })
 
-  test("falls back to the legacy .rove/pr-instructions.md", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "rove-pr-instructions-"))
-    writeInstructions(dir, ".rove", "legacy template for {{branch}}")
-    await expect(buildPRPrompt(dir, STATE)).resolves.toBe("legacy template for feature/x")
-  })
-
-  test(".rove wins over .rove when a repo carries both", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "rove-pr-instructions-"))
-    writeInstructions(dir, ".rove", "legacy")
-    writeInstructions(dir, ".rove", "canonical")
-    await expect(buildPRPrompt(dir, STATE)).resolves.toBe("canonical")
-  })
-
-  // An EMPTY canonical file is a placeholder, not "blank the prompt": it must
-  // not shadow a real legacy template, and with nothing else it defaults.
-  test("an empty .rove file does not shadow the legacy one", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "rove-pr-instructions-"))
-    writeInstructions(dir, ".rove", "")
-    writeInstructions(dir, ".rove", "legacy")
-    await expect(buildPRPrompt(dir, STATE)).resolves.toBe("legacy")
-  })
-
-  // The drift: `text.length > 0` accepted a file of pure whitespace and
-  // returned it as the template, blanking the prompt. `repo-init.ts` trimmed,
-  // and its rule is the one all three comments describe.
-  test("a whitespace-only .rove file does not shadow the legacy one", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "rove-pr-instructions-"))
-    writeInstructions(dir, ".rove", "\n   \n")
-    writeInstructions(dir, ".rove", "legacy")
-    await expect(buildPRPrompt(dir, STATE)).resolves.toBe("legacy")
-  })
-
-  test("a whitespace-only file alone falls back to the built-in template", async () => {
+  // A whitespace-only file is a placeholder, not "blank the prompt".
+  test("a whitespace-only file falls back to the built-in template", async () => {
     const dir = mkdtempSync(join(tmpdir(), "rove-pr-instructions-"))
     writeInstructions(dir, ".rove", "  \n")
-    await expect(buildPRPrompt(dir, STATE)).resolves.not.toBe("  \n")
+    await expect(buildPRPrompt(dir, STATE)).resolves.toContain("The user requested a PR.")
   })
 
   test("no override file falls back to the built-in template", async () => {

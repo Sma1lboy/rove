@@ -45,6 +45,10 @@ afterAll(() => {
 
 let footerRenders = 0
 
+async function repeat(n: number, step: () => Promise<unknown>): Promise<void> {
+  for (let i = 0; i < n; i++) await step()
+}
+
 /** A sidebar row: registers bindings, so mounting/unmounting bumps the stack. */
 function Row(props: { n: number }) {
   useBindings(() => ({ enabled: true, bindings: [{ key: "x", id: `row.${props.n}`, cmd: () => {} }] }))
@@ -89,10 +93,10 @@ test("an unrelated kv write does not re-run the hint snapshot", async () => {
   await act(async () => {})
 
   footerRenders = 0
-  for (let i = 0; i < 10; i++) {
+  await repeat(10, async () => {
     mockInput.typeText("w")
     await act(async () => {})
-  }
+  })
 
   // Each write re-renders the footer once (the kv context value is new, and
   // this hook subscribes to it). What must NOT happen is the effect firing

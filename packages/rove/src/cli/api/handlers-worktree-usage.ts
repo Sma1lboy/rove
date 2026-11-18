@@ -42,7 +42,7 @@ export function ownedCheckouts(task: SerializedTask): string[] {
   return [primary, ...extras].filter((p) => p.length > 0 && !samePath(canonicalize(p), repo))
 }
 
-function sum(values: readonly (number | null)[]): number | null {
+export function sum(values: readonly (number | null)[]): number | null {
   let total = 0
   for (const v of values) {
     if (v === null) return null
@@ -51,7 +51,7 @@ function sum(values: readonly (number | null)[]): number | null {
   return total
 }
 
-async function mapLimited<T, R>(items: readonly T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+export async function mapLimited<T, R>(items: readonly T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
   const out = new Array<R>(items.length)
   let next = 0
   const worker = async () => {
@@ -93,7 +93,7 @@ function bySize(a: WorktreeUsageRow, b: WorktreeUsageRow): number {
 const DAY_MS = 24 * 60 * 60 * 1000
 
 /** Cleanup filters; null when neither flag was passed. They AND together. */
-function candidateFilter(ctx: VerbContext): ((task: SerializedTask) => boolean) | null {
+export function candidateFilter(ctx: VerbContext): ((task: SerializedTask) => boolean) | null {
   const idleDays = ctx.args.nonNegativeInt("idle-days")
   const merged = ctx.args.bool("merged")
   if (idleDays === undefined && !merged) return null

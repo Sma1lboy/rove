@@ -10,12 +10,12 @@ import { isRemoteRepoKey } from "../state/repos.ts"
 import { resolvePreferredVendor } from "../state/vendor-prefs.ts"
 import type { Task, TaskId, TaskRoutineLink, VendorId } from "../types/task.ts"
 import { DEFAULT_TASK_VENDOR, toTaskId } from "../types/task.ts"
-import { canonPath, normalizeMainRepo, randomDirTaskSuffix, titleFromRepo } from "./core-helpers.ts"
+import { canonPath, normalizeMainRepo, randomDirTaskSuffix, repoWorkingDir, titleFromRepo } from "./core-helpers.ts"
 import type { CreateTaskInput } from "./create-task-input.ts"
 import { RemoteParentUnsupportedError, TaskDeletingError, TaskNotFoundError } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
-import type { MainTaskCoordinator } from "./main-task.ts"
 import { planExtraRepos } from "./multi-repo.ts"
+import type { ProjectCoordinator } from "./projects.ts"
 import { PLACEHOLDER_TASK_TITLE, sanitizeTaskTitle } from "./title.ts"
 
 /** The store alone — all a directory/scratch row needs. */
@@ -25,7 +25,7 @@ export interface StoreDeps {
 
 /** Plus the project-row coordinator, for a repo-backed task. */
 export interface CreateDeps extends StoreDeps {
-  readonly mainTasks: MainTaskCoordinator
+  readonly projects: ProjectCoordinator
   /**
    * Claim a caller-chosen worktree directory name, or throw (the slug
    * allocator's check). Called BEFORE the row is written, so a collision never
@@ -69,20 +69,20 @@ function nestingParent(store: TaskIndexStore, id: string): TaskId {
  */
 export async function createTaskRow(deps: CreateDeps, input: CreateTaskInput): Promise<Task> {
   if (!input.repo) throw new Error("createTask: repo is required")
-  // Refused before the project row is minted: a rejected multi-repo create leaves nothing behind.
+  // Refused before the project is saved: a rejected multi-repo create leaves nothing behind.
   const extraRepos = planExtraRepos(normalizeMainRepo(input.repo).repo, input.extraRepos ?? [])
   const parentTaskId = input.parentTaskId ? nestingParent(deps.store, input.parentTaskId) : undefined
-  // Ensure the project row only if the repo may BE a project
+  // Save the project only if the repo may BE a project
   // (state/project-eligibility.ts). An ineligible one (`/tmp` fixture,
   // `.dev-sandbox`) still gets its task; `buildTreeRows` renders it under a
   // header that dies with it.
   //
   // Always normalize to the git toplevel (via `normalizeMainRepo`, so it works
-  // with no main row): a SUBDIRECTORY passes `validateRepoPath` and would
+  // for an unsaved repo): a SUBDIRECTORY passes `validateRepoPath` and would
   // otherwise become a ghost project with its own worktree root. Dir/scratch
   // tasks don't come through here.
-  const mainTask = await deps.mainTasks.ensureIfEligible(input.repo, input.projectIntent ?? "explicit")
-  const repo = mainTask?.repo ?? normalizeMainRepo(input.repo).repo
+  const repo =
+    deps.projects.ensureIfEligible(input.repo, input.projectIntent ?? "explicit") ?? normalizeMainRepo(input.repo).repo
   const title = sanitizeTaskTitle(input.title ?? PLACEHOLDER_TASK_TITLE) || PLACEHOLDER_TASK_TITLE
   // Against the NORMALIZED repo — the key the allocator's occupied set uses.
   const worktreeName = input.worktreeName?.trim()
@@ -120,13 +120,15 @@ export async function createTaskRow(deps: CreateDeps, input: CreateTaskInput): P
 }
 
 /**
- * Open a directory as a standalone `kind: "dir"` task (`rove .`): no main
- * task, worktree or branch; deletion only drops the index entry. Every call is
- * a NEW parallel session, hence the random title suffix (`rove-af3x`).
+ * Open a directory as a `kind: "dir"` task (`rove .`, a session in a project's
+ * own checkout): no worktree or branch; deletion only drops the index entry.
+ * Every call is a NEW parallel session, hence the random title suffix (`rove-af3x`).
  */
 export async function openDirectoryTaskRow(deps: StoreDeps, input: OpenDirectoryTaskInput): Promise<Task> {
   if (!input.dir) throw new Error("openDirectoryTask: dir is required")
-  const dir = canonPath(input.dir)
+  // A remote project's key is `ssh://…`; its sessions run in the remote base path.
+  const remote = isRemoteRepoKey(input.dir)
+  const dir = remote ? input.dir : canonPath(input.dir)
   const explicitTitle = input.title ? sanitizeTaskTitle(input.title) : ""
   // Scratch mints no name (its home is unsettled); displays fall back to path/branch.
   const title = explicitTitle || (input.scratch ? "" : `${titleFromRepo(dir)}-${randomDirTaskSuffix()}`)
@@ -134,7 +136,7 @@ export async function openDirectoryTaskRow(deps: StoreDeps, input: OpenDirectory
     repo: dir,
     title,
     branch: "",
-    worktreePath: dir,
+    worktreePath: remote ? repoWorkingDir(dir) : dir,
     status: "backlog",
     kind: "dir",
     ...(input.scratch ? { scratch: true } : {}),

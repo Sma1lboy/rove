@@ -48,11 +48,11 @@ export async function createRoveCore(options: RoveCoreOptions = {}): Promise<Rov
       ),
   })
 
-  // Older rove rows are in the sidebar but not the picker. Idempotent, once per boot.
+  // A project that only ever had a stored `main` row is in no saved list yet. Idempotent, once per boot.
   const backfilled = backfillSavedReposFromProjects(
     store
       .list()
-      .filter((task) => task.kind === "main")
+      .filter((task) => task.fromProjectRow)
       .map((task) => task.repo),
   )
   if (backfilled.length > 0) {

@@ -121,7 +121,9 @@ export function createFilesOps(deps: FilesDeps = defaultDeps): OpTable {
         const local = api.machineOf?.(id) ? undefined : await worktreeOf(api, id)
         const all = !local || isRemoteWorkspace(local) ? await viaVerb() : await deps.listFiles(local)
         const truncated = all.length > MAX_FILES
-        return { files: truncated ? all.slice(0, MAX_FILES) : all, truncated }
+        // `root`: the worktree's absolute path on this machine, for copying a file's full path.
+        const root = local && !isRemoteWorkspace(local) ? { root: local } : {}
+        return { files: truncated ? all.slice(0, MAX_FILES) : all, truncated, ...root }
       },
     }),
 

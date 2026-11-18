@@ -13,7 +13,9 @@
 import { expect, test } from "bun:test"
 import { ENGINE_PROTOCOLS } from "../../src/engine/engine-presets"
 import { EngineProtocolPickerDialogView } from "../../src/tui-react/component/engine-protocol-picker-dialog"
-import { act, renderComponent, settle } from "./harness"
+import { act, isolateHome, renderComponent, settle } from "./harness"
+
+isolateHome()
 
 const NOOP = (): void => {}
 
@@ -23,6 +25,13 @@ async function mount(onSubmit: (protocol: string) => void) {
     { width: 80, height: 20, providers: { kv: true, dialog: true } },
   )
   return handle
+}
+
+/** Arrow down `n` times; the cursor update is functional, so the presses need no wait between them. */
+function pressDown(mockInput: Awaited<ReturnType<typeof mount>>["mockInput"], n: number): void {
+  act(() => {
+    for (let i = 0; i < n; i++) mockInput.pressArrow("down")
+  })
 }
 
 test("enter commits the row under the cursor", async () => {
@@ -42,10 +51,8 @@ test("the None row resolves to the empty string, not a protocol name", async () 
   const { mockInput } = await mount((p) => picked.push(p))
   // None is last: walking past the end clamps, so this lands on it from any
   // list length without hard-coding one.
-  for (let i = 0; i < ENGINE_PROTOCOLS.length + 2; i++) {
-    act(() => mockInput.pressArrow("down"))
-    await settle()
-  }
+  pressDown(mockInput, ENGINE_PROTOCOLS.length + 2)
+  await settle()
   act(() => mockInput.pressEnter())
   await settle()
   expect(picked).toEqual([""])

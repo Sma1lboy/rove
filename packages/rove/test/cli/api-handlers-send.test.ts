@@ -5,7 +5,7 @@
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { ApiError, invokeVerb } from "../../src/cli/api-cmd.ts"
 import { resetVerifiedSelfSession, verifiedSelfSession } from "../../src/cli/api/dispatcher.ts"
 import { deliverHostedPrompt } from "../../src/cli/api/pty-delivery.ts"
@@ -23,6 +23,7 @@ beforeEach(() => {
   delete process.env.ROVE_TAB_ID
 })
 afterEach(() => {
+  vi.useRealTimers()
   for (const [name, value] of [
     ["ROVE_TASK_ID", savedEnv.taskId],
     ["ROVE_TAB_ID", savedEnv.tabId],
@@ -46,6 +47,37 @@ describe("send handler", () => {
     // prompt, so the branch-rename coda can't reach it.
     expect(calls[0].target.newTask).toBeUndefined()
     expect(result).toMatchObject({ ok: true, taskId: "abc", started: true })
+  })
+
+  it("--repo opens a new session in that project's checkout and delivers there", async () => {
+    const client = new FakeClient({
+      "project.ensure": () => ({ repo: "/repo/x" }),
+      "task.openDir": (payload) => ({ task: taskFixture({ id: "fresh", kind: "dir", ...(payload as object) }) }),
+    })
+    const { calls, deliver } = recordingDelivery()
+    const result = await invokeVerb("send", ["--repo", "/repo/x/packages/app", "--prompt", "fix the rail"], {
+      client,
+      runtime: stubRuntime({ deliverPrompt: deliver }),
+    })
+    expect(client.requests.find((request) => request.name === "task.openDir")?.payload).toMatchObject({
+      dir: "/repo/x",
+    })
+    expect(calls[0].target.id).toBe("fresh")
+    expect(result).toMatchObject({ taskId: "fresh", newSession: true })
+  })
+
+  it("--repo keeps a remote project's ssh key verbatim", async () => {
+    const client = new FakeClient({
+      "project.ensure": (payload) => ({ repo: (payload as { repo: string }).repo }),
+      "task.openDir": (payload) => ({ task: taskFixture({ id: "fresh", kind: "dir", ...(payload as object) }) }),
+    })
+    await invokeVerb("send", ["--repo", "ssh://me@box/srv/app", "--prompt", "fix the rail"], {
+      client,
+      runtime: stubRuntime({ deliverPrompt: recordingDelivery().deliver }),
+    })
+    expect(client.requests.find((request) => request.name === "project.ensure")?.payload).toEqual({
+      repo: "ssh://me@box/srv/app",
+    })
   })
 
   it("reports a prompt that did not land", async () => {
@@ -118,14 +150,15 @@ describe("send handler", () => {
       "send.check": () => (++reads === 1 ? { awaiting: [], settleMs: 20 } : { awaiting: ["tab-1"], settleMs: 0 }),
     })
     const delivery = recordingDelivery()
-    await expectApiError(
-      () =>
-        invokeVerb("send", ["--task-id", "abc", "--tab", "tab-1", "--plain", "--prompt", "4"], {
-          client,
-          runtime: stubRuntime({ deliverPrompt: delivery.deliver }),
-        }),
-      "AWAITING_PERMISSION",
-    )
+    vi.useFakeTimers({ toFake: ["setTimeout"] })
+    const sent = invokeVerb("send", ["--task-id", "abc", "--tab", "tab-1", "--plain", "--prompt", "4"], {
+      client,
+      runtime: stubRuntime({ deliverPrompt: delivery.deliver }),
+    }).catch((e: unknown) => e)
+    await vi.advanceTimersByTimeAsync(19)
+    expect(reads).toBe(1)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(await sent).toMatchObject({ code: "AWAITING_PERMISSION" })
     expect(reads).toBe(2)
     expect(delivery.calls).toHaveLength(0)
   })

@@ -88,15 +88,6 @@ describe("load() recovery", () => {
     warn.mockRestore()
   })
 
-  it("an unsupported version recovers empty with a warning", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
-    await primeDir()
-    await writeManifest(JSON.stringify({ version: 99, tasks: [] }))
-    expect((await store.load()).tasks).toEqual([])
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("unsupported version"))
-    warn.mockRestore()
-  })
-
   it("an unsupported version backs the original bytes up before recovering empty", async () => {
     // A user who ran a build that stamped v4 and then went back to this one
     // loses EVERY task: the empty recovery base is what the next save

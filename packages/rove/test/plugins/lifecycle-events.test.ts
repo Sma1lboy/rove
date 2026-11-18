@@ -5,12 +5,7 @@ import { lifecycleEventFor } from "@sma1lboy/rove-daemon/plugins/events"
 import { savePluginRegistry } from "@sma1lboy/rove-daemon/plugins/registry"
 import { PluginHost } from "@sma1lboy/rove-daemon/plugins/runtime"
 import { afterEach, describe, expect, it } from "vitest"
-import {
-  ACTIVITY_STATE_KINDS,
-  ENGINE_ACTIVITY_KINDS,
-  affectsActivityState,
-  reduceActivity,
-} from "../../src/engine/hook-events"
+import { ACTIVITY_STATE_KINDS, ENGINE_ACTIVITY_KINDS, affectsActivityState } from "../../src/engine/hook-events"
 
 const dirs: string[] = []
 function tmp(prefix: string): string {
@@ -44,22 +39,16 @@ describe("lifecycleEventFor", () => {
   })
 
   it("covers every engine verb (no lifecycle event silently dropped)", () => {
-    for (const kind of ENGINE_ACTIVITY_KINDS) {
-      expect(lifecycleEventFor(kind), kind).toBeDefined()
-    }
+    expect(ENGINE_ACTIVITY_KINDS.filter((kind) => lifecycleEventFor(kind) === undefined)).toEqual([])
   })
 })
 
 describe("activity-state gating", () => {
   it("state kinds affect the badge; lifecycle-only kinds do not", () => {
-    for (const kind of ACTIVITY_STATE_KINDS) expect(affectsActivityState(kind), kind).toBe(true)
-    for (const kind of ["tool-pre", "tool-post", "tool-failed", "pre-compact", "subagent-start"]) {
-      expect(affectsActivityState(kind), kind).toBe(false)
-    }
-  })
-
-  it("turn-interrupted lands the state back on idle", () => {
-    expect(reduceActivity("running", "turn-interrupted")).toBe("idle")
+    expect(ACTIVITY_STATE_KINDS.filter((kind) => !affectsActivityState(kind))).toEqual([])
+    expect(
+      ["tool-pre", "tool-post", "tool-failed", "pre-compact", "subagent-start"].filter(affectsActivityState),
+    ).toEqual([])
   })
 })
 

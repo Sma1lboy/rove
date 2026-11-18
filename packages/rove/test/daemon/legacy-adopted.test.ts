@@ -13,7 +13,7 @@ it("leaves alone anything a person named, started, or that Rove made for another
     { ...ghost, id: "started", status: "in_progress" },
     { ...ghost, id: "checkout", worktreeOnly: true },
     { ...ghost, id: "child", parentTaskId: "main" },
-    { ...ghost, id: "main", kind: "main", title: "repo", worktreePath: "/repo" },
+    { ...ghost, id: "main", kind: "dir", title: "repo", worktreePath: "/repo" },
     { ...ghost, id: "archived", archived: true },
   ]
   expect(legacyAdoptedTasks(kept)).toEqual([])

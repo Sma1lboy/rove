@@ -79,24 +79,6 @@ describe("the Diff column", () => {
 })
 
 describe("the Browser column", () => {
-  test("an address shows the tab already on it, else fills a blank one, else opens a tab", () => {
-    const first = showBrowser(newPanel(), "https://a.test/")
-    expect(browser(first).tabs).toHaveLength(1)
-    expect(kinds(first)).toEqual(["files", "browser"])
-
-    const again = showBrowser(first, "https://a.test/")
-    expect(browser(again).tabs).toHaveLength(1)
-
-    const other = showBrowser(first, "https://b.test/")
-    expect(browser(other).tabs.map(browserUrl)).toEqual(["https://a.test/", "https://b.test/"])
-    expect(browserUrl(browser(other).tabs.find((tab) => tab.id === browser(other).active) as never)).toBe(
-      "https://b.test/",
-    )
-
-    const blank = showBrowser(showKind(newPanel(), "browser"), "https://c.test/")
-    expect(browser(blank).tabs.map(browserUrl)).toEqual(["https://c.test/"])
-  })
-
   test("closing the last tab closes the column, and the panel keeps the rest", () => {
     const panel = showBrowser(newPanel(), "https://a.test/")
     const closed = editBrowser(panel, () => null)
@@ -211,15 +193,18 @@ describe("rove api panel-show", () => {
   })
 
   // A second push of the same path left the agent's first version of the file on screen.
-  test("pushing the path already open again reads it again; a replay of the same push does not", () => {
-    for (const view of ["files", "diff"] as const) {
-      const kind = view === "files" ? "file" : "diff"
+  test.each([
+    ["files", "file"],
+    ["diff", "diff"],
+  ] as const)(
+    "pushing the path already open in %s again reads it again; a replay of the same push does not",
+    (view, kind) => {
       const first = apply(newPanel(), { view, path: "a.md", at: 1 })
       const again = apply(first, { view, path: "a.md", at: 2 })
       expect(columnOf(again, kind)).not.toEqual(columnOf(first, kind))
       expect(apply(again, { view, path: "a.md", at: 2 })).toBe(again)
-    }
-  })
+    },
+  )
 
   test("a view alone opens its column if closed and never a second one", () => {
     const panel = apply(showDiff(newPanel(), "a.ts", "working"), { view: "files" })

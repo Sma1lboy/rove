@@ -16,6 +16,12 @@ import {
 } from "../src/browser-tabs.ts"
 
 const urls = (col: BrowserColumn) => col.tabs.map(browserUrl)
+/** A column that opened `n` addresses in turn. */
+const many = (n: number) =>
+  Array.from({ length: n }, (_, i) => `https://${i}.test/`).reduce((col, url) => openUrl(col, url), blankBrowser())
+/** The frames left mounted after showing each tab in turn. */
+const showEach = (col: BrowserColumn) =>
+  col.tabs.reduce<string[]>((mounted, tab) => mountedTabs(mounted, tab.id, col.tabs), [])
 
 describe("tabs", () => {
   test("a new tab is blank, shown, and added on the right", () => {
@@ -35,8 +41,7 @@ describe("tabs", () => {
   })
 
   test("past the tab limit the least recently shown tab that is not on screen closes", () => {
-    let col = blankBrowser()
-    for (let n = 0; n < MAX_TABS + 2; n++) col = openUrl(col, `https://${n}.test/`)
+    const col = many(MAX_TABS + 2)
     expect(col.tabs).toHaveLength(MAX_TABS)
     expect(urls(col)).toContain(`https://${MAX_TABS + 1}.test/`)
     expect(urls(col)).not.toContain("https://0.test/")
@@ -45,8 +50,10 @@ describe("tabs", () => {
 
 describe("a tab's own history", () => {
   test("typing after going back drops the forward entries", () => {
-    let col = blankBrowser()
-    for (const url of ["https://a.test/", "https://b.test/", "https://c.test/"]) col = navigate(col, "t1", url)
+    let col = ["https://a.test/", "https://b.test/", "https://c.test/"].reduce(
+      (c, url) => navigate(c, "t1", url),
+      blankBrowser(),
+    )
     col = stepTab(col, "t1", 0)
     col = navigate(col, "t1", "https://d.test/")
     expect(col.tabs[0]).toMatchObject({ urls: ["https://a.test/", "https://d.test/"], at: 1 })
@@ -83,16 +90,9 @@ describe("closing", () => {
 })
 
 describe("which tabs keep a live frame", () => {
-  const many = (n: number) => {
-    let col = blankBrowser()
-    for (let i = 0; i < n; i++) col = openUrl(col, `https://${i}.test/`)
-    return col
-  }
-
   test("past the cap the least recently shown frames go; the shown one stays", () => {
     const col = many(MAX_FRAMES + 2)
-    let mounted: string[] = []
-    for (const tab of col.tabs) mounted = mountedTabs(mounted, tab.id, col.tabs)
+    const mounted = showEach(col)
     expect(mounted).toHaveLength(MAX_FRAMES)
     expect(mounted).not.toContain("t1")
     expect(mounted.at(-1)).toBe(col.tabs.at(-1)?.id as string)
@@ -100,9 +100,7 @@ describe("which tabs keep a live frame", () => {
 
   test("going back to a dropped tab brings its frame back and drops the oldest", () => {
     const col = many(MAX_FRAMES + 1)
-    let mounted: string[] = []
-    for (const tab of col.tabs) mounted = mountedTabs(mounted, tab.id, col.tabs)
-    mounted = mountedTabs(mounted, "t1", col.tabs)
+    const mounted = mountedTabs(showEach(col), "t1", col.tabs)
     expect(mounted.at(-1)).toBe("t1")
     expect(mounted).toHaveLength(MAX_FRAMES)
   })

@@ -60,14 +60,10 @@ interface LandWorktreeCleanup {
   readonly residue?: WorktreeResidue
 }
 
-/** Refuses a task with no Rove-managed branch (main, dir): there is nothing to land. */
+/** Refuses a task with no Rove-managed branch (dir): there is nothing to land. */
 export function assertOwnsBranch(task: Task): void {
   if (workspaceCapabilities(task).ownsBranch) return
-  throw new Error(
-    task.kind === "main"
-      ? "landTask: a main task has no branch to land"
-      : "landTask: a directory task has no Rove-managed branch to land",
-  )
+  throw new Error("landTask: a directory task has no Rove-managed branch to land")
 }
 
 /**

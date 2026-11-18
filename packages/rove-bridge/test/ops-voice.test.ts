@@ -27,9 +27,14 @@ beforeAll(() => {
 
 afterAll(() => {
   server.stop(true)
-  process.env.ROVE_VOICE_HOME = saved.home
-  process.env.ROVE_VOICE_PORT = saved.port
+  restoreEnv("ROVE_VOICE_HOME", saved.home)
+  restoreEnv("ROVE_VOICE_PORT", saved.port)
 })
+
+function restoreEnv(key: string, prev: string | undefined): void {
+  if (prev === undefined) Reflect.deleteProperty(process.env, key)
+  else process.env[key] = prev
+}
 
 beforeEach(() => {
   sent = null

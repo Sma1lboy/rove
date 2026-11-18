@@ -201,7 +201,6 @@ test("retention keeps the newest N, numbering continues past the gap, and delete
   expect(await deleteTaskCheckpoints(deps, exec, repo, TASK)).toBe(4)
   expect(await listCheckpoints(deps, exec, repo, TASK)).toEqual([])
   expect((await listCheckpoints(deps, exec, repo, "task-other")).length).toBe(1)
-  expect(CHECKPOINT_RETENTION).toBe(100)
 })
 
 test("take prunes automatically once past the retention ceiling", async () => {
@@ -214,7 +213,11 @@ test("take prunes automatically once past the retention ceiling", async () => {
   const exec = new LocalExecHost()
   // Seed refs directly: 100 real snapshots would take a minute of spawns.
   const head = git(wt, "rev-parse", "HEAD").trim()
-  for (let n = 1; n <= CHECKPOINT_RETENTION; n++) git(repo, "update-ref", `refs/rove/checkpoints/${TASK}/${n}`, head)
+  const seed = Array.from(
+    { length: CHECKPOINT_RETENTION },
+    (_, i) => `create refs/rove/checkpoints/${TASK}/${i + 1} ${head}\n`,
+  )
+  expect(spawnSync("git", ["update-ref", "--stdin"], { cwd: repo, input: seed.join("") }).status).toBe(0)
   put("a.txt", "over the ceiling\n")
   const res = await takeCheckpoint(deps, exec, wt, TASK)
   expect(res.checkpoint.n).toBe(CHECKPOINT_RETENTION + 1)

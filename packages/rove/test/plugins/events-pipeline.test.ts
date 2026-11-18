@@ -67,7 +67,7 @@ describe("dropped-path regressions through the real orchestrator", () => {
   test("adoptWorktree fires task.created AND worktree.created", async () => {
     const ext = path.join(tmpRoot, "ext-feat")
     const r = spawnSync("git", ["worktree", "add", "-b", "feat", ext], { cwd: repo, encoding: "utf8" })
-    if (r.status !== 0) throw new Error(`git worktree add failed: ${r.stderr}`)
+    expect(r.status, r.stderr).toBe(0)
 
     const task = await orch.adoptWorktree({ repo, worktreePath: ext, branch: "feat" })
 

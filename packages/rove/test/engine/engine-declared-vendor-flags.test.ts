@@ -45,7 +45,7 @@ vi.mock("../../src/engine/registry.ts", async (importOriginal) => {
 
 const { withEngineEffort, withEngineModel } = await import("../../src/engine/interactive-command.ts")
 const { engineLaunchArgv } = await import("../../src/engine/engine-presets.ts")
-const { withDispatcherProtocol, withWorktreeProtocol } = await import("../../src/engine/worktree-protocol.ts")
+const { withWorktreeProtocol } = await import("../../src/engine/worktree-protocol.ts")
 const { trustEngineWorktree } = await import("../../src/engine/trust-worktree.ts")
 const { buildEngineSessionLaunch } = await import("../../src/engine/session-launch.ts")
 const { latestTranscriptMtime } = await import("../../src/monitor/activity.ts")
@@ -144,13 +144,6 @@ describe("system-prompt protocols reach a wrapper engine", () => {
     // `withClaudeSessionId` had.
     expect(argv).toContain("--append-system-prompt")
     expect(argv.join("\n")).toContain("api update --task-id t1 --status in_review")
-  })
-
-  it("injects the dispatcher protocol into a claudecpa main session", () => {
-    registerClaudeWrapper()
-    const argv = withDispatcherProtocol(["claudecpa"], "claudecpa", "m1", on)
-    expect(argv).toContain("--append-system-prompt")
-    expect(argv.join("\n")).toContain("DISPATCHER")
   })
 
   it("still refuses an engine whose protocol is not claude", () => {

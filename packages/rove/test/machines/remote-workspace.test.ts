@@ -27,6 +27,16 @@ function scratch(): string {
   return mkdtempSync(join(tmpdir(), "rove-rw-"))
 }
 
+/** A remote shell over an in-memory file map: `cat > 'name'` writes stdin, anything else reads `name`. */
+function fakeRemoteFiles(files: Map<string, string>) {
+  return (command: string, stdin?: string) => {
+    const name = /'([^']+)'$/.exec(command)?.[1] ?? ""
+    if (command.includes("cat >")) files.set(name, stdin ?? "")
+    else if (!files.has(name)) return { ok: false, out: `${name}: No such file` }
+    return { ok: true, out: files.get(name) ?? "" }
+  }
+}
+
 describe("a workspace on another machine", () => {
   test("rx runs the command in the worktree and passes quotes, stdin and the exit code through", () => {
     const worktree = join(scratch(), "it's here")
@@ -102,21 +112,20 @@ describe("a workspace on another machine", () => {
     writeFileSync(join(dir, REMOTE_WORKSPACE_FILE), JSON.stringify({ machine: "deck", taskId: "T3", path: "/srv/app" }))
     const reply = (input: object) => fileHookReply(JSON.stringify({ cwd: dir, tool_input: input }), dir)
     expect(reply({ file_path: "/Users/me/notes.md" })).toBe("")
-    for (const input of [{ file_path: "src/a.ts" }, { pattern: "TODO" }, { file_path: "/srv/app/src/a.ts" }]) {
-      const out = JSON.parse(reply(input)).hookSpecificOutput
-      expect(out.permissionDecision).toBe("deny")
-      expect(out.permissionDecisionReason).toContain('the machine "deck"')
+    const denied = {
+      permissionDecision: "deny",
+      permissionDecisionReason: expect.stringContaining('the machine "deck"'),
     }
+    expect(
+      [{ file_path: "src/a.ts" }, { pattern: "TODO" }, { file_path: "/srv/app/src/a.ts" }].map(
+        (input) => JSON.parse(reply(input)).hookSpecificOutput,
+      ),
+    ).toEqual([expect.objectContaining(denied), expect.objectContaining(denied), expect.objectContaining(denied)])
   })
 
   test("the file tools read a range, write through stdin, and edit only an unambiguous match", () => {
     const files = new Map([["a.ts", "one\ntwo\none\n"]])
-    const run = (command: string, stdin?: string) => {
-      const name = /'([^']+)'$/.exec(command)?.[1] ?? ""
-      if (command.includes("cat >")) files.set(name, stdin ?? "")
-      else if (!files.has(name)) return { ok: false, out: `${name}: No such file` }
-      return { ok: true, out: files.get(name) ?? "" }
-    }
+    const run = fakeRemoteFiles(files)
     expect(callWorkspaceTool(run, "read", { path: "a.ts" })).toBe("one\ntwo\none\n")
     expect(() => callWorkspaceTool(run, "read", { path: "missing.ts" })).toThrow(/No such file/)
     expect(() => callWorkspaceTool(run, "edit", { path: "a.ts", old_string: "one", new_string: "1" })).toThrow(

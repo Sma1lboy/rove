@@ -82,9 +82,7 @@ describe("runThemeSubcommand list", () => {
   it("lists every bundled theme in the canonical map", async () => {
     await runThemeSubcommand(["list"])
     const text = out()
-    for (const name of Object.keys(BUNDLED_THEME_JSONS)) {
-      expect(text).toContain(name)
-    }
+    expect(Object.keys(BUNDLED_THEME_JSONS).filter((name) => !text.includes(name))).toEqual([])
   })
 })
 

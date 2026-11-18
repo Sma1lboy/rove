@@ -22,7 +22,6 @@ import { newChatHere, openTab } from "./task-dialogs.tsx"
 import { dialog, newSession, page, toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import { PANE, PANE_WORKING, PLACEHOLDER, PLACEHOLDER_BOX, WORKSPACE, WORKSPACE_FRAME } from "./ui/shell.ts"
-import { UpdateView } from "./update-view.tsx"
 import { WelcomePane } from "./welcome-view.tsx"
 import { WorktreesView } from "./worktrees-view.tsx"
 
@@ -47,6 +46,7 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
   useEffect(() => {
     let last = model.selection.get()
     return model.selection.subscribe(() => {
+      page.set(null)
       newSession.set(null)
       const next = model.selection.get()
       if (next.taskId !== last.taskId || next.tabId !== last.tabId) narrowView.set("terminal")
@@ -54,18 +54,10 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
     })
   }, [model])
   useEffect(() => trackNav(model), [model])
-  if (pageOn === "update") {
-    return (
-      <main className={`${WORKSPACE} ${WORKSPACE_FRAME}`}>
-        {narrow && <NarrowBackBar />}
-        <UpdateView client={model.client} />
-      </main>
-    )
-  }
   if (pageOn === "worktrees") {
     return (
       <main className={`${WORKSPACE} ${WORKSPACE_FRAME}`}>
-        {narrow && <NarrowBackBar />}
+        {narrow && <NarrowBackBar client={model.client} />}
         <WorktreesView model={model} />
       </main>
     )
@@ -73,7 +65,7 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
   if (pageOn) {
     return (
       <main className={`${WORKSPACE} ${WORKSPACE_FRAME}`}>
-        {narrow && <NarrowBackBar />}
+        {narrow && <NarrowBackBar client={model.client} />}
         <PagesHost model={model} page={pageOn} />
       </main>
     )
@@ -81,7 +73,7 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
   if (composing) {
     return (
       <main className={`${WORKSPACE} ${WORKSPACE_FRAME}`}>
-        {narrow && <NarrowBackBar />}
+        {narrow && <NarrowBackBar client={model.client} />}
         <div className={PANE}>
           {/* A different seed remounts the composer so its chips follow; the prompt draft survives. */}
           <NewSessionView key={composerKey(composing)} model={model} seed={composing} />
@@ -91,7 +83,7 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
   }
   return (
     <main className={`${WORKSPACE} ${WORKSPACE_FRAME}`}>
-      {narrow && <NarrowBackBar taskId={task?.id} title={task?.title} />}
+      {narrow && <NarrowBackBar client={model.client} taskId={task?.id} title={task?.title} />}
       {task && <TabStrip model={model} task={task} tabs={tabs} narrow={narrow} />}
       {task && !task.groupId && <StackStrip model={model} taskId={task.id} />}
       {task?.groupId && <AttemptsStrip model={model} taskId={task.id} groupId={task.groupId} />}

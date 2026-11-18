@@ -164,9 +164,8 @@ export function useWorkspaceSelection(args: {
     setSelectedId(id)
     // silent-catch-ok: same focus-bookkeeping write as above.
     void orch.setActiveTask(id).catch((error) => console.error("[rove workspace] setActiveTask failed:", error))
-    // Plugin UI events: entering a task/project is an observable moment.
-    const kind = tasks.find((task) => task.id === id)?.kind === "main" ? "project.opened" : "task.opened"
-    orch.reportUiEvent(kind, id)
+    // Plugin UI events: entering a task is an observable moment.
+    orch.reportUiEvent("task.opened", id)
   }
 
   // Last-intent-wins: a slow activation that resolves after a newer one must

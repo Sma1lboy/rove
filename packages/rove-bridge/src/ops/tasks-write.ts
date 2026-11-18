@@ -4,12 +4,13 @@
  * checked here and verb values are built only with `flag()`.
  */
 
+import { basename, dirname } from "node:path"
 import { MULTI_REPO_CAP } from "@sma1lboy/rove-daemon/task-tree"
 import { argvToParams } from "@sma1lboy/rove/src/cli/api/invoke.ts"
 import { AUTO_MACHINE } from "@sma1lboy/rove/src/machines/forward.ts"
 import { deriveTitleFromPrompt } from "@sma1lboy/rove/src/orchestrator/title.ts"
 import { BridgeError, optBool, optInt, optStr } from "../protocol.ts"
-import { absPath, bool, flag, oneOf, optOneOf, optText, taskId, text } from "./args.ts"
+import { absPath, bool, flag, oneOf, optOneOf, optShellLine, optText, taskId, text } from "./args.ts"
 import { commandFromTask } from "./tasks-command-from.ts"
 import {
   checkAgentEngines,
@@ -115,6 +116,12 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
       "start and a scheduled start each take no prompt, count, agents, machine or each other",
     )
   }
+  // A terminal in a new worktree, no engine: the checkout is cut as `--worktree-only`, then made a session by its shell tab.
+  const shell = optBool(args, "shell")
+  const shellLine = shell ? optShellLine(args, "type") : undefined
+  if (shell && (parallel || prompt || machine || later || start || engineGiven || mdl || effort)) {
+    throw new BridgeError("BAD_ARGS", "shell takes no prompt, engine, model, effort, machine or scheduled start")
+  }
   if (parallel && branch) throw new BridgeError("BAD_ARGS", "branch cannot be shared by parallel tasks")
   if (agentsGiven && engineGiven) throw new BridgeError("BAD_ARGS", "engine conflicts with agents")
   const plan = agentsGiven ? parseAgents(args) : undefined
@@ -143,6 +150,15 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
   if (pin) argv.push(flag("pin", "true"))
   if (prompt) argv.push(flag("prompt", prompt))
   if (start) argv.push(flag("start", "true"))
+  if (shell) {
+    const cut = await ctx.api.verb<{ taskId?: string }>("add", [...argv, flag("worktree-only", "true")])
+    if (typeof cut.taskId !== "string") throw new BridgeError("BAD_RESULT", "add returned no task id")
+    // Listed before the tab opens: a failed open leaves a row to retry in, not a hidden checkout.
+    await ctx.api.rpc("task.worktreeOnly", { taskId: cut.taskId, on: false })
+    const line = shellLine ? [flag("type", shellLine)] : []
+    await ctx.api.verb("tab-new", [flag("task-id", cut.taskId), flag("kind", "shell"), "--own", ...line])
+    return { taskIds: [cut.taskId] }
+  }
   if (later) {
     const pending = await ctx.api.rpc<{ id: string }>("pendingStart.add", {
       ...later,
@@ -174,10 +190,13 @@ const PROGRESS_GAP_MS = 150
 
 async function clone(args: Args, ctx: OpContext): Promise<unknown> {
   const url = await cloneSource(args)
-  const parentDir = absPath(args, "parentDir")
   const urlProblem = taskOpDeps.validateGitUrl(url)
   if (urlProblem) throw new BridgeError("BAD_ARGS", urlProblem)
-  const given = optStr(args, "folder")
+  // No parentDir: the caller leaves the place to Rove, and a repo cloned there before is that clone.
+  const managed = args.parentDir === undefined ? taskOpDeps.managedClone(url) : null
+  if (managed?.ready) return { path: managed.dir }
+  const parentDir = managed ? dirname(managed.dir) : absPath(args, "parentDir")
+  const given = managed ? basename(managed.dir) : optStr(args, "folder")
   const folder = cloneFolder(given ?? taskOpDeps.findAvailableFolderName(parentDir, taskOpDeps.deriveFolderName(url)))
   const targetProblem = taskOpDeps.validateCloneTarget(parentDir, folder)
   if (targetProblem) throw new BridgeError("BAD_ARGS", targetProblem)
@@ -225,13 +244,20 @@ async function legacyCleanup(args: Args, ctx: OpContext): Promise<unknown> {
   const found = await ctx.api.rpc<{ tasks?: ReadonlyArray<{ repo: string }> }>("worktree.legacyAdopted", {})
   const first = found.tasks?.[0]
   if (!first) throw new BridgeError("NOTHING_TO_CLEAN", "no leftover sessions to clean up")
-  // A repo the daemon will not make a project row for (a scratch dir) still gets the session, in its own worktree.
-  const main = await ctx.api.rpc<{ task: { id: string } }>("task.ensureMain", { repo: first.repo }).catch(() => null)
-  // `--no-worktree` runs in the parent's directory; `add` refuses a `--repo` beside it.
-  const where = main ? [flag("parent", main.task.id), flag("no-worktree", "true")] : [flag("repo", first.repo)]
-  const res = await ctx.api.verb<{ taskId?: string }>("add", [...where, flag("title", title), flag("prompt", prompt)])
-  if (typeof res.taskId !== "string") throw new BridgeError("BAD_RESULT", "add returned no task id")
-  return { taskId: res.taskId }
+  // A repo the daemon will not save as a project (a scratch dir) still gets the session, in its own worktree.
+  const saved = await ctx.api.rpc<{ repo: string }>("project.ensure", { repo: first.repo }).catch(() => null)
+  if (!saved) {
+    const res = await ctx.api.verb<{ taskId?: string }>("add", [
+      flag("repo", first.repo),
+      flag("title", title),
+      flag("prompt", prompt),
+    ])
+    if (typeof res.taskId !== "string") throw new BridgeError("BAD_RESULT", "add returned no task id")
+    return { taskId: res.taskId }
+  }
+  const { taskId } = await ctx.api.rpc<{ taskId: string }>("task.openDir", { dir: saved.repo, title })
+  await ctx.api.verb("send", [flag("task-id", taskId), flag("prompt", prompt)])
+  return { taskId }
 }
 
 /** A busy refusal arrives as `BridgeError` code `TASK_BUSY` (lifted by `createBridgeApi`), so the page can offer "archive anyway". */
@@ -245,7 +271,10 @@ async function archive(args: Args, ctx: OpContext): Promise<unknown> {
 }
 
 export const TASK_WRITE_OPS: OpTable = {
-  "task.spawn": write("verb add", spawn),
+  "task.spawn": write(
+    "verb add (`shell`: add --worktree-only + rpc task.worktreeOnly off + tab-new --kind shell --own)",
+    spawn,
+  ),
   "task.rename": write("verb update --task-id --title", (a, c) =>
     done(c.api.verb("update", [flag("task-id", taskId(a)), flag("title", text(a, "title", 200))])),
   ),
@@ -320,7 +349,7 @@ export const TASK_WRITE_OPS: OpTable = {
   "task.move": write("rpc task.move", (a, c) =>
     done(c.api.rpc("task.move", { taskId: taskId(a), direction: oneOf(a, "direction", DIRECTIONS) })),
   ),
-  "project.move": write("rpc project.move (the whole project, main or not, beside another)", (a, c) =>
+  "project.move": write("rpc project.move (the whole project beside another)", (a, c) =>
     done(
       c.api.rpc("project.move", {
         repo: absPath(a, "repo"),
@@ -346,51 +375,67 @@ export const TASK_WRITE_OPS: OpTable = {
     },
     true,
   ),
-  "task.openMain": write("rpc task.ensureMain", async (a, c) => {
+  // How a fresh clone becomes a known project, so this takes any real git repo rather than only a known one.
+  "project.ensure": write("rpc project.ensure", async (a, c) => {
     const repo = absPath(a, "repo")
-    // Opening a project's main task is how a fresh clone becomes a known project, so this
-    // takes any real git repo rather than only a known one.
     const problem = await taskOpDeps.validateRepoPath(repo)
     if (problem) throw new BridgeError("BAD_ARGS", problem)
-    const res = await c.api.rpc<{ task: { id: string } }>("task.ensureMain", { repo })
-    return { taskId: res.task.id }
+    return await c.api.rpc<{ repo: string }>("project.ensure", { repo })
   }),
-  // A session in the project's own checkout (New session, Worktree off). Its own top-level row, not a
-  // conversation of the main task: `tab.new` on a main that already runs one makes a child nested under it.
-  "task.openCheckout": write("rpc task.ensureMain + task.openDir {dir: the project root}", async (a, c) => {
+  // "Open the project": a new session in its own checkout. Clients that predate `task.openCheckout` send this.
+  "task.openMain": write("rpc project.ensure + task.openDir {dir: the project root}", async (a, c) => {
     const repo = absPath(a, "repo")
     const problem = await taskOpDeps.validateRepoPath(repo)
-    // A folder git cannot use is a standalone directory session (`rove <path>`'s shape): no project row.
+    if (problem) throw new BridgeError("BAD_ARGS", problem)
+    const saved = await c.api.rpc<{ repo: string }>("project.ensure", { repo })
+    const res = await c.api.rpc<{ taskId: string }>("task.openDir", {
+      dir: saved.repo,
+      vendor: taskOpDeps.preferredEngine(saved.repo),
+    })
+    return { taskId: res.taskId }
+  }),
+  // A session in the project's own checkout (New session, Worktree off): its own top-level row.
+  "task.openCheckout": write("rpc project.ensure + task.openDir {dir: the project root}", async (a, c) => {
+    const repo = absPath(a, "repo")
+    const problem = await taskOpDeps.validateRepoPath(repo)
+    // A folder git cannot use is a standalone directory session (`rove <path>`'s shape): not saved as a project.
     if (problem && !taskOpDeps.isDirectory(repo)) throw new BridgeError("BAD_ARGS", problem)
     const title = optText(a, "title", 200)
     const engineGiven = a.engine !== undefined && a.engine !== null && a.engine !== ""
     const engine = engineGiven ? await engineId(a, "engine", c) : undefined
+    const mdl = optModel(a)
     const later = scheduledStart(a)
     if (later) {
-      // Nothing is created now, the project row included: the daemon opens both when the start is due.
+      // Nothing is created now: the daemon opens the session when the start is due.
       const vendor = engine ?? taskOpDeps.preferredEngine(repo)
       const pending = await c.api.rpc<{ id: string }>("pendingStart.add", {
         ...later,
         title: title ?? deriveTitleFromPrompt(later.prompt),
         repo,
-        create: { via: "dir", dir: repo, project: !problem, ...(vendor ? { vendor } : {}) },
+        create: {
+          via: "dir",
+          dir: repo,
+          project: !problem,
+          ...(vendor ? { vendor } : {}),
+          ...(mdl ? { model: mdl } : {}),
+        },
       })
       if (engine) taskOpDeps.rememberEngine(repo, engine)
       return { pendingStartId: pending.id }
     }
-    // The project row first: a dir task alone on a repo root is what a missing project row adopts.
-    const dir = problem ? repo : (await c.api.rpc<{ task: { repo: string } }>("task.ensureMain", { repo })).task.repo
+    const dir = problem ? repo : (await c.api.rpc<{ repo: string }>("project.ensure", { repo })).repo
     const res = await c.api.rpc<{ taskId: string }>("task.openDir", {
       dir,
       vendor: engine ?? taskOpDeps.preferredEngine(dir),
       ...(title ? { title } : {}),
+      ...(mdl ? { model: mdl } : {}),
     })
     if (engine) taskOpDeps.rememberEngine(dir, engine)
     return { taskId: res.taskId }
   }),
   "worktree.adopt": write("rpc worktree.adopt", adopt),
   "worktree.legacyCleanup": write(
-    "rpc worktree.legacyAdopted + task.ensureMain, then verb add --parent --no-worktree",
+    "rpc worktree.legacyAdopted + project.ensure + task.openDir, then verb send",
     legacyCleanup,
   ),
   "repo.clone": write("helper cloneRepo (git clone, fixed argv)", clone),

@@ -82,11 +82,11 @@ it("keeps a replacement connection alive when the previous socket closes late", 
   void outcome(client.request("old")).then(settled)
   await vi.waitFor(() => expect(firstReceived).toHaveBeenCalledOnce())
   const oldSocket = sockets[0]
-  if (!oldSocket) throw new Error("expected the first connection")
+  expect(oldSocket).toBeDefined()
   client.close()
   await connect((socket, data) => {
     const { id } = JSON.parse(data)
-    oldSocket.destroy()
+    oldSocket?.destroy()
     setImmediate(() => socket.write(`${JSON.stringify({ type: "response", id, payload: "new" })}\n`))
   }, client)
   const closed = vi.fn()
@@ -98,8 +98,7 @@ it("keeps a replacement connection alive when the previous socket closes late", 
 
 it("rejects a connection closed before its handshake completes", async () => {
   const client = await connect(() => {})
-  const path = servers[0]?.address()
-  if (typeof path !== "string") throw new Error("expected a Unix socket")
+  const path = servers[0]?.address() as string
   client.close()
   const connecting = client.connect({ socketPath: path })
   client.close()

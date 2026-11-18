@@ -20,7 +20,7 @@ export function openPane(model: AppModel, { task, tab, leaf }: PaneRow): void {
 }
 
 export function PaneRowView(props: {
-  model: AppModel
+  selectedTabId: string | null
   row: PaneRow
   guides?: readonly TreeGuide[] | undefined
   cursor: boolean
@@ -29,11 +29,9 @@ export function PaneRowView(props: {
   place: RowPlace
 }) {
   const { row } = props
-  const selection = useStore(props.model.selection)
   useStore(activeLeaves) // a focus change re-renders; `activeLeafOf` reads it
   const active =
-    selection.taskId === row.task.id &&
-    selection.tabId === row.tab.id &&
+    props.selectedTabId === row.tab.id &&
     !!row.tab.split &&
     activeLeafOf(row.task.id, row.tab, row.tab.split) === row.leaf
   return (

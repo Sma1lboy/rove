@@ -1,7 +1,7 @@
 import { mkdtemp, open, rename, stat, utimes, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import {
   MAX_JSONL_LINE_CHARS,
   readFirstLineBounded,
@@ -103,19 +103,13 @@ it("handles byte boundaries, multibyte content, unterminated and blank headers",
 })
 
 it("does not cache a failed scoped read after a successful stat", async () => {
-  let fail = true
-  let reads = 0
+  const readFile = vi.fn<() => Promise<string>>().mockRejectedValueOnce(new Error("EACCES")).mockResolvedValue("")
   const detector = new CodexTurnDetector({
     findLatestRollout: async () => null,
     statFile: async () => ({ mtimeMs: 100, size: 5, ctimeMs: 100, ino: 1, dev: 1 }),
-    readFile: async () => {
-      reads++
-      if (fail) throw new Error("EACCES")
-      return ""
-    },
+    readFile,
   })
   expect(await detector.latestActivityInFile("/scoped")).toBeNull()
-  fail = false
   expect(await detector.latestActivityInFile("/scoped")).toEqual({ marker: null, mtimeMs: 100 })
-  expect(reads).toBe(2)
+  expect(readFile).toHaveBeenCalledTimes(2)
 })

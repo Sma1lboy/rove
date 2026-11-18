@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, rename, stat, utimes, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import {
   defaultHistoryDeps,
   findLatestRolloutForWorktree,
@@ -111,10 +111,17 @@ describe("Codex rollout catalog invalidation", () => {
 
   it("shares one refresh across fifty concurrent worktrees and reuses unchanged headers", async () => {
     const f = await fixture()
-    for (let n = 2; n <= 201; n++) {
-      const id = `00000000-0000-0000-0000-${n.toString().padStart(12, "0")}`
-      await writeFile(path.join(f.day, `rollout-2026-01-01T00-00-00-${id}.jsonl`), meta(`/wt/${n % 50}`))
-    }
+    await Promise.all(
+      Array.from({ length: 200 }, (_, i) => i + 2).map((n) =>
+        writeFile(
+          path.join(
+            f.day,
+            `rollout-2026-01-01T00-00-00-00000000-0000-0000-0000-${n.toString().padStart(12, "0")}.jsonl`,
+          ),
+          meta(`/wt/${n % 50}`),
+        ),
+      ),
+    )
     await Promise.all(Array.from({ length: 50 }, (_, n) => findLatestRolloutForWorktree(`/wt/${n}`, f.deps)))
     expect(f.counts.readdir).toBe(4)
     expect(f.counts.stat).toBe(205)
@@ -131,24 +138,18 @@ describe("Codex rollout catalog invalidation", () => {
 })
 
 it("retries a failed day listing even when its stat stamp stays unchanged", async () => {
-  let dayReads = 0
+  const tree: Record<string, string[]> = { "/r": ["2026"], "/r/2026": ["09"], "/r/2026/09": ["04"] }
+  const day = vi
+    .fn<() => Promise<string[]>>()
+    .mockRejectedValueOnce(new Error("transient IO"))
+    .mockResolvedValue([`rollout-2026-09-04T00-00-00-${SID}.jsonl`])
   const deps = {
     ...defaultHistoryDeps,
     sessionsDir: () => "/r",
     stat: async () => ({ mtimeMs: 1, ctimeMs: 1, size: 1, ino: 1, dev: 1 }),
-    readdir: async (p: string) => {
-      if (p === "/r") return ["2026"]
-      if (p === "/r/2026") return ["09"]
-      if (p === "/r/2026/09") return ["04"]
-      if (p === "/r/2026/09/04") {
-        dayReads++
-        if (dayReads === 1) throw new Error("transient IO")
-        return [`rollout-2026-09-04T00-00-00-${SID}.jsonl`]
-      }
-      return []
-    },
+    readdir: async (p: string) => (p === "/r/2026/09/04" ? day() : (tree[p] ?? [])),
   }
   expect(await findRolloutFile(SID, deps)).toBeUndefined()
   expect(await findRolloutFile(SID, deps)).toContain(SID)
-  expect(dayReads).toBe(2)
+  expect(day).toHaveBeenCalledTimes(2)
 })

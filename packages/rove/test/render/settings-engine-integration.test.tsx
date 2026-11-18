@@ -16,13 +16,13 @@
  * while the suite runs.
  */
 
-import { expect, test } from "bun:test"
+import { afterAll, expect, test } from "bun:test"
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { SettingsDialog } from "../../src/tui-react/component/settings-dialog"
 import { useKV } from "../../src/tui-react/context/kv"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent, waitForFrameText } from "./harness"
 
 const NOOP = (): void => {}
 
@@ -30,6 +30,22 @@ function Driver() {
   const kv = useKV()
   return <SettingsDialog kv={kv} onClose={NOOP} />
 }
+
+const VENDOR_ENV = [
+  "ROVE_HOME_DIR",
+  "CLAUDE_CONFIG_DIR",
+  "CODEX_HOME",
+  "COPILOT_HOME",
+  "KIMI_CODE_HOME",
+  "PI_CODING_AGENT_DIR",
+] as const
+const savedEnv = VENDOR_ENV.map((key) => [key, process.env[key]] as const)
+afterAll(() => {
+  for (const [key, value] of savedEnv) {
+    if (value === undefined) Reflect.deleteProperty(process.env, key)
+    else process.env[key] = value
+  }
+})
 
 /** Point every vendor's config home at a throwaway dir and return it. */
 function isolateVendorHomes(tag: string): string {
@@ -44,7 +60,7 @@ function isolateVendorHomes(tag: string): string {
 }
 
 test("an engine config written by an older Rove reads outdated, and the install row fixes it", async () => {
-  const home = isolateVendorHomes("rove-engine-integration-")
+  isolateVendorHomes("rove-engine-integration-")
   const claudeDir = process.env.CLAUDE_CONFIG_DIR as string
   const settings = join(claudeDir, "settings.json")
   require("node:fs").mkdirSync(claudeDir, { recursive: true })
@@ -69,17 +85,12 @@ test("an engine config written by an older Rove reads outdated, and the install 
   })
   const press = async (key: string): Promise<string> => {
     act(() => mockInput.pressKey(key))
-    await settle()
     return await frame()
   }
 
   await press("j") // sidebar: General → Engines
   await press("l") // into the engine list
-  await settle()
-
-  const before = await frame()
-  expect(before).toContain("from an older version")
-  expect(home.length).toBeGreaterThan(0)
+  await waitForFrameText(frame, "from an older version")
 
   // `k` from the first row wraps to the LAST one (the skill install row), then
   // two more land on the hooks install button — the section ends with the hooks
@@ -93,22 +104,13 @@ test("an engine config written by an older Rove reads outdated, and the install 
   // `pressEnter()`, not `pressKey("return")` — the mock types key NAMES, so
   // the latter would send the six letters "return" into the dialog.
   act(() => mockInput.pressEnter())
-  for (let i = 0; i < 50 && !readFileSync(settings, "utf8").includes("--hook-version"); i++) {
-    await settle()
-  }
 
   // The write landed, and it did not clobber the unrelated key.
-  const after = readFileSync(settings, "utf8")
-  expect(after).toContain("--hook-version")
+  const after = await waitForFrameText(async () => readFileSync(settings, "utf8"), "--hook-version")
   expect((JSON.parse(after) as { model: string }).model).toBe("opus")
   // …and the panel re-read it rather than showing the state it booted with;
   // the details still show claude while the cursor sits on the button.
-  let done = await frame()
-  for (let i = 0; i < 50 && !done.includes("hooks are installed"); i++) {
-    await settle()
-    done = await frame()
-  }
-  expect(done).toContain("hooks are installed")
+  await waitForFrameText(frame, "hooks are installed")
 })
 
 test("an engine with no hook adapter says so instead of reading as broken", async () => {
@@ -119,9 +121,8 @@ test("an engine with no hook adapter says so instead of reading as broken", asyn
     providers: { kv: true, dialog: true },
   })
   act(() => mockInput.pressKey("j"))
-  await settle()
+  await frame()
   act(() => mockInput.pressKey("l"))
-  await settle()
 
   const text = await frame()
   // Claude reports every state through hooks, so it declares no screen rules

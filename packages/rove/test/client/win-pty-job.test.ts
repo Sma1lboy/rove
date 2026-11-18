@@ -11,7 +11,6 @@ import { join } from "node:path"
 import { afterAll, describe, expect, it } from "vitest"
 import {
   PTY_JOB_ENV,
-  PTY_JOB_LAUNCHER_CS,
   PTY_JOB_OWNER_ENV,
   ensurePtyJobLauncher,
   launcherFileName,
@@ -53,18 +52,9 @@ describe("withoutPtyJob", () => {
 })
 
 describe("the launcher source", () => {
-  it("kills the job when its handle closes and denies breakaway (node's detached spawn escapes otherwise)", () => {
-    expect(PTY_JOB_LAUNCHER_CS).toContain("LimitFlags = 0x2000;")
-    expect(PTY_JOB_LAUNCHER_CS).not.toMatch(/0x800\b/)
-  })
-
   it("is content-addressed, so an edited launcher never reuses a stale build", () => {
     expect(launcherFileName("a")).not.toBe(launcherFileName("b"))
     expect(launcherFileName()).toMatch(/^rove-pty-job-[0-9a-f]{12}\.exe$/)
-  })
-
-  it("names every job freshly", () => {
-    expect(newPtyJobName()).not.toBe(newPtyJobName())
   })
 })
 

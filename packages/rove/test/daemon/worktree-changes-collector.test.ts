@@ -86,19 +86,19 @@ describe("trackedWorktreePaths", () => {
       task({ id: "a" }),
       task({ id: "remote", repo: "ssh://dev@build-box", worktreePath: "/remote/wt/remote" }),
       task({ id: "backlog", worktreePath: "" }),
-      // Two main rows of the same repo share worktreePath = repo root.
-      task({ id: "main1", kind: "main", repo: "/repo", worktreePath: "/repo" }),
-      task({ id: "main2", kind: "main", repo: "/repo", worktreePath: "/repo" }),
+      // Two dir rows of the same repo share worktreePath = repo root.
+      task({ id: "main1", kind: "dir", repo: "/repo", worktreePath: "/repo" }),
+      task({ id: "main2", kind: "dir", repo: "/repo", worktreePath: "/repo" }),
     ]
     expect([...trackedWorktreePaths(tasks).keys()].sort()).toEqual(["/repo", "/wt/a"])
   })
 
   test("carries each path's recorded base ref, and the first task that has one wins", () => {
-    // A `main` row records no base and shares the repo root with a based task;
+    // A `dir` row records no base and shares the repo root with a based task;
     // whichever order they list in, the based task's answer must survive — the
     // behind count is measured against it.
     const tasks = [
-      task({ id: "main", kind: "main", repo: "/repo", worktreePath: "/repo" }),
+      task({ id: "main", kind: "dir", repo: "/repo", worktreePath: "/repo" }),
       task({ id: "based", repo: "/repo", worktreePath: "/repo", baseRef: "release/2.x" }),
       task({ id: "a", baseRef: "origin/main" }),
       task({ id: "none" }),
@@ -194,9 +194,7 @@ describe("WorktreeChangesCollector", () => {
     const tasks = { current: [task({ id: "a" })] }
     const bus = new DaemonEventBus()
     const published: WorktreeChangesPayload[] = []
-    bus.onPublish((event) => {
-      if (event.channel === "worktree.changes") published.push(event.payload as WorktreeChangesPayload)
-    })
+    bus.onPublish((event) => published.push(event.payload as WorktreeChangesPayload))
     const collector = new WorktreeChangesCollector({ listTasks: () => tasks.current }, bus, {
       cadence: FAST,
       publishDelayMs: 0,
@@ -217,9 +215,7 @@ describe("WorktreeChangesCollector", () => {
     let subscribed = false
     const bus = new DaemonEventBus()
     const published: WorktreeChangesPayload[] = []
-    bus.onPublish((event) => {
-      if (event.channel === "worktree.changes") published.push(event.payload as WorktreeChangesPayload)
-    })
+    bus.onPublish((event) => published.push(event.payload as WorktreeChangesPayload))
     const runs: string[] = []
     const collector = new WorktreeChangesCollector({ listTasks: () => [task({ id: "a" })] }, bus, {
       cadence: FAST,
@@ -254,9 +250,7 @@ describe("the behind-base count", () => {
     // drift chip never appears until the user edits a file.
     const bus = new DaemonEventBus()
     const published: WorktreeChangesPayload[] = []
-    bus.onPublish((event) => {
-      if (event.channel === "worktree.changes") published.push(event.payload as WorktreeChangesPayload)
-    })
+    bus.onPublish((event) => published.push(event.payload as WorktreeChangesPayload))
     const seenBaseRefs: (string | undefined)[] = []
     let behind = 0
     const collector = new WorktreeChangesCollector(

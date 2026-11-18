@@ -360,7 +360,8 @@ Reported by the attached TUI; they fire only while a TUI is attached.
 
 ### `task.opened` / `project.opened`
 
-The user selected/entered a task (or a project's main row). No detail.
+The user selected/entered a task. No detail. `project.opened` stays in the
+contract but never fires: a project is not a row.
 
 ### `file.will-open` / `file.opened` / `file.closed`
 

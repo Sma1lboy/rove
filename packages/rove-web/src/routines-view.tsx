@@ -88,15 +88,16 @@ export function RoutinesView({ model }: { model: AppModel }) {
   const [engineNames, setEngineNames] = useState<readonly EngineName[]>(
     () => lastReply<{ engines: EngineName[] }>(c, "engines.list")?.engines ?? [],
   )
-  useEffect(() => {
-    let live = true
-    requestRemembered<{ engines: EngineName[] }>(c, "engines.list")
-      .then((res) => live && setEngineNames(res.engines))
-      .catch(() => {})
-    return () => {
-      live = false
-    }
-  }, [c])
+  // On every (re)connect: a page restored with the tab mounts before the socket is up.
+  useEffect(
+    () =>
+      c.onOpen(() => {
+        requestRemembered<{ engines: EngineName[] }>(c, "engines.list")
+          .then((res) => setEngineNames(res.engines))
+          .catch(() => {})
+      }),
+    [c],
+  )
 
   const listed = reply?.automations ?? []
   const lastRunStatus = reply?.lastRunStatus ?? {}

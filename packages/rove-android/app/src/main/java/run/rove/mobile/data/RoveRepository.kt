@@ -18,8 +18,9 @@ class RoveRepository(val bridge: BridgeClient) {
     suspend fun createTask(repo: String, engine: String, title: String, prompt: String): String =
         bridge.request("task.create", args("repo" to repo, "engine" to engine, "title" to title, "prompt" to prompt))
             .id("taskId")
-    suspend fun newTab(taskId: String, engine: String, prompt: String): String =
-        bridge.request("tab.new", args("taskId" to taskId, "engine" to engine, "prompt" to prompt)).id("tabId")
+    /** `taskId` in the reply names the child task the conversation opened in, when the bridge made one. */
+    suspend fun newTab(taskId: String, engine: String, prompt: String): OpenedTab =
+        wireJson.decodeFromJsonElement(bridge.request("tab.new", args("taskId" to taskId, "engine" to engine, "prompt" to prompt)))
     suspend fun landPreflight(taskId: String): LandPreflight =
         wireJson.decodeFromJsonElement(bridge.request("task.landPreflight", args("taskId" to taskId)))
     suspend fun land(taskId: String) { bridge.request("task.land", args("taskId" to taskId)) }

@@ -34,9 +34,7 @@ describe("per-channel subscribe filter (daemon → client)", () => {
 
     const client = h.client()
     const channels: string[] = []
-    client.on("*", (frame) => {
-      if (frame.name !== "daemon.stopping") channels.push(frame.name)
-    })
+    client.on("*", (frame) => channels.push(frame.name))
     // Filter to keybindings only — task.snapshot (warmed by subscribeTasks'
     // eager fire) must NOT arrive.
     await client.subscribe({ channels: ["keybindings"] })
@@ -53,9 +51,7 @@ describe("per-channel subscribe filter (daemon → client)", () => {
 
     const client = h.client()
     const channels: string[] = []
-    client.on("*", (frame) => {
-      if (frame.name !== "daemon.stopping") channels.push(frame.name)
-    })
+    client.on("*", (frame) => channels.push(frame.name))
     await client.subscribe()
 
     await waitFor(() => channels.includes("task.snapshot") && channels.includes("keybindings"))

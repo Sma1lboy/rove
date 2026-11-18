@@ -102,8 +102,9 @@ function repoTask(id: string, title: string, repo: string): Task {
   return { ...task(id, title), repo } as Task
 }
 
-test("project headings fit every fold, including wide project initials", async () => {
-  for (const style of ["hairline", "glyphs", "initials"] as const) {
+test.each(["hairline", "glyphs", "initials"] as const)(
+  "project headings fit the %s fold, including wide project initials",
+  async (style) => {
     const tasks = [repoTask("a", "one", "/work/rove"), repoTask("b", "two", "/work/中文")]
     const { frame } = await renderComponent(<Rail {...railProps({ style, groups: groupsOf(tasks) })} />, {
       width: 12,
@@ -113,8 +114,8 @@ test("project headings fit every fold, including wide project initials", async (
     expect(lines[0]).toContain("r─")
     expect(lines[2]).toContain("中")
     expect(lines[3]?.trim().length).toBeGreaterThan(0)
-  }
-})
+  },
+)
 
 /**
  * One task is one cell, whatever tabs it holds. A child task folds under its

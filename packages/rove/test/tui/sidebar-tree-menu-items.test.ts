@@ -4,7 +4,7 @@
  * in the render track's `sidebar-tree-menu.test.tsx`).
  *
  * The rules worth locking: a project header offers its entries (move verbs only
- * with a main checkout), a task with children offers Collapse/Expand, and the
+ * when movable, minus the dead ones at either end), a task with children offers Collapse/Expand, and the
  * new-conversation pair rides every task row.
  */
 
@@ -43,22 +43,29 @@ const actions = (row: TreeRow, ctx = {}) => treeMenuItems(row, ctx).map((item) =
 
 describe("treeMenuItems", () => {
   test("a project header offers New task, Field notes, then Remove project", () => {
-    // Remove project is menu-only (`d` on the main row ends its conversation instead), as is Field
-    // notes: the repo's durable note store had no in-product reader.
+    // Remove project and Field notes are menu-only: the repo's durable note store had no in-product reader.
     expect(actions(projectRow)).toEqual(["newTask", "fieldNotes", "forgetProject"])
   })
 
-  test("a project with a main checkout adds Move to top and Reorder; the topmost one drops Move to top", () => {
+  test("a movable project adds Move to top / up / down; the topmost and bottommost drop the dead ones", () => {
     expect(actions(projectRow, { projectMovable: true })).toEqual([
       "newTask",
       "moveToTop",
-      "reorder",
+      "moveProjectUp",
+      "moveProjectDown",
       "fieldNotes",
       "forgetProject",
     ])
     expect(actions(projectRow, { projectMovable: true, projectFirst: true })).toEqual([
       "newTask",
-      "reorder",
+      "moveProjectDown",
+      "fieldNotes",
+      "forgetProject",
+    ])
+    expect(actions(projectRow, { projectMovable: true, projectLast: true })).toEqual([
+      "newTask",
+      "moveToTop",
+      "moveProjectUp",
       "fieldNotes",
       "forgetProject",
     ])
@@ -66,9 +73,6 @@ describe("treeMenuItems", () => {
 
   test("only a top-level local task is offered Move to project", () => {
     expect(actions(worktreeRow({ parentTaskId: "p1" as never }))).not.toContain("moveToProject")
-    expect(actions(worktreeRow({ kind: "main", branch: "", worktreePath: "/repos/rove" }))).not.toContain(
-      "moveToProject",
-    )
   })
 
   test("a worktree row opens, adds a session, then the task verbs", () => {
@@ -82,6 +86,7 @@ describe("treeMenuItems", () => {
       "pin",
       "reorder",
       "setStatus",
+      "muteNotifications",
       "moveToProject",
       "copyId",
       "copyBranch",
@@ -96,11 +101,17 @@ describe("treeMenuItems", () => {
     ])
   })
 
+  test("the mute entry reads Unmute while the task is muted", () => {
+    const label = (notificationsMuted: boolean) =>
+      treeMenuItems(worktreeRow(), { notificationsMuted }).find((item) => item.action === "muteNotifications")?.labelKey
+    expect(label(false)).toBe("tasks.menu.muteNotifications")
+    expect(label(true)).toBe("tasks.menu.unmuteNotifications")
+  })
+
   test("New task from this branch reaches only a local single-repo managed branch", () => {
     // Any other row has no branch of its own in this repo to base the new worktree on.
     const offered = (over: Partial<Task>) => actions(worktreeRow(over)).includes("newTaskFromBranch")
     expect(offered({})).toBe(true)
-    expect(offered({ kind: "main", branch: "", worktreePath: "/repos/rove" })).toBe(false)
     expect(offered({ kind: "dir", branch: "", worktreePath: "/home/me/notes" })).toBe(false)
     expect(offered({ branch: "", worktreePath: "" })).toBe(false)
     expect(offered({ sharesWorkspaceOf: toTaskId("p1") })).toBe(false)
@@ -111,7 +122,7 @@ describe("treeMenuItems", () => {
   })
 
   test("a row with no stored branch is offered Copy path but not Copy branch", () => {
-    // `main`/`dir` rows store `branch === ""` (their label is the live HEAD),
+    // `dir` rows store `branch === ""` (their label is the live HEAD),
     // so the entry would copy nothing — the entry-that-does-nothing rule.
     const dirRow = worktreeRow({ kind: "dir", branch: "" })
     expect(actions(dirRow)).toContain("copyPath")
@@ -128,67 +139,32 @@ describe("treeMenuItems", () => {
     expect(actions(lazy)).toContain("copyId")
   })
 
-  test("a main row (the project's own checkout) is not offered a pin — setPinned silently no-ops on it", () => {
-    const mainRow = worktreeRow({ kind: "main", branch: "", worktreePath: "/repos/rove" })
-    expect(actions(mainRow)).toEqual([
-      "open",
-      "newChat",
-      "newShell",
-      "continueEngine",
-      "rename",
-      "reorder",
-      "setStatus",
-      "copyId",
-      "copyPath",
-      "openEditor",
-      "changeEngine",
-      "delete",
-    ])
-  })
-
   test("a dir row keeps every verb — pin and title-rename both work there", () => {
     const dirRow = worktreeRow({ kind: "dir", branch: "" })
     expect(actions(dirRow)).toContain("pin")
     expect(actions(dirRow)).toContain("rename")
   })
 
-  test("a project's main row says what its Delete does: ends the conversation, the project stays", () => {
-    const label = (row: TreeRow) => treeMenuItems(row).find((item) => item.action === "delete")?.labelKey
-    expect(label(worktreeRow({ kind: "main", branch: "" }))).toBe("tasks.menu.delete")
-    expect(label(worktreeRow({ branch: "feat/a" }))).toBe("tasks.menu.delete")
+  const branchless = [
+    ["dir", worktreeRow({ kind: "dir", branch: "" })],
+    ["never-entered", worktreeRow({ branch: "" })],
+  ] as const
+
+  // Same gate as Copy branch: `set-branch` has nothing to rename there (a
+  // dir row's branch is the live HEAD), so the entry could only end in the
+  // error toast. Open in editor and Change engine stay — both work on any
+  // task row.
+  test.each(branchless)('Rename branch is withheld from a %s row, whose branch is ""', (_name, row) => {
+    expect(actions(row)).not.toContain("renameBranch")
+    expect(actions(row)).toContain("openEditor")
+    expect(actions(row)).toContain("changeEngine")
   })
 
-  test('Rename branch is withheld from any row whose branch is "" — main, dir, or a never-entered task', () => {
-    // Same gate as Copy branch: `set-branch` has nothing to rename there (a
-    // main row's branch is the live HEAD), so the entry could only end in the
-    // error toast. Open in editor and Change engine stay — both work on any
-    // task row.
-    for (const row of [
-      worktreeRow({ kind: "main", branch: "" }),
-      worktreeRow({ kind: "dir", branch: "" }),
-      worktreeRow({ branch: "" }),
-    ]) {
-      expect(actions(row)).not.toContain("renameBranch")
-      expect(actions(row)).toContain("openEditor")
-      expect(actions(row)).toContain("changeEngine")
-    }
-    expect(actions(worktreeRow())).toContain("renameBranch")
-  })
-
-  test("Land reaches only a materialised managed task — never main, dir, or a branchless row", () => {
-    // `landTask` throws outright for a main or dir task (neither owns a
-    // Rove-managed branch) and for a task that never materialised, so the
-    // entry could only end in the error toast — the same
-    // entry-that-does-nothing rule Rename branch follows.
-    for (const row of [
-      worktreeRow({ kind: "main", branch: "" }),
-      worktreeRow({ kind: "dir", branch: "" }),
-      worktreeRow({ branch: "" }),
-    ]) {
-      expect(actions(row)).not.toContain("land")
-    }
-    expect(actions(worktreeRow())).toContain("land")
-    expect(actions(projectRow)).not.toContain("land")
+  // `landTask` throws outright for a dir task (it owns no
+  // Rove-managed branch) and for a task that never materialised, so the
+  // entry could only end in the error toast.
+  test.each(branchless)("Land never reaches a %s row", (_name, row) => {
+    expect(actions(row)).not.toContain("land")
   })
 
   test("a task with children offers Collapse, or Expand once folded; a leaf offers neither", () => {
@@ -210,33 +186,9 @@ describe("treeMenuItems", () => {
     // has nothing to re-fire — the entry-that-does-nothing rule. It sits right
     // after Reorder, before the status/copy block.
     expect(actions(worktreeRow())).not.toContain("runAgain")
-    expect(actions(worktreeRow({ prompt: "print the third line\n\nthen stop" }))).toEqual([
-      "open",
-      "newChat",
-      "newShell",
-      "continueEngine",
-      "newTaskFromBranch",
-      "rename",
-      "pin",
-      "reorder",
-      "runAgain",
-      "setStatus",
-      "moveToProject",
-      "copyId",
-      "copyBranch",
-      "copyPath",
-      "openEditor",
-      "renameBranch",
-      "changeEngine",
-      "syncBase",
-      "land",
-      "archive",
-      "delete",
-    ])
-  })
-
-  test("Run again never reaches a project header", () => {
-    expect(actions(projectRow)).not.toContain("runAgain")
+    const withBrief = actions(worktreeRow({ prompt: "print the third line\n\nthen stop" }))
+    const at = withBrief.indexOf("reorder")
+    expect(withBrief.slice(at, at + 3)).toEqual(["reorder", "runAgain", "setStatus"])
   })
 
   test("an empty-string brief still counts — only an ABSENT one hides the entry", () => {
@@ -262,14 +214,15 @@ describe("treeMenuItems", () => {
 describe("the failing-checks entries", () => {
   // Gated on the PR chip the row already shows: with anything but `failing`
   // there is no log to fetch or job to restart, so either could only toast.
-  test("is absent without a PR, and for passing / pending / unknown checks", () => {
-    expect(actions(worktreeRow())).not.toContain("fixChecks")
-    expect(actions(worktreeRow())).not.toContain("rerunChecks")
-    for (const checkState of ["none", "passing", "pending", "unknown"] as const) {
-      const row = worktreeRow({ prStatus: { provider: "github", lifecycle: "open", checkState } })
-      expect(actions(row), checkState).not.toContain("fixChecks")
-      expect(actions(row), checkState).not.toContain("rerunChecks")
-    }
+  test.each<[string, TreeRow]>([
+    ["no PR", worktreeRow()],
+    ...(["none", "passing", "pending", "unknown"] as const).map((checkState): [string, TreeRow] => [
+      `${checkState} checks`,
+      worktreeRow({ prStatus: { provider: "github", lifecycle: "open", checkState } }),
+    ]),
+  ])("is absent with %s", (_name, row) => {
+    expect(actions(row)).not.toContain("fixChecks")
+    expect(actions(row)).not.toContain("rerunChecks")
   })
 
   test("appears just before Land when the checks are red", () => {
@@ -314,18 +267,8 @@ describe("the chord an entry advertises", () => {
     // These eight have no chord anywhere in the product; the menu is their one
     // route. Claiming a bindingId here would print a cap for a key that does
     // not reach them.
-    const withId = new Set(everyItem.flatMap((item) => (item.bindingId ? [item.action] : [])))
-    for (const action of [
-      "setStatus",
-      "copyId",
-      "copyTab",
-      "copyBranch",
-      "copyPath",
-      "runAgain",
-      "fieldNotes",
-      "land",
-    ]) {
-      expect(withId, action).not.toContain(action)
-    }
+    const menuOnly = ["setStatus", "copyId", "copyTab", "copyBranch", "copyPath", "runAgain", "fieldNotes", "land"]
+    const withId = everyItem.flatMap((item) => (item.bindingId ? [item.action] : []))
+    expect(withId.filter((action) => menuOnly.includes(action))).toEqual([])
   })
 })

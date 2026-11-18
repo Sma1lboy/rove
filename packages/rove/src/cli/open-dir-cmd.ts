@@ -1,12 +1,9 @@
 /**
  * `<path>` — the `code .` gesture: open a directory and land in the TUI on it.
  *
- *   - **Root of an eligible git repo** → the project itself (same as
- *     `rove add . && rove`). A `dir` row would duplicate the checkout beside
- *     the main row it later gets promoted into.
- *   - **Anything else** → a standalone `kind:"dir"` task: no saved repo, main
- *     task, or worktree. Deleting it only drops the index entry; each
- *     invocation creates a NEW task.
+ * Always a new `kind:"dir"` session in that directory: no worktree, and
+ * deleting it only drops the index entry. The root of an eligible git repo is
+ * also saved as a project (as `rove add .` does), so the session sits under it.
  *
  * Prefers a RUNNING daemon; falls back to the in-process orchestrator,
  * persisting focus for the daemon the TUI is about to boot.
@@ -64,22 +61,19 @@ export async function runOpenDirectory(arg: string): Promise<void> {
     process.stderr.write(`${ROVE_PRODUCT_NAME}: "${arg}" is not a directory (resolved to ${dir}).\n`)
     process.exit(1)
   }
-  // Repo root → the project; anything else → a dir task (see header).
+  // A repo root is saved as a project too (see header).
   const projectRoot = await projectRootFor(dir)
   const { withDaemonOrLocal } = await import("./orchestrator-bridge.ts")
   await withDaemonOrLocal({
     daemon: async (client) => {
-      let taskId: string
-      if (projectRoot) {
-        const res = await client.request<{ task: { id: string } }>("task.ensureMain", { repo: projectRoot })
-        taskId = res.task.id
-      } else {
-        taskId = (await client.request<{ taskId: string }>("task.openDir", { dir })).taskId
-      }
+      const at = projectRoot
+        ? (await client.request<{ repo: string }>("project.ensure", { repo: projectRoot })).repo
+        : dir
+      const { taskId } = await client.request<{ taskId: string }>("task.openDir", { dir: at })
       await client.request("task.setActive", { taskId })
     },
     local: async (orch) => {
-      const task = projectRoot ? await orch.ensureMainTask(projectRoot) : await orch.openDirectoryTask({ dir })
+      const task = await orch.openDirectoryTask({ dir: projectRoot ? await orch.ensureProject(projectRoot) : dir })
       const { writeLastActiveTaskId } = await import("../state/last-active.ts")
       writeLastActiveTaskId(String(task.id))
     },

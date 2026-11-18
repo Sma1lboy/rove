@@ -161,7 +161,7 @@ export async function adoptablePaths(
     // Detached entries have no branch to map to a task's branch.
     if (!entry.branch || entry.detached) continue
     const canonEntry = canon(entry.path)
-    // Skip the repo's main checkout — it is the project row, never a task.
+    // Skip the repo's main checkout — the project's own, never an adoptable worktree.
     if (canonMainPath !== null && canonEntry === canonMainPath) continue
     // Never the caller's own worktree.
     if (canonEntry === canonRepo) continue

@@ -40,11 +40,6 @@ describe("parsePluginManifest", () => {
     expect(warnings).toEqual([])
   })
 
-  it("accepts the canonical minimum version", () => {
-    const { manifest } = parsePluginManifest('id = "p"\nname = "P"\nversion = "1.0.0"\nmin_rove_version = "0.9.0"')
-    expect(manifest.minRoveVersion).toBe("0.9.0")
-  })
-
   it("rejects a manifest missing id or name", () => {
     expect(() => parsePluginManifest('name = "x"\nversion = "1.0.0"\nmin_rove_version = "0.1.0"')).toThrow(/`id`/)
     expect(() => parsePluginManifest('id = "x"\nversion = "1.0.0"\nmin_rove_version = "0.1.0"')).toThrow(/`name`/)

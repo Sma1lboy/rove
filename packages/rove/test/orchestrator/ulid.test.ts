@@ -8,8 +8,7 @@ describe("ulid", () => {
 
   it("is 26 chars, all from the Crockford alphabet", () => {
     const id = ulid(0)
-    expect(id).toHaveLength(26)
-    for (const ch of id) expect(ULID_ALPHABET).toContain(ch)
+    expect(id).toMatch(new RegExp(`^[${ULID_ALPHABET}]{26}$`))
   })
 
   it("sorts lexicographically by timestamp", () => {

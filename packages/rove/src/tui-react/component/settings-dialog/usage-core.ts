@@ -5,6 +5,7 @@
  */
 
 import { approxCharCells, charWidth, displayWidth, padEndCells } from "../../../lib/display-width.ts"
+import { type UsageShow, shownPercent } from "../../../state/usage-show.ts"
 import { ratioBar } from "../../../tui/lib/progress-bar.ts"
 import { truncateEndCells } from "../../../tui/lib/truncate.ts"
 import type { EngineQuotaUsage } from "../../../types/engine.ts"
@@ -52,10 +53,10 @@ export interface UsageChipView {
  * Bar-less footer form of {@link usageRows}: `5h 42% → 14:00`. Same tones, no
  * padding: several vendors share one row.
  */
-function usageChips(usage: EngineQuotaUsage, nowMs: number): UsageChipView[] {
+function usageChips(usage: EngineQuotaUsage, nowMs: number, show: UsageShow): UsageChipView[] {
   return usage.windows.map((w) => ({
     label: w.label,
-    percentText: `${w.percent}%`,
+    percentText: `${shownPercent(w.percent, show)}%`,
     resetText: formatReset(w.resetsAt, nowMs),
     tone: toneOf(w.percent),
   }))
@@ -65,12 +66,16 @@ function usageChips(usage: EngineQuotaUsage, nowMs: number): UsageChipView[] {
  * Narrow-footer form: ONE chip per vendor, the session ("5h", tightest)
  * window, else the first window. Callers drop the reset time at 46 cols.
  */
-export function narrowUsageChip(usage: EngineQuotaUsage, nowMs: number): UsageChipView | null {
+export function narrowUsageChip(
+  usage: EngineQuotaUsage,
+  nowMs: number,
+  show: UsageShow = "used",
+): UsageChipView | null {
   const w = usage.windows.find((win) => win.kind === "session") ?? usage.windows[0]
   if (!w) return null
   return {
     label: w.label,
-    percentText: `${w.percent}%`,
+    percentText: `${shownPercent(w.percent, show)}%`,
     resetText: formatReset(w.resetsAt, nowMs),
     tone: toneOf(w.percent),
   }
@@ -130,12 +135,14 @@ export function buildFooterChips(opts: {
   nowMs: number
   vendorLabel: (vendor: string) => string
   forceCompact?: boolean
+  show?: UsageShow
 }): FooterChipsView | null {
+  const show = opts.show ?? "used"
   const entries = [...opts.usage.entries()]
     .map(([id, snapshot]) => ({
       vendor: opts.vendorLabel(id).toUpperCase(),
       snapshot,
-      chips: usageChips(snapshot, opts.nowMs),
+      chips: usageChips(snapshot, opts.nowMs, show),
     }))
     .filter((entry) => entry.chips.length > 0)
   if (entries.length === 0) return null
@@ -147,7 +154,7 @@ export function buildFooterChips(opts: {
   const vendors: FooterVendorCompact[] = []
   let remaining = opts.budget
   for (const entry of entries) {
-    const chip = narrowUsageChip(entry.snapshot, opts.nowMs)
+    const chip = narrowUsageChip(entry.snapshot, opts.nowMs, show)
     if (!chip) continue
     const gap = vendors.length > 0 ? 2 : 0
     const need = displayWidth(entry.vendor) + 1 + displayWidth(chip.percentText)
@@ -181,6 +188,7 @@ export function buildFooterChips(opts: {
  */
 export function contextChip(
   usage: { contextTokens: number; contextWindowTokens?: number; approximate?: boolean } | null | undefined,
+  show: UsageShow = "used",
 ): UsageChipView | null {
   if (!usage) return null
   const window = usage.contextWindowTokens
@@ -190,7 +198,7 @@ export function contextChip(
   const percent = Math.min(100, Math.max(0, Math.round((usage.contextTokens / window) * 100)))
   return {
     label: "ctx",
-    percentText: `${percent}%${usage.approximate ? "~" : ""}`,
+    percentText: `${shownPercent(percent, show)}%${usage.approximate ? "~" : ""}`,
     resetText: "",
     tone: toneOf(percent),
   }
@@ -223,18 +231,19 @@ function humanTokens(total: number): string {
 }
 
 /**
- * One aligned meter row per window, in the vendor's order. Label column tracks
+ * One aligned meter row per window, in the vendor's order. With `show: "left"`
+ * the bar drains as the window fills. Label column tracks
  * the longest label, capped so one long model name can't push meters off.
  */
-export function usageRows(usage: EngineQuotaUsage, nowMs: number): UsageRowView[] {
+export function usageRows(usage: EngineQuotaUsage, nowMs: number, show: UsageShow = "used"): UsageRowView[] {
   const labelWidth = Math.min(
     8,
     usage.windows.reduce((w, win) => Math.max(w, displayWidth(win.label)), 2),
   )
   return usage.windows.map((w) => ({
     label: padEndCells(truncateEndCells(w.label, labelWidth, charWidth), labelWidth),
-    bar: ratioBar(w.percent / 100, USAGE_BAR_WIDTH),
-    percentText: `${String(w.percent).padStart(3)}%`,
+    bar: ratioBar(shownPercent(w.percent, show) / 100, USAGE_BAR_WIDTH),
+    percentText: `${String(shownPercent(w.percent, show)).padStart(3)}%`,
     resetText: formatReset(w.resetsAt, nowMs),
     tone: toneOf(w.percent),
   }))

@@ -294,6 +294,13 @@ enum TaskActionLogic {
             delete: deletePlan(kind: kind))
     }
 
+    /// `Open PR #12 · Fix login`: the number, then the title a session PR carries.
+    static func openPRLabel(_ pr: TaskPR) -> String {
+        let number = pr.number.map { String(localized: "Open PR #\($0)") } ?? String(localized: "Open PR")
+        guard let title = pr.title?.trimmingCharacters(in: .whitespaces), !title.isEmpty else { return number }
+        return "\(number) · \(title)"
+    }
+
     // MARK: - Info sheet text
 
     struct InfoLine: Equatable {

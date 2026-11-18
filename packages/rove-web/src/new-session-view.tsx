@@ -9,6 +9,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { AttachPicker, AttachmentThumbs, fileTargets, useAttachments, withRefs } from "./attachments.tsx"
+import { CelestialPlate } from "./celestial/plate.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { isTouch } from "./key-hints.ts"
 import { openCompare } from "./layout.ts"
@@ -28,9 +29,9 @@ import {
 } from "./new-session-machine.tsx"
 import { ChipPopover } from "./new-session-menus.tsx"
 import { ComposerMore } from "./new-session-more.tsx"
-import { NewSessionPlate } from "./new-session-plate.tsx"
 import { cloneLabel, remoteRef } from "./new-session-remote.ts"
 import { RepoMenu } from "./new-session-repo-menu.tsx"
+import { startShell, useShellPick } from "./new-session-shell.ts"
 import {
   modelChoices,
   partialRoundId,
@@ -41,7 +42,6 @@ import {
   toggleRepo,
 } from "./new-session.ts"
 import type { ProbeResult } from "./new-task-dialog.tsx"
-import { CLONE_PARENT_KEY, expandTilde, stripTrailingSlash } from "./new-task-paths.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { retryCommandFrom, seededBases, seededRepos } from "./retry-seed.ts"
 import { offerArchiveOriginal } from "./retry.tsx"
@@ -146,8 +146,9 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const at_ = useRemoteTarget(model, { machine: seed.machine, repo: initialRepo }, choice)
   const { machines, machine, remote, machineName, remoteList, engineThere, shown } = at_
   const { pick: remotePick, setPick: setRemotePick, base: remoteBase, setBase: setRemoteBase } = at_
-  // Files live on this Mac: another machine's task could not read them.
-  const targets = remote ? null : fileTargets((files) => void attach(files))
+  const sh = useShellPick(shown, !remote)
+  // Files live on this Mac: another machine's task could not read them. A shell takes none.
+  const targets = remote || sh.on ? null : fileTargets((files) => void attach(files))
   const engineId = shown.engine
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: the starting project is read once
@@ -192,8 +193,9 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   }, [model.client])
 
   // One attempt per engine needs a worktree each, on this machine, in a project.
-  const compareAvailable = !remote && !ungrouped && !inPlace
-  const picks = useEnginePicks(shown, compareAvailable)
+  const compareAvailable = !remote && !ungrouped && !inPlace && !sh.on
+  const picks = useEnginePicks(sh.choice, compareAvailable)
+  const engineMenu = picks.comparing ? shown : sh.choice
   const engine = choice.engines.find((e) => e.id === engineId)
   const engineName = shown.engines.find((e) => e.id === engineId)?.name ?? engineId
   const models = modelChoices(engine, t("newSession.modelDefault"))
@@ -203,8 +205,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   /** Start's first step for a clone pick; the clone then is the picked project, so a retry does not clone twice. */
   const cloneInto = async (url: string): Promise<string> => {
     setProgress(t("newSession.cloning", { source: url }))
-    const parentDir = stripTrailingSlash(expandTilde((localStorage.getItem(CLONE_PARENT_KEY) || "~/").trim(), home))
-    const res = await model.client.request<{ path: string }>("repo.clone", { url, parentDir }, setProgress)
+    const res = await model.client.request<{ path: string }>("repo.clone", { url }, setProgress)
     setSaved((now) => (now.includes(res.path) ? now : [...now, res.path]))
     setRepos([res.path])
     setToClone(null)
@@ -251,7 +252,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     setError(null)
     if (remote) return startRemote()
     if (!primary && !ungrouped && !toClone) return setError(t("newSession.needRepo"))
-    if (!prompt.trim()) return setError(t("newSession.needPrompt"))
+    if (!prompt.trim() && !sh.on) return setError(t("newSession.needPrompt"))
     setBusy(true)
     const first = withRefs(prompt.trim(), await ready())
     try {
@@ -264,16 +265,15 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
       if (plainNow && fresh.length > 1) throw new Error(t("newSession.plainMulti"))
       let created: string | undefined
       let compared: string | undefined
-      if (ungrouped) created = await startUngrouped(model.client.request.bind(model.client), engineId, prompt)
-      else if ((list.length === 1 && !worktree) || plainNow)
-        created = await startInCheckout(
-          model.client.request.bind(model.client),
-          fresh[0]?.repo ?? list[0] ?? "",
-          engineId,
-          prompt,
-          first,
-          at,
-        )
+      const request = model.client.request.bind(model.client)
+      const picked = list.map((path, i) => ({ repo: fresh[i]?.repo ?? path, baseRef: bases[path] ?? "" }))
+      const checkout = (list.length === 1 && !worktree) || plainNow ? (picked[0]?.repo ?? "") : null
+      if (sh.on) {
+        const place = ungrouped ? null : (checkout ?? { repos: picked, branch: branchName.trim() })
+        created = await startShell(request, place, prompt)
+      } else if (ungrouped) created = await startUngrouped(request, engineId, first, modelValue)
+      else if (checkout !== null)
+        created = await startInCheckout(request, checkout, engineId, prompt, first, at, modelValue)
       else {
         const commandFrom = retryCommandFrom(seed, engineId)
         // Auto places a plain start; files, a later start, several repos or engines only work on this machine.
@@ -283,7 +283,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           "task.spawn",
           {
             ...spawnArgs({
-              repos: list.map((path, i) => ({ repo: fresh[i]?.repo ?? path, baseRef: bases[path] ?? "" })),
+              repos: picked,
               branch: branchName.trim(),
               engine: engineId,
               commandFrom,
@@ -334,7 +334,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   return (
     <div className={C.NEW_SESSION}>
       <div className={C.HERO}>
-        <NewSessionPlate />
+        <CelestialPlate scene={seed.sky ?? "orbit"} />
         <h1 className="m-0 font-sans text-title font-semibold text-accent">{t("newSession.title")}</h1>
         <p className="m-0 text-muted narrow:hidden">{t("newSession.tagline")}</p>
       </div>
@@ -352,7 +352,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             className={C.PROMPT}
             rows={4}
             spellCheck={false}
-            placeholder={t("newSession.placeholder")}
+            placeholder={t(sh.on ? "newSession.shellPlaceholder" : "newSession.placeholder")}
             value={prompt}
             disabled={busy}
             onPaste={targets?.onPaste}
@@ -481,13 +481,13 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             />
           </div>
           <div className={C.BAR_GROUP_END}>
-            <EngineChip choice={shown} picks={picks} available={compareAvailable} missing={shown.missing} />
-            {!inPlace && !(remote && engineThere) && !ungrouped && !picks.comparing && models.length > 0 && (
+            <EngineChip choice={engineMenu} picks={picks} available={compareAvailable} missing={shown.missing} />
+            {!(remote && engineThere) && !picks.comparing && !sh.on && models.length > 0 && (
               <ModelChip models={models} model={modelValue} onModel={setPickedModel} />
             )}
             <ComposerMore
               busy={busy}
-              onLater={!remote && !ungrouped && !picks.comparing ? (at) => void start(at) : undefined}
+              onLater={!remote && !ungrouped && !picks.comparing && !sh.on ? (at) => void start(at) : undefined}
               onInvalid={setError}
               agentPlace={remote ? { machine: machineName, there: engineThere, onPick: at_.setEngineThere } : undefined}
             />

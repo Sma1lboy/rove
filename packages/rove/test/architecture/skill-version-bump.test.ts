@@ -31,10 +31,10 @@ const SKILL_DIR = join(ROOT, ".agents", "skills", "rove")
  * Regenerate with the command the failure message prints.
  */
 const FINGERPRINT = {
-  version: 124,
+  version: 132,
   sha256: {
-    "SKILL.md": "9fc72995ba0e8009dad0edf54a182dd7f284602e83fb24a74195557ab8ac634b",
-    "references/api-flags.md": "34da1d56f790a55e1b7b1cd7d4804d4887ad317eae13d956c103af6b0f63c89d",
+    "SKILL.md": "4b4a3691417ddfea22c2e6153b499918f17416b3a4050b79f898442977ff119c",
+    "references/api-flags.md": "82e2535004a95dc82aed943e50c7e029112b2795ec15c978b41237a44704cb5b",
   },
 } as const
 
@@ -83,9 +83,10 @@ describe("agent skill content is versioned", () => {
     )
   })
 
-  test("both SKILL.md copies carry the marker this build expects", () => {
-    for (const path of [join(SKILL_DIR, "SKILL.md"), join(ROOT, "claude-plugin", "skills", "rove", "SKILL.md")]) {
-      expect(readFileSync(path, "utf8"), path).toContain(`rove-skill-version: ${ROVE_SKILL_VERSION} `)
-    }
-  })
+  test.each([join(SKILL_DIR, "SKILL.md"), join(ROOT, "claude-plugin", "skills", "rove", "SKILL.md")])(
+    "%s carries the marker this build expects",
+    (path) => {
+      expect(readFileSync(path, "utf8")).toContain(`rove-skill-version: ${ROVE_SKILL_VERSION} `)
+    },
+  )
 })

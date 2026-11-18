@@ -5,7 +5,7 @@ import {
   editorWindowLabel,
   relativeToWorktree,
 } from "../../src/tui/lib/editor-launch.ts"
-import { DEFAULT_EDITOR_KIND, normalizeEditorKind } from "../../src/tui/lib/editor-prefs.ts"
+import { normalizeEditorKind } from "../../src/tui/lib/editor-prefs.ts"
 
 describe("buildEditorCommand", () => {
   it("explicit terminal editors open the shell-quoted path", () => {
@@ -165,7 +165,6 @@ describe("editorWindowLabel", () => {
 
 describe("normalizeEditorKind", () => {
   it("defaults to auto for unset / unknown values", () => {
-    expect(DEFAULT_EDITOR_KIND).toBe("auto")
     expect(normalizeEditorKind(undefined)).toBe("auto")
     expect(normalizeEditorKind("sublime")).toBe("auto")
     expect(normalizeEditorKind(42)).toBe("auto")

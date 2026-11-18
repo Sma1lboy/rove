@@ -32,15 +32,11 @@ function leaves(tree: unknown, prefix = ""): Record<string, string> {
   return out
 }
 
-test("zh carries every en key, non-empty, with the same placeholders", () => {
+test("every zh string is non-empty and has the same placeholders as its en one", () => {
   const e = leaves(en)
   const z = leaves(zh)
-  expect(Object.keys(z).sort()).toEqual(Object.keys(e).sort())
   const holes = (s: string) => (s.match(/\{\w+\}/g) ?? []).sort().join()
-  for (const key of Object.keys(e)) {
-    expect(z[key].trim().length).toBeGreaterThan(0)
-    expect(holes(z[key])).toBe(holes(e[key]))
-  }
+  expect(Object.keys(e).filter((key) => !z[key]?.trim() || holes(z[key]) !== holes(e[key]))).toEqual([])
 })
 
 function row(id: string, repo: string, order: number): TaskRow {
@@ -72,16 +68,14 @@ describe("rail", () => {
     ])
   })
 
-  test("a sort reorders tasks but the project's main checkout stays first", () => {
-    const main = { ...row("m", "/w/a", 3), kind: "main", title: "zzz" }
+  test("a sort reorders a project's tasks", () => {
     const tasks = [
-      main,
       { ...row("x", "/w/a", 0), title: "beta", label: "beta", rank: 1 },
       { ...row("y", "/w/a", 1), title: "alpha", label: "alpha", rank: 0 },
     ]
-    expect(groupByProject(tasks, "name")[0].tasks.map((t) => t.id)).toEqual(["m", "y", "x"])
-    expect(groupByProject(tasks, "attention")[0].tasks.map((t) => t.id)).toEqual(["m", "y", "x"])
-    expect(groupByProject(tasks, "default")[0].tasks.map((t) => t.id)).toEqual(["m", "x", "y"])
+    expect(groupByProject(tasks, "name")[0].tasks.map((t) => t.id)).toEqual(["y", "x"])
+    expect(groupByProject(tasks, "attention")[0].tasks.map((t) => t.id)).toEqual(["y", "x"])
+    expect(groupByProject(tasks, "default")[0].tasks.map((t) => t.id)).toEqual(["x", "y"])
   })
 
   test("`/` keeps a hit's ancestors: a task hit keeps its children, a child hit keeps its parent", () => {
@@ -141,7 +135,10 @@ describe("status dots (ELYTerminal's orb)", () => {
     expect(peak(1)).toBeLessThan(peak(0))
     expect([3, 5, 7].map(peak)).toEqual([peak(1), peak(1), peak(1)])
     expect([2, 6, 8].map(peak)).toEqual([peak(0), peak(0), peak(0)])
-    dotLevels("working", 0, 0).forEach((level, dot) => expect(dotLevels("working", 15, 0)[dot]).toBeCloseTo(level, 6))
+    const start = dotLevels("working", 0, 0)
+    expect(Math.max(...dotLevels("working", 15, 0).map((level, dot) => Math.abs(level - start[dot])))).toBeLessThan(
+      1e-6,
+    )
   })
 
   test("a slowed ripple still moves", () => {
@@ -314,9 +311,9 @@ describe("a task's PR mark", () => {
     expect(prEntries([parent, child]).map((entry) => [entry.task.id, entry.mark.checks])).toEqual([["c", "failing"]])
   })
 
-  test("a main task's session PRs list beside a child's, one entry per URL", () => {
+  test("a parent's session PRs list beside a child's, one entry per URL", () => {
     const url = (n: number) => `https://github.com/o/r/pull/${n}`
-    const main = {
+    const parent = {
       id: "m",
       repo: "/r",
       pr: null,
@@ -331,7 +328,7 @@ describe("a task's PR mark", () => {
       pr: { number: 2, url: url(2), lifecycle: "open", checkState: "passing" },
       prChip: "passing",
     } as unknown as TaskRow
-    const entries = prEntries([main, child])
+    const entries = prEntries([parent, child])
     expect(entries.map((entry) => entry.pr.url)).toEqual([url(1), url(2)])
     expect(entries.map((entry) => entry.mark.state)).toEqual(["merged", "open"])
     expect(entries[1]?.mark.checks).toBe("passing")

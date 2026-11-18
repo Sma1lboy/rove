@@ -16,7 +16,7 @@
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterAll, beforeAll, expect, it } from "vitest"
+import { afterEach, beforeEach, expect, it } from "vitest"
 import type { ExecCtx } from "../../src/orchestrator/worktree/exec-deps.ts"
 import { type ListDeps, unreadableWorktreeNames } from "../../src/orchestrator/worktree/manager-list.ts"
 
@@ -24,14 +24,14 @@ let root: string
 let repo: string
 let adminRoot: string
 
-beforeAll(() => {
+beforeEach(() => {
   root = realpathSync(mkdtempSync(join(tmpdir(), "rove-wt-unreadable-")))
   repo = join(root, "repo")
   adminRoot = join(repo, ".git", "worktrees")
   mkdirSync(adminRoot, { recursive: true })
 })
 
-afterAll(() => {
+afterEach(() => {
   rmSync(root, { recursive: true, force: true })
 })
 
@@ -68,7 +68,7 @@ it("reports an admin dir git omitted from its own porcelain list", async () => {
 })
 
 it("reports nothing when every admin dir is accounted for", async () => {
-  rmSync(join(adminRoot, "broken"), { recursive: true, force: true })
+  admin("healthy", join(root, "healthy"))
   const names = await unreadableWorktreeNames(deps(porcelain(repo, join(root, "healthy"))), ctx())
   expect(names).toEqual([])
 })
@@ -80,10 +80,10 @@ it("reports nothing when every admin dir is accounted for", async () => {
  */
 it("does not flag a de-duplicated admin name whose worktree IS listed", async () => {
   const other = join(root, "other", "healthy")
+  admin("healthy", join(root, "healthy"))
   admin("healthy1", other)
   const names = await unreadableWorktreeNames(deps(porcelain(repo, join(root, "healthy"), other)), ctx())
   expect(names).toEqual([])
-  rmSync(join(adminRoot, "healthy1"), { recursive: true, force: true })
 })
 
 it("stays out of the way when it cannot enumerate at all", async () => {

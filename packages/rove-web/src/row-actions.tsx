@@ -10,9 +10,9 @@ import type { TabRow, TaskRow } from "rove-bridge/protocol"
 import { ChoiceDialog, ConfirmDialog, TextDialog } from "./dialogs.tsx"
 import { ChangeEngineDialog, type EngineCurrent } from "./engine-dialog.tsx"
 import { t } from "./i18n/index.ts"
-import { openCompare } from "./layout.ts"
+import { openCompare, openSessions } from "./layout.ts"
 import type { AppModel } from "./model.ts"
-import { moveMode, reorderingMain, setMoveMode } from "./move-mode.ts"
+import { moveMode, setMoveMode } from "./move-mode.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { startNewTask, startNewUngrouped } from "./new-session-view.tsx"
 import { openRetry } from "./retry.tsx"
@@ -21,7 +21,6 @@ import { newChatHere, openScratchShell, openTab } from "./task-dialogs.tsx"
 import {
   archiveFlow,
   deleteTaskDialog,
-  endMainConversationDialog,
   fixChecksFlow,
   forgetProjectDialog,
   landFlow,
@@ -49,7 +48,7 @@ const bound = (binding: string): Pick<MenuItem, "binding" | "key"> => ({
   key: legendCap(binding) ?? undefined,
 })
 
-async function copy(text: string | null | undefined, what: string): Promise<void> {
+export async function copy(text: string | null | undefined, what: string): Promise<void> {
   if (!text) {
     toast(t("menu.nothingToCopy", { what }), "error")
     return
@@ -62,41 +61,40 @@ async function copy(text: string | null | undefined, what: string): Promise<void
   }
 }
 
-/** What a project header knows about its place in the rail: the main checkout stands in for the project in moves. */
+/** What a project header knows about its place in the rail: the projects a move would land it beside. */
 export interface ProjectInfo {
-  readonly mainTaskId: string | null
   readonly label: string
-  /** Already the topmost movable project, so "Move to top" would be dead. */
-  readonly first: boolean
+  /** A project of this machine: another machine's header is read-only here. */
+  readonly local: boolean
+  /** The topmost movable project, the one right above and the one right below; null where a move that way is dead. */
+  readonly top: string | null
+  readonly above: string | null
+  readonly below: string | null
 }
 
 export function projectMenu(model: AppModel, repo: string, info: ProjectInfo): MenuItem[] {
   const items: MenuItem[] = [{ label: t("menu.newTask"), section: "open", run: () => startNewTask(repo) }]
-  const main = info.mainTaskId
-  if (main) {
-    if (!info.first) {
-      items.push({
-        label: tc("tasks", "menu.moveToTop"),
-        section: "edit",
-        run: () =>
-          void model.client
-            .request("task.move", { taskId: main, direction: "top" })
-            .catch((e) => toast(tc("tasks", "toast.moveFailed", { error: String(e) }), "error")),
-      })
-    }
+  const move = (label: string, target: string | null, side: "before" | "after"): void => {
+    if (target === null) return
     items.push({
-      label: tc("tasks", "menu.reorderProject"),
+      label,
       section: "edit",
-      ...bound("sidebar.localMerge"),
-      run: () => enterMoveMode(main),
+      run: () =>
+        void model.client
+          .request("project.move", { repo, target, side })
+          .catch((e) => toast(tc("tasks", "toast.moveFailed", { error: String(e) }), "error")),
     })
   }
+  move(tc("tasks", "menu.moveToTop"), info.top, "before")
+  move(tc("tasks", "menu.moveProjectUp"), info.above, "before")
+  move(tc("tasks", "menu.moveProjectDown"), info.below, "after")
+  items.push({ label: t("menu.viewSessions"), section: "open", run: () => openSessions(repo) })
   items.push({
     label: tc("tasks", "menu.fieldNotes"),
     section: "notes",
     run: () => dialog.set(<FieldNotesDialog model={model} repo={repo} />),
   })
-  if (main) {
+  if (info.local) {
     items.push({
       label: tc("tasks", "menu.forgetProject"),
       section: "danger",
@@ -119,22 +117,15 @@ export function ungroupedMenu(model: AppModel): MenuItem[] {
   ]
 }
 
-/**
- * Shift+M / "Reorder": j/k then move the cursor row at its level; the rail owns the keys, so hand it focus.
- * From a project header, `main` is held as a row for the move, so a main with no tab still has one to drag.
- */
-function enterMoveMode(main?: string): void {
-  const on = !moveMode.get()
-  if (on && main !== undefined) reorderingMain.set(main)
-  setMoveMode(on)
+/** Shift+M / "Reorder": j/k then move the cursor row at its level; the rail owns the keys, so hand it focus. */
+function enterMoveMode(): void {
+  setMoveMode(!moveMode.get())
   document.querySelector<HTMLElement>(".rail")?.focus()
 }
 
 /** The saved projects a task can regroup into: this machine's, other than its own. Moving only regroups; the checkout stays. */
-function moveToProjectDialog(model: AppModel, task: TaskRow) {
-  const repos = (model.tasks.get()?.tasks ?? [])
-    .filter((row) => row.kind === "main" && !row.machine && row.repo !== task.repo)
-    .map((row) => row.repo)
+function moveToProjectDialog(model: AppModel, task: TaskRow, saved: readonly string[]) {
+  const repos = saved.filter((repo) => !repo.startsWith("ssh://") && repo !== task.repo)
   const choices = repos.map((repo) => {
     const name = repo.slice(repo.lastIndexOf("/") + 1)
     return { value: repo, label: repos.filter((other) => other.endsWith(`/${name}`)).length > 1 ? repo : name }
@@ -283,15 +274,13 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
         />,
       ),
   })
-  if (task.kind !== "main") {
-    items.push({
-      label: task.pinned ? t("menu.unpin") : t("menu.pin"),
-      section: "edit",
-      ...bound("sidebar.pin"),
-      run: () =>
-        void model.act("task.pin", { taskId: task.id, pinned: !task.pinned }).catch((e) => toast(String(e), "error")),
-    })
-  }
+  items.push({
+    label: task.pinned ? t("menu.unpin") : t("menu.pin"),
+    section: "edit",
+    ...bound("sidebar.pin"),
+    run: () =>
+      void model.act("task.pin", { taskId: task.id, pinned: !task.pinned }).catch((e) => toast(String(e), "error")),
+  })
   if (local) {
     items.push({
       label: tc("tasks", "menu.reorder"),
@@ -314,15 +303,19 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
     ),
   })
   // Top-level, local, single-repo rows only; the daemon refuses the rest (`update --project`).
-  if (local && task.kind !== "main" && !task.routine && !task.parentTaskId && !task.extraRepoCount) {
+  if (local && !task.routine && !task.parentTaskId && !task.extraRepoCount) {
     items.push({
       label: tc("tasks", "menu.moveToProject"),
       section: "edit",
       rare: true,
-      run: () => {
-        const picker = moveToProjectDialog(model, task)
-        if (picker) dialog.set(picker)
-      },
+      run: () =>
+        void model.client
+          .request<{ repos: string[] }>("repos.list")
+          .then((res) => {
+            const picker = moveToProjectDialog(model, task, res.repos)
+            if (picker) dialog.set(picker)
+          })
+          .catch((e) => toast(String(e), "error")),
     })
   }
   if (local) {
@@ -407,23 +400,19 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
   })
   items.push({ label: t("menu.copy"), section: "copy", children: copies })
 
-  // Hides the row and its children, stopping nothing; a project's main is the project itself.
-  if (task.kind !== "main") {
-    items.push({
-      label: tc("tasks", task.archived ? "menu.unarchive" : "menu.archive"),
-      section: "danger",
-      run: () => void archiveFlow(model, task),
-    })
-  }
+  // Hides the row and its children; opening the project again brings an archived main back.
   items.push({
-    // Say what goes: a conversation (in a folder, or a project's main) or a task with its worktree.
+    label: tc("tasks", task.archived ? "menu.unarchive" : "menu.archive"),
+    section: "danger",
+    run: () => void archiveFlow(model, task),
+  })
+  items.push({
+    // Say what goes: a conversation in a folder (a project's checkout included) or a task with its worktree.
     label: t("menu.removeSession"),
     section: "danger",
     ...bound("sidebar.delete"),
     danger: true,
-    run: () =>
-      // A project's main checkout is never deleted: Delete ends its conversation, Remove project is on the header.
-      dialog.set(task.kind === "main" ? endMainConversationDialog(model, task) : deleteTaskDialog(model, task)),
+    run: () => dialog.set(deleteTaskDialog(model, task)),
   })
   return items
 }

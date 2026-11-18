@@ -14,7 +14,7 @@
  * is a number, not an inference.
  */
 
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
 import { type DaemonHarness, bootDaemonHarness, fakeOrchestrator, waitFor } from "./harness.ts"
 
@@ -26,6 +26,7 @@ describe("collector gate honours the subscriber's channel filter", () => {
   let runs = 0
 
   afterEach(async () => {
+    vi.useRealTimers()
     await h.close()
   })
 
@@ -47,14 +48,15 @@ describe("collector gate honours the subscriber's channel filter", () => {
   }
 
   it("a pane subscribed to unrelated channels never starts the worktree-changes poller", async () => {
+    // The collector ticks on an interval; fake only intervals so the socket stays real.
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] })
     h = await boot()
 
     const pane = h.client()
     await pane.connect()
     await pane.subscribe({ role: "pane", channels: ["ui-prefs", "keybindings"] })
 
-    // Many ticks' worth of wall time at a 15ms tick.
-    await new Promise((r) => setTimeout(r, 300))
+    await vi.advanceTimersByTimeAsync(300) // 20 ticks at 15ms
     expect(runs).toBe(0)
 
     pane.close()

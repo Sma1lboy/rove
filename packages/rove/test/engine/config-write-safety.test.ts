@@ -160,18 +160,20 @@ describe("shared config IO rejection", () => {
     await expect(asyncWrite(file)).resolves.toBeUndefined()
   })
 
-  it("rejects directories and permission errors without converting them to missing", async () => {
+  it("rejects directories without converting them to missing", async () => {
     const directory = path.join(home, "directory")
     fs.mkdirSync(directory)
     expect(() => syncWrite(directory)).toThrow()
     await expect(asyncWrite(directory)).rejects.toThrow()
+  })
+
+  // root reads through mode 0, so the permission error never happens there.
+  it.skipIf(process.getuid?.() === 0)("rejects permission errors without converting them to missing", async () => {
     const file = config("unreadable.json", "{}")
     fs.chmodSync(file, 0)
     try {
-      if (process.getuid?.() !== 0) {
-        expect(() => syncWrite(file)).toThrow()
-        await expect(asyncWrite(file)).rejects.toThrow()
-      }
+      expect(() => syncWrite(file)).toThrow()
+      await expect(asyncWrite(file)).rejects.toThrow()
     } finally {
       fs.chmodSync(file, 0o600)
     }
@@ -233,7 +235,7 @@ describe("shared config IO rejection", () => {
     const codex = path.join(home, ".codex/config.toml")
     const hooks = path.join(home, "hooks.json")
     fs.mkdirSync(path.dirname(codex))
-    for (const file of [claude, codex, hooks]) expect(spawnSync("mkfifo", [file]).status).toBe(0)
+    expect(spawnSync("mkfifo", [claude, codex, hooks]).status).toBe(0)
     const engine = new URL("../../src/engine/", import.meta.url).pathname
     const script = `
       import { homedir } from 'node:os';
@@ -265,7 +267,7 @@ describe("shared config IO rejection", () => {
     })
     expect(child.error).toBeUndefined()
     expect(child.status, child.stderr).toBe(0)
-    for (const file of [claude, codex, hooks]) expect(fs.lstatSync(file).isFIFO()).toBe(true)
+    expect([claude, codex, hooks].map((file) => fs.lstatSync(file).isFIFO())).toEqual([true, true, true])
   })
 })
 

@@ -72,12 +72,12 @@ export const WORKSPACE_CAPABILITIES: Readonly<Record<WorkspaceBackendId, Workspa
   },
 }
 
-type WorkspaceTask = { readonly kind?: "main" | "task" | "dir"; readonly workspace?: TaskWorkspace }
+type WorkspaceTask = { readonly kind?: "task" | "dir"; readonly workspace?: TaskWorkspace }
 
 /** An explicit `workspace.backend` wins; rows without one derive it from `kind`. */
 export function workspaceBackendId(task: WorkspaceTask): WorkspaceBackendId {
   if (task.workspace) return task.workspace.backend
-  return task.kind === "main" || task.kind === "dir" ? "borrowed" : "git-worktree"
+  return task.kind === "dir" ? "borrowed" : "git-worktree"
 }
 
 export function workspaceCapabilities(task: WorkspaceTask): WorkspaceCapabilities {

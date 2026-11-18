@@ -11,30 +11,16 @@
  */
 
 import { join } from "node:path"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 
-const saved = { rove: process.env.ROVE_HOME_DIR }
-
 afterEach(() => {
-  for (const [key, value] of [
-    ["ROVE_HOME_DIR", saved.rove],
-    ["ROVE_HOME_DIR", saved.rove],
-  ] as const) {
-    if (value === undefined) Reflect.deleteProperty(process.env, key)
-    else process.env[key] = value
-  }
+  vi.unstubAllEnvs()
 })
 
 describe("home resolution with no explicit homeDir", () => {
   it("uses ROVE_HOME_DIR", () => {
-    process.env.ROVE_HOME_DIR = "/tmp/rove-home-resolution/rove"
-    expect(new TaskIndexStore().filePath).toBe(join("/tmp/rove-home-resolution/rove", ".rove", "tasks.json"))
-  })
-
-  it("falls back to the legacy ROVE_HOME_DIR", () => {
-    Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
-    process.env.ROVE_HOME_DIR = "/tmp/rove-home-resolution/rove"
+    vi.stubEnv("ROVE_HOME_DIR", "/tmp/rove-home-resolution/rove")
     expect(new TaskIndexStore().filePath).toBe(join("/tmp/rove-home-resolution/rove", ".rove", "tasks.json"))
   })
 })

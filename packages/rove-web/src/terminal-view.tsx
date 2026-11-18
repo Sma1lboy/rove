@@ -8,12 +8,13 @@
 
 import { useEffect, useRef, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
-import { ConfirmDialog } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { PART_BYTES, putAttachment } from "./kanban-attach.ts"
 import { terminalText } from "./keymap-text.ts"
+import { macHost } from "./mac-host.ts"
+import { MacTerminal } from "./mac-terminal.tsx"
 import type { AppModel } from "./model.ts"
-import { beginReset, endReset, exitIsReset } from "./reset-guard.ts"
+import { exitIsReset } from "./reset-guard.ts"
 import { useStore } from "./store.ts"
 import { TermComposer } from "./term-composer.tsx"
 import { type Notice, SCROLL_PAGE_LINES, type TermHandle, streamKey } from "./term-contract.ts"
@@ -23,7 +24,8 @@ import { NERD_SYMBOLS_FAMILY } from "./term-look.ts"
 import { type EngineExit, TermNotice } from "./term-notice.tsx"
 import { type Leased, hasParked, leaseTerminal } from "./term-pool.ts"
 import { quoteSelection } from "./term-quote.ts"
-import { dialog, toast } from "./ui.ts"
+import { confirmTerminalReset } from "./terminal-reset.tsx"
+import { toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import { TERM_BODY, TERM_HOST, TERM_PANE, TERM_QUOTE, TERM_SCROLLED } from "./ui/shell.ts"
 import { LINK } from "./ui/text.ts"
@@ -105,6 +107,10 @@ async function copyText(text: string): Promise<boolean> {
 }
 
 export function TerminalView(props: TerminalViewProps) {
+  return macHost ? <MacTerminal {...props} /> : <WebTerminal {...props} />
+}
+
+function WebTerminal(props: TerminalViewProps) {
   const { client, taskId, tabId, leafId } = props
   // The daemon's own `?` for this tab: its engine waits at a menu the key row answers.
   const atMenu =
@@ -213,33 +219,11 @@ export function TerminalView(props: TerminalViewProps) {
         term.clearSelection()
         return true
       },
-      reset: () => {
-        // Snapshot at the keypress: a tab switch while the confirm is open must not reset the wrong shell.
-        const size = { cols: term.cols, rows: term.rows }
-        dialog.set(
-          <ConfirmDialog
-            title={terminalText("reset.title")}
-            body={terminalText("reset.body")}
-            confirmLabel={t("workspace.reset")}
-            onConfirm={async () => {
-              beginReset(stream)
-              try {
-                await client.request("tab.split", {
-                  taskId,
-                  tabId,
-                  action: "reset",
-                  leafId: leafId ?? "leaf-1",
-                  ...size,
-                })
-                await handle.reattach()
-                term.focus()
-              } finally {
-                endReset(stream)
-              }
-            }}
-          />,
-        )
-      },
+      reset: () =>
+        confirmTerminalReset(client, taskId, tabId, leafId, { cols: term.cols, rows: term.rows }, async () => {
+          await handle.reattach()
+          term.focus()
+        }),
       size: () => ({ cols: term.cols, rows: term.rows }),
     }
     const off = registerTerm(control)

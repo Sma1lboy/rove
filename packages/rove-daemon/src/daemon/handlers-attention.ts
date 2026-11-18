@@ -68,8 +68,8 @@ export const ATTENTION_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
-    // Plugin-written row token: write/refresh one, or clear it. The token's
-    // TTL is clamped store-side, so a caller cannot ask for "forever".
+    // Row token: write/refresh one, or clear it. The TTL is clamped store-side;
+    // "forever" is only `keep`, which the store saves.
     name: "task.rowToken",
     handle(payload, ctx) {
       if (!ctx.rowTokens) return { ok: false, reason: "UNSUPPORTED" }
@@ -89,6 +89,7 @@ export const ATTENTION_HANDLERS: readonly DaemonRequestHandler[] = [
         text: requireString(payload, "text"),
         ...(isRowTokenTone(tone) ? { tone } : {}),
         ...(optionalNumber(payload, "ttlMs") !== undefined ? { ttlMs: optionalNumber(payload, "ttlMs") } : {}),
+        ...(optionalBoolean(payload, "keep") === true ? { keep: true } : {}),
       })
       return { ok: true, token }
     },

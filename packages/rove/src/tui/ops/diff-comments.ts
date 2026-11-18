@@ -73,10 +73,6 @@ export function unsentComments(comments: readonly DiffComment[]): readonly DiffC
   return comments.filter((c) => c.sentAt === undefined)
 }
 
-export function markAllSent(comments: readonly DiffComment[], now: number): readonly DiffComment[] {
-  return comments.map((c) => (c.sentAt === undefined ? { ...c, sentAt: now } : c))
-}
-
 /* ------------------- unified-diff row mapping ------------------- */
 
 /** One visible row of the unified `<diff>` view. `line` is the number the
@@ -213,10 +209,13 @@ export interface DiffReviewApi {
   send(worktreePath?: string): boolean
 }
 
-/** Structural slice of the TUI's KV context. */
+/**
+ * Structural slice of the TUI's KV context. `update` runs against the notes on disk, not this
+ * window's copy: the web and other windows add to the same list.
+ */
 export type DiffCommentsKv = {
   get(key: string, defaultValue?: unknown): unknown
-  set(key: string, value: unknown): void
+  update(key: string, mutate: (current: unknown) => unknown): boolean
 }
 
 /**
@@ -231,24 +230,27 @@ export function buildDiffReview(
 ): DiffReviewApi {
   const key = diffCommentsKey(taskId)
   const read = (): readonly DiffComment[] => (kv.get(key, []) as DiffComment[] | null) ?? []
+  const change = (mutate: (notes: readonly DiffComment[]) => readonly DiffComment[]): void => {
+    kv.update(key, (current) => mutate(Array.isArray(current) ? (current as DiffComment[]) : []))
+  }
   return {
     comments: read(),
     add(input) {
-      kv.set(key, [...read(), { ...input, id: randomUUID(), createdAt: Date.now() }])
+      const note: DiffComment = { ...input, id: randomUUID(), createdAt: Date.now() }
+      change((notes) => [...notes, note])
     },
     remove(id) {
-      kv.set(
-        key,
-        read().filter((c) => c.id !== id),
-      )
+      change((notes) => notes.filter((c) => c.id !== id))
     },
     send(worktreePath) {
-      const all = read()
-      const unsent = unsentComments(all)
+      const unsent = unsentComments(read())
       if (unsent.length === 0) return true
       // Mark sent only after delivery: a refused send leaves kv untouched.
       if (!sendToEngine(formatDiffComments(unsent, worktreePath))) return false
-      kv.set(key, markAllSent(all, Date.now()))
+      // Only the notes that went out: one added elsewhere meanwhile is still unsent.
+      const batch = new Set(unsent.map((c) => c.id))
+      const sentAt = Date.now()
+      change((notes) => notes.map((c) => (batch.has(c.id) && c.sentAt === undefined ? { ...c, sentAt } : c)))
       return true
     },
   }

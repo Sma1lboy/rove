@@ -63,7 +63,8 @@ the two share one token.
 - New session's project chip picks one project: a click (or Enter) replaces the
   pick and closes the list; Shift-click (or Shift+Enter; ⌘/Ctrl works too) adds another repo
   for a multi-repo task. A GitHub repository, a git URL or `owner/repo` is
-  picked the same way and cloned when you press Start, not when you pick it. Any folder works, git or not: a folder git cannot use
+  picked the same way and cloned when you press Start, not when you pick it. The clone goes to
+  `~/.rove/repos/<host>/<owner>/<name>`, the folder `add --clone` uses, and is reused the next time. Any folder works, git or not: a folder git cannot use
   (no repository, or no commit yet) opens in place as a directory session, with
   Worktree off and no branch to pick, and cannot join a multi-repo task.
 - One prompt, several engines: the New session engine chip's `[ compare engines ]`
@@ -106,7 +107,14 @@ the two share one token.
   tab, and it opens the panel on a page that is on
   that task with a panel, without taking focus or switching task. The Browser
   asks the bridge (`browser.probe`) whether a page forbids framing before it
-  loads it.
+  loads it. When a task's own processes serve a page on a port (the dev server an agent
+  or a shell tab started), the Files view shows `[ open :PORT ]` for each, which
+  loads it in the Browser. Nothing is configured: it reads `rove api ports` and
+  keeps the ports whose `/` answers HTML, so an engine's own ports are not listed.
+  A blank Browser tab lists the same pages. Right click a Files row (or Shift+F10)
+  for its menu: attach it as context, copy its path, open its diff, show it in
+  Finder, or open a terminal in its folder.
+  A page opened over a tunnel cannot reach the Mac's loopback; the panel says so.
 - Command palette (`ctrl+a /`): the commands, then the tasks whose title,
   branch or project matches, then what you and the agents wrote in any task's
   conversation (`rove api search`, from two characters), newest first, the words

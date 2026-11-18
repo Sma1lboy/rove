@@ -97,9 +97,11 @@ type Load<T> =
 function useRead<T>(model: AppModel, op: string, params: Record<string, unknown>, tick: number): Load<T> {
   const cached = lastReply<T>(model, op, params)
   const [state, setState] = useState<Load<T>>(cached ? { kind: "ready", value: cached } : { kind: "loading" })
+  const connected = useStore(model.client.conn).state === "open"
   const key = JSON.stringify(params)
   // biome-ignore lint/correctness/useExhaustiveDependencies: `key` stands for `params`; tick is a trigger
   useEffect(() => {
+    if (!connected) return
     let live = true
     requestRemembered<T>(model, op, params)
       .then((value) => live && setState({ kind: "ready", value }))
@@ -110,7 +112,7 @@ function useRead<T>(model: AppModel, op: string, params: Record<string, unknown>
     return () => {
       live = false
     }
-  }, [model, op, key, tick])
+  }, [model, op, key, tick, connected])
   return state
 }
 

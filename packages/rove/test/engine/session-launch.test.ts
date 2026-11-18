@@ -237,16 +237,13 @@ describe("hosted engine session launch", () => {
     // B1: while the marker only appeared on a zero exit, a repo whose init
     // script fails left the paste-delivery spawner polling a file that would
     // never exist — two minutes of empty composer per fresh task.
-    test("records the init outcome in the marker on BOTH the success and failure branches", () => {
-      for (const [initScript, expected] of [
-        ["echo ok", "0"],
-        ["echo nope; exit 3", "3"],
-      ] as const) {
-        const { dir, marker } = scratch()
-        runLaunch(dir, launchScript(initScript, marker))
-        expect(fs.existsSync(marker)).toBe(true)
-        expect(fs.readFileSync(marker, "utf8")).toBe(expected)
-      }
+    test.each([
+      ["echo ok", "0"],
+      ["echo nope; exit 3", "3"],
+    ])("records the init outcome in the marker (init %j → %j)", (initScript, expected) => {
+      const { dir, marker } = scratch()
+      runLaunch(dir, launchScript(initScript, marker))
+      expect(fs.readFileSync(marker, "utf8")).toBe(expected)
     })
 
     // A recorded failure must still retry on the next launch, which is what
@@ -381,31 +378,21 @@ describe("hosted engine session launch", () => {
     })
   })
 
-  test("injects the worktree protocol only for regular tasks", () => {
-    const regular = buildEngineSessionLaunch({
-      task: { id: "task-1", kind: "task", vendor: "claude" },
-      worktreePath: "/worktree",
-      shell: "/bin/zsh",
-      argv: ["claude"],
-      promptIntent: { kind: "none" },
-      protocolGates: { status: () => true, notes: () => false, dispatcher: () => true },
-    })
-    const main = buildEngineSessionLaunch({
-      task: { id: "main-1", kind: "main", vendor: "claude" },
+  test("every task, a directory session too, gets the worktree protocol with its own id", () => {
+    const dir = buildEngineSessionLaunch({
+      task: { id: "dir-1", kind: "dir", vendor: "claude" },
       worktreePath: "/repo",
       shell: "/bin/zsh",
       argv: ["claude"],
       promptIntent: { kind: "none" },
-      protocolGates: { status: () => true, notes: () => false, dispatcher: () => true },
+      protocolGates: { status: () => true, notes: () => false },
     })
 
-    expect(regular.command[2]).toContain("report it by running")
-    expect(regular.command[2]).not.toContain("DISPATCHER")
-    expect(main.command[2]).toContain("DISPATCHER")
-    expect(main.command[2]).not.toContain("report it by running")
+    expect(dir.command[2]).toContain("report it by running")
+    expect(dir.command[2]).toContain("task dir-1")
   })
 
-  test("seeds both worktree and main sessions with the repo's field notes", () => {
+  test("seeds both worktree and directory sessions with the repo's field notes", () => {
     // Launch-time injection is the only way a note reaches a session.
     const readNotes = (repoRoot: string) => {
       seen.push(repoRoot)
@@ -421,18 +408,18 @@ describe("hosted engine session launch", () => {
       protocolGates: { status: () => false, notes: () => true, dispatcher: () => false },
       readNotes,
     })
-    const main = buildEngineSessionLaunch({
-      task: { id: "main-1", kind: "main", vendor: "claude", repo: "/repo" },
+    const dir = buildEngineSessionLaunch({
+      task: { id: "dir-1", kind: "dir", vendor: "claude", repo: "/repo" },
       worktreePath: "/repo",
       shell: "/bin/zsh",
       argv: ["claude"],
       promptIntent: { kind: "none" },
-      protocolGates: { status: () => false, notes: () => true, dispatcher: () => true },
+      protocolGates: { status: () => false, notes: () => true },
       readNotes,
     })
 
     expect(card.command[2]).toContain("build needs --no-sandbox")
-    expect(main.command[2]).toContain("build needs --no-sandbox")
+    expect(dir.command[2]).toContain("build needs --no-sandbox")
     expect(seen).toEqual(["/repo", "/repo"])
   })
 })

@@ -78,6 +78,31 @@ enum TaskRowMarks {
 
     static func prNumber(_ pr: TaskPR?) -> String? { pr?.number.map { "#\($0)" } }
 
+    /// The task's own branch PR, then the PRs its session opened, one entry per PR (url, else number).
+    static func prs(_ row: TaskRow) -> [TaskPR] {
+        var seen = Set<String>()
+        return ([row.pr].compactMap { $0 } + row.sessionPrs).filter { pr in
+            guard let key = pr.url ?? pr.number.map(String.init) else { return false }
+            return seen.insert(key).inserted
+        }
+    }
+
+    /// `22:30` for today, `Sat 09:00` for another day; nil when `iso` is no time.
+    static func startsAt(_ iso: String?, now: Date = Date(), calendar: Calendar = .current, locale: Locale = .current) -> String? {
+        guard let iso, let at = parseISO(iso) else { return nil }
+        let time = at.formatted(Date.FormatStyle(locale: locale, calendar: calendar, timeZone: calendar.timeZone).hour(.twoDigits(amPM: .omitted)).minute(.twoDigits))
+        if calendar.isDate(at, inSameDayAs: now) { return time }
+        return "\(at.formatted(Date.FormatStyle(locale: locale, calendar: calendar, timeZone: calendar.timeZone).weekday(.abbreviated))) \(time)"
+    }
+
+    private static func parseISO(_ s: String) -> Date? {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = f.date(from: s) { return d }
+        f.formatOptions = [.withInternetDateTime]
+        return f.date(from: s)
+    }
+
     /// Tokens still alive at `now` (the phone filters; the bridge only drops them on republish).
     static func liveTokens(_ tokens: [RowTokenChip], now: Date) -> [RowTokenChip] {
         tokens.filter { $0.isLive(now: now) && !$0.text.isEmpty }

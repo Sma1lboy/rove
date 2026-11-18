@@ -53,10 +53,9 @@ describe("daemon.stopping reason", () => {
     expect((await stoppingFrameFor()).reason).toBe("stop")
   })
 
-  it("a caller cannot claim a reason only the daemon may report", async () => {
-    // `idle` and `socket-lost` describe the daemon's own decisions. Echoing a
-    // caller's claim back onto the wire would let any CLI poke fabricate one.
-    expect((await stoppingFrameFor("idle")).reason).toBe("stop")
-    expect((await stoppingFrameFor("nonsense")).reason).toBe("stop")
+  // `idle` and `socket-lost` describe the daemon's own decisions. Echoing a
+  // caller's claim back onto the wire would let any CLI poke fabricate one.
+  it.each(["idle", "nonsense"])("a caller cannot claim the reason %j", async (claimed) => {
+    expect((await stoppingFrameFor(claimed)).reason).toBe("stop")
   })
 })

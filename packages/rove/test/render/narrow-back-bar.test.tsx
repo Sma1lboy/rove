@@ -14,7 +14,7 @@ import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 import { createStateCell } from "../../src/lib/external-store"
 import { WorkspaceRoot } from "../../src/tui-react/workspace/host"
 import { setUiEventReporter } from "../../src/tui-react/workspace/terminal-tabs-shared"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent, waitForFrameText } from "./harness"
 
 // KVProvider persists to `$ROVE_HOME_DIR`; per-file, see host-version-skew-banner.test.tsx.
 let previousHome: string | undefined
@@ -80,13 +80,12 @@ test("a narrow workspace shows a back row whose click returns to the task list",
     height: 30,
     providers: { kv: true, focus: true, dialog: true, notifications: true },
   })
-  await settle(120)
+  await waitForFrameText(frame, "Select a task with a worktree")
   // Focus the workspace the way a user does: click into it.
   await act(async () => {
     await mockMouse.click(23, 15)
   })
-  await settle(60)
-  const workspace = await frame()
+  const workspace = await waitForFrameText(frame, "‹ Tasks")
   expect(workspace).toContain("‹ Tasks")
   expect(workspace).not.toContain("New task")
 
@@ -95,8 +94,7 @@ test("a narrow workspace shows a back row whose click returns to the task list",
   await act(async () => {
     await mockMouse.click(lines[row]?.indexOf("‹ Tasks") ?? 0, row)
   })
-  await settle(60)
-  const list = await frame()
+  const list = await waitForFrameText(frame, "New task")
   expect(list).toContain("New task")
   expect(list).toContain("Phone task")
   expect(list).not.toContain("‹ Tasks")

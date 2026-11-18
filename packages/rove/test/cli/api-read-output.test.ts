@@ -5,7 +5,7 @@
  * or vendor transcript files.
  */
 
-import { describe, expect, it } from "vitest"
+import { beforeEach, describe, expect, it } from "vitest"
 import {
   DEFAULT_PAGE_MESSAGES,
   DEFAULT_TAIL_LINES,
@@ -454,6 +454,9 @@ describe("read-output in a directory several tasks share", () => {
     calls,
   )
   const shared = { sharesWorkspace: true as const }
+  beforeEach(() => {
+    calls.length = 0
+  })
 
   async function readShared(d: ReadOutputDeps, over: { source?: "auto" | "history" } = {}) {
     return readTaskOutput({ taskId: "child", worktree: WORKTREE, source: over.source ?? "auto", ...shared }, d)
@@ -469,7 +472,6 @@ describe("read-output in a directory several tasks share", () => {
   })
 
   it("falls back to its own terminal when it has no pinned conversation, never the sibling's transcript", async () => {
-    calls.length = 0
     const term = fakeTerminal({ pid: 1, offset: 4, text: "own screen\n" })
     const d = { ...deps(history, term.peek), ownHistory: () => "history_missing" as const }
     const page = await readShared(d)

@@ -80,7 +80,9 @@ describe("searchTasks", () => {
   // The batch reads all three sessions, but the limit stops match processing after two.
   it("reports a partial page when the limit stops the scan inside its last batch", async () => {
     fake.tabs.set("t1", ["a", "b", "c"])
-    for (const id of ["a", "b", "c"]) fake.sessions.set(id, said("deploy the relay"))
+    fake.sessions.set("a", said("deploy the relay"))
+    fake.sessions.set("b", said("deploy the relay"))
+    fake.sessions.set("c", said("deploy the relay"))
     const result = await searchTasks([task("t1")], "relay", 2)
     expect(result.matches).toHaveLength(2)
     expect(result.truncated).toBe(true)

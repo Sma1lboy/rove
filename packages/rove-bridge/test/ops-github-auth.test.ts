@@ -24,18 +24,15 @@ describe("github.status", () => {
     expect(here.calls).toEqual([{ verb: "github-status", argv: [] }])
   })
 
-  test("a machine that cannot answer is a reason, never a throw", async () => {
-    const reasons = {
-      MACHINE_UNREACHABLE: "offline",
-      MACHINE_VERSION_SKEW: "outdated",
-      UNKNOWN_VERB: "outdated",
-      INBOUND_DENIED: "denied",
-      RPC_ERROR: "failed",
-    }
-    for (const [code, reason] of Object.entries(reasons)) {
-      const { result } = await call("github.status", { machine: "narwhal" }, { "github-status": refuse(code) })
-      expect(result).toEqual({ status: null, reason, message: `refused ${code}` })
-    }
+  test.each([
+    ["MACHINE_UNREACHABLE", "offline"],
+    ["MACHINE_VERSION_SKEW", "outdated"],
+    ["UNKNOWN_VERB", "outdated"],
+    ["INBOUND_DENIED", "denied"],
+    ["RPC_ERROR", "failed"],
+  ])("a machine that refuses with %s is the reason %s, never a throw", async (code, reason) => {
+    const { result } = await call("github.status", { machine: "narwhal" }, { "github-status": refuse(code) })
+    expect(result).toEqual({ status: null, reason, message: `refused ${code}` })
   })
 })
 

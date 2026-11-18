@@ -197,44 +197,41 @@ describe("prefix passthrough boundary", () => {
 })
 
 describe("prefix+n New task", () => {
-  test("opens New task on a UI surface and inside terminal passthrough", () => {
-    for (const passthrough of [false, true]) {
-      resetPrefixState()
-      let opened = false
-      let forwarded = false
-      const terminal: RegisteredBinding = {
-        id: 1,
-        config: () => ({
-          bindings: [
-            {
-              key: "ctrl+n",
-              passthrough: true,
-              cmd: () => {
-                forwarded = true
-              },
+  test.each([false, true])("opens New task (inside terminal passthrough: %s)", (passthrough) => {
+    let opened = false
+    let forwarded = false
+    const terminal: RegisteredBinding = {
+      id: 1,
+      config: () => ({
+        bindings: [
+          {
+            key: "ctrl+n",
+            passthrough: true,
+            cmd: () => {
+              forwarded = true
             },
-          ],
-        }),
-      }
-      const host: RegisteredBinding = {
-        id: 2,
-        config: () => ({
-          bindings: bindByIds({
-            "task.new.global": () => {
-              opened = true
-            },
-          }),
-        }),
-      }
-      const stack = passthrough ? [terminal, host] : [host]
-      expect(bindingReachability(stack).prefix).toContain("task.new.global")
-      expect(bindingReachability(stack).direct).not.toContain("task.new.global")
-
-      expect(dispatchKeyEvent(stack, makeEvt("a", { ctrl: true }), 100)).toBe(true)
-      expect(dispatchKeyEvent(stack, makeEvt("n"), 200)).toBe(true)
-      expect(opened).toBe(true)
-      expect(forwarded).toBe(false)
+          },
+        ],
+      }),
     }
+    const host: RegisteredBinding = {
+      id: 2,
+      config: () => ({
+        bindings: bindByIds({
+          "task.new.global": () => {
+            opened = true
+          },
+        }),
+      }),
+    }
+    const stack = passthrough ? [terminal, host] : [host]
+    expect(bindingReachability(stack).prefix).toContain("task.new.global")
+    expect(bindingReachability(stack).direct).not.toContain("task.new.global")
+
+    expect(dispatchKeyEvent(stack, makeEvt("a", { ctrl: true }), 100)).toBe(true)
+    expect(dispatchKeyEvent(stack, makeEvt("n"), 200)).toBe(true)
+    expect(opened).toBe(true)
+    expect(forwarded).toBe(false)
   })
 
   test("a bare ctrl+n reaches the terminal, never New task", () => {

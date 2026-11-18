@@ -73,13 +73,17 @@ describe("attached screen approval", () => {
       expect(registry.debugSnapshot().tabs.task?.tab).toMatchObject({ state: "running", source: "observed" })
       registry.observeTab("task", "tab", "rest")
       expect(registry.debugSnapshot().tabs.task?.tab.state).toBe("idle")
-      for (const kind of ["turn-start", "awaiting-input", "turn-complete"] as const) {
+      const hookOwned = (["turn-start", "awaiting-input", "turn-complete"] as const).map((kind) => {
         registry.report("task", kind, undefined, "tab", undefined, "claude")
         const before = registry.debugSnapshot()
-        expect(registry.reportScreen("task", "tab", true)).toBe(false)
-        expect(registry.reportScreen("task", "tab", false)).toBe(false)
-        expect(registry.debugSnapshot()).toEqual(before)
-      }
+        const accepted = [registry.reportScreen("task", "tab", true), registry.reportScreen("task", "tab", false)]
+        return { kind, accepted, unchanged: JSON.stringify(registry.debugSnapshot()) === JSON.stringify(before) }
+      })
+      expect(hookOwned).toEqual([
+        { kind: "turn-start", accepted: [false, false], unchanged: true },
+        { kind: "awaiting-input", accepted: [false, false], unchanged: true },
+        { kind: "turn-complete", accepted: [false, false], unchanged: true },
+      ])
     } finally {
       registry.close()
     }

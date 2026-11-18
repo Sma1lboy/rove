@@ -18,7 +18,7 @@ import { UpdatePage } from "../../src/tui-react/component/update-page"
 import { setTransparentBackground } from "../../src/tui-react/context/theme"
 import { BUNDLED_THEMES, DEFAULT_THEME, applyDisplayOverlay, resolveTheme } from "../../src/tui/context/theme-core"
 import { currentLang, setLocaleLang } from "../../src/tui/i18n"
-import { renderComponent, settle } from "./harness"
+import { renderComponent, waitForFrameText } from "./harness"
 
 const LANG = currentLang()
 afterEach(() => {
@@ -51,42 +51,43 @@ async function withOfflineUpdatePage<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
-test("the update page's cursor row takes the shared chrome, not a page-local fill", async () => {
-  // Transparent mode is the case that made this visible: a `primary` bar on a
-  // full-window page paints an opaque patch straight onto the host wallpaper,
-  // which is exactly what `row-selection-chrome` exists to prevent. Checked
-  // in BOTH modes, because "no fill" alone would also pass with the chrome
-  // deleted — the opaque half pins that the cursor still tints something.
-  for (const transparent of [true, false]) {
-    setTransparentBackground(transparent)
-    const theme = tokens(transparent)
-    const { spans } = await withOfflineUpdatePage(async () => {
-      const handle = await renderComponent(<UpdatePage onClose={() => {}} />, { width: 74, height: 20 })
-      await settle(150)
-      return handle
-    })
-    const frame = await spans()
-    // "Close" is the cursor row until the registry reports something newer,
-    // and offline it never does.
-    const row = spanWith(frame, "Close")
-    expect(row).toBeDefined()
-    // The ▌ marker carries the cursor signal in both modes.
-    expect(spanWith(frame, "▌")).toBeDefined()
-    if (transparent) {
-      expect(row?.bg?.a ?? 0).toBe(0)
-    } else {
-      expect(row?.bg?.toInts()).toEqual(theme.backgroundElement.toInts())
-    }
-    // Never the page-local bar this replaced.
-    expect(row?.bg?.toInts()).not.toEqual(theme.primary.toInts())
-  }
+// Transparent mode is the case that made this visible: a `primary` bar on a
+// full-window page paints an opaque patch straight onto the host wallpaper,
+// which is exactly what `row-selection-chrome` exists to prevent. Checked in
+// BOTH modes, because "no fill" alone would also pass with the chrome deleted —
+// the opaque half pins that the cursor still tints something.
+async function cursorRow(transparent: boolean) {
+  setTransparentBackground(transparent)
+  const { spans } = await withOfflineUpdatePage(async () => {
+    const handle = await renderComponent(<UpdatePage onClose={() => {}} />, { width: 74, height: 20 })
+    await waitForFrameText(handle.frame, "could not reach the registry")
+    return handle
+  })
+  const frame = await spans()
+  // The ▌ marker carries the cursor signal in both modes.
+  expect(spanWith(frame, "▌")).toBeDefined()
+  // "Close" is the cursor row until the registry reports something newer,
+  // and offline it never does.
+  const row = spanWith(frame, "Close")
+  expect(row).toBeDefined()
+  // Never the page-local bar this replaced.
+  expect(row?.bg?.toInts()).not.toEqual(tokens(transparent).primary.toInts())
+  return row
+}
+
+test("the update page's cursor row has no fill in transparent mode", async () => {
+  expect((await cursorRow(true))?.bg?.a ?? 0).toBe(0)
+})
+
+test("the update page's cursor row takes the shared element tint when opaque", async () => {
+  expect((await cursorRow(false))?.bg?.toInts()).toEqual(tokens(false).backgroundElement.toInts())
 })
 
 test("the update page header's close hint is translated with its title", async () => {
   setLocaleLang("zh")
   const { frame } = await withOfflineUpdatePage(async () => {
     const handle = await renderComponent(<UpdatePage onClose={() => {}} />, { width: 74, height: 20 })
-    await settle(150)
+    await waitForFrameText(handle.frame, "ROVE 更新")
     return handle
   })
   // Pin the HEADER ROW, not the page: `update.actions.close` also renders as

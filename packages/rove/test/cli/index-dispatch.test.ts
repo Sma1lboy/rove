@@ -51,10 +51,6 @@ async function runCli(...args: string[]): Promise<void> {
   vi.resetModules()
   const { cliDone } = await import("../../src/cli/index.ts")
   await cliDone.catch(() => {})
-  // Bare launch performs sequential dynamic imports (terminal-title, the
-  // TUI, then the deferred welcome installs). Drain enough turns for that
-  // fire-and-forget main() chain to settle before assertions run.
-  for (let i = 0; i < 6; i++) await new Promise((resolve) => setImmediate(resolve))
 }
 
 beforeEach(() => {
@@ -85,15 +81,10 @@ describe("version, help, launch, and unknown commands", () => {
    * reach the product. The greeting is a dialog over the workspace now, so
    * every bare launch starts Rove — there is no branch that skips it.
    */
-  test("a first run still launches the TUI — the greeting is a dialog, not a detour", async () => {
-    await runCli()
-    await vi.waitFor(() => expect(spies.startTui).toHaveBeenCalled())
-  })
-
-  /** npx and the summary lines need a terminal the renderer no longer owns. */
-  test("deferred welcome installs run after the TUI exits", async () => {
+  test("a first run still launches the TUI, and deferred welcome installs run after it exits", async () => {
     await runCli()
     await vi.waitFor(() => expect(spies.pendingWelcomeInstalls).toHaveBeenCalled())
+    expect(spies.startTui).toHaveBeenCalled()
     expect(spies.startTui.mock.invocationCallOrder[0]).toBeLessThan(
       spies.pendingWelcomeInstalls.mock.invocationCallOrder[0] as number,
     )

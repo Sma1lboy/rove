@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test"
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test"
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -15,6 +15,8 @@ const deps = (over: Partial<TaskOpsDeps> = {}): TaskOpsDeps => ({
   prPrompt: async (wt) => `open a PR from ${wt}`,
   reorderTab: async () => true,
   openExternal: () => {},
+  reveal: () => {},
+  isDir: () => false,
   detectOpener: () => ({ id: "env", label: "myeditor", command: "myeditor", args: [] }),
   openWorktree: () => true,
   exists: () => true,
@@ -276,13 +278,13 @@ describe("task.openScratch", () => {
   test("always opens the Mac's home as a scratch dir task; the client names no directory", async () => {
     const { result, calls } = await run(
       "task.openScratch",
-      { dir: "/etc", engine: "codex" },
+      { dir: "/etc", engine: "codex", model: "gpt-5" },
       { "task.openDir": { taskId: "S1" } },
     )
     expect(result).toEqual({ taskId: "S1" })
     expect(calls.at(-1)).toEqual({
       rpc: "task.openDir",
-      payload: { dir: "/home/me", scratch: true, vendor: "codex" },
+      payload: { dir: "/home/me", scratch: true, vendor: "codex", model: "gpt-5" },
     })
   })
 
@@ -346,45 +348,44 @@ describe("fs.subdirs and repo.probe", () => {
     await expect(run("fs.subdirs", { path: "relative/x" })).rejects.toMatchObject({ code: "BAD_ARGS" })
   })
 
-  test("a drive or UNC path is absolute on Windows only", () => {
-    for (const path of ["C:\\Code\\app", "C:/Code/app", "\\\\host\\share"]) {
-      expect(isAbsPath(path, "win32")).toBe(true)
-      expect(isAbsPath(path, "darwin")).toBe(false)
-    }
-    for (const path of ["C:app", "relative\\x", "\\rooted"]) expect(isAbsPath(path, "win32")).toBe(false)
+  test.each(["C:\\Code\\app", "C:/Code/app", "\\\\host\\share"])("%s is absolute on Windows only", (path) => {
+    expect(isAbsPath(path, "win32")).toBe(true)
+    expect(isAbsPath(path, "darwin")).toBe(false)
+  })
+
+  test.each(["C:app", "relative\\x", "\\rooted"])("%s is not absolute on Windows", (path) => {
+    expect(isAbsPath(path, "win32")).toBe(false)
+  })
+
+  test("a POSIX absolute path counts on Windows too, and absPath refuses a relative one", () => {
     expect(isAbsPath("/w/a", "win32")).toBe(true)
     expect(absPath({ repo: "/w/a" }, "repo")).toBe("/w/a")
     expect(() => absPath({ repo: "relative/x" }, "repo")).toThrow()
   })
 
   test("probe names the reason a path is not a repo and lists branches for one that is", async () => {
-    const saved = { ...taskOpDeps }
-    try {
-      taskOpDeps.validateRepoPath = (p) => (p === "/r" ? null : `path does not exist: ${p}`)
-      taskOpDeps.listLocalBranches = () => ["main", "dev"]
-      taskOpDeps.getCurrentBranch = () => "dev"
-      const bad = await run("repo.probe", { path: "/nope/" })
-      expect(bad.result).toEqual({ ok: false, repo: "/nope", reason: "path does not exist: /nope" })
-      // A real folder git cannot use is fine: it opens in place, without worktrees.
-      const plain = await run("repo.probe", { path: `${root}/alpha` })
-      expect(plain.result).toEqual({ ok: true, repo: `${root}/alpha`, git: false, branches: [], current: null })
-      const ok = await run("repo.probe", { path: "/r/" })
-      expect(ok.result).toEqual({ ok: true, repo: "/r", branches: ["main", "dev"], current: "dev" })
-      const withWt = await run(
-        "repo.probe",
-        { path: "/r", adoptable: true },
-        { "worktree.discoverAdoptable": { worktrees: [{ path: "/w" }] } },
-      )
-      expect(withWt.result).toMatchObject({ worktrees: [{ path: "/w" }] })
-    } finally {
-      Object.assign(taskOpDeps, saved)
-    }
+    taskOpDeps.validateRepoPath = (p) => (p === "/r" ? null : `path does not exist: ${p}`)
+    taskOpDeps.listLocalBranches = () => ["main", "dev"]
+    taskOpDeps.getCurrentBranch = () => "dev"
+    const bad = await run("repo.probe", { path: "/nope/" })
+    expect(bad.result).toEqual({ ok: false, repo: "/nope", reason: "path does not exist: /nope" })
+    // A real folder git cannot use is fine: it opens in place, without worktrees.
+    const plain = await run("repo.probe", { path: `${root}/alpha` })
+    expect(plain.result).toEqual({ ok: true, repo: `${root}/alpha`, git: false, branches: [], current: null })
+    const ok = await run("repo.probe", { path: "/r/" })
+    expect(ok.result).toEqual({ ok: true, repo: "/r", branches: ["main", "dev"], current: "dev" })
+    const withWt = await run(
+      "repo.probe",
+      { path: "/r", adoptable: true },
+      { "worktree.discoverAdoptable": { worktrees: [{ path: "/w" }] } },
+    )
+    expect(withWt.result).toMatchObject({ worktrees: [{ path: "/w" }] })
   })
 })
 
 describe("file.openExternal", () => {
-  const wt = mkdtempSync(join(tmpdir(), "rove-open-"))
-  const outside = mkdtempSync(join(tmpdir(), "rove-outside-"))
+  let wt = ""
+  let outside = ""
   const real = (opened: string[]) =>
     deps({
       openExternal: (p) => opened.push(p),
@@ -397,27 +398,61 @@ describe("file.openExternal", () => {
       },
       runnable: (p) => (require("node:fs").statSync(p).mode & 0o111) !== 0,
     })
-  const reply = { "get-task": { task: { worktreePath: wt } } }
-  writeFileSync(join(wt, "pic.png"), "x")
-  writeFileSync(join(wt, "run.png"), "x")
-  chmodSync(join(wt, "run.png"), 0o755)
-  writeFileSync(join(wt, "notes.txt"), "x")
-  writeFileSync(join(outside, "secret.png"), "x")
-  symlinkSync(join(outside, "secret.png"), join(wt, "link.png"))
-
-  afterEach(() => {})
+  const reply = () => ({ "get-task": { task: { worktreePath: wt } } })
+  beforeAll(() => {
+    wt = mkdtempSync(join(tmpdir(), "rove-open-"))
+    outside = mkdtempSync(join(tmpdir(), "rove-outside-"))
+    writeFileSync(join(wt, "pic.png"), "x")
+    writeFileSync(join(wt, "run.png"), "x")
+    chmodSync(join(wt, "run.png"), 0o755)
+    writeFileSync(join(wt, "notes.txt"), "x")
+    writeFileSync(join(outside, "secret.png"), "x")
+    symlinkSync(join(outside, "secret.png"), join(wt, "link.png"))
+  })
+  afterAll(() => {
+    rmSync(wt, { recursive: true, force: true })
+    rmSync(outside, { recursive: true, force: true })
+  })
 
   test("opens a media file inside the worktree in the Mac's opener", async () => {
     const opened: string[] = []
-    await run("file.openExternal", { taskId: T, path: "pic.png" }, reply, real(opened))
+    await run("file.openExternal", { taskId: T, path: "pic.png" }, reply(), real(opened))
     expect(opened).toEqual([require("node:fs").realpathSync(join(wt, "pic.png"))])
   })
 
-  test("refuses anything the OS would run, plain text, climbs and symlinks out of the worktree", async () => {
-    const opened: string[] = []
-    for (const path of ["run.png", "notes.txt", "../x.png", "/etc/hosts.png", "link.png", "missing.png"]) {
-      await expect(run("file.openExternal", { taskId: T, path }, reply, real(opened))).rejects.toThrow()
+  test.each(["run.png", "notes.txt", "../x.png", "/etc/hosts.png", "link.png", "missing.png"])(
+    "refuses %s: anything the OS would run, plain text, climbs and symlinks out of the worktree",
+    async (path) => {
+      const opened: string[] = []
+      await expect(run("file.openExternal", { taskId: T, path }, reply(), real(opened))).rejects.toThrow()
+      expect(opened).toEqual([])
+    },
+  )
+})
+
+describe("file.reveal / file.openTerminal", () => {
+  const reply = { "get-task": { task: { worktreePath: "/wt" } }, "tab-new": { tabId: "tab-3" } }
+
+  test("reveal shows a path inside the worktree and refuses one that climbs out", async () => {
+    const shown: string[] = []
+    const d = deps({ reveal: (p) => shown.push(p) })
+    await run("file.reveal", { taskId: T, path: "src/a.ts" }, reply, d)
+    await expect(run("file.reveal", { taskId: T, path: "../a.ts" }, reply, d)).rejects.toThrow()
+    expect(shown).toEqual(["/wt/src/a.ts"])
+  })
+
+  test("a terminal opens in the file's folder, in the folder itself, or at the root with nothing typed", async () => {
+    const typed = async (path: string, isDir: boolean) => {
+      const { calls } = await run("file.openTerminal", { taskId: T, path }, reply, deps({ isDir: () => isDir }))
+      const call = calls.find((c) => "verb" in c && c.verb === "tab-new")
+      return call && "argv" in call ? call.argv.slice(2) : null
     }
-    expect(opened).toEqual([])
+    expect(await typed("src/it's/a.ts", false)).toEqual(["--type=cd -- 'src/it'\\''s'"])
+    expect(await typed("src/lib/", true)).toEqual(["--type=cd -- 'src/lib'"])
+    expect(await typed("README.md", false)).toEqual([])
+  })
+
+  test("a path that could end the typed line is refused", async () => {
+    await expect(run("file.openTerminal", { taskId: T, path: "a\nrm -rf x/b" }, reply)).rejects.toThrow()
   })
 })

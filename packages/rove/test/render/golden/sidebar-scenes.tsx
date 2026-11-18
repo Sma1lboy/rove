@@ -5,12 +5,6 @@
  * A scene is a fully-specified `SidebarTree` mount plus, optionally, the keys
  * to press before capturing. Keeping the catalog separate from the runner means
  * adding a state is a data edit, and the runner's compare logic never grows.
- *
- * Deliberately excluded from every scene: `kind: "main"` tasks. A project row
- * resolves its label by polling the repo's real git HEAD, so a frame containing
- * one would depend on the checkout the test happened to run against. That row's
- * own logic is locked exhaustively (and hermetically) by the pure state matrix
- * in `test/golden/sidebar-row-state.golden.txt` instead.
  */
 
 import type { TaskEngineState } from "@/client/remote-orchestrator"

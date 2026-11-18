@@ -21,12 +21,32 @@ export interface EngineChoice {
   readonly setEngine: (id: string) => void
 }
 
+const ENGINES_KEY = "rove.web.engines"
+
+/** The engine list of the last visit, so a reloaded page draws its engine and model chips before the bridge answers. */
+function savedEngines(): { engines: EngineRow[]; preferred?: string } | undefined {
+  try {
+    const engines: unknown = JSON.parse(localStorage.getItem(ENGINES_KEY) ?? "null")
+    return Array.isArray(engines) ? { engines } : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function saveEngines(engines: readonly EngineRow[]): void {
+  try {
+    localStorage.setItem(ENGINES_KEY, JSON.stringify(engines))
+  } catch {}
+}
+
 /** The engines Settings → Engines has on, preselecting the one `repo` was last started on (the TUI's picker default). */
 export function useEngineChoice(model: AppModel, repo?: string, wanted?: string): EngineChoice {
   type Reply = { engines: EngineRow[]; preferred?: string }
   const params = repo ? { repo } : {}
   const [seed] = useState(() => {
-    const last = lastReply<Reply>(model, "engines.list", params)
+    // The list is the same for every project; only `preferred` is per repo. The rail read it at connect.
+    const last =
+      lastReply<Reply>(model, "engines.list", params) ?? lastReply<Reply>(model, "engines.list") ?? savedEngines()
     const offered = last ? offeredEngines(last.engines) : []
     return { offered, engine: last ? defaultEngineId(offered, wanted ?? last.preferred) : "" }
   })
@@ -34,13 +54,17 @@ export function useEngineChoice(model: AppModel, repo?: string, wanted?: string)
   const [engine, setEngine] = useState(seed.engine)
   // biome-ignore lint/correctness/useExhaustiveDependencies: preselected once per dialog; a later repo change keeps the user's pick
   useEffect(() => {
-    void requestRemembered<Reply>(model, "engines.list", params)
-      .then((res) => {
-        const offered = offeredEngines(res.engines)
-        setEngines(offered)
-        setEngine(defaultEngineId(offered, wanted ?? res.preferred))
-      })
-      .catch(() => setEngines([]))
+    // On every (re)connect: a view restored with the page mounts before the socket is up. A failed read keeps the list shown.
+    return model.client.onOpen(() => {
+      void requestRemembered<Reply>(model, "engines.list", params)
+        .then((res) => {
+          saveEngines(res.engines)
+          const offered = offeredEngines(res.engines)
+          setEngines(offered)
+          setEngine(defaultEngineId(offered, wanted ?? res.preferred))
+        })
+        .catch(() => {})
+    })
   }, [model])
   return { engines, engine, setEngine }
 }

@@ -45,6 +45,8 @@ export interface TabStatus extends RowStatus {
   readonly restored: boolean
   /** Some engine reported on this tab (hooks or observation): its status is tracked, not guessed. */
   readonly tracked: boolean
+  /** The engine running in the tab now, when it is not necessarily the task's own (one started by hand in its shell). */
+  readonly engine?: string
 }
 
 export interface TaskStatus {
@@ -64,6 +66,8 @@ export interface TabStatusInput {
   readonly answeredAt?: number
   /** From the PTY host's session list; undefined when the host did not answer. */
   readonly session?: { readonly alive: boolean; readonly restored: boolean }
+  /** The engine the last foreground walk found in the session. */
+  readonly engine?: string
 }
 
 const ATTENTION_STATES: ReadonlySet<string> = new Set(["rate_limited", "error", "dead"])
@@ -73,6 +77,7 @@ export function tabStatus(input: TabStatusInput): TabStatus {
     alive: input.session?.alive ?? false,
     restored: input.session?.restored ?? false,
     tracked: input.activity !== undefined || input.pending !== undefined,
+    ...(input.engine && input.session?.alive ? { engine: input.engine } : {}),
   }
   const a = input.activity
   if (session.restored) return { kind: "attention", reason: "restored", since: a?.at ?? 0, ...session }

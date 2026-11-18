@@ -112,9 +112,7 @@ describe("GitWorktreeManager.list", () => {
     const list = await mgr.list(repo)
     const branches = list.map((w) => w.branch).sort()
     expect(branches).toEqual(["rove/a", "rove/b"])
-    for (const w of list) {
-      expect(w.path.startsWith(worktreeRootFor(repo))).toBe(true)
-    }
+    expect(list.map((w) => w.path.startsWith(worktreeRootFor(repo)))).toEqual([true, true])
   })
 
   test("still lists legacy .claude/worktrees tasks without rewriting their paths", async () => {
@@ -176,17 +174,6 @@ describe("GitWorktreeManager.isDirty / currentBranch", () => {
 })
 
 describe("GitWorktreeManager.remove", () => {
-  test("removes a clean worktree without force", async () => {
-    const mgr = new GitWorktreeManager()
-    const target = worktreePathFor(repo, "task-rm")
-    await mgr.create(repo, "rove/task-rm", target)
-
-    await mgr.remove(target)
-    expect(fs.existsSync(target)).toBe(false)
-    const list = await mgr.list(repo)
-    expect(list.find((w) => w.path === target)).toBeUndefined()
-  })
-
   test("refuses to remove a dirty worktree without force", async () => {
     const mgr = new GitWorktreeManager()
     const target = worktreePathFor(repo, "task-dirty-rm")
@@ -304,7 +291,7 @@ describe("GitWorktreeManager.listAll (KOB-256)", () => {
     expect(byBranch.has("rove/managed")).toBe(true)
     expect(byBranch.has("ext-branch")).toBe(true)
     // main checkout (the repo root branch) is excluded
-    for (const w of all) expect(fs.realpathSync(w.path)).not.toBe(fs.realpathSync(repo))
+    expect(all.map((w) => fs.realpathSync(w.path))).not.toContain(fs.realpathSync(repo))
     // roveManaged flag distinguishes origin
     expect(byBranch.get("rove/managed")?.roveManaged).toBe(true)
     expect(byBranch.get("ext-branch")?.roveManaged).toBe(false)

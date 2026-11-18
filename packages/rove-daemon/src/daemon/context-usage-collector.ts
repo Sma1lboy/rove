@@ -18,6 +18,7 @@ import type { DaemonActivityRegistry } from "./activity-registry.ts"
 import type { DaemonOrchestrator, EngineContextUsage, VendorId } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
+import { computeNextAllowedAt } from "./poll-scheduling.ts"
 import type { DaemonRuntimeAdapter, PollCadenceConfig, PollScheduleState } from "./runtime.ts"
 
 /** A context reading changes per TURN, not per frame. */
@@ -167,9 +168,7 @@ export class ContextUsageCollector {
       .finally(() => {
         clearTimeout(timer)
         const finishedAt = Date.now()
-        held.nextAllowedAt = controller.signal.aborted
-          ? startedAt + cadence.slowRetryMs
-          : finishedAt + Math.max(cadence.minIntervalMs, (finishedAt - startedAt) * 5)
+        held.nextAllowedAt = computeNextAllowedAt(startedAt, finishedAt, controller.signal.aborted, cadence)
         held.inFlight = false
       })
   }

@@ -27,6 +27,7 @@ import {
   defaultKeybindingsPath,
   startKeybindingsWatcher,
 } from "./keybindings-watcher.ts"
+import { makePrRefreshReader } from "./pr-refresh-setting.ts"
 import { DEFAULT_PR_STATUS_POLL_MS, startPrStatusPoller } from "./pr-status-collector.ts"
 import type { PtyOwnerResolver } from "./pty-exit-watch.ts"
 import { DEFAULT_QUOTA_RESUME_TICK_MS, startQuotaResumeRunner } from "./quota-resume.ts"
@@ -40,7 +41,6 @@ import {
   startTranscriptActivityCollector,
 } from "./transcript-activity-collector.ts"
 import { DEFAULT_UI_PREFS_DEBOUNCE_MS, defaultUiPrefsStatePath, startUiPrefsWatcher } from "./ui-prefs-watcher.ts"
-import { startVanishedProjectsSweeper } from "./vanished-projects.ts"
 import { DEFAULT_WORKTREE_CHANGES_TICK_MS, startWorktreeChangesCollector } from "./worktree-changes-collector.ts"
 
 /** npm re-check cadence; `latest` rarely moves. */
@@ -65,6 +65,8 @@ export interface DaemonCollectorOptions {
   readonly automationTickMs?: number
   /** Whose a hosted PTY is (default: the child aliased to it, else the key's task); the server adds released aliases. */
   readonly ownerOf?: PtyOwnerResolver
+  /** Each walked tab's foreground engine (null = none), every observer tick. */
+  readonly onLiveEngine?: (taskId: string, tabId: string, vendor: string | null) => void
   /** The conversation a task's own engine tab pinned; names a task that shares its directory. */
   readonly conversationOf?: ConversationOf
 }
@@ -210,13 +212,17 @@ export function startDaemonCollectors(
   const stopStatusWatch = receiveStatus
     ? watchProgramStatus(receiveStatus, { homeDir: options.homeDir })
     : async () => {}
+  const upgradeProtocol = createProtocolUpgradeReporter(orch, runtime)
   // First tick immediately (restart seeding), then the slow poll.
   const stopActivityObserver = activity
     ? startActivityObserver(
         activity,
         {
           ...createActivityObserverIo(options.homeDir, runtime, activity, ownerOf),
-          onEngineEvidence: createProtocolUpgradeReporter(orch, runtime),
+          onEngineEvidence: (taskId, tabId, evidence) => {
+            options.onLiveEngine?.(taskId, tabId, evidence.walkVendor)
+            return upgradeProtocol(taskId, tabId, evidence)
+          },
           onProgramStatusEvent: receiveStatus,
         },
         () => hasSubscribersFor("engine-state"),
@@ -260,6 +266,8 @@ export function startDaemonCollectors(
   const stopMachineHub = runtime.startMachineHub
     ? gateMachineHub(runtime.startMachineHub, bus, hasSubscribersFor)
     : () => {}
+
+  const stopAttachmentSweep = runtime.startAttachmentSweep?.((line) => logDaemonInfo("attachments", line)) ?? (() => {})
 
   const stopKeybindingsWatcher = startKeybindingsWatcher(bus, {
     path: defaultKeybindingsPath(options.homeDir),
@@ -309,6 +317,8 @@ export function startDaemonCollectors(
     undefined,
     // An opted-in task with an open PR is watched too: CI turning red overnight is what it waits for.
     () => needsPrPoll(orch.listTasks()) || (activity?.workingTaskIds().length ?? 0) > 0,
+    undefined,
+    makePrRefreshReader(),
   )
 
   // Ungated: its job is resuming rate-limited engines while nobody is attached.
@@ -345,7 +355,6 @@ export function startDaemonCollectors(
 
   // Ungated: the row is wrong whether or not a client watches, and its first
   // pass is what cleans up after a restart.
-  const stopVanishedProjects = startVanishedProjectsSweeper(orch)
 
   // Ungated: a schedule that requires an audience is not a schedule.
   const stopAutomationRunner = automations
@@ -406,8 +415,8 @@ export function startDaemonCollectors(
         stopQuotaUsagePoller,
         stopUiPrefsWatcher,
         stopStateWatcher,
-        stopVanishedProjects,
         stopMachineHub,
+        stopAttachmentSweep,
         stopKeybindingsWatcher,
         stopWorktreeChangesCollector,
         stopTranscriptActivityCollector,

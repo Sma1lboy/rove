@@ -24,7 +24,7 @@ export const appClass = (o: {
       ? `is-narrow narrow-${o.surface} grid-cols-[minmax(0,1fr)]`
       : o.zen
         ? "grid-cols-[var(--rail-w,minmax(220px,280px))_1fr]"
-        : "grid-cols-[var(--rail-w,minmax(220px,280px))_1fr_var(--panel-w,clamp(300px,28vw,440px))]",
+        : "grid-cols-[var(--rail-w,minmax(220px,280px))_minmax(0,1fr)_minmax(0,var(--panel-w,33%))]",
     o.zen ? "is-zen" : "",
     o.expanded ? "is-panel-expanded" : "",
     o.folded ? "is-rail-folded" : "",
@@ -66,7 +66,6 @@ export const NARROW_TAB = `flex items-center rounded-sm px-2.5 py-1.5 text-muted
 
 export const HINT_BAR =
   "inline-flex shrink-0 items-baseline gap-3 whitespace-nowrap text-meta text-muted *:relative [&_.link:disabled]:cursor-default [&_.link:disabled]:opacity-50"
-export const PANE_HINT = "keys-only m-0 overflow-hidden px-3.5 py-1 text-meta text-ellipsis whitespace-nowrap"
 
 /** A chord's keycap badge; in the rail head it sits left of its chip, since the head clips anything hanging below. */
 export const shortcutBadge = (head: boolean): string =>
@@ -137,10 +136,6 @@ export const HELP_TITLE = "m-0 mb-1 font-sans text-meta font-bold normal-nums te
 export const HELP_ROW = `flex gap-3 py-px ${META}`
 export const HELP_CAP = "min-w-[14ch] text-ink"
 
-/** Daemon out-of-date banner (TUI VersionSkewBanner). */
-export const DAEMON_BANNER =
-  "flex flex-wrap items-baseline gap-3 [border-bottom:var(--hairline)_solid_var(--warning)] bg-inset px-3.5 py-1 text-meta text-warning [&_span]:text-muted"
-
 /** The prefix HUD, bottom-left over the rail as the TUI's. */
 export const PREFIX_HUD = `keys-only fixed bottom-[34px] left-3 z-40 min-w-55 rounded-sm border-hairline border-line bg-surface px-3 py-2 font-mono text-meta ${FONT_RESET} text-ink shadow-popover`
 /** A HUD line rises in, then sinks out at `--hud-out`; one brought back after the guide only sinks. */
@@ -152,7 +147,8 @@ export const PLACEHOLDER = `m-auto font-mono text-meta ${FONT_RESET} text-subtle
 export const PLACEHOLDER_BOX = `${PLACEHOLDER} flex flex-col items-center gap-3 [&_p]:m-0`
 
 /** The content column: the workspace's top bar over its pane (`workspace` stays: pane-focus.ts and commands.ts find it). */
-export const WORKSPACE = "workspace row-1 flex min-h-0 min-w-0 flex-col gap-1.5 px-1 pt-2 pb-1"
+/** `isolate`: the terminal's own layers (a leaving terminal's cover at z-6) stay under the folded rail floating over it. */
+export const WORKSPACE = "workspace isolate row-1 flex min-h-0 min-w-0 flex-col gap-1.5 px-1 pt-2 pb-1"
 export const PANE =
   "flex min-h-0 flex-1 overflow-hidden rounded-md border-hairline border-line bg-paper focus-within:border-focus"
 /** The selected task is working: under the flow pref its border runs in the task's colour. */
@@ -163,7 +159,7 @@ export const TERM_PANE = "relative flex min-w-0 flex-1 flex-col"
 /** The terminal and its overlays; the touch key row and the composer sit under it, outside. */
 export const TERM_BODY = "relative flex min-h-0 min-w-0 flex-1 flex-col"
 /** No padding: the fit addon sizes the grid from this box minus `.xterm`'s padding (tailwind.css), not its own. `term-host` stays for those xterm rules. */
-export const TERM_HOST = "term-host relative min-h-0 min-w-0 flex-1 touch-none overflow-hidden"
+export const TERM_HOST = "term-host relative min-h-0 min-w-0 flex-1 touch-none overflow-clip"
 /** Kitty placeholder images, over xterm's canvas and under its decorations. */
 export const TERM_IMAGES = "pointer-events-none absolute inset-0 z-5 h-full w-full"
 /** The terminal's own box (term-pool.ts); a leaving one is held over its successor until that one has painted. */

@@ -202,7 +202,7 @@ is active.
 | `d` | Delete Task / end a project's conversation | | `x` | Worktrees page |
 | `gg` / `shift+g` | Top / bottom | | | |
 | `shift+p` | Pin / unpin managed Task | | `right` | Focus the current engine pane |
-| `shift+m` | Enter reorder mode (scope-aware: tab / task / project) | | `t` | Cycle task sort (default → recent → attention → name) |
+| `shift+m` | Enter reorder mode (scope-aware: tab / task) | | `t` | Cycle task sort (default → recent → attention → name) |
 
 Sidebar row verbs (`b`, `v`, `o`, `d`, `r`, `shift+p`, `shift+m`) act on the
 row under the cursor — the highlight `j`/`k` moves, which may differ from the
@@ -210,9 +210,9 @@ active task until you press `enter`. Prefix chords (`ctrl+a o`, `ctrl+a p`)
 are global and act on the active task, except while the sidebar has focus —
 both of them then follow the row under the cursor.
 
-In reorder mode, `j`/`k` moves the highlighted project and `enter` or `esc`
-finishes. Project headings themselves aren't cursor rows; the move routes
-through a Task row in that project.
+In reorder mode, `j`/`k` moves the highlighted row and `enter` or `esc`
+finishes. Project headings aren't cursor rows: a project moves from its
+header's menu (**Move to top**, **Move up**, **Move down**).
 
 **Files**
 
@@ -232,10 +232,10 @@ through a Task row in that project.
 `h` / `l` fold directories on both tabs — on Changes they also expand
 and collapse untracked-directory rows.
 
-The sidebar is a tree (project → Task → Terminal Tab) and it never folds, so
-everything is always visible. Search (`/`) matches titles, repos, branches,
-and live tab titles, and keeps matching rows' parents so a hit is never
-orphaned.
+Click a project header to fold or unfold its tasks. Search (`/`) temporarily
+opens folded projects and task trees. It matches the conversation name, task
+title, repo or branch and keeps matching rows’ parents visible. Enter opens
+the highlighted task. Escape leaves search. Both restore the saved folds.
 
 Right-click any row for its context menu; `j`/`k` and `⏎` drive it, and a press
 anywhere else, or `esc`, dismisses it. Common row actions also have direct
@@ -251,12 +251,12 @@ id `rove api` Task verbs take (`read-output --task-id <id>`, `land --task-id
 <id>`) on the clipboard, and is offered on every Task row. **Copy branch name** and
 **Copy path** put the Task's branch or recorded worktree path on the system
 clipboard (local clipboard command plus OSC 52, so it also works over SSH);
-copying never creates the worktree, and a project-main or directory row, whose
+copying never creates the worktree, and a directory row, whose
 stored branch is empty, offers only Copy path. **Run again** re-fires the
 Task's stored brief as a new Task, and appears only on a row that recorded
 one. **Land into base branch** runs the same land the Worktrees page's `l`
 does, and appears only on a managed Task row that has a branch — a
-project-main or directory row owns no Rove branch to land. On a project
+directory row owns no Rove branch to land. On a project
 header, **Field notes** reads the repo's durable notes (`rove api note`).
 **Open in editor**, **Rename branch**, and
 **Change engine** are the `o`, `b`, and `v` chords for the row you clicked;
@@ -292,7 +292,7 @@ earliest retained line, or **latest** to return to the bottom and follow new
 output. These buttons do not send input to the engine or shell.
 
 Kitty-protocol `shift+enter` is forwarded as xterm modified Enter, including
-keypad Enter. This preserves the engine's newline binding instead of sending
+keypad Enter; the web client's terminal sends the same. This preserves the engine's newline binding instead of sending
 a plain Enter; ordinary Enter and legacy terminal sequences keep their existing behavior.
 
 ### Copying from it

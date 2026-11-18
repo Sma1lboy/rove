@@ -5,7 +5,7 @@
  * entry routes to an existing callback.
  *
  * Exceptions (`newTaskFromBranch`, `setStatus`, `copyId`, `copyBranch`, `copyPath`, `land`, `fieldNotes`,
- * `runAgain`, `moveToTop`, `toggleFold`, `resolveConflicts`, `archive`) are menu-only until the owner agrees a chord (AGENTS.md,
+ * `runAgain`, `moveToTop`, `toggleFold`, `resolveConflicts`, `muteNotifications`, `archive`) are menu-only until the owner agrees a chord (AGENTS.md,
  * "Keybindings"); then the entry mirrors it like the rest.
  *
  * "New chat" routes to the row's workspace ctrl+e picker, like pressing the
@@ -38,8 +38,11 @@ export type TreeMenuAction =
   | "pin"
   | "reorder"
   | "moveToTop"
+  | "moveProjectUp"
+  | "moveProjectDown"
   | "runAgain"
   | "setStatus"
+  | "muteNotifications"
   | "copyId"
   | "copyBranch"
   | "copyPath"
@@ -68,12 +71,15 @@ export interface TreeMenuItem {
 }
 
 export interface TreeMenuContext {
-  /** Project rows: it has a `main` checkout, the handle every project move goes through. */
+  /** Project rows: a project of this daemon, with the whole list on screen. */
   readonly projectMovable?: boolean
-  /** Project rows: already the topmost movable project, so "Move to top" would be dead. */
+  /** Project rows: already the topmost (bottommost) movable project, so a move that way would be dead. */
   readonly projectFirst?: boolean
+  readonly projectLast?: boolean
   /** Task rows: the worktree has a merge/rebase/cherry-pick/revert stopped on conflicts. */
   readonly operationPaused?: boolean
+  /** Task rows: the task's toasts and chime are muted (`notifications.mutedTasks`). */
+  readonly notificationsMuted?: boolean
   /** Project rows: the Scratch section header, which stands for no repo. */
   readonly scratchSection?: boolean
 }
@@ -103,10 +109,9 @@ function stackVerbs(task: Task): TreeMenuItem[] {
   return stackable ? [{ action: "newTaskFromBranch", labelKey: "tasks.menu.newTaskFromBranch" }] : []
 }
 
-/** Rows `update --project` accepts: top-level, local, single-repo, not a project or routine session. */
+/** Rows `update --project` accepts: top-level, local, single-repo, not a routine session. */
 function canMoveToProject(task: Task): boolean {
   return (
-    task.kind !== "main" &&
     !task.routine &&
     !task.parentTaskId &&
     !task.sharesWorkspaceOf &&
@@ -117,36 +122,38 @@ function canMoveToProject(task: Task): boolean {
 }
 
 /**
- * Per-task verbs for worktree and tab rows. Rule throughout: no entry beats a
- * dead entry — e.g. no pin on `main` (always pinned; `setPinned` no-ops).
+ * Per-task verbs for worktree and tab rows. Rule throughout: no entry beats a dead entry.
  */
 function taskVerbs(task: Task, ctx: TreeMenuContext): TreeMenuItem[] {
   const verbs: TreeMenuItem[] = [{ action: "rename", labelKey: "tasks.menu.rename", bindingId: "sidebar.rename" }]
-  if (task.kind !== "main") {
-    verbs.push({
-      action: "pin",
-      labelKey: task.pinned === true ? "tasks.menu.unpin" : "tasks.menu.pin",
-      bindingId: "sidebar.pin",
-    })
-  }
+  verbs.push({
+    action: "pin",
+    labelKey: task.pinned === true ? "tasks.menu.unpin" : "tasks.menu.pin",
+    bindingId: "sidebar.pin",
+  })
   verbs.push({ action: "reorder", labelKey: "tasks.menu.reorder", bindingId: "sidebar.localMerge" })
   // Re-fire the stored brief as a NEW task; `prompt` is recorded only once
   // actually delivered.
   if (task.prompt !== undefined) verbs.push({ action: "runAgain", labelKey: "tasks.menu.runAgain" })
   // Otherwise status is only settable via `rove api update --status`. Not danger-toned.
   verbs.push({ action: "setStatus", labelKey: "tasks.menu.setStatus" })
+  // Menu-only. A noisy task keeps its unread dot but stops toasting and ringing.
+  verbs.push({
+    action: "muteNotifications",
+    labelKey: ctx.notificationsMuted === true ? "tasks.menu.unmuteNotifications" : "tasks.menu.muteNotifications",
+  })
   // Menu-only. Top-level, local, single-repo rows only: the rest refuse (`rove api update --project`).
   if (canMoveToProject(task)) verbs.push({ action: "moveToProject", labelKey: "tasks.menu.moveToProject" })
   // The id `rove api ... --task-id` takes; recorded at creation, so always offered.
   verbs.push({ action: "copyId", labelKey: "tasks.menu.copyId" })
-  // Copies need the string recorded: `main`/`dir` store `branch === ""`
+  // Copies need the string recorded: `dir` stores `branch === ""`
   // (label is live HEAD), and a never-entered task stores both as "" until
   // `ensureWorktree` allocates them.
   if (task.branch !== "") verbs.push({ action: "copyBranch", labelKey: "tasks.menu.copyBranch" })
   if (task.worktreePath !== "") verbs.push({ action: "copyPath", labelKey: "tasks.menu.copyPath" })
   // `o` / `b` / `v`, routed to the ROW's task (the chords read the active
   // task; see use-tree-menu.ts). `b` gated like `copyBranch`: `update --branch`
-  // refuses a `main`/`dir` row.
+  // refuses a `dir` row.
   verbs.push({ action: "openEditor", labelKey: "tasks.menu.openEditor", bindingId: "tasks.openWorktree" })
   if (task.branch !== "")
     verbs.push({ action: "renameBranch", labelKey: "tasks.menu.renameBranch", bindingId: "tasks.renameBranch" })
@@ -167,16 +174,14 @@ function taskVerbs(task: Task, ctx: TreeMenuContext): TreeMenuItem[] {
   // Menu-only: hand the paused operation's conflicts to the engine.
   if (ctx.operationPaused === true) verbs.push({ action: "resolveConflicts", labelKey: "tasks.menu.resolveConflicts" })
   // Menu-only (landing's chord is the Worktrees page `l`). `landTask` throws
-  // for `main`/`dir`; an unmaterialised task has no branch.
+  // for `dir`; an unmaterialised task has no branch.
   if (workspaceCapabilities(task).ownsBranch && task.branch !== "") {
     verbs.push({ action: "land", labelKey: "tasks.menu.land" })
   }
-  // Menu-only. Hides the row and its children; a project's main is the project itself.
-  if (task.kind !== "main") {
-    verbs.push({ action: "archive", labelKey: task.archived === true ? "tasks.menu.unarchive" : "tasks.menu.archive" })
-  }
-  // Say what goes: a `dir` task is a conversation in a folder the user owns; a project's main row ends its
-  // conversation and stays listed (Remove project lives on the project header).
+  // Menu-only. Hides the row and its children.
+  verbs.push({ action: "archive", labelKey: task.archived === true ? "tasks.menu.unarchive" : "tasks.menu.archive" })
+  // Say what goes: a `dir` task is a conversation in a folder the user owns (Remove project lives on the
+  // project header).
   verbs.push({
     action: "delete",
     labelKey: "tasks.menu.delete",
@@ -195,13 +200,16 @@ export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenu
     ]
   }
   if (row.kind === "project") {
-    // Remove project is menu-only (`d` on the main row ends its conversation instead). Field notes are
-    // menu-only too; agents file them with `rove api note`.
+    // Remove project and Field notes are menu-only; agents file notes with `rove api note`.
     const items: TreeMenuItem[] = [{ action: "newTask", labelKey: "tasks.menu.newTask", bindingId: "task.new" }]
     if (ctx.projectMovable) {
-      if (!ctx.projectFirst) items.push({ action: "moveToTop", labelKey: "tasks.menu.moveToTop" })
-      // Shift+M on the main row, which the menu puts the cursor on.
-      items.push({ action: "reorder", labelKey: "tasks.menu.reorderProject", bindingId: "sidebar.localMerge" })
+      if (!ctx.projectFirst) {
+        items.push(
+          { action: "moveToTop", labelKey: "tasks.menu.moveToTop" },
+          { action: "moveProjectUp", labelKey: "tasks.menu.moveProjectUp" },
+        )
+      }
+      if (!ctx.projectLast) items.push({ action: "moveProjectDown", labelKey: "tasks.menu.moveProjectDown" })
     }
     items.push(
       { action: "fieldNotes", labelKey: "tasks.menu.fieldNotes" },

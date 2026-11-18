@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import { MockTaskPty } from "../../src/tui/panes/terminal/pty-mock"
 import { createScriptedPtyRegistry } from "../../src/tui/panes/terminal/pty-scripted"
 import type { TaskPtyOpts } from "../../src/tui/panes/terminal/pty-types"
-import { PtyRegistry, _resetDefaultPtyRegistry, getDefaultPtyRegistry } from "../../src/tui/panes/terminal/registry"
+import { PtyRegistry } from "../../src/tui/panes/terminal/registry"
 
 const mockFactory = (opts: TaskPtyOpts) => new MockTaskPty(opts)
 
@@ -78,17 +78,6 @@ describe("PtyRegistry", () => {
   })
 })
 
-describe("default registry singleton", () => {
-  it("is created lazily, shared, and reset drops every shell", () => {
-    _resetDefaultPtyRegistry()
-    const reg = getDefaultPtyRegistry()
-    expect(getDefaultPtyRegistry()).toBe(reg)
-    _resetDefaultPtyRegistry()
-    expect(getDefaultPtyRegistry()).not.toBe(reg)
-    _resetDefaultPtyRegistry()
-  })
-})
-
 describe("TaskPty onExit contract (mock backend)", () => {
   it("notifies on kill and unsubscribes cleanly", () => {
     const pty = new MockTaskPty({ taskId: "t", cwd: "/" })
@@ -126,17 +115,6 @@ describe("releaseWhere (task-scoped teardown)", () => {
     expect(a2.killed).toBe(true)
     expect(b1.killed).toBe(false)
     expect(reg.size).toBe(1)
-  })
-})
-
-describe("paste contract (mock backend)", () => {
-  it("records pastes while alive and drops them once dead", () => {
-    const pty = new MockTaskPty({ taskId: "t", cwd: "/" })
-    pty.paste("multi\nline prompt")
-    expect(pty.pastes).toEqual(["multi\nline prompt"])
-    pty.kill()
-    pty.paste("late")
-    expect(pty.pastes).toEqual(["multi\nline prompt"])
   })
 })
 

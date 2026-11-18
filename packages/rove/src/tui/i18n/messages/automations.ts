@@ -143,7 +143,7 @@ export const en = {
   deleteFailed: 'Couldn\'t delete "{name}": {error}',
   enableFailed: '"{name}" stays paused: {error}',
   disableFailed: '"{name}" stays enabled: {error}',
-  runFailed: 'Couldn\'t run "{name}" now — schedule unchanged: {error}',
+  runFailed: 'Couldn\'t run "{name}" now: {error}',
 }
 
 export const zh: typeof en = {
@@ -262,5 +262,5 @@ export const zh: typeof en = {
   deleteFailed: "删除“{name}”失败：{error}",
   enableFailed: "“{name}”仍处于暂停状态：{error}",
   disableFailed: "“{name}”仍处于启用状态：{error}",
-  runFailed: "无法立即运行“{name}”——排程未受影响：{error}",
+  runFailed: "无法立即运行“{name}”：{error}",
 }

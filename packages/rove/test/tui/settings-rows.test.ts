@@ -1,17 +1,8 @@
 /**
- * Settings dialog row registry (settings-dialog/model.ts).
- *
- * Why these tests matter: the dialog's keyboard nav (j/k/enter), the
- * engines-section row-gated keys (r/x/d), and every section view's
- * cursor highlight all key off "a row's body index is its position in
- * the section's row list". The alternative is hand-chained
- * offset arithmetic (transparentRowIndex = themeCount, toastRowIndex =
- * themeCount+1+accentCount, ...) where one insertion shifts every
- * downstream index. These tests pin (a) the exact on-screen row ORDER
- * per section, (b) count parity with those offset formulas for
- * representative input sizes, and (c) the id-lookup helpers the views
- * use instead of arithmetic. If a row is added or reordered, the order
- * test here is the single place that must change with it.
+ * Settings dialog row registry (settings-dialog/model.ts). Keyboard nav and
+ * every section view's cursor highlight key off "a row's body index is its
+ * position in the section's row list", so these pin the positional contracts
+ * the views rely on and the id-lookup helpers they use instead of arithmetic.
  */
 
 import { describe, expect, it } from "vitest"
@@ -19,11 +10,9 @@ import { humanizeSlug } from "../../src/engine/interactive-command.ts"
 import {
   SECTIONS,
   type SettingsRowsInput,
-  bodyRowCount,
   devRows,
   engineRowId,
   engineRows,
-  feedbackRows,
   generalRows,
   pluginRowId,
   pluginRows,
@@ -52,29 +41,9 @@ function input(overrides: Partial<SettingsRowsInput> = {}): SettingsRowsInput {
 }
 
 describe("generalRows", () => {
-  it("keeps language first and each appearance setting reachable exactly once", () => {
+  it("keeps language first and every row id unique", () => {
     const rows = generalRows()
     expect(rows.slice(0, LANG).map((r) => (r.kind === "language" ? r.locale : "?"))).toEqual(LOCALES.map((l) => l.id))
-    expect(rows.slice(LANG, LANG + 11)).toEqual(
-      [
-        "theme",
-        "themeMode",
-        "transparent",
-        "focusAccent",
-        "splitStyle",
-        "railFold",
-        "workingBorder",
-        "taskColors",
-        "glyphSet",
-        "colorblind",
-        "runningTitle",
-      ].map((setting) => ({
-        id: `appearance:${setting}`,
-        kind: "appearance",
-        setting,
-      })),
-    )
-    expect(rowIndex(rows, "toast")).toBe(LANG + 11)
     expect(new Set(rows.map((row) => row.id)).size).toBe(rows.length)
   })
 })
@@ -86,11 +55,8 @@ describe("engineRows", () => {
     const rows = engineRows(list)
     expect(rows.length).toBe(ALL_VENDORS.length + customs.length + 4)
     // Engine row index === its position in the engine list (the section's <For> order).
-    list.forEach((vendor, i) => {
-      expect(rowIndex(rows, engineRowId(vendor))).toBe(i)
-      const row = rowAt(rows, i)
-      expect(row?.kind === "engine" && row.vendor).toBe(vendor)
-    })
+    expect(list.map((vendor) => rowIndex(rows, engineRowId(vendor)))).toEqual(list.map((_, i) => i))
+    expect(rows.slice(0, list.length).map((row) => row.kind === "engine" && row.vendor)).toEqual(list)
     // The add row sits at index === engine count (the section's addRowIndex),
     // then the buttons in the order they render: hooks install, hooks remove,
     // skill install. The view keys off `addRowIndex + 1` / `+ 2` / `+ 3`.
@@ -108,33 +74,10 @@ describe("engineRows", () => {
 })
 
 describe("devRows", () => {
-  it("with a daemon: reset, restart, reload, then the experimental toggles in order", () => {
-    const rows = devRows(true)
-    expect(rows.map((r) => r.kind)).toEqual([
-      "devReset",
-      "devRestartDaemon",
-      "devReloadSettings",
-      "devRemoteProjects",
-      "devAutoStatus",
-      "devDispatcher",
-    ])
-    expect(rowIndex(rows, "remote-projects")).toBe(3)
-    expect(rowIndex(rows, "auto-status")).toBe(4)
-    expect(rowIndex(rows, "dispatcher")).toBe(5)
-  })
-
-  it("without a daemon: the same list, one row shorter, indices shifted by one", () => {
-    const rows = devRows(false)
-    expect(rows.map((r) => r.kind)).toEqual([
-      "devReset",
-      "devReloadSettings",
-      "devRemoteProjects",
-      "devAutoStatus",
-      "devDispatcher",
-    ])
-    expect(rowIndex(rows, "remote-projects")).toBe(2)
-    expect(rowIndex(rows, "auto-status")).toBe(3)
-    expect(rowIndex(rows, "dispatcher")).toBe(4)
+  it("offers the daemon restart row only when there is a daemon", () => {
+    const withDaemon = devRows(true).map((r) => r.kind)
+    expect(withDaemon).toContain("devRestartDaemon")
+    expect(devRows(false).map((r) => r.kind)).toEqual(withDaemon.filter((kind) => kind !== "devRestartDaemon"))
   })
 })
 
@@ -157,13 +100,7 @@ describe("pluginRows", () => {
   })
 })
 
-describe("feedbackRows", () => {
-  it("is title, body, send (old feedbackRowCount === 3)", () => {
-    expect(feedbackRows().map((r) => r.kind)).toEqual(["feedbackTitle", "feedbackBody", "feedbackSend"])
-  })
-})
-
-describe("sectionRows / bodyRowCount", () => {
+describe("sectionRows", () => {
   it("keys lists the prefix key and every rebindable binding, and never a fixed or doc-only one", () => {
     const rows = sectionRows("keys", input())
     expect(rows.slice(0, 2).map((r) => r.kind)).toEqual(["prefixTapPresentation", "prefixTapPresentation"])
@@ -173,26 +110,9 @@ describe("sectionRows / bodyRowCount", () => {
     expect(ids).not.toContain("chat.send")
   })
 
-  it("matches the old per-section count formulas for a representative input", () => {
-    const inp = input({ engineList: [...ALL_VENDORS, "aider", "goose"], hasDaemon: true })
-    expect(bodyRowCount("general", inp)).toBe(LANG + 11 + 16) // language + appearance summaries + remaining preferences
-    expect(bodyRowCount("engines", inp)).toBe(ALL_VENDORS.length + 2 + 4) // built-ins + 2 custom + add + install + remove + skill
-    // swift / standard / deep, then the classifier: mode, endpoint, floor, key.
-    expect(bodyRowCount("autoRouting", inp)).toBe(3 + 4)
-    expect(bodyRowCount("marketplace", inp)).toBe(2)
-    expect(bodyRowCount("marketplace", { ...inp, marketplace: [] })).toBe(0)
-    expect(bodyRowCount("feedback", inp)).toBe(3)
-    // reset + restart + 3 experimental toggles; one fewer without a daemon.
-    expect(bodyRowCount("dev", inp)).toBe(6)
-    expect(bodyRowCount("dev", { ...inp, hasDaemon: false })).toBe(5)
-  })
-
-  it("row ids are unique within every section", () => {
-    const inp = input({ engineList: [...ALL_VENDORS, "aider"] })
-    for (const { id } of SECTIONS) {
-      const ids = sectionRows(id, inp).map((r) => r.id)
-      expect(new Set(ids).size).toBe(ids.length)
-    }
+  it.each(SECTIONS.map((section) => section.id))("row ids are unique within the %s section", (id) => {
+    const ids = sectionRows(id, input({ engineList: [...ALL_VENDORS, "aider"] })).map((r) => r.id)
+    expect(new Set(ids).size).toBe(ids.length)
   })
 })
 

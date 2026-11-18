@@ -127,6 +127,16 @@ final class TaskActionHost {
         } catch { fail(error) }
     }
 
+    /// `task.startScheduledNow` / `task.cancelScheduledStart` on a task held for a later start.
+    func scheduledStart(_ taskId: String, now: Bool) async {
+        guard let model else { return }
+        do {
+            _ = try await model.client.request(now ? "task.startScheduledNow" : "task.cancelScheduledStart", ["taskId": taskId], as: EmptyResult.self)
+            await didMutate(taskId)
+            show(now ? String(localized: "started") : String(localized: "scheduled start cancelled"))
+        } catch { fail(error) }
+    }
+
     /// Merges the task's base into its worktree.
     func syncBase(_ taskId: String) async {
         guard let model else { return }
@@ -140,7 +150,7 @@ final class TaskActionHost {
         }
     }
 
-    /// Hides the row or brings it back; the worktree, branch and sessions are untouched either way.
+    /// Hides the row or brings it back; archiving closes its sessions, the worktree and branch stay.
     func toggleArchived(_ taskId: String, force: Bool = false) async {
         guard let model else { return }
         let archiving = !model.store.isArchived(taskId)
@@ -150,7 +160,7 @@ final class TaskActionHost {
         do {
             _ = try await model.client.request("task.archive", args, as: EmptyResult.self)
             await didMutate(taskId)
-            show(archiving ? String(localized: "archived \(title) · worktree, branch and sessions untouched")
+            show(archiving ? String(localized: "archived \(title) · sessions closed, worktree and branch kept")
                            : String(localized: "restored \(title)"))
         } catch let busy as BridgeError where archiving && busy.code == "TASK_BUSY" {
             archiveBusy = taskId
@@ -235,6 +245,19 @@ struct TaskActionItems: View {
                 }
                 .accessibilityIdentifier("actionFixChecks")
             }
+            if row?.startsAt != nil {
+                Button { Task { await host.scheduledStart(taskId, now: true) } } label: { Label("Start now", systemImage: "play") }
+                    .accessibilityIdentifier("actionStartNow")
+                Button { Task { await host.scheduledStart(taskId, now: false) } } label: { Label("Cancel scheduled start", systemImage: "clock.badge.xmark") }
+                    .accessibilityIdentifier("actionCancelStart")
+            }
+            if let row {
+                ForEach(TaskRowMarks.prs(row), id: \.self) { pr in
+                    if let url = pr.url.flatMap(URL.init(string:)) {
+                        Link(destination: url) { Label(TaskActionLogic.openPRLabel(pr), systemImage: "arrow.up.right.square") }
+                    }
+                }
+            }
             Divider()
             Button { host.request = .engine(taskId: taskId) } label: { Label("Change engine…", systemImage: "cpu") }
                 .accessibilityIdentifier("actionEngine")
@@ -291,13 +314,11 @@ struct TaskActionItems: View {
                 }
             }
             Divider()
-            if row?.kind != "main" {
-                let archived = host.model?.store.isArchived(taskId) == true
-                Button { Task { await host.toggleArchived(taskId) } } label: {
-                    Label(archived ? "Unarchive" : "Archive", systemImage: archived ? "tray.and.arrow.up" : "archivebox")
-                }
-                .accessibilityIdentifier("actionArchive")
+            let archived = host.model?.store.isArchived(taskId) == true
+            Button { Task { await host.toggleArchived(taskId) } } label: {
+                Label(archived ? "Unarchive" : "Archive", systemImage: archived ? "tray.and.arrow.up" : "archivebox")
             }
+            .accessibilityIdentifier("actionArchive")
             Button(role: .destructive) { host.request = .delete(taskId: taskId) } label: {
                 Label(plan.delete.menuTitle, systemImage: plan.delete.menuSymbol)
             }
@@ -391,7 +412,7 @@ private struct TaskActionSheets: ViewModifier {
             .alert("archive while it's working?", isPresented: archiveBusyShown, presenting: host.archiveBusy) { id in
                 Button("archive anyway", role: .destructive) { Task { await host.toggleArchived(id, force: true) } }
             } message: { id in
-                Text("an engine in \(model.store.task(id: id)?.displayTitle ?? id) is still working or waiting on you. archiving hides the row without stopping it.")
+                Text("an engine in \(model.store.task(id: id)?.displayTitle ?? id) is still working or waiting on you. archiving stops it.")
             }
             .overlay(alignment: .top) { bannerView }
     }

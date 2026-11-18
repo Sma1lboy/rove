@@ -8,8 +8,9 @@ import run.rove.mobile.domain.*
 import run.rove.mobile.domain.RowMenuItem.*
 
 class TaskRowMenuTest {
-    @Test fun aProjectsMainRowCannotBePinnedOrArchived() {
-        assertEquals(listOf(NewConversation, NewShell, Rename, SetStatus, Copy, ChangeEngine), TaskRowMenuLogic.items(TaskRow("m", kind = "main")))
+    @Test fun aProjectsMainRowCanBeArchivedButNotPinnedOrRemoved() {
+        assertEquals(listOf(NewConversation, NewShell, Rename, SetStatus, Copy, ChangeEngine, Archive), TaskRowMenuLogic.items(TaskRow("m", kind = "main")))
+        assertEquals(Unarchive, TaskRowMenuLogic.items(TaskRow("m", kind = "main", archived = true)).last())
     }
     @Test fun aTaskRowOffersTheOppositeOfItsCurrentState() {
         assertEquals(listOf(NewConversation, NewShell, Rename, Pin, SetStatus, Land, Copy, MoveToProject, ChangeEngine, SyncBase, RenameBranch, Archive, Remove), TaskRowMenuLogic.items(TaskRow("t", branch = "b")))

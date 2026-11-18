@@ -19,12 +19,22 @@ import { KanbanPage } from "../../src/bundled-plugins/kanban/kanban-page"
 import { createStateCell } from "../../src/lib/external-store"
 import { AutomationsPage } from "../../src/tui-react/component/automations-page"
 import { ToastOverlay } from "../../src/tui-react/component/toast-overlay"
-import { renderComponent, settle } from "./harness"
+import { isolateHome, renderComponent, settle, waitForFrameText } from "./harness"
+
+isolateHome()
 
 const REPO = "/repos/rove"
 
 function issue(id: number, over: Record<string, unknown> = {}) {
   return { id, title: `story-${id}`, status: "open", created: "2026-08-01", body: "", ...over }
+}
+
+async function waitUntil(check: () => boolean): Promise<void> {
+  const deadline = Date.now() + 3_000
+  while (!check()) {
+    if (Date.now() >= deadline) throw new Error("condition not met within 3000ms")
+    await settle(20)
+  }
 }
 
 /** Flatten the captured frame into a list of colored spans. */
@@ -50,8 +60,9 @@ async function expectErrorToast(
   const mutedSpan = all.find((span) => span.text.includes(mutedNeedle))
   expect(messageSpan).toBeDefined()
   expect(mutedSpan).toBeDefined()
-  if (!messageSpan || !mutedSpan) return
-  expect(messageSpan.fg.equals(mutedSpan.fg)).toBe(false)
+  expect(
+    (messageSpan as NonNullable<typeof messageSpan>).fg.equals((mutedSpan as NonNullable<typeof mutedSpan>).fg),
+  ).toBe(false)
 }
 
 test("kanban: a failed issue delete shows an error toast, not just a log line", async () => {
@@ -77,19 +88,17 @@ test("kanban: a failed issue delete shows an error toast, not just a log line", 
     </>,
     { width: 120, height: 30, providers: { dialog: true, kv: true, notifications: true } },
   )
-  await settle()
+  await waitForFrameText(frame, "story-1")
   // Select the only card, request delete, confirm — the RPC rejects.
   mockInput.pressArrow("down")
-  await settle()
+  await frame()
   mockInput.typeText("d")
-  await settle()
-  expect(await frame()).toContain("Delete story #1?")
+  await waitForFrameText(frame, "Delete story #1?")
   // Danger confirms open focused on Cancel — move onto the confirm button.
   mockInput.pressArrow("right")
-  await settle()
+  await frame()
   mockInput.pressEnter()
-  await settle(150)
-  const text = await frame()
+  const text = await waitForFrameText(frame, "Couldn't delete story #1")
   expect(text).toContain("story-1")
   await expectErrorToast(text, spans, "Couldn't delete story #1", "No cards")
 })
@@ -131,15 +140,14 @@ test("automations: a failed delete shows an error toast instead of a muted line"
     </>,
     { width: 90, height: 22, providers: { dialog: true, notifications: true } },
   )
-  await settle(150)
+  await waitForFrameText(frame, "weekday audit")
   mockInput.typeText("d")
-  await settle()
-  expect(await frame()).toContain("Delete routine?")
+  await waitForFrameText(frame, "Delete routine?")
   // Danger confirms open focused on Cancel — move onto the confirm button.
   mockInput.pressArrow("right")
-  await settle()
+  await frame()
   mockInput.pressEnter()
-  await settle(150)
+  await waitForFrameText(frame, 'Couldn\'t delete "weekday audit"')
   // Assert the toast's own prefix, the way the kanban cases above do: the
   // toast is one truncated line, so a 90-column frame cuts the daemon's
   // message off the end. The prefix is what tells the user WHICH action died.
@@ -175,9 +183,9 @@ test("work-items: a failed start shows an error toast instead of a muted line", 
     </>,
     { width: 90, height: 20, providers: { notifications: true } },
   )
-  await settle(150)
+  await waitForFrameText(frame, "#42")
   mockInput.pressEnter()
-  await settle(150)
+  await waitForFrameText(frame, "Couldn't start work on #42")
   // Muted reference: the repo label in the header renders `textMuted`; the
   // toast title must not share that color.
   await expectErrorToast(await frame(), spans, "Couldn't start work on #42", "rove")
@@ -188,7 +196,7 @@ test("work-items: a started item opens its task", async () => {
   const orch = workItemsOrch({
     startWorkItem: async () => ({ started: true, taskId: "T9", title: "Fix the thing" }),
   })
-  const { mockInput } = await renderComponent(
+  const { frame, mockInput } = await renderComponent(
     <WorkItemsPage
       orchestrator={orch}
       focused={true}
@@ -199,9 +207,9 @@ test("work-items: a started item opens its task", async () => {
     />,
     { width: 90, height: 20, providers: { notifications: true } },
   )
-  await settle(150)
+  await waitForFrameText(frame, "#42")
   mockInput.pressEnter()
-  await settle(200)
+  await waitUntil(() => opened !== undefined)
   expect(opened).toBe("T9")
 })
 
@@ -213,10 +221,9 @@ test("work-items: an item whose engine did not start says so inline", async () =
     <WorkItemsPage orchestrator={orch} focused={true} onClose={() => {}} />,
     { width: 90, height: 20, providers: { notifications: true } },
   )
-  await settle(150)
+  await waitForFrameText(frame, "#42")
   mockInput.pressEnter()
-  await settle(200)
-  expect(await frame()).toContain("its engine did not start")
+  await waitForFrameText(frame, "its engine did not start")
 })
 
 test("work-items: list rows render with number, labels, and age", async () => {
@@ -224,8 +231,7 @@ test("work-items: list rows render with number, labels, and age", async () => {
     <WorkItemsPage orchestrator={workItemsOrch()} focused={true} onClose={() => {}} />,
     { width: 90, height: 20, providers: { notifications: true } },
   )
-  await settle(150)
-  const text = await frame()
+  const text = await waitForFrameText(frame, "octocat · bug · p2")
   expect(text).toContain("#42")
   expect(text).toContain("Fix the thing")
   expect(text).toContain("octocat · bug · p2")
@@ -249,8 +255,7 @@ test("work-items: a failed list names the fix inline", async () => {
     height: 20,
     providers: { notifications: true },
   })
-  await settle(200)
-  const text = await frame()
+  const text = await waitForFrameText(frame, "git remote add origin")
   expect(text).toContain("no-remote: origin is not a GitHub remote")
   expect(text).toContain("git remote add origin")
 })

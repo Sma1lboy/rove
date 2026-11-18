@@ -5,16 +5,15 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest"
 import {
   addSavedRepo,
   getRepoInitOverride,
-  getSavedRepos,
   removeSavedRepo,
   setRepoInitOverride,
   statePath,
+  storedRepos,
 } from "../../src/state/repos"
 
 let home: string
 beforeEach(() => {
   home = mkdtempSync(path.join(tmpdir(), "rove-path-state-"))
-  vi.stubEnv("ROVE_HOME_DIR", home)
   vi.stubEnv("ROVE_HOME_DIR", home)
   mkdirSync(path.dirname(statePath()), { recursive: true })
 })
@@ -26,7 +25,7 @@ afterEach(() => {
 it("deduplicates and forgets differently spelled persisted Windows repos", () => {
   writeFileSync(statePath(), JSON.stringify({ savedRepos: ["C:\\path-identity-fixture\\repo"] }))
   expect(addSavedRepo("C:/path-identity-fixture/repo/", { skipGate: true }).added).toBe(false)
-  expect(getSavedRepos()).toHaveLength(1)
+  expect(storedRepos()).toHaveLength(1)
   expect(removeSavedRepo("C:/path-identity-fixture/repo")).toMatchObject({ removed: true, total: 0 })
 })
 

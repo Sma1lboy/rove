@@ -21,14 +21,26 @@ import { prChip } from "@sma1lboy/rove/src/tui/panes/sidebar/row-chips.ts"
 import type { AttentionRow, MachineTag, PrChipKind, RowChanges, RowTokenChip, TaskRow, TaskRowPr } from "./protocol.ts"
 import type { EngineRow } from "./rove-ops.ts"
 
-/** Name a task's engine from the registry: its exact preset, else its protocol's builtin. */
-export function engineFor(task: SerializedTask, engines: readonly EngineRow[]): TaskRow["engine"] {
+/**
+ * Name a task's engine from the registry: its exact preset, else its protocol's builtin. `live` is the engine
+ * running in its tab now; one of another protocol (codex started by hand in a Claude session's shell) names the row.
+ */
+export function engineFor(task: SerializedTask, engines: readonly EngineRow[], live?: string): TaskRow["engine"] {
   const command = task.command?.trim()
   const preset =
     (command ? engines.find((e) => e.id === command || e.command === command) : undefined) ??
     engines.find((e) => e.builtin && e.protocol === task.vendor)
+  if (live && live !== (preset?.protocol ?? task.vendor)) {
+    const running = engines.find((e) => e.id === live)
+    return running ? { id: running.id, name: running.name } : { id: null, name: live }
+  }
   if (preset) return { id: preset.id, name: preset.name }
   return task.vendor ? { id: null, name: task.vendor } : null
+}
+
+/** The engine in the task's own tab, else in the first tab that has one. */
+function liveEngine(tabs: TaskStatus["tabs"] | undefined): string | undefined {
+  return tabs?.["tab-1"]?.engine ?? Object.values(tabs ?? {}).find((tab) => tab.engine)?.engine
 }
 
 /** Live feeds the rows join beyond `task.list`: both come from the daemon pushes the orchestrator already holds. */
@@ -177,7 +189,7 @@ function groupingInputs(status: RowStatusInput | null): {
   return { activity, liveTaskIds: status.liveness ? live : null }
 }
 
-/** Fold `context`'s grouping over EVERY task (main/dir included) and join display fields. */
+/** Fold `context`'s grouping over EVERY task (dir included) and join display fields. */
 export function taskRows(
   tasks: readonly SerializedTask[],
   status: RowStatusInput | null,
@@ -220,7 +232,7 @@ export function taskRows(
         rank: row.rank,
         activity: row.activity ? { ...row.activity, since: now - row.activity.forMs } : null,
         ...(daemon ? { rowStatus: daemon.task, tabStatus: daemon.tabs } : {}),
-        engine: engineFor(task, engines),
+        engine: engineFor(task, engines, liveEngine(daemon?.tabs)),
         pr: pr ? rowPr(pr) : null,
         ...(sessionPrs.length > 0 ? { sessionPrs } : {}),
         report: task.report ? { summary: task.report.summary ?? "", at: task.report.at } : null,

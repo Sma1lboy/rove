@@ -63,20 +63,16 @@ export function SidebarTree(props: SidebarTreeProps) {
 
   const machines = useMachineRows()
   const search = useTreeSearch({ focused, onActiveChange: props.onSearchActiveChange })
-  // The main whose project Reorder is on, held as a row while it moves even with no tab: the
-  // header has no cursor slot, so a hidden main would leave j/k with nothing to drag.
-  const [reorderingTaskId, setReorderingTaskId] = useState<string | null>(null)
   const tree = useTreeState({
     tasks: props.tasks,
     kv,
     selectedTaskId: props.selectedId,
-    query: search.active ? search.query : "",
+    query: search.active ? search.query : undefined,
     recentTask: props.recentTask ?? null,
     sortMode: props.sortMode,
     engineState: props.engineState,
     branchTick,
     machines,
-    reorderingTaskId,
   })
   const flatIndexOf = useMemo(() => {
     const map = new Map<string, number>()
@@ -118,8 +114,11 @@ export function SidebarTree(props: SidebarTreeProps) {
   const prevActiveRef = useRef<string | null>(null)
   // The row under the cursor LAST render; reorders follow its identity.
   const cursorRowIdRef = useRef<string | null>(null)
+  const wasSearching = useRef(false)
   const moveMode = props.moveMode === true
   useEffect(() => {
+    const leavingSearch = wasSearching.current && !search.active
+    wasSearching.current = search.active
     const ids = tree.flatIds
     // An external selection wins outside move mode; otherwise retain the cursor's row.
     if (moveMode || tree.activeRowId === prevActiveRef.current) {
@@ -138,19 +137,13 @@ export function SidebarTree(props: SidebarTreeProps) {
       if (at !== cursorRef.current) setCursorIndex(at)
       return
     }
+    if (leavingSearch) {
+      setCursorIndex(at >= 0 ? at : 0)
+      return
+    }
     if (cursorRef.current >= ids.length) setCursorIndex(Math.max(0, ids.length - 1))
     else if (cursorRef.current < 0 && ids.length > 0) setCursorIndex(at >= 0 ? at : 0)
-  }, [tree.flatIds, tree.activeRowId, moveMode, setCursorIndex])
-  useEffect(() => {
-    if (!moveMode) setReorderingTaskId(null)
-  }, [moveMode])
-  // The held main appears when Reorder starts; the cursor goes to it so j/k drag its project.
-  const reorderShown = reorderingTaskId !== null && tree.flatIds.includes(reorderingTaskId)
-  useEffect(() => {
-    if (!reorderShown || reorderingTaskId === null) return
-    const at = flatIdsRef.current.indexOf(reorderingTaskId)
-    if (at >= 0) setCursorIndex(at)
-  }, [reorderShown, reorderingTaskId, setCursorIndex])
+  }, [tree.flatIds, tree.activeRowId, moveMode, search.active, setCursorIndex])
   // Deps-less on purpose: runs after every commit, so when the follow effect
   // fires on a flatIds change it reads the PREVIOUS render's row id.
   useEffect(() => {
@@ -190,40 +183,24 @@ export function SidebarTree(props: SidebarTreeProps) {
   }
   const ctrl = controllerRef.current
 
-  /**
-   * Move mode is SCOPE-AWARE: a task row moves within its repo group; a
-   * `main` row moves the whole PROJECT, since project order IS the mains'
-   * stored order. Every level edge-stops, no wrap.
-   */
-  const tasksRef = useLatest(props.tasks)
+  /** Move mode: a task row moves within its repo group; it edge-stops, no wrap. */
   const moveCursorRow = useCallback(
     (delta: -1 | 1): void => {
       const taskId = flatIdsRef.current[cursorRef.current]
       if (taskId === undefined || taskId === RECENT_ROW_ID) return
-      const task = tasksRef.current.find((candidate) => candidate.id === taskId)
-      if (!task) return
-      if (task.kind !== "main") {
-        props.onMoveRequest?.(taskId, delta)
-        return
-      }
-      const projectId = tree.projectIdOfTask(taskId)
-      if (projectId === null) return
-      // No main checkout ⇒ no project position to change; silent.
-      const mainId = tree.mainTaskIdOfProject(projectId)
-      if (mainId === null) return
-      props.onMoveRequest?.(mainId, delta)
+      props.onMoveRequest?.(taskId, delta)
     },
-    [tree.projectIdOfTask, tree.mainTaskIdOfProject, props.onMoveRequest],
+    [props.onMoveRequest],
   )
 
-  // A main row drags its PROJECT, so the header wears the move chip.
   const cursorRowId = tree.flatIds[cursorIndex]
-  const cursorMove = useMemo((): { projectId: string | null; rowId: string | null } => {
-    if (cursorRowId === undefined || cursorRowId === RECENT_ROW_ID) return { projectId: null, rowId: null }
-    const task = props.tasks.find((candidate) => candidate.id === cursorRowId)
-    if (task?.kind === "main") return { projectId: tree.projectIdOfTask(cursorRowId), rowId: null }
-    return { projectId: null, rowId: cursorRowId }
-  }, [cursorRowId, props.tasks, tree.projectIdOfTask])
+  const cursorMove = useMemo(
+    (): { projectId: string | null; rowId: string | null } => ({
+      projectId: null,
+      rowId: cursorRowId === undefined || cursorRowId === RECENT_ROW_ID ? null : cursorRowId,
+    }),
+    [cursorRowId],
+  )
 
   const menu = useTreeMenu({
     tree,
@@ -231,13 +208,7 @@ export function SidebarTree(props: SidebarTreeProps) {
     setCursorIndex,
     onAddTask: props.onAddTask,
     onNewTab: props.onNewTab,
-    actions: {
-      ...props,
-      onLocalMergeRequest: (taskId) => {
-        setReorderingTaskId(taskId)
-        props.onLocalMergeRequest?.(taskId)
-      },
-    },
+    actions: props,
   })
 
   // Using the pane's own nav/select keys extinguishes its first-use hint.
@@ -338,6 +309,8 @@ export function SidebarTree(props: SidebarTreeProps) {
         flatIndexOf={flatIndexOf}
         searching={search.active && search.query.trim().length > 0}
         shared={shared}
+        collapsedProjects={search.active ? undefined : tree.collapsedProjects}
+        onToggleProject={search.active ? undefined : tree.toggleProject}
         onProjectContextMenu={menu.openForProject}
         movingProjectId={moveMode ? cursorMove.projectId : null}
         setScrollRef={(r) => {

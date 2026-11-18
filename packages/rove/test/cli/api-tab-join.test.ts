@@ -356,13 +356,11 @@ describe("the engine-tab judgement is shared with delivery", () => {
     },
   ] as unknown as ReadonlyArray<{ name: string; sessions: PtySessionInfo[]; snapshot?: TabsState }>
 
-  for (const { name, sessions, snapshot } of cases) {
-    it(`agrees on ${name}`, () => {
-      // The premise: delivery finds a target here.
-      expect(findHostedEngineKey(sessions, "t1")).not.toBeNull()
-      expect(hasLiveEngineTab(snapshot, "t1", sessions)).toBe(true)
-    })
-  }
+  it.each(cases)("agrees on $name", ({ sessions, snapshot }) => {
+    // The premise: delivery finds a target here.
+    expect(findHostedEngineKey(sessions, "t1")).not.toBeNull()
+    expect(hasLiveEngineTab(snapshot, "t1", sessions)).toBe(true)
+  })
 
   it("still refuses a bare shell tab that neither half calls an engine", () => {
     const sessions = [{ key: "t1::tab-3", alive: true, command: ["/bin/zsh", "-il"] }] as unknown as PtySessionInfo[]

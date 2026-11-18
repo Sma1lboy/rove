@@ -73,7 +73,7 @@ Push: `{"event":"tasks","data":{...}}`.
 | `tasks` push, `tabStatus` | A tab the daemon reads as `needs-input` puts 1-4 first in the key row, sent as keys rather than pasted |
 | `term.ack`, `term.reset` push (optional) | Attach with `acks: true`, then send `term.ack {stream, chars}` for the base64 chars xterm has parsed. Past ~1 MB unacked the bridge stops sending output; once everything is acked it pushes `term.reset {stream, replay}`: reset xterm and write the replay. Keeps Ctrl+C on a flood instant. Clients that never send `acks` get output as before |
 | `diff.files`, `diff.file` | Preserve the bridge's `branch` or `working` scope |
-| `task.create`, `task.land`, `task.delete` | Use bridge guards; never send force-delete. Land and remove use two-step dialogs, from task detail or the row menu. The row menu offers land on a task with a branch and remove on any row except a project's main |
+| `task.create`, `task.land`, `task.delete` | Use bridge guards; never send force-delete. Land and remove use two-step dialogs, from task detail or the row menu. The row menu offers land on a task with a branch and remove on any row |
 | `task.rename`, `task.setBranch`, `task.pin`, `task.setStatus`, `task.archive` | Long-press a task row. Archive retries with `force` only after the `TASK_BUSY` confirmation; archived tasks sit in a fold at the end of the list |
 | `tab.new` from a row | Long-press a task row: new conversation (`kind: engine`, `latest: true`, opens the child task the reply names) or new shell, with no form and no first prompt |
 | `task.syncBase` | Long-press a task row: merges the base into the worktree with no confirm; conflicts and a dirty worktree name their files. Not offered for a task on another machine |
@@ -90,7 +90,7 @@ Push: `{"event":"tasks","data":{...}}`.
 | `task.landPreflight` | Read before the land dialog: a refusal shows instead of it, otherwise the dialog names the target and commit count. Skipped for a task on another machine; a bridge without the op gets the plain dialog |
 | `tab.send` | Composer on an engine tab sends without `queue: true`. The engine handles input during a turn; Rove holds no messages and shows no cancelable queue chips. Keeps the text when refused. An attachment in the input line, a shell tab, or a bridge without the op uses `term.input` |
 
-The six task groups are `waiting-on-you`, `landing`, `ready-for-review`, `working`, `idle`, `unknown`. As in iOS's default attention sort, main tasks and pinned tasks float first, then group and server rank; ties keep server order. Unknown additive fields are ignored and future groups display as unknown.
+The six task groups are `waiting-on-you`, `landing`, `ready-for-review`, `working`, `idle`, `unknown`. As in iOS's default attention sort, pinned tasks float first, then group and server rank; ties keep server order. Unknown additive fields are ignored and future groups display as unknown.
 
 The demo resolver consumes the iOS fixture directly. Reconnects never replay user mutations. The app fails pending requests on disconnect, then re-subscribes and reattaches after a new `hello`. HTTP 401 and 403 require re-pairing.
 

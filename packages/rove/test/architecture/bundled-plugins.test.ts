@@ -20,6 +20,19 @@ function pluginDirs(): string[] {
     .map((entry) => join(ROOT, entry.name))
 }
 
+function pluginImportOffenders(): string[] {
+  return pluginDirs().flatMap((dir) =>
+    readdirSync(dir)
+      .filter((name) => /\.tsx?$/.test(name))
+      .flatMap((file) => {
+        const path = join(dir, file)
+        return runtimeImports(readFileSync(path, "utf8"))
+          .filter((spec) => !SHARED.has(spec) && !(spec.startsWith(".") && resolve(dir, spec).startsWith(`${dir}/`)))
+          .map((spec) => `${relative(ROOT, path)} → ${spec}`)
+      }),
+  )
+}
+
 function runtimeImports(source: string): string[] {
   const specs: string[] = []
   for (const match of source.matchAll(IMPORT)) {
@@ -47,16 +60,6 @@ describe("built-in plugins import Rove only through the page host", () => {
   })
 
   test("runtime imports are the shared runtime or the plugin's own files", () => {
-    const offenders: string[] = []
-    for (const dir of pluginDirs()) {
-      for (const file of readdirSync(dir).filter((name) => /\.tsx?$/.test(name))) {
-        const path = join(dir, file)
-        for (const spec of runtimeImports(readFileSync(path, "utf8"))) {
-          const own = spec.startsWith(".") && resolve(dir, spec).startsWith(`${dir}/`)
-          if (!SHARED.has(spec) && !own) offenders.push(`${relative(ROOT, path)} → ${spec}`)
-        }
-      }
-    }
-    expect(offenders).toEqual([])
+    expect(pluginImportOffenders()).toEqual([])
   })
 })

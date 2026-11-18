@@ -93,7 +93,7 @@ describe("PtyRegistry.parkIdle", () => {
     expect(fake?.detached).toBe(false)
 
     // Once the stream has been quiet past the window, it parks normally.
-    if (fake) fake.lastOutputAt = NOW - PARK_QUIET_MS
+    fake!.lastOutputAt = NOW - PARK_QUIET_MS
     expect(reg.parkIdle(IDLE, NOW)).toEqual(["t::tab-1"])
     expect(fake?.detached).toBe(true)
   })

@@ -41,8 +41,8 @@ test("inventory polling publishes PID changes, skips identical snapshots, and st
     const published = snapshots.length
     const rendersAtPublish = renders
     request.mockResolvedValue({ sessions: [{ ...first }] })
-    await until(() => request.mock.calls.length >= 2)
-    await act(async () => Bun.sleep(50))
+    // The poll after it starting means the identical one already resolved and was compared.
+    await until(() => request.mock.calls.length >= 3)
     expect(snapshots).toHaveLength(published)
     // An identical poll must not render at all: each render is a sidebar commit and a frame.
     expect(renders).toBe(rendersAtPublish)
@@ -66,6 +66,7 @@ test("inventory polling publishes PID changes, skips identical snapshots, and st
     const atUnmount = snapshots.length
     const requestsAtUnmount = request.mock.calls.length
     await act(async () => resolve({ sessions: [first] }))
+    // Proving a poll does NOT fire needs one full interval to pass; bun's fake timers stall opentui's native pump.
     await act(async () => Bun.sleep(2100))
     expect(snapshots).toHaveLength(atUnmount)
     expect(request).toHaveBeenCalledTimes(requestsAtUnmount)

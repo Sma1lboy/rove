@@ -40,6 +40,7 @@ import {
   isGitRepo,
   removeSavedRepo,
   statePath,
+  storedRepos,
 } from "../../src/state/repos.ts"
 
 let tmpHome: string
@@ -59,12 +60,6 @@ afterEach(() => {
   if (originalHome === undefined) delete process.env.ROVE_HOME_DIR
   else process.env.ROVE_HOME_DIR = originalHome
   fs.rmSync(tmpHome, { recursive: true, force: true })
-})
-
-describe("statePath", () => {
-  test("resolves under ROVE_HOME_DIR", () => {
-    expect(statePath()).toBe(path.join(tmpHome, ".config", "rove", "state.json"))
-  })
 })
 
 describe("isGitRepo", () => {
@@ -102,12 +97,23 @@ describe("getCustomEngineIds", () => {
   })
 })
 
-describe("getSavedRepos", () => {
+describe("storedRepos", () => {
   test("filters out non-string entries defensively", () => {
     const p = statePath()
     fs.mkdirSync(path.dirname(p), { recursive: true })
     fs.writeFileSync(p, JSON.stringify({ savedRepos: ["/a", 42, null, "/b"] }), "utf8")
-    expect(getSavedRepos()).toEqual(["/a", "/b"])
+    expect(storedRepos()).toEqual(["/a", "/b"])
+  })
+})
+
+describe("getSavedRepos", () => {
+  test("leaves out a project whose directory is gone, without dropping it from disk", () => {
+    const gone = path.join(tmpHome, "renamed-away")
+    const p = statePath()
+    fs.mkdirSync(path.dirname(p), { recursive: true })
+    fs.writeFileSync(p, JSON.stringify({ savedRepos: [tmpHome, gone, "ssh://me@box/srv/app"] }), "utf8")
+    expect(getSavedRepos()).toEqual([tmpHome, "ssh://me@box/srv/app"])
+    expect(storedRepos()).toContain(gone)
   })
 })
 
@@ -116,7 +122,7 @@ describe("addSavedRepo", () => {
     addSavedRepo("/repos/alpha", { skipGate: true })
     const r = addSavedRepo("/repos/alpha", { skipGate: true })
     expect(r).toEqual({ added: false, path: "/repos/alpha", total: 1 })
-    expect(getSavedRepos()).toEqual(["/repos/alpha"])
+    expect(storedRepos()).toEqual(["/repos/alpha"])
   })
 
   test("preserves sibling KV keys (rove add must not wipe TUI state)", () => {
@@ -147,14 +153,14 @@ describe("removeSavedRepo (KOB-15)", () => {
     addSavedRepo("/repos/beta", { skipGate: true })
     const r = removeSavedRepo("/repos/alpha")
     expect(r).toEqual({ removed: true, path: "/repos/alpha", total: 1 })
-    expect(getSavedRepos()).toEqual(["/repos/beta"])
+    expect(storedRepos()).toEqual(["/repos/beta"])
   })
 
   test("is idempotent — removing a path that's not present returns removed=false", () => {
     addSavedRepo("/repos/alpha", { skipGate: true })
     const r = removeSavedRepo("/repos/never-added")
     expect(r).toEqual({ removed: false, path: "/repos/never-added", total: 1 })
-    expect(getSavedRepos()).toEqual(["/repos/alpha"])
+    expect(storedRepos()).toEqual(["/repos/alpha"])
   })
 
   test("preserves order of remaining entries", () => {
@@ -163,16 +169,16 @@ describe("removeSavedRepo (KOB-15)", () => {
     addSavedRepo("/c", { skipGate: true })
     addSavedRepo("/d", { skipGate: true })
     removeSavedRepo("/b")
-    expect(getSavedRepos()).toEqual(["/a", "/c", "/d"])
+    expect(storedRepos()).toEqual(["/a", "/c", "/d"])
   })
 
   test("removing a remote project also drops its remoteRepos config (no orphan)", () => {
     const { key } = addRemoteRepo({ host: "box", user: "jc", basePath: "/srv/work", auth: { kind: "key" } })
-    expect(getSavedRepos()).toContain(key)
+    expect(storedRepos()).toContain(key)
     expect(getRemoteRepoConfig(key)).not.toBeNull()
     const r = removeSavedRepo(key)
     expect(r.removed).toBe(true)
-    expect(getSavedRepos()).not.toContain(key)
+    expect(storedRepos()).not.toContain(key)
     expect(getRemoteRepoConfig(key)).toBeNull()
   })
 })
@@ -192,7 +198,7 @@ describe("addSavedRepo admission gate", () => {
     const r = addSavedRepo(plain)
     expect(r.added).toBe(false)
     expect(r.rejected).toBe("notGitRepo")
-    expect(getSavedRepos()).toEqual([])
+    expect(storedRepos()).toEqual([])
   })
 
   test("refuses a repo inside a .dev-sandbox, however real the checkout is", () => {
@@ -203,7 +209,7 @@ describe("addSavedRepo admission gate", () => {
     const r = addSavedRepo(sandboxed)
     expect(r.added).toBe(false)
     expect(r.rejected).toBe("insideSandbox")
-    expect(getSavedRepos()).toEqual([])
+    expect(storedRepos()).toEqual([])
   })
 
   test("a rejection still reports the normalized path, so callers can name it", () => {
@@ -228,16 +234,16 @@ describe("backfillSavedReposFromProjects", () => {
     const a = initRepo("proj-a")
     const b = initRepo("proj-b")
     addSavedRepo(a)
-    expect(getSavedRepos()).toEqual([a])
+    expect(storedRepos()).toEqual([a])
 
     expect(backfillSavedReposFromProjects([a, b])).toEqual([b])
-    expect(getSavedRepos()).toEqual([a, b])
+    expect(storedRepos()).toEqual([a, b])
   })
 
   test("skips a row that fails the admission gate", () => {
     // A leaked fixture row is not something to make MORE permanent.
     const leaked = initRepo(path.join(".dev-sandbox", "smoke-repo"))
     expect(backfillSavedReposFromProjects([leaked])).toEqual([])
-    expect(getSavedRepos()).toEqual([])
+    expect(storedRepos()).toEqual([])
   })
 })

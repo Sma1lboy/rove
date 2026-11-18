@@ -43,6 +43,16 @@ async function setup(withPassword = true, extra: Partial<WebLoginOptions> = {}) 
   return { h, http, post, lines, devicesPath, dir }
 }
 
+/** Sends each request only after the last one answered: the lockout counts them in order. */
+async function inTurn(requests: Array<() => Promise<Response>>): Promise<Array<{ status: number; body: unknown }>> {
+  const replies: Array<{ status: number; body: unknown }> = []
+  for (const send of requests) {
+    const res = await send()
+    replies.push({ status: res.status, body: await res.json().catch(() => null) })
+  }
+  return replies
+}
+
 describe("POST /login", () => {
   test("the right password mints a named device token that opens a socket", async () => {
     const s = await setup()
@@ -61,11 +71,10 @@ describe("POST /login", () => {
 
   test("a wrong password is a generic 401; the 5th locks the IP with a 429 and time left", async () => {
     const s = await setup()
-    for (let i = 0; i < 4; i++) {
-      const res = await s.post("/login", { password: `wrong-${i}` })
-      expect(res.status).toBe(401)
-      expect(await res.json()).toEqual({ error: "login failed" })
-    }
+    const refused = { status: 401, body: { error: "login failed" } }
+    expect(
+      await inTurn(Array.from({ length: 4 }, (_, i) => () => s.post("/login", { password: `wrong-${i}` }))),
+    ).toEqual([refused, refused, refused, refused])
     const fifth = await s.post("/login", { password: "wrong-4" })
     expect(fifth.status).toBe(429)
     expect(((await fifth.json()) as { retryAfterSeconds: number }).retryAfterSeconds).toBe(900)
@@ -80,7 +89,7 @@ describe("POST /login", () => {
 
   test("a lock written by an earlier run still holds", async () => {
     const first = await setup()
-    for (let i = 0; i < 5; i++) await first.post("/login", { password: "nope-nope" })
+    await inTurn(Array.from({ length: 5 }, () => () => first.post("/login", { password: "nope-nope" })))
     stopServers()
     const login = createWebLogin({
       bridgeDir: first.dir,
@@ -117,17 +126,23 @@ describe("POST /login", () => {
 
   test("CF-Connecting-IP counts only behind a configured tunnel", async () => {
     const plain = await setup()
-    for (let i = 0; i < 5; i++) {
-      await plain.post("/login", { password: "x-wrong-x" }, { "CF-Connecting-IP": `203.0.113.${i}` })
-    }
+    await inTurn(
+      Array.from(
+        { length: 5 },
+        (_, i) => () => plain.post("/login", { password: "x-wrong-x" }, { "CF-Connecting-IP": `203.0.113.${i}` }),
+      ),
+    )
     // Forged headers do not split the count: the socket address got locked.
     expect((await plain.post("/login", { password: PASSWORD }, { "CF-Connecting-IP": "203.0.113.99" })).status).toBe(
       429,
     )
     const tunnel = await setup(true, { trustForwardedIp: true })
-    for (let i = 0; i < 5; i++) {
-      await tunnel.post("/login", { password: "x-wrong-x" }, { "CF-Connecting-IP": "203.0.113.7" })
-    }
+    await inTurn(
+      Array.from(
+        { length: 5 },
+        () => () => tunnel.post("/login", { password: "x-wrong-x" }, { "CF-Connecting-IP": "203.0.113.7" }),
+      ),
+    )
     expect((await tunnel.post("/login", { password: PASSWORD }, { "CF-Connecting-IP": "203.0.113.8" })).status).toBe(
       200,
     )

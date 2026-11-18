@@ -6,7 +6,9 @@ import { NewTaskDialogView } from "../../src/tui-react/component/new-task-dialog
 import { useNewTaskViewModel } from "../../src/tui-react/component/new-task-dialog/view-model"
 import { useDialog } from "../../src/tui-react/ui/dialog"
 import { type DialogTab, type Field, nextField } from "../../src/tui/component/new-task-dialog/state"
-import { type RenderHandle, act, renderComponent, settle } from "./harness"
+import { type RenderHandle, act, isolateHome, renderComponent, settle } from "./harness"
+
+isolateHome()
 
 const ENGINES = ["claude", "codex", "kimi", "claudex --dangerously-skip-permissions", "opencode"]
 
@@ -84,106 +86,112 @@ async function press(handle: RenderHandle, key: "right" | "tab" | "down") {
   await settle()
 }
 
-for (const { width, height } of [{ width: 200, height: 60 }]) {
-  test(`${width}x${height}: wrapped engines and inputs keep full borders above the footer`, async () => {
-    const h = await mount(width, height)
-    await press(h, "right")
-    // Walk to the clone form's first input rather than counting stops.
-    await tabUntil(h, "FROM URL")
-    await act(async () => h.mockInput.typeText("https://github.com/Sma1lboy/mc-rpg.git"))
-    await h.frame()
-    const boxes = descendants(h.renderer.root).filter(
-      (node): node is BoxRenderable => node instanceof BoxRenderable && !!node.border,
-    )
-    // Structural, not a count: the dialog's field list changes (depth, model
-    // and effort were removed in 2026-09), and a hard-coded 17 turned that
-    // into six red tests about box arithmetic rather than about layout. What
-    // this guards is that EVERY bordered well is one row tall with its border
-    // intact, and that wrapping stacks rows instead of overlapping them.
-    expect(boxes.length).toBeGreaterThan(6)
-    for (const box of boxes) expect(box.height).toBe(3)
-    // Chips wrap onto whole rows: every well sits on a row boundary shared
-    // with its neighbours, never half-overlapping one.
-    const rows = [...new Set(boxes.map((box) => box.y))].sort((a, b) => a - b)
-    for (let i = 1; i < rows.length; i++) {
-      expect(rows[i]! - rows[i - 1]!).toBeGreaterThanOrEqual(3)
-    }
-    for (let i = 0; i < 3; i++) await press(h, "tab")
-    const frame = await h.frame()
-    const lines = frame.split("\n")
-    const footer = lines.findIndex((line) => line.includes("enter next field"))
-    // Asserted on the FRAME, not on renderable coordinates. The scrollbox is
-    // `overflow: hidden`, so a well scrolled past the viewport keeps its y in
-    // the tree while drawing nothing — walking the tree counted those and
-    // reported collisions that are invisible on screen. What matters is that
-    // no box-drawing character lands on the footer's row or below it.
-    for (const row of lines.slice(footer)) {
-      expect(row, "a well is drawn on or below the footer's row").not.toMatch(/[╭╮╰╯│─]/)
-    }
-    expect(frame).toContain("[ Create ]")
-    const first = lines.findIndex((line) => line.includes("New task"))
-    const left = lines[first]!.indexOf("New task") - 2
-    for (const line of lines.slice(first, footer + 3)) expect(line.slice(left, left + 80)).not.toContain("BACKGROUND")
-    act(() => h.destroy())
-  })
+/** Press `keys` in order. */
+async function pressAll(handle: RenderHandle, keys: readonly ("right" | "tab" | "down")[]) {
+  for (const key of keys) await press(handle, key)
 }
 
-for (const mode of ["existing", "adopt"] as const) {
-  test(`${mode}: wrapped chips and picker rows stay inside the modal`, async () => {
-    // 64 rows, not 40: the model and effort rows pushed FROM BRANCH below a
-    // 40-row fold at open, and this test is about wrapping, not scrolling.
-    const h = await mount(120, 64)
-    if (mode === "adopt") {
-      await press(h, "right")
-      await press(h, "right")
-    }
-    // The tab's first input, reached by landmark rather than by count.
-    await tabUntil(h, mode === "adopt" ? "FILTER" : "FROM BRANCH")
-    if (mode === "adopt") {
-      for (let i = 0; i < 14; i++) await press(h, "down")
-    }
-    const frame = await h.frame()
-    expect(frame).toContain(mode === "adopt" ? "▸ [ ] feature/layout-14" : "FROM BRANCH")
-    expect(frame).toContain("New task")
-    expect(frame).toContain("[ Create ]")
-    const boxes = descendants(h.renderer.root).filter(
-      (node): node is BoxRenderable => node instanceof BoxRenderable && !!node.border,
-    )
-    for (const box of boxes) expect(box.height).toBe(3)
-    const scroll = descendants(h.renderer.root).find(
-      (node): node is ScrollBoxRenderable => node instanceof ScrollBoxRenderable,
-    )
-    expect(scroll).toBeDefined()
-    const footer = frame.split("\n").findIndex((line) => line.includes("enter next field"))
-    expect(footer).toBeGreaterThan(scroll!.y + scroll!.height)
-    act(() => h.destroy())
-  })
+/** Tab from the dialog's first stop to `target` on the clone form, counted from the focus chain. */
+async function tabToCloneField(handle: RenderHandle, target: Field) {
+  let field: Field = "tabs"
+  let stops = 0
+  do {
+    field = nextField(field, "clone", { modelVisible: true, effortVisible: true })
+    stops++
+  } while (field !== target)
+  await pressAll(handle, Array(stops).fill("tab"))
 }
+
+function borderedBoxes(handle: RenderHandle): BoxRenderable[] {
+  return descendants(handle.renderer.root).filter(
+    (node): node is BoxRenderable => node instanceof BoxRenderable && !!node.border,
+  )
+}
+
+function scrollBox(handle: RenderHandle): ScrollBoxRenderable | undefined {
+  return descendants(handle.renderer.root).find(
+    (node): node is ScrollBoxRenderable => node instanceof ScrollBoxRenderable,
+  )
+}
+
+test("200x60: wrapped engines and inputs keep full borders above the footer", async () => {
+  const h = await mount(200, 60)
+  await press(h, "right")
+  // Walk to the clone form's first input rather than counting stops.
+  await tabUntil(h, "FROM URL")
+  await act(async () => h.mockInput.typeText("https://github.com/Sma1lboy/mc-rpg.git"))
+  await h.frame()
+  const boxes = borderedBoxes(h)
+  // Structural, not a count: what this guards is that EVERY bordered well is
+  // one row tall with its border intact, and that wrapping stacks rows
+  // instead of overlapping them.
+  expect(boxes.length).toBeGreaterThan(6)
+  expect(new Set(boxes.map((box) => box.height))).toEqual(new Set([3]))
+  // Chips wrap onto whole rows: every well sits on a row boundary shared
+  // with its neighbours, never half-overlapping one.
+  const rows = [...new Set(boxes.map((box) => box.y))].sort((a, b) => a - b)
+  const gaps = rows.slice(1).map((row, i) => row - rows[i]!)
+  expect(Math.min(...gaps)).toBeGreaterThanOrEqual(3)
+  await pressAll(h, ["tab", "tab", "tab"])
+  const frame = await h.frame()
+  const lines = frame.split("\n")
+  const footer = lines.findIndex((line) => line.includes("enter next field"))
+  // Asserted on the FRAME, not on renderable coordinates. The scrollbox is
+  // `overflow: hidden`, so a well scrolled past the viewport keeps its y in
+  // the tree while drawing nothing — walking the tree counted those and
+  // reported collisions that are invisible on screen. What matters is that
+  // no box-drawing character lands on the footer's row or below it.
+  expect(lines.slice(footer).join("\n"), "a well is drawn on or below the footer's row").not.toMatch(/[╭╮╰╯│─]/)
+  expect(frame).toContain("[ Create ]")
+  const first = lines.findIndex((line) => line.includes("New task"))
+  const left = lines[first]!.indexOf("New task") - 2
+  const modal = lines.slice(first, footer + 3).map((line) => line.slice(left, left + 80))
+  expect(modal.join("\n")).not.toContain("BACKGROUND")
+  act(() => h.destroy())
+})
+
+test.each([
+  { mode: "existing", toTab: [], landmark: "FROM BRANCH", inTab: [], shown: "FROM BRANCH" },
+  {
+    mode: "adopt",
+    toTab: ["right", "right"],
+    landmark: "FILTER",
+    inTab: Array(14).fill("down"),
+    shown: "▸ [ ] feature/layout-14",
+  },
+] as const)("$mode: wrapped chips and picker rows stay inside the modal", async ({ toTab, landmark, inTab, shown }) => {
+  // 64 rows, not 40: the model and effort rows pushed FROM BRANCH below a
+  // 40-row fold at open, and this test is about wrapping, not scrolling.
+  const h = await mount(120, 64)
+  await pressAll(h, toTab)
+  // The tab's first input, reached by landmark rather than by count.
+  await tabUntil(h, landmark)
+  await pressAll(h, inTab)
+  const frame = await h.frame()
+  expect(frame).toContain(shown)
+  expect(frame).toContain("New task")
+  expect(frame).toContain("[ Create ]")
+  expect(new Set(borderedBoxes(h).map((box) => box.height))).toEqual(new Set([3]))
+  const scroll = scrollBox(h)
+  expect(scroll).toBeDefined()
+  const footer = frame.split("\n").findIndex((line) => line.includes("enter next field"))
+  expect(footer).toBeGreaterThan(scroll!.y + scroll!.height)
+  act(() => h.destroy())
+})
 
 test("a focused last field remains visible after narrowing and shortening the terminal", async () => {
   const h = await mount(200, 72)
   await press(h, "right")
-  // Tab to the clone form's LAST field, counted from the focus chain (the
-  // fixture engine shows model and effort rows).
-  let last: Field = "tabs"
-  let stops = 0
-  do {
-    last = nextField(last, "clone", { modelVisible: true, effortVisible: true })
-    stops++
-  } while (last !== "cloneBaseRef")
-  for (let i = 0; i < stops; i++) await press(h, "tab")
+  // The clone form's LAST field (the fixture engine shows model and effort rows).
+  await tabToCloneField(h, "cloneBaseRef")
   act(() => h.resize(64, 40))
   await settle()
   let frame = await h.frame()
   expect(frame).toContain("BASE BRANCH")
   expect(frame).toContain("[ Create ]")
-  const boxes = descendants(h.renderer.root).filter(
-    (node): node is BoxRenderable => node instanceof BoxRenderable && !!node.border,
-  )
-  for (const box of boxes) {
-    expect(box.height).toBe(3)
-    expect(box.x + box.width).toBeLessThanOrEqual(63)
-  }
+  const boxes = borderedBoxes(h)
+  expect(new Set(boxes.map((box) => box.height))).toEqual(new Set([3]))
+  expect(Math.max(...boxes.map((box) => box.x + box.width))).toBeLessThanOrEqual(63)
   act(() => h.resize(120, 24))
   await settle()
   frame = await h.frame()
@@ -193,58 +201,44 @@ test("a focused last field remains visible after narrowing and shortening the te
   act(() => h.destroy())
 })
 
-for (const { width, height } of [
-  { width: 153, height: 34 },
-  // The compact form grew a depth row and a MODEL well, so it scrolls even
-  // on 33 rows; what it must still keep is the footer glued above Create.
-  { width: 200, height: 33 },
-]) {
-  test(`${width}x${height}: footer spacing leaves the parent well or compact form intact`, async () => {
-    const h = await mount(width, height)
-    await press(h, "right")
-    for (let i = 0; i < 4; i++) await press(h, "tab")
-    await act(async () => h.mockInput.typeText("https://github.com/Sma1lboy/mc-rpg.git"))
-    const frame = await h.frame()
-    const scroll = descendants(h.renderer.root).find(
-      (node): node is ScrollBoxRenderable => node instanceof ScrollBoxRenderable,
-    )!
-    const lines = frame.split("\n")
-    const create = lines.findIndex((line) => line.includes("[ Create ]"))
-    // The legend wraps, and where it breaks is the renderer's call: its last line is the one that ends it.
-    const legendEnd = lines.findLastIndex((line, index) => index < create && /\bcancel\b/.test(line))
-    expect(create).toBe(legendEnd + 1)
-    if (height >= 34) {
-      const wells = descendants(h.renderer.root).filter(
-        (node): node is BoxRenderable => node instanceof BoxRenderable && !!node.border,
-      )
-      // The LAST well laid out inside the viewport, found rather than
-      // indexed: which ordinal it is depends on the field list.
-      const visible = wells.filter((w) => w.y + w.height <= scroll.viewport.y + scroll.viewport.height)
-      const parent = visible.at(-1)!
-      expect(parent.height).toBe(3)
-      expect(parent.y + parent.height).toBeLessThanOrEqual(scroll.viewport.y + scroll.viewport.height)
-      // Scrolling exists while content is below the fold, and the hints tell
-      // the truth in both directions. Asserted as an invariant rather than as
-      // "exactly N tabs reaches the bottom": the field count changed in
-      // 2026-09 and every such count pointed somewhere else afterwards.
-      const overflowed = /↓ \d+ more rows/.test(frame)
-      const bottom = await tabToEnd(h)
-      if (overflowed) expect(bottom).toMatch(/↑ \d+ more rows|\[ Create \]/)
-    } else {
-      // Whether this form still overflows a short terminal depends on how
-      // many fields it has, and that changed (depth/model/effort left in
-      // 2026-09 — at 200x33 the content now fits exactly). So assert the
-      // INVARIANT rather than the overflow: the scroll hint appears when
-      // there is something below the fold, and never when there is not.
-      if (scroll.scrollHeight > scroll.viewport.height) {
-        expect(frame).toMatch(/↓ \d+ more rows/)
-      } else {
-        expect(frame).not.toMatch(/↓ \d+ more rows/)
-      }
-    }
-    act(() => h.destroy())
-  })
+/** Open the clone form at `width`x`height` and type a URL into it. */
+async function compactForm(width: number, height: number) {
+  const h = await mount(width, height)
+  await press(h, "right")
+  await pressAll(h, ["tab", "tab", "tab", "tab"])
+  await act(async () => h.mockInput.typeText("https://github.com/Sma1lboy/mc-rpg.git"))
+  const frame = await h.frame()
+  const lines = frame.split("\n")
+  const create = lines.findIndex((line) => line.includes("[ Create ]"))
+  // The legend wraps, and where it breaks is the renderer's call: its last line is the one that ends it.
+  const legendEnd = lines.findLastIndex((line, index) => index < create && /\bcancel\b/.test(line))
+  return { h, frame, scroll: scrollBox(h)!, create, legendEnd }
 }
+
+test("153x34: footer spacing leaves the parent well intact and the scroll hints tell the truth", async () => {
+  const { h, frame, scroll, create, legendEnd } = await compactForm(153, 34)
+  expect(create).toBe(legendEnd + 1)
+  // The LAST well laid out inside the viewport, found rather than
+  // indexed: which ordinal it is depends on the field list.
+  const visible = borderedBoxes(h).filter((w) => w.y + w.height <= scroll.viewport.y + scroll.viewport.height)
+  const parent = visible.at(-1)!
+  expect(parent.height).toBe(3)
+  expect(parent.y + parent.height).toBeLessThanOrEqual(scroll.viewport.y + scroll.viewport.height)
+  // Scrolling exists while content is below the fold, and the hints tell the
+  // truth in both directions — an invariant, not a count of fields.
+  expect(/↓ \d+ more rows/.test(frame)).toBe(scroll.scrollHeight > scroll.viewport.height)
+  expect(await tabToEnd(h)).toMatch(/↑ \d+ more rows|\[ Create \]/)
+  act(() => h.destroy())
+})
+
+test("200x33: the compact form keeps the footer glued above Create, with a scroll hint only on overflow", async () => {
+  const { h, frame, scroll, create, legendEnd } = await compactForm(200, 33)
+  expect(create).toBe(legendEnd + 1)
+  // Whether this form overflows depends on its field count; the hint must
+  // appear exactly when there is something below the fold.
+  expect(/↓ \d+ more rows/.test(frame)).toBe(scroll.scrollHeight > scroll.viewport.height)
+  act(() => h.destroy())
+})
 
 /**
  * Creating a task asks WHERE, WITH WHICH ENGINE (and model and effort, for engines that declare
@@ -286,8 +280,9 @@ function FocusWalk(props: { tab: DialogTab; onDone: (seen: readonly Field[]) => 
   return <text>walk</text>
 }
 
-test("Tab stops only on rows the dialog renders: engine, model and declared effort yes, depth never", async () => {
-  for (const tab of ["existing", "clone", "adopt"] as const) {
+test.each(["existing", "clone", "adopt"] as const)(
+  "%s: Tab stops only on rows the dialog renders: engine, model and declared effort yes, depth never",
+  async (tab) => {
     let seen: readonly Field[] = []
     await renderComponent(
       <FocusWalk
@@ -303,10 +298,10 @@ test("Tab stops only on rows the dialog renders: engine, model and declared effo
       },
     )
     await settle()
-    expect([...seen], `${tab}: Tab stops on the depth row, which this dialog does not render`).not.toContain("tier")
+    expect([...seen], "Tab stops on the depth row, which this dialog does not render").not.toContain("tier")
     // The fixture engine declares levels and a model flag, so both rows are stops.
-    expect([...seen], `${tab}: Tab no longer reaches the effort row`).toContain("effort")
-    expect([...seen], `${tab}: Tab no longer reaches the model row`).toContain("model")
-    expect([...seen], `${tab}: Tab no longer reaches the engine row`).toContain("engine")
-  }
-})
+    expect([...seen], "Tab no longer reaches the effort row").toContain("effort")
+    expect([...seen], "Tab no longer reaches the model row").toContain("model")
+    expect([...seen], "Tab no longer reaches the engine row").toContain("engine")
+  },
+)

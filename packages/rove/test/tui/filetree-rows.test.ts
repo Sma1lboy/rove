@@ -61,7 +61,6 @@ describe("reconcileRows", () => {
     const prev = [status("a.ts", 3, 1), status("b.ts", 0, 2)]
     const out = reconcileRows(prev, [status("a.ts", 3, 1), status("b.ts", 5, 2)])
     expect(out[0]).toBe(prev[0])
-    expect(out[0]).not.toBe(undefined)
     expect(out[1]).not.toBe(prev[1])
   })
 

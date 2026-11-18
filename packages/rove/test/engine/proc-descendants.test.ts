@@ -4,9 +4,21 @@
  */
 
 import { execFileSync, spawn } from "node:child_process"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { parsePsSnapshot } from "../../src/engine/foreground"
 import { procDescendantRows } from "../../src/engine/proc-descendants"
+
+/** `ppid args` of every process under `root`, from `ps` (parents list before children). */
+function psSubtree(root: number): string[] {
+  const subtree = new Set([root])
+  const out: string[] = []
+  for (const row of parsePsSnapshot(execFileSync("ps", ["-A", "-o", "pid=,ppid=,args="], { encoding: "utf8" }))) {
+    if (!subtree.has(row.ppid)) continue
+    subtree.add(row.pid)
+    out.push(`${row.ppid} ${row.args}`)
+  }
+  return out
+}
 
 describe.skipIf(process.platform !== "linux")("procDescendantRows", () => {
   it("matches ps for a shell's nested children", async () => {
@@ -19,21 +31,15 @@ describe.skipIf(process.platform !== "linux")("procDescendantRows", () => {
       const settled = ["sh -c sleep 31 & wait", "sleep 31", "sleep 32"]
       const argsOf = (rows: { args: string }[]) => rows.map((row) => row.args).sort()
       // A child read between fork and exec still shows bash's argv: poll until the tree settles.
-      let rows = await procDescendantRows([root])
-      for (let i = 0; i < 100 && argsOf(rows).join("|") !== settled.join("|"); i++) {
-        await new Promise((r) => setTimeout(r, 20))
-        rows = await procDescendantRows([root])
-      }
-      expect(argsOf(rows)).toEqual(settled)
-      const fromPs = parsePsSnapshot(execFileSync("ps", ["-A", "-o", "pid=,ppid=,args="], { encoding: "utf8" }))
-      const subtree = new Set([root])
-      const expected: string[] = []
-      for (const row of fromPs) {
-        if (!subtree.has(row.ppid)) continue
-        subtree.add(row.pid)
-        expected.push(`${row.ppid} ${row.args}`)
-      }
-      expect(rows.map((row) => `${row.ppid} ${row.args}`).sort()).toEqual(expected.sort())
+      let rows: Awaited<ReturnType<typeof procDescendantRows>> = []
+      await vi.waitFor(
+        async () => {
+          rows = await procDescendantRows([root])
+          expect(argsOf(rows)).toEqual(settled)
+        },
+        { timeout: 2000, interval: 20 },
+      )
+      expect(rows.map((row) => `${row.ppid} ${row.args}`).sort()).toEqual(psSubtree(root).sort())
     } finally {
       process.kill(-root, "SIGKILL")
     }

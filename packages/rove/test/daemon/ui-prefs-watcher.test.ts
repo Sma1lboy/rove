@@ -27,7 +27,7 @@ import {
   readUiPrefsFromStateFile,
   startUiPrefsWatcher,
 } from "@sma1lboy/rove-daemon/daemon/ui-prefs-watcher"
-import { afterEach, beforeEach, describe, expect, test } from "vitest"
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import { patchStateFile } from "../../src/state/store.ts"
 
 let tmpHome: string
@@ -52,6 +52,7 @@ beforeEach(() => {
 
 afterEach(() => {
   stop?.()
+  vi.useRealTimers()
   // biome-ignore lint/performance/noDelete: env cleanup must fully unset when the var was unset before the test (assigning undefined leaves it as the string "undefined"). Same pattern as test/state/store.test.ts.
   if (savedHomeDir === undefined) delete process.env.ROVE_HOME_DIR
   else process.env.ROVE_HOME_DIR = savedHomeDir
@@ -62,13 +63,9 @@ afterEach(() => {
   }
 })
 
-/** Poll until `cond` holds or ~2s elapses (fs.watch delivery is async). */
-async function waitFor(cond: () => boolean): Promise<void> {
-  const deadline = Date.now() + 2000
-  while (!cond() && Date.now() < deadline) {
-    await new Promise((r) => setTimeout(r, 20))
-  }
-  expect(cond()).toBe(true)
+/** Past the watcher's stat-poll (200ms) + debounce: every due publish has run. */
+function settle(): void {
+  vi.advanceTimersByTime(1_000)
 }
 
 describe("readUiPrefsFromStateFile", () => {
@@ -106,6 +103,10 @@ describe("readUiPrefsFromStateFile", () => {
 })
 
 describe("startUiPrefsWatcher", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
   test("publishes the current prefs immediately so late subscribers can replay", () => {
     patchStateFile({ activeTheme: "dracula", focusAccent: "info" })
     stop = startUiPrefsWatcher(bus, { statePath, debounceMs: 25 })
@@ -125,14 +126,15 @@ describe("startUiPrefsWatcher", () => {
     expect(bus.snapshot().find((e) => e.channel === "ui-prefs")?.payload).toEqual(events[0])
   })
 
-  test("a State-Store write (tmp+rename) is seen and published; unchanged values are not re-published", async () => {
+  test("a State-Store write (tmp+rename) is seen and published; unchanged values are not re-published", () => {
     stop = startUiPrefsWatcher(bus, { statePath, debounceMs: 25 })
     expect(events).toHaveLength(1) // initial defaults
 
     // Real production write path: tmp + rename swaps the inode, which is
     // exactly the case a file-watch (instead of dir-watch) would go dead on.
     patchStateFile({ activeTheme: "tokyonight", transparentBackground: true })
-    await waitFor(() => events.length === 2)
+    settle()
+    expect(events).toHaveLength(2)
     expect(events[1]).toEqual({
       theme: "tokyonight",
       themeMode: null,
@@ -148,12 +150,13 @@ describe("startUiPrefsWatcher", () => {
     // the SAME visual values again) publishes nothing.
     patchStateFile({ lastSelectedVendor: "codex" })
     patchStateFile({ activeTheme: "tokyonight", transparentBackground: true })
-    await new Promise((r) => setTimeout(r, 250))
+    settle()
     expect(events).toHaveLength(2)
 
     // A later real change still lands (the watcher is alive after renames).
     patchStateFile({ focusAccent: "success" })
-    await waitFor(() => events.length === 3)
+    settle()
+    expect(events).toHaveLength(3)
     expect(events[2]).toEqual({
       theme: "tokyonight",
       themeMode: null,
@@ -166,12 +169,12 @@ describe("startUiPrefsWatcher", () => {
     })
   })
 
-  test("stop() ends delivery", async () => {
+  test("stop() ends delivery", () => {
     stop = startUiPrefsWatcher(bus, { statePath, debounceMs: 25 })
     stop()
     stop = null
     patchStateFile({ activeTheme: "nord" })
-    await new Promise((r) => setTimeout(r, 250))
+    settle()
     expect(events).toHaveLength(1) // only the initial publish
   })
 })

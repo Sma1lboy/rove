@@ -1,10 +1,16 @@
-import { describe, expect, test } from "bun:test"
+import { afterAll, beforeEach, describe, expect, test } from "bun:test"
 
 // move-mode pulls in i18n and the sort store, which read browser globals at load.
 const g = globalThis as Record<string, unknown>
 Object.defineProperty(globalThis, "navigator", {
   configurable: true,
   value: { language: "en-US", languages: ["en-US"], platform: "Linux", userAgent: "bun" },
+})
+// Put back whatever window was there: a leftover location-less one breaks auth.ts for later files.
+const hadWindow = Object.getOwnPropertyDescriptor(globalThis, "window")
+afterAll(() => {
+  if (hadWindow) Object.defineProperty(globalThis, "window", hadWindow)
+  else Reflect.deleteProperty(globalThis, "window")
 })
 g.window ??= globalThis
 // Another test file may have installed a bare `window`; the toast timer needs its setTimeout.
@@ -18,12 +24,15 @@ g.localStorage = {
   removeItem: (k: string) => void memory.delete(k),
 }
 const { moveMode, setMoveMode } = await import("../src/move-mode.ts")
-const { railSort, setRailSort } = await import("../src/rail-sort.ts")
+const { loadSort, railSort, setRailSort } = await import("../src/rail-sort.ts")
 const { toasts } = await import("../src/ui.ts")
 
 describe("Reorder (move mode) and the sort", () => {
+  beforeEach(() => setMoveMode(false))
+
   test("a fresh browser starts on recency", () => {
-    expect(railSort.get()).toBe("recent")
+    memory.clear()
+    expect(loadSort()).toBe("recent")
   })
 
   test("another browser's sort is taken up here", async () => {
@@ -44,7 +53,6 @@ describe("Reorder (move mode) and the sort", () => {
   })
 
   test("under manual order it changes nothing but the mode, and turning it off keeps the sort", () => {
-    setMoveMode(false)
     const shown = toasts.get().length
     setRailSort("default")
     setMoveMode(true)

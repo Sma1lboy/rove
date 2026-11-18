@@ -106,13 +106,8 @@ describe("background deletion over the daemon socket", () => {
     const f = await boot({ remove })
     cleanups.push(async () => releaseRemoval?.())
 
-    const response = f.client.request("task.delete", { taskId: f.task.id })
-    await expect(
-      Promise.race([
-        response.then(() => "returned"),
-        new Promise<string>((resolve) => setTimeout(() => resolve("blocked"), 500)),
-      ]),
-    ).resolves.toBe("returned")
+    // Returns while the removal is still pending (a blocked reply times the test out).
+    await f.client.request("task.delete", { taskId: f.task.id })
 
     // The teardown has STARTED and cannot have finished (the fake is pending),
     // and the queued snapshot — the push a UI drops its row on — is already

@@ -15,6 +15,7 @@
  */
 
 import { statSync } from "node:fs"
+import { resolve } from "node:path"
 import type { ChannelEvent } from "../daemon/event-bus.ts"
 import { type PluginEvent, PluginEventReducer, lifecycleEventFor } from "./events.ts"
 import { type HookKillSet, type HookKind, runPluginHook } from "./hook-run.ts"
@@ -59,6 +60,12 @@ function fileStamp(path: string | null): string {
   } catch {
     return "absent"
   }
+}
+
+/** The files a mod's command names inside its plugin root: its source, as one stamp. */
+function modSourceStamp(root: string, mod: PluginCommandSpec): string {
+  // ponytail: only files the command names. A mod split over several files restarts when its entry is saved; stamp the root if that bites.
+  return mod.command.map((arg) => fileStamp(resolve(root, arg))).join("|")
 }
 
 /** The bus surface a host needs: live fan-out plus the last-value cache. */
@@ -110,6 +117,8 @@ export class PluginHost {
   private enabledIds = new Set<string>()
   /** Plugin root → manifest stamp at load, so a TOML edit triggers a reload. */
   private manifestStamps = new Map<string, string>()
+  /** Plugin id → its mod's source stamp at the last sync, so a saved mod file restarts the mod. */
+  private modStamps = new Map<string, string>()
   private pollTimer: ReturnType<typeof setInterval> | undefined
   private registryStamp = ""
   private reloadTimer: ReturnType<typeof setTimeout> | undefined
@@ -144,12 +153,16 @@ export class PluginHost {
     if (!this.mods) return
     const platform = currentPluginPlatform()
     const specs: ModSpec[] = []
+    const stamps = new Map<string, string>()
     for (const plugin of this.plugins) {
       const mod = plugin.manifest.mod
       if (mod && supportsPlatform(mod, plugin.manifest, platform)) {
-        specs.push({ pluginId: plugin.manifest.id, root: plugin.root, mod })
+        const stamp = modSourceStamp(plugin.root, mod)
+        specs.push({ pluginId: plugin.manifest.id, root: plugin.root, mod, stamp })
+        stamps.set(plugin.manifest.id, stamp)
       }
     }
+    this.modStamps = stamps
     this.mods.sync(specs)
   }
 
@@ -351,6 +364,11 @@ export class PluginHost {
     }
     for (const [root, was] of this.manifestStamps) {
       if (fileStamp(pluginManifestPath(root)) !== was) return true
+    }
+    for (const plugin of this.plugins) {
+      const was = this.modStamps.get(plugin.manifest.id)
+      const mod = plugin.manifest.mod
+      if (was !== undefined && mod && modSourceStamp(plugin.root, mod) !== was) return true
     }
     return false
   }

@@ -53,22 +53,19 @@ export function coerceTask(value: unknown): Task | null {
   }
   if (!isTaskStatus(v.status)) return null
 
-  // Nothing maintains a `main` task's status across turns, so a persisted
-  // in_progress/done there is junk: reset to backlog so project liveness
-  // comes ONLY from a real live engine handle.
-  const kind: Task["kind"] = v.kind === "main" ? "main" : v.kind === "dir" ? "dir" : "task"
+  // A stored `main` row (a project's own checkout) is a session in that directory like any other.
+  const fromProjectRow = v.kind === "main" || v.fromProjectRow === true
+  const kind: Task["kind"] = v.kind === "main" || v.kind === "dir" ? "dir" : "task"
   // Scratch only means anything on a dir task — a corrupt flag elsewhere is
   // dropped rather than inventing a Scratch worktree row.
   const scratch = kind === "dir" && v.scratch === true
   const noProject = kind === "dir" && v.noProject === true
-  const healedStatus: TaskStatus =
-    kind === "main" && (v.status === "in_progress" || v.status === "done") ? "backlog" : v.status
   const deletion = coerceDeletion(v.deletion)
   const quotaResume = coerceQuotaResume(v.quotaResume)
   const scheduledStart = coerceScheduledStart(v.scheduledStart)
   const linkedWorkItem = coerceLinkedWorkItem(v.linkedWorkItem)
   const dispatcher = coerceDispatcher(v.dispatcher)
-  const lineage = coerceLineage(v, kind)
+  const lineage = coerceLineage(v)
   const routine = coerceRoutine(v.routine)
   const extraRepos = coerceExtraRepos(v.extraRepos, v.repo)
   const workspace = coerceWorkspace(v.workspace)
@@ -83,7 +80,7 @@ export function coerceTask(value: unknown): Task | null {
     repo: v.repo,
     branch: v.branch,
     worktreePath: v.worktreePath,
-    status: healedStatus,
+    status: v.status,
     pinned: typeof v.pinned === "boolean" ? v.pinned : false,
     ...(v.kept === true ? { kept: true } : {}),
     // The owner's own words and checklist: nothing else holds them.
@@ -92,6 +89,7 @@ export function coerceTask(value: unknown): Task | null {
     // On/off and the attempt count: lost, a loop that was told to stop would start over.
     ...(autoFixCi ? { autoFixCi } : {}),
     kind,
+    ...(fromProjectRow ? { fromProjectRow: true } : {}),
     ...(scratch ? { scratch: true } : {}),
     ...(noProject ? { noProject: true } : {}),
     ...(routine ? { routine } : {}),
@@ -229,14 +227,12 @@ function coerceCwdSubpath(value: unknown): string | undefined {
 }
 
 /**
- * Tree lineage fields. `sharesWorkspaceOf` only means anything on a `dir`/`task`
- * row (a sharer is never `main`), so it is dropped elsewhere rather than
- * leaving a main row that the project coordinator would skip.
+ * Tree lineage fields. A row that was a project's own checkout never shared another row's directory.
  */
-function coerceLineage(v: Record<string, unknown>, kind: Task["kind"]): Partial<Task> {
+function coerceLineage(v: Record<string, unknown>): Partial<Task> {
   const selfId = v.id as string
   const parentTaskId = coerceTaskRef(v.parentTaskId, selfId)
-  const sharesWorkspaceOf = kind === "main" ? undefined : coerceTaskRef(v.sharesWorkspaceOf, selfId)
+  const sharesWorkspaceOf = v.kind === "main" ? undefined : coerceTaskRef(v.sharesWorkspaceOf, selfId)
   const cwdSubpath = coerceCwdSubpath(v.cwdSubpath)
   // Same {taskId, tabId} session-pointer shape as the dispatcher.
   const ptyAlias = coerceDispatcher(v.ptyAlias)

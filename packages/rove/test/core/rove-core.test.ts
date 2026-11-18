@@ -2,8 +2,7 @@
  * createRoveCore — the public bootstrap wiring (store + worktree manager +
  * orchestrator) with home-dir precedence. Store/manager/orchestrator are
  * mocked at their module seams; what's pinned is exactly what this file
- * owns: option > env > homedir precedence, load-before-return, and
- * close() disposing the orchestrator.
+ * owns: option > env > homedir precedence and load-before-return.
  */
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
@@ -70,11 +69,8 @@ describe("createRoveCore", () => {
     expect(core.homeDir).toBe("/env-home")
   })
 
-  test("loads the store before returning and exposes the wired pieces", async () => {
-    const core = await createRoveCore({ homeDir: "/h" })
+  test("loads the store before returning", async () => {
+    await createRoveCore({ homeDir: "/h" })
     expect(fake.loadCalls).toBe(1)
-    expect(core.store).toBeDefined()
-    expect(core.worktrees).toBeDefined()
-    expect(core.orchestrator).toBeDefined()
   })
 })

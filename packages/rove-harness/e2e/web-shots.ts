@@ -24,6 +24,7 @@ const VIEWPORTS = { desktop: { width: 1440, height: 900 }, phone: { width: 390, 
 interface Scene {
   /** The rail row to click, as a person would reach the scene. */
   readonly click?: string
+  readonly railKey?: string
   /** For a page with no rail row: the `sessionStorage` a reload comes back to. A phone opens on the rail, so these are desktop only. */
   readonly storage?: Record<string, string>
 }
@@ -32,10 +33,11 @@ const SCENES: Record<string, Scene> = {
   "new-session": { click: "New task" },
   kanban: { click: "Kanban" },
   routines: { click: "Routines" },
+  update: { railKey: "u" },
   issues: { click: "Issues" },
   settings: { click: "Settings" },
   ...Object.fromEntries(
-    ["worktrees", "update", "mods", "compare", "usage"].map((id) => [id, { storage: { "rove.web.page": JSON.stringify(id) } }]),
+    ["worktrees", "mods", "compare", "usage"].map((id) => [id, { storage: { "rove.web.page": JSON.stringify(id) } }]),
   ),
   // Last: once a task is open its terminal sits behind every later scene, blinking.
   workspace: { click: "Visual Fixture" },
@@ -108,7 +110,7 @@ try {
     await loaded()
     // A first-run notice toasts once per home; let it leave before the first shot.
     await page.waitForTimeout(6000)
-    for (const [scene, { click, storage }] of Object.entries(SCENES)) {
+    for (const [scene, { click, railKey, storage }] of Object.entries(SCENES)) {
       if (storage && viewportName === "phone") continue
       await page.evaluate((entries) => {
         sessionStorage.clear()
@@ -119,6 +121,7 @@ try {
         await loaded()
         // A row's text can carry a key hint after its label.
         if (click) await page.getByText(new RegExp(`^${click}`)).first().click()
+        if (railKey) await page.locator(".rail").press(railKey)
       } catch (err) {
         // What the page showed instead, for whoever reads the failure.
         await page.screenshot({ path: join(DIR, `failed-${scene}-${viewportName}.png`) })

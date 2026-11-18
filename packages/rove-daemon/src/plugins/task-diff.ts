@@ -5,7 +5,7 @@
  *
  *   - `task.changed`     — a watched field changed (`detail.fields/from/to`)
  *   - `task.pr-changed`  — prStatus changed (not in `fields`)
- *   - `worktree.created` — a `task`-kind row gained a worktree path (main/dir
+ *   - `worktree.created` — a `task`-kind row gained a worktree path (dir
  *     tasks reuse user-owned directories and never fire it)
  */
 

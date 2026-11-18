@@ -18,6 +18,25 @@ final class TaskListTests: XCTestCase {
         XCTAssertEqual(TaskListLogic.repos(rows), ["/r/app"])
     }
 
+    func testARowListsItsOwnPRThenTheSessionsOncePerPRAndReadsItsStartTime() throws {
+        let json = #"""
+        {"id":"t","pr":{"number":7,"url":"u/7","lifecycle":"open","checkState":"passing"},
+         "sessionPrs":[{"number":7,"url":"u/7","lifecycle":"open","checkState":"passing"},
+                       {"number":9,"url":"u/9","title":"Docs","lifecycle":"open","checkState":"failing"}],
+         "startsAt":"2026-11-16T22:30:00Z"}
+        """#
+        let row = try JSONDecoder().decode(TaskRow.self, from: Data(json.utf8))
+        XCTAssertEqual(TaskRowMarks.prs(row).map(\.number), [7, 9])
+        XCTAssertEqual(TaskActionLogic.openPRLabel(TaskRowMarks.prs(row)[1]), "Open PR #9 · Docs")
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        let en = Locale(identifier: "en_GB")
+        let sameDay = ISO8601DateFormatter().date(from: "2026-11-16T08:00:00Z")!
+        XCTAssertEqual(TaskRowMarks.startsAt(row.startsAt, now: sameDay, calendar: utc, locale: en), "22:30")
+        XCTAssertEqual(TaskRowMarks.startsAt(row.startsAt, now: sameDay.addingTimeInterval(-86_400), calendar: utc, locale: en), "Mon 22:30")
+        XCTAssertNil(TaskRowMarks.startsAt("soon"))
+    }
+
     // MARK: Sort modes
 
     func testAttentionIsTheDefaultAndKeepsGroupOrderWithPinnedFirst() {

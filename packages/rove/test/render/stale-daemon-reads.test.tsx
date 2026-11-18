@@ -18,7 +18,7 @@ import type { DaemonConnectionState } from "../../src/client/remote-orchestrator
 import { createStateCell } from "../../src/lib/external-store"
 import { AutomationsPage } from "../../src/tui-react/component/automations-page"
 import { UpdatePage } from "../../src/tui-react/component/update-page"
-import { act, renderComponent, settle, waitForFrameText } from "./harness"
+import { act, renderComponent, waitForFrameText } from "./harness"
 
 const NOW = Date.now()
 const AUTOMATION = {
@@ -42,10 +42,15 @@ function fakeOrchestrator(opts: { automations?: unknown[] } = {}) {
   // Flipped mid-test to make the NEXT poll reject, the way a closed socket
   // does — the first read has to succeed so there are rows to keep.
   let failing = false
+  // Resolves when a read has rejected, so a test can wait for the page to have handled one.
+  const rejected = Promise.withResolvers<void>()
   const orchestrator = {
     connectionStateSignal: () => connection,
     listAutomations: async () => {
-      if (failing) throw new Error("daemon socket closed")
+      if (failing) {
+        rejected.resolve()
+        throw new Error("daemon socket closed")
+      }
       return { automations, keepsDaemonAlive: automations.length > 0 }
     },
     automationRuns: async () => ({ runs: [] }),
@@ -57,6 +62,7 @@ function fakeOrchestrator(opts: { automations?: unknown[] } = {}) {
     failReads: () => {
       failing = true
     },
+    readRejected: rejected.promise,
   }
 }
 
@@ -95,15 +101,14 @@ test("the routines page keeps its rows when a poll fails", async () => {
   // 5s poll heals both the moment the daemon answers, and `rove doctor`
   // already names a dead daemon. This pins the swallow-and-keep behavior so a
   // future refactor can't turn a failed poll into an empty list instead.
-  const { orchestrator, connection, failReads } = fakeOrchestrator({ automations: [AUTOMATION] })
+  const { orchestrator, connection, failReads, readRejected } = fakeOrchestrator({ automations: [AUTOMATION] })
   const { frame, mockInput } = await renderComponent(
     <AutomationsPage orchestrator={orchestrator} focused={true} onClose={() => {}} />,
     // notifications: the page reports failed MUTATIONS as toasts, so it calls
     // useNotifications() on every render.
     { width: 74, height: 20, providers: { dialog: true, notifications: true } },
   )
-  await settle(150)
-  expect(await frame()).toContain("weekday audit")
+  await waitForFrameText(frame, "weekday audit")
 
   // The socket drops: the signal flips AND reads start rejecting. Both,
   // because it is the rejecting read — not the signal — that decides whether
@@ -118,8 +123,10 @@ test("the routines page keeps its rows when a poll fails", async () => {
   // times out before the tick lands).
   await act(async () => {
     mockInput.pressKey("r")
+    await readRejected
   })
-  await settle(80)
+  // The page's `.catch` runs a microtask after the rejection; let it commit.
+  await act(async () => {})
   // Stale, not blank, and no crash: the row survives the failed read.
   expect(await frame()).toContain("weekday audit")
 })

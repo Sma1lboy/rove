@@ -8,6 +8,7 @@
 import { spawn } from "node:child_process"
 import { existsSync } from "node:fs"
 import { platform } from "node:os"
+import { dirname } from "node:path"
 import type { Readable } from "node:stream"
 import { spawnDetached } from "../../../lib/spawn-detached"
 
@@ -49,6 +50,13 @@ export function openExternally(absPath: string): void {
     spawnDetachedWithFallback("cmd.exe", ["/c", "start", "", absPath])
     return
   }
+}
+
+/** Show a path in the OS file manager without opening it: macOS selects it in Finder, elsewhere its folder opens. */
+export function revealInFileManager(absPath: string): void {
+  if (!absPath) return
+  if (platform() === "darwin") spawnDetachedWithFallback("open", ["-R", absPath])
+  else openExternally(dirname(absPath))
 }
 
 function spawnDetachedWithFallback(cmd: string, args: readonly string[], onError?: () => void): void {

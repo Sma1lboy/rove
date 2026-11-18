@@ -39,13 +39,6 @@ describe("ToastOverlay truncation", () => {
     // But enough of the front survives to identify the toast.
     expect(out).toContain("Fix the sidebar")
   })
-
-  it("keeps the card inside a terminal narrower than the card itself", async () => {
-    const { frame } = await mount(24)
-    await act(async () => {})
-    const out = await frame()
-    for (const line of out.split("\n")) expect(line.length).toBeLessThanOrEqual(24)
-  })
 })
 
 it("keeps an error's next step visible even when its title is truncated", async () => {

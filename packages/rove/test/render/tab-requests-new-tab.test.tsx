@@ -12,7 +12,7 @@ import { expect, test } from "bun:test"
 import { requestNewTab } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import { useTabRequests } from "../../src/tui-react/workspace/use-tab-requests"
 import { type TabsState, initialTabs } from "../../src/tui/workspace/terminal-tabs-core"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent } from "./harness"
 
 /** Task ids are unique per TEST on purpose: the harness tears the RENDERER down
  *  but does not unmount React, so a probe's listener outlives its test — one
@@ -49,7 +49,7 @@ function harnessFor(taskId: string) {
 test("'new conversation' runs the task's ctrl+t new-conversation action", async () => {
   const { Probe, chats, writes } = harnessFor("newtab-chat")
   await renderComponent(<Probe />, { width: 20, height: 4 })
-  await settle()
+  await act(async () => {})
 
   await act(async () => {
     requestNewTab("newtab-chat", "chat")
@@ -63,7 +63,7 @@ test("'new conversation' runs the task's ctrl+t new-conversation action", async 
 test("'new shell' runs the task's new-shell action and leaves its own tabs alone", async () => {
   const { Probe, writes, chats, shells } = harnessFor("newtab-shell")
   await renderComponent(<Probe />, { width: 20, height: 4 })
-  await settle()
+  await act(async () => {})
 
   await act(async () => {
     requestNewTab("newtab-shell", "shell")
@@ -78,7 +78,7 @@ test("'new shell' runs the task's new-shell action and leaves its own tabs alone
 test("'continue in another engine' opens the continue picker, not a fresh conversation", async () => {
   const { Probe, chats, continues } = harnessFor("newtab-continue")
   await renderComponent(<Probe />, { width: 20, height: 4 })
-  await settle()
+  await act(async () => {})
 
   await act(async () => {
     requestNewTab("newtab-continue", "continue")
@@ -98,7 +98,7 @@ test("a request for a task whose tabs aren't mounted waits for that mount", asyn
   expect(chats.length).toBe(0)
 
   await renderComponent(<Probe />, { width: 20, height: 4 })
-  await settle()
+  await act(async () => {})
 
   expect(chats.length).toBe(1)
 })

@@ -174,8 +174,8 @@ export function groupByProject(tasks: readonly TaskRow[], sort: SortMode = "defa
   return [...built.filter((group) => group.noProject), ...built.filter((group) => !group.noProject)]
 }
 
-/** A project's main checkout heads its group, then its pinned tasks, whatever the sort (TUI `buildRows`). */
-const tier = (task: TaskRow): number => (task.kind === "main" ? 0 : task.pinned ? 1 : 2)
+/** Pinned tasks head their group, whatever the sort. */
+const tier = (task: TaskRow): number => (task.pinned ? 0 : 1)
 
 /** Stable, so manual order holds within each tier. */
 const headFirst =

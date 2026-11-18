@@ -56,8 +56,8 @@ test("an open Inbox follows another window's visit after its own quiet flush", a
   expect(await frame()).toContain("Local visit")
   const initial = await frame()
   expect(initial.indexOf("Local visit")).toBeLessThan(initial.indexOf("Remote visit"))
-  if (!context) throw new Error("KV provider did not mount")
-  const kv = context
+  expect(context).toBeDefined()
+  const kv = context as KVContext
   await act(async () => {
     kv.follow({ inboxVisits: [{ taskId: "Remote visit", tabId: null, at: Date.now() }, ...readInboxVisits(kv)] })
   })

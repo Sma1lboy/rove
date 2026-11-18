@@ -6,10 +6,11 @@
 
 import { expect, test } from "bun:test"
 import { createStateCell } from "../../src/lib/external-store"
+import { patchStateFile } from "../../src/state/store"
 import type { RemoteOrchestrator } from "../../src/tui-react/../client/remote-orchestrator"
 import { WorkspaceFrame } from "../../src/tui-react/workspace/host-footer"
 import type { EngineQuotaUsage } from "../../src/types/engine"
-import { renderComponent } from "./harness"
+import { isolateHome, renderComponent } from "./harness"
 
 /** Minimal stand-in: the footer reads the quota map and the per-session
  *  context map, and nothing else. `context` defaults to empty so the existing
@@ -30,6 +31,8 @@ function orchestratorWith(
 }
 
 const IN_AN_HOUR = Date.now() + 60 * 60 * 1000
+
+isolateHome()
 
 test("renders one chip per window per vendor", async () => {
   const orch = orchestratorWith(
@@ -128,4 +131,23 @@ test("the context meter renders the active tab's occupancy, and only that tab's"
   expect(out).toContain("ctx 62%")
   // tab-2's 4% belongs to a session the user is not looking at.
   expect(out).not.toContain("4%")
+})
+
+test("with usage set to read what is left, quota and context chips count down", async () => {
+  patchStateFile({ "usage.show": "left" })
+  const orch = orchestratorWith(
+    new Map<string, EngineQuotaUsage>([
+      ["claude", { capturedAt: Date.now(), windows: [{ kind: "session", label: "5h", percent: 42, resetsAt: null }] }],
+    ]),
+    new Map([["t1::tab-1", { contextTokens: 124_000, contextWindowTokens: 200_000 }]]),
+  )
+  const { frame } = await renderComponent(
+    <WorkspaceFrame orchestrator={orch} activeTaskId="t1" activeTabId="tab-1">
+      <box />
+    </WorkspaceFrame>,
+    { width: 100, height: 6, providers: { kv: true } },
+  )
+  const footer = (await frame()).trimEnd().split("\n").at(-1) ?? ""
+  expect(footer).toContain("5h 58%")
+  expect(footer).toContain("ctx 38%")
 })

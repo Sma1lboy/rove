@@ -87,6 +87,25 @@ describe("send refuses an empty-branch success report", () => {
     expect(calls).toHaveLength(0)
   })
 
+  it("a refused --repo send opens no new session in that project", async () => {
+    const client = new FakeClient({
+      "task.get": () => ({ task: taskFixture({ id: "worker-1", branch: "fix/thing", kind: "task" }) }),
+      "project.ensure": () => ({ repo: "/repo/x" }),
+      "task.openDir": () => ({ task: taskFixture({ id: "fresh", kind: "dir" }) }),
+    })
+    const { calls, deliver } = recordingDelivery()
+    await expectApiError(
+      () =>
+        invokeVerb("send", ["--repo", "/repo/x", "--prompt", "succeeded: done"], {
+          client,
+          runtime: stubRuntime({ deliverPrompt: deliver, ...emptyBranch }),
+        }),
+      "EMPTY_SUCCESS_REPORT",
+    )
+    expect(client.requests.map((request) => request.name)).not.toContain("task.openDir")
+    expect(calls).toHaveLength(0)
+  })
+
   it("hands back an executable recovery path naming the escape hatch", async () => {
     const { deliver } = recordingDelivery()
     try {
@@ -195,10 +214,10 @@ describe("send delivers everything the guard has no business refusing", () => {
     expect(calls).toHaveLength(1)
   })
 
-  it("a `main` task — a project-main checkout owns no Rove branch to be empty", async () => {
+  it("a `dir` task — a directory session owns no Rove branch to be empty", async () => {
     const { calls, deliver } = recordingDelivery()
     await invokeVerb("send", ["--task-id", "coord-1", "--prompt", "succeeded: done"], {
-      client: clientWith({ kind: "main" }),
+      client: clientWith({ kind: "dir" }),
       runtime: stubRuntime({ deliverPrompt: deliver, ...emptyBranch }),
     })
     expect(calls).toHaveLength(1)

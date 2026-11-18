@@ -25,7 +25,6 @@ import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
 import { renderComponent } from "./harness"
 
-const SETTLE = 90
 const SPINNER = new Set(DEFAULT_SPINNER_FRAMES)
 
 /** A sibling exactly as `addParallel` creates it: placeholder title, branch
@@ -78,7 +77,6 @@ test("every materializing sibling shows a spinner, with no tab row anywhere", as
     <SidebarTree tasks={SIBLINGS} selectedId="s1" onSelect={() => {}} focused={true} width={30} />,
     { width: 30, height: 20 },
   )
-  await new Promise((r) => setTimeout(r, SETTLE))
   const text = await frame()
 
   // The scene really is the frozen one: three identical placeholder rows…
@@ -98,7 +96,6 @@ test("only the tasks WITH a job spin — a sibling that finished stops", async (
     <SidebarTree tasks={SIBLINGS} selectedId="s1" onSelect={() => {}} focused={true} width={30} />,
     { width: 30, height: 20 },
   )
-  await new Promise((r) => setTimeout(r, SETTLE))
   expect(spinnerCells(await frame())).toBe(1)
 })
 
@@ -118,7 +115,6 @@ test("the client's own engine activity lights nothing: only the daemon's row sta
     />,
     { width: 30, height: 20 },
   )
-  await new Promise((r) => setTimeout(r, SETTLE))
   expect(spinnerCells(await frame())).toBe(0)
 })
 
@@ -136,10 +132,9 @@ test("a materializing row shows how far its checkout got, beside the spinner", a
     />,
     { width: 30, height: 20 },
   )
-  await new Promise((r) => setTimeout(r, SETTLE))
   const text = await frame()
-  const row = text.split("\n").find((line) => line.includes("42%"))
-  expect(row && [...row].some((ch) => SPINNER.has(ch))).toBe(true)
+  const row = text.split("\n").find((line) => line.includes("42%")) ?? ""
+  expect(spinnerCells(row)).toBe(1)
   // A job git has not reported a percent for yet shows the spinner alone.
   expect(text.split("%").length - 1).toBe(1)
 })

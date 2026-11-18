@@ -178,6 +178,14 @@ export const en = {
       multipleOnly: "only with 2+ tabs",
       always: "always",
     },
+    usageShowTitle: "Usage",
+    usageShowHint: "How plan quota and context percentages read, in the footer and here.",
+    /** `{mode}` = one of usageShowMode.* below. */
+    usageShowRow: "percentages: {mode}",
+    usageShowMode: {
+      used: "used",
+      left: "left",
+    },
   },
   /**
    * Copy for the modals the Settings screen opens — `DialogConfirm` bodies
@@ -407,6 +415,13 @@ export const zh: typeof en = {
       never: "关闭 — 标签在左侧树里",
       multipleOnly: "仅 2 个以上标签时显示",
       always: "始终显示",
+    },
+    usageShowTitle: "用量",
+    usageShowHint: "套餐额度和上下文百分比的显示方式，作用于底栏和此处。",
+    usageShowRow: "百分比: {mode}",
+    usageShowMode: {
+      used: "已用",
+      left: "剩余",
     },
   },
   field: {

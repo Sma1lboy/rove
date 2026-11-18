@@ -4,7 +4,7 @@
  * JavaScript runtime name (it shows up as "node").
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
 import { type BehaviorEnv, DIST_ROVE_CLI, closeTui, loadNodePty, makeBehaviorEnv } from "./harness.ts"
 
 // node-pty is a native addon; CI's linux runner has no prebuild for it, so a
@@ -27,30 +27,20 @@ describe.skipIf(!nodePty)("Rove outer terminal title (behavior)", () => {
   })
 
   it("publishes rove as the terminal title on pure-TUI boot", async () => {
-    if (!nodePty) throw new Error("unreachable: suite is skipped without node-pty")
-    const child = nodePty.spawn("bun", [DIST_ROVE_CLI], {
+    const child = nodePty!.spawn("bun", [DIST_ROVE_CLI], {
       cols: 120,
       rows: 35,
       cwd: env.home,
       env: env.env as Record<string, string>,
     })
     let raw = ""
+    const data = child.onData((chunk) => {
+      raw += chunk
+    })
     try {
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(
-          () => reject(new Error(`title sequence not observed; output-start=${JSON.stringify(raw.slice(0, 500))}`)),
-          10_000,
-        )
-        const data = child.onData((chunk) => {
-          raw += chunk
-          if (!raw.includes(TITLE_SEQUENCE)) return
-          clearTimeout(timeout)
-          data.dispose()
-          resolve()
-        })
-      })
-      expect(raw).toContain(TITLE_SEQUENCE)
+      await vi.waitFor(() => expect(raw).toContain(TITLE_SEQUENCE), { timeout: 10_000, interval: 50 })
     } finally {
+      data.dispose()
       await closeTui(child)
     }
   }, 15_000)

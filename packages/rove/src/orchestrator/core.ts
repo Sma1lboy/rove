@@ -9,7 +9,6 @@ import type { LandPreflightResult, ReparentResult, TaskPtyAlias } from "@sma1lbo
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { type ReadableState, type StateCell, createStateCell } from "../lib/external-store.ts"
 import { readLastActiveTaskId, writeLastActiveTaskId } from "../state/last-active.ts"
-import { isGitRepo, resolveRepoRoot } from "../state/repos.ts"
 import type { Task, TaskId, TaskPRStatus, TaskStatus, TaskWorkerReport, VendorId } from "../types/task.ts"
 import type { AdoptableWorktree } from "../types/worktree.ts"
 import { WorkspaceCheckpoints } from "./checkpoints.ts"
@@ -23,10 +22,9 @@ import { landPreflightAll } from "./land-multi.ts"
 import { landPreflight } from "./land-preflight.ts"
 import { landRouted } from "./land-routed.ts"
 import { type LandResult, type LandTaskOpts, assertOwnsBranch } from "./land.ts"
-import { MainTaskCoordinator } from "./main-task.ts"
 import { createMigratedChildRow, setPtyAliasRow } from "./migrated-child.ts"
 import { moveTaskToProjectRow } from "./move-project.ts"
-import { promotableDirTasks } from "./promote-dir-tasks.ts"
+import { ProjectCoordinator } from "./projects.ts"
 import { type SpawnChildInput, type SpawnChildResult, spawnChildTaskRow } from "./spawn-child.ts"
 import { TaskDeletionCoordinator, type TaskDeletionOpts } from "./task-deletion.ts"
 import { TaskEditor } from "./task-editor.ts"
@@ -97,8 +95,8 @@ export class Orchestrator {
   private readonly tasksAcc: StateCell<Task[]>
   private readonly activeTaskAcc: StateCell<string | null>
   private readonly unsubscribeStore: TaskIndexUnsubscribe
-  /** Owns the `kind:"main"` project row (create / adopt / forget). */
-  private readonly mainTasks: MainTaskCoordinator
+  /** Which repos are projects (save / forget). */
+  private readonly projects = new ProjectCoordinator()
   /** Injected engine-session teardown — see {@link OrchestratorDeps.tearDownSession}. */
   private readonly tearDownSession?: (taskId: TaskId | string) => Promise<void>
 
@@ -110,13 +108,15 @@ export class Orchestrator {
       this.requireTask(id),
     )
     this.tearDownSession = deps.tearDownSession
-    // `ensureIfEligible`, not `ensureMainTask`: adopting a worktree of a
-    // throwaway repo must still adopt, it just must not mint a permanent
-    // project row for a path that cannot be someone's project.
-    this.worktreeCoordinator = new WorktreeCoordinator(this.store, this.worktrees, this.workspaces, canonPath, (repo) =>
-      this.mainTasks.ensureIfEligible(repo),
+    // `ensureIfEligible`, not `ensure`: adopting a worktree of a throwaway
+    // repo must still adopt, it just must not save a path that cannot be someone's project.
+    this.worktreeCoordinator = new WorktreeCoordinator(
+      this.store,
+      this.worktrees,
+      this.workspaces,
+      canonPath,
+      async (repo) => this.projects.ensureIfEligible(repo),
     )
-    this.mainTasks = new MainTaskCoordinator(this.store, (id) => this.worktreeCoordinator.forget(id))
     this.editor = new TaskEditor(this.store, this.worktrees)
     this.deletions = new TaskDeletionCoordinator(
       this.store,
@@ -139,28 +139,8 @@ export class Orchestrator {
     })
   }
 
-  /**
-   * Awaited before the first render. Absorbs `dir` rows sitting on a repo root
-   * into that repo's `main` row: such a row renders as a bare path, outside
-   * every project-row behaviour (ordering, pin, the fold on a closed last tab),
-   * and `ensure` only runs when somebody names the repo, so without this sweep
-   * it stays wrong forever. The promoted row keeps its task id, so its terminal
-   * tabs come with it.
-   *
-   * Best-effort: a moved repo or an unresponsive git must not stop the TUI
-   * from starting.
-   */
-  async init(): Promise<void> {
-    try {
-      const promotable = promotableDirTasks({
-        tasks: this.store.list(),
-        isRepoRoot: (path) => isGitRepo(path) && samePath(resolveRepoRoot(path), path),
-      })
-      for (const task of promotable) await this.mainTasks.ensureIfEligible(task.repo, "explicit")
-    } catch {
-      // A failed promotion leaves the row as it was, not a boot failure.
-    }
-  }
+  /** Awaited before the first render; the in-process orchestrator has nothing to load. */
+  async init(): Promise<void> {}
 
   /** In-process active-task focus; mirrors {@link RemoteOrchestrator}'s
    *  daemon-backed `active-task` channel so the `RoveOrchestrator` union has one API. */
@@ -217,7 +197,7 @@ export class Orchestrator {
     createOrForkTask(
       {
         store: this.store,
-        mainTasks: this.mainTasks,
+        projects: this.projects,
         claimWorktreeName: (repo, name) => this.worktreeCoordinator.claimWorktreeName(repo, name),
         ensureWorktree: (id) => this.ensureWorktree(id),
         cloneInto: (child, parentPath) => this.worktreeCoordinator.ensure(child, undefined, parentPath),
@@ -236,7 +216,7 @@ export class Orchestrator {
 
   /** Regroup a top-level task (and its children) under another project; nothing on disk moves — see `move-project.ts`. */
   moveTaskToProject = (id: TaskId | string, repo: string): Promise<{ repo: string; moved: readonly string[] }> =>
-    moveTaskToProjectRow({ store: this.store, ensureMainTask: (target) => this.ensureMainTask(target) }, id, repo)
+    moveTaskToProjectRow({ store: this.store, ensureProject: (target) => this.ensureProject(target) }, id, repo)
 
   /** Spawn a child task of `input.parentTaskId` — rules and body in `spawn-child.ts`. */
   spawnChildTask = (input: SpawnChildInput): Promise<SpawnChildResult> =>
@@ -257,9 +237,9 @@ export class Orchestrator {
   setPtyAlias = (id: TaskId | string, alias: TaskPtyAlias | null): Promise<void> =>
     setPtyAliasRow({ store: this.store }, String(id), alias)
 
-  /** Ensure the repo's `kind:"main"` sidebar row exists — see {@link MainTaskCoordinator.ensure}. */
-  async ensureMainTask(repo: string): Promise<Task> {
-    return await this.mainTasks.ensure(repo)
+  /** Save `repo` as a project; returns its normalized key — see {@link ProjectCoordinator.ensure}. */
+  async ensureProject(repo: string): Promise<string> {
+    return this.projects.ensure(repo)
   }
 
   /**
@@ -278,7 +258,7 @@ export class Orchestrator {
         repo: task.repo,
         slug: "",
         branch: task.branch,
-        // A dir task pins its own path; a main task is the repo's checkout.
+        // A dir task pins its own path.
         ...(task.kind === "dir" ? { path: task.worktreePath } : {}),
       })
       return borrowed.path
@@ -322,8 +302,7 @@ export class Orchestrator {
     const task = this.store.get(id)
     if (!task || !task.worktreePath) return
     // Only a Rove-created worktree is ours to forget: a `dir` task's path IS the
-    // user's directory (blanking it makes `ensureWorktree` return "" for good),
-    // a `main` task's is the checkout.
+    // user's directory (blanking it makes `ensureWorktree` return "" for good).
     if (!workspaceCapabilities(task).ownsDirectory) return
     // The directory went for every row in it, not just the one asked about.
     const gone = canonPath(task.worktreePath)
@@ -382,7 +361,7 @@ export class Orchestrator {
   setPrompt = (id: TaskId | string, prompt: string): Promise<void> => this.editor.setPrompt(id, prompt)
 
   /**
-   * Permanently remove a task. Refuses `kind: "main"` (remove the saved repo instead).
+   * Permanently remove a task.
    *
    * Worktree safety: without `opts.force` a worktree with uncommitted /
    * untracked changes is NOT destroyed — throws {@link DirtyWorktreeError} so
@@ -446,9 +425,36 @@ export class Orchestrator {
     })
   }
 
-  /** Drop a saved project + its main row — see {@link MainTaskCoordinator.forget}. */
+  /**
+   * Rows loaded from a stored `main` row. One holding nothing (no tab, no child, not archived) was never a
+   * session and goes; the rest are ordinary sessions from here on. Their repo stays a project either way.
+   */
+  async settleProjectRows(hasTabs: (taskId: string) => boolean): Promise<void> {
+    const flagged = this.store.list().filter((task) => task.fromProjectRow)
+    if (flagged.length === 0) return
+    for (const task of flagged) {
+      this.projects.ensureIfEligible(task.repo, "explicit")
+      const holds =
+        task.archived === true ||
+        hasTabs(String(task.id)) ||
+        this.store.list().some((t) => t.parentTaskId === task.id || t.sharesWorkspaceOf === task.id)
+      if (holds) await this.store.update(task.id, { fromProjectRow: undefined })
+      else {
+        await this.store.remove(task.id)
+        this.worktreeCoordinator.forget(task.id)
+      }
+    }
+    // Those rows carried the project order: each project's tasks become one block, in that order.
+    const left = this.store.list()
+    const repos = flagged.map((task) => task.repo).filter((repo) => left.some((t) => samePath(t.repo, repo)))
+    for (let i = repos.length - 2; i >= 0; i--) {
+      await this.editor.moveProject(repos[i] as string, repos[i + 1] as string, "before").catch(() => {})
+    }
+  }
+
+  /** Drop a saved project; its sessions stay — see {@link ProjectCoordinator.forget}. */
   async forgetProject(repo: string): Promise<void> {
-    await this.mainTasks.forget(repo)
+    this.projects.forget(repo)
   }
 
   /**

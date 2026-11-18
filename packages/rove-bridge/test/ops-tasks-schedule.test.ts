@@ -41,7 +41,7 @@ describe("Later records a pending start: nothing is created until its time", () 
     expect(result).toEqual({ taskIds: [], pendingStartId: "P1" })
   })
 
-  test("task.openCheckout records the session and opens no project row now", async () => {
+  test("task.openCheckout records the session and opens nothing now", async () => {
     taskOpDeps.validateRepoPath = () => null
     const { calls } = await run(
       "task.openCheckout",

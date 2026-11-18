@@ -162,18 +162,18 @@ type Request = <T>(op: string, args?: Record<string, unknown>) => Promise<T>
 
 /**
  * Start an Ungrouped session (no project, in the home directory): the rail's Scratch row, then its
- * engine tab carrying the prompt.
+ * engine tab carrying `message` (the prompt plus attachment refs).
  */
-export async function startUngrouped(request: Request, engine: string, prompt: string): Promise<string> {
+export async function startUngrouped(request: Request, engine: string, message: string, model = ""): Promise<string> {
   const pick = engine ? { engine } : {}
-  const { taskId } = await request<{ taskId: string }>("task.openScratch", pick)
-  await request("tab.new", { taskId, kind: "engine", ...pick, prompt: prompt.trim() })
+  const { taskId } = await request<{ taskId: string }>("task.openScratch", { ...pick, ...(model ? { model } : {}) })
+  await request("tab.new", { taskId, kind: "engine", ...pick, prompt: message.trim() })
   return taskId
 }
 
 /**
  * Start a session in the project's own checkout (Worktree off): a top-level row of that project, titled
- * from `prompt`. It is never a conversation opened on the project's main task, which would nest it there.
+ * from `prompt`.
  * `message` is what the engine receives (the prompt plus attachment refs); it defaults to the prompt.
  * With `at` nothing is created now: the daemon opens the session with the message at that time (the Routines
  * page lists it), so there is no task id to return.
@@ -185,6 +185,7 @@ export async function startInCheckout(
   prompt: string,
   message: string = prompt.trim(),
   at?: Date,
+  model = "",
 ): Promise<string | undefined> {
   const pick = engine ? { engine } : {}
   const title = prompt.trim() ? deriveTitleFromPrompt(prompt) : ""
@@ -192,6 +193,7 @@ export async function startInCheckout(
     repo,
     ...pick,
     ...(title ? { title } : {}),
+    ...(model ? { model } : {}),
     ...(at ? { scheduleAt: at.toISOString(), schedulePrompt: message } : {}),
   })
   if (at || !taskId) return undefined

@@ -11,7 +11,7 @@
  * never registered renders identically to one that works — and a locally
  * re-implemented toggle would pass while the product's cycle was wrong.
  */
-import { afterAll, beforeAll, expect, test } from "bun:test"
+import { afterAll, beforeAll, beforeEach, expect, test } from "bun:test"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -27,8 +27,6 @@ import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
 import { act, renderComponent } from "./harness"
 
-const SETTLE = 80
-
 // `useSidebarHostState` PERSISTS the chosen sort through KVProvider, which
 // writes `$ROVE_HOME_DIR/.config/rove/state.json` — the real ~/.rove without
 // this. Captured once per FILE: bun runs a file in one process, and a
@@ -37,7 +35,12 @@ let previousHome: string | undefined
 
 beforeAll(() => {
   previousHome = process.env.ROVE_HOME_DIR
+})
+
+// A fresh home per test: the sort mode one test cycles to is persisted, and must not be the next test's start.
+beforeEach(() => {
   process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-sort-key-"))
+  notices.length = 0
 })
 
 afterAll(() => {
@@ -71,7 +74,6 @@ function task(id: string, over: Partial<Task> = {}): Task {
  * Neighbouring stops always disagree, so walking the whole cycle proves each
  * press advanced exactly one step.
  */
-const MAIN = task("m", { kind: "main", branch: "", worktreePath: "/repos/rove" })
 const OLDER = task("aaa", { title: "Zebra", updatedAt: "2026-08-01T00:00:00.000Z" })
 const NEWER = task("zzz", { title: "Apple", updatedAt: "2026-08-20T00:00:00.000Z" })
 
@@ -114,7 +116,7 @@ function SortHost() {
   const kv = useKV()
   const host = useSidebarHostState({
     kv,
-    tasks: [MAIN, OLDER, NEWER],
+    tasks: [OLDER, NEWER],
     focusSidebar: () => {},
     notify: (message) => notices.push(message),
   })
@@ -143,7 +145,7 @@ function SortHost() {
   })
   return (
     <SidebarTree
-      tasks={[MAIN, OLDER, NEWER]}
+      tasks={[OLDER, NEWER]}
       selectedId={OLDER.id}
       onSelect={() => {}}
       focused={focus.focused === "sidebar"}
@@ -165,10 +167,10 @@ test("t cycles the sidebar through recent → attention → name → default", a
     height: 20,
     providers: { focus: true, dialog: true, kv: true },
   })
-  await new Promise((r) => setTimeout(r, SETTLE))
   const press = async (): Promise<number> => {
-    mockInput.typeText("t")
-    await new Promise((r) => setTimeout(r, SETTLE))
+    act(() => {
+      mockInput.typeText("t")
+    })
     return orderOf(await frame())
   }
 
@@ -188,19 +190,16 @@ test("t cycles the sidebar through recent → attention → name → default", a
 
 // Reorder edits the stored order, so under any other sort entering it must flip to manual first.
 test("entering move mode under recency switches to manual order and says so", async () => {
-  notices.length = 0
   const { frame } = await renderComponent(<SortHost />, {
     width: 28,
     height: 20,
     providers: { focus: true, dialog: true, kv: true },
   })
-  await new Promise((r) => setTimeout(r, SETTLE))
   expect(orderOf(await frame())).toBeGreaterThan(0)
 
   await act(async () => {
     hostState?.setMoveMode(true)
   })
-  await new Promise((r) => setTimeout(r, SETTLE))
   expect(orderOf(await frame())).toBeLessThan(0)
   expect(await frame()).toContain("sort: manual")
   expect(notices).toHaveLength(1)

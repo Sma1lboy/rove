@@ -91,8 +91,8 @@ export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
       // The owner first, then every child sharing the directory.
       const holderIds = tasksAtWorktreePath(tasks, path)
       const taskId = holderIds[0]
-      // A `dir` task's path is the user's own directory and a `main` task's
-      // the project checkout; removing either deletes files Rove never made.
+      // A `dir` task's path is the user's own directory (a project checkout
+      // included); removing it deletes files Rove never made.
       // Sibling destructive paths refuse these kinds too (`deleteTask`,
       // `ensureWorktree`, `land`), and `clearWorktreePath` skips them.
       const borrowed = holderIds
@@ -110,6 +110,18 @@ export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
         throw new Error(
           `${WORKTREE_SHARED_CODE}: ${path} is the directory of ${holderIds.length} tasks (${holderIds.join(", ")}) — delete the children first, or force the removal`,
         )
+      }
+      // Read current activity at the teardown boundary, not the caller's enumeration snapshot.
+      if (!force) {
+        const busy = holderIds.filter((id) => {
+          const state = ctx.activity.stateOf(id, null)
+          return state === "running" || state === "permission_needed"
+        })
+        if (busy.length > 0) {
+          throw new Error(
+            `TASK_BUSY: engines are working or waiting on you in ${busy.join(", ")}; pass force to remove anyway`,
+          )
+        }
       }
       for (const id of holderIds) {
         await ctx.runtime

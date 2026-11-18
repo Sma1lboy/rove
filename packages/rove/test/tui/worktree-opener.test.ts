@@ -2,15 +2,6 @@ import { describe, expect, it, vi } from "vitest"
 import { buildOpenWorktreeCommand, detectWorktreeOpener, openWorktree } from "../../src/tui/lib/worktree-opener.ts"
 
 describe("detectWorktreeOpener", () => {
-  it("honors ROVE_OPEN_EDITOR before the compatibility variable", () => {
-    expect(
-      detectWorktreeOpener({
-        env: { ROVE_OPEN_EDITOR: "zed", PATH: "" },
-        exists: () => false,
-      }),
-    ).toEqual({ id: "env", label: "Zed", command: "zed", args: [] })
-  })
-
   it("honors ROVE_OPEN_EDITOR", () => {
     expect(
       detectWorktreeOpener({

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test"
+import { afterEach, describe, expect, spyOn, test } from "bun:test"
 import type { TaskStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { RowStatusFeed, type StatusClient } from "../src/row-status.ts"
 import { AUTH, connect, start, stopServers } from "./server-harness.ts"
@@ -89,7 +89,9 @@ describe("the bridge's copy of row.status", () => {
 describe("ui.viewing over the bridge", () => {
   test("each browser connection reports as its own viewer, cleared when it disconnects", async () => {
     const daemon = new FakeDaemon()
-    const h = start({ rowStatus: new RowStatusFeed(daemon) })
+    const feed = new RowStatusFeed(daemon)
+    const setViewing = spyOn(feed, "setViewing")
+    const h = start({ rowStatus: feed })
     const a = await connect(h.url, AUTH)
     const b = await connect(h.url, AUTH)
     expect((await a.call("ui.viewing", { taskId: "T1", tabId: "tab-1" })).ok).toBe(true)
@@ -106,7 +108,10 @@ describe("ui.viewing over the bridge", () => {
     await until(() => daemon.reports("ui.viewing").length === 4)
     expect(daemon.reports("ui.viewing")[3]).toEqual({ viewer: first?.viewer, taskId: null })
     b.ws.close()
-    await Bun.sleep(20)
+    // The server's close handler ran for b too.
+    await until(() => setViewing.mock.calls.length === 5)
+    expect(setViewing).toHaveBeenCalledTimes(5)
+    expect(setViewing.mock.calls.at(-1)).toEqual([second?.viewer, null, null])
     // b already showed nothing: no second clear.
     expect(daemon.reports("ui.viewing")).toHaveLength(4)
   })

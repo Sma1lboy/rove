@@ -48,6 +48,23 @@ export const TOAST_DURATION_MS = 4500
 /** Off: a finished turn only leaves its unread mark; approvals and errors still toast and ring. */
 export const FINISHED_ALERTS_KEY = "notifications.finished.enabled"
 
+/** Task ids whose notifications are muted: their unread dot stays, their toasts and chime don't. */
+export const MUTED_TASKS_KEY = "notifications.mutedTasks"
+
+/** The muted set from the stored value; anything that isn't a string list reads as none muted. */
+export function mutedTaskIds(stored: unknown): ReadonlySet<string> {
+  if (!Array.isArray(stored)) return new Set()
+  return new Set(stored.filter((id): id is string => typeof id === "string"))
+}
+
+/** The stored list with `taskId` flipped in or out. */
+export function toggleMutedTask(stored: unknown, taskId: string): string[] {
+  const ids = new Set(mutedTaskIds(stored))
+  if (ids.has(taskId)) ids.delete(taskId)
+  else ids.add(taskId)
+  return [...ids]
+}
+
 export function unreadKey(taskId: string, tabId: string): string {
   return `${taskId}:${tabId}`
 }
@@ -87,9 +104,15 @@ export function shouldShowToast(kind: NotificationKind, toastEnabled: boolean): 
 
 /**
  * Whether a notification alerts at all (toast, chime, OSC 9). With many sessions running, a
- * finished turn is routine, while an approval blocks work until someone answers it.
+ * finished turn is routine, while an approval blocks work until someone answers it. A muted
+ * task alerts only for an error, whose toast always shows (and never rings, see {@link shouldPlaySound}).
  */
-export function shouldAlert(input: Pick<NotifyInput, "kind" | "turnEnd">, finishedEnabled: boolean): boolean {
+export function shouldAlert(
+  input: Pick<NotifyInput, "kind" | "turnEnd">,
+  finishedEnabled: boolean,
+  muted = false,
+): boolean {
+  if (muted) return input.kind === "error"
   return finishedEnabled || input.kind !== "done" || input.turnEnd !== true
 }
 
@@ -98,8 +121,8 @@ export function shouldAlert(input: Pick<NotifyInput, "kind" | "turnEnd">, finish
  * source. A dispatched task's completion is what the Inbox is for — it never
  * rings, whatever the sound toggle says.
  */
-export function shouldPlaySound(input: Pick<NotifyInput, "silent">, soundEnabled: boolean): boolean {
-  return soundEnabled && input.silent !== true
+export function shouldPlaySound(input: Pick<NotifyInput, "silent">, soundEnabled: boolean, muted = false): boolean {
+  return soundEnabled && input.silent !== true && !muted
 }
 
 /**

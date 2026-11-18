@@ -125,9 +125,7 @@ describe("SessionTitles", () => {
     feed.subscribe((payload) => pushes.push(payload))
     expect(feed.active).toBe(true)
     // What `watch` does on each interval while a client listens: poll, and refresh the feed when a title moved.
-    const tick = async () => {
-      if (await titles.tick()) await feed.refresh()
-    }
+    const tick = async () => (await titles.tick()) && (await feed.refresh())
     await feed.refresh()
     await tick()
     expect(pushes.map((p) => p.tasks[0]?.label)).toEqual(["First name"])
@@ -145,10 +143,10 @@ describe("SessionTitles", () => {
       () => {
         opened++
         return {
-          request: (async () => {
-            if (!up) throw new Error("ECONNREFUSED")
-            return { sessions: [{ key: "a::tab-1", alive: true, title: "Back" }] }
-          }) as never,
+          request: (async () =>
+            up
+              ? { sessions: [{ key: "a::tab-1", alive: true, title: "Back" }] }
+              : Promise.reject(new Error("ECONNREFUSED"))) as never,
           close: () => {},
         }
       },

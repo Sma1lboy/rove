@@ -317,6 +317,54 @@ describe("startPrStatusPoller consumer gate", () => {
   })
 })
 
+describe("startPrStatusPoller user refresh cadence", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  /** Start a poller over one task with an open PR; `runs` counts `gh` calls. */
+  async function startWith(refresh: () => number | undefined) {
+    await makeTask()
+    let n = 0
+    const run: PrViewRunner = async () => {
+      n++
+      return { kind: "pr", view: { number: 7, state: "OPEN", statusCheckRollup: [] } }
+    }
+    const stop = startPrStatusPoller(
+      orch,
+      daemonRuntime,
+      DEFAULT_PR_STATUS_POLL_MS,
+      undefined,
+      run,
+      undefined,
+      undefined,
+      refresh,
+    )
+    return { runs: () => n, stop }
+  }
+
+  test("a slower cadence re-reads an open PR less often than the default", async () => {
+    const { runs, stop } = await startWith(() => 300_000)
+    await vi.advanceTimersByTimeAsync(DEFAULT_PR_STATUS_POLL_MS * 4)
+    await stop()
+    expect(runs()).toBe(1)
+  })
+
+  test("0 pauses background refresh, and clearing it resumes without a restart", async () => {
+    let setting: number | undefined = 0
+    const { runs, stop } = await startWith(() => setting)
+    await vi.advanceTimersByTimeAsync(DEFAULT_PR_STATUS_POLL_MS * 3)
+    expect(runs()).toBe(0)
+    setting = undefined
+    await vi.advanceTimersByTimeAsync(DEFAULT_PR_STATUS_POLL_MS)
+    await stop()
+    expect(runs()).toBe(1)
+  })
+})
+
 describe("stale marker (prStatus.lastError)", () => {
   const errorRunner: PrViewRunner = async () => ({ kind: "error", error: "missing-binary" })
 

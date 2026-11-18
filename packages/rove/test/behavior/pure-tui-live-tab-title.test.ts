@@ -87,13 +87,13 @@ describe.skipIf(!nodePty)("Pure TUI sidebar shows an unselected task's live tab 
 
     // `--prompt` takes the headless launch path: worktree + hosted engine
     // session under `<taskId>::tab-1`, plus the snapshot the TUI renders from.
-    for (const branch of [branchA, branchB]) {
+    const addTask = (branch: string): string => {
       const add = runRove(["api", "add", "--repo", repo, "--branch", branch, "--prompt", "hello"], env)
       expect(add.code, add.stderr).toBe(0)
-      const id = (JSON.parse(add.stdout) as { task: { id: string } }).task.id
-      if (branch === branchA) taskA = id
-      else taskB = id
+      return (JSON.parse(add.stdout) as { task: { id: string } }).task.id
     }
+    taskA = addTask(branchA)
+    taskB = addTask(branchB)
 
     // Focus A, so the TUI boots into A and B's `TerminalTabs` never mounts —
     // the condition that made B's title go stale in the first place.
@@ -124,7 +124,6 @@ describe.skipIf(!nodePty)("Pure TUI sidebar shows an unselected task's live tab 
   })
 
   it("names B's row by its live title, though nobody opened it", async () => {
-    if (!nodePty) throw new Error("unreachable: suite is skipped without node-pty")
     const key = `terminalTabs.${taskB}`
 
     // The frozen recording, in the shape the field one had: the tab was named
@@ -139,14 +138,10 @@ describe.skipIf(!nodePty)("Pure TUI sidebar shows an unselected task's live tab 
     // This child would inherit vitest's markers, and the host-session poll —
     // the whole delivery path under test — is off under a test RUNNER.
     const { VITEST, NODE_ENV, BUN_TEST, ...tuiEnv } = env.env as Record<string, string>
-    const child = nodePty.spawn("bun", [DIST_ROVE_CLI], { cols: COLS, rows: ROWS, cwd: repo, env: tuiEnv })
+    const child = nodePty!.spawn("bun", [DIST_ROVE_CLI], { cols: COLS, rows: ROWS, cwd: repo, env: tuiEnv })
     const data = child.onData((chunk: string) => term.write(chunk))
-    const screen = (): string[] => {
-      const buffer = term.buffer.active
-      const lines: string[] = []
-      for (let y = 0; y < ROWS; y++) lines.push(buffer.getLine(y)?.translateToString(true) ?? "")
-      return lines
-    }
+    const screen = (): string[] =>
+      Array.from({ length: ROWS }, (_, y) => term.buffer.active.getLine(y)?.translateToString(true) ?? "")
     /** The rail rows that carry B's live title (the rail clips long names, so match its head). */
     const head = liveTitleB.slice(0, 12)
     const bRows = (): string[] =>

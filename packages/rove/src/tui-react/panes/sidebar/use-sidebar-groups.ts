@@ -10,7 +10,6 @@ import { useMemo } from "react"
 import type { TaskSortMode } from "../../../tui/panes/sidebar/groups"
 import { type SidebarGroup, buildSidebarGroups } from "../../../tui/panes/sidebar/project-groups"
 import type { TreeTab } from "../../../tui/panes/sidebar/tree-core"
-import { tabsDaemonBacked } from "../../workspace/tabs-sync"
 import type { TabsSnapshotKv } from "../../workspace/terminal-tabs-persist"
 import { useTabsByTask } from "./use-tabs-by-task"
 
@@ -22,8 +21,6 @@ export interface SidebarGroupsOpts {
   readonly sortMode?: TaskSortMode
   /** Daemon-pushed per-task activity — what `attention` sort ranks by. */
   readonly engineState?: ReadonlyMap<string, TaskEngineState>
-  /** Tasks a tabless main row stays listed for (the selection, a project being reordered). */
-  readonly keepTaskIds?: ReadonlySet<string>
 }
 
 export interface SidebarGroupsState {
@@ -35,7 +32,7 @@ export interface SidebarGroupsState {
 }
 
 export function useSidebarGroups(opts: SidebarGroupsOpts): SidebarGroupsState {
-  const { tasks, keepTaskIds } = opts
+  const { tasks } = opts
   const tabsByTask = useTabsByTask({ tasks, kv: opts.kv })
   const sortMode = opts.sortMode ?? "default"
   // Only `attention` reads activity; other modes skip the per-push churn.
@@ -44,15 +41,7 @@ export function useSidebarGroups(opts: SidebarGroupsOpts): SidebarGroupsState {
     // The whole entry, not just its state: `attention` sort ranks by the
     // derived task group, whose debounces read the transition timestamp.
     const activityOf = (taskId: string) => sortEngineState?.get(taskId)
-    // Read here, not as an opt: attach and detach bump `tabsRevision`, which reissues `tabsByTask`.
-    return buildSidebarGroups({
-      tasks,
-      tabsByTask,
-      tabsDaemonBacked: tabsDaemonBacked(),
-      sortMode,
-      activityOf,
-      keepTaskIds,
-    })
-  }, [tasks, tabsByTask, sortMode, sortEngineState, keepTaskIds])
+    return buildSidebarGroups({ tasks, tabsByTask, sortMode, activityOf })
+  }, [tasks, tabsByTask, sortMode, sortEngineState])
   return { groups, tabsByTask }
 }

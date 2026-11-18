@@ -20,17 +20,20 @@ export type SidebarTaskCallbacks = {
   onArchiveRequest?: (taskId: string) => void
   /** Shift+M — lowercase `m` is captured but ignored (shift dropped on letters). */
   onLocalMergeRequest?: (taskId: string) => void
-  /** Reorder mode: j/k move the cursor row at its LEVEL (tab, task, or a main row's project). */
+  /** Reorder mode: j/k move the cursor row at its LEVEL (tab or task). */
   moveMode?: boolean
   onMoveRequest?: (taskId: string, delta: -1 | 1) => void
   onMoveModeExit?: () => void
-  /** Project row menu only: move the project (via its main) above every other. */
-  onMoveToTopRequest?: (taskId: string) => void
-  /** Project header menu only: remove the project (via its main) from the projects list; the repo stays on disk. */
-  onForgetProjectRequest?: (taskId: string) => void
+  /** Project header menu only: remove the project from the projects list; the repo stays on disk. */
+  onForgetProjectRequest?: (repo: string) => void
+  /** Project-header menu: the whole project beside another one. */
+  onMoveProjectRequest?: (repo: string, target: string, side: "before" | "after") => void
   onRenameRequest?: (taskId: string) => void
   /** Shift+P only; a bare `p` binds nothing, so a mistype can't churn the pin flag. */
   onPinRequest?: (taskId: string) => void
+  /** Whether the task's notifications are muted; the row menu labels its toggle from it. */
+  isNotificationsMuted?: (taskId: string) => boolean
+  onToggleMuteRequest?: (taskId: string) => void
   /** Set the task's board status. Menu-only, no chord. */
   onSetStatusRequest?: (taskId: string) => void
   /** Regroup the task under another project via a picker. Menu-only, no chord. */

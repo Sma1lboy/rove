@@ -54,15 +54,12 @@ describe("PiFamilyHookAdapter", () => {
     expect(pi.activityDetailFromPayload("turn-failed", { error_message: "400 invalid_request" })?.failure).toBe("other")
   })
 
-  it("a dropped connection or a 5xx is transient: the next tick retries it, no human needed", () => {
-    for (const error_message of [
-      "Unable to connect. Is the computer able to access the url?",
-      "socket hang up",
-      "503",
-    ]) {
+  it.each(["Unable to connect. Is the computer able to access the url?", "socket hang up", "503"])(
+    "a dropped connection or a 5xx (%j) is transient: the next tick retries it, no human needed",
+    (error_message) => {
       expect(pi.activityDetailFromPayload("turn-failed", { error_message })?.failure).toBe("transient")
-    }
-  })
+    },
+  )
 
   it("extracts the session identity the extension reports", () => {
     expect(pi.sessionFromPayload({ session_id: "s1", transcript_path: "/x/s.jsonl" })).toEqual({

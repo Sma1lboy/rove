@@ -88,6 +88,11 @@ export async function planWorktreeHandoff(
   }
 }
 
+/** The conversation a tab is talking in ("Copy session ID"), read through the protocol it actually speaks. */
+export function tabSessionId(active: HandoffSourceTab, tabVendor: VendorId, worktree: string): Promise<string | null> {
+  return forkSourceSessionId(active, liveSourceProtocol(active, tabVendor), worktree)
+}
+
 /** The tab's pinned session id, else the engine's newest for this worktree
  *  (unpinned tabs, e.g. codex). `listSessionIdsForWorktree` is oldest-first. */
 async function forkSourceSessionId(

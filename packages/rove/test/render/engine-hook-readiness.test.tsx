@@ -74,6 +74,7 @@ it("confirms only a session identity from a received hook", async () => {
 
 it("does not apply Codex trust requirements to other engines", async () => {
   const { frame } = await renderComponent(<EngineHookReadiness vendor="claude" probe={probeReady} />)
+  await act(async () => {})
   expect(await frame()).not.toContain("/hooks")
 })
 

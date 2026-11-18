@@ -8,7 +8,7 @@
  *   - Backlog     — everything else.
  * The link is derived, not stored: `issue-update --task <id>` moves the card,
  * `--task none` moves it back. `doing` needs no task, which the `project`
- * placement (main checkout, nothing to link) relies on.
+ * placement (a session in the project's checkout, nothing to link) relies on.
  */
 
 import type { Issue } from "@sma1lboy/rove-daemon/daemon/issues-store"

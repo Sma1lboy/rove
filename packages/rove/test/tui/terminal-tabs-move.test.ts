@@ -134,10 +134,9 @@ describe("moveTaskTab (background write)", () => {
     const { store } = await withDaemon({ t1: state(["tab-1", "tab-2"]) })
     const before = store.get("t1")
     const shown = tabsByTask.get("t1")
-    const claims: Array<{ tabId: string; delta: -1 | 1 }> = []
+    const claims: unknown[] = []
     const claimant = (): void => {
-      const move = takeTabMove("t1")
-      if (move) claims.push(move)
+      claims.push(takeTabMove("t1"))
     }
     tabActivationListeners.add(claimant)
     try {

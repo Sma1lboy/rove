@@ -14,15 +14,26 @@
  *   - every rail page title renders in `theme.text`, never an accent slot.
  */
 
-import { expect, test } from "bun:test"
+import { afterAll, beforeAll, expect, test } from "bun:test"
+import { mkdtempSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 import { createStateCell } from "../../src/lib/external-store"
 import { pageEntries } from "../../src/tui-react/pages/registry"
 import { type HostPageDeps, renderContentPage } from "../../src/tui-react/workspace/host-pages"
 import type { Task } from "../../src/types/task"
-import { renderComponent } from "./harness"
+import { renderComponent, waitForFrameText } from "./harness"
 
-process.env.ROVE_HOME_DIR ??= (await import("node:fs")).mkdtempSync("/tmp/rove-rail-baseline-")
+let previousHome: string | undefined
+beforeAll(() => {
+  previousHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-rail-baseline-"))
+})
+afterAll(() => {
+  if (previousHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = previousHome
+})
 
 // claude theme (the render-track default) — pinned as ints so a theme edit
 // fails here loudly instead of silently re-breaking the palette contract.
@@ -62,16 +73,14 @@ function deps(overrides: Partial<HostPageDeps>): HostPageDeps {
   }
 }
 
-const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 120))
-
-async function renderPage(title: string, overrides: Partial<HostPageDeps>) {
+/** Render a page and wait until `ready` (its async body) has drawn. */
+async function renderPage(title: string, overrides: Partial<HostPageDeps>, ready: string) {
   const { frame, spans } = await renderComponent(<box>{renderContentPage(deps(overrides))}</box>, {
     width: 80,
     height: 24,
     providers: { dialog: true, kv: true, notifications: true },
   })
-  await settle()
-  const text = await frame()
+  const text = await waitForFrameText(frame, ready)
   const line = text.split("\n").find((l) => l.includes(title))
   expect(line).toBeDefined()
   const titleSpan = (await spans()).lines.flatMap((l) => l.spans).find((span) => span.text.includes(title))
@@ -100,7 +109,7 @@ const RAIL_PAGES: readonly RailPage[] = [
 
 for (const page of RAIL_PAGES) {
   test(`rail page ${page.title} paints its title in theme.text`, async () => {
-    const { titleSpan } = await renderPage(page.title, page.overrides)
+    const { titleSpan } = await renderPage(page.title, page.overrides, page.body.at(-1)!)
     expect(titleSpan.fg).toBeDefined()
     // Never the accent/focus hue: a static page title is not focus, not
     // selection. On the default claude theme accent === focusAccent
@@ -113,12 +122,13 @@ for (const page of RAIL_PAGES) {
     // switch. The title row alone is not the contract — a page can pad its
     // root to 2 and still inset its own body children (Kanban's project
     // selector and board each carry their own paddingLeft), so pin both.
-    const { text, line: titleLine } = await renderPage(page.title, page.overrides)
+    const { text, line: titleLine } = await renderPage(page.title, page.overrides, page.body.at(-1)!)
     expect(titleLine.startsWith(`  ${page.title}`)).toBe(true)
-    for (const anchor of page.body) {
-      const line = text.split("\n").find((l) => l.includes(anchor))
-      expect(line).toBeDefined()
-      expect(line).toMatch(/^ {2}\S/)
-    }
+    // Each anchor's line, or the line itself when it does not start at x=2.
+    const insets = page.body.map((anchor) => {
+      const line = text.split("\n").find((l) => l.includes(anchor)) ?? `<${anchor} not on screen>`
+      return /^ {2}\S/.test(line) ? "x=2" : line
+    })
+    expect(insets).toEqual(page.body.map(() => "x=2"))
   })
 }

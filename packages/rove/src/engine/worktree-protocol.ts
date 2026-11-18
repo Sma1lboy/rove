@@ -1,7 +1,7 @@
 /**
  * The system-prompt PROTOCOLS Rove injects into an engine launch — the
- * status self-report (`experimental.autoStatus`), field-note filing +
- * recall, and the repo main session's dispatcher brief.
+ * status self-report (`experimental.autoStatus`) and field-note filing +
+ * recall.
  *
  * Separate from `interactive-command.ts` because resolving a protocol needs
  * `engine-presets.ts`, which imports `interactive-command.ts` — a cycle.
@@ -124,43 +124,5 @@ export function withWorktreeProtocol(
   if (hasOwnSystemPrompt(argv)) return argv
   const text = worktreeProtocol(taskId, roveApiInvocation(), gates, notes)
   if (!text) return argv
-  return [...argv, "--append-system-prompt", text]
-}
-
-/**
- * Dispatcher protocol (docs/design/dispatcher.md), injected into a repo's
- * MAIN session. Its only effectors are a read (`collect`) and a message
- * (`dispatch`), so it needs no approval gate. No action on merge conflicts
- * (the radar is display-only).
- */
-export function dispatcherProtocol(taskId: string, api: string = roveApiInvocation()): string {
-  return [
-    `You are running inside Rove (a local multi-session task manager) as this repository's DISPATCHER (task ${taskId}, the repo's main session).`,
-    "Rove runs multiple worktree task sessions on this repo in parallel.",
-    `  - See the fleet: \`${api} collect --repo .\` (status, running, change counts per task), or \`--task-ids id1,id2\` for specific tasks.`,
-    `  - Message an already-hosted session: \`${api} dispatch --task-id <id> --prompt "<text>"\`. If dispatch fails, report the error in your own session and stop; do not fall back to send.`,
-    "Take no action on merge conflicts between tasks — the board's conflict radar is display-only by design, and resolution timing belongs to the humans and the tasks themselves.",
-    "Never run git commands inside other tasks' worktrees.",
-  ].join("\n")
-}
-
-/**
- * Append the dispatcher protocol to a MAIN session's launch argv, same
- * mechanics as {@link withWorktreeProtocol}. Gates: `experimental.dispatcher`
- * on; a main session (callers pass `taskId` only for main, so this and the
- * worktree injection are mutually exclusive and the existing-flag guard never
- * trips between them); the claude protocol; no user-set flag.
- */
-export function withDispatcherProtocol(
-  argv: readonly string[],
-  vendor: string | undefined,
-  taskId: string | undefined,
-  enabled: () => boolean = dispatcherEnabled,
-  notes: readonly { text: string; author: string }[] = [],
-): readonly string[] {
-  if (!taskId || !enabled()) return argv
-  if (!acceptsSystemPrompt(vendor)) return argv
-  if (hasOwnSystemPrompt(argv)) return argv
-  const text = [dispatcherProtocol(taskId), noteRecallProtocol(notes)].filter(Boolean).join("\n\n")
   return [...argv, "--append-system-prompt", text]
 }

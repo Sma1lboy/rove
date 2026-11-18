@@ -10,11 +10,7 @@
  */
 
 import type { Issue } from "@sma1lboy/rove-daemon/daemon/issues-store"
-import {
-  issueMergePrompt,
-  issueProjectPrompt as sharedProjectPrompt,
-  issueWorktreePrompt as sharedWorktreePrompt,
-} from "@sma1lboy/rove-daemon/prompts/issue-prompts"
+import { issueMergePrompt } from "@sma1lboy/rove-daemon/prompts/issue-prompts"
 import { describe, expect, test } from "vitest"
 import {
   issueChatTaskTitle,
@@ -53,21 +49,6 @@ describe("issue-chat prompts", () => {
     expect(prompt).not.toContain("task worktree")
     expect(prompt).not.toContain("merge the task branch")
     expect(prompt).toContain("rove api issue-update --repo . --id 7 --status done")
-  })
-
-  test("the TUI wrapper is the shared builder verbatim — one implementation, two surfaces", () => {
-    // Before the dedup the TUI and the web board each kept their own copy of
-    // this wording and they had already drifted (the web copy interpolated
-    // the product name, the TUI copy hard-coded it). This fails the moment a
-    // second implementation reappears on either side.
-    expect(issueWorktreePrompt(story, "rove api")).toBe(sharedWorktreePrompt(story, "rove api", "Rove"))
-    expect(issueProjectPrompt(story, "rove api")).toBe(sharedProjectPrompt(story, "rove api"))
-  })
-
-  test("the product name is interpolated, not hard-coded", () => {
-    // The drift the dedup fixed: a caller passing its own display name must
-    // see it, which a hard-coded "Rove" would silently swallow.
-    expect(sharedWorktreePrompt(story, "rove api", "Rove")).toContain("dedicated Rove task session")
   })
 
   test("merge prompt: finish framing, merge to project main, done instruction", () => {

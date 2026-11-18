@@ -25,17 +25,18 @@ describe("dispatch ledger", () => {
     expect(published().rows[0]?.status).toBe("delivered")
     engine("w", "tab-2", "running", 1_002)
     expect(published().rows[0]?.status).toBe("delivered")
-    const steps: string[] = []
-    for (const [state, at] of [
-      ["running", 1_003],
-      ["permission_needed", 1_004],
-      ["running", 1_005],
-      ["turn_complete", 1_006],
-      ["running", 1_007],
-    ] as const) {
+    const steps = (
+      [
+        ["running", 1_003],
+        ["permission_needed", 1_004],
+        ["running", 1_005],
+        ["turn_complete", 1_006],
+        ["running", 1_007],
+      ] as const
+    ).map(([state, at]) => {
       engine("w", "tab-1", state, at)
-      steps.push(published().rows[0]?.status ?? "")
-    }
+      return published().rows[0]?.status ?? ""
+    })
     expect(steps).toEqual(["working", "asking", "working", "done", "done"])
   })
 

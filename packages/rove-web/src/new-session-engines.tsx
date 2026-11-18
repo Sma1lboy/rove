@@ -108,7 +108,7 @@ export function ModelChip(props: {
     <ChipPopover
       field="model"
       title={t("newSession.model")}
-      label={modelChipLabel(props.models, props.model, t("newSession.model"))}
+      label={modelChipLabel(props.models, props.model, t("newSession.modelDefault"))}
     >
       {(close) => (
         <ChoiceMenu

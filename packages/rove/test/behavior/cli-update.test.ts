@@ -105,14 +105,14 @@ describe("scripts/update.sh manager detection", () => {
     const base = join(env.home, "case-bun")
     const r = await runUpdateScript(base, join(base, ".bun", "bin"))
     expect(r.code).toBe(0)
-    expect(r.out).toContain("many sessions. one terminal.")
-    expect(r.out).toContain("Thanks for using Rove. Happy building.")
     expect(r.out).toContain("via bun")
     // `--no-cache`: bun's manifest cache serves a stale version for minutes
     // after a publish, so a cached update reports success while installing
     // what was already there.
     expect(r.log).toContain("bun install -g --no-cache @sma1lboy/rove@latest")
     expect(r.log).not.toContain("npm install -g")
+    // A bun install has no npm prefix to pin; --prefix is npm-only.
+    expect(r.log).not.toContain("--prefix")
   })
 
   it("any other rove location updates via npm", async () => {
@@ -186,15 +186,6 @@ describe("scripts/update.sh manager detection", () => {
     expect(r.log).not.toContain("--prefix")
   })
 
-  // A bun install has no npm prefix to pin; --prefix is npm-only.
-  it("never passes --prefix to bun", async () => {
-    const base = join(env.home, "case-bun-noprefix")
-    const r = await runUpdateScript(base, join(base, ".bun", "bin"))
-    expect(r.code).toBe(0)
-    expect(r.log).toContain("bun install -g --no-cache @sma1lboy/rove@latest")
-    expect(r.log).not.toContain("--prefix")
-  })
-
   // The silent half of the failure: two installs, and the one running is not
   // the one you think. Updating only names the winner, so say so.
   it("warns when a second install is on PATH, naming which one is updated", async () => {
@@ -205,10 +196,12 @@ describe("scripts/update.sh manager detection", () => {
     const pkgB = join(prefixB, "lib/node_modules/@sma1lboy/rove/dist/cli")
     await mkdir(pkgA, { recursive: true })
     await mkdir(pkgB, { recursive: true })
-    for (const entry of [join(pkgA, "rove.js"), join(pkgB, "rove.js")]) {
-      await writeFile(entry, `#!/bin/sh\necho "rove 9.9.9"\n`)
-      await chmod(entry, 0o755)
-    }
+    await Promise.all(
+      [join(pkgA, "rove.js"), join(pkgB, "rove.js")].map(async (entry) => {
+        await writeFile(entry, `#!/bin/sh\necho "rove 9.9.9"\n`)
+        await chmod(entry, 0o755)
+      }),
+    )
     await mkdir(join(prefixB, "bin"), { recursive: true })
     await symlink(join(pkgB, "rove.js"), join(prefixB, "bin", "rove"))
 
@@ -241,10 +234,12 @@ describe("scripts/update.sh manager detection", () => {
     // rove stays at 1.0.0 while the registry says 9.9.9 → shadowed install.
     await writeFile(join(bin, "rove"), `#!/bin/sh\necho "rove 1.0.0"\n`)
     await chmod(join(bin, "rove"), 0o755)
-    for (const mgr of ["npm", "bun"]) {
-      await writeFile(join(shims, mgr), `#!/bin/sh\nif [ "$1" = "view" ]; then echo "9.9.9"; fi\n`)
-      await chmod(join(shims, mgr), 0o755)
-    }
+    await Promise.all(
+      ["npm", "bun"].map(async (mgr) => {
+        await writeFile(join(shims, mgr), `#!/bin/sh\nif [ "$1" = "view" ]; then echo "9.9.9"; fi\n`)
+        await chmod(join(shims, mgr), 0o755)
+      }),
+    )
     const r = spawnSync("sh", [UPDATE_SH], {
       env: { PATH: `${bin}:${shims}:/usr/bin:/bin` },
       encoding: "utf8",

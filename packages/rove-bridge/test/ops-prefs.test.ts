@@ -26,11 +26,15 @@ const api: BridgeApi = { verb: async () => ({}) as never, rpc: async () => ({}) 
 const call = (table: OpTable, op: string, args: Args = {}) =>
   (table[op] as NonNullable<OpTable[string]>).run(args, { api })
 
-function prefs(initial: State = {}) {
+/** `beforeWrite` runs inside the locked update, as another client's write landing after the op's first read. */
+function prefs(initial: State = {}, beforeWrite: (state: State) => void = () => {}) {
   const s = store(initial)
   const deps: PrefsDeps = {
     load: s.load,
-    update: (compute: (fresh: State) => State) => s.patch(compute(s.state)),
+    update: (compute: (fresh: State) => State) => {
+      beforeWrite(s.state)
+      s.patch(compute(s.state))
+    },
     themes: () => [{ name: "claude", bundled: true, theme: BUNDLED_THEME_JSONS.claude as never }],
   }
   return { s, ops: createPrefsOps(deps) }
@@ -104,21 +108,19 @@ describe("prefs.set", () => {
     })
   })
 
-  test("refuses keys and values outside the allowlist; nothing is written", async () => {
+  test.each([
+    { key: "editor.customCommand", value: "rm -rf ~" },
+    { key: "editorCustom", value: "rm -rf ~" },
+    { key: "__proto__", value: 1 },
+    { key: "glyphSet", value: "emoji" },
+    { key: "theme", value: "no-such-theme" },
+    { key: "toast", value: "yes" },
+    { key: "scrollbackRows", value: 50 },
+    { key: "scrollbackRows", value: 1000.5 },
+    { key: "soundVolume", value: 0.33 },
+  ] as Args[])("refuses %j, outside the allowlist; nothing is written", async (args) => {
     const { ops, s } = prefs()
-    for (const args of [
-      { key: "editor.customCommand", value: "rm -rf ~" },
-      { key: "editorCustom", value: "rm -rf ~" },
-      { key: "__proto__", value: 1 },
-      { key: "glyphSet", value: "emoji" },
-      { key: "theme", value: "no-such-theme" },
-      { key: "toast", value: "yes" },
-      { key: "scrollbackRows", value: 50 },
-      { key: "scrollbackRows", value: 1000.5 },
-      { key: "soundVolume", value: 0.33 },
-    ]) {
-      await expect(call(ops, "prefs.set", args)).rejects.toMatchObject({ code: "BAD_ARGS" })
-    }
+    await expect(call(ops, "prefs.set", args)).rejects.toMatchObject({ code: "BAD_ARGS" })
     expect(s.state).toEqual({})
   })
 
@@ -155,22 +157,12 @@ describe("prefs.set", () => {
   })
 
   test("leaving a custom worktree base remembers the path on disk now, not the one read before another client changed it", async () => {
-    const s = store({ "worktree.basePath": "/srv/old", "worktree.basePath.custom": "/srv/old" })
     // Another client changes the base after this op's first read of state, before its write.
-    let raced = false
-    const deps: PrefsDeps = {
-      load: () => ({ ...s.state }),
-      update: (compute) => {
-        if (!raced) {
-          raced = true
-          s.state["worktree.basePath"] = "/srv/new"
-          s.state["worktree.basePath.custom"] = "/srv/new"
-        }
-        s.patch(compute(s.state))
-      },
-      themes: () => [{ name: "claude", bundled: true, theme: BUNDLED_THEME_JSONS.claude as never }],
-    }
-    await call(createPrefsOps(deps), "prefs.set", { key: "worktreeBase", value: "default" })
+    const { ops, s } = prefs({ "worktree.basePath": "/srv/old", "worktree.basePath.custom": "/srv/old" }, (state) => {
+      state["worktree.basePath"] = "/srv/new"
+      state["worktree.basePath.custom"] = "/srv/new"
+    })
+    await call(ops, "prefs.set", { key: "worktreeBase", value: "default" })
     expect(s.state).toMatchObject({ "worktree.basePath": "", "worktree.basePath.custom": "/srv/new" })
   })
 
@@ -224,7 +216,7 @@ function routing(initial: State = {}, beforeWrite: (state: State) => void = () =
 }
 
 describe("autoRouting", () => {
-  test("setTier writes the three keys the TUI picker writes; an engine, model or effort it does not accept is refused", async () => {
+  test("setTier writes the three keys the TUI picker writes", async () => {
     const { ops, s } = routing()
     await call(ops, "autoRouting.setTier", { tier: "deep", engine: "claude", model: "opus-4" })
     expect(s.state).toMatchObject({
@@ -232,14 +224,16 @@ describe("autoRouting", () => {
       "autoRouting.deep.model": "opus-4",
       "autoRouting.deep.effort": "",
     })
-    for (const args of [
-      { tier: "deep", engine: "not-an-engine" },
-      { tier: "ultra", engine: "claude" },
-      { tier: "deep", engine: "claude", model: "bad model; rm" },
-      { tier: "deep", engine: "claude", effort: "nonsense" },
-    ]) {
-      await expect(call(ops, "autoRouting.setTier", args)).rejects.toMatchObject({ code: "BAD_ARGS" })
-    }
+  })
+
+  test.each([
+    { tier: "deep", engine: "not-an-engine" },
+    { tier: "ultra", engine: "claude" },
+    { tier: "deep", engine: "claude", model: "bad model; rm" },
+    { tier: "deep", engine: "claude", effort: "nonsense" },
+  ] as Args[])("setTier refuses %j", async (args) => {
+    const { ops } = routing()
+    await expect(call(ops, "autoRouting.setTier", args)).rejects.toMatchObject({ code: "BAD_ARGS" })
   })
 
   test("get shows each tier with the gate's verdict, and the classifier endpoint as a host only", async () => {

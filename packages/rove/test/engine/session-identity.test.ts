@@ -61,13 +61,14 @@ describe("the user's own session flags always win", () => {
   const claude = engineEntry("claude").sessionIdentity
   const kimi = engineEntry("kimi").sessionIdentity
 
-  it("never appends a second session control to a command that has one", () => {
-    for (const flag of ["--session-id", "--resume", "-r", "--continue", "-c", "--from-pr"]) {
+  it.each(["--session-id", "--resume", "-r", "--continue", "-c", "--from-pr"])(
+    "never appends a second session control to a command that has %s",
+    (flag) => {
       const argv = ["claude", flag, "x"]
       expect(withPinnedSessionId(argv, "claude")).toEqual({ argv, sessionId: null })
       expect(engineResumeArgv(argv, "claude", "u1")).toBeNull()
-    }
-  })
+    },
+  )
 
   it("recognizes the attached --flag=value form the command parser preserves", () => {
     expect(controlsOwnSession(claude, ["claude", "--resume=x"])).toBe(true)

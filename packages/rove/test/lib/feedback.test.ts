@@ -52,13 +52,14 @@ describe("submitFeedback", () => {
       { title: "Board lags", body: "It lags & stutters", kind: "bug" },
       deps(vi.fn().mockReturnValue(reply)),
     )
-    if (result.filed) throw new Error("expected a fallback")
-    const url = new URL(result.url)
+    expect(result.filed).toBe(false)
+    const fallback = result as Extract<typeof result, { filed: false }>
+    const url = new URL(fallback.url)
     expect(url.origin + url.pathname).toBe("https://github.com/Sma1lboy/rove/issues/new")
     expect(url.searchParams.get("title")).toBe("Board lags")
     expect(url.searchParams.get("labels")).toBe("bug")
     expect(url.searchParams.get("body")).toBe(`It lags & stutters\n\n${ENV}`)
-    expect(result.hint).toContain("gh auth login")
+    expect(fallback.hint).toContain("gh auth login")
   })
 
   it("truncates an oversized body in the prefilled link only", () => {

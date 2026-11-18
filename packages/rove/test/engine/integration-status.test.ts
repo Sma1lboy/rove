@@ -74,10 +74,8 @@ describe("the installed shape carries the stamp", () => {
       (groups as { hooks: { command: string }[] }[]).flatMap((group) => group.hooks.map((h) => h.command)),
     )
     expect(commands.length).toBeGreaterThan(0)
-    for (const command of commands) {
-      expect(command).toContain("--engine claude")
-      expect(command).toContain(`--hook-version ${ROVE_HOOK_VERSION}`)
-    }
+    expect(commands.filter((c) => !c.includes("--engine claude"))).toEqual([])
+    expect(commands.filter((c) => !c.includes(`--hook-version ${ROVE_HOOK_VERSION}`))).toEqual([])
   })
 
   it("replaces an UNSTAMPED entry rather than installing a second one", () => {

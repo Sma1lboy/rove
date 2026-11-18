@@ -2,58 +2,58 @@
 # GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 <test command>
 
 ## daemon row status x deletion (claude cross product)
-status=-                       del=-        vendor=claude     | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-status=-                       del=queued   vendor=claude     | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=deleting
-status=-                       del=running  vendor=claude     | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=deleting
-status=-                       del=error    vendor=claude     | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=delete failed
-status=idle                    del=-        vendor=claude     | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-status=idle                    del=queued   vendor=claude     | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=deleting
-status=idle                    del=running  vendor=claude     | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=deleting
-status=idle                    del=error    vendor=claude     | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=delete failed
-status=idle/turn_complete      del=-        vendor=claude     | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-status=idle/turn_complete      del=queued   vendor=claude     | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=deleting
-status=idle/turn_complete      del=running  vendor=claude     | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=deleting
-status=idle/turn_complete      del=error    vendor=claude     | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=delete failed
-status=unseen                  del=-        vendor=claude     | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-status=unseen                  del=queued   vendor=claude     | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=deleting
-status=unseen                  del=running  vendor=claude     | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=deleting
-status=unseen                  del=error    vendor=claude     | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=delete failed
-status=running                 del=-        vendor=claude     | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
-status=running                 del=queued   vendor=claude     | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
-status=running                 del=running  vendor=claude     | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
-status=running                 del=error    vendor=claude     | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=delete failed
-status=needs-input             del=-        vendor=claude     | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=needs-input             del=queued   vendor=claude     | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=deleting
-status=needs-input             del=running  vendor=claude     | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=deleting
-status=needs-input             del=error    vendor=claude     | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=delete failed
-status=attention/rate_limited  del=-        vendor=claude     | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=attention/rate_limited  del=queued   vendor=claude     | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=deleting
-status=attention/rate_limited  del=running  vendor=claude     | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=deleting
-status=attention/rate_limited  del=error    vendor=claude     | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=delete failed
-status=attention/error         del=-        vendor=claude     | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=attention/error         del=queued   vendor=claude     | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=deleting
-status=attention/error         del=running  vendor=claude     | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=deleting
-status=attention/error         del=error    vendor=claude     | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
-status=attention/dead          del=-        vendor=claude     | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=attention/dead          del=queued   vendor=claude     | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=deleting
-status=attention/dead          del=running  vendor=claude     | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=deleting
-status=attention/dead          del=error    vendor=claude     | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
-status=attention/restored      del=-        vendor=claude     | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=attention/restored      del=queued   vendor=claude     | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=deleting
-status=attention/restored      del=running  vendor=claude     | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=deleting
-status=attention/restored      del=error    vendor=claude     | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
-status=attention/delete_failed del=-        vendor=claude     | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=attention/delete_failed del=queued   vendor=claude     | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=deleting
-status=attention/delete_failed del=running  vendor=claude     | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=deleting
-status=attention/delete_failed del=error    vendor=claude     | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
-status=busy/job                del=-        vendor=claude     | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
-status=busy/job                del=queued   vendor=claude     | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=deleting
-status=busy/job                del=running  vendor=claude     | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=deleting
-status=busy/job                del=error    vendor=claude     | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=delete failed
-status=busy/deleting           del=-        vendor=claude     | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
-status=busy/deleting           del=queued   vendor=claude     | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
-status=busy/deleting           del=running  vendor=claude     | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
-status=busy/deleting           del=error    vendor=claude     | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=delete failed
+status=-                       del=-        vendor=claude     | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+status=-                       del=queued   vendor=claude     | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=deleting
+status=-                       del=running  vendor=claude     | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=deleting
+status=-                       del=error    vendor=claude     | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=delete failed
+status=idle                    del=-        vendor=claude     | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+status=idle                    del=queued   vendor=claude     | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=deleting
+status=idle                    del=running  vendor=claude     | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=deleting
+status=idle                    del=error    vendor=claude     | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=delete failed
+status=idle/turn_complete      del=-        vendor=claude     | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+status=idle/turn_complete      del=queued   vendor=claude     | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=deleting
+status=idle/turn_complete      del=running  vendor=claude     | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=deleting
+status=idle/turn_complete      del=error    vendor=claude     | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=delete failed
+status=unseen                  del=-        vendor=claude     | title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
+status=unseen                  del=queued   vendor=claude     | title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=deleting
+status=unseen                  del=running  vendor=claude     | title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=deleting
+status=unseen                  del=error    vendor=claude     | title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=delete failed
+status=running                 del=-        vendor=claude     | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+status=running                 del=queued   vendor=claude     | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
+status=running                 del=running  vendor=claude     | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
+status=running                 del=error    vendor=claude     | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=delete failed
+status=needs-input             del=-        vendor=claude     | title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
+status=needs-input             del=queued   vendor=claude     | title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=deleting
+status=needs-input             del=running  vendor=claude     | title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=deleting
+status=needs-input             del=error    vendor=claude     | title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=delete failed
+status=attention/rate_limited  del=-        vendor=claude     | title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+status=attention/rate_limited  del=queued   vendor=claude     | title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=deleting
+status=attention/rate_limited  del=running  vendor=claude     | title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=deleting
+status=attention/rate_limited  del=error    vendor=claude     | title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=delete failed
+status=attention/error         del=-        vendor=claude     | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=attention/error         del=queued   vendor=claude     | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=deleting
+status=attention/error         del=running  vendor=claude     | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=deleting
+status=attention/error         del=error    vendor=claude     | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+status=attention/dead          del=-        vendor=claude     | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=attention/dead          del=queued   vendor=claude     | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=deleting
+status=attention/dead          del=running  vendor=claude     | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=deleting
+status=attention/dead          del=error    vendor=claude     | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+status=attention/restored      del=-        vendor=claude     | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=attention/restored      del=queued   vendor=claude     | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=deleting
+status=attention/restored      del=running  vendor=claude     | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=deleting
+status=attention/restored      del=error    vendor=claude     | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+status=attention/delete_failed del=-        vendor=claude     | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=attention/delete_failed del=queued   vendor=claude     | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=deleting
+status=attention/delete_failed del=running  vendor=claude     | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=deleting
+status=attention/delete_failed del=error    vendor=claude     | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=delete failed
+status=busy/job                del=-        vendor=claude     | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
+status=busy/job                del=queued   vendor=claude     | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=deleting
+status=busy/job                del=running  vendor=claude     | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=deleting
+status=busy/job                del=error    vendor=claude     | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=delete failed
+status=busy/deleting           del=-        vendor=claude     | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+status=busy/deleting           del=queued   vendor=claude     | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
+status=busy/deleting           del=running  vendor=claude     | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=deleting
+status=busy/deleting           del=error    vendor=claude     | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=delete failed
 
 ## vendor-sensitive subtitles
 vendor=claude     absent=feat/sidebar | idle=feat/sidebar | running=feat/sidebar
@@ -65,46 +65,46 @@ vendor=omp        absent=feat/sidebar | idle=feat/sidebar | running=feat/sidebar
 vendor=bob        absent=feat/sidebar | idle=feat/sidebar | running=feat/sidebar
 vendor=my-engine  absent=feat/sidebar | idle=feat/sidebar | running=feat/sidebar
 
-## project (main) rows — branch resolved from the repo checkout
-mainBranch=main                    status=-                       | main=1 title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=main
-mainBranch=main                    status=idle                    | main=1 title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=main
-mainBranch=main                    status=idle/turn_complete      | main=1 title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=main
-mainBranch=main                    status=unseen                  | main=1 title=rove             glyph=●   tone=primary     load=0 matz=0 sub=main
-mainBranch=main                    status=running                 | main=1 title=rove             glyph=⠋   tone=primary     load=1 matz=0 sub=main
-mainBranch=main                    status=needs-input             | main=1 title=rove             glyph=?   tone=warning     load=0 matz=0 sub=main
-mainBranch=main                    status=attention/rate_limited  | main=1 title=rove             glyph=!   tone=warning     load=0 matz=0 sub=main
-mainBranch=main                    status=attention/error         | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=main
-mainBranch=main                    status=attention/dead          | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=main
-mainBranch=main                    status=attention/restored      | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=main
-mainBranch=main                    status=attention/delete_failed | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=main
-mainBranch=main                    status=busy/job                | main=1 title=rove             glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
-mainBranch=main                    status=busy/deleting           | main=1 title=rove             glyph=⠋   tone=primary     load=1 matz=0 sub=main
-mainBranch=feat/long-running-branch status=-                       | main=1 title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=feat/long-running-branch
-mainBranch=feat/long-running-branch status=idle                    | main=1 title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=feat/long-running-branch
-mainBranch=feat/long-running-branch status=idle/turn_complete      | main=1 title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=feat/long-running-branch
-mainBranch=feat/long-running-branch status=unseen                  | main=1 title=rove             glyph=●   tone=primary     load=0 matz=0 sub=feat/long-running-branch
-mainBranch=feat/long-running-branch status=running                 | main=1 title=rove             glyph=⠋   tone=primary     load=1 matz=0 sub=feat/long-running-branch
-mainBranch=feat/long-running-branch status=needs-input             | main=1 title=rove             glyph=?   tone=warning     load=0 matz=0 sub=feat/long-running-branch
-mainBranch=feat/long-running-branch status=attention/rate_limited  | main=1 title=rove             glyph=!   tone=warning     load=0 matz=0 sub=feat/long-running-branch
-mainBranch=feat/long-running-branch status=attention/error         | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=feat/long-running-branch
-mainBranch=feat/long-running-branch status=attention/dead          | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=feat/long-running-branch
-mainBranch=feat/long-running-branch status=attention/restored      | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=feat/long-running-branch
-mainBranch=feat/long-running-branch status=attention/delete_failed | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=feat/long-running-branch
-mainBranch=feat/long-running-branch status=busy/job                | main=1 title=rove             glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
-mainBranch=feat/long-running-branch status=busy/deleting           | main=1 title=rove             glyph=⠋   tone=primary     load=1 matz=0 sub=feat/long-running-branch
-mainBranch=-                       status=-                       | main=1 title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=—
-mainBranch=-                       status=idle                    | main=1 title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=—
-mainBranch=-                       status=idle/turn_complete      | main=1 title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=—
-mainBranch=-                       status=unseen                  | main=1 title=rove             glyph=●   tone=primary     load=0 matz=0 sub=—
-mainBranch=-                       status=running                 | main=1 title=rove             glyph=⠋   tone=primary     load=1 matz=0 sub=—
-mainBranch=-                       status=needs-input             | main=1 title=rove             glyph=?   tone=warning     load=0 matz=0 sub=—
-mainBranch=-                       status=attention/rate_limited  | main=1 title=rove             glyph=!   tone=warning     load=0 matz=0 sub=—
-mainBranch=-                       status=attention/error         | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=—
-mainBranch=-                       status=attention/dead          | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=—
-mainBranch=-                       status=attention/restored      | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=—
-mainBranch=-                       status=attention/delete_failed | main=1 title=rove             glyph=!   tone=error       load=0 matz=0 sub=—
-mainBranch=-                       status=busy/job                | main=1 title=rove             glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
-mainBranch=-                       status=busy/deleting           | main=1 title=rove             glyph=⠋   tone=primary     load=1 matz=0 sub=—
+## rows with no stored branch — branch resolved from the checkout
+mainBranch=main                    status=-                       | title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=main
+mainBranch=main                    status=idle                    | title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=main
+mainBranch=main                    status=idle/turn_complete      | title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=main
+mainBranch=main                    status=unseen                  | title=rove             glyph=●   tone=primary     load=0 matz=0 sub=main
+mainBranch=main                    status=running                 | title=rove             glyph=⠋   tone=primary     load=1 matz=0 sub=main
+mainBranch=main                    status=needs-input             | title=rove             glyph=?   tone=warning     load=0 matz=0 sub=main
+mainBranch=main                    status=attention/rate_limited  | title=rove             glyph=!   tone=warning     load=0 matz=0 sub=main
+mainBranch=main                    status=attention/error         | title=rove             glyph=!   tone=error       load=0 matz=0 sub=main
+mainBranch=main                    status=attention/dead          | title=rove             glyph=!   tone=error       load=0 matz=0 sub=main
+mainBranch=main                    status=attention/restored      | title=rove             glyph=!   tone=error       load=0 matz=0 sub=main
+mainBranch=main                    status=attention/delete_failed | title=rove             glyph=!   tone=error       load=0 matz=0 sub=main
+mainBranch=main                    status=busy/job                | title=rove             glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
+mainBranch=main                    status=busy/deleting           | title=rove             glyph=⠋   tone=primary     load=1 matz=0 sub=main
+mainBranch=feat/long-running-branch status=-                       | title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=feat/long-running-branch
+mainBranch=feat/long-running-branch status=idle                    | title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=feat/long-running-branch
+mainBranch=feat/long-running-branch status=idle/turn_complete      | title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=feat/long-running-branch
+mainBranch=feat/long-running-branch status=unseen                  | title=rove             glyph=●   tone=primary     load=0 matz=0 sub=feat/long-running-branch
+mainBranch=feat/long-running-branch status=running                 | title=rove             glyph=⠋   tone=primary     load=1 matz=0 sub=feat/long-running-branch
+mainBranch=feat/long-running-branch status=needs-input             | title=rove             glyph=?   tone=warning     load=0 matz=0 sub=feat/long-running-branch
+mainBranch=feat/long-running-branch status=attention/rate_limited  | title=rove             glyph=!   tone=warning     load=0 matz=0 sub=feat/long-running-branch
+mainBranch=feat/long-running-branch status=attention/error         | title=rove             glyph=!   tone=error       load=0 matz=0 sub=feat/long-running-branch
+mainBranch=feat/long-running-branch status=attention/dead          | title=rove             glyph=!   tone=error       load=0 matz=0 sub=feat/long-running-branch
+mainBranch=feat/long-running-branch status=attention/restored      | title=rove             glyph=!   tone=error       load=0 matz=0 sub=feat/long-running-branch
+mainBranch=feat/long-running-branch status=attention/delete_failed | title=rove             glyph=!   tone=error       load=0 matz=0 sub=feat/long-running-branch
+mainBranch=feat/long-running-branch status=busy/job                | title=rove             glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
+mainBranch=feat/long-running-branch status=busy/deleting           | title=rove             glyph=⠋   tone=primary     load=1 matz=0 sub=feat/long-running-branch
+mainBranch=-                       status=-                       | title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=—
+mainBranch=-                       status=idle                    | title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=—
+mainBranch=-                       status=idle/turn_complete      | title=rove             glyph=○   tone=textMuted   load=0 matz=0 sub=—
+mainBranch=-                       status=unseen                  | title=rove             glyph=●   tone=primary     load=0 matz=0 sub=—
+mainBranch=-                       status=running                 | title=rove             glyph=⠋   tone=primary     load=1 matz=0 sub=—
+mainBranch=-                       status=needs-input             | title=rove             glyph=?   tone=warning     load=0 matz=0 sub=—
+mainBranch=-                       status=attention/rate_limited  | title=rove             glyph=!   tone=warning     load=0 matz=0 sub=—
+mainBranch=-                       status=attention/error         | title=rove             glyph=!   tone=error       load=0 matz=0 sub=—
+mainBranch=-                       status=attention/dead          | title=rove             glyph=!   tone=error       load=0 matz=0 sub=—
+mainBranch=-                       status=attention/restored      | title=rove             glyph=!   tone=error       load=0 matz=0 sub=—
+mainBranch=-                       status=attention/delete_failed | title=rove             glyph=!   tone=error       load=0 matz=0 sub=—
+mainBranch=-                       status=busy/job                | title=rove             glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
+mainBranch=-                       status=busy/deleting           | title=rove             glyph=⠋   tone=primary     load=1 matz=0 sub=—
 
 ## engine-owned spinner frame sets + withSpinnerFrame overlay
 vendor=claude     frames(0..25)=⠋⠋⠋⠋⠙⠙⠙⠹⠸⠸⠼⠴⠦⠧⠇⠋⠙⠹⠸⠼⠴⠦⠦⠧⠇⠇
@@ -185,220 +185,220 @@ status=busy/job                rowIsLoading=1 viewLoading=1
 status=busy/deleting           rowIsLoading=1 viewLoading=1
 
 ## subagent marks ride the animation only
-subagents=0    status=-                       branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-subagents=0    status=-                       branch=-             | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
-subagents=0    status=idle                    branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-subagents=0    status=idle                    branch=-             | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
-subagents=0    status=idle/turn_complete      branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-subagents=0    status=idle/turn_complete      branch=-             | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
-subagents=0    status=unseen                  branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-subagents=0    status=unseen                  branch=-             | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=—
-subagents=0    status=running                 branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
-subagents=0    status=running                 branch=-             | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=—
-subagents=0    status=needs-input             branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-subagents=0    status=needs-input             branch=-             | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=—
-subagents=0    status=attention/rate_limited  branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
-subagents=0    status=attention/rate_limited  branch=-             | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=—
-subagents=0    status=attention/error         branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=0    status=attention/error         branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
-subagents=0    status=attention/dead          branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=0    status=attention/dead          branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
-subagents=0    status=attention/restored      branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=0    status=attention/restored      branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
-subagents=0    status=attention/delete_failed branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=0    status=attention/delete_failed branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
-subagents=0    status=busy/job                branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
-subagents=0    status=busy/job                branch=-             | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
-subagents=0    status=busy/deleting           branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
-subagents=0    status=busy/deleting           branch=-             | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=—
-subagents=1    status=-                       branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-subagents=1    status=-                       branch=-             | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
-subagents=1    status=idle                    branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-subagents=1    status=idle                    branch=-             | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
-subagents=1    status=idle/turn_complete      branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-subagents=1    status=idle/turn_complete      branch=-             | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
-subagents=1    status=unseen                  branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-subagents=1    status=unseen                  branch=-             | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=—
-subagents=1    status=running                 branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=◇1 feat/sidebar
-subagents=1    status=running                 branch=-             | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=—
-subagents=1    status=needs-input             branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-subagents=1    status=needs-input             branch=-             | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=—
-subagents=1    status=attention/rate_limited  branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
-subagents=1    status=attention/rate_limited  branch=-             | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=—
-subagents=1    status=attention/error         branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=1    status=attention/error         branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
-subagents=1    status=attention/dead          branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=1    status=attention/dead          branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
-subagents=1    status=attention/restored      branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=1    status=attention/restored      branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
-subagents=1    status=attention/delete_failed branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=1    status=attention/delete_failed branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
-subagents=1    status=busy/job                branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
-subagents=1    status=busy/job                branch=-             | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
-subagents=1    status=busy/deleting           branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=◇1 feat/sidebar
-subagents=1    status=busy/deleting           branch=-             | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=—
-subagents=3    status=-                       branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-subagents=3    status=-                       branch=-             | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
-subagents=3    status=idle                    branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-subagents=3    status=idle                    branch=-             | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
-subagents=3    status=idle/turn_complete      branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-subagents=3    status=idle/turn_complete      branch=-             | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
-subagents=3    status=unseen                  branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-subagents=3    status=unseen                  branch=-             | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=—
-subagents=3    status=running                 branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=◇3 feat/sidebar
-subagents=3    status=running                 branch=-             | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=—
-subagents=3    status=needs-input             branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-subagents=3    status=needs-input             branch=-             | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=—
-subagents=3    status=attention/rate_limited  branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
-subagents=3    status=attention/rate_limited  branch=-             | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=—
-subagents=3    status=attention/error         branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=3    status=attention/error         branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
-subagents=3    status=attention/dead          branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=3    status=attention/dead          branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
-subagents=3    status=attention/restored      branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=3    status=attention/restored      branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
-subagents=3    status=attention/delete_failed branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=3    status=attention/delete_failed branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
-subagents=3    status=busy/job                branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
-subagents=3    status=busy/job                branch=-             | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
-subagents=3    status=busy/deleting           branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=◇3 feat/sidebar
-subagents=3    status=busy/deleting           branch=-             | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=—
-subagents=12   status=-                       branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-subagents=12   status=-                       branch=-             | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
-subagents=12   status=idle                    branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-subagents=12   status=idle                    branch=-             | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
-subagents=12   status=idle/turn_complete      branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-subagents=12   status=idle/turn_complete      branch=-             | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
-subagents=12   status=unseen                  branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-subagents=12   status=unseen                  branch=-             | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=—
-subagents=12   status=running                 branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=◇12 feat/sidebar
-subagents=12   status=running                 branch=-             | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=—
-subagents=12   status=needs-input             branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-subagents=12   status=needs-input             branch=-             | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=—
-subagents=12   status=attention/rate_limited  branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
-subagents=12   status=attention/rate_limited  branch=-             | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=—
-subagents=12   status=attention/error         branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=12   status=attention/error         branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
-subagents=12   status=attention/dead          branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=12   status=attention/dead          branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
-subagents=12   status=attention/restored      branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=12   status=attention/restored      branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
-subagents=12   status=attention/delete_failed branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-subagents=12   status=attention/delete_failed branch=-             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
-subagents=12   status=busy/job                branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
-subagents=12   status=busy/job                branch=-             | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
-subagents=12   status=busy/deleting           branch=feat/sidebar  | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=◇12 feat/sidebar
-subagents=12   status=busy/deleting           branch=-             | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=—
+subagents=0    status=-                       branch=feat/sidebar  | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+subagents=0    status=-                       branch=-             | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
+subagents=0    status=idle                    branch=feat/sidebar  | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+subagents=0    status=idle                    branch=-             | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
+subagents=0    status=idle/turn_complete      branch=feat/sidebar  | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+subagents=0    status=idle/turn_complete      branch=-             | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
+subagents=0    status=unseen                  branch=feat/sidebar  | title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
+subagents=0    status=unseen                  branch=-             | title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=—
+subagents=0    status=running                 branch=feat/sidebar  | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+subagents=0    status=running                 branch=-             | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=—
+subagents=0    status=needs-input             branch=feat/sidebar  | title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
+subagents=0    status=needs-input             branch=-             | title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=—
+subagents=0    status=attention/rate_limited  branch=feat/sidebar  | title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+subagents=0    status=attention/rate_limited  branch=-             | title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=—
+subagents=0    status=attention/error         branch=feat/sidebar  | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=0    status=attention/error         branch=-             | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=0    status=attention/dead          branch=feat/sidebar  | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=0    status=attention/dead          branch=-             | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=0    status=attention/restored      branch=feat/sidebar  | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=0    status=attention/restored      branch=-             | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=0    status=attention/delete_failed branch=feat/sidebar  | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=0    status=attention/delete_failed branch=-             | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=0    status=busy/job                branch=feat/sidebar  | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
+subagents=0    status=busy/job                branch=-             | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
+subagents=0    status=busy/deleting           branch=feat/sidebar  | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+subagents=0    status=busy/deleting           branch=-             | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=—
+subagents=1    status=-                       branch=feat/sidebar  | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+subagents=1    status=-                       branch=-             | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
+subagents=1    status=idle                    branch=feat/sidebar  | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+subagents=1    status=idle                    branch=-             | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
+subagents=1    status=idle/turn_complete      branch=feat/sidebar  | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+subagents=1    status=idle/turn_complete      branch=-             | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
+subagents=1    status=unseen                  branch=feat/sidebar  | title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
+subagents=1    status=unseen                  branch=-             | title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=—
+subagents=1    status=running                 branch=feat/sidebar  | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=◇1 feat/sidebar
+subagents=1    status=running                 branch=-             | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=—
+subagents=1    status=needs-input             branch=feat/sidebar  | title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
+subagents=1    status=needs-input             branch=-             | title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=—
+subagents=1    status=attention/rate_limited  branch=feat/sidebar  | title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+subagents=1    status=attention/rate_limited  branch=-             | title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=—
+subagents=1    status=attention/error         branch=feat/sidebar  | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=1    status=attention/error         branch=-             | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=1    status=attention/dead          branch=feat/sidebar  | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=1    status=attention/dead          branch=-             | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=1    status=attention/restored      branch=feat/sidebar  | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=1    status=attention/restored      branch=-             | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=1    status=attention/delete_failed branch=feat/sidebar  | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=1    status=attention/delete_failed branch=-             | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=1    status=busy/job                branch=feat/sidebar  | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
+subagents=1    status=busy/job                branch=-             | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
+subagents=1    status=busy/deleting           branch=feat/sidebar  | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=◇1 feat/sidebar
+subagents=1    status=busy/deleting           branch=-             | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=—
+subagents=3    status=-                       branch=feat/sidebar  | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+subagents=3    status=-                       branch=-             | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
+subagents=3    status=idle                    branch=feat/sidebar  | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+subagents=3    status=idle                    branch=-             | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
+subagents=3    status=idle/turn_complete      branch=feat/sidebar  | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+subagents=3    status=idle/turn_complete      branch=-             | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
+subagents=3    status=unseen                  branch=feat/sidebar  | title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
+subagents=3    status=unseen                  branch=-             | title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=—
+subagents=3    status=running                 branch=feat/sidebar  | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=◇3 feat/sidebar
+subagents=3    status=running                 branch=-             | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=—
+subagents=3    status=needs-input             branch=feat/sidebar  | title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
+subagents=3    status=needs-input             branch=-             | title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=—
+subagents=3    status=attention/rate_limited  branch=feat/sidebar  | title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+subagents=3    status=attention/rate_limited  branch=-             | title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=—
+subagents=3    status=attention/error         branch=feat/sidebar  | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=3    status=attention/error         branch=-             | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=3    status=attention/dead          branch=feat/sidebar  | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=3    status=attention/dead          branch=-             | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=3    status=attention/restored      branch=feat/sidebar  | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=3    status=attention/restored      branch=-             | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=3    status=attention/delete_failed branch=feat/sidebar  | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=3    status=attention/delete_failed branch=-             | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=3    status=busy/job                branch=feat/sidebar  | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
+subagents=3    status=busy/job                branch=-             | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
+subagents=3    status=busy/deleting           branch=feat/sidebar  | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=◇3 feat/sidebar
+subagents=3    status=busy/deleting           branch=-             | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=—
+subagents=12   status=-                       branch=feat/sidebar  | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+subagents=12   status=-                       branch=-             | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
+subagents=12   status=idle                    branch=feat/sidebar  | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+subagents=12   status=idle                    branch=-             | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
+subagents=12   status=idle/turn_complete      branch=feat/sidebar  | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+subagents=12   status=idle/turn_complete      branch=-             | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=—
+subagents=12   status=unseen                  branch=feat/sidebar  | title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
+subagents=12   status=unseen                  branch=-             | title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=—
+subagents=12   status=running                 branch=feat/sidebar  | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=◇12 feat/sidebar
+subagents=12   status=running                 branch=-             | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=—
+subagents=12   status=needs-input             branch=feat/sidebar  | title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
+subagents=12   status=needs-input             branch=-             | title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=—
+subagents=12   status=attention/rate_limited  branch=feat/sidebar  | title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+subagents=12   status=attention/rate_limited  branch=-             | title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=—
+subagents=12   status=attention/error         branch=feat/sidebar  | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=12   status=attention/error         branch=-             | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=12   status=attention/dead          branch=feat/sidebar  | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=12   status=attention/dead          branch=-             | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=12   status=attention/restored      branch=feat/sidebar  | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=12   status=attention/restored      branch=-             | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=12   status=attention/delete_failed branch=feat/sidebar  | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+subagents=12   status=attention/delete_failed branch=-             | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=—
+subagents=12   status=busy/job                branch=feat/sidebar  | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
+subagents=12   status=busy/job                branch=-             | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
+subagents=12   status=busy/deleting           branch=feat/sidebar  | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=◇12 feat/sidebar
+subagents=12   status=busy/deleting           branch=-             | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=—
 
 ## subtitle truncation budget
-budget=0    status=-                       | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=
-budget=0    status=running                 | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=
-budget=0    status=attention/rate_limited  | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=
-budget=0    status=attention/error         | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=
-budget=1    status=-                       | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=…
-budget=1    status=running                 | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=…
-budget=1    status=attention/rate_limited  | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=…
-budget=1    status=attention/error         | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=…
-budget=4    status=-                       | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=fea…
-budget=4    status=running                 | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=fea…
-budget=4    status=attention/rate_limited  | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=fea…
-budget=4    status=attention/error         | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=fea…
-budget=8    status=-                       | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feature…
-budget=8    status=running                 | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feature…
-budget=8    status=attention/rate_limited  | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feature…
-budget=8    status=attention/error         | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feature…
-budget=16   status=-                       | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feature/a-very-…
-budget=16   status=running                 | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feature/a-very-…
-budget=16   status=attention/rate_limited  | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feature/a-very-…
-budget=16   status=attention/error         | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feature/a-very-…
-budget=24   status=-                       | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feature/a-very-long-bra…
-budget=24   status=running                 | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feature/a-very-long-bra…
-budget=24   status=attention/rate_limited  | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feature/a-very-long-bra…
-budget=24   status=attention/error         | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feature/a-very-long-bra…
-budget=40   status=-                       | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feature/a-very-long-branch-name-indeed
-budget=40   status=running                 | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feature/a-very-long-branch-name-indeed
-budget=40   status=attention/rate_limited  | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feature/a-very-long-branch-name-indeed
-budget=40   status=attention/error         | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feature/a-very-long-branch-name-indeed
+budget=0    status=-                       | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=
+budget=0    status=running                 | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=
+budget=0    status=attention/rate_limited  | title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=
+budget=0    status=attention/error         | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=
+budget=1    status=-                       | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=…
+budget=1    status=running                 | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=…
+budget=1    status=attention/rate_limited  | title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=…
+budget=1    status=attention/error         | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=…
+budget=4    status=-                       | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=fea…
+budget=4    status=running                 | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=fea…
+budget=4    status=attention/rate_limited  | title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=fea…
+budget=4    status=attention/error         | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=fea…
+budget=8    status=-                       | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feature…
+budget=8    status=running                 | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feature…
+budget=8    status=attention/rate_limited  | title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feature…
+budget=8    status=attention/error         | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feature…
+budget=16   status=-                       | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feature/a-very-…
+budget=16   status=running                 | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feature/a-very-…
+budget=16   status=attention/rate_limited  | title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feature/a-very-…
+budget=16   status=attention/error         | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feature/a-very-…
+budget=24   status=-                       | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feature/a-very-long-bra…
+budget=24   status=running                 | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feature/a-very-long-bra…
+budget=24   status=attention/rate_limited  | title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feature/a-very-long-bra…
+budget=24   status=attention/error         | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feature/a-very-long-bra…
+budget=40   status=-                       | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feature/a-very-long-branch-name-indeed
+budget=40   status=running                 | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feature/a-very-long-branch-name-indeed
+budget=40   status=attention/rate_limited  | title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feature/a-very-long-branch-name-indeed
+budget=40   status=attention/error         | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feature/a-very-long-branch-name-indeed
 
 ## persisted TaskStatus x daemon row status — board status must not reach the row
-status=backlog       row=-                          | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-status=backlog       row=idle                       | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-status=backlog       row=idle/turn_complete         | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-status=backlog       row=unseen                     | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-status=backlog       row=running                    | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
-status=backlog       row=needs-input                | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=backlog       row=attention/rate_limited     | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=backlog       row=attention/error            | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=backlog       row=attention/dead             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=backlog       row=attention/restored         | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=backlog       row=attention/delete_failed    | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=backlog       row=busy/job                   | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
-status=backlog       row=busy/deleting              | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
-status=in_progress   row=-                          | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-status=in_progress   row=idle                       | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-status=in_progress   row=idle/turn_complete         | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-status=in_progress   row=unseen                     | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-status=in_progress   row=running                    | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
-status=in_progress   row=needs-input                | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=in_progress   row=attention/rate_limited     | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=in_progress   row=attention/error            | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=in_progress   row=attention/dead             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=in_progress   row=attention/restored         | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=in_progress   row=attention/delete_failed    | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=in_progress   row=busy/job                   | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
-status=in_progress   row=busy/deleting              | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
-status=in_review     row=-                          | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-status=in_review     row=idle                       | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-status=in_review     row=idle/turn_complete         | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-status=in_review     row=unseen                     | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-status=in_review     row=running                    | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
-status=in_review     row=needs-input                | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=in_review     row=attention/rate_limited     | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=in_review     row=attention/error            | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=in_review     row=attention/dead             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=in_review     row=attention/restored         | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=in_review     row=attention/delete_failed    | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=in_review     row=busy/job                   | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
-status=in_review     row=busy/deleting              | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
-status=done          row=-                          | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-status=done          row=idle                       | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-status=done          row=idle/turn_complete         | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-status=done          row=unseen                     | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-status=done          row=running                    | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
-status=done          row=needs-input                | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=done          row=attention/rate_limited     | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=done          row=attention/error            | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=done          row=attention/dead             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=done          row=attention/restored         | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=done          row=attention/delete_failed    | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=done          row=busy/job                   | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
-status=done          row=busy/deleting              | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
-status=canceled      row=-                          | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-status=canceled      row=idle                       | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-status=canceled      row=idle/turn_complete         | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-status=canceled      row=unseen                     | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-status=canceled      row=running                    | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
-status=canceled      row=needs-input                | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=canceled      row=attention/rate_limited     | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=canceled      row=attention/error            | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=canceled      row=attention/dead             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=canceled      row=attention/restored         | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=canceled      row=attention/delete_failed    | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=canceled      row=busy/job                   | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
-status=canceled      row=busy/deleting              | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
-status=error         row=-                          | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-status=error         row=idle                       | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-status=error         row=idle/turn_complete         | main=0 title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
-status=error         row=unseen                     | main=0 title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
-status=error         row=running                    | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
-status=error         row=needs-input                | main=0 title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=error         row=attention/rate_limited     | main=0 title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
-status=error         row=attention/error            | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=error         row=attention/dead             | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=error         row=attention/restored         | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=error         row=attention/delete_failed    | main=0 title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
-status=error         row=busy/job                   | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
-status=error         row=busy/deleting              | main=0 title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+status=backlog       row=-                          | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+status=backlog       row=idle                       | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+status=backlog       row=idle/turn_complete         | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+status=backlog       row=unseen                     | title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
+status=backlog       row=running                    | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+status=backlog       row=needs-input                | title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
+status=backlog       row=attention/rate_limited     | title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+status=backlog       row=attention/error            | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=backlog       row=attention/dead             | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=backlog       row=attention/restored         | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=backlog       row=attention/delete_failed    | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=backlog       row=busy/job                   | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
+status=backlog       row=busy/deleting              | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+status=in_progress   row=-                          | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+status=in_progress   row=idle                       | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+status=in_progress   row=idle/turn_complete         | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+status=in_progress   row=unseen                     | title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
+status=in_progress   row=running                    | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+status=in_progress   row=needs-input                | title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
+status=in_progress   row=attention/rate_limited     | title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+status=in_progress   row=attention/error            | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=in_progress   row=attention/dead             | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=in_progress   row=attention/restored         | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=in_progress   row=attention/delete_failed    | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=in_progress   row=busy/job                   | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
+status=in_progress   row=busy/deleting              | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+status=in_review     row=-                          | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+status=in_review     row=idle                       | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+status=in_review     row=idle/turn_complete         | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+status=in_review     row=unseen                     | title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
+status=in_review     row=running                    | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+status=in_review     row=needs-input                | title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
+status=in_review     row=attention/rate_limited     | title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+status=in_review     row=attention/error            | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=in_review     row=attention/dead             | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=in_review     row=attention/restored         | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=in_review     row=attention/delete_failed    | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=in_review     row=busy/job                   | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
+status=in_review     row=busy/deleting              | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+status=done          row=-                          | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+status=done          row=idle                       | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+status=done          row=idle/turn_complete         | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+status=done          row=unseen                     | title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
+status=done          row=running                    | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+status=done          row=needs-input                | title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
+status=done          row=attention/rate_limited     | title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+status=done          row=attention/error            | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=done          row=attention/dead             | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=done          row=attention/restored         | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=done          row=attention/delete_failed    | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=done          row=busy/job                   | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
+status=done          row=busy/deleting              | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+status=canceled      row=-                          | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+status=canceled      row=idle                       | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+status=canceled      row=idle/turn_complete         | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+status=canceled      row=unseen                     | title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
+status=canceled      row=running                    | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+status=canceled      row=needs-input                | title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
+status=canceled      row=attention/rate_limited     | title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+status=canceled      row=attention/error            | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=canceled      row=attention/dead             | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=canceled      row=attention/restored         | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=canceled      row=attention/delete_failed    | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=canceled      row=busy/job                   | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
+status=canceled      row=busy/deleting              | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+status=error         row=-                          | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+status=error         row=idle                       | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+status=error         row=idle/turn_complete         | title=fix the sidebar  glyph=○   tone=textMuted   load=0 matz=0 sub=feat/sidebar
+status=error         row=unseen                     | title=fix the sidebar  glyph=●   tone=primary     load=0 matz=0 sub=feat/sidebar
+status=error         row=running                    | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
+status=error         row=needs-input                | title=fix the sidebar  glyph=?   tone=warning     load=0 matz=0 sub=feat/sidebar
+status=error         row=attention/rate_limited     | title=fix the sidebar  glyph=!   tone=warning     load=0 matz=0 sub=feat/sidebar
+status=error         row=attention/error            | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=error         row=attention/dead             | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=error         row=attention/restored         | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=error         row=attention/delete_failed    | title=fix the sidebar  glyph=!   tone=error       load=0 matz=0 sub=feat/sidebar
+status=error         row=busy/job                   | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=1 sub=materializing
+status=error         row=busy/deleting              | title=fix the sidebar  glyph=⠋   tone=primary     load=1 matz=0 sub=feat/sidebar
 
 ## PR chip — conflict > failing > passing, else nothing
 checkState=<no prStatus> mergeable=<absent>       stale=0  chip=<none>

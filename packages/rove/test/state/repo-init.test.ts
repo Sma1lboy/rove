@@ -84,28 +84,6 @@ describe("resolveRepoInit (files win over override, per field)", () => {
     expect(r.initPrompt).toBe("start by reading the docs")
   })
 
-  test("canonical .rove files win over legacy .rove files per field", () => {
-    const wt = makeWorktree({
-      ".rove/init.sh": "echo rove",
-      ".rove/init-prompt.md": "canonical prompt",
-    })
-    expect(resolveRepoInit(wt, wt)).toEqual({
-      initScript: "sh .rove/init.sh",
-      initPrompt: "canonical prompt",
-    })
-  })
-
-  test("canonical and legacy convention files compose per field", () => {
-    const wt = makeWorktree({
-      ".rove/init.sh": "echo rove",
-      ".rove/init-prompt.md": "legacy prompt",
-    })
-    expect(resolveRepoInit(wt, wt)).toEqual({
-      initScript: "sh .rove/init.sh",
-      initPrompt: "legacy prompt",
-    })
-  })
-
   test("per field: file script wins, override prompt fills the gap", () => {
     const wt = makeWorktree({ ".rove/init.sh": "echo hi" })
     setRepoInitOverride(wt, { initScript: "ignored", initPrompt: "from override" })
@@ -192,11 +170,12 @@ describe("missing-dependency coda (new-task only)", () => {
     expect(msg?.text).toContain("target")
   })
 
-  test("explicit / repo-init / none intents never carry it", () => {
-    const wt = makeWorktree({ "bun.lock": "{}", ".rove/init-prompt.md": "repo prompt" })
-    for (const intent of [{ kind: "explicit", prompt: "p" }, { kind: "repo-init" }, { kind: "none" }] as const) {
+  test.each([{ kind: "explicit", prompt: "p" }, { kind: "repo-init" }, { kind: "none" }] as const)(
+    "$kind intent never carries it",
+    (intent) => {
+      const wt = makeWorktree({ "bun.lock": "{}", ".rove/init-prompt.md": "repo prompt" })
       const msg = resolveEngineLaunchInit(wt, wt, intent).firstMessage
       expect(msg?.text ?? "").not.toContain("no installed dependencies")
-    }
-  })
+    },
+  )
 })

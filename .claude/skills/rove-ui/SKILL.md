@@ -340,7 +340,7 @@ Machines, Usage). Overlays (dialogs, menus, toasts, the inbox) are recipes in `s
   machine is unreachable). No machine names in the list.
 - **No change counts** on rows.
 - **Project sections are collapsible**, with a `+` for a new task in that project and **no
-  divider rule**, following Claude Desktop's session list (#1371). The name and chevron fold the
+  divider rule**, following Claude Desktop's session list (#1371). The name opens the project's Sessions page. The chevron folds the
   section (kept in `localStorage` `rove.collapsedProjects`); the `+` shows on hover and is
   centred on the task rows' rightmost mark: the 11px status dots, or the cloud when a row has one
   (#1378). Project names are small and quiet (600 12px

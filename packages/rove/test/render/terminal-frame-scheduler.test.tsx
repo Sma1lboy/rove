@@ -117,6 +117,7 @@ test("one PTY write draws one frame, not a second one for the rows it committed"
     frames = 0
     await pty.pump("x")
     await t.renderer.idle()
+    // A negative: no event marks "no second frame came", so leave room for one to arrive.
     await new Promise((r) => setTimeout(r, 100))
     expect(t.captureCharFrame()).toContain("x")
     expect(frames).toBe(1)

@@ -136,7 +136,6 @@ describe("XtermTaskPty scrollback cache", () => {
     for (let i = 1; i <= 600; i++) {
       const color = 31 + (i % 6)
       pty.pump(`\x1b[${color}mL${String(i).padStart(4, "0")}\x1b[0m plain tail\r\n`)
-      if (i % 150 === 0) await settle(pty)
     }
     await settle(pty)
     const text = rowsText(pty.capture())

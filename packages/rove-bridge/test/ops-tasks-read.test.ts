@@ -7,68 +7,22 @@ import { REPO, T, fakeApi, isolateTaskOpDeps, refused, run } from "./task-ops-ha
 isolateTaskOpDeps()
 
 describe("op table", () => {
-  test("registers exactly the contract ops, and only these three are destructive", () => {
-    expect(Object.keys(TASK_OPS).sort()).toEqual(
-      [
-        "task.get",
-        "task.info",
-        "repo.branches",
-        "notes.list",
-        "pendingStart.cancel",
-        "pendingStart.list",
-        "worktree.adoptable",
-        "worktree.legacyAdopted",
-        "worktree.legacyCleanup",
-        "task.spawn",
-        "task.rename",
-        "task.setBranch",
-        "task.moveToProject",
-        "task.setCommand",
-        "task.setModel",
-        "task.setEffort",
-        "task.setStatus",
-        "task.pin",
-        "task.keep",
-        "task.autoFixCi",
-        "task.resumeQuota",
-        "task.notes",
-        "task.archive",
-        "task.scheduleStart",
-        "task.cancelScheduledStart",
-        "task.startScheduledNow",
-        "task.move",
-        "project.move",
-        "project.forget",
-        "notes.delete",
-        "task.openMain",
-        "task.openCheckout",
-        "worktree.adopt",
-        "repo.clone",
-        "task.ensureWorktree",
-        "task.removeWorktree",
-      ].sort(),
-    )
+  test("only these three are destructive, and every one is served from the merged area table", () => {
     expect(
       Object.entries(TASK_OPS)
         .filter(([, s]) => s.destructive)
         .map(([n]) => n)
         .sort(),
     ).toEqual(["notes.delete", "project.forget", "task.removeWorktree"])
-    for (const name of Object.keys(TASK_OPS)) expect(AREA_OPS[name]).toBe(TASK_OPS[name]!)
+    expect(Object.keys(TASK_OPS).filter((n) => AREA_OPS[n] !== TASK_OPS[n])).toEqual([])
   })
 
-  test("reads are reads", () => {
-    for (const n of [
-      "task.get",
-      "task.info",
-      "repo.branches",
-      "notes.list",
-      "worktree.adoptable",
-      "worktree.legacyAdopted",
-    ]) {
+  test.each(["task.get", "task.info", "repo.branches", "notes.list", "worktree.adoptable", "worktree.legacyAdopted"])(
+    "%s is a read",
+    (n) => {
       expect(TASK_OPS[n]?.kind).toBe("read")
-    }
-  })
+    },
+  )
 })
 
 describe("worktree.legacyAdopted", () => {
@@ -249,12 +203,16 @@ describe("repo-scoped reads", () => {
     expect(result).toEqual({ branches: ["main"], current: null })
   })
 
-  test("unknown or relative repos are refused for every repo-scoped op", async () => {
-    for (const op of ["repo.branches", "notes.list", "worktree.adoptable", "project.forget"]) {
+  test.each(["repo.branches", "notes.list", "worktree.adoptable", "project.forget"])(
+    "%s refuses an unknown, relative or flag-shaped repo",
+    async (op) => {
       await refused(op, { repo: "/etc" })
       await refused(op, { repo: "payments-api" })
       await refused(op, { repo: "--force" })
-    }
+    },
+  )
+
+  test("notes.delete refuses an unknown repo", async () => {
     await refused("notes.delete", { repo: "/etc", id: 1 })
   })
 

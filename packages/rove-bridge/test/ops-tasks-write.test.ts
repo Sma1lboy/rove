@@ -15,7 +15,27 @@ const realRememberEngine = taskOpDeps.rememberEngine
 
 isolateTaskOpDeps()
 
+function restoreEnv(key: string, prev: string | undefined): void {
+  if (prev === undefined) Reflect.deleteProperty(process.env, key)
+  else process.env[key] = prev
+}
+
 describe("task.spawn", () => {
+  test("shell: the worktree is cut with no engine, listed, and its own first tab is a shell running the line", async () => {
+    const { calls, result } = await run(
+      "task.spawn",
+      { repo: "/Users/me/app", shell: true, title: "Shell", type: "bun dev" },
+      { add: { taskId: "N1", task: {} }, "tab-new": { tabId: "tab-1" } },
+    )
+    expect(calls).toEqual([
+      { verb: "add", argv: ["--repo=/Users/me/app", "--title=Shell", "--worktree-only=true"], machine: undefined },
+      { rpc: "task.worktreeOnly", payload: { taskId: "N1", on: false } },
+      { verb: "tab-new", argv: ["--task-id=N1", "--kind=shell", "--own", "--type=bun dev"], machine: undefined },
+    ])
+    expect(result).toEqual({ taskIds: ["N1"] })
+    await refused("task.spawn", { repo: "/Users/me/app", shell: true, prompt: "p" })
+  })
+
   test("on another machine the agent stays here by default: add runs in this daemon with the workspace there", async () => {
     const { calls } = await run(
       "task.spawn",
@@ -85,15 +105,19 @@ describe("task.spawn", () => {
     expect(calls).toEqual([
       { verb: "add", argv: ["--repo=github.com/sma1lboy/rove", "--clone=true", "--prompt=p"], machine: "mac" },
     ])
-    for (const repo of ["sma1lboy/rove", "git@github.com:sma1lboy/rove.git", "https://gitlab.com/g/s/p.git"]) {
+  })
+
+  test.each(["sma1lboy/rove", "git@github.com:sma1lboy/rove.git", "https://gitlab.com/g/s/p.git"])(
+    "clone takes the repo id %p as written",
+    async (repo) => {
       const spawned = await run(
         "task.spawn",
         { repo, machine: "mac", engineThere: true, clone: true },
         { add: { taskId: "N1", task: {} } },
       )
       expect(spawned.calls).toEqual([{ verb: "add", argv: [`--repo=${repo}`, "--clone=true"], machine: "mac" }])
-    }
-  })
+    },
+  )
 
   test("clone and repo ids are for another machine's add, and never a flag, a path or a local clone", async () => {
     await refused("task.spawn", { repo: "sma1lboy/rove", clone: true })
@@ -164,8 +188,7 @@ describe("task.spawn", () => {
       expect(getRepoLastActiveVendor(main)).toBe("codex")
       expect(getRepoLastActiveVendor(linked)).toBeUndefined()
     } finally {
-      if (prev === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
-      else process.env.ROVE_HOME_DIR = prev
+      restoreEnv("ROVE_HOME_DIR", prev)
     }
   })
 
@@ -212,41 +235,38 @@ describe("task.spawn", () => {
     expect(result).toEqual({ taskIds: ["a"], groupId: "G" })
   })
 
-  test("refuses bad shapes before any verb runs", async () => {
-    const bad: Array<Record<string, unknown>> = [
-      { repo: "relative" },
-      { repo: REPO, engine: "--command=evil" },
-      { repo: REPO, engine: "rm -rf /" },
-      { repo: REPO, engine: "nope" },
-      { repo: REPO, branch: "--upload-pack=x" },
-      { repo: REPO, branch: "a..b" },
-      { repo: REPO, branch: "x/" },
-      { repo: REPO, branch: "x.lock" },
-      { repo: REPO, baseBranch: "-x" },
-      { repo: REPO, model: "a b" },
-      { repo: REPO, model: "--x" },
-      { repo: REPO, effort: "HIGH" },
-      { repo: REPO, effort: "--x" },
-      { repo: REPO, status: "shipped" },
-      { repo: REPO, pin: "yes" },
-      { repo: REPO, title: "x".repeat(201) },
-      { repo: REPO, count: 0, prompt: "p" },
-      { repo: REPO, count: 11, prompt: "p" },
-      { repo: REPO, count: 2 },
-      { repo: REPO, agents: "claude:2" },
-      { repo: REPO, prompt: "p", count: 2, agents: "claude:1" },
-      { repo: REPO, prompt: "p", agents: "claude:0" },
-      { repo: REPO, prompt: "p", agents: "claude:11" },
-      { repo: REPO, prompt: "p", agents: "claude:6,codex:5" },
-      { repo: REPO, prompt: "p", agents: "claude:1,claude:1" },
-      { repo: REPO, prompt: "p", agents: "nope:1" },
-      { repo: REPO, prompt: "p", agents: "claude" },
-      { repo: REPO, prompt: "p", agents: "claude:1,--x:1" },
-      { repo: REPO, prompt: "p", agents: "claude:1", engine: "codex" },
-      { repo: REPO, prompt: "p", count: 2, branch: "b" },
-    ]
-    for (const args of bad) await refused("task.spawn", args)
-  })
+  test.each<Record<string, unknown>>([
+    { repo: "relative" },
+    { repo: REPO, engine: "--command=evil" },
+    { repo: REPO, engine: "rm -rf /" },
+    { repo: REPO, engine: "nope" },
+    { repo: REPO, branch: "--upload-pack=x" },
+    { repo: REPO, branch: "a..b" },
+    { repo: REPO, branch: "x/" },
+    { repo: REPO, branch: "x.lock" },
+    { repo: REPO, baseBranch: "-x" },
+    { repo: REPO, model: "a b" },
+    { repo: REPO, model: "--x" },
+    { repo: REPO, effort: "HIGH" },
+    { repo: REPO, effort: "--x" },
+    { repo: REPO, status: "shipped" },
+    { repo: REPO, pin: "yes" },
+    { repo: REPO, title: "x".repeat(201) },
+    { repo: REPO, count: 0, prompt: "p" },
+    { repo: REPO, count: 11, prompt: "p" },
+    { repo: REPO, count: 2 },
+    { repo: REPO, agents: "claude:2" },
+    { repo: REPO, prompt: "p", count: 2, agents: "claude:1" },
+    { repo: REPO, prompt: "p", agents: "claude:0" },
+    { repo: REPO, prompt: "p", agents: "claude:11" },
+    { repo: REPO, prompt: "p", agents: "claude:6,codex:5" },
+    { repo: REPO, prompt: "p", agents: "claude:1,claude:1" },
+    { repo: REPO, prompt: "p", agents: "nope:1" },
+    { repo: REPO, prompt: "p", agents: "claude" },
+    { repo: REPO, prompt: "p", agents: "claude:1,--x:1" },
+    { repo: REPO, prompt: "p", agents: "claude:1", engine: "codex" },
+    { repo: REPO, prompt: "p", count: 2, branch: "b" },
+  ])("refuses %p before any verb runs", (args) => refused("task.spawn", args))
 })
 
 describe("task edits", () => {
@@ -281,13 +301,11 @@ describe("task edits", () => {
     ["task.move", { taskId: T, direction: "top" }, { rpc: "task.move", payload: { taskId: T, direction: "top" } }],
     ["task.move", { taskId: T, direction: "up" }, { rpc: "task.move", payload: { taskId: T, direction: "up" } }],
   ]
-  for (const [op, args, call] of cases) {
-    test(`${op} ${JSON.stringify(args)} makes exactly one call and returns {}`, async () => {
-      const { result, calls } = await run(op, args)
-      expect(calls.filter((c) => !("verb" in c && c.verb === "engine-list"))).toEqual([call])
-      expect(result).toEqual({})
-    })
-  }
+  test.each(cases)("%s %p makes exactly one call and returns {}", async (op, args, call) => {
+    const { result, calls } = await run(op, args)
+    expect(calls.filter((c) => !("verb" in c && c.verb === "engine-list"))).toEqual([call])
+    expect(result).toEqual({})
+  })
 
   test("task.notes hands the notes and todo ops to the daemon as one call and answers with its result", async () => {
     const after = { notes: "n", todos: [{ id: "t1", text: "a", done: false }] }
@@ -314,24 +332,21 @@ describe("task edits", () => {
     await refused("task.setCommand", { taskId: T, engine: "unknown" })
   })
 
-  test("bad args are refused", async () => {
-    const bad: Array<[string, Record<string, unknown>]> = [
-      ["task.rename", { taskId: T }],
-      ["task.rename", { taskId: T, title: "   " }],
-      ["task.rename", { taskId: "--x", title: "a" }],
-      ["task.setBranch", { taskId: T, branch: "--delete" }],
-      ["task.setBranch", { taskId: T, branch: "a b" }],
-      ["task.setBranch", { taskId: T, branch: `a${"b".repeat(200)}` }],
-      ["task.setModel", { taskId: T, model: "-m" }],
-      ["task.setEffort", { taskId: T, level: "Max" }],
-      ["task.setEffort", { taskId: T, level: "x".repeat(21) }],
-      ["task.setStatus", { taskId: T, status: "merged" }],
-      ["task.pin", { taskId: T }],
-      ["task.pin", { taskId: T, pinned: "false" }],
-      ["task.move", { taskId: T, direction: "sideways" }],
-    ]
-    for (const [op, args] of bad) await refused(op, args)
-  })
+  test.each<[string, Record<string, unknown>]>([
+    ["task.rename", { taskId: T }],
+    ["task.rename", { taskId: T, title: "   " }],
+    ["task.rename", { taskId: "--x", title: "a" }],
+    ["task.setBranch", { taskId: T, branch: "--delete" }],
+    ["task.setBranch", { taskId: T, branch: "a b" }],
+    ["task.setBranch", { taskId: T, branch: `a${"b".repeat(200)}` }],
+    ["task.setModel", { taskId: T, model: "-m" }],
+    ["task.setEffort", { taskId: T, level: "Max" }],
+    ["task.setEffort", { taskId: T, level: "x".repeat(21) }],
+    ["task.setStatus", { taskId: T, status: "merged" }],
+    ["task.pin", { taskId: T }],
+    ["task.pin", { taskId: T, pinned: "false" }],
+    ["task.move", { taskId: T, direction: "sideways" }],
+  ])("%s refuses %p", (op, args) => refused(op, args))
 })
 
 describe("task.archive", () => {
@@ -346,11 +361,9 @@ describe("task.archive", () => {
     expect(restored.calls.at(-1)).toEqual({ verb: "unarchive", argv: [`--task-id=${T}`] })
   })
 
-  test("the daemon's busy and main refusals reach the page as stable codes, prefix stripped", async () => {
-    for (const [message, code] of [
-      ["TASK_BUSY: an engine is still working or waiting on you in t1", "TASK_BUSY"],
-      ["MAIN_TASK: a project's main checkout cannot be archived", "MAIN_TASK"],
-    ] as const) {
+  test.each([["TASK_BUSY: an engine is still working or waiting on you in t1", "TASK_BUSY"]])(
+    "the daemon's %p refusal reaches the page as stable code %s, prefix stripped",
+    async (message, code) => {
       const client = {
         request: async () => {
           throw new Error(message)
@@ -359,8 +372,8 @@ describe("task.archive", () => {
       await expect(
         TASK_OPS["task.archive"]?.run({ taskId: T, archived: true }, { api: createBridgeApi(client) }),
       ).rejects.toMatchObject({ name: "BridgeError", code, message: message.slice(code.length + 2) })
-    }
-  })
+    },
+  )
 
   test("bad args are refused", async () => {
     await refused("task.archive", { taskId: T })
@@ -383,25 +396,14 @@ describe("project and notes", () => {
     expect((await run("notes.delete", { repo: REPO, id: 8 }, { "note-delete": { deleted: false } })).result).toEqual({
       deleted: false,
     })
-    for (const id of [0, -1, 1.5, "3", null, undefined]) await refused("notes.delete", { repo: REPO, id })
   })
+
+  test.each([0, -1, 1.5, "3", null, undefined])("notes.delete refuses id %p", (id) =>
+    refused("notes.delete", { repo: REPO, id }),
+  )
 })
 
-describe("task.openMain and worktree.adopt", () => {
-  test("openMain needs a usable git repo, not a known one, so a fresh clone can open", async () => {
-    taskOpDeps.validateRepoPath = () => null
-    const { result, calls } = await run(
-      "task.openMain",
-      { repo: "/work/fresh" },
-      { "task.ensureMain": { task: { id: "M1" } } },
-    )
-    expect(calls.at(-1)).toEqual({ rpc: "task.ensureMain", payload: { repo: "/work/fresh" } })
-    expect(result).toEqual({ taskId: "M1" })
-    taskOpDeps.validateRepoPath = () => "not a git repo"
-    await refused("task.openMain", { repo: "/etc" })
-    await refused("task.openMain", { repo: "rel" })
-  })
-
+describe("worktree.adopt", () => {
   test("adopt only takes a worktree discovery lists, and sends the engine as vendor", async () => {
     const replies = {
       "worktree.discoverAdoptable": { worktrees: [{ path: "/w/a" }], unreadable: [] },
@@ -427,34 +429,32 @@ describe("task.openMain and worktree.adopt", () => {
 describe("worktree.legacyCleanup", () => {
   const leftovers = { tasks: [{ id: T, title: "a", repo: REPO, worktreePath: "/w/a" }] }
 
-  test("starts a no-worktree session under the first row's project main", async () => {
+  test("opens a session in the first row's project checkout and sends it the prompt", async () => {
     const { result, calls } = await run(
       "worktree.legacyCleanup",
       { title: "Remove leftover sessions", prompt: "- x" },
       {
         "worktree.legacyAdopted": leftovers,
-        "task.ensureMain": { task: { id: "M1" } },
-        add: { taskId: "S1" },
+        "project.ensure": { repo: REPO },
+        "task.openDir": { taskId: "S1" },
+        send: {},
       },
     )
-    expect(calls.find((c) => "rpc" in c && c.rpc === "task.ensureMain")).toEqual({
-      rpc: "task.ensureMain",
-      payload: { repo: REPO },
-    })
-    expect(calls.at(-1)).toEqual({
-      verb: "add",
-      argv: ["--parent=M1", "--no-worktree=true", "--title=Remove leftover sessions", "--prompt=- x"],
-    })
+    expect(calls.slice(1)).toEqual([
+      { rpc: "project.ensure", payload: { repo: REPO } },
+      { rpc: "task.openDir", payload: { dir: REPO, title: "Remove leftover sessions" } },
+      { verb: "send", argv: ["--task-id=S1", "--prompt=- x"] },
+    ])
     expect(result).toEqual({ taskId: "S1" })
   })
 
-  test("falls back to a plain add on the repo when the daemon refuses a project row", async () => {
+  test("falls back to a plain add on the repo when the daemon refuses to save the project", async () => {
     const { result, calls } = await run(
       "worktree.legacyCleanup",
       { title: "t", prompt: "p" },
       {
         "worktree.legacyAdopted": leftovers,
-        "task.ensureMain": () => {
+        "project.ensure": () => {
           throw new Error("refused")
         },
         add: { taskId: "S2" },

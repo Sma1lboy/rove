@@ -16,13 +16,13 @@ const NOW = new Date(2026, 6, 31, 10, 0, 0).getTime()
 const iso = (deltaMs: number): string => new Date(NOW + deltaMs).toISOString()
 const ASCII_LETTER = /[A-Za-z]/
 
-describe("formatWhen", () => {
-  let restore = currentLang()
-  beforeEach(() => {
-    restore = currentLang()
-  })
-  afterEach(() => setLocaleLang(restore))
+let restore = currentLang()
+beforeEach(() => {
+  restore = currentLang()
+})
+afterEach(() => setLocaleLang(restore))
 
+describe("formatWhen", () => {
   test("English keeps its current phrasing", () => {
     setLocaleLang("en")
     expect(formatWhen(iso(5 * 60_000), NOW)).toBe("in 5m")
@@ -31,11 +31,16 @@ describe("formatWhen", () => {
     expect(formatWhen(iso(-3 * 3_600_000), NOW)).toBe("3h ago")
   })
 
-  test("Chinese carries no English, including the >24h date fallback", () => {
+  test.each([0, 5 * 60_000, -12 * 60_000, 3 * 3_600_000, -3 * 3_600_000])(
+    "Chinese carries no English at %i ms",
+    (delta) => {
+      setLocaleLang("zh")
+      expect(formatWhen(iso(delta), NOW)).not.toMatch(ASCII_LETTER)
+    },
+  )
+
+  test("Chinese >24h date fallback follows the UI locale", () => {
     setLocaleLang("zh")
-    for (const delta of [0, 5 * 60_000, -12 * 60_000, 3 * 3_600_000, -3 * 3_600_000]) {
-      expect(formatWhen(iso(delta), NOW), String(delta)).not.toMatch(ASCII_LETTER)
-    }
     // The fallback formats through Intl for the UI locale; zh-CN puts the
     // year first, which an OS-locale `en-US` box would never produce.
     expect(formatWhen(iso(3 * 24 * 3_600_000), NOW)).toBe("2026/8/3")
@@ -53,7 +58,6 @@ describe("formatRunStatus", () => {
     expect(formatRunStatus("skipped_precheck", t)).toBe("skipped (precheck)")
     setLocaleLang("zh")
     expect(formatRunStatus("skipped_precheck", t)).toBe("已跳过（预检）")
-    setLocaleLang("en")
   })
 
   test("an unmapped status falls through to its raw value, loudly", () => {

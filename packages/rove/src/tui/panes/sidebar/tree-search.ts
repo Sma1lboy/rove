@@ -1,19 +1,19 @@
 /**
  * Prunes `buildTreeRows`' output to a query (re-exported from `tree-core`).
  *
- * Governing rule: what you can FIND is exactly what you can SEE. A row matches
- * on the text it renders, never on a stored field it refuses to show.
+ * A named task stays findable by its original title after its conversation acquires a name.
  */
 
 import type { Task } from "@/types/task"
 import { fuzzyMatch } from "./fuzzy"
 import { repoBasename } from "./groups"
 import { type TreeRow, worktreeRowLabel } from "./tree-core"
+import { isNamedDir } from "./tree-labels"
 
 /**
  * Fields matched ONE AT A TIME (see `matchesRow`). A worktree row starts from
- * the label `worktreeRowLabel` renders: a `main` row shows its LIVE HEAD (stored
- * `branch` is `""`), a `dir` row its path (its auto-generated title is hidden).
+ * the label `worktreeRowLabel` renders: a `dir` row shows its LIVE HEAD (stored
+ * `branch` is `""`), else its path (its auto-generated title is hidden).
  *
  * `liveBranch` resolves the polled HEAD for branchless rows (see
  * {@link rowLiveBranchPath}); without it the stored branch is used.
@@ -21,8 +21,7 @@ import { type TreeRow, worktreeRowLabel } from "./tree-core"
 function rowHaystacks(row: TreeRow, liveBranch?: (task: Task) => string): readonly string[] {
   if (row.kind === "project") return [row.label]
   const task = row.task
-  // A `dir` task's title is hidden on screen, so it must not match either.
-  const title = task.kind === "dir" ? "" : task.title
+  const title = task.kind !== "dir" || isNamedDir(task) ? task.title : ""
   const liveBranchName = liveBranch?.(task)
   const liveTitle = row.kind === "worktree" ? row.title : undefined
   // The branch no longer names the row, but it stays findable.

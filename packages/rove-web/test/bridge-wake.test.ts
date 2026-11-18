@@ -43,6 +43,13 @@ function advance(ms: number) {
   }
 }
 
+/** Drops the newest socket and runs the backoff out until its replacement opens. */
+function dropAndWaitForRetry() {
+  const n = FakeSocket.all.length
+  FakeSocket.all.at(-1)?.onclose?.()
+  while (FakeSocket.all.length === n) advance(100)
+}
+
 function wake() {
   for (const fn of listeners.get("visibilitychange") ?? []) fn()
 }
@@ -107,11 +114,11 @@ describe("a page coming back from sleep", () => {
 
   test("skips the rest of a long backoff", async () => {
     await connected()
-    for (let i = 0; i < 5; i++) {
-      const n = FakeSocket.all.length
-      FakeSocket.all.at(-1)?.onclose?.()
-      while (FakeSocket.all.length === n) advance(100)
-    }
+    dropAndWaitForRetry()
+    dropAndWaitForRetry()
+    dropAndWaitForRetry()
+    dropAndWaitForRetry()
+    dropAndWaitForRetry()
     const before = FakeSocket.all.length
     FakeSocket.all.at(-1)?.onclose?.()
     wake()

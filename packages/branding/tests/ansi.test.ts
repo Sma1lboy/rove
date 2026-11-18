@@ -7,7 +7,6 @@ import {
   terminalThemeFrom,
   type TerminalTheme,
 } from "../src/quicklook/ansi"
-import quicklookSpec from "../src/quicklook/quicklook.replay.json"
 
 describe("ANSI cell parser", () => {
   test("keeps terminal-narrow symbols in one cell without shifting following text", () => {
@@ -129,11 +128,6 @@ describe("ANSI cell parser", () => {
     })
 
     expect(Object.keys(theme).sort()).toEqual(["ansi16", "defaultBg", "defaultFg"])
-  })
-
-  test("quicklook theme does not patch parser output", () => {
-    expect("glyphMap" in quicklookSpec.theme).toBe(false)
-    expect("runOverrides" in quicklookSpec.theme).toBe(false)
   })
 
   test("preserves background style on trailing spaces until reset", () => {

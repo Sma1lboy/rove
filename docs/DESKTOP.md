@@ -125,3 +125,16 @@ The app adds no Rove chords — the page's keybindings are the keybindings, and 
 menu carries only the platform's own (⌘Q, ⌘W, ⌘R, ⌘±, ⌘M). Closing the window
 quits the app, which stops the bridge it started; the daemon is shared with the
 TUI and keeps running.
+
+## Native terminal preview on macOS
+
+From a checkout on macOS 14 or later with Xcode 26 and Swift 6.2 or newer installed, run:
+
+```sh
+bun run build
+bun --filter @sma1lboy/rove-desktop native:preview
+```
+
+The preview opens the workspace in WebKit. The system window controls, sidebar toggle and workspace history sit together above the task list. Each terminal is a native libghostty surface, embedded through the pinned GhosttyTerminal Swift package. Ghostty renders the live PTY output with Metal and handles typing, composition, selection and scrolling. Selecting a task replays and attaches to its existing shell or engine process. The terminal follows the Rove workspace theme. Ghostty measures its scrollback budget in bytes, so the preview allocates 1 KiB per configured scrollback row. Closing the preview detaches the window and stops the bridge it started.
+
+To use a particular local or sandbox bridge, set `ROVE_DESKTOP_URL` to its loopback pairing URL before starting the preview. The packaged desktop downloads continue to use Electron.

@@ -35,6 +35,7 @@ import {
   worktreeRefs,
 } from "@sma1lboy/rove/src/worktree/review-read.ts"
 import { gateRows } from "./gates.ts"
+import { type NewTabRequest, newTabInvocation } from "./new-tab.ts"
 import { createBridgeApi } from "./ops/api.ts"
 import { flag } from "./ops/args.ts"
 import { taskOpDeps } from "./ops/tasks-shared.ts"
@@ -107,51 +108,6 @@ export interface RoveOps {
   ): Promise<unknown>
   diffRefs(taskId: string): Promise<DiffRefs>
   dismissAttention(taskId: string, tabId?: string, deliveryId?: string): Promise<void>
-}
-
-/** What `tab.new` asks for: no `prompt` opens the tab empty (a shell, or an engine awaiting its first message). An engine starts in the task's own `tab-1` while the task has no conversation, else in a new child task sharing its directory; only then does the reply's `taskId` name the child. */
-export interface NewTabRequest {
-  readonly kind: "shell" | "engine"
-  readonly prompt?: string
-  /** Engine id for an engine tab; omitted = the task's own. */
-  readonly engine?: string
-  /** No engine named: the one this project used last (the TUI's ctrl+t), not the task's own. */
-  readonly latest?: boolean
-  /**
-   * A DEAD engine tab whose slot the new engine takes (`send --tab <tab> --replace`): same task,
-   * same tab id, the handoff brief built from that tab's conversation. `prompt` is then only the user's
-   * own message (may be empty); the brief is not sent from the page.
-   */
-  readonly replaceTab?: string
-}
-
-/** A prompt starts the engine on it (`add --parent`, or `send --replace` for `replaceTab`); without one there is nothing to send, so `tab-new` opens the tab empty. */
-export function newTabInvocation(
-  taskId: string,
-  tab: NewTabRequest,
-): { readonly verb: "add" | "send" | "tab-new"; readonly argv: readonly string[] } {
-  const command = tab.engine ? [flag("command", tab.engine)] : []
-  if (tab.prompt === undefined && !tab.engine && tab.latest) command.push("--latest")
-  if (tab.replaceTab !== undefined) {
-    return {
-      verb: "send",
-      argv: [
-        flag("task-id", taskId),
-        flag("tab", tab.replaceTab),
-        "--replace",
-        "--plain",
-        ...(tab.prompt ? [flag("prompt", tab.prompt)] : []),
-        ...command,
-      ],
-    }
-  }
-  if (tab.prompt !== undefined) {
-    return {
-      verb: "add",
-      argv: [flag("parent", taskId), "--no-worktree", flag("prompt", tab.prompt), ...command],
-    }
-  }
-  return { verb: "tab-new", argv: [flag("task-id", taskId), flag("kind", tab.kind), ...command] }
 }
 
 /** `rove api` refusals carry a stable `code`; keep it on the wire. */

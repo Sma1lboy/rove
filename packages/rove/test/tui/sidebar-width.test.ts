@@ -35,16 +35,15 @@ describe("sidebarWidthFor", () => {
     expect(sidebarWidthFor(10)).toBe(SIDEBAR_WIDTH)
   })
 
-  it("leaves the workspace the majority of the terminal at every width", () => {
-    // Mirror host-files-pane.tsx's clamp: a third of what's left, [22, 34].
-    const filesPaneWidth = (terminal: number, rail: number): number =>
-      Math.max(22, Math.min(34, Math.floor(Math.max(22, terminal - rail) / 3)))
-    for (const width of [80, 120, 160, 200, 240, 300]) {
-      const rail = sidebarWidthFor(width)
-      const workspace = width - rail - filesPaneWidth(width, rail)
-      expect(workspace).toBeGreaterThan(width / 3)
-      expect(workspace).toBeGreaterThanOrEqual(30)
-    }
+  // Mirror host-files-pane.tsx's clamp: a third of what's left, [22, 34].
+  const filesPaneWidth = (terminal: number, rail: number): number =>
+    Math.max(22, Math.min(34, Math.floor(Math.max(22, terminal - rail) / 3)))
+
+  it.each([80, 120, 160, 200, 240, 300])("leaves the workspace the majority of a %i-col terminal", (width) => {
+    const rail = sidebarWidthFor(width)
+    const workspace = width - rail - filesPaneWidth(width, rail)
+    expect(workspace).toBeGreaterThan(width / 3)
+    expect(workspace).toBeGreaterThanOrEqual(30)
   })
 })
 

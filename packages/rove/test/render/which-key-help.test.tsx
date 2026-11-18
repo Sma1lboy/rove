@@ -24,7 +24,7 @@ import { act, renderComponent, settle, waitForFrameText } from "./harness"
 const NOOP = (): void => {}
 
 async function waitForFrameWithoutText(frame: () => Promise<string>, text: string): Promise<string> {
-  const deadline = Date.now() + 5_000
+  const deadline = Date.now() + 3_000
   let current = await frame()
   while (current.includes(text)) {
     if (Date.now() >= deadline) throw new Error(`frame still contained ${JSON.stringify(text)}:\n${current}`)
@@ -136,7 +136,12 @@ function locate(frame: string, needle: string): { x: number; y: number } {
   return { x: rows[y]?.indexOf(needle) ?? 0, y }
 }
 
-afterEach(() => act(() => resetPrefixHud()))
+const priorHome = process.env.ROVE_HOME_DIR
+afterEach(() => {
+  act(() => resetPrefixHud())
+  if (priorHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = priorHome
+})
 
 describe("F1 keyboard reference", () => {
   it("opens from the workspace stack and leads with focus-aware grammar", async () => {
@@ -147,9 +152,7 @@ describe("F1 keyboard reference", () => {
     })
 
     act(() => mockInput.pressKey("F1"))
-    await settle()
-    const text = await frame()
-    expect(text).toContain("Rove — keybindings")
+    const text = await waitForFrameText(frame, "Rove — keybindings")
     expect(text).toContain("Focused: Sidebar")
     expect(text).toContain("ONE PRESS")
     expect(text).toContain("AFTER PREFIX")
@@ -216,8 +219,9 @@ describe("which-key prefix guide", () => {
     expect(held).not.toContain("f1")
 
     act(() => mockInput.pressKey("\x1b[57442;1:3u"))
-    await settle()
-    expect(await frame()).not.toContain("Hold ctrl — Rove shortcuts")
+    expect(await waitForFrameWithoutText(frame, "Hold ctrl — Rove shortcuts")).not.toContain(
+      "Hold ctrl — Rove shortcuts",
+    )
   })
 
   it("closes the direct guide after mouse focus changes reachability", async () => {

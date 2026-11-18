@@ -56,7 +56,8 @@ for (const fixture of [
         activeTaskSignal: () => createStateCell<string | null>(focused ? "T0" : "T1"),
         listIssues: async (repo: string) => {
           reads.push(repo)
-          const index = fixture.stored.indexOf(repo)
+          // These directories exist on no machine, so the saved spellings are not offered and the tasks' win.
+          const index = fixture.local.indexOf(repo)
           const repoRoot = fixture.roots[index] ?? repo
           return {
             repoRoot,
@@ -86,7 +87,7 @@ for (const fixture of [
       expect((await frame()).trim()).toBe(
         JSON.stringify({ roots: fixture.roots, active: fixture.roots[1], selected: focused ? 7 : null }),
       )
-      expect(reads).toEqual(fixture.stored)
+      expect(reads).toEqual(fixture.local)
       expect(new Set(reads.map(pathIdentity)).size).toBe(3)
     })
   }

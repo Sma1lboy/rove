@@ -83,12 +83,13 @@ describe("runQuickForkRound", () => {
   })
 
   it("a create failure at i=2 keeps the first sibling and never returns nothing", async () => {
-    let n = 0
-    const orch = orchestrator(async () => {
-      n += 1
-      if (n === 2) throw new Error("store write failed")
-      return task(`t${n}`)
-    })
+    const orch = orchestrator(
+      vi
+        .fn()
+        .mockResolvedValueOnce(task("t1"))
+        .mockRejectedValueOnce(new Error("store write failed"))
+        .mockResolvedValueOnce(task("t3")),
+    )
     const outcome = await runQuickForkRound(
       orch,
       "/repo",

@@ -71,6 +71,10 @@ The live relay cost 1+N turns per note: one on the main session, then a `dispatc
 
 The v1/v2 tables above describe the relay as it was; where they disagree with this section, this section holds.
 
+## v4 — no dispatcher seat (2026-11-16)
+
+A project is a saved repo, not a `kind: "main"` task, so there is no repo-main session to brief: `dispatcherProtocol` is gone and every session launches with the worktree protocol. Notes still persist and seed each new session's recall block under `experimental.dispatcher`; `rove api dispatch` stays as a plain relay verb. Where the sections above name the main session or the main task, this section holds.
+
 **Why full injection rather than retrieval:** a repo's note count is bounded at 50 by the store and 15 by the prompt. At that size, filtering costs more than it saves. The upgrade path if a repo genuinely outgrows it is filtering by touched path — not a vector store.
 
 ## Known limits

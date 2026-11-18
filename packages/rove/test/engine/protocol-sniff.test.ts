@@ -35,14 +35,8 @@ describe("sniffProtocolFromTitle", () => {
     // picking a winner, so a future engine that borrows ✳ or a braille frame
     // degrades this test to a null answer instead of a silent misattribution
     // — but it should fail HERE first, where the cause is visible.
-    const owners = new Map<string, string[]>()
-    for (const vendor of BUILTIN_VENDORS) {
-      for (const glyph of engineEntry(vendor).terminalTitle?.statusPrefixes ?? []) {
-        owners.set(glyph, [...(owners.get(glyph) ?? []), vendor])
-      }
-    }
-    const shared = [...owners.entries()].filter(([, vendors]) => vendors.length > 1)
-    expect(shared).toEqual([])
+    const glyphs = BUILTIN_VENDORS.flatMap((vendor) => engineEntry(vendor).terminalTitle?.statusPrefixes ?? [])
+    expect(glyphs.filter((glyph, i) => glyphs.indexOf(glyph) !== i)).toEqual([])
   })
 
   it("stays silent on an undecorated title", () => {

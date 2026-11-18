@@ -28,7 +28,7 @@ import { createStateCell } from "../../src/lib/external-store"
 import { WorkspaceRoot } from "../../src/tui-react/workspace/host"
 import { setUiEventReporter } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import { type Task, toTaskId } from "../../src/types/task"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent, waitForFrameText } from "./harness"
 
 // Same per-FILE env capture as host-version-skew-banner: KVProvider persists
 // to `$ROVE_HOME_DIR`, which is the real ~/.rove without this.
@@ -124,7 +124,6 @@ test("a worktree vanishing under an unselected task raises the host's toast", as
     height: 24,
     providers: { kv: true, focus: true, dialog: true, notifications: true },
   })
-  await settle(120)
   // Negative control: the toast must be raised BY the transition, not by
   // mounting a task that happens to have a worktree.
   expect(await frame()).not.toContain("is gone")
@@ -134,9 +133,7 @@ test("a worktree vanishing under an unselected task raises the host's toast", as
   await act(async () => {
     tasks.set([HELD, task("beta", { worktreePath: "" })])
   })
-  await settle(120)
-  const text = await frame()
-  expect(text).toContain('Worktree for "beta" is gone')
+  const text = await waitForFrameText(frame, 'Worktree for "beta" is gone')
   // The remedy half of the message: the tabs are gone but the branch is not,
   // which is the only reason this is a toast and not a confirm.
   expect(text).toContain("Closed 0 tab")

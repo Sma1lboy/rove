@@ -30,7 +30,7 @@ export function resolveSidebarWidth(terminalWidth: number, override: number | nu
   return Math.max(SIDEBAR_WIDTH, Math.min(max, Math.round(override)))
 }
 
-/** Polling interval for the per-main-row git branch refresh. */
+/** Polling interval for the per-`dir`-row git branch refresh. */
 export const MAIN_BRANCH_POLL_MS = 2_000
 
 /**

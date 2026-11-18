@@ -133,7 +133,7 @@ export type DaemonRequestName =
   | "task.setPrompt"
   // Attach a PR the engine session opened (any directory); the daemon polls its status.
   | "task.addSessionPr"
-  | "task.ensureMain"
+  | "project.ensure"
   // Open an existing directory as a standalone `kind:"dir"` task (`rove .`).
   | "task.openDir"
   // Scratch → project migration: repoint + clear the flag.
@@ -359,7 +359,7 @@ export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonReque
   "task.ensureWorktree",
   // Cuts a worktree for the child; same minute-scale cost as ensureWorktree.
   "task.spawn",
-  "task.ensureMain",
+  "project.ensure",
   "task.moveToProject",
   "worktree.discoverAdoptable",
   "worktree.adopt",
@@ -408,7 +408,7 @@ export interface SerializedTask {
   readonly repo: string
   readonly branch: string
   readonly worktreePath: string
-  readonly kind: "main" | "task" | "dir"
+  readonly kind: "task" | "dir"
   /** Scratch shell task — Scratch-section row, cleared on adopt/rename. */
   readonly scratch?: boolean
   /** Projectless routine session — sorts into the Ungrouped group. */

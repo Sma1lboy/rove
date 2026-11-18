@@ -7,9 +7,7 @@ describe("normalizeMaxLiveEngines", () => {
     expect(normalizeMaxLiveEngines(" 6 ")).toBe(6)
   })
 
-  it("treats anything else as no cap rather than a cap of zero", () => {
-    for (const value of [undefined, null, 0, -2, 2.5, "", "lots", true]) {
-      expect(normalizeMaxLiveEngines(value)).toBeUndefined()
-    }
+  it.each([undefined, null, 0, -2, 2.5, "", "lots", true])("treats %j as no cap rather than a cap of zero", (value) => {
+    expect(normalizeMaxLiveEngines(value)).toBeUndefined()
   })
 })

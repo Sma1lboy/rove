@@ -58,11 +58,14 @@ export const en = {
     menu: {
       rename: "Rename tab",
       copyAddress: "Copy tab address",
+      copySessionId: "Copy session ID",
       continueEngine: "Continue in another engine…",
       closeOthers: "Close other tabs",
       close: "Close tab",
     },
     nothingToFork: "No conversation in this tab to fork yet",
+    noSessionYet: "No conversation in this tab yet",
+    noSessionYetHint: "Send the engine a prompt; its session ID exists once the conversation starts.",
     noTranscriptToHandOff: "{engine} keeps no readable transcript to hand over",
   },
   split: {
@@ -140,11 +143,14 @@ export const zh: typeof en = {
     menu: {
       rename: "重命名标签页",
       copyAddress: "复制标签页地址",
+      copySessionId: "复制会话 ID",
       continueEngine: "换个引擎继续…",
       closeOthers: "关闭其他标签页",
       close: "关闭标签页",
     },
     nothingToFork: "这个标签页还没有可派生的对话",
+    noSessionYet: "这个标签页还没有对话",
+    noSessionYetHint: "先给引擎发一条消息，对话开始后才有会话 ID。",
     noTranscriptToHandOff: "{engine} 没有可读的对话记录，无法交接",
   },
   split: {
