@@ -16,14 +16,17 @@ afterEach(() => {
   Object.assign(globalThis, { sessionStorage: savedSession })
 })
 
-test("the open composer is remembered for a reload, without a link's one-shot prompt", async () => {
+test("the open composer keeps its project and sky for a reload, without a link's one-shot prompt", async () => {
   const { newSession, openNewSession } = await import("../src/ui.ts")
 
   openNewSession("/repo", undefined, undefined, "from a link")
-  expect(JSON.parse(kept.get("rove.web.newSession") ?? "null")).toEqual({ repo: "/repo" })
+  expect(JSON.parse(kept.get("rove.web.newSession") ?? "null")).toEqual({ repo: "/repo", sky: "orbit" })
 
   newSession.set(null)
   expect(kept.has("rove.web.newSession")).toBe(false)
+  openNewSession("/repo")
+  expect(newSession.get()?.sky).toBe("comet")
+  newSession.set(null)
 })
 
 test("the open page is remembered for a reload, and forgotten once closed", async () => {

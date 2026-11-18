@@ -1,42 +1,11 @@
-/**
- * The New session page's plate: a lit, spinning planet sampled onto a dot grid
- * with ordered dither, and a few satellites trailing along tilted orbits — one
- * hub, many sessions. Decoration only: hidden from assistive tech, idle in a
- * hidden tab, and a still frame under `prefers-reduced-motion`.
- */
+import { ACCENT, COLS, INK, MUTED, NONE, ROWS, SUBTLE, starField, threshold } from "./grid.ts"
 
-import { useEffect, useRef } from "react"
-
-const COLS = 128
-const ROWS = 80
-/** CSS px per cell and per dot; the canvas is `w-96` = COLS cells wide. */
-const PITCH = 3
-const DOT = 2
 const CX = COLS / 2
 const CY = ROWS / 2
 /** Planet radius in cells. */
 const R = 25
 /** Squared radius where the outermost ring of cells starts. */
 const LIMB = (1 - 1.2 / R) ** 2
-const FRAME_MS = 1000 / 30
-const STILL_T = 7
-
-const NONE = 0
-const SUBTLE = 1
-const MUTED = 2
-const INK = 3
-const ACCENT = 4
-const TOKEN = ["", "--color-subtle", "--color-muted", "--color-ink", "--color-accent"] as const
-
-/** 8×8 Bayer thresholds in (0, 1): a cell is lit when its brightness clears its threshold. */
-const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]
-const BAYER = Array.from({ length: 64 }, (_, i) => {
-  const x = i % 8
-  const y = i >> 3
-  return (4 * (BAYER4[(y & 3) * 4 + (x & 3)] ?? 0) + ([0, 2, 3, 1][(y >> 2) * 2 + (x >> 2)] ?? 0) + 0.5) / 64
-})
-const threshold = (col: number, row: number) => BAYER[(row & 7) * 8 + (col & 7)] ?? 1
-
 /** radius in planet radii, `lift` = how open the ellipse reads, `roll` = its tilt on screen. */
 const ORBITS = [
   { radius: 1.55, lift: 0.3, roll: -0.42, speed: 0.9, phase: 0.4, ink: ACCENT },
@@ -46,26 +15,12 @@ const ORBITS = [
 /** Trail length in radians of orbit. */
 const TRAIL = 1.9
 
-/** Stars as (col, row, twinkle phase). */
-const STARS = [
-  [6, 9, 0.3],
-  [22, 68, 2.1],
-  [37, 4, 4.0],
-  [95, 7, 1.2],
-  [118, 20, 3.3],
-  [122, 62, 5.1],
-  [11, 40, 2.8],
-  [83, 75, 0.9],
-] as const
-
 /** Fills `cells` (COLS × ROWS inks) with the scene at `t` seconds. */
-export function plateFrame(cells: Uint8Array, t: number): void {
-  cells.fill(NONE)
+export function orbitFrame(cells: Uint8Array, t: number): void {
+  starField(cells, t)
   const put = (col: number, row: number, ink: number) => {
     if (col >= 0 && col < COLS && row >= 0 && row < ROWS) cells[row * COLS + col] = ink
   }
-
-  for (const [col, row, phase] of STARS) if (Math.sin(t * 0.8 + phase) > -0.5) put(col, row, SUBTLE)
 
   // The planet: Lambert light on a sphere whose banded surface spins under it.
   const lx = -0.55 + 0.25 * Math.sin(t * 0.3)
@@ -137,63 +92,4 @@ export function plateFrame(cells: Uint8Array, t: number): void {
     const sat = at(head)
     if (sat) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) put(sat[0] + dx, sat[1] + dy, orbit.ink)
   }
-}
-
-function paint(canvas: HTMLCanvasElement, cells: Uint8Array): void {
-  const ctx = canvas.getContext("2d")
-  if (!ctx) return
-  const dpr = window.devicePixelRatio || 1
-  const width = Math.round(COLS * PITCH * dpr)
-  if (canvas.width !== width) {
-    canvas.width = width
-    canvas.height = Math.round(ROWS * PITCH * dpr)
-  }
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-  ctx.clearRect(0, 0, COLS * PITCH, ROWS * PITCH)
-  // Tokens are read per frame so a theme switch repaints in the new palette.
-  const style = getComputedStyle(canvas)
-  for (let ink = SUBTLE; ink <= ACCENT; ink++) {
-    ctx.fillStyle = style.getPropertyValue(TOKEN[ink] ?? "") || style.color
-    for (let i = 0; i < cells.length; i++)
-      if (cells[i] === ink) ctx.fillRect((i % COLS) * PITCH, Math.floor(i / COLS) * PITCH, DOT, DOT)
-  }
-}
-
-export function NewSessionPlate() {
-  const ref = useRef<HTMLCanvasElement>(null)
-
-  useEffect(() => {
-    const canvas = ref.current
-    if (!canvas) return
-    const cells = new Uint8Array(COLS * ROWS)
-    if (typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      plateFrame(cells, STILL_T)
-      paint(canvas, cells)
-      return
-    }
-    // requestAnimationFrame already stops in a hidden tab.
-    let raf = 0
-    let last = 0
-    const loop = (now: number) => {
-      raf = requestAnimationFrame(loop)
-      if (now - last < FRAME_MS) return
-      last = now
-      plateFrame(cells, now / 1000)
-      paint(canvas, cells)
-    }
-    raf = requestAnimationFrame(loop)
-    return () => cancelAnimationFrame(raf)
-  }, [])
-
-  return (
-    <div aria-hidden="true" className="mb-3 max-w-full">
-      <canvas
-        ref={ref}
-        width={COLS * PITCH}
-        height={ROWS * PITCH}
-        data-plate="rove"
-        className="h-auto w-96 max-w-full text-muted"
-      />
-    </div>
-  )
 }

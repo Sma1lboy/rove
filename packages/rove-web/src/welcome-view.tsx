@@ -1,12 +1,12 @@
 /**
- * The workspace's empty state while no task exists (TUI `welcome-pane.tsx`): a picture of what Rove
- * is for (sessions side by side), one line on why, and the one action, the New session flow.
+ * The workspace's empty state while no task exists (TUI `welcome-pane.tsx`): the ringed planet,
+ * a line on running agents side by side, and the one action, the New session flow.
  * What the machine can run (engines, git) is read once and shown below the action with the
  * doctor's remedy when nothing can run; the action itself never waits for that reply.
  */
 
 import { useEffect, useState } from "react"
-import { AsciiFlow } from "./ascii-flow-view.tsx"
+import { CelestialPlate } from "./celestial/plate.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { startNewTask } from "./new-session-view.tsx"
@@ -76,7 +76,7 @@ export function WelcomePane({ model }: { model: AppModel }) {
   return (
     <div className={FIRST_RUN} data-field="welcome">
       <div className={FIRST_RUN_COLUMN}>
-        <AsciiFlow />
+        <CelestialPlate scene="rings" />
         <div className="flex flex-col gap-1">
           <h1 className="m-0 font-sans text-title font-semibold text-ink">{t("firstRun.title")}</h1>
           <p className="m-0 font-sans text-body text-muted">{t("firstRun.body")}</p>
