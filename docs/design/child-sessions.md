@@ -80,6 +80,7 @@ classDiagram
 | Main checkout | same dir | worktree from the checkout's HEAD |
 | `dir` inside a git repo | same dir | worktree at the git toplevel; the child's cwd is the same relative subpath |
 | `dir`, not in a git repo | same dir | error `NOT_A_GIT_REPO` |
+| A git repo with no commits | same dir | error `REPO_HAS_NO_COMMITS` |
 
 **Symlinked repos.** Top-level entries of the parent directory that are
 symlinks to a git toplevel outside it are not isolated by a worktree of the
