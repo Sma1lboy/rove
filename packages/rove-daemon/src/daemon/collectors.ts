@@ -267,6 +267,8 @@ export function startDaemonCollectors(
     ? gateMachineHub(runtime.startMachineHub, bus, hasSubscribersFor)
     : () => {}
 
+  const stopAttachmentSweep = runtime.startAttachmentSweep?.((line) => logDaemonInfo("attachments", line)) ?? (() => {})
+
   const stopKeybindingsWatcher = startKeybindingsWatcher(bus, {
     path: defaultKeybindingsPath(options.homeDir),
     debounceMs: options.keybindingsDebounceMs ?? DEFAULT_KEYBINDINGS_DEBOUNCE_MS,
@@ -414,6 +416,7 @@ export function startDaemonCollectors(
         stopUiPrefsWatcher,
         stopStateWatcher,
         stopMachineHub,
+        stopAttachmentSweep,
         stopKeybindingsWatcher,
         stopWorktreeChangesCollector,
         stopTranscriptActivityCollector,
