@@ -280,6 +280,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `CONFLICTING_FLAGS` | `add --tier` beside `--command`, `--model`, `--effort` or `--agents` — the tier already fills those. `add --parent` beside `--no-parent`; `--no-worktree` / `--isolate-in` beside `--no-parent`, each other, or a flag that names a repo or fork point of their own. |
 | `EMPTY_SESSION` | `add` with nothing to run (no `--prompt`, `--prompt-file`, `--start`, `--count`, `--agents` or `--worktree-only`), from any caller: it would leave a task with no agent. |
 | `NOT_A_GIT_REPO` | `add` under a `dir` task that is not inside a git repository (`add --isolate-in` too). |
+| `REPO_HAS_NO_COMMITS` | `add` with a worktree (or `--fork`) from a repo with no commits yet; `hint` says to make a first commit or pass `--no-worktree`. |
 | `NOT_A_GIT_REPO` | `update --project PATH` where PATH is not inside a git repository. |
 | `SAME_PROJECT` | `update --project` names the project the task already belongs to. |
 | `CHILD_NOT_MOVABLE` | `update --project` on a child task: move its parent instead (children follow), or `update --parent none` first. |

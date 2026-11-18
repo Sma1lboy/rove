@@ -9,6 +9,7 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
+import { errorBody, toApiError } from "../../src/cli/api/invoke.ts"
 import { Orchestrator } from "../../src/orchestrator/core.ts"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 import { taskCwd } from "../../src/orchestrator/task-tree.ts"
@@ -126,6 +127,20 @@ describe("worktree children", () => {
     const parent = await orch.openDirectoryTask({ dir: plain })
 
     await expect(orch.spawnChildTask({ parentTaskId: parent.id, worktree: true })).rejects.toThrow(/NOT_A_GIT_REPO/)
+    expect(store.list().filter((t) => t.parentTaskId === parent.id)).toEqual([])
+  })
+
+  test("a repo with no commits fails REPO_HAS_NO_COMMITS with a hint, not git's raw HEAD error", async () => {
+    const empty = path.join(tmpRoot, "empty")
+    fs.mkdirSync(empty)
+    git(empty, "init", "-q")
+    const parent = await orch.openDirectoryTask({ dir: empty })
+
+    const err = await orch.spawnChildTask({ parentTaskId: parent.id, worktree: true }).catch((e: unknown) => e)
+    expect(errorBody(toApiError(err))).toMatchObject({
+      code: "REPO_HAS_NO_COMMITS",
+      hint: expect.stringMatching(/git commit --allow-empty.*--no-worktree/),
+    })
     expect(store.list().filter((t) => t.parentTaskId === parent.id)).toEqual([])
   })
 })

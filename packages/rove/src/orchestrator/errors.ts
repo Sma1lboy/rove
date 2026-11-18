@@ -282,6 +282,18 @@ export class NotAGitRepoError extends Error {
   }
 }
 
+export const REPO_HAS_NO_COMMITS_CODE = "REPO_HAS_NO_COMMITS"
+export const REPO_HAS_NO_COMMITS_HINT =
+  "make a first commit (`git commit --allow-empty -m init`), or pass --no-worktree to share the directory"
+
+/** A worktree is cut from HEAD, and an unborn HEAD (fresh `git init`) has nothing to cut from. */
+export class RepoHasNoCommitsError extends Error {
+  constructor(public readonly dir: string) {
+    super(`${REPO_HAS_NO_COMMITS_CODE}: ${dir} has no commits yet, so there is no HEAD to cut a worktree from`)
+    this.name = "RepoHasNoCommitsError"
+  }
+}
+
 export const NOT_A_LINKED_REPO_CODE = "NOT_A_LINKED_REPO"
 
 /** `add --isolate-in` names something other than a top-level symlink to an outside git checkout. */
