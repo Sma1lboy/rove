@@ -139,8 +139,7 @@ export function MacTerminal(props: TerminalViewProps) {
     const unregister = registerTerm(control)
     const offNative = onMacEvent((e) => {
       if (e.id !== id) return
-      if (e.action === "input" && e.data) input(e.data)
-      if (e.action === "reply" && e.data) replies.forward(e.data)
+      if ((e.action === "input" || e.action === "reply") && e.data) replies.forward(e.data)
       if (e.action === "selection") selected = e.selected === true
       if (e.action === "blur" && focusedTerm.get() === control) focusedTerm.set(null)
       if (e.action === "parsed" && e.chars) acks.parsed(e.chars)

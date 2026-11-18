@@ -3,37 +3,23 @@ import XCTest
 @testable import RoveMac
 
 final class TerminalScrollerTests: XCTestCase {
-    @MainActor func testOutputKeepsTheTrackClearUntilTheReaderMovesIntoScrollback() {
-        _ = NSApplication.shared
+    @MainActor func testOutputKeepsTheTrackClearAndDraggingMovesTheGhosttyViewport() async throws {
         let pane = NativePane(id: "shell") { _ in }
-        pane.view.frame = NSRect(x: 0, y: 0, width: 640, height: 320)
-        pane.view.layoutSubtreeIfNeeded()
-        let columns = pane.view.getTerminal().cols
-        let lines = (1...120).map { "line \($0)" }.joined(separator: "\r\n")
+        let window = mountTerminal(pane)
+        defer { window.contentView = nil }
+        let lines = (1...160).map { "row \($0)" }.joined(separator: "\r\n")
         pane.feed(Data(lines.utf8), op: "data", chars: 0)
-        XCTAssertTrue(pane.view.canScroll)
-        XCTAssertEqual(pane.scroller.alphaValue, 0)
-        pane.view.pageUp()
-        XCTAssertEqual(pane.scroller.alphaValue, 1)
-        XCTAssertEqual(pane.scroller.doubleValue, pane.view.scrollPosition)
-        XCTAssertEqual(pane.view.getTerminal().cols, columns)
-
-        pane.feed(Data("\u{1b}[?1049h".utf8), op: "data", chars: 0)
-        XCTAssertTrue(pane.scroller.isHidden)
-    }
-    @MainActor func testDraggingDownMovesTowardRecentOutputWithoutResizingTheShell() throws {
-        _ = NSApplication.shared
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 320),
-                              styleMask: [.titled], backing: .buffered, defer: false)
-        let pane = NativePane(id: "shell") { _ in }
-        window.contentView = pane.view
-        pane.view.layoutSubtreeIfNeeded()
-        pane.feed(Data(String(repeating: "scrollback\r\n", count: 160).utf8), op: "data", chars: 0)
-        pane.view.scroll(toPosition: 0.25)
         let bar = pane.scroller
-        let columns = pane.view.getTerminal().cols
-        let before = pane.view.scrollPosition
+        await fulfillment(of: [XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            bar.isEnabled && !bar.isHidden && pane.columns > 0 && bar.doubleValue > 0.9
+        }, object: nil)], timeout: 5)
+        XCTAssertEqual(bar.alphaValue, 0)
+        let cols = pane.columns
+        pane.scrollPage(-1)
+        XCTAssertEqual(bar.alphaValue, 1)
+        await fulfillment(of: [XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in bar.doubleValue < 0.9 }, object: nil)], timeout: 3)
         let knob = bar.rect(for: .knob)
+        let start = bar.doubleValue
         func event(_ type: NSEvent.EventType, offset: CGFloat) throws -> NSEvent {
             let point = bar.convert(NSPoint(x: knob.midX, y: knob.midY + offset), to: nil)
             return try XCTUnwrap(NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: 0,
@@ -43,9 +29,11 @@ final class TerminalScrollerTests: XCTestCase {
         bar.mouseDown(with: try event(.leftMouseDown, offset: 0))
         bar.mouseDragged(with: try event(.leftMouseDragged, offset: 50))
         bar.mouseUp(with: try event(.leftMouseUp, offset: 50))
-        XCTAssertGreaterThan(pane.view.scrollPosition, before + 0.1)
-        XCTAssertEqual(bar.doubleValue, pane.view.scrollPosition)
-        XCTAssertEqual(pane.view.getTerminal().cols, columns)
+        await fulfillment(of: [XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            bar.doubleValue > start + 0.1
+        }, object: nil)], timeout: 3)
+        XCTAssertEqual(pane.columns, cols)
+        pane.feed(Data("\u{1b}[?1049h".utf8), op: "data", chars: 0)
+        await fulfillment(of: [XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in bar.isHidden }, object: nil)], timeout: 3)
     }
-
 }

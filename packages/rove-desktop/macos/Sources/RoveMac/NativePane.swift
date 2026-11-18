@@ -1,87 +1,163 @@
 import AppKit
-import SwiftTerm
+import GhosttyTerminal
 
-private final class SelectableTerminal: TerminalView {
-    var selectionDidChange: ((Bool) -> Void)?
-    override func selectionChanged(source: Terminal) {
-        super.selectionChanged(source: source)
-        selectionDidChange?(selectionActive)
-    }
-}
-
-final class NativePane: NSObject, TerminalViewDelegate {
+/// Ghostty owns the Metal surface, VT parser and the input method. The bridge owns the shell and PTY.
+@MainActor
+final class NativePane: NSObject, TerminalSurfaceLifecycleDelegate, TerminalSurfaceScrollbarDelegate,
+                        TerminalSurfaceOpenURLDelegate, TerminalSurfaceClipboardConfirmationDelegate {
+    private static let controller = TerminalController(configuration: .default, theme: TerminalTheme())
     let id: String
-    let view: TerminalView
+    let view = HostedTerminalView(frame: .zero)
+    private(set) lazy var session = InMemoryTerminalSession(
+        write: { [weak self] bytes in DispatchQueue.main.async { [weak self] in self?.write(bytes) } },
+        resize: { [weak self] size in DispatchQueue.main.async { [weak self] in self?.resize(size) } },
+        suppressesPixelOnlyResizes: true
+    )
     let scroller: TerminalScroller
+    private(set) var surface: TerminalSurface?
+    private(set) var columns = 0
+    private(set) var rows = 0
+    private var selected = false
     private let event: ([String: Any]) -> Void
-    private var parsing = false
-    private var replaying = false
-    private var palette: [String] = []
-    private var scrollback = 0
+    private var pendingAck = 0
+    private var draining = false
+    private var replayGeneration = 0
 
     init(id: String, event: @escaping ([String: Any]) -> Void) {
         self.id = id
         self.event = event
-        let terminal = SelectableTerminal(frame: .zero, font: .monospacedSystemFont(ofSize: 13, weight: .regular))
-        view = terminal
-        scroller = TerminalScroller(terminal: terminal)
+        scroller = TerminalScroller(terminal: view)
         super.init()
-        view.terminalDelegate = self
-        terminal.selectionDidChange = { event(["id": id, "action": "selection", "selected": $0]) }
+        view.delegate = self
+        view.configuration = TerminalSurfaceOptions(backend: .inMemory(session))
+        view.controller = Self.controller
+        view.selectionChanged = { [weak self] in self?.reportSelection() }
+        view.scrolling = { [weak self] in self?.scroller.revealForUserScroll() }
+        scroller.scrollTo = { [weak self] row in _ = self?.surface?.scrollToRow(row) }
+        view.setAccessibilityLabel("Terminal")
     }
-    func setAppearance(_ values: [String: Any]) {
-        if let rows = values["scrollback"] as? Int, rows != scrollback, (100...100000).contains(rows) {
-            scrollback = rows
-            view.changeScrollback(rows)
+
+    func terminalDidAttachSurface(_ surface: TerminalSurface) {
+        self.surface = surface
+        flushAcknowledgements()
+    }
+    func terminalDidDetachSurface() {
+        surface = nil
+    }
+    func terminalDidUpdateScrollbar(_ geometry: TerminalScrollbar) {
+        scroller.update(geometry)
+    }
+    func terminalDidRequestOpenURL(_ url: String, kind: TerminalOpenURLKind) {
+        guard let link = URL(string: url), ["https", "http"].contains(link.scheme?.lowercased() ?? "") else { return }
+        NSWorkspace.shared.open(link)
+    }
+    func terminalDidRequestClipboardConfirmation(_ request: TerminalClipboardConfirmationRequest) {
+        guard case .paste = request.kind, let window = view.window, !view.isHidden else {
+            request.respond(allow: false)
+            return
         }
-        if let subtle = values["subtle"] as? String, let ink = Self.color(subtle) { scroller.subtle = ink }
-        if let muted = values["muted"] as? String, let ink = Self.color(muted) { scroller.muted = ink }
-        guard let foreground = values["foreground"] as? String, let background = values["background"] as? String,
-              palette != [foreground, background], let ink = Self.color(foreground), let paper = Self.color(background) else { return }
-        palette = [foreground, background]
+        let alert = NSAlert()
+        alert.messageText = "Paste into this terminal?"
+        alert.informativeText = String(request.contents.prefix(200))
+        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: "Paste")
+        alert.beginSheetModal(for: window) { [weak self] result in
+            request.respond(allow: result == .alertSecondButtonReturn && self?.view.window === window && self?.view.isHidden == false)
+        }
+    }
+
+    func setAppearance(_ values: [String: Any]) {
+        if let subtle = values["subtle"] as? String, let color = Self.color(subtle) { scroller.subtle = color }
+        if let muted = values["muted"] as? String, let color = Self.color(muted) { scroller.muted = color }
+        guard let foreground = values["foreground"] as? String, Self.color(foreground) != nil,
+              let background = values["background"] as? String, Self.color(background) != nil else { return }
+        var config = TerminalConfiguration().foreground(foreground).background(background).fontSize(13)
+            .custom("clipboard-read", "deny").custom("clipboard-write", "deny")
+        if let lines = values["scrollback"] as? Int, (100...100000).contains(lines) {
+            // Ghostty budgets scrollback in bytes; allow roughly 1 KiB per requested row.
+            config = config.custom("scrollback-limit", String(lines * 1024))
+        }
+        view.controller?.setTerminalConfiguration(config)
         view.appearance = NSAppearance(named: values["dark"] as? Bool != false ? .darkAqua : .aqua)
-        view.nativeForegroundColor = ink
-        view.nativeBackgroundColor = paper
     }
     private static func color(_ hex: String) -> NSColor? {
         guard hex.count == 7, hex.first == "#", let rgb = Int(hex.dropFirst(), radix: 16) else { return nil }
         return NSColor(srgbRed: CGFloat(rgb >> 16) / 255, green: CGFloat((rgb >> 8) & 255) / 255,
                        blue: CGFloat(rgb & 255) / 255, alpha: 1)
     }
+
+    private func resize(_ viewport: InMemoryTerminalViewport) {
+        columns = Int(viewport.columns)
+        rows = Int(viewport.rows)
+        reportSize()
+    }
     func reportSize() {
-        let term = view.getTerminal()
-        sizeChanged(source: view, newCols: term.cols, newRows: term.rows)
+        guard !view.isHidden, columns >= 10, rows >= 4 else { return }
+        event(["id": id, "action": "size", "cols": columns, "rows": rows])
     }
+
     func feed(_ bytes: Data, op: String, chars: Int) {
-        // Only live output may answer a terminal query.
-        parsing = true
-        replaying = op != "data"
-        if replaying { view.feed(text: "\u{1b}c") }
-        if !bytes.isEmpty { view.feed(byteArray: Array(bytes)[...]) }
-        scroller.sync(fromUser: false)
-        parsing = false
-        replaying = false
-        if op != "replay" { event(["id": id, "action": "parsed", "chars": chars]) }
+        if op == "data" {
+            session.receive(bytes)
+        } else {
+            replayGeneration &+= 1
+            pendingAck = 0
+            session.discardPendingOutput()
+            session.receiveReplay(Data([0x1b, 0x63]) + bytes)
+        }
+        if op != "replay" {
+            pendingAck += chars
+            flushAcknowledgements()
+        }
     }
-    func send(source: TerminalView, data: ArraySlice<UInt8>) {
-        guard !replaying, (parsing || !view.isHidden), let text = String(bytes: data, encoding: .utf8) else { return }
-        event(["id": id, "action": parsing ? "reply" : "input", "data": text])
+
+    /// The bridge may resume a flooded PTY only after Ghostty has consumed the bytes.
+    private func flushAcknowledgements() {
+        guard !draining, pendingAck > 0, surface != nil else { return }
+        let generation = replayGeneration
+        let chars = pendingAck
+        pendingAck = 0
+        draining = true
+        DispatchQueue.global(qos: .userInitiated).async { [weak self, session] in
+            let parsed = session.waitForPendingOutput()
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.draining = false
+                if self.replayGeneration == generation {
+                    if parsed { self.event(["id": self.id, "action": "parsed", "chars": chars]) }
+                    else { self.pendingAck += chars }
+                }
+                self.flushAcknowledgements()
+            }
+        }
     }
-    func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) {
-        scroller.sync(fromUser: false)
-        guard !view.isHidden, newCols >= 10, newRows >= 4 else { return }
-        event(["id": id, "action": "size", "cols": newCols, "rows": newRows])
+
+    private func write(_ bytes: Data) {
+        guard let text = String(data: bytes, encoding: .utf8), !text.isEmpty else { return }
+        event(["id": id, "action": "input", "data": text])
     }
-    func setTerminalTitle(source: TerminalView, title: String) {}
-    func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {}
-    func scrolled(source: TerminalView, position: Double) { scroller.sync(fromUser: !parsing) }
-    func bell(source: TerminalView) {}
-    func clipboardCopy(source: TerminalView, content: Data) {}
-    func clipboardRead(source: TerminalView) -> Data? { nil }
-    func iTermContent(source: TerminalView, content: ArraySlice<UInt8>) {}
-    func rangeChanged(source: TerminalView, startY: Int, endY: Int) {}
-    func requestOpenLink(source: TerminalView, link: String, params: [String: String]) {
-        guard let url = URL(string: link), ["https", "http"].contains(url.scheme ?? "") else { return }
-        NSWorkspace.shared.open(url)
+    func scrollPage(_ direction: Int) {
+        scroller.revealForUserScroll()
+        _ = view.performBindingAction(direction < 0 ? "scroll_page_up" : "scroll_page_down")
     }
+    func copySelection() {
+        guard view.copySelectedTextToPasteboard() else { return }
+        _ = view.performBindingAction("clear_selection")
+        reportSelection()
+    }
+    private func reportSelection() {
+        let value = surface?.hasSelection() == true
+        guard value != selected else { return }
+        selected = value
+        event(["id": id, "action": "selection", "selected": value])
+    }
+}
+
+final class HostedTerminalView: AppTerminalView {
+    var selectionChanged: (() -> Void)?
+    var scrolling: (() -> Void)?
+    override func mouseUp(with event: NSEvent) { super.mouseUp(with: event); selectionChanged?() }
+    override func keyDown(with event: NSEvent) { super.keyDown(with: event); selectionChanged?() }
+    override func selectAll(_ sender: Any?) { super.selectAll(sender); selectionChanged?() }
+    override func scrollWheel(with event: NSEvent) { super.scrollWheel(with: event); scrolling?() }
 }
