@@ -1,9 +1,10 @@
 import AppKit
-import SwiftTerm
+import GhosttyTerminal
 
-/// SwiftTerm owns scrollback. This overlay gives its native scroller the web terminal's hit area and reveal behavior.
+/// Ghostty reports viewport geometry in rows. The overlay shares the web terminal’s track and reveal behavior.
 final class TerminalScroller: NSScroller {
-    private weak var terminal: TerminalView?
+    var scrollTo: ((UInt) -> Void)?
+    private var maximumRow: UInt = 0
     private var hideJob: DispatchWorkItem?
     private var hoverArea: NSTrackingArea?
     private var hovered = false
@@ -11,16 +12,13 @@ final class TerminalScroller: NSScroller {
     var subtle = NSColor.secondaryLabelColor
     var muted = NSColor.labelColor
 
-    init(terminal: TerminalView) {
-        self.terminal = terminal
+    init(terminal: NSView) {
         super.init(frame: NSRect(x: 0, y: 0, width: 8, height: 100))
         scrollerStyle = .legacy
         alphaValue = 0
         target = self
         action = #selector(scrollTerminal)
         setAccessibilityLabel("Terminal scrollback")
-        // Hiding SwiftTerm's own scroller also returns its reserved column width to the terminal.
-        terminal.subviews.compactMap { $0 as? NSScroller }.first?.isHidden = true
         terminal.addSubview(self)
         translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
@@ -29,7 +27,7 @@ final class TerminalScroller: NSScroller {
             bottomAnchor.constraint(equalTo: terminal.bottomAnchor),
             widthAnchor.constraint(equalToConstant: 8),
         ])
-        sync(fromUser: false)
+        isHidden = true
     }
 
     required init?(coder: NSCoder) { nil }
@@ -37,12 +35,11 @@ final class TerminalScroller: NSScroller {
     override var isFlipped: Bool { true }
     override var isOpaque: Bool { false }
 
-    func sync(fromUser: Bool) {
-        guard let terminal else { return }
-        let changed = doubleValue != terminal.scrollPosition
-        doubleValue = terminal.scrollPosition
-        knobProportion = min(1, terminal.scrollThumbsize)
-        isEnabled = terminal.canScroll
+    func update(_ geometry: TerminalScrollbar) {
+        maximumRow = UInt(geometry.total - min(geometry.len, geometry.total))
+        doubleValue = maximumRow > 0 ? min(1, Double(geometry.offset) / Double(maximumRow)) : 0
+        knobProportion = geometry.total > 0 ? min(1, CGFloat(geometry.len) / CGFloat(geometry.total)) : 1
+        isEnabled = maximumRow > 0
         isHidden = !isEnabled
         if hovered, dragOffset == nil {
             hovered = window.map { $0.isKeyWindow && rect(for: .knob).contains(convert($0.mouseLocationOutsideOfEventStream, from: nil)) } ?? false
@@ -52,9 +49,11 @@ final class TerminalScroller: NSScroller {
             hideJob?.cancel()
             alphaValue = 0
             hovered = false
-        } else if fromUser && changed {
-            reveal()
         }
+    }
+
+    func revealForUserScroll() {
+        if isEnabled { reveal() }
     }
 
     override func rect(for part: NSScroller.Part) -> NSRect {
@@ -126,11 +125,11 @@ final class TerminalScroller: NSScroller {
     }
 
     override func mouseDragged(with event: NSEvent) {
-        guard let dragOffset, let terminal, terminal.canScroll else { return }
+        guard let dragOffset, maximumRow > 0 else { return }
         let travel = bounds.height - rect(for: .knob).height
         guard travel > 0 else { return }
         let y = convert(event.locationInWindow, from: nil).y - dragOffset
-        terminal.scroll(toPosition: min(1, max(0, y / travel)))
+        scrollTo?(UInt((min(1, max(0, y / travel)) * Double(maximumRow)).rounded()))
     }
 
     override func mouseUp(with event: NSEvent) {
@@ -141,10 +140,6 @@ final class TerminalScroller: NSScroller {
     }
 
     @objc private func scrollTerminal() {
-        switch hitPart {
-        case .decrementPage: terminal?.pageUp()
-        case .incrementPage: terminal?.pageDown()
-        default: terminal?.scroll(toPosition: doubleValue)
-        }
+        scrollTo?(UInt((min(1, max(0, doubleValue)) * Double(maximumRow)).rounded()))
     }
 }

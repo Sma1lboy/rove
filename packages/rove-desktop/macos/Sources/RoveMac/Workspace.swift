@@ -110,6 +110,7 @@ final class Workspace: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavi
             panes[id] = pane
             if fresh { window.contentView?.addSubview(pane.view, positioned: .above, relativeTo: web) }
             pane.view.isHidden = !visible
+            pane.view.setSurfaceVisible(visible)
             if visible {
                 pane.view.frame = NSRect(x: web.frame.minX + x, y: web.frame.maxY - y - h, width: w, height: h)
                 pane.setAppearance(msg)
@@ -124,11 +125,10 @@ final class Workspace: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavi
             panes.removeValue(forKey: id)?.view.removeFromSuperview()
         } else if op == "focus", let view = panes[id]?.view, !view.isHidden {
             window.makeFirstResponder(view)
-        } else if op == "copy", let view = panes[id]?.view {
-            view.copy(view)
-            view.selectNone()
-        } else if op == "scroll", let view = panes[id]?.view {
-            if msg["direction"] as? Int == -1 { view.pageUp() } else { view.pageDown() }
+        } else if op == "copy" {
+            panes[id]?.copySelection()
+        } else if op == "scroll", let direction = msg["direction"] as? Int {
+            panes[id]?.scrollPage(direction)
         } else if ["replay", "reset", "data"].contains(op), let encoded = msg["data"] as? String,
                   let data = Data(base64Encoded: encoded) {
             panes[id]?.feed(data, op: op, chars: encoded.utf8.count)
