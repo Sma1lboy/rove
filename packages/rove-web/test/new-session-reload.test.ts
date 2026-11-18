@@ -26,6 +26,12 @@ test("the open composer keeps its project and sky for a reload, without a link's
   expect(kept.has("rove.web.newSession")).toBe(false)
   openNewSession("/repo")
   expect(newSession.get()?.sky).toBe("comet")
+  openNewSession("/repo")
+  expect(newSession.get()?.sky).toBe("rings")
+  openNewSession("/repo")
+  expect(JSON.parse(kept.get("rove.web.newSession") ?? "null").sky).toBe("starlings")
+  openNewSession("/repo")
+  expect(newSession.get()?.sky).toBe("orbit")
   newSession.set(null)
 })
 

@@ -1,7 +1,9 @@
 import { useEffect, useRef } from "react"
+import { STARLING_FRAME } from "../ui/first-run.ts"
 import { ACCENT, COLS, ROWS, SUBTLE } from "./grid.ts"
 import { orbitFrame } from "./orbit.ts"
 import { cometFrame, ringsFrame } from "./scenes.ts"
+import { starlingPainter } from "./starling-paint.ts"
 import type { SkyScene } from "./visits.ts"
 
 const PITCH = 3
@@ -30,23 +32,30 @@ function paint(canvas: HTMLCanvasElement, cells: Uint8Array): void {
   }
 }
 
+function planetPainter(canvas: HTMLCanvasElement, scene: keyof typeof FRAMES) {
+  const cells = new Uint8Array(COLS * ROWS)
+  const frame = FRAMES[scene] ?? orbitFrame
+  return (time: number) => {
+    frame(cells, time)
+    paint(canvas, cells)
+  }
+}
+
 export function CelestialPlate({ scene }: { scene: SkyScene }) {
   const ref = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
     const canvas = ref.current
     if (!canvas) return
-    const cells = new Uint8Array(COLS * ROWS)
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)")
-    const frame = FRAMES[scene] ?? orbitFrame
+    const flock = scene === "starlings"
+    const render = flock ? starlingPainter(canvas) : planetPainter(canvas, scene)
+    const still = flock ? 8.7 : STILL_T
     let visible = false
     let timer = 0
-    let elapsed = STILL_T
+    let elapsed = flock ? 0 : STILL_T
     let last = 0
 
-    const draw = () => {
-      frame(cells, motion.matches ? STILL_T : elapsed)
-      paint(canvas, cells)
-    }
+    const draw = () => render(motion.matches ? still : elapsed)
     const tick = (now: number) => {
       timer = requestAnimationFrame(tick)
       if (now - last < 1000 / 24) return
@@ -72,12 +81,19 @@ export function CelestialPlate({ scene }: { scene: SkyScene }) {
     const theme = new MutationObserver(() => {
       if (visible && motion.matches) draw()
     })
+    const size = flock
+      ? new ResizeObserver(() => {
+          if (visible && !document.hidden && motion.matches) draw()
+        })
+      : null
+    size?.observe(canvas)
     theme.observe(document.documentElement, { attributes: true, attributeFilter: ["style"] })
     motion.addEventListener("change", sync)
     document.addEventListener("visibilitychange", sync)
     return () => {
       cancelAnimationFrame(timer)
       seen.disconnect()
+      size?.disconnect()
       theme.disconnect()
       motion.removeEventListener("change", sync)
       document.removeEventListener("visibilitychange", sync)
@@ -85,13 +101,19 @@ export function CelestialPlate({ scene }: { scene: SkyScene }) {
   }, [scene])
 
   return (
-    <div aria-hidden="true" className="mb-3 w-96 max-w-full shrink-0 narrow:w-72">
+    <div
+      aria-hidden="true"
+      className={scene === "starlings" ? STARLING_FRAME : "mb-3 w-96 max-w-full shrink-0 narrow:w-72"}
+    >
       <canvas
+        key={scene}
         ref={ref}
         data-plate={scene}
         width={COLS * PITCH}
         height={ROWS * PITCH}
-        className="block h-auto w-full text-muted"
+        className={
+          scene === "starlings" ? "absolute inset-0 block h-full w-full text-muted" : "block h-auto w-full text-muted"
+        }
       />
     </div>
   )
