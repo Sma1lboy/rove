@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.9.299
+
+### Patch Changes
+
+- [#2120](https://github.com/Sma1lboy/rove/pull/2120) [`9a3fae9`](https://github.com/Sma1lboy/rove/commit/9a3fae9d2bf4eb5cfac9139b591c318e4585c43c) The macOS preview places the window controls and navigation above the task list in a single row. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2117](https://github.com/Sma1lboy/rove/pull/2117) [`adbbccb`](https://github.com/Sma1lboy/rove/commit/adbbccb7ac626fd8b05a83d17e3238fa9ef246cc) Add an opt-in macOS workspace preview with native terminal input, selection, scrollback, and window navigation. The Usage page waits for its bridge connection when restored. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2115](https://github.com/Sma1lboy/rove/pull/2115) [`d0d49c8`](https://github.com/Sma1lboy/rove/commit/d0d49c8ebc513cd35c9fba37464c800b40eeac1e) Click project headers to fold them. Sidebar search finds named directory tasks by their original title and temporarily opens folded projects. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2116](https://github.com/Sma1lboy/rove/pull/2116) [`2673e52`](https://github.com/Sma1lboy/rove/commit/2673e52b8c0120f5340412b1735a64f806a588e9) Rove Web now shows a quiet Refresh Rove action in navigation when bridge and daemon versions differ. Hover or focus to see both versions and the configured shortcut. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2118](https://github.com/Sma1lboy/rove/pull/2118) [`82170ce`](https://github.com/Sma1lboy/rove/commit/82170cea3dcde74dda41808843e62faa908f1226) In Rove Web, click a repo name to see its active and archived sessions. The arrow beside it folds the list. Sessions no longer takes up a row in the top-left navigation. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2119](https://github.com/Sma1lboy/rove/pull/2119) [`51ecc52`](https://github.com/Sma1lboy/rove/commit/51ecc5234072f017df840b0e55ecae3ab84d6af3) Rove Web opens Update as a standalone page from the new-version indicator or the sidebar’s `u` shortcut. Use the usual navigation to return to a task. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.298
 
 ### Patch Changes
