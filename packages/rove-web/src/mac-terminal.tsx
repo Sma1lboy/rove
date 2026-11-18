@@ -191,8 +191,11 @@ export function MacTerminal(props: TerminalViewProps) {
     ]
     const appearance = () => {
       const theme = terminalTheme.get() ?? XTERM_THEME
+      const style = getComputedStyle(document.documentElement)
       return {
-        dark: getComputedStyle(document.documentElement).colorScheme !== "light",
+        dark: style.colorScheme !== "light",
+        subtle: style.getPropertyValue("--subtle").trim(),
+        muted: style.getPropertyValue("--muted").trim(),
         foreground: theme.foreground,
         background: theme.background,
         scrollback: prefsStore.get().prefs.scrollbackRows,

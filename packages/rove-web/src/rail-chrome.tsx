@@ -1,16 +1,13 @@
 /**
  * What frames the Tasks rail and the workspace: the rail's drag edge, the top-left fold / back /
- * forward bar, the narrow layout's `‹ Tasks` bar and `↩ Recent` row, and a pane's key line
- * (TUI `sidebar-resize-grip`, `collapse-button`, `narrow-back-bar`, `PaneKeyHint`).
+ * forward bar, the narrow layout's `‹ Tasks` bar and `↩ Recent` row
+ * (TUI `sidebar-resize-grip`, `collapse-button`, `narrow-back-bar`).
  */
 
-import { formatChord } from "@sma1lboy/rove/src/tui/lib/chord-glyphs.ts"
-import { paneHintTokens } from "@sma1lboy/rove/src/tui/lib/keyboard-hints.ts"
 import { type PointerEvent, useRef } from "react"
 import type { BridgeClient } from "./bridge.ts"
-import { type HintPane, hintsUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
-import { hintText, tasksText, workspaceText } from "./keymap-text.ts"
+import { tasksText, workspaceText } from "./keymap-text.ts"
 import { backToTasks, enterWorkspace } from "./layout.ts"
 import { macHost, useMacToolbar } from "./mac-host.ts"
 import type { AppModel } from "./model.ts"
@@ -18,17 +15,15 @@ import { type NavPlace, go, isLive, navState, step } from "./nav-history.ts"
 import { LAUNCHED_KINDS, narrowView } from "./panel-layout.ts"
 import { showPanel } from "./panel-state.ts"
 import { ICONS, Icon } from "./panel-tabs.tsx"
-import { usePrefs } from "./prefs.ts"
 import { needsPerson } from "./rail-glyphs.ts"
 import { clampRailWidth, peekRail, railFolded, railPeek, railWidth } from "./rail-layout.ts"
 import { useStore } from "./store.ts"
 import { dragLayout } from "./ui.ts"
-import { Legend } from "./ui/legend.tsx"
 import { ICON_BUTTON_DOT, RAIL_BAR, iconButton } from "./ui/panel.ts"
 import { RefreshRoveButton } from "./ui/refresh-rove-button.tsx"
 import { ResizeGrip } from "./ui/resize-grip.tsx"
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
-import { NARROW_BACK, NARROW_BAR, NARROW_SWITCH, NARROW_TAB, NARROW_TITLE, PANE_HINT } from "./ui/shell.ts"
+import { NARROW_BACK, NARROW_BAR, NARROW_SWITCH, NARROW_TAB, NARROW_TITLE } from "./ui/shell.ts"
 
 /** Two releases closer together than this are one double-click. */
 const DOUBLE_CLICK_MS = 400
@@ -216,20 +211,5 @@ export function RecentRow({ title }: { title: string }) {
       <span className={`${GLYPH} font-bold text-accent`}>↩</span>
       <span className={ROW_TITLE}>{tasksText("recentJump", { title })}</span>
     </button>
-  )
-}
-
-/** A pane's key line (TUI `PaneKeyHint`): the fuller first-use variant until its keys have been used, then its permanent short set. */
-export function PaneKeyHint({ pane }: { pane: HintPane }) {
-  useLocale()
-  const { prefs } = usePrefs()
-  const used = useStore(hintsUsed)[pane]
-  if (!prefs.keyHints) return null
-  const tokens = paneHintTokens(pane, used ? "always" : "firstUse")
-  if (tokens.length === 0) return null
-  return (
-    <p className={`mono text-muted ${PANE_HINT}`}>
-      <Legend text={tokens.map((token) => `${formatChord(token.cap)} ${hintText(`pane.${token.msg}`)}`).join(" · ")} />
-    </p>
   )
 }

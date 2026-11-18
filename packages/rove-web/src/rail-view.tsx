@@ -5,7 +5,6 @@ import type { MouseEvent } from "react"
 import { useRef } from "react"
 import type { RowStatus, TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
 import { useEngineIcons } from "./engine-icons.ts"
-import { markHintUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
 import { enterWorkspace } from "./layout.ts"
@@ -17,7 +16,7 @@ import { PageNav } from "./pages-host.tsx"
 import { PrChip } from "./pr-chip.tsx"
 import { ShortcutBadge } from "./prefix-guide.tsx"
 import { type TreeGuide, treeGuides } from "./rail-blocks.ts"
-import { PaneKeyHint, RailGrip, RecentRow } from "./rail-chrome.tsx"
+import { RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
 import { RailFoot } from "./rail-foot.tsx"
 import { mostUrgentStatus, statusMark } from "./rail-glyphs.ts"
@@ -145,10 +144,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
       onMouseLeave={folded ? () => peekRail(false) : undefined}
       // biome-ignore lint/a11y/noNoninteractiveTabindex: the rail takes the TUI sidebar's keys while focused
       tabIndex={0}
-      onKeyDown={(e) => {
-        markHintUsed("sidebar")
-        keys.onKeyDown(e)
-      }}
+      onKeyDown={keys.onKeyDown}
     >
       <header className={RAIL_HEAD}>
         <span className={`${WORDMARK} mr-auto`}>
@@ -292,7 +288,6 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         )}
       </div>
       <RailFoot model={model} narrow={narrow} onSettings={openSettings} />
-      <PaneKeyHint pane="sidebar" />
       {!narrow && !folded && <RailGrip rail={rail} />}
     </nav>
   )
