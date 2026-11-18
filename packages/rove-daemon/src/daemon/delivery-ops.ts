@@ -26,10 +26,12 @@ export interface DeliveryDeps {
   readonly deliveries: DeliveriesStore
   readonly inbox: Pick<AttentionInboxStore, "recordReportMissing" | "deleteDeliveryEpisode">
   readonly orch: Pick<DaemonOrchestrator, "getTask" | "setWorkerReport">
-  readonly automations: Pick<AutomationsStore, "get" | "getRun">
+  readonly automations: Pick<AutomationsStore, "get" | "getRun" | "settleRun">
   readonly now?: () => number
   /** Stops the engine in one tab; absent where nothing may be stopped. */
   readonly stopEngineTab?: (taskId: string, tabId: string) => Promise<void>
+  /** Deletes a finished run's task; absent where nothing may be deleted. */
+  readonly retireTask?: (taskId: string) => Promise<void>
 }
 
 export type DeliveryReportInput = Omit<DeliveryReport, "at" | "evidence"> & { readonly evidence?: readonly string[] }
@@ -195,7 +197,9 @@ export async function trackDeliveryTurn(
       const ended = await markDeliveryMissing(deps, { taskId, tabId, cause: "turn-complete", scope: "started" })
       const closed = [...reported, ...ended].filter((d) => d.source === "routine")
       const first = closed[0]
-      if (first) stopIdleRoutineEngine(deps, taskId, tabId ?? first.tabId ?? "tab-1")
+      if (first && !retireFinishedRun(deps, taskId, closed)) {
+        stopIdleRoutineEngine(deps, taskId, tabId ?? first.tabId ?? "tab-1")
+      }
       return first !== undefined
     }
   }
@@ -232,6 +236,29 @@ function stopIdleRoutineEngine(deps: DeliveryDeps, taskId: string, tabId: string
   if (deps.deliveries.awaitingOn(taskId, tabId).length > 0) return
   // Not awaited: the engine's own hook is the caller, and it ends with the engine.
   void deps.stopEngineTab(taskId, tabId).catch((err: unknown) => logDaemonError("routine-engine-stop", err))
+}
+
+/**
+ * A routine that starts a new task per run is done with that task when the run's turn ends with
+ * nothing left for the owner: the task and its worktree go, while the branch, the conversation and
+ * the run's report stay. A standing session, a bound tab's task, and a run that reported anything
+ * but `done` are kept. True when the task is being retired.
+ */
+function retireFinishedRun(deps: DeliveryDeps, taskId: string, closed: readonly Delivery[]): boolean {
+  const retire = deps.retireTask
+  const link = deps.orch.getTask(taskId)?.routine
+  if (!retire || !link) return false
+  const automation = deps.automations.get(link.automationId)
+  if (!automation || automation.persistentSession || automation.sessionTaskId === taskId) return false
+  if (closed.some((d) => d.report && d.report.outcome !== "done")) return false
+  // A prompt still waiting anywhere in the task would die with it.
+  if (deps.deliveries.awaitingOn(taskId, null).length > 0) return false
+  void (async () => {
+    // The delivery goes with the task: the run keeps what it said.
+    for (const d of closed) if (d.automationRunId) await deps.automations.settleRun(d.automationRunId, d)
+    await retire(taskId)
+  })().catch((err: unknown) => logDaemonError("routine-run-retire", err))
+  return true
 }
 
 /**

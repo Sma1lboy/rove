@@ -7,7 +7,7 @@
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { DeliveriesStore } from "../../../rove-daemon/src/daemon/deliveries-store.ts"
 import { evaluateRunnability } from "../../../rove-daemon/src/daemon/runnability.ts"
 import { dispatch, fakeCtx } from "./handler-test-context.ts"
@@ -15,13 +15,26 @@ import { dispatch, fakeCtx } from "./handler-test-context.ts"
 const TASK = "t1"
 const TAB = "tab-1"
 
-async function harness(opts: { routineTask?: boolean } = {}) {
+async function harness(opts: { routineTask?: boolean; routine?: { persistentSession?: boolean } } = {}) {
   const deliveries = new DeliveriesStore(join(mkdtempSync(join(tmpdir(), "rove-quiet-turn-")), "deliveries.json"))
   await deliveries.init()
   const row = { id: TASK, ...(opts.routineTask ? { routine: { automationId: "a1" } } : {}) }
-  const { ctx, rec } = fakeCtx({ getTask: (id: string) => (id === TASK ? row : undefined), listTasks: () => [row] })
+  const { ctx, rec } = fakeCtx({
+    getTask: (id: string) => (id === TASK ? row : undefined),
+    listTasks: () => [row],
+    prepareTaskDeletion: async () => true,
+  })
   const missingRows: string[] = []
   const stopped: string[] = []
+  const settled: Array<{ run: string; status: string; said?: string }> = []
+  if (opts.routine) {
+    Object.assign(ctx.automations, {
+      get: () => ({ id: "a1", ...opts.routine }),
+      settleRun: async (run: string, d: { status: string; report?: { summary: string } }) => {
+        settled.push({ run, status: d.status, ...(d.report ? { said: d.report.summary } : {}) })
+      },
+    })
+  }
   Object.assign(ctx, {
     deliveries,
     runtime: {
@@ -48,8 +61,15 @@ async function harness(opts: { routineTask?: boolean } = {}) {
       TASK,
       TAB,
     )
-  const arm = (source: "routine" | "send") => deliveries.arm({ taskId: TASK, tabId: TAB, source, promptHead: "tick" })
-  return { deliveries, turn, turnCompleteRows, missingRows, verdict, arm, stopped }
+  const arm = (source: "routine" | "send") =>
+    deliveries.arm({
+      taskId: TASK,
+      tabId: TAB,
+      source,
+      promptHead: "tick",
+      ...(source === "routine" ? { automationRunId: "r1" } : {}),
+    })
+  return { deliveries, turn, turnCompleteRows, missingRows, verdict, arm, stopped, settled, deleted: rec.deletions }
 }
 
 describe("a routine turn that ends without a report", () => {
@@ -119,5 +139,49 @@ describe("the engine of a routine's own task", () => {
     await h.turn("turn-start")
     await h.turn("turn-complete")
     expect(h.stopped).toEqual([])
+  })
+})
+
+describe("the task a routine started for one run", () => {
+  it("is deleted once the run reports done, and the run keeps the report", async () => {
+    const h = await harness({ routineTask: true, routine: {} })
+    const d = await h.arm("routine")
+    await h.turn("turn-start")
+    await h.deliveries.setReport(d.id, { outcome: "done", summary: "12 shots changed", evidence: [] })
+    await h.turn("turn-complete")
+
+    await vi.waitFor(() => expect(h.deleted).toEqual([TASK]))
+    expect(h.settled).toEqual([{ run: "r1", status: "reported", said: "12 shots changed" }])
+  })
+
+  it("is deleted after a quiet run too", async () => {
+    const h = await harness({ routineTask: true, routine: {} })
+    await h.arm("routine")
+    await h.turn("turn-start")
+    await h.turn("turn-complete")
+
+    await vi.waitFor(() => expect(h.deleted).toEqual([TASK]))
+    expect(h.settled).toEqual([{ run: "r1", status: "quiet" }])
+  })
+
+  it("stays when the run reported it is blocked: the owner still has to open it", async () => {
+    const h = await harness({ routineTask: true, routine: {} })
+    const d = await h.arm("routine")
+    await h.turn("turn-start")
+    await h.deliveries.setReport(d.id, { outcome: "blocked", summary: "needs a token", evidence: [] })
+    await h.turn("turn-complete")
+
+    expect(h.stopped).toEqual([`${TASK}::${TAB}`])
+    expect(h.deleted).toEqual([])
+  })
+
+  it("stays when it is the routine's standing session", async () => {
+    const h = await harness({ routineTask: true, routine: { persistentSession: true } })
+    await h.arm("routine")
+    await h.turn("turn-start")
+    await h.turn("turn-complete")
+
+    expect(h.stopped).toEqual([`${TASK}::${TAB}`])
+    expect(h.deleted).toEqual([])
   })
 })

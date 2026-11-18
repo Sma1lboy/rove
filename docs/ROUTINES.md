@@ -162,9 +162,9 @@ fallback. Deleting a `--persistent-session` routine therefore leaves its
 standing task with no row and no Routines page entry; delete the task too, or
 open it from the Inbox or `rove api list`.
 
-To find them — a routine that has been firing for weeks has a task per run —
-read the ids off its history before deleting it, since deleting takes the
-history with it. History is capped at the **100 most recent runs** per routine
+To find them (a run that reported `partial`, `blocked` or `failed` keeps its
+task, see [Between runs](#between-runs)), read the ids off its history before
+deleting it, since deleting takes the history with it. History is capped at the **100 most recent runs** per routine
 (pruned on every write), so a `*/30 * * * *` routine loses task ids after about
 two days — collect them as you go rather than at deletion time:
 
@@ -172,10 +172,9 @@ two days — collect them as you go rather than at deletion time:
 rove api routine-runs --id <id> | jq -r '.runs[].taskId | select(.)'
 ```
 
-Then delete the ones you want with `rove api delete --task-id <id>`. Rove does
-not sweep them for you: they are ordinary tasks, some may hold work you want,
-and a schedule deleting tasks in the background is not a thing you should have
-to expect.
+Then delete the ones you want with `rove api delete --task-id <id>`. Rove
+deletes a run's task itself only when the run finished cleanly; the ones left
+are tasks you may still need to open.
 
 ## The schedule
 
@@ -476,9 +475,19 @@ instead.
 ### Between runs
 
 A routine's own task keeps no engine running between runs. When a run's turn
-ends and no other prompt is waiting on that tab, the daemon stops the engine;
-this goes for a fresh run's task as well as a standing one. A routine bound to
-an existing tab runs in your task, and that engine is never stopped.
+ends and no other prompt is waiting on that tab, the daemon stops the engine.
+A routine bound to an existing tab runs in your task, and that engine is never
+stopped.
+
+A routine that starts a new task per run also deletes that task when the run is
+finished: its turn ended with a `done` report or with nothing to report, and no
+other prompt is waiting in the task. The worktree goes with it, along with any
+checkout the run cut with `add --worktree-only`. Uncommitted work is saved to a
+salvage ref first (`refs/rove/salvage/…`), the branch is never deleted, the
+engine's own conversation stays on disk, and the run keeps its report in the
+routine's history. A run that reported `partial`, `blocked` or `failed` keeps
+its task, because you still have to open it. A standing session is never
+deleted this way.
 
 The standing task's tab remembers its conversation. The next firing starts the
 engine again **in the same worktree** and reopens that conversation through the

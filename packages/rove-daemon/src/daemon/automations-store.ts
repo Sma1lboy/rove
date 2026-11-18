@@ -21,6 +21,7 @@ import {
 import type { Automation, AutomationPatch, AutomationPrecheck, AutomationRun } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { nextCronAfter } from "./cron.ts"
+import type { Delivery } from "./delivery-contracts.ts"
 import { serialized, writeJsonAtomic } from "./json-file.ts"
 import { parseSkipVerdict } from "./runnability-contracts.ts"
 import { salvageUnreadable } from "./store-salvage.ts"
@@ -146,6 +147,9 @@ function normalizeRun(value: unknown): AutomationRun | null {
     ...(str(raw.compactedAt) ? { compactedAt: raw.compactedAt } : {}),
     ...(typeof raw.response?.text === "string" && str(raw.response.at)
       ? { response: { text: raw.response.text, at: raw.response.at } }
+      : {}),
+    ...(raw.deliveryStatus === "reported" || raw.deliveryStatus === "quiet"
+      ? { deliveryStatus: raw.deliveryStatus }
       : {}),
     at,
   }
@@ -414,6 +418,25 @@ export class AutomationsStore {
       const next: AutomationRun = {
         ...(this.runs[index] as AutomationRun),
         response: { text, at: new Date(this.now()).toISOString() },
+      }
+      this.runs = this.runs.map((run, i) => (i === index ? next : run))
+      await this.commit()
+      return next
+    })
+  }
+
+  /**
+   * Keep on the run what its delivery concluded, for a delivery about to be deleted with its task.
+   * Null for an unknown or pruned run id.
+   */
+  async settleRun(runId: string, delivery: Pick<Delivery, "status" | "report">): Promise<AutomationRun | null> {
+    return await this.enqueue(async () => {
+      const index = this.runs.findIndex((run) => run.id === runId)
+      if (index === -1) return null
+      const next: AutomationRun = {
+        ...(this.runs[index] as AutomationRun),
+        deliveryStatus: delivery.status,
+        ...(delivery.report ? { response: { text: delivery.report.summary, at: delivery.report.at } } : {}),
       }
       this.runs = this.runs.map((run, i) => (i === index ? next : run))
       await this.commit()

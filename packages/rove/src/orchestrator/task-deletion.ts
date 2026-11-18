@@ -3,7 +3,7 @@ import type { Task, TaskId } from "../types/task.ts"
 import { canonPath } from "./core-helpers.ts"
 import { type DirtyFinding, DirtyWorktreeError, WorktreeRemoveFailedError } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
-import { gitRepoOf, subtreeIds, taskRepos, taskWorktreePaths } from "./task-tree.ts"
+import { deletionTargets, gitRepoOf, taskRepos, taskWorktreePaths } from "./task-tree.ts"
 import {
   type WorkspaceBackend,
   type WorkspaceRegistry,
@@ -56,9 +56,9 @@ export class TaskDeletionCoordinator {
     private readonly onBranchKept?: (taskId: TaskId, kept: { branch: string; reason: string }) => void,
   ) {}
 
-  /** Ids a deletion of `id` covers, deepest first; the single id unless `cascade`. */
+  /** Ids a deletion of `id` covers, deepest first. */
   targets(id: TaskId | string, opts?: TaskDeletionOpts): string[] {
-    return opts?.cascade ? subtreeIds(this.store.list(), String(id)) : [String(id)]
+    return deletionTargets(this.store.list(), String(id), opts?.cascade)
   }
 
   /**

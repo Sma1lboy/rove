@@ -7,7 +7,7 @@
 import { logDaemonError } from "./crash-log.ts"
 import { teardownScope } from "./pty-alias.ts"
 
-import { subtreeIds } from "../task-tree.ts"
+import { subtreeIds, withOwnedCheckouts } from "../task-tree.ts"
 import { optionalBoolean, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
 
@@ -23,8 +23,9 @@ export const ARCHIVE_HANDLERS: readonly DaemonRequestHandler[] = [
       const { archived } = payload
       const task = ctx.orch.getTask(taskId)
       if (!task) throw new Error(`task not found: ${taskId}`)
-      // The task and every descendant move together: a hidden parent must not leave a visible orphan.
-      const ids = subtreeIds(ctx.orch.listTasks(), taskId)
+      // The task, every descendant and their bare checkouts move together: a hidden parent must not leave an orphan.
+      const before = ctx.orch.listTasks()
+      const ids = withOwnedCheckouts(before, subtreeIds(before, taskId))
       if (archived && optionalBoolean(payload, "force") !== true) {
         const busy = ids.filter((id) => ENGINE_BUSY[ctx.activity.stateOf(id, null) ?? "idle"] === true)
         if (busy.length > 0) {

@@ -870,7 +870,9 @@ edits (`set-vendor`, `rename`,
   session to work in. It is not a session, so the sidebar and the web rail do
   not list it, nested or top level, until an engine starts a turn in it;
   `list` and the Worktrees page still show it, and deleting it removes the
-  worktree. It conflicts with `--prompt`, `--start`, `--count`, `--agents` and
+  worktree. It belongs to the session that cut it (its parent, else its
+  dispatcher): archiving, unarchiving or deleting that task does the same to
+  the checkout, with or without `--cascade`. It conflicts with `--prompt`, `--start`, `--count`, `--agents` and
   `--no-worktree`. Does not steal focus unless
   `--activate`. Alias: `spawn-task`. The result's `.engine`
   (`{vendor, command, model, effort}`, per row for `--count`/`--agents`) is
