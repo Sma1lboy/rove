@@ -64,16 +64,11 @@ export async function stopDaemonProcess(
   client.close()
   if (refused) return { pid: oldPid, method: "refused" }
 
-  // `kill -0` throws ESRCH once the process exits.
   if (wasAlive && targetPid !== null) {
     const deadline = Date.now() + 5000
     let escalated = false
     while (Date.now() < deadline) {
-      try {
-        process.kill(targetPid, 0)
-      } catch {
-        break
-      }
+      if (!isProcessAlive(targetPid)) break
       // After 2s, SIGTERM: covers a daemon wedged in its own shutdown.
       if (!escalated && Date.now() - (deadline - 5000) > 2000) {
         try {
@@ -87,13 +82,14 @@ export async function stopDaemonProcess(
       await new Promise((resolve) => setTimeout(resolve, 50))
     }
     // Still alive after the budget → SIGKILL.
-    try {
-      process.kill(targetPid, 0)
-      process.kill(targetPid, "SIGKILL")
-      method = "sigkill"
-      await new Promise((resolve) => setTimeout(resolve, 100))
-    } catch {
-      // Already gone — happy path.
+    if (isProcessAlive(targetPid)) {
+      try {
+        process.kill(targetPid, "SIGKILL")
+        method = "sigkill"
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      } catch {
+        // Exited between the check and the signal.
+      }
     }
   }
 
