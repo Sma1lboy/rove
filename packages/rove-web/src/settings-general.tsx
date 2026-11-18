@@ -45,7 +45,7 @@ export function GeneralSection({ model }: { model: AppModel }) {
         />
         <Toggle
           label={ts("general.keyHintsShow")}
-          hint={ts("general.keyHintsHint")}
+          hint={t("settings.general.tuiKeyHints")}
           checked={prefs.keyHints}
           onChange={(next) => set("keyHints", next)}
         />

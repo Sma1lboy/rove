@@ -61,6 +61,7 @@ export const en = {
     },
     general: {
       groupInterface: "Interface",
+      tuiKeyHints: "Show shortcut reminders in the Rove terminal interface.",
       groupFiles: "Worktrees",
       groupTerminal: "Terminal",
       tabStrip: "Tab strip",
@@ -301,6 +302,7 @@ export const zh: typeof en = {
     },
     general: {
       groupInterface: "界面",
+      tuiKeyHints: "在 Rove 终端界面显示快捷键提示。",
       groupFiles: "Worktree",
       groupTerminal: "终端",
       tabStrip: "标签栏",

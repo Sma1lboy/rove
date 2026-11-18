@@ -66,7 +66,6 @@ export const NARROW_TAB = `flex items-center rounded-sm px-2.5 py-1.5 text-muted
 
 export const HINT_BAR =
   "inline-flex shrink-0 items-baseline gap-3 whitespace-nowrap text-meta text-muted *:relative [&_.link:disabled]:cursor-default [&_.link:disabled]:opacity-50"
-export const PANE_HINT = "keys-only m-0 overflow-hidden px-3.5 py-1 text-meta text-ellipsis whitespace-nowrap"
 
 /** A chord's keycap badge; in the rail head it sits left of its chip, since the head clips anything hanging below. */
 export const shortcutBadge = (head: boolean): string =>
