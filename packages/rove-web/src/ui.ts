@@ -3,6 +3,7 @@
  */
 
 import type { ReactNode } from "react"
+import { type SkyScene, nextSky } from "./celestial/visits.ts"
 import type { DiffScope } from "./panel-model.ts"
 import { createStore } from "./store.ts"
 
@@ -152,6 +153,7 @@ export const activeStream = createStore<string | null>(null)
 export const zen = createStore<boolean>(true)
 /** What the New session composer starts from: a project (a path on `machine` when one is named) and the branch to cut the task from. */
 export interface NewSessionStart {
+  readonly sky?: SkyScene
   readonly repo?: string
   readonly baseBranch?: string
   /** A registered machine's alias; absent = this machine. */
@@ -215,7 +217,7 @@ export function openNewSession(
 export function openNewSessionFrom(seed: NewSessionStart): void {
   page.set(null)
   dialog.set(null)
-  newSession.set(seed)
+  newSession.set({ ...seed, sky: nextSky() })
 }
 
 /**

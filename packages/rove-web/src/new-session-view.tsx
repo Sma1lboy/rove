@@ -9,6 +9,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { AttachPicker, AttachmentThumbs, fileTargets, useAttachments, withRefs } from "./attachments.tsx"
+import { CelestialPlate } from "./celestial/plate.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { isTouch } from "./key-hints.ts"
 import { openCompare } from "./layout.ts"
@@ -28,7 +29,6 @@ import {
 } from "./new-session-machine.tsx"
 import { ChipPopover } from "./new-session-menus.tsx"
 import { ComposerMore } from "./new-session-more.tsx"
-import { NewSessionPlate } from "./new-session-plate.tsx"
 import { cloneLabel, remoteRef } from "./new-session-remote.ts"
 import { RepoMenu } from "./new-session-repo-menu.tsx"
 import { startShell, useShellPick } from "./new-session-shell.ts"
@@ -334,7 +334,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   return (
     <div className={C.NEW_SESSION}>
       <div className={C.HERO}>
-        <NewSessionPlate />
+        <CelestialPlate scene={seed.sky ?? "orbit"} />
         <h1 className="m-0 font-sans text-title font-semibold text-accent">{t("newSession.title")}</h1>
         <p className="m-0 text-muted narrow:hidden">{t("newSession.tagline")}</p>
       </div>
