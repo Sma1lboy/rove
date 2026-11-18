@@ -48,13 +48,14 @@ describe("terminal grid selection", () => {
     expect(extractSelection(ROWS, { anchor: { row: 1, col: 6 }, head: { row: 1, col: 0 } })).toBe("charlie")
   })
 
-  it("copies framed paragraphs without the aligned right wall or its padding", () => {
-    for (const wall of ["│", "┃", "║", "╎", "┆", "┊"]) {
+  it.each(["│", "┃", "║", "╎", "┆", "┊"])(
+    "copies framed paragraphs without the aligned right wall (%s) or its padding",
+    (wall) => {
       const source = [row(`│ 你好     ${wall}`), row(`│ deploy   ${wall}`), row(`│ safely   ${wall}`)]
       const range = { anchor: { row: 0, col: 2 }, head: { row: 2, col: 7 } }
       expect(extractSelection(source, range)).toBe("你好\n│ deploy\n│ safely")
-    }
-  })
+    },
+  )
 
   it("keeps a lone wall glyph in ordinary text", () => {
     const source = [row("first   │"), row("ordinary"), row("last")]
@@ -282,7 +283,7 @@ describe("alt-screen drag scrolling (shadow buffer)", () => {
     let shadow = EMPTY_SHADOW
     let anchor = { row: 3, col: 10 }
     let visible = screen(15)
-    for (const top of [13, 11]) {
+    const scrollTo = (top: number) => {
       const next = screen(top)
       const shift = snapshotShift(visible, next)
       expect(shift).toBe(2)
@@ -290,6 +291,8 @@ describe("alt-screen drag scrolling (shadow buffer)", () => {
       anchor = { row: clampRowToShadow(anchor.row + shift, next.length, shadow), col: anchor.col }
       visible = next
     }
+    scrollTo(13)
+    scrollTo(11)
     // line-19 started at row 3; after +4 it lives at logical row 7, two rows
     // past the 5-row screen — inside the shadow.
     expect(anchor.row).toBe(7)
@@ -299,7 +302,7 @@ describe("alt-screen drag scrolling (shadow buffer)", () => {
     // Highlight and copy agree: every visible row overlaySelection paints is a
     // line the extraction contains (the overlay sees the same range).
     const painted = overlaySelection(visible, range, 0, 10)
-    for (let i = 0; i < painted.length; i++) expect(painted[i]).not.toBe(visible[i])
+    expect(painted.filter((paintedRow, i) => paintedRow === visible[i])).toEqual([])
   })
 
   it("drops re-revealed rows on a reversed drag instead of extracting them twice", () => {
@@ -323,11 +326,13 @@ describe("alt-screen drag scrolling (shadow buffer)", () => {
     // off the bottom, not stay pinned to screen rows 1 and 3.
     let state: SelectionShiftState = { anchor: { row: 1, col: 0 }, head: { row: 3, col: 7 }, shadow: EMPTY_SHADOW }
     let visible = screen(15)
-    for (const top of [13, 11]) {
+    const scrollTo = (top: number) => {
       const next = screen(top)
       state = followContentShift(state, visible, next, false)
       visible = next
     }
+    scrollTo(13)
+    scrollTo(11)
     expect(state.anchor).toEqual({ row: 5, col: 0 })
     expect(state.head).toEqual({ row: 7, col: 7 })
     // Still the same three lines, now read entirely out of the shadow.

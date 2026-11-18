@@ -9,7 +9,7 @@ import { createStore } from "./store.ts"
 
 const SORT_KEY = "rove.activeSortMode"
 
-function loadSort(): SortMode {
+export function loadSort(): SortMode {
   const saved = localStorage.getItem(SORT_KEY)
   // Recency by default; "default" (manual order) is one `t` away and what drag and Reorder need.
   return SORT_MODES.find((mode) => mode === saved) ?? "recent"

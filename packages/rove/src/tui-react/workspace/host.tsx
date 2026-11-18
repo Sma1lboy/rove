@@ -47,7 +47,6 @@ import { ShowWorkspace } from "./show-workspace"
 import { useSidebarResizeGesture } from "./sidebar-resize-gesture"
 import { SidebarResizeGrip } from "./sidebar-resize-grip"
 import { useTabsSync } from "./tabs-sync"
-import { closeAllTaskTabs } from "./terminal-tabs-close"
 import { activeTabIdFor, forgetTaskTabs, setUiEventReporter } from "./terminal-tabs-shared"
 import { useAttention } from "./use-attention"
 import { requestCreatePR } from "./use-create-pr"
@@ -105,12 +104,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
   // all answer "which task is the user on".
   const t = useT()
 
-  // `selectedId` reaches the notifiers as a getter, so no ordering against selection.
-  const { notifyError, notifyInfo, notifyNeedsInput, notifyWorktreeGone } = useHostNotifiers({
-    notif,
-    t,
-    selectedId: () => selectedId,
-  })
+  const { notifyError, notifyInfo, notifyNeedsInput, notifyWorktreeGone } = useHostNotifiers({ notif, t })
 
   const { selectedId, setSelectedId, selectedTask, selectTask, activateTask } = useWorkspaceSelection({
     orch,
@@ -179,7 +173,6 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     selectedTask: () => selectedTask,
     activateTask,
     forgetTaskTabs: (id) => forgetTaskTabs(kv, id),
-    closeTaskTabs: (id) => closeAllTaskTabs(kv, id),
     // `quickFork` is declared below; the dialog only calls this after the first render.
     startWithPrompt: (repo, start) => quickFork.onQuickFork(repo, { ...start, attachments: [], attempts: 1 }),
   })
@@ -461,7 +454,6 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
           prBaseRef={selectedTask?.prStatus?.baseRef}
           focused={activePane === "files"}
           actions={filesActions}
-          taskKind={selectedTask?.kind}
           remoteHost={
             selectedTask?.origin && selectedTask.origin.machineId !== "local"
               ? selectedTask.origin.hostLabel
@@ -480,7 +472,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
           overlay mounted, nothing renders them and the bottom-right toast
           silently never appears. Absolute-positioned, under the host's
           NotificationsProvider. */}
-      <ToastOverlay />
+      <ToastOverlay onOpenTask={inbox.openTask} />
       {/* Prefix sequence HUD — bottom-left over the Tasks sidebar (the
           terminal column is off-limits: it collided with the engine's own
           status line). Width-capped to the rail so lines never spill into

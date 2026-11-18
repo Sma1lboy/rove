@@ -93,12 +93,12 @@ it("a shell's --type text is typed once, after the identity export, with Enter",
   seed({})
   const daemon = tabsDaemon({ seed: { t: oneEngineTab() } })
 
-  await defaultApiRuntime.openTab(daemon.client, target(), "shell", { type: "env PORT=4100 sh .rove/run.sh" })
+  await defaultApiRuntime.openTab(daemon.client, target(), "shell", { type: "npm run dev" })
 
   const writes = host.calls.filter((c) => c.name === "pty.write").map((c) => c.payload.data)
   expect(writes).toHaveLength(2)
   expect(String(writes[0])).toContain("ROVE_TASK_ID=t")
-  expect(writes[1]).toBe("env PORT=4100 sh .rove/run.sh\r")
+  expect(writes[1]).toBe("npm run dev\r")
 })
 
 it("a home shell on a fresh task is its tab-1, never an engine tab-1 with a shell behind it", async () => {

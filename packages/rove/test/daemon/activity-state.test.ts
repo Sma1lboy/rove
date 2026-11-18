@@ -1,64 +1,60 @@
 import { DaemonActivityRegistry } from "@sma1lboy/rove-daemon/daemon/activity-registry"
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
-import { afterEach, describe, expect, it } from "vitest"
-import type { TaskActivityState } from "../../src/engine/hook-events.ts"
-import { type DaemonHarness, bootDaemonHarness } from "./harness.ts"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 const TTL_MS = 30
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+/** Every `engine-state` payload the bus publishes, narrowed to the fields under test. */
+function engineStates<T>(bus: DaemonEventBus): () => T[] {
+  const events: { channel: string; payload: unknown }[] = []
+  bus.onPublish((event) => events.push(event))
+  return () => events.filter((e) => e.channel === "engine-state").map((e) => e.payload as T)
 }
 
 describe("daemon activity state", () => {
-  let h: DaemonHarness | null = null
-
-  afterEach(async () => {
-    await h?.close()
-    h = null
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
-  it("keeps turn-complete visible instead of lapsing it back to idle", async () => {
-    h = await bootDaemonHarness({ env: { ROVE_ENGINE_STATE_TTL_MS: String(TTL_MS) } })
-    const client = h.client()
-    const states: TaskActivityState[] = []
-    client.onChannel("engine-state", (payload) => {
-      if (payload.taskId === "task-1") states.push(payload.state)
-    })
-    await client.subscribe()
-
-    // A real completion follows a tracked turn — a bare Stop with no turn in
-    // flight is an automated wake and completes nothing.
-    await client.request("engine.reportEvent", { taskId: "task-1", kind: "turn-start" })
-    await client.request("engine.reportEvent", { taskId: "task-1", kind: "turn-complete" })
-    await sleep(TTL_MS + 50)
-
-    expect(states).toEqual(["running", "turn_complete"])
-    client.close()
-  })
-
-  it("keeps permission_needed sticky instead of lapsing it to idle after the TTL", async () => {
+  it.each([
+    [
+      "turn-complete",
+      ["running", "turn_complete"],
+      (r: DaemonActivityRegistry) => {
+        // A real completion follows a tracked turn — a bare Stop with no turn in
+        // flight is an automated wake and completes nothing.
+        r.report("task-1", "turn-start")
+        r.report("task-1", "turn-complete")
+      },
+    ],
     // The whole point of the ? badge: a task blocked on a permission prompt is
     // exactly what a user leaves the session to handle. A blocked engine writes
     // no transcript, so the liveness probe reads "stale" — the badge must NOT
     // lapse to idle regardless, or "come back and see who's stuck" breaks.
-    h = await bootDaemonHarness({ env: { ROVE_ENGINE_STATE_TTL_MS: String(TTL_MS) } })
-    const client = h.client()
-    const states: TaskActivityState[] = []
-    client.onChannel("engine-state", (payload) => {
-      if (payload.taskId === "task-1") states.push(payload.state)
-    })
-    await client.subscribe()
+    [
+      "permission_needed",
+      ["permission_needed"],
+      (r: DaemonActivityRegistry) => {
+        r.report("task-1", "awaiting-input", { waiting: "permission" })
+      },
+    ],
+  ] as const)("keeps %s visible instead of lapsing it to idle after the TTL", async (_name, expected, drive) => {
+    vi.useFakeTimers()
+    const bus = new DaemonEventBus()
+    const published = engineStates<{ state: string }>(bus)
+    // A probe that always reports a dead transcript: only stickiness keeps it lit.
+    const registry = new DaemonActivityRegistry(
+      bus,
+      TTL_MS,
+      () => Date.now(),
+      () => Promise.resolve({ mtimeMs: 0 }),
+    )
 
-    await client.request("engine.reportEvent", {
-      taskId: "task-1",
-      kind: "awaiting-input",
-      detail: { waiting: "permission" },
-    })
-    await sleep(TTL_MS + 50)
+    drive(registry)
+    await vi.advanceTimersByTimeAsync(TTL_MS * 10)
 
-    expect(states).toEqual(["permission_needed"])
-    client.close()
+    expect(published().map((p) => p.state)).toEqual(expected)
+    registry.close()
   })
 
   it("keeps error / rate_limited sticky — no lapse timer armed for either", () => {
@@ -90,27 +86,23 @@ describe("daemon activity state", () => {
   it("a Stop on a COLD registry completes the turn — it outlived a daemon restart", () => {
     const bus = new DaemonEventBus()
     const registry = new DaemonActivityRegistry(bus, 1_000)
-    const published: Array<{ taskId: string; state: string }> = []
-    bus.onPublish((event) => {
-      if (event.channel === "engine-state") {
-        const p = event.payload as { taskId: string; state: string }
-        published.push({ taskId: p.taskId, state: p.state })
-      }
-    })
+    const published = engineStates<{ taskId: string; state: string }>(bus)
+    let seen = 0
+    const fresh = () => published().slice(seen)
 
     // No prior entry for this task: a restart wiped the in-memory registry
     // while a turn was in flight, so its Stop is the first event since boot.
     // Swallowing it cost the ● lamp for every turn outliving a restart.
     registry.report("task-cold", "turn-complete")
-    expect(published).toEqual([{ taskId: "task-cold", state: "turn_complete" }])
+    expect(published()).toMatchObject([{ taskId: "task-cold", state: "turn_complete" }])
 
     // A Stop on a KNOWN untracked state is the other case — an automated
     // wake (a background monitor stream ending), which must NOT light the
     // ● lamp: the state stays idle.
     registry.report("task-warm", "session-start")
-    published.length = 0
+    seen = published().length
     registry.report("task-warm", "turn-complete")
-    expect(published).toEqual([{ taskId: "task-warm", state: "idle" }])
+    expect(fresh()).toMatchObject([{ taskId: "task-warm", state: "idle" }])
 
     registry.close()
   })
@@ -139,18 +131,17 @@ describe("daemon activity state", () => {
   it("tracks tabId-carrying reports per tab: publish, replay, session-end + clearTask cleanup", () => {
     const bus = new DaemonEventBus()
     const registry = new DaemonActivityRegistry(bus, 1_000)
-    const published: Array<{ taskId: string; tabId?: string; state: string }> = []
-    bus.onPublish((event) => {
-      if (event.channel === "engine-state") {
-        const p = event.payload as { taskId: string; tabId?: string; state: string }
-        published.push({ taskId: p.taskId, tabId: p.tabId, state: p.state })
-      }
-    })
+    const all = engineStates<{ taskId: string; tabId?: string; state: string }>(bus)
+    let seen = 0
+    const published = () =>
+      all()
+        .slice(seen)
+        .map((p) => ({ taskId: p.taskId, tabId: p.tabId, state: p.state }))
 
     registry.report("task-1", "awaiting-input", { waiting: "input" }, "tab-2")
     // Two publishes per tab report: the tab entry, then the DERIVED task
     // rollup that follows from it (activity-rollup.ts).
-    expect(published).toEqual([
+    expect(published()).toEqual([
       { taskId: "task-1", tabId: "tab-2", state: "permission_needed" },
       { taskId: "task-1", tabId: undefined, state: "permission_needed" },
     ])
@@ -167,9 +158,9 @@ describe("daemon activity state", () => {
     // clearTask publishes per-tab idles so subscribers drop tab candidates.
     registry.report("task-1", "turn-start", undefined, "tab-3")
     registry.report("task-1", "turn-complete", undefined, "tab-3")
-    published.length = 0
+    seen = all().length
     registry.clearTask("task-1")
-    expect(published).toEqual([
+    expect(published()).toEqual([
       { taskId: "task-1", tabId: "tab-3", state: "idle" },
       { taskId: "task-1", tabId: undefined, state: "idle" },
     ])
@@ -184,34 +175,31 @@ describe("daemon activity state", () => {
   it("stores the reporting session's identity, carries it forward, and replays it", () => {
     const bus = new DaemonEventBus()
     const registry = new DaemonActivityRegistry(bus, 1_000)
-    const published: Array<{ state: string; sessionId?: string; transcriptPath?: string }> = []
-    bus.onPublish((event) => {
-      if (event.channel === "engine-state") {
-        const p = event.payload as { state: string; sessionId?: string; transcriptPath?: string }
-        published.push({ state: p.state, sessionId: p.sessionId, transcriptPath: p.transcriptPath })
-      }
-    })
+    const all = engineStates<{ state: string; sessionId?: string; transcriptPath?: string }>(bus)
+    const published = () =>
+      all().map((p) => ({ state: p.state, sessionId: p.sessionId, transcriptPath: p.transcriptPath }))
 
     registry.report("task-1", "turn-start", undefined, "tab-1", {
       id: "sess-abc",
       transcriptPath: "/tmp/sess-abc.jsonl",
     })
-    expect(published[0]).toEqual({ state: "running", sessionId: "sess-abc", transcriptPath: "/tmp/sess-abc.jsonl" })
+    expect(published()[0]).toEqual({ state: "running", sessionId: "sess-abc", transcriptPath: "/tmp/sess-abc.jsonl" })
 
     // An event WITHOUT session info keeps the latest-known id (carry-forward)
     // on both the tab entry and the rollup derived from it. `published[2]` is
     // the tab publish — index 1 is the task rollup that followed the first.
     registry.report("task-1", "turn-complete", undefined, "tab-1")
-    expect(published[2]).toEqual({
+    expect(published()[2]).toEqual({
       state: "turn_complete",
       sessionId: "sess-abc",
       transcriptPath: "/tmp/sess-abc.jsonl",
     })
 
     // Replay (late subscriber) carries it too — task rollup + tab entry.
-    const replayed = registry.replaySnapshot()
-    expect(replayed).toHaveLength(2)
-    for (const p of replayed) expect((p as { sessionId?: string }).sessionId).toBe("sess-abc")
+    expect(registry.replaySnapshot().map((p) => (p as { sessionId?: string }).sessionId)).toEqual([
+      "sess-abc",
+      "sess-abc",
+    ])
 
     registry.close()
   })
@@ -224,12 +212,7 @@ describe("daemon activity state", () => {
   it("a session-less event on a NEW tab does not inherit another tab's session", () => {
     const bus = new DaemonEventBus()
     const registry = new DaemonActivityRegistry(bus, 1_000)
-    const published: Array<{ tabId?: string; sessionId?: string }> = []
-    bus.onPublish((event) => {
-      if (event.channel === "engine-state") {
-        published.push(event.payload as { tabId?: string; sessionId?: string })
-      }
-    })
+    const published = engineStates<{ tabId?: string; sessionId?: string }>(bus)
 
     registry.report("task-1", "session-start", undefined, "tab-a", {
       id: "claude-sess",
@@ -237,7 +220,9 @@ describe("daemon activity state", () => {
     // A different engine boots in tab-b; its hooks pipe NO session id.
     registry.report("task-1", "session-start", undefined, "tab-b")
 
-    const last = published.filter((p) => p.tabId).at(-1)
+    const last = published()
+      .filter((p) => p.tabId)
+      .at(-1)
     expect(last?.tabId).toBe("tab-b")
     expect(last?.sessionId).toBeUndefined()
     registry.close()

@@ -56,11 +56,7 @@ describe("buildCIPrompt", () => {
   })
 })
 
-/**
- * The `.rove/` → `.rove/` template fallback, which had no coverage here at all
- * while `loadTemplate` accepted a whitespace-only file as a real template and
- * blanked the prompt. All three readers now share `lib/repo-config-file.ts`.
- */
+/** A whitespace-only override must not blank the prompt. */
 describe("buildCIPromptForWorktree per-repo override", () => {
   const state = { branch: "feat/x", checks: [check()] }
   const write = (dir: string, relDir: string, body: string) => {
@@ -73,19 +69,6 @@ describe("buildCIPromptForWorktree per-repo override", () => {
     const dir = tmp()
     write(dir, ".rove", "canonical")
     await expect(buildCIPromptForWorktree(dir, state)).resolves.toBe("canonical")
-  })
-
-  it("falls back to the legacy .rove spelling", async () => {
-    const dir = tmp()
-    write(dir, ".rove", "legacy")
-    await expect(buildCIPromptForWorktree(dir, state)).resolves.toBe("legacy")
-  })
-
-  it("does not let a whitespace-only canonical file shadow the legacy one", async () => {
-    const dir = tmp()
-    write(dir, ".rove", "\n   \n")
-    write(dir, ".rove", "legacy")
-    await expect(buildCIPromptForWorktree(dir, state)).resolves.toBe("legacy")
   })
 
   it("falls back to the built-in template when the only file is whitespace", async () => {

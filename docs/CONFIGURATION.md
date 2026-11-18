@@ -14,12 +14,12 @@ configured using Git-style forward slashes without creating a second entry.
 | `~/.config/rove/state.json` | All your preferences, as flat JSON | Rove (Settings, CLI); yours to hand-edit |
 | `~/.rove/secrets.json` | Credentials Rove holds for you (today: the tier classifier's API key) | Settings → Auto routing; **not** part of `state.json`, and never printed |
 | `~/.rove/themes/*.json` | Installed themes | `rove theme add`, or drop files in |
+| `~/.rove/attachments/` | Images and files attached to a prompt; the engine reads them by path | Rove; cleaned up after [`attachments.keepDays`](#attachments) |
 | `~/.rove/settings/keybindings.yaml` | Keybinding overrides | You only |
 | `<repo>/.rove/init.sh` + `init-prompt.md` | Per-repo worktree setup | You (committed to the repo) |
 | `<repo>/.rove/teardown.sh` | Per-repo cleanup before a task worktree is removed | You (committed to the repo) |
 | `<repo>/.rove/pr-instructions.md` | Per-repo PR action prompt | You (committed to the repo) |
 | `<repo>/.rove/clone-dirs` | Per-repo list of ignored directories to clone into new worktrees | You (committed to the repo) |
-| `<repo>/.rove/run.sh` | Per-repo dev server for the web `[ run ]` action (gets `$PORT`) | You (committed to the repo) |
 
 Setting `ROVE_HOME_DIR` changes the home beneath all these paths. Only `ROVE_*`
 environment variables are read. New runtime files use canonical names; a live
@@ -344,6 +344,21 @@ once a task has more than one tab. (An older
 Scrollback changes apply to terminals started *after* the change; live ones
 keep the buffer they were born with.
 
+### Usage
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `usage.show` | `used` \| `left` | `used` | Whether plan quota and context percentages, in the footer and in Settings → General, count what is used or what is left |
+
+Only the number flips: a window's colour still warns as it fills, whichever
+way it reads. Settings → General → Usage cycles it.
+
+### Attachments
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `attachments.keepDays` | whole number | `30` | Days a file in `~/.rove/attachments/` is kept. The daemon deletes older ones when it starts and once a day after. A file that a task's prompt, an issue or a routine still names is kept however old it is. `0` keeps everything. |
+
 ### Prompt snippets
 
 | Key | Type | Default | What it does |
@@ -352,7 +367,7 @@ keep the buffer they were born with.
 
 ### Notifications
 
-All default to on.
+The switches all default to on.
 
 | Key | Type | What it does |
 |---|---|---|
@@ -361,9 +376,24 @@ All default to on.
 | `notifications.sound.volume` | number | Chime level, 0-1 (default 0.4) |
 | `notifications.crossTask.enabled` | boolean | Toasts for tasks you aren't looking at |
 | `notifications.finished.enabled` | boolean | Alerts for finished turns; off, only approvals and errors toast or ring |
+| `notifications.mutedTasks` | string[] | Task ids whose notifications are muted (default `[]`). Toggle one from its sidebar row's right-click menu, **Mute notifications** |
 
 Error toasts always show, even with toasts off. See
 [Notifications](#notifications-and-sound) for how they're delivered.
+
+### Pull requests
+
+| Key | Type | What it does |
+|---|---|---|
+| `pr.refreshSeconds` | integer | How often an open PR's status and checks are re-read in the background, 30-3600 (default 30). `0` stops background refresh |
+
+Each refresh is one `gh` call per task with an open PR, so a slower cadence
+saves GitHub API quota when many tasks have PRs. Merged, closed and missing
+PRs keep their own slower cadence. With `0`, PR marks keep their last
+reading, and anything waiting on CI (checks-resolved toasts, CI auto-fix)
+waits until refresh is back on. No Settings row: set it with `rove config`.
+The daemon rereads it within 30 seconds, no restart; any other value falls
+back to the default.
 
 ### Zen mode
 
@@ -389,6 +419,7 @@ button also installs the other channel's newest build right away.
 | `update.channel` | `latest` \| `next` \| `nightly` | the running build's channel | `latest` is stable releases; `next` is every merge to `main` (fast checks only); `nightly` is the daily preview built from `main`. Set by Settings the moment you pick one, and by `rove update --next` / `--nightly` / `--stable` after the install succeeds. The update check, the Update page and a bare `rove update` follow it |
 | `update.notify` | boolean | `true` | Whether the update chip (TUI brand row, web rail) shows when the chosen channel has a newer build. Off hides the chip only; Settings' `[ check for updates ]`, the Update page and `rove update` still report |
 | `update.delayHours` | number | `0` | Hours a release must have been out before the update chip offers it. The check runs at daemon start and every six hours, and while the newest release is younger the chip stays hidden. If npm can't say when it was published, the chip shows. The Update page and `rove update` ignore it. Hand-edit only |
+| `machines.autoUpdate` | boolean | `true` | Whether a registered machine that connects on an older Rove than this one is updated from here ([Machines](./MACHINES.md)). `false` leaves every machine alone; `rove machine update` still works by hand. Hand-edited: no Settings row. |
 
 ### Worktree location
 
@@ -434,8 +465,8 @@ starting with `-`, are ignored.
 A directory is cloned only when all of these hold; otherwise it is skipped
 without a message, exactly as before:
 
-- the project is local (not SSH) and the task owns a worktree (project-main and
-  directory tasks do not);
+- the project is local (not SSH) and the task owns a worktree (directory tasks do
+  not);
 - git reports the directory as ignored and containing no tracked file;
 - it is absent from the new worktree;
 - source and worktree are on the same APFS volume (`st_dev` match).
@@ -457,12 +488,13 @@ silently deletable.
 The current tree sidebar follows persisted project/task order and supports
 manual project reordering with `shift+m`. The `t` key cycles the task sort
 through four orders — `default` (shown as "manual": the persisted order, the
-one drag and move mode edit), `recent` (shown as "newest": newest created first; renaming, status
-or pin changes and selecting a task never reorder it), `attention`
+one drag and move mode edit), `recent` (shown as "newest": newest created first), `attention`
 (tasks blocked on you first, then ones whose turn landed unread,
 most recently changed inside each group), and `name` (A→Z by title, ignoring
 case, with numbers in numeric order so `task 2` comes before `task 10`).
-Projects keep their own order in every mode. The choice is saved as
+Pinned tasks lead their siblings in every mode. Newest orders projects by their newest task, and
+name orders them by the displayed project label. Manual and attention keep the
+stored project order. Ungrouped stays first. The choice is saved as
 `activeSortMode` and read back on startup; with none saved, or a value this
 build does not recognise, the sidebar starts on `recent`. The active order is
 named on the line above the task list (`sort: newest`). Reorder (`shift+m`,
@@ -554,7 +586,10 @@ Three kinds: `done` (green), `needs_input` (yellow), `error` (red). Yellow and
 red outrank green when both fire for the same tab. With **Settings → General →
 Finished turns** off (`notifications.finished.enabled`), a finished turn only
 lights its unread dot, so the toast and chime are left for an agent waiting on
-you or one that failed. Three delivery channels:
+you or one that failed. To quiet one noisy task without touching the rest, right-click its sidebar row
+and pick **Mute notifications**: it keeps its unread dot, but stops toasting and
+ringing. Its errors still toast, silently. **Unmute notifications** in the same
+menu turns it back on. Three delivery channels:
 
 - **Toasts.** In-TUI, 4.5 seconds. Error toasts always show, even with
   toasts disabled: a failure shouldn't vanish because you turned off
@@ -702,23 +737,3 @@ The PR action also reads `.rove/pr-instructions.md` as its prompt template;
 `{{upstreamSentence}}` are substituted (unknown `{{…}}` passes through).
 The file must be non-empty.
 
-## Per-repo run script
-
-A repo can ship **`.rove/run.sh`**, its dev server or preview. In a task of that repo the web
-Files pane shows `[ run ]`: it opens a shell tab titled `run :PORT` in the task's worktree and
-types `env PORT=<port> ROVE_PORT=<port> sh .rove/run.sh` into it. `[ stop ]` closes the tab, which
-ends the script. Once something listens on the port, `[ open :PORT ]` shows it in the Browser
-panel (a page opened over a tunnel cannot reach the Mac's loopback; the panel says so).
-
-The script must listen on `$PORT`. Each task gets its own port from a range, so parallel
-worktrees never collide: the lowest port no other task holds and nothing listens on, kept for
-that task from then on. The range lives in `state.json`:
-
-| Setting | Default | What it does |
-|---|---|---|
-| `run.portBase` | `4100` | First port of the range (1024–65535) |
-| `run.portCount` | `900` | How many ports the range holds |
-
-`run.sh` comes from the repo and runs without asking, with your account's privileges, like
-`init.sh`: read it before running it in a repository you did not write. The file must be
-non-empty; tasks on another machine and tasks with no worktree yet show no run action.

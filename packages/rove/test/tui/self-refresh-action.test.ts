@@ -91,16 +91,4 @@ describe("selfRefreshAction", () => {
     expect(d.restartDaemon).not.toHaveBeenCalled()
     expect(d.relaunch).not.toHaveBeenCalled()
   })
-
-  it("asks before touching anything", async () => {
-    const confirm = vi.fn(async () => {
-      // Whatever the user is about to decide, nothing may have happened yet.
-      expect(d.restartDaemon).not.toHaveBeenCalled()
-      expect(d.relaunch).not.toHaveBeenCalled()
-      return true
-    })
-    const d = deps({ confirm })
-    await selfRefreshAction(d.deps, skewed)
-    expect(confirm).toHaveBeenCalledTimes(1)
-  })
 })

@@ -64,6 +64,13 @@ function StripDriver(props: { tabs: readonly TerminalTab[]; start: string; width
   )
 }
 
+async function pressTabs(input: { pressTab: () => void }, frame: () => Promise<string>, count: number) {
+  for (let i = 0; i < count; i++) {
+    input.pressTab()
+    await frame()
+  }
+}
+
 /**
  * A title longer than the pane is truncated, not drawn past the strip.
  *
@@ -123,10 +130,7 @@ test("the scroll window follows key-driven tab switches and keeps the active tab
   // 8 boxes × 14 cells (frame 2 + padding 2 + "workspace-N" 10) = 112 cells
   // against a 59-cell viewport — the row must scroll.
   expect(await frame()).toContain("workspace-1")
-  for (let i = 0; i < 7; i++) {
-    mockInput.pressTab()
-    await frame()
-  }
+  await pressTabs(mockInput, frame, 7)
   const atEnd = await frame()
   expect(atEnd).toContain("workspace-8")
   expect(atEnd).not.toContain("workspace-1")
@@ -166,11 +170,6 @@ test("the running chip uses the semantic info color, never the focus accent", as
   // the active tab's frame, so several running tabs drowned the "you are
   // here" signal. The semantic `info` slot (claude dark: #61AAF2) keeps
   // activity distinct from focus on every bundled theme.
-  expect(chips.length).toBe(2)
   const INFO: [number, number, number, number] = [97, 170, 242, 255]
-  const FOCUS: [number, number, number, number] = [204, 120, 92, 255]
-  for (const chip of chips) {
-    expect(chip.fg?.toInts()).toEqual(INFO)
-    expect(chip.fg?.toInts()).not.toEqual(FOCUS)
-  }
+  expect(chips.map((chip) => chip.fg?.toInts())).toEqual([INFO, INFO])
 })

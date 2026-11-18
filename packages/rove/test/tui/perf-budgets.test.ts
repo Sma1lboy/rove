@@ -73,7 +73,7 @@ describe("idle sidebar tick frame-accessor budget", () => {
       }),
     )
     expect(reads).toBe(0)
-    out.forEach((view, index) => expect(view).toBe(views[index]))
+    expect(out.every((view, index) => view === views[index])).toBe(true)
   })
 
   test("mixed rows read the frame once per loading row", () => {

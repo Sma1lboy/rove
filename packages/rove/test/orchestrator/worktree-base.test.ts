@@ -131,7 +131,6 @@ describe("worktree paths honor the override", () => {
     const roots = managedWorktreeRootsFor(repo)
     expect(roots[0]).toBe(root)
     expect(roots).toContain(path.join(home, ".rove", "worktrees", path.basename(root)))
-    expect(roots).toContain(path.join(home, ".rove", "worktrees", path.basename(root)))
   })
 
   /**

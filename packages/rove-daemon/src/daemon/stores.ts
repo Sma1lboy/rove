@@ -20,7 +20,7 @@ import type { DaemonEventBus } from "./event-bus.ts"
 import { GatesStore, defaultGatesStorePath } from "./gates-store.ts"
 import { IssuesStore, defaultIssuesStorePath } from "./issues-store.ts"
 import { NotesStore, defaultNotesStorePath } from "./notes-store.ts"
-import { defaultDeliveriesPath } from "./paths.ts"
+import { defaultDeliveriesPath, defaultRowTokensPath } from "./paths.ts"
 import { PendingStartsStore, defaultPendingStartsPath } from "./pending-starts-store.ts"
 import { QuotaUsageCache } from "./quota-usage-cache.ts"
 import { RowTokenStore } from "./row-tokens.ts"
@@ -88,13 +88,16 @@ export async function initDaemonStores(
   await agentTurns.init().catch((err) => logDaemonError("agent-turns-init", err))
   const deliveries = new DeliveriesStore(defaultDeliveriesPath(homeDir))
   await deliveries.init().catch((err) => logDaemonError("deliveries-init", err))
-  // In memory on purpose: restoring a token whose author is gone is the stale
-  // state its TTL exists to prevent.
-  const rowTokens = new RowTokenStore(bus)
+  // Only tokens written with `keep` are on disk: restoring one whose author is gone
+  // is the stale state a TTL exists to prevent.
+  const rowTokens = new RowTokenStore(bus, Date.now, defaultRowTokensPath(homeDir))
   // Sole writer of every task's terminal tabs; clients send it operations.
   const tabs = new TabsStore(runtime.tabsPersistence, bus)
   tabs.init()
   tabs.sweep((taskId) => orch.getTask(taskId) !== undefined, orch.listTasks().length > 0)
+  await orch
+    .settleProjectRows((taskId) => (tabs.get(taskId).state?.tabs.length ?? 0) > 0)
+    .catch((err) => logDaemonError("project-rows", err))
   const aliases = new AliasKeeper({ orch, tabs })
   // Extra engine tabs become child tasks and dead aliases are released before any client reads the index.
   const tasks = orch.listTasks()

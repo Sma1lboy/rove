@@ -6,13 +6,19 @@
  * fold — exactly when a section you can't fully see is what makes you want it.
  */
 
-import { expect, test } from "bun:test"
+import { afterAll, expect, test } from "bun:test"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { SettingsDialog } from "../../src/tui-react/component/settings-dialog"
 import { useKV } from "../../src/tui-react/context/kv"
 import { renderComponent } from "./harness"
+
+const savedHome = process.env.ROVE_HOME_DIR
+afterAll(() => {
+  if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = savedHome
+})
 
 const NOOP = (): void => {}
 

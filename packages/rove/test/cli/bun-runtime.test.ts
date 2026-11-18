@@ -8,7 +8,7 @@
  * 70-line shell around them.
  */
 
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   BUN_OVERRIDE_ENV,
   SKIP_VERSION_CHECK_ENV,
@@ -127,16 +127,11 @@ describe("install guidance", () => {
     expect(message).toContain(BUN_OVERRIDE_ENV)
   })
 
+  afterEach(() => vi.unstubAllEnvs())
+
   it("uses the active CLI name by default", () => {
-    const saved = process.env.ROVE_INVOKED_AS
-    process.env.ROVE_INVOKED_AS = "rove"
-    try {
-      expect(missingBunMessage(undefined, "linux")).toContain("rove: Rove runs on the Bun runtime")
-    } finally {
-      // biome-ignore lint/performance/noDelete: env cleanup must fully unset when the var was unset before the test (assigning undefined leaves the string "undefined").
-      if (saved === undefined) delete process.env.ROVE_INVOKED_AS
-      else process.env.ROVE_INVOKED_AS = saved
-    }
+    vi.stubEnv("ROVE_INVOKED_AS", "rove")
+    expect(missingBunMessage(undefined, "linux")).toContain("rove: Rove runs on the Bun runtime")
   })
 })
 

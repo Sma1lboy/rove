@@ -82,7 +82,7 @@ describe("filterTreeRows", () => {
   const tree = () =>
     rows({
       tasks: [
-        task("m", { kind: "main", repo: "/repos/rove", branch: "main", worktreePath: "/repos/rove" }),
+        task("m", { kind: "dir", repo: "/repos/rove", branch: "", worktreePath: "/repos/rove" }),
         task("wt", { repo: "/repos/rove", branch: "feat/tree", title: "worktree tree" }),
         task("kid", {
           repo: "/repos/rove",
@@ -126,10 +126,10 @@ describe("filterTreeRows", () => {
   })
 })
 
-describe("search finds exactly what the row displays (main + dir rows)", () => {
-  // A `main` row stores NO branch: it is labelled by the live polled HEAD.
-  const MAIN = task("m", {
-    kind: "main",
+describe("search finds exactly what the row displays (dir rows)", () => {
+  // A session in a repo's checkout stores NO branch: it is labelled by the live polled HEAD.
+  const CHECKOUT = task("m", {
+    kind: "dir",
     repo: "/Users/me/work/api",
     branch: "",
     worktreePath: "/Users/me/work/api",
@@ -149,11 +149,11 @@ describe("search finds exactly what the row displays (main + dir rows)", () => {
   })
   const liveBranch = (t: Task) => (rowLiveBranchPath(t) === "/Users/me/work/api" ? "release/2026-09" : "")
 
-  const built = () => rows({ tasks: [MAIN, DIR], tabsByTask: new Map() })
+  const built = () => rows({ tasks: [CHECKOUT, DIR], tabsByTask: new Map() })
 
-  test("a main row is findable by the live branch name printed on it", () => {
+  test("a checkout row is findable by the live branch name printed on it", () => {
     // Precondition: that branch name really IS the row's rendered label.
-    expect(worktreeRowLabel(MAIN, { liveBranch: "release/2026-09" })).toBe("release/2026-09")
+    expect(worktreeRowLabel(CHECKOUT, { liveBranch: "release/2026-09" })).toBe("release/2026-09")
     expect(filterTreeRows(built(), "release/2026-09", liveBranch).map((r) => r.id)).toEqual(["/Users/me/work/api", "m"])
   })
 

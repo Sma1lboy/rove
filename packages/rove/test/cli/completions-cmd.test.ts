@@ -76,23 +76,16 @@ describe("runCompletionsSubcommand", () => {
     await runCompletionsSubcommand(["bash"])
     const script = stdoutText()
     expect(script).toContain("complete -F _rove rove")
-    for (const sub of TOP_LEVEL_SUBCOMMANDS) expect(script).toContain(sub)
+    expect(TOP_LEVEL_SUBCOMMANDS.filter((sub) => !script.includes(sub))).toEqual([])
   })
 
   test("zsh script self-registers when sourced directly (not only via fpath)", async () => {
     await runCompletionsSubcommand(["zsh"])
     const script = stdoutText()
+    expect(script.startsWith("#compdef rove")).toBe(true)
     // fpath-autoload path: the funcstack guard runs the completion fn.
     expect(script).toContain('if [ "${funcstack[1]}" = "_rove" ]')
     // source <(...) path: falls through to an explicit compdef registration.
-    expect(script).toContain("compdef _rove rove")
-  })
-
-  test("rove gets isolated shell registrations and install instructions", async () => {
-    await runCompletionsSubcommand(["zsh"], "rove")
-    const script = stdoutText()
-    expect(script.startsWith("#compdef rove")).toBe(true)
-    expect(script).toContain('if [ "${funcstack[1]}" = "_rove" ]')
     expect(script).toContain("compdef _rove rove")
   })
 
@@ -101,10 +94,7 @@ describe("runCompletionsSubcommand", () => {
     async (shell) => {
       await runCompletionsSubcommand([shell])
       const found = parseVerbs(stdoutText(), PARSERS[shell] as RegExp)
-      expect(Object.keys(found).sort()).toEqual(Object.keys(EXPECTED_VERBS).sort())
-      for (const [command, verbs] of Object.entries(EXPECTED_VERBS)) {
-        expect({ command, verbs: found[command] }).toEqual({ command, verbs: [...verbs] })
-      }
+      expect(found).toEqual(Object.fromEntries(Object.entries(EXPECTED_VERBS).map(([c, verbs]) => [c, [...verbs]])))
     },
   )
 

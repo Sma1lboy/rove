@@ -8,45 +8,14 @@
  * would pile up. These tests pin the reset (keys AND the cosmetic hint).
  */
 
-import { describe, expect, test } from "vitest"
+import { afterEach, describe, expect, test } from "vitest"
 import { RoveKeymap, findBinding, resetKeymapToDefaults } from "../../src/tui/context/keybindings"
 import { applyKeymapOverrides } from "../../src/tui/lib/keymap-overrides"
 
 const ID = "sidebar.rename" // overridable, default ["r"], carries a hint
 
 describe("resetKeymapToDefaults", () => {
-  test("Tasks keeps ctrl+q as its direct hard-exit chord", () => {
-    expect(findBinding("app.quit")?.keys).toEqual(["q", "ctrl+q"])
-    expect(findBinding("app.quit")?.prefixKeys).toBeUndefined()
-  })
-
-  test("navigation keeps ctrl+q direct and uses only relative prefix h/l pane cycling", () => {
-    // ctrl+h/j/k/l belong to the embedded engine, and pane movement is
-    // relative cycling rather than four absolute prefix targets.
-    // h/l (left/right) — the panes sit side by side.
-    expect(findBinding("focus.sidebar")?.keys).toEqual(["ctrl+q"])
-    expect(findBinding("focus.sidebar")?.prefixKeys).toEqual(["q"])
-    expect(findBinding("focus.numeric")).toBeUndefined()
-    expect(findBinding("focus.previous")?.keys).toEqual([])
-    expect(findBinding("focus.previous")?.prefixKeys).toEqual(["h"])
-    expect(findBinding("focus.next")?.keys).toEqual(["f4"])
-    expect(findBinding("focus.next")?.prefixKeys).toEqual(["l"])
-    expect(findBinding("inbox.show")?.keys).toEqual([])
-    expect(findBinding("inbox.show")?.prefixKeys).toEqual(["i"])
-  })
-
-  test("non-ChatPane bindings retain their direct Ctrl chords", () => {
-    expect(findBinding("focus.sidebar")?.keys).toEqual(["ctrl+q"])
-    expect(findBinding("terminal.scroll-up")?.keys).toEqual(["ctrl+pageup"])
-    expect(findBinding("terminal.scroll-up")?.prefixKeys).toBeUndefined()
-  })
-
-  test("terminal scrollback remains a direct ctrl chord outside the ChatPane", () => {
-    expect(findBinding("terminal.scroll-up")?.keys).toEqual(["ctrl+pageup"])
-    expect(findBinding("terminal.scroll-up")?.prefixKeys).toBeUndefined()
-    expect(findBinding("terminal.scroll-down")?.keys).toEqual(["ctrl+pagedown"])
-    expect(findBinding("terminal.scroll-down")?.prefixKeys).toBeUndefined()
-  })
+  afterEach(() => resetKeymapToDefaults())
 
   test("restores a row's chords + hint after an override", () => {
     const row = findBinding(ID)

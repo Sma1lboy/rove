@@ -19,7 +19,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { encodeCwd } from "@/engine/claude-code-local/history"
-import { liveSourceProtocol, planChatContinuation } from "@/engine/session-handoff-plan"
+import { liveSourceProtocol, planChatContinuation, tabSessionId } from "@/engine/session-handoff-plan"
 import { addForkTab } from "@/tui-react/workspace/fork-chat-tab"
 import {
   type EngineTab,
@@ -129,5 +129,16 @@ describe("continuing a wrapper-preset tab", () => {
     const state: TabsState = { ...initialTabs(), tabs: [wrapperTab()] }
     const tab = addForkTab(state, "claude", "claude", SESSION).tabs.at(-1) as EngineTab
     expect(tab.engineCommand).toBeUndefined()
+  })
+})
+
+describe("copying a tab's session id", () => {
+  it("names the wrapped engine's newest session for an unpinned tab", async () => {
+    expect(await tabSessionId(wrapperTab(), "claudecpa", WORKTREE)).toBe(SESSION)
+  })
+
+  it("prefers the id the tab was pinned to, and has none for a shell", async () => {
+    expect(await tabSessionId(wrapperTab({ sessionId: "pinned" }), "claudecpa", WORKTREE)).toBe("pinned")
+    expect(await tabSessionId({ kind: "command" }, "claudecpa", WORKTREE)).toBeNull()
   })
 })

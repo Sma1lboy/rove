@@ -18,7 +18,6 @@ describe("isPlaceholderDerivedBranch", () => {
   it("recognizes the legacy rove/ and rove/ id-suffixed placeholders", () => {
     const id = "01HXABCDEF"
     expect(isPlaceholderDerivedBranch("rove/new-task-abcdef", id)).toBe(true)
-    expect(isPlaceholderDerivedBranch("rove/new-task-abcdef", id)).toBe(true)
   })
 
   it("rejects real branch names", () => {

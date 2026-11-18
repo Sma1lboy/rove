@@ -5,7 +5,7 @@
  * user opens from the Archived fold must stay open, though.
  */
 
-import { expect, test } from "bun:test"
+import { afterEach, expect, test } from "bun:test"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -15,7 +15,7 @@ import { createStateCell } from "../../src/lib/external-store"
 import { useWorkspaceSelection } from "../../src/tui-react/workspace/use-workspace-selection"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent } from "./harness"
 
 function task(id: string, over: Partial<Task> = {}): Task {
   return {
@@ -33,6 +33,11 @@ function task(id: string, over: Partial<Task> = {}): Task {
 }
 
 const KV = { store: {}, set: () => {} }
+const priorHome = process.env.ROVE_HOME_DIR
+afterEach(() => {
+  if (priorHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = priorHome
+})
 
 test("archiving the open task leaves it; opening an archived one keeps it", async () => {
   process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-archive-select-"))
@@ -58,14 +63,14 @@ test("archiving the open task leaves it; opening an archived one keeps it", asyn
     return null
   }
   await renderComponent(<Probe />, { width: 40, height: 6 })
-  await settle()
+  await act(async () => {})
   expect(selectedId).toBe("alpha")
 
-  act(() => setTasks([task("alpha", { archived: true }), task("bravo", { updatedAt: "2026-08-02T00:00:00.000Z" })]))
-  await settle()
+  await act(async () =>
+    setTasks([task("alpha", { archived: true }), task("bravo", { updatedAt: "2026-08-02T00:00:00.000Z" })]),
+  )
   expect(selectedId).toBe("bravo")
 
-  act(() => selectTask("alpha"))
-  await settle()
+  await act(async () => selectTask("alpha"))
   expect(selectedId).toBe("alpha")
 })

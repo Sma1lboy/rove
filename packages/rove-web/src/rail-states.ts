@@ -51,9 +51,9 @@ export function stateOf(task: TaskRow): RailState {
   return task.pr?.lifecycle === "open" || task.status === "done" ? "ready" : "idle"
 }
 
-/** The project a top-level row of the by-state list names, since it has no project header; a main row is the project's own name. */
+/** The project a top-level row of the by-state list names, since it has no project header. */
 export const rowRepo = (task: TaskRow | undefined): string | undefined =>
-  task && task.kind !== "main" && !isNoProject(task) ? repoLabel(task.repo) : undefined
+  task && !isNoProject(task) ? repoLabel(task.repo) : undefined
 
 /** `tasks` split into one group per non-empty state, each task with its whole top-level block (see the file head). */
 function stateGroups(tasks: readonly TaskRow[], input: RailInput): ProjectGroup[] {
@@ -108,7 +108,7 @@ export function railStateRows(input: RailInput): { rows: NavRow[]; groups: Proje
   return { rows: withStateCounts(rows), groups: [] }
 }
 
-/** Each state header's count = the task rows listed under it in `rows`; call after rows are dropped (idle mains), before a fold hides any. */
+/** Each state header's count = the task rows listed under it in `rows`; call before a fold hides any. */
 export function withStateCounts(rows: readonly NavRow[]): NavRow[] {
   const counts = new Map<string, number>()
   let head = ""

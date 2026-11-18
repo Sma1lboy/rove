@@ -21,7 +21,7 @@ import {
 } from "./panel-model.ts"
 import { loadPanels, remember } from "./panel-storage.ts"
 import { createStore, useStore } from "./store.ts"
-import { type Preview, zen } from "./ui.ts"
+import { type Preview, newSession, page, zen } from "./ui.ts"
 
 const KEY = "rove.web.panels"
 // What the panel kept before it had tabs: the view per task and the Browser's address per task.
@@ -49,16 +49,21 @@ export function useTaskPanel(taskId: string): TaskPanel {
 
 /**
  * Whether the panel is on screen for this task (null = no local task, e.g. a remote one). Each task's
- * panel is its own: it shows while that task has a column, whatever any other task opened or closed.
+ * panel is its own: it shows while that task has a column, whatever any other task opened or closed,
+ * and only beside the task itself, never beside the composer or a page.
  */
 export function usePanelShown(taskId: string | null): boolean {
   const panel = useTaskPanel(taskId ?? "")
-  return useStore(panelOpen) && (taskId === null || panel.columns.length > 0)
+  const open = useStore(panelOpen)
+  const elsewhere = useStore(newSession) !== null
+  const onPage = useStore(page) !== null
+  return open && !elsewhere && !onPage && (taskId === null || panel.columns.length > 0)
 }
 
 /** `usePanelShown` outside a component (what the page reports to the daemon). */
 export function panelShown(taskId: string | null): boolean {
-  return panelOpen.get() && (taskId === null || (panels.get()[taskId] ?? FRESH).columns.length > 0)
+  if (!panelOpen.get() || newSession.get() !== null || page.get() !== null) return false
+  return taskId === null || (panels.get()[taskId] ?? FRESH).columns.length > 0
 }
 
 /** Runs `fn` whenever any task's columns change. */

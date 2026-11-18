@@ -61,10 +61,8 @@ describe("Escape that reaches the window", () => {
     expect(escapeGoesToTerminal(ESC, "loose", SHOWN)).toBe(true)
   })
 
-  test("stays with whoever owns focus", () => {
-    for (const owner of ["terminal", "field", "pane"] as const) {
-      expect(escapeGoesToTerminal(ESC, owner, SHOWN)).toBe(false)
-    }
+  test.each(["terminal", "field", "pane"] as const)("stays with whoever owns focus: %s", (owner) => {
+    expect(escapeGoesToTerminal(ESC, owner, SHOWN)).toBe(false)
   })
 
   test("stays with an open dialog, menu or page", () => {
@@ -79,10 +77,14 @@ describe("Escape that reaches the window", () => {
     expect(escapeGoesToTerminal(ESC, "none", { overlay: false, terminal: false })).toBe(false)
   })
 
-  test("is the bare key only, and not one an IME is composing with", () => {
-    for (const mod of ["ctrlKey", "metaKey", "altKey", "shiftKey", "isComposing"] as const) {
+  test.each(["ctrlKey", "metaKey", "altKey", "shiftKey", "isComposing"] as const)(
+    "is the bare key only, and not one an IME is composing with: %s",
+    (mod) => {
       expect(escapeGoesToTerminal({ ...ESC, [mod]: true }, "none", SHOWN)).toBe(false)
-    }
+    },
+  )
+
+  test("is Escape only", () => {
     expect(escapeGoesToTerminal({ ...ESC, key: "q" }, "none", SHOWN)).toBe(false)
   })
 })

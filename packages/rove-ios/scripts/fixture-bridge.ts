@@ -49,7 +49,7 @@ export function answer(op: string, args: Obj = {}, now = Date.now()): Json {
   }
   const result = resolve(entry, now)
   return op === "tasks.subscribe" || op === "tasks.list"
-    ? { ...(result as Obj), tasks: [...((result as Obj).tasks as Json[]), failingChecksRow(now)] }
+    ? { ...(result as Obj), tasks: [...((result as Obj).tasks as Json[]), failingChecksRow(now), laterRow(now)] }
     : result
 }
 
@@ -62,6 +62,20 @@ function failingChecksRow(now: number): Obj {
     pr, report: null, title: "Compress hero images", branch: "chore/hero-images", group: "other", rank: 9, order: 9,
     activity: null, engine: { id: "claude", name: "Claude" }, changes: { added: 3, deleted: 3, ahead: 1, behind: 0 },
     createdAt: at, updatedAt: at,
+  }
+}
+
+/** Held for a later start, with two PRs its session opened elsewhere. */
+function laterRow(now: number): Obj {
+  const at = resolve({ $ago_min: 50 }, now)
+  const pr = (number: number, checkState: string, title: string) => ({
+    number, title, lifecycle: "open", checkState, url: `https://example.test/docs/pull/${number}`,
+  })
+  return {
+    id: "T-LATER", kind: "task", status: "todo", repo: "/work/marketing-site", deleting: false, pinned: false,
+    pr: null, report: null, title: "Refresh pricing copy", branch: "copy/pricing", group: "idle", rank: 10, order: 10,
+    activity: null, engine: { id: "claude", name: "Claude" }, startsAt: resolve({ $in_min: 90 }, now),
+    sessionPrs: [pr(31, "passing", "Pricing table"), pr(32, "pending", "FAQ wording")], createdAt: at, updatedAt: at,
   }
 }
 

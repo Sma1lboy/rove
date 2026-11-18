@@ -3,21 +3,31 @@ import { startTyping } from "../src/typing.ts"
 
 const TIMINGS = { keepaliveMs: 10, warmupMs: 100, maxMs: 1_000 }
 
+/** A virtual clock: each sleep advances it, so no test waits on real time. */
+function clock() {
+  const t = { now: 0 }
+  const sleep = async (ms: number) => {
+    t.now += ms
+  }
+  return { t, sleep, now: () => t.now }
+}
+
 function harness(running: () => boolean) {
   const sent: boolean[] = []
+  const { t, sleep, now } = clock()
   const handle = startTyping(
     {
       send: async (on) => {
         sent.push(on)
       },
       isRunning: async () => running(),
-      sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
-      now: Date.now,
+      sleep,
+      now,
       log: () => {},
     },
     TIMINGS,
   )
-  return { sent, handle }
+  return { sent, handle, t }
 }
 
 describe("startTyping", () => {
@@ -30,10 +40,9 @@ describe("startTyping", () => {
   })
 
   it("stops at the ceiling for a turn that never ends", async () => {
-    const started = Date.now()
-    const { sent, handle } = harness(() => true)
+    const { sent, handle, t } = harness(() => true)
     await handle.done
-    expect(Date.now() - started).toBeGreaterThanOrEqual(TIMINGS.maxMs)
+    expect(t.now).toBeGreaterThanOrEqual(TIMINGS.maxMs)
     expect(sent.at(-1)).toBe(false)
   })
 
@@ -41,12 +50,11 @@ describe("startTyping", () => {
     const logs: string[] = []
     const handle = startTyping(
       {
-        send: async (on) => {
-          if (on) throw new Error("ret=-1")
+        send: async () => {
+          throw new Error("ret=-1")
         },
         isRunning: async () => false,
-        sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
-        now: Date.now,
+        ...clock(),
         log: (m) => logs.push(m),
       },
       TIMINGS,

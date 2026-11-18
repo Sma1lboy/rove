@@ -73,7 +73,7 @@ async function digest(ctx: VerbContext): Promise<unknown> {
 
   const tasks: SerializedTask[] = []
   for (const task of allTasks) {
-    // Only board CARDS count; `main` seats and `dir` entries would add a constant.
+    // Only board CARDS count; `dir` entries would add a constant.
     if ((task.kind ?? "task") !== "task") continue
     if ((epochOf(task.updatedAt) ?? 0) < sinceMs) continue
     if (filter.matches(task.repo)) tasks.push(task)

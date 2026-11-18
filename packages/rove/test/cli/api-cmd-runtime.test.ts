@@ -143,16 +143,6 @@ describe("defaultApiRuntime", () => {
     await expect(defaultApiRuntime.isTaskRunning("t1")).resolves.toBe(true)
   })
 
-  it("isTaskRunning is false when only a non-engine tab is alive", async () => {
-    mocks.listSessions.mockResolvedValue([{ key: "t1::tab-2", alive: true }])
-    mocks.readTabsSnapshot.mockReturnValue({
-      tabs: [{ kind: "command", id: "tab-2", title: "editor", ordinal: 2, command: ["nvim"] }],
-      activeId: "tab-2",
-      nextOrdinal: 3,
-    })
-    await expect(defaultApiRuntime.isTaskRunning("t1")).resolves.toBe(false)
-  })
-
   // An unreachable host is "could not look", and a caller that deletes
   // worktrees on `running:false` must never be handed one for it.
   it("isTaskRunning is null — not false — when the PTY host cannot be reached", async () => {

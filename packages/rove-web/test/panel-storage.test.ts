@@ -52,8 +52,10 @@ describe("what is stored", () => {
   })
 
   test("only the newest 50 tasks are kept", () => {
-    let all: Record<string, TaskPanel> = {}
-    for (let n = 0; n < REMEMBERED_TASKS + 5; n++) all = remember(all, `T${n}`, newPanel())
+    const all = Array.from({ length: REMEMBERED_TASKS + 5 }, (_, n) => `T${n}`).reduce<Record<string, TaskPanel>>(
+      (kept, id) => remember(kept, id, newPanel()),
+      {},
+    )
     expect(Object.keys(all)).toHaveLength(REMEMBERED_TASKS)
     expect(all.T0).toBeUndefined()
     expect(remember(all, "T10", newPanel()) && Object.keys(remember(all, "T10", newPanel())).at(-1)).toBe("T10")
@@ -139,19 +141,17 @@ describe("migrating the keys before tabs (panelTab, panelUrl)", () => {
     url: JSON.stringify(url),
   })
 
-  test("a task's last address becomes a Browser column", () => {
+  test.each([
+    ["T1", "https://a.test/"],
+    ["T2", "https://b.test/"],
+  ])("a task's last address becomes a Browser column: %s", (id, url) => {
     const loaded = loadPanels(
       null,
       legacy({ T1: "browser", T2: "files" }, { T1: "https://a.test/", T2: "https://b.test/" }),
     )
-    for (const [id, url] of [
-      ["T1", "https://a.test/"],
-      ["T2", "https://b.test/"],
-    ] as const) {
-      const panel = loaded[id] as TaskPanel
-      expect(kinds(panel)).toEqual(["files", "browser"])
-      expect(browserUrl((col(panel, "browser") as BrowserColumn).tabs[0] as never)).toBe(url)
-    }
+    const panel = loaded[id] as TaskPanel
+    expect(kinds(panel)).toEqual(["files", "browser"])
+    expect(browserUrl((col(panel, "browser") as BrowserColumn).tabs[0] as never)).toBe(url)
   })
 
   test("a task that was on Diff comes back on Files: its file was never kept", () => {

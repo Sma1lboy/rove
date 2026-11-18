@@ -319,14 +319,14 @@ function deleteRecoveryError(err: unknown, taskId: string): unknown {
  * is often an agent inside the worktree it names. `land` refuses the same
  * two edges (`removeLandedWorktree`).
  */
-export async function removeTaskWorktree(ctx: VerbContext): Promise<unknown> {
-  const daemon = daemonOf(ctx)
-  const taskId = ctx.args.require("task-id")
-  const force = ctx.args.bool("force") ?? false
-  const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+/**
+ * The worktree `remove-worktree` may take for this task, or the refusal it gives:
+ * never the project's own checkout, never the directory the caller runs in.
+ */
+export function removableWorktree(ctx: VerbContext, task: SerializedTask): string {
   const worktreePath = (task.worktreePath ?? "").trim()
   if (!worktreePath) {
-    throw new ApiError(`task ${taskId} has no worktree on disk`, "NO_WORKTREE", {
+    throw new ApiError(`task ${task.id} has no worktree on disk`, "NO_WORKTREE", {
       hint: "nothing to remove — `ensure-worktree` materialises one",
     })
   }
@@ -343,12 +343,22 @@ export async function removeTaskWorktree(ctx: VerbContext): Promise<unknown> {
       "CALLER_WORKTREE",
     )
   }
-  // `residue` = git deregistered the worktree but couldn't delete the dir: a
-  // reported outcome, not an error, and the only place that path is named.
-  const res = await daemon.request<{ removed: boolean; residue?: { path: string; reason: string } }>(
-    "worktree.remove",
-    { path: worktreePath, force },
-  )
+  return worktreePath
+}
+
+export interface WorktreeRemoval {
+  readonly removed: boolean
+  /** git deregistered the worktree but couldn't delete the dir: a reported outcome, not an error. */
+  readonly residue?: { readonly path: string; readonly reason: string }
+}
+
+export async function removeTaskWorktree(ctx: VerbContext): Promise<unknown> {
+  const daemon = daemonOf(ctx)
+  const taskId = ctx.args.require("task-id")
+  const force = ctx.args.bool("force") ?? false
+  const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+  const worktreePath = removableWorktree(ctx, task)
+  const res = await daemon.request<WorktreeRemoval>("worktree.remove", { path: worktreePath, force })
   return { ok: true, taskId, worktreePath, branch: task.branch, ...res }
 }
 

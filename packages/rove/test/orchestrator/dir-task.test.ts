@@ -4,7 +4,7 @@
  * Why these matter: a dir task pins the USER'S OWN directory as its
  * worktreePath. Every guarantee here is a data-loss guard — deletion must
  * only ever drop the index entry (never `git worktree remove` the user's
- * directory), no project/main task may be minted as a side effect, and
+ * directory), no other row may be minted as a side effect, and
  * every open is a NEW task (parallel sessions in one directory) with a
  * randomly-suffixed title so the rows stay distinguishable.
  */
@@ -52,8 +52,7 @@ describe("openDirectoryTask", () => {
     expect(task.kind).toBe("dir")
     expect(task.worktreePath).toBe(task.repo)
     expect(task.branch).toBe("")
-    // No project association: no main task minted for the directory.
-    expect(orch.listTasks().filter((t) => t.kind === "main")).toHaveLength(0)
+    expect(orch.listTasks()).toHaveLength(1)
   })
 
   it("opening the same directory twice creates two distinct tasks with distinct titles", async () => {

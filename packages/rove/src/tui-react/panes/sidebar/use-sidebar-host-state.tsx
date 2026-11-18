@@ -29,9 +29,9 @@ export interface SidebarHostState {
   /**
    * `shift+m` / the row menu's Reorder: toggle move mode on the cursor row.
    * j/k then move by its LEVEL: a tab within its task, a task within its repo
-   * group, a `main` row its whole project. Focuses the sidebar (a menu click
-   * may come from the workspace) but selects nothing: selecting would open the
-   * row's session, and a tab-less `main` would spawn one just to be moved.
+   * group. Focuses the sidebar (a menu click may come from the workspace) but
+   * selects nothing: selecting would open the row's session, and a tab-less
+   * row would spawn one just to be moved.
    */
   readonly onLocalMergeRequest: (id: string) => void
 }

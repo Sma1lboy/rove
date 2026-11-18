@@ -88,9 +88,7 @@ describe("add --effort", () => {
     )
     const creates = client.requests.filter((r) => r.name === "task.create")
     expect(creates).toHaveLength(2)
-    for (const create of creates) {
-      expect((create.payload as { effort?: string }).effort).toBe("high")
-    }
+    expect(creates.map((create) => (create.payload as { effort?: string }).effort)).toEqual(["high", "high"])
   })
 
   // `--agents` names a different engine per sibling, so one shared level has

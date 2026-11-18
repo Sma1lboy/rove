@@ -17,7 +17,7 @@ import {
 } from "../../../rove-daemon/src/daemon/handlers.ts"
 
 const WORKER = { id: "w1", title: "fix login", branch: "auth/login-fix", dispatcher: { taskId: "m1", tabId: "tab-2" } }
-const SEAT = { id: "m1", kind: "main", worktreePath: "/repo", vendor: "claude" }
+const SEAT = { id: "m1", kind: "dir", worktreePath: "/repo", vendor: "claude" }
 
 async function harness(seatTabKind?: string) {
   const dir = mkdtempSync(join(tmpdir(), "rove-report-notice-"))

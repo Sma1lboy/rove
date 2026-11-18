@@ -1,6 +1,6 @@
 /**
- * Row menu "Archive" / "Unarchive". Archive only hides the row and its
- * children, so it needs no confirm, except when the daemon refuses with
+ * Row menu "Archive" / "Unarchive". Archive hides the row and its children
+ * and ends their idle sessions, so it needs no confirm, except when the daemon refuses with
  * TASK_BUSY (an engine in the subtree is working or waiting on you): then the
  * user is asked once and "Archive anyway" retries with `force`. React-free for
  * unit tests, like `sync-base-action.ts`.
@@ -10,7 +10,7 @@ import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import type { Task } from "../../types/task"
 
 const BUSY_RE = /\bTASK_BUSY: /
-const REFUSAL_RE = /\b(?:TASK_BUSY|MAIN_TASK): ([\s\S]*)$/
+const REFUSAL_RE = /\bTASK_BUSY: ([\s\S]*)$/
 
 export interface ArchiveTaskDeps {
   readonly orchestrator: Pick<RemoteOrchestrator, "archiveTask">

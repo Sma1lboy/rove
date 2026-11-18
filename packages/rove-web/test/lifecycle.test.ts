@@ -1,5 +1,6 @@
 import { afterEach, expect, mock, spyOn, test } from "bun:test"
 import { BridgeClient } from "../src/bridge.ts"
+import * as i18n from "../src/i18n/index.ts"
 import { AppModel } from "../src/model.ts"
 import { createStore } from "../src/store.ts"
 
@@ -50,7 +51,10 @@ mock.module("@xterm/addon-fit", () => ({ FitAddon: Addon }))
 mock.module("@xterm/addon-unicode11", () => ({ Unicode11Addon: Addon }))
 mock.module("@xterm/addon-web-links", () => ({ WebLinksAddon: Addon }))
 mock.module("@xterm/addon-webgl", () => ({ WebglAddon: Addon }))
+// Bun's module mocks outlive this file, so keep the real catalogs for files that load i18n after it.
+const realI18n = { ...i18n }
 mock.module("../src/i18n/index.ts", () => ({
+  ...realI18n,
   t: (key: string) => key,
   tFrom: (_catalogs: unknown, key: string) => key,
   useLocale() {},
@@ -349,21 +353,20 @@ test("switching tabs releases an attachment that succeeds after unmount", async 
   expect(t.detached()).toEqual(["task::A", "task::B"])
 })
 
-for (const order of [
+test.each([
   [0, 1],
   [1, 0],
-]) {
-  test(`late attachment leaves a newer owner of the same stream attached: ${order}`, async () => {
-    const t = terminals()
-    const first = t.mount("A")
-    first()
-    const second = t.mount("A")
-    for (const index of order) await t.resolve(index)
-    expect(t.detached()).toEqual([])
-    second()
-    expect(t.detached()).toEqual(["task::A"])
-  })
-}
+])("late attachment leaves a newer owner of the same stream attached: %i then %i", async (one, two) => {
+  const t = terminals()
+  const first = t.mount("A")
+  first()
+  const second = t.mount("A")
+  await t.resolve(one)
+  await t.resolve(two)
+  expect(t.detached()).toEqual([])
+  second()
+  expect(t.detached()).toEqual(["task::A"])
+})
 
 test("all views can close before either same-stream attachment replies", async () => {
   const t = terminals()

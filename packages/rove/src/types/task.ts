@@ -87,7 +87,7 @@ export interface TaskRoutineLink {
  * - `repo` is the absolute path of the source repo's working tree, not the
  *   per-task worktree (`worktreePath`).
  * - `worktreePath` is absolute; may not exist yet while in `backlog`. Equals
- *   `repo` for `kind: "main"`.
+ *   `repo` for `kind: "dir"`.
  * - `createdAt` / `updatedAt` are ISO-8601 UTC.
  */
 export interface Task {
@@ -97,14 +97,15 @@ export interface Task {
   readonly branch: string
   readonly worktreePath: string
   /**
-   * `"main"`: a saved repo's root checkout (`worktreePath === repo`,
-   * `branch === ""`). `"task"`: a per-task worktree under
-   * `~/.rove/worktrees/<repo-key>/<slug>/` (older records: `.rove/worktrees`,
-   * `.claude/worktrees`). `"dir"` (`rove .`): an existing directory, same
-   * `worktreePath`/`branch` shape as main, no project; deletion drops only the
-   * index entry, never the directory. Absent normalizes to `"task"` on load.
+   * `"task"`: a per-task worktree under `~/.rove/worktrees/<repo-key>/<slug>/`
+   * (older records: `.rove/worktrees`, `.claude/worktrees`). `"dir"`: a session
+   * in an existing directory (`worktreePath === repo`, `branch === ""`), a
+   * project's own checkout included; deletion drops only the index entry, never
+   * the directory. Absent normalizes to `"task"` on load.
    */
-  readonly kind?: "main" | "task" | "dir"
+  readonly kind?: "task" | "dir"
+  /** Loaded from a stored `main` row; the daemon drops it at boot when it holds no tab, else clears this. */
+  readonly fromProjectRow?: boolean
   /**
    * Scratch shell: a `kind: "dir"` task with an unsettled cwd, shown in the
    * sidebar's Scratch section. Its shell exiting deletes the row. Cleared on
@@ -198,10 +199,10 @@ export interface Task {
   readonly parentTaskId?: TaskId
   /**
    * Set on a child running in another task's directory (that task = the
-   * workspace owner, never itself a sharer). A shared child of a `main`/`dir`
+   * workspace owner, never itself a sharer). A shared child of a `dir`
    * parent is `kind: "dir"`; of a managed `task` parent it is `kind: "task"`
    * carrying the owner's `worktreePath` + `branch`. It never owns the
-   * directory: not promoted to main, not a project of its own, and deleting it
+   * directory: not a project of its own, and deleting it
    * never removes the directory.
    */
   readonly sharesWorkspaceOf?: TaskId

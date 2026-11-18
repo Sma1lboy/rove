@@ -114,7 +114,10 @@ describe("queryCellPixelSize", () => {
   it("assembles a reply split across chunks", async () => {
     const { stdin, listeners } = fakeStdin(null)
     const pending = queryCellPixelSize({ stdin, stdout: fakeStdout(), timeoutMs: 1000 })
-    for (const part of ["\x1b[6;", "34;", "16t"]) for (const l of [...listeners]) l(Buffer.from(part, "latin1"))
+    const [listener] = listeners
+    listener?.(Buffer.from("\x1b[6;", "latin1"))
+    listener?.(Buffer.from("34;", "latin1"))
+    listener?.(Buffer.from("16t", "latin1"))
     expect(await pending).toEqual({ width: 16, height: 34 })
   })
 

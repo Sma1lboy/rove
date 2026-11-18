@@ -3,13 +3,13 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 124 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 132 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
 Use `rove api` to manage local coding tasks. Managed Tasks created by API
-automation own a git Worktree and branch plus Hosted PTY engine tabs; project
-main and directory Tasks reuse existing directories. API automation works
+automation own a git Worktree and branch plus Hosted PTY engine tabs;
+directory Tasks reuse existing directories. API automation works
 without an open TUI; prompted `send` and `add` ensure a target engine tab.
 
 ## Inside a Rove session, Rove verbs come first
@@ -79,7 +79,7 @@ user asks for Rove by name.
 
 | Term | What it is | Isolation it gives | Users also say |
 |---|---|---|---|
-| **Task** | one tracked workspace record — managed worktree, saved-project main, or existing directory | managed Tasks own files + branch; main/directory Tasks reuse files | "a task", "a new one", "a separate attempt" |
+| **Task** | one tracked workspace record — managed worktree or existing directory | managed Tasks own files + branch; directory Tasks reuse files | "a task", "a new one", "a separate attempt" |
 | **Worktree** | the isolated git working tree a managed Task owns (`.task.worktreePath`) — a filesystem address, never shown in the UI | — | "workspace", "this checkout", "this branch", "here" |
 | **Terminal Tab** | one engine, shell, command, or content surface inside a Task | an engine tab has its own conversation, but every tab uses the SAME Task files | "tab", "chattab", "another chat", "a second agent on this" |
 | **Split** | the tree that divides ONE Terminal Tab into several regions (the `pane-open` verb's unit; a leaf is not called a pane) | none — same session's screen, same files | "split it", "side by side", "put the logs next to it" |
@@ -148,6 +148,7 @@ the first row that fits:
 | "try it N ways", "compare approaches" | N new tasks | `rove api add --repo "$PWD" --count N --prompt "…"` |
 | "branch off this and keep my uncommitted changes", "fork this task" | a sibling task cloned from THIS worktree, edits and untracked files included | `rove api add --fork "$ROVE_TASK_ID" --prompt "…"` (refused with `FORK_UNSUPPORTED` where the volume cannot clone; then plain `add --repo` starts from the last commit) |
 | "split", "side by side", "keep an eye on X while…" | a new region in the CURRENT tab | `rove api pane-open --command "…"` |
+| a request for ANOTHER repo on this machine: "ask the X project", "file this with X" | a new session in that repo's own checkout (no worktree) | `rove api send --repo <path> --prompt "…"` |
 | names a tab: "tell the agent in tab 3" | that exact tab | `rove api send --task-id <id> --tab tab-3 --prompt "…"` |
 | a LOCATION word: "in this workspace/worktree/checkout", "on this branch", "here", "same task" | a shared CHILD of THIS task (same directory) | `rove api add --no-worktree --prompt "…"` |
 | names an ENGINE for the same files: "let codex take over here", "try this one with claude instead" | a shared child of THIS task on that engine | `rove api add --no-worktree --command codex --prompt "…"` |
@@ -287,7 +288,7 @@ Find your section by what you were ASKED, not by Rove's noun for it:
 | which engines exist, report a Rove problem or idea | discover / feedback |
 | an error code came back, `nextCommandArgs` | Error codes |
 
-When the user says anything in Rove itself is awkward, broken or missing, offer to file it right away: draft a short title and body, show it, and on their OK run `rove feedback --kind bug|idea|question --title … --body-file -` (body on stdin), then share the URL. If it prints a prefilled link instead, hand that over and say to run `gh auth login`. Only for Rove; another project's bug is a `send` to its main task.
+When the user says anything in Rove itself is awkward, broken or missing, offer to file it right away: draft a short title and body, show it, and on their OK run `rove feedback --kind bug|idea|question --title … --body-file -` (body on stdin), then share the URL. If it prints a prefilled link instead, hand that over and say to run `gh auth login`. Only for Rove; another project's bug is a `send` to that project's row (`list`, `kind: "main"`), which starts a new session there, or to the task the user named.
 
 Reach for `schema` when the binary and that file disagree.
 
@@ -351,6 +352,7 @@ rove api ports --task-id <id>
 # through review feedback. `unavailable` = gh could not be asked, not "none".
 rove api review-comments --task-id <id>
 rove api send --task-id <id> --tab tab-3 --prompt "<turn>"  # exact alive tab
+rove api send --repo <path> --prompt "<turn>"                # another project: a new session in its checkout
 rove api add --parent <id> --no-worktree --prompt "<turn>"  # shared child; reply taskId != <id> if a child was made
 # Same directory, DIFFERENT agent (the TUI's ctrl+e pick); the parent's engine stays.
 rove api add --parent <id> --no-worktree --command codex --prompt "<turn>"
@@ -464,6 +466,82 @@ rove api panel-show --view browser --url http://localhost:5173
   or switching task; every other page remembers the view for later. Open it
   when it helps what the human is doing, not for every file you touch.
 
+### A label on a task's row
+
+Asked to show something on a task's row in the task list ("label this task
+with what it is doing"), write a row token. `--keep` makes it stay, daemon
+restarts included, until you replace or clear it:
+
+```bash
+rove api row-token --task-id <id> --key doing --text "refactoring login" --keep
+rove api row-token --task-id <id> --key doing --clear
+```
+
+24 characters, two `--key` slots per task. Without `--keep` the label fades
+after `--ttl` seconds (default 60): use that for state that is only true while
+you are running.
+
+### Asked for a new piece of UI? Write a mod
+
+"Add a panel that shows X", "give me a button that does Y": that is a mod, a
+small program of yours that Rove draws natively in the TUI and the web at
+once. No daemon restart, no Rove source change. Put it in its own directory
+(`~/.config/rove/mods/<name>/` unless the user names one), two files:
+
+```toml
+# rove-plugin.toml
+id = "local.todo-board"
+name = "Todo board"
+version = "0.1.0"
+min_rove_version = "0.9.0"
+platforms = ["linux", "macos", "windows"]
+
+[mod]
+command = ["node", "mod.mjs"]
+```
+
+```js
+// mod.mjs: JSON lines on stdio. stdout is the protocol; log to stderr.
+import { execFileSync } from "node:child_process"
+import { createInterface } from "node:readline"
+
+const rove = (...args) => JSON.parse(execFileSync(process.env.ROVE_BIN_PATH, ["api", ...args], { encoding: "utf8" }))
+function draw() {
+  const { tasks } = rove("list")
+  const tree = { type: "box", gap: 1, children: [
+    { type: "text", text: `${tasks.length} tasks`, bold: true },
+    ...tasks.slice(0, 30).map((t) => ({ type: "text", text: t.title, tone: "muted" })),
+    { type: "button", key: "refresh", label: "Refresh" },
+  ] }
+  console.log(JSON.stringify({ type: "pane", id: "main", title: "Todo board", tree }))
+}
+createInterface({ input: process.stdin }).on("line", (line) => {
+  const msg = JSON.parse(line) // {"type":"press","pane","key"} | {"type":"submit",…,"value"} | {"type":"event","event"}
+  if (msg.type === "press" && msg.key === "refresh") draw()
+})
+console.log(JSON.stringify({ type: "subscribe", events: ["task.created", "task.changed"] }))
+draw()
+```
+
+```bash
+rove plugin link ~/.config/rove/mods/todo-board   # once; it appears under Mods in the rail within a second
+rove plugin log local.todo-board                  # a refused tree or a crash says why here
+```
+
+- The whole vocabulary: `box` (`direction` row/column, `gap`, `padding` 0-3,
+  `border`, `children`), `text` (`text`, `tone`, `bold`), `button` (`key`,
+  `label` ≤40), `input` (`key`, `placeholder`, `value`). `tone` is `info`,
+  `success`, `warning`, `error` or `muted`. Anything else refuses the whole
+  tree and the last good one stays up. No table or list element: build rows
+  from boxes. If the request needs more than this, say so instead of faking it.
+- Saving the file named in `command` restarts the mod on the new code; so does
+  editing the manifest. Nothing else to run. The mod's state is its process's:
+  keep what must survive a restart in `$ROVE_PLUGIN_STATE_DIR`.
+- A mod draws on the Mods page only. It cannot add to a task row (that is
+  `row-token`, above) or change an existing Rove screen.
+- Any language works; it is only the wire. Details:
+  `docs/PLUGIN-AUTHORING.md` § Mods.
+
 ## Asking the owner (decision gates)
 
 A question only the owner can answer goes through a gate, not a MEMO line or the tail of a long report. Raise it, then stop and wait; the answer is pasted back into your tab as `[ROVE GATE g-N answered] …`.
@@ -486,12 +564,13 @@ A question only the owner can answer goes through a gate, not a MEMO line or the
 | `set-active --task-id ID` / `--none` | Change shared active task |
 | `ensure-worktree --task-id ID` | Materialize the worktree of a task that already exists, without starting an engine. Not how you get a checkout to work in: that is `add --worktree-only` |
 | `worktree-usage [--task-id ID]` | Disk each task's own worktrees take, largest first (archived too); `ignoredBytes` is the gitignored part. Pick what to free with `remove-worktree` |
+| `worktree-reclaim --merged\|--idle-days N [--dry-run]` | Remove every such candidate's worktree at once, keeping tasks and branches; never forced — dirty, busy and multi-repo ones come back under `skipped` |
 | `checkpoint-list --task-id ID` / `checkpoint --task-id ID` | File-only undo points of a task's worktree (`refs/rove/checkpoints/<owner>/<n>`): the daemon takes one when an engine turn completes (skipped if unchanged, newest 100 kept); `checkpoint` takes one now. Tracked + untracked files, minus gitignored; branch/HEAD/index untouched. They belong to the directory's owner: a child sharing its directory (`add --no-worktree`) acts on its owner's, named in `.workspaceTaskId` |
 | `rewind --task-id ID --to N [--force]` | Restore the worktree files to checkpoint N (files only: branch and conversation stay). Checkpoints the current state first and returns it as `undo.n`, so `rewind --to <undo.n>` goes back. `TASK_BUSY` while any engine sharing the directory (owner or child) is running/awaiting unless `--force` |
 | `land --task-id ID [--repo NAME] [--strategy merge\|squash] [--delete-branch] [--remove-worktree=false]` | Merge the task's branch into the base repo's current branch; the Worktree is removed by default (`--remove-worktree=false` keeps it). The branch always stays; dirty/self/base removals are refused, outcome in the result's `worktree` field. A task that spans several repos (`add --repo A --repo B`) lands every repo in picked order, merges nothing if any refuses, stops at the first conflict (earlier repos stay landed; error carries `.repos[]`), and resumes when you run `land` again; Worktrees go only after the last repo lands |
 | `sync --task-id ID [--repo NAME]` | Merge the base branch INTO the task's Worktree (a multi-repo task: each repo against its own base, `.repos[]`) |
 | `delete --task-id ID [--force] [--delete-branch]` | Remove task + Worktree; the git branch stays unless `--delete-branch` (and `--force` never implies it) |
-| `archive --task-id ID [--force]` / `unarchive --task-id ID` | Hide / restore a task and its children in the sidebar and default `list`; nothing is stopped or removed |
+| `archive --task-id ID [--force]` / `unarchive --task-id ID` | Hide / restore a task and its children in the sidebar and default `list`; archiving ends its sessions, files and conversations stay |
 | `discover-adoptable --repo PATH` | Find untracked Worktrees |
 | `adopt --repo PATH --worktree PATH` | Import a Worktree |
 

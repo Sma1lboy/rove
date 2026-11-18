@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process"
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterAll, beforeAll, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
   listUnreadableWorktreesAdapter,
   listWorktreeProjectsAdapter,
@@ -29,7 +29,8 @@ describe("daemon worktree adapter", () => {
   let worktree: string
   let previousHome: string | undefined
 
-  beforeAll(async () => {
+  // Per-test fixture: the removal test deletes the worktree and saves a broken repo.
+  beforeEach(async () => {
     previousHome = process.env.ROVE_HOME_DIR
     // realpath: macOS `os.tmpdir()` is a symlink (`/var` → `/private/var`), and
     // savedRepos stores the repository's RESOLVED primary checkout — so a fixture
@@ -47,8 +48,8 @@ describe("daemon worktree adapter", () => {
     addSavedRepo(repo)
   })
 
-  afterAll(async () => {
-    if (previousHome === undefined) process.env.ROVE_HOME_DIR = undefined
+  afterEach(async () => {
+    if (previousHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
     else process.env.ROVE_HOME_DIR = previousHome
     await rm(root, { recursive: true, force: true })
   })
@@ -71,10 +72,11 @@ describe("daemon worktree adapter", () => {
     // deletes the directory, so there is nothing left to report.
     expect(await removeWorktreeAdapter(worktree, false)).toBeNull()
 
-    // A saved repo whose directory does not exist — the audit must fail on
+    // A saved project that is not a repository — the audit must fail on
     // it. `skipGate` because the admission gate would (correctly) refuse a
     // non-repo path, and this test needs the broken entry to EXIST.
-    addSavedRepo(join(root, "missing"), { skipGate: true })
+    await mkdir(join(root, "not-a-repo"))
+    addSavedRepo(join(root, "not-a-repo"), { skipGate: true })
     await expect(listWorktreeProjectsAdapter(true)).rejects.toThrow()
   })
 })

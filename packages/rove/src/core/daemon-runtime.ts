@@ -18,6 +18,7 @@ import { GH_PR_VIEW_FIELDS, classifyGhFailure, mapGhPrView, nextPrPoll, samePrSt
 import { maybeAutoStart } from "../monitor/status-rules.ts"
 import { type Orchestrator, PLACEHOLDER_TASK_TITLE } from "../orchestrator/core.ts"
 import { SYNC_TIMEOUT_MS, syncWorktreeWithBase } from "../orchestrator/sync-base.ts"
+import { startAttachmentSweep } from "../state/attachment-sweep.ts"
 import { getCustomEngineIds, getPersistedString, getSavedRepos, setPersistedString } from "../state/repos.ts"
 import { loadStateFile } from "../state/store.ts"
 import { stateFileTabsPersistence } from "../state/tabs-persistence.ts"
@@ -62,6 +63,7 @@ function resolveProtocolUpgradeAndLearnPreset(
 export const daemonRuntime: DaemonRuntimeAdapter = {
   currentVersion: CURRENT_VERSION,
   tabsPersistence: stateFileTabsPersistence,
+  startAttachmentSweep,
   // Lazy, like `invokeApi`: a daemon nobody reads `machines` from never loads the machine code.
   startMachineHub(bus) {
     let stop: (() => void) | null = null

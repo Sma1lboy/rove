@@ -72,21 +72,17 @@ describe.skipIf(!nodePty)("Pure TUI unread lamp across a restart (behavior)", ()
    * sees rather than as a stream of escapes with a glyph buried in it.
    */
   async function withTui<T>(run: (screen: () => string[]) => Promise<T>): Promise<T> {
-    if (!nodePty) throw new Error("unreachable: suite is skipped without node-pty")
     const term = new Terminal({ cols: COLS, rows: ROWS, allowProposedApi: true })
     // This child would inherit vitest's markers, and the host-session poll is
     // off under a test RUNNER — it is a real TUI in its own process.
     const { VITEST, NODE_ENV, BUN_TEST, ...tuiEnv } = env.env as Record<string, string>
-    const child = nodePty.spawn("bun", [DIST_ROVE_CLI], { cols: COLS, rows: ROWS, cwd: repo, env: tuiEnv })
+    const child = nodePty!.spawn("bun", [DIST_ROVE_CLI], { cols: COLS, rows: ROWS, cwd: repo, env: tuiEnv })
     lastTuiPid = child.pid
     const data = child.onData((chunk: string) => term.write(chunk))
     try {
-      return await run(() => {
-        const buffer = term.buffer.active
-        const lines: string[] = []
-        for (let y = 0; y < ROWS; y++) lines.push(buffer.getLine(y)?.translateToString(true) ?? "")
-        return lines
-      })
+      return await run(() =>
+        Array.from({ length: ROWS }, (_, y) => term.buffer.active.getLine(y)?.translateToString(true) ?? ""),
+      )
     } finally {
       data.dispose()
       await closeTui(child)

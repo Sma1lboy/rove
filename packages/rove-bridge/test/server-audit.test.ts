@@ -18,14 +18,13 @@ describe("api.invoke", () => {
       log: (line) => lines.push(line),
       invoke: async (verb, params) => {
         invoked.push([verb, params])
-        if (verb === "land") {
-          return {
-            apiVersion: ROVE_API_VERSION,
-            ok: false,
-            error: { code: "LAND_CONFLICT", message: "conflict", hint: "rebase first", files: ["a.ts"] },
-          }
-        }
-        return { apiVersion: ROVE_API_VERSION, ok: true, result: { tasks: [] } }
+        return verb === "land"
+          ? {
+              apiVersion: ROVE_API_VERSION,
+              ok: false,
+              error: { code: "LAND_CONFLICT", message: "conflict", hint: "rebase first", files: ["a.ts"] },
+            }
+          : { apiVersion: ROVE_API_VERSION, ok: true, result: { tasks: [] } }
       },
     })
     const c = await connect(h.url, AUTH)

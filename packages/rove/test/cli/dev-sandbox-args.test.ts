@@ -31,8 +31,6 @@ describe("sandboxChildEnv", () => {
     })
 
     expect(env.ROVE_HOME_DIR).toBe("/tmp/isolated")
-    expect(env.ROVE_HOME_DIR).toBe("/tmp/isolated")
-    expect(env.ROVE_DEV).toBe("1")
     expect(env.ROVE_DEV).toBe("1")
   })
 
@@ -51,12 +49,8 @@ describe("sandboxChildEnv", () => {
     })
 
     expect(env.ROVE_DAEMON_SOCKET_PATH).toBe("/tmp/isolated/.rove/daemon.sock")
-    expect(env.ROVE_DAEMON_SOCKET_PATH).toBe("/tmp/isolated/.rove/daemon.sock")
-    expect(env.ROVE_PTY_SOCKET_PATH).toBe("/tmp/isolated/.rove/pty.sock")
     expect(env.ROVE_PTY_SOCKET_PATH).toBe("/tmp/isolated/.rove/pty.sock")
     expect(env.ROVE_DAEMON_PID_PATH).toBe("/tmp/isolated/.rove/daemon.pid")
-    expect(env.ROVE_DAEMON_PID_PATH).toBe("/tmp/isolated/.rove/daemon.pid")
-    expect(env.ROVE_PTY_PID_PATH).toBe("/tmp/isolated/.rove/pty.pid")
     expect(env.ROVE_PTY_PID_PATH).toBe("/tmp/isolated/.rove/pty.pid")
     expect(env.ROVE_HOME_DIR).toBe("/tmp/isolated")
   })

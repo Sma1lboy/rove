@@ -1,8 +1,6 @@
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { isProcessAlive as daemonIsProcessAlive } from "@sma1lboy/rove-daemon/daemon/lifecycle"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { LockfileError, acquire, isProcessAlive, release } from "../../src/orchestrator/index/lockfile.ts"
 
@@ -41,14 +39,6 @@ describe("isProcessAlive", () => {
     } finally {
       killSpy.mockRestore()
     }
-  })
-
-  // The daemon used to carry its own copy with neither the pid guard nor the
-  // non-ESRCH default (only EPERM counted as alive), so `lifecycle`'s answer
-  // and the lockfile's disagreed on exactly the two cases above. One
-  // implementation now, reached through both historical import paths.
-  it("is the same function the daemon's lifecycle exports", () => {
-    expect(daemonIsProcessAlive).toBe(isProcessAlive)
   })
 })
 
@@ -110,19 +100,10 @@ describe("acquire / release", () => {
     await release(lock, thief)
     await expect(readFile(lock, "utf8")).rejects.toMatchObject({ code: "ENOENT" })
   })
-})
-
-describe("acquire / release — edge branches", () => {
-  const dir = mkdtempSync(join(tmpdir(), "rove-lock-edge-"))
-  const lockPath = join(dir, "edge.lock")
-
-  afterEach(async () => {
-    await rm(lockPath, { force: true })
-  })
 
   it("steals a lockfile whose content isn't a pid at all", async () => {
-    writeFileSync(lockPath, "not-a-pid")
-    const token = await acquire(lockPath)
-    expect(readFileSync(lockPath, "utf8")).toBe(token)
+    await writeFile(lock, "not-a-pid")
+    const token = await acquire(lock)
+    expect(await readFile(lock, "utf8")).toBe(token)
   })
 })

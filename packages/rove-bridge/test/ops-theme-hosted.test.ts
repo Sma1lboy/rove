@@ -37,13 +37,14 @@ describe("theme.install", () => {
     expect(h.written).toEqual(["nord"])
   })
 
-  test("a name outside the catalogue is refused before anything is fetched", async () => {
-    const h = hosted({ serve: () => claudeJson })
-    for (const name of ["../../etc/x", "https://evil.example/t.json", "claude"]) {
+  test.each(["../../etc/x", "https://evil.example/t.json", "claude"])(
+    "a name outside the catalogue (%p) is refused before anything is fetched",
+    async (name) => {
+      const h = hosted({ serve: () => claudeJson })
       await expect(call(h.ops, "theme.install", { name })).rejects.toMatchObject({ code: "BAD_ARGS" })
-    }
-    expect(h.fetched).toEqual([])
-  })
+      expect(h.fetched).toEqual([])
+    },
+  )
 
   test("a file that is not a theme is not written", async () => {
     const h = hosted({ serve: () => "<html>not found</html>" })

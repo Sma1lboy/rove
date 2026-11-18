@@ -5,7 +5,6 @@
  */
 
 import { en as helpEn, zh as helpZh } from "@sma1lboy/rove/src/tui/i18n/messages/help.ts"
-import { en as hintsEn, zh as hintsZh } from "@sma1lboy/rove/src/tui/i18n/messages/hints.ts"
 import { en as keysEn, zh as keysZh } from "@sma1lboy/rove/src/tui/i18n/messages/keys.ts"
 import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
 import { en as terminalEn, zh as terminalZh } from "@sma1lboy/rove/src/tui/i18n/messages/terminal.ts"
@@ -32,10 +31,6 @@ function fill(text: string, params?: Record<string, string | number>): string {
 /** `help.*` (palette, F1, command-layer headers). */
 export const helpText = (key: string, params?: Record<string, string | number>): string =>
   fill(lookup(pick(helpEn, helpZh), key) ?? lookup(helpEn, key) ?? key, params)
-
-/** `hints.*` (footer key hints). */
-export const hintText = (key: string, params?: Record<string, string | number>): string =>
-  fill(lookup(pick(hintsEn, hintsZh), key) ?? lookup(hintsEn, key) ?? key, params)
 
 /** `terminal.*` (scrollback overlay, reset confirm). */
 export const terminalText = (key: string, params?: Record<string, string | number>): string =>

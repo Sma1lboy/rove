@@ -30,7 +30,8 @@ function task(id: string, over: Partial<Task> = {}): Task {
   }
 }
 
-const main = (id: string, repo: string) => task(id, { kind: "main", repo, branch: "", worktreePath: repo })
+/** A session in the project's own checkout. */
+const checkout = (id: string, repo: string) => task(id, { kind: "dir", repo, branch: "", worktreePath: repo })
 
 /** No entry for a task means "never mounted since restart" — the tri-state the
  *  hide rule turns on, and the resting state of a fresh TUI. */
@@ -54,18 +55,23 @@ describe("grouping", () => {
     expect(result[0]?.tasks.map((t) => t.id)).toEqual(["a1", "a2"])
   })
 
-  test("the main checkout leads its own project", () => {
-    const result = groups([task("b", { repo: "/repos/rove" }), main("m", "/repos/rove")])
-    expect(result[0]?.tasks.map((t) => t.id)).toEqual(["m", "b"])
+  test.each(["default", "recent", "attention", "name"])("pinned tasks lead their project in %s order", (sortMode) => {
+    const first = task("Apple")
+    const pinned = task("Zebra", { pinned: true, createdAt: "2025-01-01T00:00:00Z" })
+    expect(groups([first, pinned], NO_TABS, { sortMode })[0]?.tasks).toEqual([pinned, first])
   })
 
-  test("projects follow their mains' stored order, main-less ones after", () => {
-    const result = groups([
-      task("loose", { repo: "/repos/loose" }),
-      main("z", "/repos/zebra"),
-      main("a", "/repos/apple"),
-    ])
-    expect(result.map((g) => g.key)).toEqual(["/repos/zebra", "/repos/apple", "/repos/loose"])
+  test("project headers sort by displayed name or newest member, including unpinned tasks", () => {
+    const tasks = [
+      task("oldest", { repo: "/repo/tool1", createdAt: "2025-01-01T00:00:00Z" }),
+      task("old", { repo: "/repo/tool10", pinned: true }),
+      task("older", { repo: "/repo/tool2", createdAt: "2026-08-02T00:00:00Z" }),
+      task("new", { repo: "/repo/tool10", createdAt: "2026-08-03T00:00:00Z" }),
+      task("scratch", { kind: "dir", scratch: true }),
+    ]
+    const labels = (sortMode: string) => groups(tasks, NO_TABS, { sortMode }).map((group) => group.label)
+    expect(labels("name")).toEqual(["Ungrouped", "tool1", "tool2", "tool10"])
+    expect(labels("recent")).toEqual(["Ungrouped", "tool10", "tool2", "tool1"])
   })
 
   test("scratch is one bench at the FRONT, wherever the store put it", () => {
@@ -86,16 +92,16 @@ describe("grouping", () => {
   })
 
   test("headers disambiguate against the other VISIBLE projects", () => {
-    const result = groups([main("a", "/work/api"), main("b", "/oss/api")])
+    const result = groups([checkout("a", "/work/api"), checkout("b", "/oss/api")])
     expect(result.map((g) => g.label)).toEqual(["work/api", "oss/api"])
   })
 })
 
 describe("a project closed down to nothing", () => {
-  const dead = main("dead", "/work/dead")
+  const dead = checkout("dead", "/work/dead")
   const live = task("live", { repo: "/work/api" })
 
-  test("drops out once its main's last tab closes", () => {
+  test("drops out once its only session's last tab closes", () => {
     const result = groups([dead, live], tabs({ dead: 0, live: 1 }))
     expect(result.map((g) => g.key)).toEqual(["/work/api"])
   })
@@ -105,7 +111,16 @@ describe("a project closed down to nothing", () => {
     expect(result.map((g) => g.key)).toEqual(["/work/dead", "/work/api"])
   })
 
-  test("returns as soon as its main has a tab again", () => {
+  test("a remote worktree stays under its project after its last tab closes", () => {
+    const remote = {
+      ...checkout("remote", "/links/deck/rove"),
+      workspace: { backend: "remote" as const },
+      repoId: "github.com/org/rove",
+    }
+    expect(groups([remote], tabs({ remote: 0 })).map((group) => group.tasks)).toEqual([[remote]])
+  })
+
+  test("returns as soon as that session has a tab again", () => {
     expect(groups([dead], tabs({ dead: 1 })).map((g) => g.key)).toEqual(["/work/dead"])
   })
 
@@ -117,13 +132,8 @@ describe("a project closed down to nothing", () => {
   test("a hidden project does not disambiguate the visible ones", () => {
     // `/oss/api` is hidden, so `/work/api` is the only `api` left and should
     // render as the bare basename rather than defending against a ghost.
-    const result = groups([main("w", "/work/api"), main("o", "/oss/api")], tabs({ o: 0 }))
+    const result = groups([checkout("w", "/work/api"), checkout("o", "/oss/api")], tabs({ o: 0 }))
     expect(result.map((g) => g.label)).toEqual(["api"])
-  })
-
-  test("a `dir` row folds the same way a checkout does", () => {
-    const dir = task("d", { kind: "dir", repo: "/some/dir", worktreePath: "/some/dir", branch: "" })
-    expect(groups([dir], tabs({ d: 0 }))).toEqual([])
   })
 })
 
@@ -159,8 +169,8 @@ describe("routine runs", () => {
     expect(groups([run, scratch])[0]?.tasks.map((t) => t.id)).toEqual(["s1"])
   })
 
-  test("a project whose only other row is its idle main closes down", () => {
-    const result = groups([main("m", "/work/api"), routine("r1")], tabs({ m: 0 }))
+  test("a project whose only other row is an idle session in its checkout closes down", () => {
+    const result = groups([checkout("m", "/work/api"), routine("r1")], tabs({ m: 0 }))
     expect(result).toEqual([])
   })
 })

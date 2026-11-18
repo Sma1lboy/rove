@@ -23,7 +23,7 @@ import {
 } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { afterAll, describe, expect, it, vi } from "vitest"
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest"
 
 const tmpHome = mkdtempSync(path.join(tmpdir(), "rove-hist-home-"))
 
@@ -85,6 +85,10 @@ function userLine(text: string, sessionId: string, timestamp: string): string {
   })
 }
 
+afterEach(() => {
+  vi.unstubAllEnvs()
+})
+
 afterAll(() => {
   rmSync(tmpHome, { recursive: true, force: true })
 })
@@ -113,13 +117,8 @@ describe("fresh HOME — no engine dirs on disk yet", () => {
   })
 
   it("copilot listSessionDirs degrades to [] when ~/.copilot does not exist", async () => {
-    const original = process.env.COPILOT_HOME
-    Reflect.deleteProperty(process.env, "COPILOT_HOME")
-    try {
-      await expect(copilotListSessionDirs()).resolves.toEqual([])
-    } finally {
-      if (original !== undefined) process.env.COPILOT_HOME = original
-    }
+    vi.stubEnv("COPILOT_HOME", undefined)
+    await expect(copilotListSessionDirs()).resolves.toEqual([])
   })
 })
 
@@ -309,29 +308,23 @@ describe("codex history (real default deps)", () => {
 
 describe("copilot history (real default deps)", () => {
   it("resolves ~/.copilot by default and honours the COPILOT_HOME override", async () => {
-    const original = process.env.COPILOT_HOME
+    vi.stubEnv("COPILOT_HOME", undefined)
+    mkdirSync(path.join(tmpHome, ".copilot", "session-state", "s1"), { recursive: true })
+    await expect(copilotListSessionDirs()).resolves.toEqual([path.join(tmpHome, ".copilot", "session-state", "s1")])
+
+    const override = mkdtempSync(path.join(tmpdir(), "rove-copilot-home-"))
     try {
-      Reflect.deleteProperty(process.env, "COPILOT_HOME")
-      mkdirSync(path.join(tmpHome, ".copilot", "session-state", "s1"), { recursive: true })
-      await expect(copilotListSessionDirs()).resolves.toEqual([path.join(tmpHome, ".copilot", "session-state", "s1")])
+      vi.stubEnv("COPILOT_HOME", override)
+      mkdirSync(path.join(override, "session-state", "s2"), { recursive: true })
+      await expect(copilotListSessionDirs()).resolves.toEqual([path.join(override, "session-state", "s2")])
+      // stat default dep: no events.jsonl anywhere → mtime 0.
+      await expect(copilotMtimeForWorktree("/nowhere")).resolves.toBe(0)
 
-      const override = mkdtempSync(path.join(tmpdir(), "rove-copilot-home-"))
-      try {
-        process.env.COPILOT_HOME = override
-        mkdirSync(path.join(override, "session-state", "s2"), { recursive: true })
-        await expect(copilotListSessionDirs()).resolves.toEqual([path.join(override, "session-state", "s2")])
-        // stat default dep: no events.jsonl anywhere → mtime 0.
-        await expect(copilotMtimeForWorktree("/nowhere")).resolves.toBe(0)
-
-        // rm default dep: deleteHistory removes the whole session dir.
-        await copilotDeleteHistory("s2")
-        expect(existsSync(path.join(override, "session-state", "s2"))).toBe(false)
-      } finally {
-        rmSync(override, { recursive: true, force: true })
-      }
+      // rm default dep: deleteHistory removes the whole session dir.
+      await copilotDeleteHistory("s2")
+      expect(existsSync(path.join(override, "session-state", "s2"))).toBe(false)
     } finally {
-      if (original === undefined) Reflect.deleteProperty(process.env, "COPILOT_HOME")
-      else process.env.COPILOT_HOME = original
+      rmSync(override, { recursive: true, force: true })
     }
   })
 })

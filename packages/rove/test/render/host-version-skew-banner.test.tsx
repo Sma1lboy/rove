@@ -23,7 +23,7 @@ import type { DaemonConnectionState } from "../../src/client/remote-orchestrator
 import { createStateCell } from "../../src/lib/external-store"
 import { WorkspaceRoot } from "../../src/tui-react/workspace/host"
 import { setUiEventReporter } from "../../src/tui-react/workspace/terminal-tabs-shared"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent, waitForFrameText } from "./harness"
 
 // The host is the widest mount in this track, so its two process-wide side
 // effects have to be undone or they follow the whole file into later tests:
@@ -108,7 +108,6 @@ async function mountHost(orchestrator: RemoteOrchestrator) {
     height: 24,
     providers: { kv: true, focus: true, dialog: true, notifications: true },
   })
-  await settle(120)
   return handle
 }
 
@@ -124,9 +123,7 @@ test("the host mounts the skew banner and drives it from the daemon signal", asy
     daemonVersion.set("0.9.1")
     stale.set(true)
   })
-  await settle(60)
-  const text = await frame()
-  expect(text).toContain("DAEMON OUT OF DATE")
+  const text = await waitForFrameText(frame, "DAEMON OUT OF DATE")
   // The hint must name BOTH builds and the way out — "out of date" alone
   // leaves the user with nothing to do about it. That way out is now a CHORD:
   // quitting, running two commands and starting over is a correct instruction
@@ -140,7 +137,6 @@ test("the host mounts the skew banner and drives it from the daemon signal", asy
   await act(async () => {
     stale.set(false)
   })
-  await settle(60)
   expect(await frame()).not.toContain("DAEMON OUT OF DATE")
 })
 
@@ -157,10 +153,8 @@ test("a socket disconnect paints no banner of its own", async () => {
     stale.set(true)
     connection.set("disconnected")
   })
-  await settle(60)
-  const text = await frame()
+  const text = await waitForFrameText(frame, "DAEMON OUT OF DATE")
   expect(text).not.toContain("DAEMON DISCONNECTED")
-  expect(text).toContain("DAEMON OUT OF DATE")
 })
 
 /**
@@ -178,9 +172,7 @@ test("the host mounts the stale-install banner and drives it from the orchestrat
   await act(async () => {
     staleInstall.set("rove: this process is running from an install that no longer exists on disk")
   })
-  await settle(60)
-  const text = await frame()
-  expect(text).toContain("ROVE INSTALL IS GONE")
+  const text = await waitForFrameText(frame, "ROVE INSTALL IS GONE")
   // The remedy, not just the diagnosis — waiting is what the user was
   // already doing, so the banner has to name the thing that actually works.
   expect(text).toContain("npm install -g @sma1lboy/rove")
@@ -198,8 +190,6 @@ test("a gone install outranks a stale daemon build — only one banner shows", a
     stale.set(true)
     staleInstall.set("rove: this process is running from an install that no longer exists on disk")
   })
-  await settle(60)
-  const text = await frame()
-  expect(text).toContain("ROVE INSTALL IS GONE")
+  const text = await waitForFrameText(frame, "ROVE INSTALL IS GONE")
   expect(text).not.toContain("DAEMON OUT OF DATE")
 })

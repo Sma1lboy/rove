@@ -19,9 +19,11 @@ class UpdateSettingsState {
 
     private fun selectChannel(channel: String) {
         mutablePrefs.value = mutablePrefs.value?.copy(updateChannel = channel)
-        generation++
-        mutableCheck.value = null
+        forgetCheck()
     }
+
+    /** Drops the shown result and any check still in flight: it describes a build or channel that no longer applies. */
+    fun forgetCheck() { generation++; mutableCheck.value = null }
 
     suspend fun saveChannel(channel: String, save: suspend (String) -> Unit) = channelSaves.withLock {
         val previous = mutablePrefs.value?.updateChannel ?: return@withLock

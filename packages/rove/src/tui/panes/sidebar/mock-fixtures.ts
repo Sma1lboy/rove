@@ -10,7 +10,7 @@ import { toTaskId } from "@/types/task"
 
 const MOCK_SIDEBAR_REPO = "/mock/repos/rove"
 
-/** A representative task list: project row, running/pinned/backlog. */
+/** A representative task list: checkout session, running/pinned/backlog. */
 export function seedSidebarTasks(): readonly Task[] {
   const ts = "2026-07-01T00:00:00.000Z"
   const base = {
@@ -35,7 +35,7 @@ export function seedSidebarTasks(): readonly Task[] {
     title: name,
     branch: "",
     worktreePath: `/mock/repos/${name}`,
-    kind: "main" as const,
+    kind: "dir" as const,
     status: "backlog" as const,
   }))
   return [
@@ -46,7 +46,7 @@ export function seedSidebarTasks(): readonly Task[] {
       title: "rove",
       branch: "",
       worktreePath: MOCK_SIDEBAR_REPO,
-      kind: "main",
+      kind: "dir",
       status: "backlog",
     },
     {

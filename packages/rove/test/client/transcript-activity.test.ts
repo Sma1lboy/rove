@@ -2,26 +2,19 @@
  * Client side of the `transcript.activity` channel (perf — deduplicate
  * per-Ops-pane polling). Mirrors the `worktree.changes` coverage:
  *
- *   - The pure parse/equality helpers (`parseTranscriptActivityPayload`,
- *     `sameTranscriptActivityMap`) accept a well-formed map, reject malformed
- *     entries to `null` (never clobber a good map), and gate re-renders.
- *   - The `RemoteOrchestrator` reflects pushes wholesale (absent keys drop),
- *     keeps the same map ref on an unchanged replay, and logs+drops garbage.
+ *   - The equality helper `sameTranscriptActivityMap` gates re-renders.
+ *   - The `RemoteOrchestrator` parses a push into the map. The shared map-channel
+ *     rule (wholesale replace, same ref on replay, log+drop garbage) is pinned
+ *     once on `worktree.changes` in remote-orchestrator.test.ts.
  *   - Capability gating in `init()`: a capable daemon seeds an EMPTY map
  *     (trust pushes → the Ops pane stops local polling), an old daemon leaves
  *     the signal null (the pane's local mtime/completion probes engage).
  */
 
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
-import { describe, expect, it, vi } from "vitest"
+import { describe, expect, it } from "vitest"
 import { sameTranscriptActivityMap } from "../../src/client/remote-orchestrator-payloads.ts"
 import { RemoteOrchestrator } from "../../src/client/remote-orchestrator.ts"
-
-const { logClientError } = vi.hoisted(() => ({ logClientError: vi.fn() }))
-vi.mock("@sma1lboy/rove-daemon/client/client-log", async (importActual) => ({
-  ...(await importActual<typeof import("@sma1lboy/rove-daemon/client/client-log")>()),
-  logClientError,
-}))
 
 function fakeClient(): { client: RoveDaemonClient; emit: (name: string, payload: unknown) => void } {
   let star: ((frame: { name: string; payload: unknown }) => void) | undefined
@@ -66,7 +59,7 @@ describe("transcript.activity pure helpers", () => {
 })
 
 describe("RemoteOrchestrator transcript.activity channel", () => {
-  it("reflects a pushed map and replaces it wholesale (absent keys drop)", () => {
+  it("reflects a pushed transcript.activity map and replaces it wholesale", () => {
     const { client, emit } = fakeClient()
     const orch = new RemoteOrchestrator(client)
     emit("transcript.activity", { activity: { "/wt/a": e(2, "c", 1), "/wt/b": e(0) } })
@@ -79,32 +72,10 @@ describe("RemoteOrchestrator transcript.activity channel", () => {
     expect(second?.size).toBe(1)
     expect(second?.has("/wt/b")).toBe(false)
   })
-
-  it("an unchanged push keeps the same map reference (no re-render churn)", () => {
-    const { client, emit } = fakeClient()
-    const orch = new RemoteOrchestrator(client)
-    emit("transcript.activity", { activity: { "/wt/a": e(1, "c", 1) } })
-    const before = orch.transcriptActivitySignal()()
-    emit("transcript.activity", { activity: { "/wt/a": e(1, "c", 1) } })
-    expect(orch.transcriptActivitySignal()()).toBe(before)
-  })
-
-  it("logs (and drops) a malformed payload without clobbering a good map", () => {
-    logClientError.mockClear()
-    const { client, emit } = fakeClient()
-    const orch = new RemoteOrchestrator(client)
-    emit("transcript.activity", { activity: { "/wt/a": e(1, "c", 1) } })
-    logClientError.mockClear()
-    const before = orch.transcriptActivitySignal()()
-    emit("transcript.activity", { activity: "nope" })
-    expect(orch.transcriptActivitySignal()()).toBe(before)
-    expect(logClientError).toHaveBeenCalledTimes(1)
-    expect(logClientError).toHaveBeenCalledWith("orch", expect.stringContaining("transcript.activity"))
-  })
 })
 
 describe("transcript.activity capability gating (init)", () => {
-  it("a capable daemon yields an empty map (trust pushes) before any publish", async () => {
+  it("a transcript.activity-capable daemon yields an empty map before any publish", async () => {
     const { client } = fakeRpcClient({ protocolVersion: 3, capabilities: ["task.snapshot", "transcript.activity"] })
     const orch = new RemoteOrchestrator(client)
     await orch.init()
@@ -119,7 +90,7 @@ describe("transcript.activity capability gating (init)", () => {
     expect(orch.transcriptActivitySignal()()).toBeNull()
   })
 
-  it("a replayed map delivered during subscribe is not clobbered by init", async () => {
+  it("a replayed transcript.activity map delivered during subscribe survives init", async () => {
     const { client, emit } = fakeRpcClient({ protocolVersion: 3, capabilities: ["transcript.activity"] })
     const orch = new RemoteOrchestrator(client)
     emit("transcript.activity", { activity: { "/wt/a": e(4, "c4", 2) } })

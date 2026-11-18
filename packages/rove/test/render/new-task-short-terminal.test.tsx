@@ -26,7 +26,9 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { NewTaskDialogView } from "../../src/tui-react/component/new-task-dialog/dialog"
 import { type Field, nextField } from "../../src/tui/component/new-task-dialog/state"
-import { act, renderComponent, settle } from "./harness"
+import { act, isolateHome, renderComponent, settle } from "./harness"
+
+isolateHome()
 
 /** A repo with more branches than any window will show. */
 function repoWithBranches(count: number): string {

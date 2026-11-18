@@ -25,7 +25,7 @@
  */
 
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { PtyHost } from "@sma1lboy/rove-daemon/daemon/pty-host"
@@ -85,8 +85,13 @@ function received(sink: string): string {
   return raw.replaceAll("\x1b[200~", "").replaceAll("\x1b[201~", "").replace(/\r$/, "")
 }
 
-function settle(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+/** Poll until the child has drained something into `sink` that satisfies `done`, or `ms` pass. Never throws:
+ *  the caller's assertions report what arrived. */
+async function drained(sink: string, done: (got: string) => boolean, ms = 10_000): Promise<void> {
+  const deadline = Date.now() + ms
+  while (Date.now() < deadline && !(existsSync(sink) && done(received(sink)))) {
+    await new Promise((resolve) => setTimeout(resolve, 25))
+  }
 }
 
 /** 8.6KB — the incident's size, with a unique tail so a truncated prefix is
@@ -103,7 +108,7 @@ describe("large prompt delivery into a cold engine", () => {
     spawnFakeEngine(host, "t1::tab-1", sink, 1_600)
 
     const { bytes } = await writeHostedPrompt(deliveryRpc(host), "t1::tab-1", BIG_PROMPT)
-    await settle(1_500)
+    await drained(sink, (got) => got.endsWith("TAIL-MARKER-7Q"))
 
     const got = received(sink)
     expect(got.length).toBe(BIG_PROMPT.length)
@@ -136,9 +141,9 @@ describe("large prompt delivery into a cold engine", () => {
     // The control: write immediately, no readiness wait. This is the shape
     // that loses the prompt, and it is what makes the test above mean
     // something.
-    await settle(200)
     host.write("t3::tab-1", `\x1b[200~${BIG_PROMPT}\x1b[201~`)
-    await settle(2_500)
+    // The tty discarded the overflow at write time; whatever survived reaches the sink once the child goes raw.
+    await drained(sink, (got) => got.length > 0)
 
     const got = received(sink)
     expect(got.length).toBeLessThan(BIG_PROMPT.length)

@@ -5,12 +5,10 @@ import type { NavRow } from "./rail.ts"
 
 /**
  * How many `task.move` steps take `from` to `to`'s place, in the daemon's move partition
- * (`movePartition`): all mains (projects), or one repo's tasks with the same pin. Null across partitions.
+ * (`movePartition`): one repo's tasks with the same pin. Null across partitions.
  */
 export function dragSteps(tasks: readonly TaskRow[], from: TaskRow, to: TaskRow): number | null {
-  const main = from.kind === "main"
-  const same = (task: TaskRow) =>
-    main ? task.kind === "main" : task.kind !== "main" && task.repo === from.repo && !task.pinned === !from.pinned
+  const same = (task: TaskRow) => task.repo === from.repo && !task.pinned === !from.pinned
   if (from.id === to.id || !same(to)) return null
   const ids = tasks
     .filter(same)
@@ -30,12 +28,10 @@ export function dropSteps(tasks: readonly TaskRow[], from: TaskRow, to: TaskRow,
   return steps
 }
 
-/** `to` is a row `from` may land beside: a project among projects, a task among its project's tasks with its pin. */
+/** `to` is a row `from` may land beside: a task among its project's tasks with its pin. */
 export function dropsOn(from: TaskRow, to: TaskRow): boolean {
   if (from.id === to.id) return false
-  return from.kind === "main"
-    ? to.kind === "main"
-    : to.kind !== "main" && to.repo === from.repo && !to.pinned === !from.pinned
+  return to.repo === from.repo && !to.pinned === !from.pinned
 }
 
 /** A row's nesting level: a project 0, its tasks 1, a child task, round header or pane one deeper than its parent. */

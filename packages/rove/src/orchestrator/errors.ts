@@ -21,14 +21,6 @@ export class TaskNotFoundError extends Error {
   }
 }
 
-/** Main tasks are bound to a saved repo entry, not a Rove-allocated worktree. */
-export class CannotDeleteMainTaskError extends Error {
-  constructor() {
-    super("cannot delete a main task; remove the repo from saved repos instead")
-    this.name = "CannotDeleteMainTaskError"
-  }
-}
-
 /**
  * Stable sentinel in {@link DirtyWorktreeError}'s message. The daemon RPC layer
  * rebuilds errors as `new Error(message)` (`name` does NOT survive the wire),
@@ -290,6 +282,18 @@ export class NotAGitRepoError extends Error {
   }
 }
 
+export const REPO_HAS_NO_COMMITS_CODE = "REPO_HAS_NO_COMMITS"
+export const REPO_HAS_NO_COMMITS_HINT =
+  "make a first commit (`git commit --allow-empty -m init`), or pass --no-worktree to share the directory"
+
+/** A worktree is cut from HEAD, and an unborn HEAD (fresh `git init`) has nothing to cut from. */
+export class RepoHasNoCommitsError extends Error {
+  constructor(public readonly dir: string) {
+    super(`${REPO_HAS_NO_COMMITS_CODE}: ${dir} has no commits yet, so there is no HEAD to cut a worktree from`)
+    this.name = "RepoHasNoCommitsError"
+  }
+}
+
 export const NOT_A_LINKED_REPO_CODE = "NOT_A_LINKED_REPO"
 
 /** `add --isolate-in` names something other than a top-level symlink to an outside git checkout. */
@@ -396,7 +400,7 @@ export class ExtraRepoNotGitError extends Error {
 export const FORK_UNSUPPORTED_CODE = "FORK_UNSUPPORTED"
 
 /**
- * A fork that clones the parent's worktree cannot run here (no clone-capable volume, a main/dir/multi-repo/remote
+ * A fork that clones the parent's worktree cannot run here (no clone-capable volume, a dir/multi-repo/remote
  * parent). Nothing is left behind when it is thrown, so callers can fall back to a plain new task.
  */
 export class ForkUnsupportedError extends Error {

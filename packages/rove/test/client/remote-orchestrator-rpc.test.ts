@@ -63,9 +63,9 @@ describe("RemoteOrchestrator RPC wire mapping", () => {
     expect("modelEffort" in payload).toBe(false)
   })
 
-  it("ensureMainTask / ensureWorktree / forgetProject", async () => {
-    await orch.ensureMainTask("/repo")
-    expect(request).toHaveBeenCalledWith("task.ensureMain", { repo: "/repo" })
+  it("ensureProject / ensureWorktree / forgetProject", async () => {
+    await orch.ensureProject("/repo")
+    expect(request).toHaveBeenCalledWith("project.ensure", { repo: "/repo" })
     await expect(orch.ensureWorktree("t1")).resolves.toBe("/wt")
     expect(request).toHaveBeenCalledWith("task.ensureWorktree", { taskId: "t1" })
     await orch.forgetProject("/repo")
@@ -100,9 +100,9 @@ describe("RemoteOrchestrator RPC wire mapping", () => {
     expect(request).toHaveBeenCalledWith("task.move", { taskId: "t1", direction: "down" })
   })
 
-  it("moveTaskToTop rides task.move as the `top` direction", async () => {
-    await orch.moveTaskToTop("t1")
-    expect(request).toHaveBeenCalledWith("task.move", { taskId: "t1", direction: "top" })
+  it("moveProject names the project it lands beside and the side", async () => {
+    await orch.moveProject("/repos/a", "/repos/b", "before")
+    expect(request).toHaveBeenCalledWith("project.move", { repo: "/repos/a", target: "/repos/b", side: "before" })
   })
 
   it("dismissAttention targets exactly one task+tab episode", async () => {

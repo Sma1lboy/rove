@@ -1,20 +1,16 @@
 import { describe, expect, it } from "vitest"
 import {
-  dispatcherProtocol,
   noteFilingProtocol,
   statusReportProtocol,
-  withDispatcherProtocol,
   withWorktreeProtocol,
   worktreeProtocol,
 } from "../../src/engine/worktree-protocol.ts"
 
 /**
- * Protocol injection (web-kanban.md M5 + docs/design/dispatcher.md).
+ * Protocol injection (web-kanban.md M5).
  * Load-bearing: protocols ride `--append-system-prompt` ONLY for claude
  * launches of a known task with the relevant opt-in on; a custom command
- * that already sets the flag is never double-injected; worktree sessions
- * and the main (dispatcher) session get mutually exclusive protocols; and
- * the dispatcher takes no conflict action.
+ * that already sets the flag is never double-injected.
  */
 
 const on = () => true
@@ -65,8 +61,6 @@ describe("statusReportProtocol", () => {
     // stale global `rove` that predates a new verb and answers BAD_VERB.
     expect(statusReportProtocol("t9", "rove api")).toContain("rove api update --task-id t9")
     expect(noteFilingProtocol("t9", "rove api")).toContain('rove api note --task-id t9 --text "<one line')
-    expect(dispatcherProtocol("m9", "rove api")).toContain("rove api dispatch --task-id <id>")
-    expect(dispatcherProtocol("m9", "rove api")).toContain("rove api collect --repo .")
   })
 
   it("points delegation at rove's own verbs — a pointer, not a curriculum", () => {
@@ -107,38 +101,5 @@ describe("note recall", () => {
 
   it("withholds recall when the note switch is off, even with notes on disk", () => {
     expect(worktreeProtocol("t1", "rove api", { status: on, notes: off }, notes)).not.toContain("--no-sandbox")
-  })
-})
-
-describe("withDispatcherProtocol", () => {
-  it("appends the dispatcher protocol for an enabled claude main-session launch", () => {
-    const argv = withDispatcherProtocol(["claude"], "claude", "m1", on)
-    expect(argv.slice(0, 2)).toEqual(["claude", "--append-system-prompt"])
-    expect(argv[2]).toContain("DISPATCHER")
-    expect(argv[2]).toContain("task m1")
-    // The messenger is the daemon-routed `dispatch`, NOT tmux-bound `send`
-    // (web-hosted sessions would get a duplicate tmux twin otherwise).
-    expect(argv[2]).toContain("api dispatch --task-id <id>")
-    expect(argv[2]).not.toContain("api send")
-  })
-
-  it("leaves the argv alone when disabled, vendor isn't claude, or no task", () => {
-    expect(withDispatcherProtocol(["claude"], "claude", "m1", off)).toEqual(["claude"])
-    expect(withDispatcherProtocol(["codex"], "codex", "m1", on)).toEqual(["codex"])
-    expect(withDispatcherProtocol(["claude"], "claude", undefined, on)).toEqual(["claude"])
-  })
-})
-
-describe("dispatcherProtocol", () => {
-  it("no status writes, no conflict actions, no git", () => {
-    const text = dispatcherProtocol("01HMAIN")
-    expect(text).toContain("task 01HMAIN")
-    expect(text).not.toContain("--status")
-    // The radar is display-only by explicit decision: the
-    // dispatcher must never instruct merges/rebases over conflicts.
-    expect(text).toContain("Take no action on merge conflicts")
-    expect(text).not.toContain("merge-tree")
-    expect(text).not.toContain("git merge")
-    expect(text).not.toContain("rebase")
   })
 })

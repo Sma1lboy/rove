@@ -122,9 +122,7 @@ describe("who a report about an aliased PTY speaks for", () => {
     const bus = new DaemonEventBus()
     const activity = new DaemonActivityRegistry(bus)
     const dead: Array<{ taskId: string; tabId?: string; state: string }> = []
-    bus.onPublish((event) => {
-      if (event.channel === "engine-state") dead.push(event.payload as (typeof dead)[number])
-    })
+    bus.onPublish((event) => dead.push(event.payload as (typeof dead)[number]))
     const dir = mkdtempSync(join(tmpdir(), "rove-alias-release-"))
     const path = join(dir, "pty-exits.json")
     const stop = startPtyExitWatch({

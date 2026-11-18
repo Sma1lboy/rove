@@ -12,7 +12,6 @@
 import { isSharedChild } from "@/orchestrator/task-tree"
 import type { Task } from "@/types/task"
 import type { VendorId } from "../../../types/vendor"
-import { sidebarProjectKeyOfTask } from "./groups"
 import { type SidebarGroup, type SidebarGroupInput, buildSidebarGroups } from "./project-groups"
 import { RECENT_ROW_ID } from "./tree-ids"
 
@@ -131,6 +130,7 @@ export interface TreeInput extends SidebarGroupInput {
 }
 
 export interface TreeRowsInput {
+  readonly collapsedProjects?: ReadonlySet<string>
   /** The sections to render, already selected, grouped and ordered. */
   readonly groups: readonly SidebarGroup[]
   readonly collapsedTasks?: ReadonlySet<string>
@@ -223,9 +223,6 @@ function pushTask(rows: TreeRow[], task: Task, generation: number, ctx: PushCont
 /**
  * Sections → flat rows. Presentation only: membership and order come from
  * `buildSidebarGroups`, which the folded rail also reads.
- *
- * A `main` task is the first worktree row under its project, not the project
- * row: the header is a repo, not a checkout, so main can carry children.
  */
 export function buildRowsFromGroups(input: TreeRowsInput): TreeRow[] {
   const ctx: PushContext = {
@@ -250,6 +247,7 @@ export function buildRowsFromGroups(input: TreeRowsInput): TreeRow[] {
       machineId: group.machineId,
       depth: 0,
     })
+    if (input.collapsedProjects?.has(group.key)) continue
     for (const task of top) pushTask(rows, task, 0, ctx)
   }
   return rows
@@ -276,22 +274,6 @@ export function treeFlatIds(rows: readonly TreeRow[]): string[] {
     if (row.kind !== "project") ids.push(row.id)
   }
   return ids
-}
-
-/**
- * A project's `main` task. Project reorder = `moveTask` on it: a project sits
- * where its first task appears in the store, and mains move among mains.
- * Null (reorder is a no-op) when the repo has no main checkout.
- */
-export function mainTaskIdOfProject(tasks: readonly Task[], projectKey: string): string | null {
-  // A merged project's key is its HOME checkout's, so only the home main
-  // answers: another machine's main of the same repo is not this header's to
-  // reorder or forget.
-  for (const task of tasks) {
-    if (task.kind !== "main") continue
-    if (sidebarProjectKeyOfTask(task) === projectKey) return String(task.id)
-  }
-  return null
 }
 
 export { tabRowActivity } from "./tab-row-activity"

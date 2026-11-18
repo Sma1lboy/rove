@@ -24,7 +24,9 @@ import { useEffect, useRef } from "react"
 import { NewTaskDialog } from "../../src/tui-react/component/new-task-dialog"
 import { useDialog } from "../../src/tui-react/ui/dialog"
 import { type Field, type NewTaskInput, nextField } from "../../src/tui/component/new-task-dialog/state"
-import { act, renderComponent, settle } from "./harness"
+import { act, isolateHome, renderComponent, settle } from "./harness"
+
+isolateHome()
 
 function repo(): string {
   const dir = mkdtempSync(join(tmpdir(), "rove-openproj-"))
@@ -125,14 +127,19 @@ function stopsFromTo(
   throw new Error(`the focus chain never reaches ${target} from ${from}`)
 }
 
-/** Tab from the opening focus (`tabs`) to the intent row. */
-async function tabToIntent(mockInput: { pressTab: () => void }, extrasVisible = false): Promise<void> {
-  for (let i = 0; i < stopsTo("intent", { intentVisible: true, extrasVisible }); i++) {
+/** Press Tab `times` times. */
+async function pressTabs(mockInput: { pressTab: () => void }, times: number): Promise<void> {
+  for (let i = 0; i < times; i++) {
     await act(async () => {
       mockInput.pressTab()
     })
     await settle()
   }
+}
+
+/** Tab from the opening focus (`tabs`) to the intent row. */
+async function tabToIntent(mockInput: { pressTab: () => void }, extrasVisible = false): Promise<void> {
+  await pressTabs(mockInput, stopsTo("intent", { intentVisible: true, extrasVisible }))
 }
 
 test("the intent row is reachable by keyboard, and choosing the project drops the branch field", async () => {
@@ -205,12 +212,7 @@ test("picking a different repo resets the intent back to a task worktree", async
   // hidden, and `advanceField` skips its stop, so a plain `nextField` walk
   // counts one stop too many. The literal 6 this used to carry was written
   // for a dialog that still had depth, model and effort.
-  for (let i = 0; i < stopsFromTo("intent", "repo", { intentVisible: true, skipBaseRef: true }); i++) {
-    await act(async () => {
-      mockInput.pressTab()
-    })
-    await settle()
-  }
+  await pressTabs(mockInput, stopsFromTo("intent", "repo", { intentVisible: true, skipBaseRef: true }))
   await act(async () => {
     mockInput.pressArrow("down")
   })

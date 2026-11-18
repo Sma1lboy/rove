@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test"
+import { afterAll, describe, expect, test } from "bun:test"
 import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
@@ -11,6 +11,12 @@ const g = globalThis as Record<string, unknown>
 Object.defineProperty(globalThis, "navigator", {
   configurable: true,
   value: { language: "en-US", languages: ["en-US"], platform: "Linux", userAgent: "bun" },
+})
+// Put back whatever window was there: a leftover location-less one breaks auth.ts for later files.
+const hadWindow = Object.getOwnPropertyDescriptor(globalThis, "window")
+afterAll(() => {
+  if (hadWindow) Object.defineProperty(globalThis, "window", hadWindow)
+  else Reflect.deleteProperty(globalThis, "window")
 })
 g.window ??= globalThis
 const memory = new Map<string, string>()
@@ -61,8 +67,7 @@ describe("the rail names no machine; a remote task carries a cloud", () => {
   })
 
   test("a machine that is not online adds its state to the cloud's text", () => {
-    const [there] = rail([mac("offline")]).filter((row) => row.id === "there")
-    if (!there) throw new Error("no remote row")
+    const there = rail([mac("offline")]).find((row) => row.id === "there") as ReturnType<typeof rail>[number]
     expect(rowCloud(there, [mac("offline")], words)).toBe("on mac (studio.local) · offline")
     expect(rowCloud(there, [mac("mismatch", "0.9.100")], words)).toBe(
       "on mac (studio.local) · ⚠ v0.9.100 (protocol mismatch)",

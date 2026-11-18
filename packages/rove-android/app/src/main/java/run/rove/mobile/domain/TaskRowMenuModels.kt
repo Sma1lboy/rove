@@ -20,7 +20,7 @@ sealed interface SyncRefusal {
 object TaskRowMenuLogic {
     val STATUSES = listOf("backlog", "in_progress", "in_review", "done", "canceled", "error")
 
-    /** A project's main row is the project itself: it cannot be pinned or archived. */
+    /** A project's main row cannot be pinned or removed here; archiving it hides the project until it is unarchived or opened again. */
     fun items(row: TaskRow): List<RowMenuItem> = buildList {
         add(RowMenuItem.NewConversation)
         add(RowMenuItem.NewShell)
@@ -36,10 +36,8 @@ object TaskRowMenuLogic {
         // The merge runs on this Mac; another machine's worktree is not here.
         if (row.kind == "task" && row.branch.isNotEmpty() && row.machine == null) add(RowMenuItem.SyncBase)
         if (row.branch.isNotEmpty()) add(RowMenuItem.RenameBranch)
-        if (row.kind != "main") {
-            add(if (row.archived) RowMenuItem.Unarchive else RowMenuItem.Archive)
-            add(RowMenuItem.Remove)
-        }
+        add(if (row.archived) RowMenuItem.Unarchive else RowMenuItem.Archive)
+        if (row.kind != "main") add(RowMenuItem.Remove)
     }
 
     /** Folded under More, as on the web's phone menu. */

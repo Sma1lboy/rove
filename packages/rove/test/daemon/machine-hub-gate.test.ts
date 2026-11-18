@@ -9,7 +9,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { type DaemonServer, startDaemonServer } from "@sma1lboy/rove-daemon/daemon/server"
-import { afterEach, expect, it } from "vitest"
+import { afterEach, expect, it, vi } from "vitest"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
 import { fakeOrchestrator, waitFor } from "./harness.ts"
 
@@ -18,6 +18,7 @@ let server: DaemonServer | null = null
 const clients: RoveDaemonClient[] = []
 
 afterEach(async () => {
+  vi.useRealTimers()
   for (const client of clients) client.close()
   clients.length = 0
   await server?.close().catch(() => {})
@@ -26,6 +27,8 @@ afterEach(async () => {
 
 it("starts for a client that reads machines, not for a peer hub's filtered subscription", async () => {
   dir = mkdtempSync(join(tmpdir(), "rove-hub-gate-"))
+  // The gate re-checks on a 1s interval; fake only intervals so the socket stays real.
+  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] })
   let starts = 0
   server = await startDaemonServer(() => fakeOrchestrator(), {
     runtime: {
@@ -52,7 +55,7 @@ it("starts for a client that reads machines, not for a peer hub's filtered subsc
   const peer = new RoveDaemonClient(join(dir, "daemon.sock"))
   clients.push(peer)
   await peer.subscribe({ role: "gui", channels: ["task.snapshot", "engine-state"] })
-  await new Promise((r) => setTimeout(r, 1500))
+  vi.advanceTimersByTime(3_000)
   expect(starts).toBe(0)
 
   const window = new RoveDaemonClient(join(dir, "daemon.sock"))
@@ -60,6 +63,7 @@ it("starts for a client that reads machines, not for a peer hub's filtered subsc
   const seen: string[] = []
   window.onChannel("machines", (payload) => seen.push(...payload.machines.map((m) => m.alias)))
   await window.subscribe({ role: "gui" })
+  vi.advanceTimersByTime(1_000)
   expect(await waitFor(() => seen.includes("box"), 3000)).toBe(true)
   expect(starts).toBe(1)
 })

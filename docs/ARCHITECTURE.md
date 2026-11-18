@@ -81,9 +81,10 @@ The isolation unit for a managed Task is:
 Managed task = git worktree + branch + terminal tabs
 ```
 
-The persisted `Task` type also supports `kind: "main"` for a saved repository's
-existing checkout and `kind: "dir"` for a user-owned directory. Those variants
-reuse their directory and do not own a Rove-created worktree or branch.
+The persisted `Task` type also supports `kind: "dir"` for a user-owned
+directory or a saved repository's own checkout. It reuses its directory and does
+not own a Rove-created worktree or branch. A project is a `savedRepos` entry,
+not a Task; a stored `kind: "main"` row loads as `dir`.
 
 A managed Task may span several repos: the primary stays in `repo` / `branch` /
 `worktreePath`, and optional `extraRepos[]` holds the others, each with its own

@@ -51,46 +51,44 @@ afterEach(() => {
   clients.length = 0
 })
 
-for (const platform of ["darwin", "linux"] as const) {
-  describe(`on ${platform}`, () => {
-    it("launches with setsid and the caller's env, never through the PTY host — even inside a job claim", () => {
-      // An env that WOULD be an escape on Windows: this instance's own socket.
-      const env = {
-        PATH: "/usr/bin",
-        [PTY_JOB_ENV]: "Local\\rove-pty-x",
-        [PTY_JOB_OWNER_ENV]: defaultDaemonSocketPath(),
-      }
-      spawnDetachedDaemon("/usr/bin/bun", ["daemon"], env, "/nonexistent-dir/daemon.log", platform)
+describe.each(["darwin", "linux"] as const)("on %s", (platform) => {
+  it("launches with setsid and the caller's env, never through the PTY host — even inside a job claim", () => {
+    // An env that WOULD be an escape on Windows: this instance's own socket.
+    const env = {
+      PATH: "/usr/bin",
+      [PTY_JOB_ENV]: "Local\\rove-pty-x",
+      [PTY_JOB_OWNER_ENV]: defaultDaemonSocketPath(),
+    }
+    spawnDetachedDaemon("/usr/bin/bun", ["daemon"], env, "/nonexistent-dir/daemon.log", platform)
 
-      expect(clients).toEqual([])
-      expect(spawned).toHaveLength(1)
-      expect(spawned[0]?.command).toBe("/usr/bin/bun")
-      expect(spawned[0]?.options).toMatchObject({ detached: true, env })
-    })
-
-    it("has the PTY host refuse spawn.detached", () => {
-      const real = process.platform
-      Object.defineProperty(process, "platform", { value: platform })
-      try {
-        expect(() =>
-          dispatchPtyRequest(
-            {
-              type: "request",
-              id: "1",
-              name: "spawn.detached",
-              payload: { command: "/bin/sh", args: [], env: {}, logPath: "/tmp/x" },
-            },
-            {} as never,
-            { ptys: {} as never, writeFrame() {}, requestStop() {} },
-          ),
-        ).toThrow(/Windows-only/)
-        expect(spawned).toEqual([])
-      } finally {
-        Object.defineProperty(process, "platform", { value: real })
-      }
-    })
+    expect(clients).toEqual([])
+    expect(spawned).toHaveLength(1)
+    expect(spawned[0]?.command).toBe("/usr/bin/bun")
+    expect(spawned[0]?.options).toMatchObject({ detached: true, env })
   })
-}
+
+  it("has the PTY host refuse spawn.detached", () => {
+    const real = process.platform
+    Object.defineProperty(process, "platform", { value: platform })
+    try {
+      expect(() =>
+        dispatchPtyRequest(
+          {
+            type: "request",
+            id: "1",
+            name: "spawn.detached",
+            payload: { command: "/bin/sh", args: [], env: {}, logPath: "/tmp/x" },
+          },
+          {} as never,
+          { ptys: {} as never, writeFrame() {}, requestStop() {} },
+        ),
+      ).toThrow(/Windows-only/)
+      expect(spawned).toEqual([])
+    } finally {
+      Object.defineProperty(process, "platform", { value: real })
+    }
+  })
+})
 
 describe("on win32", () => {
   it("still launches through the detached launcher outside any session", () => {

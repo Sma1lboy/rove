@@ -114,7 +114,7 @@ test("squash land with --delete-branch keeps every original commit reachable", a
   // The point of the whole exercise: `git rev-parse` finding the object is
   // NOT enough (a dangling commit answers that too, right up until gc). All
   // twelve must be reachable from a ref.
-  for (const sha of shas) expect(reachable(sha)).toBe(true)
+  expect(shas.filter((sha) => !reachable(sha))).toEqual([])
   expect(git(repo, "rev-list", "--count", `${res.branchAnchor?.ref}`).trim()).toBe("13") // 12 + base
 
   // And the recovery path in the docs actually works.

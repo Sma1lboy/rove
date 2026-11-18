@@ -56,6 +56,7 @@ import {
   UPDATE_NOTIFY_KEY,
   normalizeReleaseChannel,
 } from "@sma1lboy/rove/src/state/update-channel.ts"
+import { USAGE_SHOWS, USAGE_SHOW_KEY, normalizeUsageShow } from "@sma1lboy/rove/src/state/usage-show.ts"
 import {
   DEFAULT_WORKING_BORDER,
   WORKING_BORDER_KEY,
@@ -234,6 +235,7 @@ export const PREF_DEFS: Readonly<Record<string, PrefDef>> = {
     read: (s) => resolveTabStripMode(s[TAB_STRIP_MODE_KEY], s[TAB_STRIP_HIDE_SINGLE_KEY]),
     write: ((v: string) => ({ [TAB_STRIP_MODE_KEY]: v })) as Shared["write"],
   },
+  usageShow: choice(USAGE_SHOW_KEY, USAGE_SHOWS, normalizeUsageShow),
   prefixTap: choice(PREFIX_TAP_PRESENTATION_KEY, PREFIX_TAP_PRESENTATIONS, (raw) =>
     normalizePrefixTapPresentation(raw ?? DEFAULT_PREFIX_TAP_PRESENTATION),
   ),

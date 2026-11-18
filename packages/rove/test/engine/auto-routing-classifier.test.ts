@@ -96,18 +96,23 @@ describe("readClassifierConfig", () => {
     })
   })
 
-  it("reads anything unrecognizable as off — a typo must not become 'send it somewhere'", () => {
-    for (const raw of ["Jev", "jevv", "on", "true", "tiers.internal/pick", "ftp://x/y", ""]) {
+  it.each(["Jev", "jevv", "on", "true", "tiers.internal/pick", "ftp://x/y", ""])(
+    "reads unrecognizable %j as off — a typo must not become 'send it somewhere'",
+    (raw) => {
       expect(readClassifierConfig(from({ "autoRouting.classifier": raw })).mode).toEqual({ kind: "off" })
-    }
-  })
+    },
+  )
 
-  it("takes http:// for a loopback host and refuses it for anything else", () => {
-    // Loopback http is the escape hatch the custom option exists for: run the
-    // classifier yourself and the prompt never leaves the machine.
-    for (const url of ["http://127.0.0.1:8000/tier", "http://localhost:8000/tier", "http://[::1]:8000/tier"]) {
+  // Loopback http is the escape hatch the custom option exists for: run the
+  // classifier yourself and the prompt never leaves the machine.
+  it.each(["http://127.0.0.1:8000/tier", "http://localhost:8000/tier", "http://[::1]:8000/tier"])(
+    "takes http:// for loopback host %s",
+    (url) => {
       expect(readClassifierConfig(from({ "autoRouting.classifier": url })).mode).toMatchObject({ kind: "url", url })
-    }
+    },
+  )
+
+  it("refuses http:// for a non-loopback host", () => {
     // Over a network the same URL carries the prompt, and the token, in
     // cleartext. Refused rather than read as `off`, because someone who typed
     // an address deserves to be told why nothing is happening.
@@ -144,13 +149,11 @@ describe("readClassifierConfig", () => {
     expect(readClassifierConfig(from({ "autoRouting.classifierTimeoutMs": 900_000 })).timeoutMs).toBe(4000)
   })
 
-  it("reads junk and a BLANK threshold as unset, not as a floor of zero", () => {
-    // `Number("")` is 0. A hand-edited empty value in the file the docs invite
-    // people to edit would otherwise accept every answer however unsure —
-    // the one rule this module exists to keep, undone by a stray keystroke.
-    for (const blank of ["", "   ", "soon"]) {
-      expect(readClassifierConfig(from({ "autoRouting.classifierThreshold": blank })).threshold).toBe(0.5)
-    }
+  // `Number("")` is 0. A hand-edited empty value in the file the docs invite
+  // people to edit would otherwise accept every answer however unsure —
+  // the one rule this module exists to keep, undone by a stray keystroke.
+  it.each(["", "   ", "soon"])("reads junk or BLANK threshold %j as unset, not as a floor of zero", (blank) => {
+    expect(readClassifierConfig(from({ "autoRouting.classifierThreshold": blank })).threshold).toBe(0.5)
   })
 })
 

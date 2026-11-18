@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events"
 import { PassThrough } from "node:stream"
 import { type ApiEnvelope, ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { describe, expect, it, vi } from "vitest"
+import { describe, expect, it, onTestFinished, vi } from "vitest"
 import { executeVerb } from "../../src/cli/api/invoke.ts"
 import { REMOTE_CALLER, daemonCaller } from "../../src/cli/api/types.ts"
 import { applyToken, autoSyncSignedOut } from "../../src/github/credentials.ts"
@@ -89,18 +89,19 @@ describe("githubStatus", () => {
   })
 
   it("a signed-in machine reports account, versions and whether git pushes through gh", async () => {
-    const run: RunTool = async (cmd, args) => {
-      if (cmd === "git" && args[0] === "--version") return result({ stdout: "git version 2.50.1\n" })
-      if (cmd === "gh" && args[0] === "--version") return result({ stdout: "gh version 2.92.0 (2026-04-28)\n" })
-      if (cmd === "gh" && args[0] === "auth") return result({ stdout: SIGNED_IN })
-      if (cmd === "git") {
-        return result({ stdout: "credential.https://github.com.helper !/opt/homebrew/bin/gh auth git-credential\n" })
-      }
-      return result({
+    const replies: Record<string, ToolResult> = {
+      "git --version": result({ stdout: "git version 2.50.1\n" }),
+      "gh --version": result({ stdout: "gh version 2.92.0 (2026-04-28)\n" }),
+      "gh auth": result({ stdout: SIGNED_IN }),
+      "git config": result({
+        stdout: "credential.https://github.com.helper !/opt/homebrew/bin/gh auth git-credential\n",
+      }),
+      "ssh -T": result({
         code: 1,
         stderr: "Hi octo! You've successfully authenticated, but GitHub does not provide shell access.",
-      })
+      }),
     }
+    const run: RunTool = async (cmd, args) => replies[`${cmd} ${args[0]}`] ?? result({ code: 1 })
     const status = await githubStatus({ run, login: () => ({ state: "syncing" }) })
     expect(status).toMatchObject({
       git: "2.50.1",
@@ -176,9 +177,13 @@ describe("device flow", () => {
   })
 
   it("no code within the wait kills the child and rejects", async () => {
+    vi.useFakeTimers()
+    onTestFinished(() => void vi.useRealTimers())
     const gh = fakeGh()
     const login = new DeviceLogin({ spawn: () => gh.process, finish: async () => {}, codeWaitMs: 20 })
-    await expect(login.start(true)).rejects.toMatchObject({ code: "GITHUB_LOGIN_FAILED" })
+    const started = expect(login.start(true)).rejects.toMatchObject({ code: "GITHUB_LOGIN_FAILED" })
+    await vi.advanceTimersByTimeAsync(20)
+    await started
     expect(gh.child.kill).toHaveBeenCalled()
   })
 })
@@ -251,26 +256,29 @@ describe("bringing the other machines along after a sign-in", () => {
       offline: down("MACHINE_UNREACHABLE"),
       old: down("UNKNOWN_VERB"),
     }
-    const applied: string[] = []
-    const forward = vi.fn(async (machine: { alias: string }, verb: string, params: Record<string, unknown>) => {
-      if (verb === "github-apply") {
-        expect(params).toEqual({ token: TOKEN })
-        applied.push(machine.alias)
-        return ok(status({ account: "octo" }))
-      }
-      return reply[machine.alias] as ApiEnvelope
-    })
+    const byVerb: Record<string, (alias: string) => ApiEnvelope> = {
+      "github-status": (alias) => reply[alias] as ApiEnvelope,
+      "github-apply": () => ok(status({ account: "octo" })),
+    }
+    const forward = vi.fn(async (machine: { alias: string }, verb: string, _params: Record<string, unknown>) =>
+      (byVerb[verb] as (alias: string) => ApiEnvelope)(machine.alias),
+    )
     const synced = await autoSyncSignedOut(TOKEN, forward as never, Object.keys(reply).map(entry))
     expect(synced).toEqual(["signedOut"])
-    expect(applied).toEqual(["signedOut"])
+    const applies = forward.mock.calls.filter(([, verb]) => verb === "github-apply")
+    expect(applies.map(([machine, , params]) => [machine.alias, params])).toEqual([["signedOut", { token: TOKEN }]])
   })
 })
 
 describe("inbound policy for credentials", () => {
-  it("the verbs that sign gh in or out are their own class; status is a plain read", () => {
-    for (const verb of ["github-login", "github-logout", "github-sync", "github-apply"]) {
+  it.each(["github-login", "github-logout", "github-sync", "github-apply"])(
+    "%s is in the credentials class",
+    (verb) => {
       expect(inboundClassOf(verb)).toBe("credentials")
-    }
+    },
+  )
+
+  it("github-status is a plain read", () => {
     expect(inboundClassOf("github-status")).toBe("read")
   })
 

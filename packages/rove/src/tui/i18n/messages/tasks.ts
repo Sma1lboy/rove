@@ -59,8 +59,9 @@ export const en = {
     reorder: "Reorder row",
     /** Project row: jump the project above every other. Menu-only. */
     moveToTop: "Move to top",
-    /** Project row: move mode on its main row, so j/k move the project. */
-    reorderProject: "Reorder project",
+    /** Project header: move the project one place up / down. Menu-only. */
+    moveProjectUp: "Move up",
+    moveProjectDown: "Move down",
     /** Re-fire the task's stored brief as a new task. Menu-only. */
     runAgain: "Run again",
     /** Menu-only, like `runAgain`, `land`, `fieldNotes` and the two copies —
@@ -86,6 +87,9 @@ export const en = {
     /** Only while a merge/rebase/cherry-pick/revert is paused in the worktree. */
     resolveConflicts: "Resolve conflicts",
     land: "Land into base branch",
+    /** Menu-only: the task keeps its unread dot; toasts and chime stop (errors still toast). */
+    muteNotifications: "Mute notifications",
+    unmuteNotifications: "Unmute notifications",
     /** Hide the task and its children from the sidebar; nothing is stopped or removed. Menu-only. */
     archive: "Archive",
     unarchive: "Unarchive",
@@ -124,12 +128,12 @@ export const en = {
     dirty: "Commit the worktree's changes first, then sync: {files}",
     failed: "Sync failed: {error}",
   },
-  /** Row menu "Archive" / "Unarchive". Archive only hides: the copy must not read like teardown. */
+  /** Row menu "Archive" / "Unarchive". Archive ends the sessions and keeps the files. */
   archive: {
-    done: "Archived {title}. Its worktree, branch and sessions are untouched",
+    done: "Archived {title}",
     restored: "Restored {title}",
     busyTitle: "Archive while it's working?",
-    busyBody: "An engine in {title} is still working or waiting on you. Archiving hides the row without stopping it.",
+    busyBody: "An engine in {title} is still working or waiting on you. Archiving stops it.",
     busyConfirm: "Archive anyway",
     failed: "Couldn't archive: {error}",
     restoreFailed: "Couldn't restore: {error}",
@@ -332,7 +336,8 @@ export const zh: typeof en = {
     unpin: "取消置顶",
     reorder: "重新排序",
     moveToTop: "移到顶部",
-    reorderProject: "调整项目顺序",
+    moveProjectUp: "上移",
+    moveProjectDown: "下移",
     runAgain: "重新运行",
     setStatus: "设置状态",
     moveToProject: "移到其他项目…",
@@ -347,6 +352,8 @@ export const zh: typeof en = {
     syncBase: "同步基础分支",
     resolveConflicts: "让 agent 解决冲突",
     land: "合入基础分支",
+    muteNotifications: "静音通知",
+    unmuteNotifications: "取消静音通知",
     archive: "归档",
     unarchive: "取消归档",
     delete: "移除会话",
@@ -377,10 +384,10 @@ export const zh: typeof en = {
     failed: "同步失败：{error}",
   },
   archive: {
-    done: "已归档 {title}。工作树、分支和会话都保持原样",
+    done: "已归档 {title}",
     restored: "已恢复 {title}",
     busyTitle: "它还在工作，仍要归档？",
-    busyBody: "{title} 里有引擎仍在工作或在等你。归档只隐藏这一行，不会停止它。",
+    busyBody: "{title} 里有引擎仍在工作或在等你。归档会把它停掉。",
     busyConfirm: "仍要归档",
     failed: "归档失败：{error}",
     restoreFailed: "恢复失败：{error}",

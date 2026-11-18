@@ -60,15 +60,12 @@ describe("New session composer on another machine", () => {
     expect(enginesThere(here, [])).toEqual({ rows: here, missing: new Set() })
   })
 
-  test("a clone pick is named owner/repo, whatever form its source takes", () => {
-    for (const ref of [
-      "github.com/acme/app",
-      "acme/app",
-      "https://github.com/acme/app.git",
-      "git@github.com:acme/app.git",
-    ])
+  test.each(["github.com/acme/app", "acme/app", "https://github.com/acme/app.git", "git@github.com:acme/app.git"])(
+    "a clone pick is named owner/repo, whatever form its source takes: %s",
+    (ref) => {
       expect(cloneLabel(ref)).toBe("acme/app")
-  })
+    },
+  )
 
   test("by default the agent is this machine's, so its model rides along; with the engine there it does not", () => {
     const input = {

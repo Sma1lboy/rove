@@ -11,7 +11,7 @@
 import { describe, expect, test } from "bun:test"
 import type { StoredFieldNote } from "../../src/state/field-notes"
 import { FieldNotesDialogView } from "../../src/tui-react/component/field-notes-dialog"
-import { renderComponent, settle } from "./harness"
+import { renderComponent, waitForFrameText } from "./harness"
 
 function mount(load: () => Promise<readonly StoredFieldNote[]>) {
   return renderComponent(<FieldNotesDialogView repo="/repos/rove" load={load} onClose={() => {}} />, {
@@ -28,8 +28,7 @@ describe("FieldNotesDialogView", () => {
       { at: "2026-08-30T08:00:00.000Z", text: "older lesson", taskId: "t2", author: "seed-branch" },
     ]
     const { frame } = await mount(async () => notes)
-    await settle()
-    const f = await frame()
+    const f = await waitForFrameText(frame, "older lesson")
     expect(f).toContain("the gotcha")
     expect(f).toContain("fix-the-pty")
     expect(f).toContain("older lesson")
@@ -46,9 +45,7 @@ describe("FieldNotesDialogView", () => {
     const { frame } = await mount(async () => {
       throw new Error("daemon unreachable")
     })
-    await settle()
-    const f = await frame()
-    expect(f).toContain("daemon unreachable")
+    const f = await waitForFrameText(frame, "daemon unreachable")
     expect(f).not.toContain("Loading")
   })
 })

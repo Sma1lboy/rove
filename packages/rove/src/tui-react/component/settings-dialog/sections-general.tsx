@@ -11,6 +11,7 @@ import { useMemo } from "react"
 import type { UsageSnapshotMap } from "../../../client/remote-orchestrator"
 import { engineDisplayName } from "../../../engine/interactive-command"
 import { displayWidth } from "../../../lib/display-width"
+import type { UsageShow } from "../../../state/usage-show"
 import {
   type NavLevel,
   SECTIONS,
@@ -74,7 +75,7 @@ export function SettingsSectionSidebar(props: {
  * vendors the daemon's usage cache has a snapshot for appear (claude today).
  * Read-only chrome — no cursor row, so keyboard nav indices are untouched.
  */
-function UsageDashboard(props: { usage: UsageSnapshotMap }) {
+function UsageDashboard(props: { usage: UsageSnapshotMap; show: UsageShow }) {
   const { theme } = useTheme()
   const t = useT()
   const toneColor = { ok: theme.success, warn: theme.warning, crit: theme.error } as const
@@ -86,7 +87,7 @@ function UsageDashboard(props: { usage: UsageSnapshotMap }) {
           <text fg={theme.text} attributes={TextAttributes.BOLD} wrapMode="none">
             {`${engineDisplayName(vendor).toUpperCase()} ${t("settings.general.usage")}`}
           </text>
-          {usageRows(usage, now).map((row) => (
+          {usageRows(usage, now, props.show).map((row) => (
             <box key={row.label} flexDirection="row" gap={1}>
               <text fg={theme.textMuted} wrapMode="none">
                 {row.label}
@@ -176,6 +177,7 @@ export function GeneralSettingsSection(
   const worktreeCustomRow = rowIdx("worktree-custom")
   const scrollbackRow = rowIdx("scrollback-rows")
   const tabStripHideSingleRow = rowIdx("tab-strip-hide-single")
+  const usageShowRow = rowIdx("usage-show")
 
   return (
     <box flexDirection="row" gap={2}>
@@ -378,8 +380,21 @@ export function GeneralSettingsSection(
             })}
           </Row>
         </SubSection>
+        <SubSection title={t("settings.general.usageShowTitle")} hint={t("settings.general.usageShowHint")}>
+          <Row
+            cursor={isBodyCursor(usageShowRow)}
+            rowRef={props.rowRef(usageShowRow)}
+            onMouseUp={activate(usageShowRow, prefs.cycleUsageShow)}
+            fg={theme.accent}
+            bold={true}
+          >
+            {t("settings.general.usageShowRow", {
+              mode: t(`settings.general.usageShowMode.${prefs.usageShow()}`),
+            })}
+          </Row>
+        </SubSection>
       </box>
-      {props.usage && props.usage.size > 0 ? <UsageDashboard usage={props.usage} /> : null}
+      {props.usage && props.usage.size > 0 ? <UsageDashboard usage={props.usage} show={prefs.usageShow()} /> : null}
     </box>
   )
 }

@@ -17,7 +17,7 @@ export const RECENT_ROW_ID = "~recent"
 
 /**
  * Scratch section header id. Not a repo path, so project-header lookups (move
- * mode, context menu, `mainTaskIdOfProject`) just miss — no main task, no repo.
+ * mode, context menu) just miss.
  */
 export const SCRATCH_SECTION_ID = "~scratch"
 

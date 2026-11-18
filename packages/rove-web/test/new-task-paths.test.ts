@@ -37,9 +37,8 @@ describe("new-task dialog paths", () => {
 
   test("a Windows drive path is a path, with either separator", () => {
     const home = "C:\\Users\\me"
-    for (const path of ["C:\\Code\\app", "C:/Code/app", "c:\\", "~\\app", "\\\\host\\share\\app"]) {
-      expect(isPathInput(path)).toBe(true)
-    }
+    const paths = ["C:\\Code\\app", "C:/Code/app", "c:\\", "~\\app", "\\\\host\\share\\app"]
+    expect(paths.filter((path) => !isPathInput(path))).toEqual([])
     expect(isPathInput("app")).toBe(false)
     expect(resolveRepo("C:\\Code\\app", saved)).toEqual({ kind: "path", path: "C:\\Code\\app" })
     expect(splitRepoRow("C:\\Code\\app")).toEqual({ base: "app", dir: "C:\\Code\\" })
@@ -71,58 +70,42 @@ describe("new-task dialog paths", () => {
 })
 
 describe("githubRepoName", () => {
-  test("a GitHub URL of any shape and the shorthand name the same repo", () => {
-    for (const text of [
-      "https://github.com/starsrc/Bowl",
-      "https://github.com/starsrc/Bowl/",
-      "https://github.com/starsrc/Bowl.git",
-      "https://github.com/starsrc/Bowl/pull/12",
-      "git@github.com:starsrc/Bowl.git",
-      " starsrc/Bowl ",
-    ]) {
-      expect(githubRepoName(text)).toBe("starsrc/bowl")
-    }
+  test.each([
+    "https://github.com/starsrc/Bowl",
+    "https://github.com/starsrc/Bowl/",
+    "https://github.com/starsrc/Bowl.git",
+    "https://github.com/starsrc/Bowl/pull/12",
+    "git@github.com:starsrc/Bowl.git",
+    " starsrc/Bowl ",
+  ])("a GitHub URL of any shape and the shorthand name the same repo: %p", (text) => {
+    expect(githubRepoName(text)).toBe("starsrc/bowl")
   })
 
-  test("a name, a path, another host and a bare owner name no repo", () => {
-    for (const text of ["", "Bowl", "~/code/Bowl", "/w/a/b", "https://gitlab.com/o/r", "https://github.com/starsrc"]) {
+  test.each(["", "Bowl", "~/code/Bowl", "/w/a/b", "https://gitlab.com/o/r", "https://github.com/starsrc"])(
+    "a name, a path, another host and a bare owner name no repo: %p",
+    (text) => {
       expect(githubRepoName(text)).toBeNull()
-    }
-  })
+    },
+  )
 })
 
 describe("cloneSource", () => {
-  test("git URLs and owner/repo shorthand are clone sources, trimmed", () => {
-    for (const ok of [
-      "octocat/Hello-World",
-      " octocat/Hello-World ",
-      "o/.github",
-      "o/repo.git",
-      "https://github.com/o/r.git",
-      "ssh://git@host:22/o/r",
-      "git@github.com:o/r.git",
-    ]) {
-      expect(cloneSource(ok)).toBe(ok.trim())
-    }
+  test.each([
+    "octocat/Hello-World",
+    " octocat/Hello-World ",
+    "o/.github",
+    "o/repo.git",
+    "https://github.com/o/r.git",
+    "ssh://git@host:22/o/r",
+    "git@github.com:o/r.git",
+  ])("git URLs and owner/repo shorthand are clone sources, trimmed: %p", (ok) => {
+    expect(cloneSource(ok)).toBe(ok.trim())
   })
 
-  test("paths, deeper paths, names and dot segments stay local", () => {
-    for (const no of [
-      "",
-      "app",
-      "/w/a",
-      "~/w/a",
-      "~/a/b",
-      "./a/b",
-      "../a",
-      "a/b/c",
-      "o/.",
-      "o/..",
-      "o/.git",
-      "-o/x",
-      "o/ x",
-    ]) {
+  test.each(["", "app", "/w/a", "~/w/a", "~/a/b", "./a/b", "../a", "a/b/c", "o/.", "o/..", "o/.git", "-o/x", "o/ x"])(
+    "paths, deeper paths, names and dot segments stay local: %p",
+    (no) => {
       expect(cloneSource(no)).toBeNull()
-    }
-  })
+    },
+  )
 })

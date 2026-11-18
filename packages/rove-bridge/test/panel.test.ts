@@ -25,17 +25,16 @@ describe("peerOf", () => {
     expect(peerOf(upgrade(), "::ffff:127.0.0.1", NO_TUNNEL).local).toBe(true)
   })
 
-  test("behind cloudflared the peer is loopback too, so the tunnel's own marks decide", () => {
-    const tunnelled: Array<Record<string, string>> = [
-      { "cf-connecting-ip": "203.0.113.9" },
-      { "cf-access-jwt-assertion": "jwt" },
-      { "x-forwarded-for": "203.0.113.9" },
-      { origin: "https://rove.example.com" },
-    ]
-    for (const headers of tunnelled) {
-      expect(peerOf(upgrade(headers), "127.0.0.1", { publicHost: "rove.example.com" }).local).toBe(false)
-    }
-    // Access configured: every request is through the tunnel, even one that lost its headers.
+  test.each<Record<string, string>>([
+    { "cf-connecting-ip": "203.0.113.9" },
+    { "cf-access-jwt-assertion": "jwt" },
+    { "x-forwarded-for": "203.0.113.9" },
+    { origin: "https://rove.example.com" },
+  ])("behind cloudflared the peer is loopback too, so the tunnel's own mark %p decides", (headers) => {
+    expect(peerOf(upgrade(headers), "127.0.0.1", { publicHost: "rove.example.com" }).local).toBe(false)
+  })
+
+  test("with Access configured every request is through the tunnel, even one that lost its headers", () => {
     expect(peerOf(upgrade(), "127.0.0.1", { access: {}, publicHost: null }).local).toBe(false)
   })
 
@@ -201,7 +200,7 @@ describe("PanelFeed", () => {
     const h = start({ panels: feed })
     const pages = [await connect(h.url, AUTH), await connect(h.url, AUTH)]
     // A round trip proves the server finished opening each socket (and so subscribed it).
-    for (const page of pages) await page.call("ui.viewing", { taskId: null })
+    await Promise.all(pages.map((page) => page.call("ui.viewing", { taskId: null })))
     const arrived = pages.map((page) => {
       const got = Promise.withResolvers<void>()
       page.ws.addEventListener("message", () => page.pushes.length > 0 && got.resolve())
@@ -210,7 +209,8 @@ describe("PanelFeed", () => {
     const request = { taskId: "T1", view: "files" as const, path: "src/a.ts", at: Date.now() }
     feed.push(request)
     await Promise.all(arrived)
-    for (const page of pages) expect(page.pushes).toEqual([{ event: "panel", data: request }])
+    const pushed = [{ event: "panel", data: request }]
+    expect(pages.map((page) => page.pushes)).toEqual([pushed, pushed])
   })
 })
 

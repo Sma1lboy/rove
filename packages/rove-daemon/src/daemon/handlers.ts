@@ -32,7 +32,7 @@ import type { DaemonEventBus } from "./event-bus.ts"
 import type { GatesStore } from "./gates-store.ts"
 import { objectPayload, requireString } from "./handler-validators.ts"
 import { AGENT_TURN_HANDLERS } from "./handlers-agent-turns.ts"
-import { API_HANDLERS } from "./handlers-api.ts"
+import { API_HANDLERS, invokingVerbs } from "./handlers-api.ts"
 import { ATTENTION_HANDLERS } from "./handlers-attention.ts"
 import { AUTOMATION_HANDLERS } from "./handlers-automations.ts"
 import { CHECKPOINT_HANDLERS } from "./handlers-checkpoint.ts"
@@ -44,6 +44,7 @@ import { GRAPHICS_HANDLERS } from "./handlers-graphics.ts"
 import { ISSUE_HANDLERS } from "./handlers-issues.ts"
 import { PANEL_HANDLERS } from "./handlers-panel.ts"
 import { PR_HANDLERS } from "./handlers-pr.ts"
+import { PROJECT_FORGET_HANDLERS } from "./handlers-project-forget.ts"
 import { QUEUE_HANDLERS } from "./handlers-queue.ts"
 import { QUOTA_RESUME_HANDLERS } from "./handlers-quota-resume.ts"
 import { ROW_STATUS_HANDLERS } from "./handlers-row-status.ts"
@@ -310,6 +311,8 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
           hostname: hostname(),
           // What `--machine auto` on another machine places work by.
           load: readMachineLoad(),
+          // Verbs in flight: another machine waits for 0 before it updates and restarts this one.
+          invoking: invokingVerbs(),
         }
       },
     },
@@ -331,6 +334,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...API_HANDLERS,
     ...TASK_HANDLERS,
     ...ARCHIVE_HANDLERS,
+    ...PROJECT_FORGET_HANDLERS,
     ...SCHEDULE_HANDLERS,
     ...QUOTA_RESUME_HANDLERS,
     ...FIELD_HANDLERS,

@@ -12,7 +12,7 @@
 
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { join } from "node:path"
-import { afterAll, beforeAll, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
 import {
   type BehaviorEnv,
   DIST_ROVE_CLI,
@@ -58,17 +58,17 @@ describe.skipIf(!nodePty)("Pure TUI adopts unregistered live sessions (behavior)
   })
 
   it("writes the live session back into the tab snapshot the TUI renders from", async () => {
-    if (!nodePty) throw new Error("unreachable: suite is skipped without node-pty")
     const key = `terminalTabs.${taskId}`
 
-    const deadline = Date.now() + 30_000
-    while (Date.now() < deadline) {
-      const sessions = JSON.parse(runRove(["api", "pty-list"], env).stdout) as {
-        sessions?: { key: string; alive?: boolean }[]
-      }
-      if (sessions.sessions?.some((s) => s.key === `${taskId}::tab-1` && s.alive)) break
-      await new Promise((resolve) => setTimeout(resolve, 250))
-    }
+    await vi.waitFor(
+      () => {
+        const sessions = JSON.parse(runRove(["api", "pty-list"], env).stdout) as {
+          sessions?: { key: string; alive?: boolean }[]
+        }
+        expect(sessions.sessions).toContainEqual(expect.objectContaining({ key: `${taskId}::tab-1`, alive: true }))
+      },
+      { timeout: 30_000, interval: 250 },
+    )
 
     // The divergence, in the shape the field one had: the snapshot names a
     // DIFFERENT tab while the engine keeps running under tab-1 — what a tab
@@ -91,7 +91,7 @@ describe.skipIf(!nodePty)("Pure TUI adopts unregistered live sessions (behavior)
     // must not pin a shared client inside bun-test), and this child inherits
     // vitest's markers. It is a real TUI in its own process, so clear them.
     const { VITEST, NODE_ENV, BUN_TEST, ...tuiEnv } = env.env as Record<string, string>
-    const child = nodePty.spawn("bun", [DIST_ROVE_CLI], {
+    const child = nodePty!.spawn("bun", [DIST_ROVE_CLI], {
       cols: 140,
       rows: 40,
       cwd: repo,
@@ -100,14 +100,13 @@ describe.skipIf(!nodePty)("Pure TUI adopts unregistered live sessions (behavior)
     try {
       // The sidebar polls the host every 2s; adoption lands on a poll it can
       // reconcile, so wait on the STATE, not on a frame.
-      const adoptDeadline = Date.now() + 30_000
-      let adopted: { tabs?: { id: string }[] } | undefined
-      while (Date.now() < adoptDeadline) {
-        adopted = (await readState())[key] as { tabs?: { id: string }[] } | undefined
-        if (adopted?.tabs?.some((tab) => tab.id === "tab-1")) break
-        await new Promise((resolve) => setTimeout(resolve, 500))
-      }
-      expect(adopted?.tabs?.map((tab) => tab.id)).toContain("tab-1")
+      await vi.waitFor(
+        async () => {
+          const adopted = (await readState())[key] as { tabs?: { id: string }[] } | undefined
+          expect(adopted?.tabs?.map((tab) => tab.id)).toContain("tab-1")
+        },
+        { timeout: 30_000, interval: 500 },
+      )
     } finally {
       await closeTui(child)
     }

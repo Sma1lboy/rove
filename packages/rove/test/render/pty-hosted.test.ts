@@ -76,6 +76,25 @@ async function until(cond: () => boolean, label: string, ms = 5000): Promise<voi
   }
 }
 
+/** Wait until the host no longer lists `key`: `kill()` fires `pty.kill` without a promise to await. */
+async function sessionGone(key: string): Promise<void> {
+  const client = new RoveDaemonClient(process.env.ROVE_PTY_SOCKET_PATH as string)
+  await client.connect()
+  try {
+    const deadline = Date.now() + 5000
+    let keys = ["(not polled)"]
+    while (Date.now() < deadline) {
+      const { sessions } = await client.request<{ sessions: ReadonlyArray<{ key: string }> }>("pty.list")
+      keys = sessions.map((session) => session.key)
+      if (!keys.includes(key)) return
+      await new Promise((r) => setTimeout(r, 30))
+    }
+    throw new Error(`timeout: host still lists ${key} (${keys.join(", ")})`)
+  } finally {
+    client.close()
+  }
+}
+
 /** Write markers as `\x1b[0m<marker>`: the tty echo renders the ESC as `^[`,
  *  so only cat's own output leaves a bare `<marker>` row. That row last, with
  *  the cursor back at column 0, means every byte cat will send is parsed. */
@@ -136,7 +155,7 @@ describe("HostedTaskPty over a real pty-host socket", () => {
     // kill() ends the REMOTE child: the next open spawns fresh (a child
     // that prints then parks, so the exit race can't eat the output).
     b.kill()
-    await new Promise((r) => setTimeout(r, 200))
+    await sessionGone("smoke::t1")
     const c = new HostedTaskPty({
       taskId: "smoke::t1",
       cwd: dir,
@@ -168,6 +187,7 @@ describe("HostedTaskPty over a real pty-host socket", () => {
     })
     await until(() => text(b).includes("new-file"), "respawned session streams")
     // Let the dying incarnation's exit frame land — it must not kill us.
+    // Negative check: no event marks "the stale exit frame was ignored", so this one waits a fixed beat.
     await new Promise((r) => setTimeout(r, 300))
     expect(b.killed).toBe(false)
     expect(b.deadOnAttach).toBe(false)
@@ -314,8 +334,8 @@ describe("HostedTaskPty over a real pty-host socket", () => {
     const OPTS_P = { cwd: dir, command: ["/bin/cat"], cols: 60, rows: 12, scrollback: 200 }
     const parkee = new HostedTaskPty({ taskId: key, ...OPTS_P })
     const oracle = new HostedTaskPty({ taskId: key, ...OPTS_P })
-    for (let i = 0; i < 60; i++) parkee.write(`\x1b[3${(i % 6) + 1}mpre-park line ${i}\x1b[0m\n`)
-    parkee.write("\x1b[0mPRE-PARK-END\n")
+    const prePark = Array.from({ length: 60 }, (_, i) => `\x1b[3${(i % 6) + 1}mpre-park line ${i}\x1b[0m\n`)
+    parkee.write(`${prePark.join("")}\x1b[0mPRE-PARK-END\n`)
     // capturePark records every byte RECEIVED but serializes only what xterm
     // has PARSED; production parks only after a quiet period, so settle first.
     await until(() => settledOn(parkee, "PRE-PARK-END"), "parkee parsed pre-park content")
@@ -351,7 +371,7 @@ describe("HostedTaskPty over a real pty-host socket", () => {
     const stale = a.capturePark()
     expect(stale).not.toBeNull()
     a.kill()
-    await new Promise((r) => setTimeout(r, 200))
+    await sessionGone(key)
 
     // Same key, NEW child: the host's pid check must refuse the delta and
     // hand back the full ring, so the fresh session's history survives the

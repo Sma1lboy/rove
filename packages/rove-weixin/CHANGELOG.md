@@ -1,5 +1,54 @@
 # rove-weixin
 
+## 0.0.60
+
+### Patch Changes
+
+- Updated dependencies [[`9a3fae9`](https://github.com/Sma1lboy/rove/commit/9a3fae9d2bf4eb5cfac9139b591c318e4585c43c), [`adbbccb`](https://github.com/Sma1lboy/rove/commit/adbbccb7ac626fd8b05a83d17e3238fa9ef246cc), [`d0d49c8`](https://github.com/Sma1lboy/rove/commit/d0d49c8ebc513cd35c9fba37464c800b40eeac1e), [`2673e52`](https://github.com/Sma1lboy/rove/commit/2673e52b8c0120f5340412b1735a64f806a588e9), [`82170ce`](https://github.com/Sma1lboy/rove/commit/82170cea3dcde74dda41808843e62faa908f1226), [`51ecc52`](https://github.com/Sma1lboy/rove/commit/51ecc5234072f017df840b0e55ecae3ab84d6af3)]:
+  - @sma1lboy/rove@0.9.299
+
+## 0.0.59
+
+### Patch Changes
+
+- Updated dependencies [[`b97e479`](https://github.com/Sma1lboy/rove/commit/b97e479dfaa614848648077fcd57bca969f340cc), [`fd7a3cf`](https://github.com/Sma1lboy/rove/commit/fd7a3cf699f4f4c475e9691fd45e7b5783ba22f3), [`48e9202`](https://github.com/Sma1lboy/rove/commit/48e92027ec68f47c9e0804c2d76ae29c78a2ea5d), [`f8b5f81`](https://github.com/Sma1lboy/rove/commit/f8b5f81a5d272aac06967279d1130e724b785f87), [`03d0f12`](https://github.com/Sma1lboy/rove/commit/03d0f12e00d3177d79037efd6210bb0dd5fcdbda), [`0a6cf05`](https://github.com/Sma1lboy/rove/commit/0a6cf0503e2b7c8e2aafaa5f780c4c5779c1a606), [`49d0b3f`](https://github.com/Sma1lboy/rove/commit/49d0b3fbc0d6d7c4c3af8e94cac161b5957897db), [`22c8ce5`](https://github.com/Sma1lboy/rove/commit/22c8ce56636a3cd361ab97c71f4a34847ae05ad3), [`5de1503`](https://github.com/Sma1lboy/rove/commit/5de15031493b190f76b967520cb014e0383271f4), [`cbb2350`](https://github.com/Sma1lboy/rove/commit/cbb2350b90c46e27576f4ddb1ce0902ad5e9630a), [`2c82f1c`](https://github.com/Sma1lboy/rove/commit/2c82f1c17e432fd631ff5864fb15c69aea675b3f)]:
+  - @sma1lboy/rove@0.9.298
+
+## 0.0.58
+
+### Patch Changes
+
+- Updated dependencies [[`69f86b9`](https://github.com/Sma1lboy/rove/commit/69f86b92249aa9ede732591b90203631d23a698e)]:
+  - @sma1lboy/rove@0.9.297
+
+## 0.0.57
+
+### Patch Changes
+
+- Updated dependencies [[`ba29e8a`](https://github.com/Sma1lboy/rove/commit/ba29e8abc617f5547f15f8a30e275dc409c92ffc), [`c9849fd`](https://github.com/Sma1lboy/rove/commit/c9849fdc431098296b17231bbb482a4d52d92427), [`d2d917d`](https://github.com/Sma1lboy/rove/commit/d2d917dfdd02a61a8af64817b1a2e9c1dd4bbe78), [`57b8c99`](https://github.com/Sma1lboy/rove/commit/57b8c99b6b7960f376b5da080f545ea780777f43), [`23464ae`](https://github.com/Sma1lboy/rove/commit/23464aec47a46db29384c4584f0b5c6c218186e1), [`d265762`](https://github.com/Sma1lboy/rove/commit/d2657620973bcc8857cf27ba5ff580a6d06dfdac), [`2e4db65`](https://github.com/Sma1lboy/rove/commit/2e4db65ae01892a4a77ca19a048f2af2ef5d7950), [`b2a4432`](https://github.com/Sma1lboy/rove/commit/b2a4432610e66634a35fc35eaf4ccae21eabcbde), [`4f30de3`](https://github.com/Sma1lboy/rove/commit/4f30de31ce183455a44a102fa62b448ce62d15e5)]:
+  - @sma1lboy/rove@0.9.296
+
+## 0.0.56
+
+### Patch Changes
+
+- Updated dependencies [[`605a1d3`](https://github.com/Sma1lboy/rove/commit/605a1d363d453fc9500231220413eb301d294f5c), [`6936a32`](https://github.com/Sma1lboy/rove/commit/6936a3229bf2b4878e9aec9b0e60511fe2920a3b), [`1afab37`](https://github.com/Sma1lboy/rove/commit/1afab376195c7682f265c3922c0dcf035b0d0bd3), [`ff08a16`](https://github.com/Sma1lboy/rove/commit/ff08a164b486dd0da0b3504476d73fdc8bfd4e79), [`41978bb`](https://github.com/Sma1lboy/rove/commit/41978bb195bafd97c44066fdecd622620220169f), [`f53fa14`](https://github.com/Sma1lboy/rove/commit/f53fa14dab9961ce23bab072b64f937de869b02e), [`598a49d`](https://github.com/Sma1lboy/rove/commit/598a49db0cf7cd36f0ecfb2ffe810cbaff182520), [`2deff57`](https://github.com/Sma1lboy/rove/commit/2deff576510334bbf6832c7fae328bb9e6531157), [`d75e678`](https://github.com/Sma1lboy/rove/commit/d75e678309b15a1282035a965f77001cb1c83b91)]:
+  - @sma1lboy/rove@0.9.295
+
+## 0.0.55
+
+### Patch Changes
+
+- Updated dependencies [[`b2aa991`](https://github.com/Sma1lboy/rove/commit/b2aa991e73102d315d4492030c0ce04f42c0dfff), [`aa63efd`](https://github.com/Sma1lboy/rove/commit/aa63efda36bfea1274a6bf4fd68654b2279fee48), [`d826960`](https://github.com/Sma1lboy/rove/commit/d8269608e0faa189b5c51148c32091c537604d14), [`fb52cd0`](https://github.com/Sma1lboy/rove/commit/fb52cd0cf510d72d96b3ac9edeb55c08890eb0d3), [`a7bd9b6`](https://github.com/Sma1lboy/rove/commit/a7bd9b6b78d42a56afbd39a17864f9f12deb5695), [`2f82215`](https://github.com/Sma1lboy/rove/commit/2f82215f4c8fd50fade0289383f8b94fb8efbfb5), [`09614c9`](https://github.com/Sma1lboy/rove/commit/09614c9e3500c2a0b8736c5b463024702fda144c), [`b12df46`](https://github.com/Sma1lboy/rove/commit/b12df46be4113ced45e7e270215cd511963afb74), [`791acbc`](https://github.com/Sma1lboy/rove/commit/791acbcce96d00018dcd37898fbd065f9ad90942), [`0c86ba9`](https://github.com/Sma1lboy/rove/commit/0c86ba9587404d6f73f0e1805d63a0e61f00be0b), [`43ebf45`](https://github.com/Sma1lboy/rove/commit/43ebf4562503fdedb9eda61f342acafa308a6f3b), [`cfbee53`](https://github.com/Sma1lboy/rove/commit/cfbee53cf99c95dc75ca0e4ede5452ff71369f32), [`3dd876d`](https://github.com/Sma1lboy/rove/commit/3dd876d5260efd11e610576675edae01e5c32a55), [`cee5635`](https://github.com/Sma1lboy/rove/commit/cee56350b2993f93755bf7b63930465e1cfd4383), [`80cda97`](https://github.com/Sma1lboy/rove/commit/80cda975faf4f791b6e5c79b13203de502768216), [`de3ee7a`](https://github.com/Sma1lboy/rove/commit/de3ee7ae8b60d9e00a196f9ae7c0d12c70472fde), [`c1524c8`](https://github.com/Sma1lboy/rove/commit/c1524c86584896cfb86a824c84e4936cbecb9893), [`14d85da`](https://github.com/Sma1lboy/rove/commit/14d85da443a8ca56b060301770e0163fb3ebd700), [`9157c47`](https://github.com/Sma1lboy/rove/commit/9157c4757263f740a4f61188b4f75090272b951a), [`80f9fe7`](https://github.com/Sma1lboy/rove/commit/80f9fe7e5939273dd8256a6bd140124dac74ce62), [`efcefb2`](https://github.com/Sma1lboy/rove/commit/efcefb21e35a10644c8c17a2a24e47c2c64ccd85)]:
+  - @sma1lboy/rove@0.9.294
+
+## 0.0.54
+
+### Patch Changes
+
+- Updated dependencies [[`6bda084`](https://github.com/Sma1lboy/rove/commit/6bda084b77d41920ca6940ea366c8691146546e9), [`10482df`](https://github.com/Sma1lboy/rove/commit/10482dfe950439c2ad27f52a7d6531997361f0db), [`4c344c3`](https://github.com/Sma1lboy/rove/commit/4c344c39d58dd169095509b4d71dce23c2abd88a), [`8aec531`](https://github.com/Sma1lboy/rove/commit/8aec531a18c68ea4cb4a444fbdd94b5ac82aef6c), [`0fe8d40`](https://github.com/Sma1lboy/rove/commit/0fe8d40cc4af9f74ce976c39ab837a5eabb116f3), [`1c1aaa0`](https://github.com/Sma1lboy/rove/commit/1c1aaa04ca1edcb8c1602091a7da3f9eb60c3456)]:
+  - @sma1lboy/rove@0.9.293
+
 ## 0.0.53
 
 ### Patch Changes

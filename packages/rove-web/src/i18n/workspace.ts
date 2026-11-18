@@ -20,6 +20,8 @@ export const en = {
     resumingQuota: "resuming…",
     usageLimit: "usage limit reached",
     dismiss: "Dismiss",
+    /** Action on a cross-task toast: go to that task. */
+    openTask: "Open",
   },
   tab: {
     shell: "shell",
@@ -80,6 +82,10 @@ export const en = {
     pasteNoImage: "No image on this browser's clipboard",
     pasteNoAccess: "Can't read this browser's clipboard: {error}",
     pasteNeedsHttps: "the page needs https or localhost",
+    refreshRove: "Refresh Rove",
+    refreshConfirm: "Rove will restart the daemon and reconnect. Your running sessions will keep going.",
+    refreshVersions: "bridge {bridge} · daemon {daemon}",
+    unknownVersion: "unknown",
     refreshTimeout: "The daemon did not come back on the new build in time; check `rove daemon status`",
     railResize: "Drag to resize the task list, click to fold it, double-click to reset",
     composerPlaceholder: "Message the agent",
@@ -120,6 +126,7 @@ export const zh: typeof en = {
     resumingQuota: "正在继续…",
     usageLimit: "已达到用量上限",
     dismiss: "忽略",
+    openTask: "打开",
   },
   tab: {
     shell: "终端",
@@ -180,6 +187,10 @@ export const zh: typeof en = {
     pasteNoImage: "浏览器剪贴板里没有图片",
     pasteNoAccess: "读不到浏览器剪贴板：{error}",
     pasteNeedsHttps: "页面要走 https 或 localhost",
+    refreshRove: "刷新 Rove",
+    refreshConfirm: "Rove 会重启守护进程并重新连接。正在运行的会话会继续。",
+    refreshVersions: "桥接服务 {bridge} · 守护进程 {daemon}",
+    unknownVersion: "版本未知",
     refreshTimeout: "守护进程没能及时以新版本重新上线，请检查 `rove daemon status`",
     railResize: "拖动调整任务列表宽度，单击折叠，双击还原",
     composerPlaceholder: "给 agent 发消息",

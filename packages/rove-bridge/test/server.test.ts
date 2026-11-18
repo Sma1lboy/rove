@@ -109,7 +109,7 @@ describe("op.progress", () => {
 })
 
 describe("tab.new", () => {
-  test("without a prompt it opens an empty tab (engine by default); a shell with a prompt or engine is BAD_ARGS", async () => {
+  test("without a prompt it opens an empty tab (engine by default)", async () => {
     const seen: Array<[string, unknown]> = []
     const newTab: RoveOps["newTab"] = async (taskId, tab) => {
       seen.push([taskId, tab])
@@ -127,15 +127,20 @@ describe("tab.new", () => {
       ["T1", { kind: "engine", prompt: undefined, engine: undefined }],
       ["T1", { kind: "engine", prompt: "go", engine: "codex" }],
     ])
+  })
 
-    seen.length = 0
-    for (const args of [
-      { taskId: "T1", kind: "shell", prompt: "go" },
-      { taskId: "T1", kind: "shell", engine: "codex" },
-      { taskId: "T1", kind: "terminal" },
-    ]) {
-      expect((await c.call("tab.new", args)).error?.code).toBe("BAD_ARGS")
+  test.each([
+    { taskId: "T1", kind: "shell", prompt: "go" },
+    { taskId: "T1", kind: "shell", engine: "codex" },
+    { taskId: "T1", kind: "terminal" },
+  ])("a shell with a prompt or engine, or an unknown kind, is BAD_ARGS: %p", async (args) => {
+    const seen: unknown[] = []
+    const newTab: RoveOps["newTab"] = async (taskId, tab) => {
+      seen.push([taskId, tab])
+      return { tabId: "tab-3" }
     }
+    const c = await connect(start({ ops: { ...fakeOps(), newTab } }).url, AUTH)
+    expect((await c.call("tab.new", args)).error?.code).toBe("BAD_ARGS")
     expect(seen).toEqual([])
   })
 })

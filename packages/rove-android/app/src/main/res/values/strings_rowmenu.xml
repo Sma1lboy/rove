@@ -28,7 +28,7 @@
     <string name="rowmenu_status_canceled">canceled</string>
     <string name="rowmenu_status_error">error</string>
     <string name="rowmenu_archive_busy_title">Archive while it\'s working?</string>
-    <string name="rowmenu_archive_busy_body">An engine in %1$s is still working or waiting on you. Archiving hides the row without stopping it.</string>
+    <string name="rowmenu_archive_busy_body">An engine in %1$s is still working or waiting on you. Archiving stops it.</string>
     <string name="rowmenu_archive_busy_confirm">archive anyway</string>
     <string name="rowmenu_archived_fold">archived · %1$d</string>
     <string name="rowmenu_more">more</string>

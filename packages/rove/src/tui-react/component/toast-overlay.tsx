@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Toast overlay: bottom-right cards, newest at the bottom, up to three, click
- * to dismiss. Each card: semantic-colored left accent bar, title row with
+ * Toast overlay: bottom-right cards, newest at the bottom, up to three. Click
+ * dismisses; a card that names a task also opens it. Each card: semantic-colored left accent bar, title row with
  * glyph, optional muted body line. Auto-dismiss timers belong to the
  * notifications context.
  */
@@ -18,7 +18,7 @@ const MAX_VISIBLE = 3
 const CARD_WIDTH = 44
 const RIGHT_MARGIN = 2
 
-export function ToastOverlay() {
+export function ToastOverlay({ onOpenTask }: { onOpenTask?: (taskId: string, tabId: string | null) => void }) {
   const { theme } = useTheme()
   const t = useT()
   const dims = useTerminalSize()
@@ -50,7 +50,10 @@ export function ToastOverlay() {
             key={toast.id}
             flexDirection="row"
             backgroundColor={theme.backgroundElement}
-            onMouseUp={() => notif.dismiss(toast.id)}
+            onMouseUp={() => {
+              notif.dismiss(toast.id)
+              if (toast.taskId) onOpenTask?.(toast.taskId, toast.tabId || null)
+            }}
           >
             {/* Semantic accent bar — the Inbox selection-bar language. */}
             <box flexDirection="column" flexShrink={0}>

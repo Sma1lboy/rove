@@ -31,14 +31,12 @@ function recordingTty(isTTY = true): { stream: NodeJS.WriteStream; written: stri
 }
 
 describe("createHostImeOutput", () => {
-  it("uses a local custom-output feed for fullscreen macOS and Windows hosts", () => {
+  it.each(["darwin", "win32"] as const)("uses a local custom-output feed for a fullscreen %s host", (platform) => {
     const stdout = fakeTty()
-    for (const platform of ["darwin", "win32"] as const) {
-      const host = createHostImeOutput({ platform, fullscreen: true, stdout })
-      expect(host.rendererOptions.remote).toBe(false)
-      expect(host.rendererOptions.stdout).not.toBe(stdout)
-      expect(host.active).toBe(true)
-    }
+    const host = createHostImeOutput({ platform, fullscreen: true, stdout })
+    expect(host.rendererOptions.remote).toBe(false)
+    expect(host.rendererOptions.stdout).not.toBe(stdout)
+    expect(host.active).toBe(true)
   })
 
   it("leaves Linux and inline command hosts on the direct stdout path", () => {
@@ -73,9 +71,7 @@ describe("installPaneExitBackstop", () => {
   it("registers one exit listener per teardown signal", () => {
     const before = new Map(SIGNALS.map((s) => [s, process.listeners(s).length]))
     install({ exit: () => {} })
-    for (const signal of SIGNALS) {
-      expect(process.listeners(signal).length).toBe((before.get(signal) ?? 0) + 1)
-    }
+    expect(SIGNALS.map((s) => process.listeners(s).length)).toEqual(SIGNALS.map((s) => (before.get(s) ?? 0) + 1))
   })
 
   it("exits as soon as nothing is in flight, rather than waiting out the ceiling", async () => {
@@ -95,7 +91,8 @@ describe("installPaneExitBackstop", () => {
     const exits: number[] = []
     install({ ceilingMs: 60_000, exit: (code) => exits.push(code) })()
 
-    await new Promise((resolve) => setTimeout(resolve, 50))
+    // Readiness is promise-driven: one macrotask turn drains every microtask an exit would need.
+    await new Promise((resolve) => setImmediate(resolve))
     expect(exits, "exited while a kill-own-session flow was still orchestrating").toEqual([])
 
     finishWork()

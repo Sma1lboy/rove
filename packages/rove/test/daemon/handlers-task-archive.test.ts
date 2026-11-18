@@ -1,8 +1,7 @@
 /**
  * `task.archive`: hide or restore a task together with its descendants.
- * Archive never stops anything, so the handler's only guards are the busy
- * refusal (a row that still needs eyes must not vanish by accident) and the
- * project's `main` checkout, which is the project row itself.
+ * Archiving ends the subtree's sessions; the one guard is the busy refusal (a
+ * row that still needs eyes must not be stopped by accident).
  */
 
 import { describe, expect, it } from "vitest"
@@ -13,11 +12,12 @@ const PARENT = { ...TASK, id: "p" } as Task
 const CHILD = { ...TASK, id: "c", parentTaskId: "p" } as Task
 const GRANDCHILD = { ...TASK, id: "g", parentTaskId: "c" } as Task
 const OTHER = { ...TASK, id: "o" } as Task
-const MAIN = { ...TASK, id: "m", kind: "main" } as Task
+const MAIN = { ...TASK, id: "m", kind: "dir" } as Task
 const TASKS = [PARENT, CHILD, GRANDCHILD, OTHER, MAIN]
 
 function archiveCtx(states: Record<string, string> = {}) {
   const calls: Array<[string, boolean]> = []
+  const stopped: string[] = []
   const { ctx } = fakeCtx({
     listTasks: () => TASKS,
     getTask: (id: string) => TASKS.find((t) => t.id === id),
@@ -26,8 +26,14 @@ function archiveCtx(states: Record<string, string> = {}) {
     },
   })
   const activity = { ...ctx.activity, stateOf: (id: string) => states[id] } as unknown as typeof ctx.activity
-  const withActivity = { ...ctx, activity }
-  return { ctx: withActivity, calls }
+  const runtime = {
+    ...ctx.runtime,
+    tearDownTaskSession: async (id: string) => {
+      stopped.push(id)
+    },
+  } as typeof ctx.runtime
+  const withActivity = { ...ctx, activity, runtime }
+  return { ctx: withActivity, calls, stopped }
 }
 
 describe("task.archive", () => {
@@ -43,24 +49,33 @@ describe("task.archive", () => {
     ])
   })
 
-  it("restores the subtree the same way", async () => {
-    const { ctx, calls } = archiveCtx()
+  it("ends the sessions of every task it archives", async () => {
+    const { ctx, stopped } = archiveCtx()
+    await dispatch("task.archive", { taskId: "p", archived: true }, ctx)
+    expect(stopped).toEqual(["g", "c", "p"])
+  })
+
+  it("restores the subtree the same way, and stops nothing", async () => {
+    const { ctx, calls, stopped } = archiveCtx()
     await dispatch("task.archive", { taskId: "c", archived: false }, ctx)
     expect(calls).toEqual([
       ["g", false],
       ["c", false],
     ])
+    expect(stopped).toEqual([])
   })
 
-  it("refuses with TASK_BUSY while an engine in the subtree is working or waiting, and writes nothing", async () => {
-    for (const state of ["running", "permission_needed"]) {
-      const { ctx, calls } = archiveCtx({ g: state })
+  it.each(["running", "permission_needed"])(
+    "refuses with TASK_BUSY while an engine in the subtree is %s, and writes nothing",
+    async (state) => {
+      const { ctx, calls, stopped } = archiveCtx({ g: state })
       await expect(dispatch("task.archive", { taskId: "p", archived: true }, ctx)).rejects.toThrow(
         /^TASK_BUSY: .*\bg\b/,
       )
       expect(calls).toEqual([])
-    }
-  })
+      expect(stopped).toEqual([])
+    },
+  )
 
   it("ignores busy engines outside the subtree and idle or finished ones inside it", async () => {
     const { ctx, calls } = archiveCtx({ o: "running", c: "idle", g: "error" })
@@ -77,9 +92,10 @@ describe("task.archive", () => {
     expect(restore.calls).toHaveLength(3)
   })
 
-  it("refuses a project's main checkout and an unknown task", async () => {
+  it("archives a project checkout session like any other and refuses an unknown task", async () => {
+    const main = archiveCtx()
+    expect(await dispatch("task.archive", { taskId: "m", archived: true }, main.ctx)).toEqual({ archived: ["m"] })
     const { ctx, calls } = archiveCtx()
-    await expect(dispatch("task.archive", { taskId: "m", archived: true }, ctx)).rejects.toThrow(/^MAIN_TASK: /)
     await expect(dispatch("task.archive", { taskId: "nope", archived: true }, ctx)).rejects.toThrow(
       "task not found: nope",
     )

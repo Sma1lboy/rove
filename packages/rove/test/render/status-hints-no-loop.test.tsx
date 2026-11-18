@@ -76,16 +76,21 @@ function App() {
   )
 }
 
+/** One `d` per act, so each delete commits on its own render pass. */
+async function deleteRows(mockInput: { typeText: (text: string) => void }, count: number): Promise<void> {
+  for (let i = 0; i < count; i++) {
+    mockInput.typeText("d")
+    await act(async () => {})
+  }
+}
+
 test("deleting rows in a burst settles instead of looping", async () => {
   footerRenders = 0
   const { frame, mockInput } = await renderComponent(<App />, { width: 80, height: 12 })
   await act(async () => {})
   const base = footerRenders
 
-  for (let i = 0; i < 5; i++) {
-    mockInput.typeText("d")
-    await act(async () => {})
-  }
+  await deleteRows(mockInput, 5)
 
   // Each delete costs a bounded number of renders. An unbounded count is the
   // loop; React's own #185 guard trips at 50 nested updates, so a per-delete

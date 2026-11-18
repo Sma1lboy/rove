@@ -86,13 +86,6 @@ describe("renameBranch (workspace host)", () => {
     expect(setBranch).toHaveBeenCalledWith("a", "feat/renamed")
   })
 
-  test("a main row never opens the picker (its branch is the repo's own)", async () => {
-    const { actions, setBranch } = makeActions([task("m", { kind: "main", branch: "main" })])
-    await actions.renameBranch("m")
-    expect(mocks.branchPickerShow).not.toHaveBeenCalled()
-    expect(setBranch).not.toHaveBeenCalled()
-  })
-
   test("a dir task never opens the picker (it tracks its own checkout)", async () => {
     const { actions, setBranch } = makeActions([task("d", { kind: "dir", branch: "" })])
     await actions.renameBranch("d")

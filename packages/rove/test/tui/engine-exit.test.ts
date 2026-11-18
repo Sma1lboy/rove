@@ -28,16 +28,14 @@ describe("engineExitOf", () => {
     expect(engineExitOf(engineTab, dead, undefined, undefined)).toEqual({ code: null })
   })
 
-  it("stays silent without positive dead evidence", () => {
-    for (const s of [
-      undefined,
-      status({}),
-      status({ kind: "running", state: "running" }),
-      status({ kind: "attention", reason: "error", state: "error" }),
-      status({ kind: "attention", reason: "restored" }),
-    ]) {
-      expect(engineExitOf(engineTab, s, undefined, undefined)).toBeNull()
-    }
+  it.each([
+    ["no status", undefined],
+    ["idle", status({})],
+    ["running", status({ kind: "running", state: "running" })],
+    ["errored", status({ kind: "attention", reason: "error", state: "error" })],
+    ["restored", status({ kind: "attention", reason: "restored" })],
+  ])("stays silent without positive dead evidence (%s)", (_label, s) => {
+    expect(engineExitOf(engineTab, s, undefined, undefined)).toBeNull()
   })
 
   it("never claims an engine exit on a shell tab", () => {

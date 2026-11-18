@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { type TaskCreateInput, TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 
 /**
@@ -22,6 +22,7 @@ describe("TaskIndexStore multi-process consistency", () => {
   })
 
   afterEach(async () => {
+    vi.restoreAllMocks()
     await rm(home, { recursive: true, force: true })
   })
 
@@ -219,14 +220,16 @@ describe("TaskIndexStore multi-process consistency", () => {
     const lockPath = join(home, ".rove", "tasks.json.lock")
     await writeFile(lockPath, String(process.pid), "utf8")
 
+    // The retry backoff is a plain setTimeout. An unlocked save schedules one unrelated timer, so three calls
+    // mean at least two backoffs: the save hit the lock and is still waiting.
+    const backoffs = vi.spyOn(globalThis, "setTimeout")
     let settled = false
     const createP = store.create(input("blocked")).then((task) => {
       settled = true
       return task
     })
 
-    // Spin window well under the retry deadline; the create must still be pending.
-    await new Promise((resolve) => setTimeout(resolve, 150))
+    await vi.waitFor(() => expect(backoffs.mock.calls.length).toBeGreaterThanOrEqual(3))
     expect(settled).toBe(false)
 
     // Release the lock; the queued write now proceeds and persists.

@@ -26,13 +26,13 @@ describe("one project per repo across machines", () => {
   test("the same repo here and on another machine is ONE header; each row keeps its own machine", () => {
     const { rows, groups } = railRows({
       ...base,
-      tasks: [task("main", "/w/rove", { ...rove, kind: "main" }), task("mine", "/w/rove", rove)],
+      tasks: [task("checkout", "/w/rove", { ...rove, kind: "dir" }), task("mine", "/w/rove", rove)],
       remote: [onNarwhal("far", "/srv/code/rove", rove)],
       machines,
     })
     expect(rows.map((row) => [row.id, row.kind, row.machine])).toEqual([
       ["project:github.com/me/rove", "project", undefined],
-      ["main", "task", undefined],
+      ["checkout", "task", undefined],
       ["mine", "task", undefined],
       ["far", "task", "narwhal"],
     ])

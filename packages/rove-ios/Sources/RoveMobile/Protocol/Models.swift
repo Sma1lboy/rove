@@ -35,6 +35,8 @@ struct TaskPR: Codable, Hashable {
     var reviewDecision: String?
     /// Additive: GitHub `mergeable` (`CONFLICTING` …), absent on older bridges.
     var mergeable: String?
+    /// Set on a PR the session opened (`sessionPrs`). Absent on the task's own branch PR and from older bridges.
+    var title: String?
 }
 
 struct TaskReport: Codable, Hashable {
@@ -75,6 +77,10 @@ struct TaskRow: Codable, Hashable, Identifiable {
     var prChipStale: Bool
     /// A routine's firing made this task: it lives on the Routines page, not in the list.
     var routine: Bool
+    /// PRs the task's session opened anywhere (`rove api pr-attach`), newest last.
+    var sessionPrs: [TaskPR] = []
+    /// ISO time an unstarted task's engine starts by itself (`task.scheduleStart`); nil = nothing scheduled.
+    var startsAt: String?
 
     init(id: String, title: String, branch: String = "", repo: String = "", kind: String = "task",
          status: String = "", group: TaskGroup, rank: Double = 0, activity: TaskActivity? = nil,
@@ -116,6 +122,8 @@ struct TaskRow: Codable, Hashable, Identifiable {
         prChip = try c.decodeIfPresent(String.self, forKey: .prChip)
         prChipStale = try c.decodeIfPresent(Bool.self, forKey: .prChipStale) ?? false
         routine = try c.decodeIfPresent(Bool.self, forKey: .routine) ?? false
+        sessionPrs = try c.decodeIfPresent([TaskPR].self, forKey: .sessionPrs) ?? []
+        startsAt = try c.decodeIfPresent(String.self, forKey: .startsAt)
     }
 
     var repoName: String { URL(fileURLWithPath: repo).lastPathComponent }

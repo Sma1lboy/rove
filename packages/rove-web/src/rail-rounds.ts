@@ -9,9 +9,9 @@ const ORDINAL = /\s+#\d+\/\d+$/
 const byCreated = (a: TaskRow, b: TaskRow): number =>
   (a.createdAt ?? "").localeCompare(b.createdAt ?? "") || a.id.localeCompare(b.id)
 
-/** A round's key: its `groupId` on its machine; null for a task outside any round (a main row never joins one). */
+/** A round's key: its `groupId` on its machine; null for a task outside any round. */
 export const roundKey = (task: TaskRow): string | null =>
-  task.groupId && task.kind !== "main" ? `${task.machine?.id ?? ""}\0${task.groupId}` : null
+  task.groupId ? `${task.machine?.id ?? ""}\0${task.groupId}` : null
 
 /**
  * The rounds among `siblings` (rows with one parent), each with its attempts in list order. A lone attempt

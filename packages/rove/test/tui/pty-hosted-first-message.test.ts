@@ -83,8 +83,8 @@ describe("HostedTaskPty first-message paste", () => {
       cols: 60,
       rows: 12,
     })
-    // Let the open settle; the paste must never fire.
-    await new Promise((resolve) => setTimeout(resolve, 50))
+    // `opened` flips in the same synchronous step that decides the paste.
+    await vi.waitFor(() => expect((pty as unknown as { opened: boolean }).opened).toBe(true))
     expect(mocks.paste).not.toHaveBeenCalled()
     pty.detach()
   })
@@ -92,7 +92,7 @@ describe("HostedTaskPty first-message paste", () => {
   it("does nothing when the spawn carries no firstMessage (argv vendors)", async () => {
     openWith({ alive: true, created: true, replay: "", pid: 42, offset: 0 })
     const pty = new HostedTaskPty({ taskId: "task-1::tab-1", cwd: "/repo/wt", command: ["claude"], cols: 60, rows: 12 })
-    await new Promise((resolve) => setTimeout(resolve, 50))
+    await vi.waitFor(() => expect((pty as unknown as { opened: boolean }).opened).toBe(true))
     expect(mocks.paste).not.toHaveBeenCalled()
     pty.detach()
   })

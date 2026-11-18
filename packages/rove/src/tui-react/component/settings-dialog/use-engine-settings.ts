@@ -25,6 +25,11 @@ import type { DialogContext } from "../../ui/dialog"
 import { EngineProtocolPickerDialog } from "../engine-protocol-picker-dialog"
 import { RenameTaskDialog } from "../rename-task-dialog"
 
+/** A stored id list, minus anything a hand edit left malformed. */
+function idList(raw: unknown): string[] {
+  return Array.isArray(raw) ? raw.filter((s): s is string => typeof s === "string" && s.trim().length > 0) : []
+}
+
 export function useEngineSettings(
   kv: KVContext,
   dialog: DialogContext,
@@ -38,9 +43,19 @@ export function useEngineSettings(
     void installedEngineIds().then(setDetected)
   }, [])
 
+  /**
+   * Add or drop ONE id against the list on disk: the web and other windows edit these
+   * lists too, and a whole-list write from this window's copy would undo their change.
+   */
+  function setListed(key: "customEngineIds" | "disabledEngineIds", id: string, listed: boolean): void {
+    kv.update(key, (current) => {
+      const rest = idList(current).filter((entry) => entry !== id)
+      return listed ? [...rest, id] : rest
+    })
+  }
+
   function customEngines(): string[] {
-    const raw = kv.get("customEngineIds", [])
-    return Array.isArray(raw) ? raw.filter((s): s is string => typeof s === "string" && s.trim().length > 0) : []
+    return idList(kv.get("customEngineIds", []))
   }
   function engineList(): VendorId[] {
     // Built-ins ALWAYS listed: this row is where you point one at an off-PATH binary.
@@ -52,8 +67,7 @@ export function useEngineSettings(
   }
 
   function disabledEngines(): string[] {
-    const raw = kv.get("disabledEngineIds", [])
-    return Array.isArray(raw) ? raw.filter((s): s is string => typeof s === "string" && s.trim().length > 0) : []
+    return idList(kv.get("disabledEngineIds", []))
   }
   function isEngineEnabled(vendor: VendorId): boolean {
     return !disabledEngines().includes(vendor)
@@ -66,10 +80,7 @@ export function useEngineSettings(
   function toggleEngineEnabled(vendor: VendorId): void {
     const off = disabledEngines()
     if (off.includes(vendor)) {
-      kv.set(
-        "disabledEngineIds",
-        off.filter((id) => id !== vendor),
-      )
+      setListed("disabledEngineIds", vendor, false)
       return
     }
     const nextDefault = engineList().find((id) => id !== vendor && !off.includes(id))
@@ -77,7 +88,7 @@ export function useEngineSettings(
       if (!nextDefault) return // the last enabled engine stays on
       setEngineDefault(nextDefault)
     }
-    kv.set("disabledEngineIds", [...off, vendor])
+    setListed("disabledEngineIds", vendor, true)
   }
   function engineOverride(vendor: VendorId): string {
     const v = kv.get(engineCommandKey(vendor), "")
@@ -136,13 +147,7 @@ export function useEngineSettings(
    * a disabled default would never be offered.
    */
   function chooseDefaultEngine(vendor: VendorId): void {
-    const off = disabledEngines()
-    if (off.includes(vendor)) {
-      kv.set(
-        "disabledEngineIds",
-        off.filter((id) => id !== vendor),
-      )
-    }
+    if (disabledEngines().includes(vendor)) setListed("disabledEngineIds", vendor, false)
     setEngineDefault(vendor)
   }
 
@@ -173,10 +178,7 @@ export function useEngineSettings(
     if (isCustomEngine(vendor)) {
       // Clear the protocol, or re-adding the same id would inherit it.
       kv.set(engineProtocolKey(vendor), "")
-      kv.set(
-        "customEngineIds",
-        customEngines().filter((id) => id !== vendor),
-      )
+      setListed("customEngineIds", vendor, false)
       // Keep the cursor in range after the list shrinks.
       onEngineListShrunk(engineList().length)
     }
@@ -212,7 +214,7 @@ export function useEngineSettings(
       submitLabel: t("settings.action.add"),
       allowEmpty: true, // blank = humanized id
     })
-    kv.set("customEngineIds", [...customEngines(), id])
+    setListed("customEngineIds", id, true)
     if (command.trim()) kv.set(engineCommandKey(id), command.trim())
     // Validated anyway: every later dispatch trusts this key.
     if (protocol && ENGINE_PROTOCOLS.includes(protocol)) kv.set(engineProtocolKey(id), protocol)

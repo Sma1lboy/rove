@@ -15,7 +15,7 @@ import { execFileSync } from "node:child_process"
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterEach, describe, expect, test } from "vitest"
+import { afterEach, describe, expect, test, vi } from "vitest"
 import {
   MIN_POLL_INTERVAL_MS,
   POLL_TIMEOUT_MS,
@@ -23,23 +23,10 @@ import {
   nextAllowedAt,
   pollWorktreeChanges,
   resetWorktreeChangesPoller,
-  shouldPoll,
   worktreeChanges,
 } from "../../src/tui/panes/sidebar/worktree-changes-poller"
 
 afterEach(() => resetWorktreeChangesPoller())
-
-describe("shouldPoll", () => {
-  test("dedupes while a poll is in flight — a tick landing mid-status is dropped", () => {
-    expect(shouldPoll({ inFlight: true, nextAllowedAt: 0 }, 1_000)).toBe(false)
-  })
-
-  test("respects the backoff window, then allows again", () => {
-    const state = { inFlight: false, nextAllowedAt: 5_000 }
-    expect(shouldPoll(state, 4_999)).toBe(false)
-    expect(shouldPoll(state, 5_000)).toBe(true)
-  })
-})
 
 describe("nextAllowedAt", () => {
   test("fast repos keep the tick cadence (floor = MIN_POLL_INTERVAL_MS)", () => {
@@ -66,29 +53,20 @@ describe("pollWorktreeChanges end-to-end", () => {
     return dir
   }
 
-  async function waitFor(predicate: () => boolean, ms = 3_000): Promise<void> {
-    const deadline = Date.now() + ms
-    while (!predicate()) {
-      if (Date.now() > deadline) throw new Error("timed out waiting for poll result")
-      await new Promise((r) => setTimeout(r, 25))
-    }
-  }
-
   test("async poll reports untracked files without blocking the caller", async () => {
     const repo = makeRepo()
     writeFileSync(join(repo, "a.txt"), "hello")
     writeFileSync(join(repo, "b.txt"), "world")
     expect(worktreeChanges(repo)).toBeNull() // UNKNOWN until a poll lands — not "clean"
     pollWorktreeChanges(repo) // returns immediately — fire and forget
-    await waitFor(() => worktreeChanges(repo)?.added === 2)
-    expect(worktreeChanges(repo)).toEqual({ added: 2, deleted: 0 })
+    await vi.waitFor(() => expect(worktreeChanges(repo)).toEqual({ added: 2, deleted: 0 }), { timeout: 3_000 })
   })
 
   test("a failing path reads unknown, never a fabricated clean", async () => {
     const missing = join(tmpdir(), "rove-poller-definitely-missing")
     pollWorktreeChanges(missing)
-    // Give the spawn error a moment to settle. `null`, not `{0,0}`: the row
-    // must render this differently from a worktree with nothing uncommitted.
+    // Negative assertion: the poller exposes no completion event, so give the spawn error time to land.
+    // `null`, not `{0,0}`: the row must render this differently from a clean worktree.
     await new Promise((r) => setTimeout(r, 150))
     expect(worktreeChanges(missing)).toBeNull()
   })

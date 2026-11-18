@@ -21,26 +21,22 @@ describe("taskColor", () => {
     expect(ids.map((id) => fresh.taskColor(id, resolveTheme(BUNDLED_THEMES.claude, "dark")).toInts())).toEqual(before)
   })
 
-  it("spreads different ids across many hues", () => {
-    for (const { theme } of themes) {
-      const hues = ids.map((id) => Math.round(hueOf(taskColor(id, theme)) ?? -1))
-      expect(new Set(hues).size).toBeGreaterThan(ids.length / 2)
-    }
+  it.each(themes)("spreads different ids across many hues on $label", ({ theme }) => {
+    const hues = ids.map((id) => Math.round(hueOf(taskColor(id, theme)) ?? -1))
+    expect(new Set(hues).size).toBeGreaterThan(ids.length / 2)
   })
 
-  it("never lands near the theme's success, warning or error hue, and stays legible on its background", () => {
-    for (const { label, theme } of themes) {
+  it.each(themes)(
+    "never lands near the $label success, warning or error hue, and stays legible on its background",
+    ({ theme }) => {
       const semantic = [theme.success, theme.warning, theme.error].map(hueOf).filter((h) => h !== undefined)
-      for (const id of ids) {
-        const color = taskColor(id, theme)
-        const hue = hueOf(color)
-        expect(hue, label).toBeDefined()
-        for (const s of semantic)
-          expect(hueDistance(hue ?? 0, s), `${label} ${id}`).toBeGreaterThanOrEqual(SEMANTIC_GUARD_DEG)
-        expect(contrastRatio(color, theme.background), `${label} ${id}`).toBeGreaterThanOrEqual(3)
-      }
-    }
-  })
+      const colors = ids.map((id) => taskColor(id, theme))
+      expect(colors.filter((color) => hueOf(color) === undefined)).toEqual([])
+      const nearest = Math.min(...colors.flatMap((color) => semantic.map((s) => hueDistance(hueOf(color) ?? 0, s))))
+      expect(nearest).toBeGreaterThanOrEqual(SEMANTIC_GUARD_DEG)
+      expect(Math.min(...colors.map((color) => contrastRatio(color, theme.background)))).toBeGreaterThanOrEqual(3)
+    },
+  )
 
   it("passes a palette accent through unchanged", () => {
     const accent = RGBA.fromIndex(5)

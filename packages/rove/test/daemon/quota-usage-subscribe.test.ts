@@ -48,8 +48,8 @@ describe("quota usage collector subscription wake", () => {
     })
 
     const secondClient = h.client()
+    // The wake runs inside the subscribe dispatch, so its reply is the barrier.
     await secondClient.subscribe({ role: "pane" })
-    await new Promise((resolve) => setTimeout(resolve, 25))
     expect(quotaUsage).toHaveBeenCalledTimes(1)
   })
 })

@@ -194,10 +194,10 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       setField("repo")
       return
     }
-    // "Open the project" resolves to the repo's EXISTING main row, so no
-    // baseRef. `canOpenProject` is re-read from the CURRENT repo so `open` is
-    // never sent for a path with no main row, even if a caller skips the
-    // intent reset in `changeRepo`.
+    // "Open the project" runs in the repo's own checkout, so no baseRef.
+    // `canOpenProject` is re-read from the CURRENT repo so `open` is never
+    // sent for an unsaved path, even if a caller skips the intent reset in
+    // `changeRepo`.
     if (intent === "project" && canOpenProject) {
       props.onSubmit({ mode: "open", repo: r, vendor })
       dialog.clear()

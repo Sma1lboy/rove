@@ -14,6 +14,7 @@ import type { ToastOptions } from "@/tui/lib/notify-state"
 import { DEFAULT_TASK_VENDOR, type Task, type TaskStatus, type VendorId } from "@/types/task"
 import { nextVendorWithin } from "@/types/vendor"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
+import { getSavedRepos, isRemoteRepoKey } from "../../state/repos.ts"
 
 export interface TaskActionLogger {
   error(message?: unknown, ...optionalParams: unknown[]): void
@@ -92,8 +93,6 @@ export interface TaskActionContext {
   readonly updateActiveTask?: boolean
   /** Post-delete cursor move; selection is host-owned. The Tasks pane uses `nextTask`, the monitor recomputes. */
   readonly onTaskDeleted?: (taskId: string, nextTask: Task | undefined) => void
-  /** A project main's conversation ended: the host closes every tab of the task, which ends their sessions. The row stays. */
-  readonly onConversationEnded?: (taskId: string) => void
   /** `worktree.deleteBranch` opt-in; absent → a deleted task's branch always stays. */
   readonly deleteBranchOnDelete?: () => boolean
   /**
@@ -127,12 +126,11 @@ export async function renameTaskFlow(ctx: TaskActionContext, taskId: string): Pr
 
 /**
  * Materialised worktree: the daemon runs `git branch -m` (a running session
- * keeps streaming); otherwise the name is recorded for `ensureWorktree`. No-op
- * on `main` rows: the project root's branch isn't Rove's to rename.
+ * keeps streaming); otherwise the name is recorded for `ensureWorktree`.
  */
 export async function renameBranchFlow(ctx: TaskActionContext, taskId: string): Promise<void> {
   const task = ctx.tasks().find((t) => t.id === taskId)
-  if (!task || task.kind === "main") return
+  if (!task) return
   const next = await ctx.promptText(task.branch, {
     dialogTitle: t("tasks.renameBranch.title"),
     fieldLabel: t("tasks.renameBranch.fieldLabel"),
@@ -295,11 +293,7 @@ export async function copyTaskFieldFlow(
 export async function moveToProjectFlow(ctx: TaskActionContext, taskId: string): Promise<void> {
   const task = ctx.tasks().find((candidate) => candidate.id === taskId)
   if (!task || !ctx.orch || !ctx.pickProject) return
-  const projects = ctx
-    .tasks()
-    .filter((candidate) => candidate.kind === "main" && (candidate.origin?.machineId ?? "local") === "local")
-    .map((candidate) => candidate.repo)
-    .filter((repo) => !samePath(repo, task.repo))
+  const projects = getSavedRepos().filter((repo) => !isRemoteRepoKey(repo) && !samePath(repo, task.repo))
   if (projects.length === 0) {
     ctx.notifyInfo?.(t("tasks.moveToProject.empty"))
     return

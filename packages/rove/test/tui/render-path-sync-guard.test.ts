@@ -53,25 +53,20 @@ describe("render-path sync-subprocess guard", () => {
   })
 
   test("src/tui/** never runs synchronous subprocesses outside the whitelist", () => {
-    const offenders: string[] = []
-    for (const file of sources) {
-      const rel = file.slice(TUI_ROOT.length + 1)
-      if (!usesSyncSubprocess(readFileSync(file, "utf8"))) continue
-      if (WHITELIST[rel]) continue
-      offenders.push(rel)
-    }
+    const offenders = sources
+      .filter((file) => usesSyncSubprocess(readFileSync(file, "utf8")))
+      .map((file) => file.slice(TUI_ROOT.length + 1))
+      .filter((rel) => !WHITELIST[rel])
     expect(
       offenders,
       `render processes must not run synchronous subprocesses — use lib/background-poll or async spawn; see the whitelist in this test (test/tui/render-path-sync-guard.test.ts).\nOffenders: ${offenders.join(", ")}`,
     ).toEqual([])
   })
 
-  test("whitelist entries still exist and still use sync subprocesses (no stale entries)", () => {
-    for (const rel of Object.keys(WHITELIST)) {
-      const source = readFileSync(join(TUI_ROOT, rel), "utf8") // throws if the file vanished
-      expect(usesSyncSubprocess(source), `${rel} no longer uses sync subprocesses — drop it from the whitelist`).toBe(
-        true,
-      )
-    }
+  test.each(Object.keys(WHITELIST))("whitelist entry %s still exists and still uses sync subprocesses", (rel) => {
+    const source = readFileSync(join(TUI_ROOT, rel), "utf8") // throws if the file vanished
+    expect(usesSyncSubprocess(source), `${rel} no longer uses sync subprocesses — drop it from the whitelist`).toBe(
+      true,
+    )
   })
 })

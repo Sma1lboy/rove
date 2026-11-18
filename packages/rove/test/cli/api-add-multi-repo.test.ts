@@ -74,9 +74,9 @@ describe("add --repo (repeatable)", () => {
       client,
       runtime: stubRuntime({ deliverPrompt: recordingDelivery().deliver }),
     })
-    const creates = client.requests.filter((r) => r.name === "task.create")
-    expect(creates).toHaveLength(2)
-    for (const create of creates) expect(create.payload).toMatchObject({ extraRepos: [{ repo: "/work/api" }] })
+    const creates = client.requests.filter((r) => r.name === "task.create").map((r) => r.payload)
+    const sameRepos = expect.objectContaining({ extraRepos: [expect.objectContaining({ repo: "/work/api" })] })
+    expect(creates).toEqual([sameRepos, sameRepos])
   })
 
   it("refuses more than 8 repos, a repeated root, a non-git extra and a remote extra without creating anything", async () => {

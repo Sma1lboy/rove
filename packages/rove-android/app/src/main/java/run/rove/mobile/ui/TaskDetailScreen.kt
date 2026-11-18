@@ -42,7 +42,7 @@ import java.util.Locale
 // iOS Detail/TaskDetailView.swift: title block, meta strip, tab strip, then the terminal pane filling the rest.
 
 @OptIn(ExperimentalLayoutApi::class)
-@Composable fun TaskDetailScreen(model: AppModel, taskId: String, back: () -> Unit, initialTab: String? = null) {
+@Composable fun TaskDetailScreen(model: AppModel, taskId: String, back: () -> Unit, initialTab: String? = null, open: (Route) -> Unit = {}) {
     // iOS hides the header strips only while typing in a short (landscape) window; portrait keeps them.
     val windowHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
     val compact = WindowInsets.isImeVisible && windowHeight < 500.dp
@@ -126,7 +126,11 @@ import java.util.Locale
         if (current != null) key(taskId, current.id) { TerminalView(model, taskId, current.id, current.engineName, fit, task?.atMenu(current.id) == true) }
         else if (tabs != null) NoTabState(tabs.orEmpty().isEmpty()) { newTab = true }
     }
-    if (newTab) CreateSheet(model, taskId, { newTab = false }, { newTab = false; selected = it; revision++ })
+    if (newTab) CreateSheet(model, taskId, { newTab = false }) { opened, tab ->
+        newTab = false
+        // A main that already runs a conversation starts a child task for the new one: follow it there.
+        if (opened != taskId) open(Route.Task(opened, tab)) else { selected = tab; revision++ }
+    }
     if (history) TaskHistorySheet(model, taskId) { history = false }
     tabAction?.let { (tab, kind) ->
         val close = { tabAction = null }

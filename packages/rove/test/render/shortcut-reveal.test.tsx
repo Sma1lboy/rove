@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 
-import { expect, test } from "bun:test"
+import { afterAll, expect, test } from "bun:test"
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -12,12 +12,18 @@ import { bindByIds } from "../../src/tui/context/keybindings"
 import { prefixAction } from "../../src/tui/lib/keymap-dispatch"
 import { PREFIX_GUIDE_DELAY_MS } from "../../src/tui/lib/prefix-hud"
 import { PREFIX_TAP_PRESENTATION_KEY } from "../../src/tui/lib/prefix-tap-presentation"
-import { act, installAdvanceablePrefixHudClock, renderComponent, settle, waitForFrameText } from "./harness"
+import { act, installAdvanceablePrefixHudClock, renderComponent, waitForFrameText } from "./harness"
+
+const savedHome = process.env.ROVE_HOME_DIR
+afterAll(() => {
+  if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = savedHome
+})
 
 function locate(frame: string, text: string): { x: number; y: number } {
   const lines = frame.split("\n")
   const y = lines.findIndex((line) => line.includes(text))
-  if (y < 0) throw new Error(`missing ${text}`)
+  expect(y).toBeGreaterThan(-1)
   return { x: lines[y]?.indexOf(text) ?? -1, y }
 }
 
@@ -84,7 +90,6 @@ test("the default prefix tap shows local badges and the complete command guide t
   expect(local).not.toContain("Open active…")
 
   act(() => mockInput.pressKey("escape"))
-  await settle()
   expect(await frame()).not.toContain("⌃ A 1")
 })
 
@@ -103,7 +108,6 @@ test("a complete-guide row is a real clickable entry in local mode", async () =>
   const revealed = await waitForGuideText(clock, frame, "Open active Task directory in editor")
   const at = locate(revealed, "Open active Task directory in editor")
   await mockMouse.click(at.x + 1, at.y)
-  await settle()
 
   expect(editorOpens).toBe(1)
   expect(await frame()).not.toContain("more Rove commands")

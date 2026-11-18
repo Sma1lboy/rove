@@ -65,14 +65,12 @@ describe("validateTheme — accepts", () => {
 describe("validateTheme — rejects", () => {
   test("missing required `theme` key", () => {
     const r = validateTheme({ defs: { x: "#000" } })
-    expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.reason).toMatch(/theme/)
+    expect(r).toMatchObject({ ok: false, reason: expect.stringMatching(/theme/) })
   })
 
   test("variant with only `dark` and no `light`", () => {
     const r = validateTheme({ theme: { background: { dark: "#000" } } })
-    expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.reason).toMatch(/light/)
+    expect(r).toMatchObject({ ok: false, reason: expect.stringMatching(/light/) })
   })
 
   test("non-string in a theme value (number)", () => {

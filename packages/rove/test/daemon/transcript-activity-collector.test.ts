@@ -104,8 +104,8 @@ describe("trackedWorktrees", () => {
       task({ id: "remote", repo: "ssh://dev@build-box", worktreePath: "/remote/wt/remote" }),
       task({ id: "backlog", worktreePath: "" }),
       // Two rows sharing a worktree path — the first in list order wins.
-      task({ id: "main1", kind: "main", repo: "/repo", worktreePath: "/repo", vendor: "claude" }),
-      task({ id: "main2", kind: "main", repo: "/repo", worktreePath: "/repo", vendor: "codex" }),
+      task({ id: "main1", kind: "dir", repo: "/repo", worktreePath: "/repo", vendor: "claude" }),
+      task({ id: "main2", kind: "dir", repo: "/repo", worktreePath: "/repo", vendor: "codex" }),
     ]
     const map = trackedWorktrees(tasks, "claude")
     expect([...map.keys()].sort()).toEqual(["/repo", "/wt/a"])
@@ -205,9 +205,7 @@ describe("TranscriptActivityCollector", () => {
     const tasks = { current: [task({ id: "a" })] }
     const bus = new DaemonEventBus()
     const published: TranscriptActivityPayload[] = []
-    bus.onPublish((event) => {
-      if (event.channel === "transcript.activity") published.push(event.payload as TranscriptActivityPayload)
-    })
+    bus.onPublish((event) => published.push(event.payload as TranscriptActivityPayload))
     const collector = new TranscriptActivityCollector({ listTasks: () => tasks.current }, bus, {
       cadence: FAST,
       defaultVendor: "claude",
@@ -228,9 +226,7 @@ describe("TranscriptActivityCollector", () => {
     let subscribed = false
     const bus = new DaemonEventBus()
     const published: TranscriptActivityPayload[] = []
-    bus.onPublish((event) => {
-      if (event.channel === "transcript.activity") published.push(event.payload as TranscriptActivityPayload)
-    })
+    bus.onPublish((event) => published.push(event.payload as TranscriptActivityPayload))
     const runs: string[] = []
     const collector = new TranscriptActivityCollector({ listTasks: () => [task({ id: "a" })] }, bus, {
       cadence: FAST,

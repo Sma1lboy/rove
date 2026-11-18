@@ -69,7 +69,7 @@ export abstract class EngineTurnDetector {
 
   /**
    * {@link latestActivity} scoped to ONE session transcript: when sessions share
-   * a worktree (a main task's tabs), a sibling's Stop must not idle a mid-turn
+   * a worktree (one task's tabs), a sibling's Stop must not idle a mid-turn
    * engine. `null` = no trustworthy scan (unsupported, missing, unreadable,
    * non-regular, oversized); an empty readable file gives a null marker. A
    * known path must never fall back to a sibling.

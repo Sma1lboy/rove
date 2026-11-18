@@ -215,7 +215,7 @@ describe("PtyHost freeze/restore", () => {
     h.host.open("t1::tab-1", SPEC, TOKEN, SINK)
     h.children[0].write("bye")
     h.children[0].exit(1)
-    await new Promise((r) => setTimeout(r, 0)) // let the exited promise settle
+    await vi.waitFor(() => expect(h.host.list()[0]).toMatchObject({ alive: false }))
     const res = h.host.open("t1::tab-1", SPEC, {}, () => {})
     expect(res).toMatchObject({ alive: false, respawned: false })
     expect(h.children.length).toBe(1) // no new child
@@ -252,9 +252,8 @@ describe("PtyHost freeze/restore", () => {
     h.host.open("t1::tab-1", SPEC, TOKEN, SINK)
     h.children[0].write("dying words")
     h.children[0].exit(3)
-    await new Promise((r) => setTimeout(r, 0))
+    await vi.waitFor(() => expect(h.saved.get("t1::tab-1")?.exit).toMatchObject({ code: 3 }))
     const record = h.saved.get("t1::tab-1")
-    expect(record?.exit).toMatchObject({ code: 3 })
     expect(replayText(record?.ringB64 ?? "")).toContain("dying words")
 
     await h.host.kill("t1::tab-1")

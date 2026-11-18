@@ -134,8 +134,7 @@ describe("context handler", () => {
       "task.list": () => ({
         tasks: [
           serialized({ id: "work", repo: REPO }),
-          // Not units of work: the repo's seat and a directory somebody opened.
-          serialized({ id: "seat", kind: "main", repo: REPO }),
+          // Not a unit of work: a directory somebody opened.
           serialized({ id: "dir", kind: "dir", repo: REPO }),
           // Another project.
           serialized({ id: "other", repo: OTHER }),
@@ -196,8 +195,8 @@ describe("context handler", () => {
     expect(result.attention).toEqual([])
   })
 
-  it("keeps an inbox episode about the repo's own seat, which the task list filters out", async () => {
-    const items = [{ taskId: "seat", tabId: "tab-1", state: "error", unread: true, at: NOW }] as AttentionInboxItem[]
+  it("keeps an inbox episode about a directory session, which the task list filters out", async () => {
+    const items = [{ taskId: "dir", tabId: "tab-1", state: "error", unread: true, at: NOW }] as AttentionInboxItem[]
     const result = (await invokeVerb("context", ["--repo", REPO], {
       client: client({ "attention.list": () => ({ items }) }),
       runtime,

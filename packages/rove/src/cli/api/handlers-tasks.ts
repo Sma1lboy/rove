@@ -11,6 +11,7 @@ import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { roveApiInvocation } from "../../engine/interactive-command.ts"
 import { taskCwd } from "../../orchestrator/task-tree.ts"
+import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { activityView, readActivityRegistry } from "./activity-view.ts"
@@ -166,14 +167,37 @@ async function sendNow(ctx: VerbContext, rollback: ReplaceRollback): Promise<unk
       helpStep("send"),
     )
   }
-  const sendTo = await resolveSendTask(ctx, daemon, tab)
-  const taskId = sendTo.taskId
-  tab = sendTo.tab
-  const res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
-  if (replace && tab) prompt = [await handoffBrief(ctx, res.task, tab, "send"), prompt].filter(Boolean).join("\n\n")
-  // Before ANY delivery path (--plain included: a verbatim false claim is the
-  // same false claim) — a refused report must never reach the coordinator.
-  await assertNotEmptySuccess(daemon, ctx, prompt)
+  // `--repo`: a project has no standing conversation, so the prompt opens a session of its own in that checkout.
+  const rawRepo = ctx.args.str("repo")
+  const viaProject = rawRepo === undefined ? undefined : ctx.args.repoPath("repo", rawRepo)
+  if (viaProject && (ctx.args.str("task-id") || tab || replace)) {
+    throw new ApiError(
+      "--repo starts a new session in that project's checkout; it conflicts with --task-id, --tab and --replace",
+      "CONFLICTING_FLAGS",
+      helpStep("send"),
+    )
+  }
+  let taskId: string
+  let res: { task: SerializedTask }
+  if (viaProject) {
+    // Only after every refusal: a refused send must not leave a new session row behind.
+    await assertNotEmptySuccess(daemon, ctx, prompt)
+    const saved = await daemon.request<{ repo: string }>("project.ensure", { repo: viaProject })
+    res = await daemon.request<{ task: SerializedTask }>("task.openDir", {
+      dir: saved.repo,
+      title: deriveTitleFromPrompt(prompt),
+    })
+    taskId = res.task.id
+  } else {
+    const sendTo = await resolveSendTask(ctx, daemon, tab)
+    taskId = sendTo.taskId
+    tab = sendTo.tab
+    res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+    if (replace && tab) prompt = [await handoffBrief(ctx, res.task, tab, "send"), prompt].filter(Boolean).join("\n\n")
+    // Before ANY delivery path (--plain included: a verbatim false claim is the
+    // same false claim) — a refused report must never reach the coordinator.
+    await assertNotEmptySuccess(daemon, ctx, prompt)
+  }
   let replacedTab: string | undefined
   if (replace && tab) {
     // A dead tab's slot is the new engine's: same task and tab, no child (docs/SESSIONS.md).
@@ -285,6 +309,8 @@ async function sendNow(ctx: VerbContext, rollback: ReplaceRollback): Promise<unk
   return {
     ok: true,
     taskId,
+    // `--repo`: this prompt started its own session.
+    ...(viaProject ? { newSession: true } : {}),
     ...(replacedTab ? { replacedTab } : {}),
     session: delivered.session,
     ...(deliveryId ? { deliveryId } : {}),

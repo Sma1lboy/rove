@@ -11,6 +11,7 @@ import { normalizeMainRepo } from "../../src/orchestrator/core-helpers.ts"
 import { Orchestrator } from "../../src/orchestrator/core.ts"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 import type { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
+import { addSavedRepo } from "../../src/state/repos.ts"
 import type { Task } from "../../src/types/task.ts"
 
 let home: string
@@ -18,6 +19,7 @@ let repoA: string
 let repoB: string
 let store: TaskIndexStore
 let orch: Orchestrator
+let originalHome: string | undefined
 const worktrees = {
   dirtyPaths: vi.fn(async () => [] as string[]),
   remove: vi.fn(async () => {}),
@@ -25,16 +27,10 @@ const worktrees = {
   ignoredWork: vi.fn(async () => [] as string[]),
 }
 
-async function seedMain(repo: string): Promise<string> {
+/** A saved project; the fixture dirs are not git repos, so the eligibility gate is skipped. */
+function seedProject(repo: string): string {
   const { repo: normalized } = normalizeMainRepo(repo)
-  await store.create({
-    kind: "main",
-    title: "main",
-    repo: normalized,
-    branch: "",
-    worktreePath: normalized,
-    status: "backlog",
-  })
+  addSavedRepo(normalized, { skipGate: true })
   return normalized
 }
 
@@ -53,17 +49,23 @@ async function seedWorktreeTask(repo: string, extra: Partial<Task> = {}): Promis
 beforeEach(async () => {
   worktrees.remove.mockClear()
   home = await mkdtemp(join(tmpdir(), "rove-move-home-"))
+  // savedRepos lives in state.json: keep it off the developer's real one.
+  originalHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = home
   repoA = await mkdtemp(join(tmpdir(), "rove-move-a-"))
   repoB = await mkdtemp(join(tmpdir(), "rove-move-b-"))
   store = new TaskIndexStore({ homeDir: home })
   await store.load()
   orch = new Orchestrator({ store, worktrees: worktrees as unknown as GitWorktreeManager })
-  repoA = await seedMain(repoA)
-  repoB = await seedMain(repoB)
+  repoA = seedProject(repoA)
+  repoB = seedProject(repoB)
 })
 
 afterEach(async () => {
   orch.dispose()
+  // biome-ignore lint/performance/noDelete: assigning undefined would leave the string "undefined".
+  if (originalHome === undefined) delete process.env.ROVE_HOME_DIR
+  else process.env.ROVE_HOME_DIR = originalHome
   for (const dir of [home, repoA, repoB]) await rm(dir, { recursive: true, force: true })
 })
 
@@ -81,15 +83,18 @@ describe("moveTaskToProject", () => {
     expect(result.repo).toBe(repoB)
     expect(result.moved).toEqual([String(child.id), String(task.id)])
 
-    for (const [moved, before] of [
-      [orch.getTask(task.id), task],
-      [orch.getTask(child.id), child],
-    ] as const) {
-      expect(moved?.repo).toBe(repoB)
-      expect(moved?.gitRepo).toBe(repoA)
-      expect(moved?.worktreePath).toBe(before.worktreePath)
-      expect(moved?.branch).toBe(before.branch)
-    }
+    expect(orch.getTask(task.id)).toMatchObject({
+      repo: repoB,
+      gitRepo: repoA,
+      worktreePath: task.worktreePath,
+      branch: task.branch,
+    })
+    expect(orch.getTask(child.id)).toMatchObject({
+      repo: repoB,
+      gitRepo: repoA,
+      worktreePath: child.worktreePath,
+      branch: child.branch,
+    })
 
     await orch.deleteTask(task.id, { deleteBranch: true })
     expect(worktrees.remove).toHaveBeenCalledWith(
@@ -117,7 +122,11 @@ describe("moveTaskToProject", () => {
   })
 
   it.each([
-    ["a project's main task", () => store.list().find((t) => t.repo === repoA)?.id, "TASK_NOT_MOVABLE"],
+    [
+      "a routine session",
+      async () => (await seedWorktreeTask(repoA, { routine: { automationId: "a1" } })).id,
+      "TASK_NOT_MOVABLE",
+    ],
     ["a child task", async () => (await seedChild()).id, "CHILD_NOT_MOVABLE"],
     ["a task already in the target", async () => (await seedWorktreeTask(repoB)).id, "SAME_PROJECT"],
     [

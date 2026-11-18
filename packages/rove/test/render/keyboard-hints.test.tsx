@@ -27,7 +27,14 @@ import { KEY_HINTS_ENABLED_KEY, PANE_HINT_USED_KEYS } from "../../src/tui/lib/ke
 import { resetPrefixState } from "../../src/tui/lib/keymap-dispatch"
 import { PREFIX_GUIDE_DELAY_MS } from "../../src/tui/lib/prefix-hud"
 import { PREFIX_TAP_PRESENTATION_KEY } from "../../src/tui/lib/prefix-tap-presentation"
-import { act, installAdvanceablePrefixHudClock, renderComponent, settle, waitForFrameText } from "./harness"
+import {
+  act,
+  installAdvanceablePrefixHudClock,
+  isolateHome,
+  renderComponent,
+  settle,
+  waitForFrameText,
+} from "./harness"
 
 const NOOP = (): void => {}
 
@@ -121,6 +128,8 @@ function KvSeed(props: { entries: readonly [string, unknown][]; children?: React
   }, [])
   return <>{props.children}</>
 }
+
+isolateHome()
 
 function withTempKvHome(): void {
   process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-hints-"))

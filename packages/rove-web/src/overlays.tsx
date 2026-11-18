@@ -9,6 +9,8 @@ import {
   MENU_CHECK,
   MENU_SEP,
   TOASTS,
+  TOAST_ACTION,
+  TOAST_TEXT,
   TOAST_WITH_ACTION,
   menuChevronClass,
   menuClass,
@@ -245,8 +247,9 @@ export function Overlays() {
           // A card with its own button is not itself a button: only the action acts.
           return action ? (
             <div key={item.id} className={`${card} ${TOAST_WITH_ACTION}`}>
-              <span>{item.text}</span>
+              <span className={TOAST_TEXT}>{item.text}</span>
               <Button
+                className={TOAST_ACTION}
                 onClick={() => {
                   dismissToast(item.id)
                   action.run()

@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, test } from "bun:test"
+import { beforeAll, beforeEach, describe, expect, test } from "bun:test"
 
 // `auth.ts` reads the address bar at import; give it a page with no `#token=`.
 const items = new Map<string, string>()
@@ -13,6 +13,7 @@ beforeAll(() => {
     },
   })
 })
+beforeEach(() => items.clear())
 const load = () => import("../src/login.ts")
 const TOKEN = "k".repeat(43)
 

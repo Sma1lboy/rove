@@ -9,7 +9,7 @@
  * "failures never deliver a value" contract.
  */
 
-import { describe, expect, test } from "vitest"
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import {
   applyJitter,
   computeNextAllowedAt,
@@ -20,11 +20,14 @@ import {
 
 const CFG = { timeoutMs: 30, slowRetryMs: 60_000, minIntervalMs: 0 }
 
-async function settle(ms = 0): Promise<void> {
-  await new Promise((r) => setTimeout(r, ms))
-}
-
 describe("maybeStartScheduledRun", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   test("delivers a successful value and re-opens the schedule", async () => {
     const state = { inFlight: false, nextAllowedAt: 0 }
     const values: number[] = []
@@ -37,7 +40,7 @@ describe("maybeStartScheduledRun", () => {
       ),
     ).toBe(true)
     expect(state.inFlight).toBe(true)
-    await settle()
+    await vi.advanceTimersByTimeAsync(0)
     expect(values).toEqual([42])
     expect(state.inFlight).toBe(false)
     expect(state.nextAllowedAt).toBeGreaterThan(0)
@@ -57,7 +60,7 @@ describe("maybeStartScheduledRun", () => {
     expect(maybeStartScheduledRun(state, CFG, run, () => {})).toBe(false)
     expect(starts).toBe(1)
     release?.(1)
-    await settle()
+    await vi.advanceTimersByTimeAsync(0)
   })
 
   test("respects the backoff window", () => {
@@ -84,7 +87,7 @@ describe("maybeStartScheduledRun", () => {
       (signal) => new Promise<number>((r) => signal.addEventListener("abort", () => r(99))),
       (v) => values.push(v),
     )
-    await settle(CFG.timeoutMs + 20)
+    await vi.advanceTimersByTimeAsync(CFG.timeoutMs)
     expect(values).toEqual([]) // a timed-out value is never delivered
     expect(state.inFlight).toBe(false)
     // Hard backoff from the START time, not the adaptive cadence.
@@ -102,7 +105,7 @@ describe("maybeStartScheduledRun", () => {
       },
       (v) => values.push(v),
     )
-    await settle()
+    await vi.advanceTimersByTimeAsync(0)
     expect(values).toEqual([])
     expect(state.inFlight).toBe(false)
   })
@@ -164,8 +167,6 @@ describe("decodeCapturedChunks", () => {
     const buf = Buffer.from("文档", "utf8")
     const chunks = [buf.subarray(0, 2), buf.subarray(2)]
     expect(decodeCapturedChunks(chunks)).toBe("文档")
-    // Per-chunk decoding (a bare `String(chunk)`) would corrupt the split char.
-    expect(String(chunks[0]) + String(chunks[1])).not.toBe("文档")
   })
   test("accepts string chunks and preserves ASCII round-trips", () => {
     expect(decodeCapturedChunks([Buffer.from("ab"), "cd", Buffer.from("ef")])).toBe("abcdef")

@@ -83,7 +83,7 @@
     <string name="settings_uptime">uptime</string>
     <string name="settings_tasks">tasks</string>
     <string name="settings_about_language">language follows android settings</string>
-    <string name="settings_about_mac_side">restarting the daemon, resetting ui state and plugin installs are mac-side actions — the phone talks to the daemon through the bridge and has no way back if it goes down</string>
+    <string name="settings_about_mac_side">restarting the daemon on its own (Restart Rove above only follows an update), resetting ui state and plugin installs are mac-side actions — the phone talks to the daemon through the bridge and has no way back if it goes down</string>
     <string name="settings_privacy">privacy policy</string>
     <string name="settings_licenses">licenses</string>
     <string name="settings_license_maple" translatable="false">Maple Mono</string>
@@ -96,8 +96,15 @@
     <string name="settings_update_available">v%1$s available</string>
     <string name="settings_update_current">No newer release. Nothing to install.</string>
     <string name="settings_update_unknown">The Mac could not reach the registry. Check its connection, then retry.</string>
-    <string name="settings_update_command">Run `rove update` on the Mac to install it.</string>
     <string name="settings_update_open_release">open release</string>
+    <string name="settings_update_now">update now</string>
+    <string name="settings_update_confirm_title">Update Rove on the Mac?</string>
+    <string name="settings_update_confirm_body">Runs `rove update` on the Mac on the chosen channel. Rove keeps running the old build until you restart it here.</string>
+    <string name="settings_update_running">Running %1$s …</string>
+    <string name="settings_update_installed">Installed. Restart Rove to run v%1$s; the app reconnects when it is back.</string>
+    <string name="settings_update_restart">Restart Rove</string>
+    <string name="settings_update_restarting">Restarting Rove… the app reconnects when it is back.</string>
+    <string name="settings_update_failed">Update failed with exit code %1$d. Read the output above, then retry.</string>
     <string name="settings_channel">release channel</string>
     <string name="settings_channel_latest">stable</string>
     <string name="settings_channel_next">next</string>

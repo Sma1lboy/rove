@@ -15,29 +15,23 @@ import * as workspace from "../src/i18n/workspace.ts"
 
 // The catalogs merge with a shallow Object.assign: a namespace two files both declare is silently replaced by the
 // later one, and every key of the earlier one then renders as its raw id (the Diff toolbar once showed `review.scopeMenu`).
-test("no two i18n files declare the same top-level namespace", () => {
-  const parts = {
-    rail,
-    workspace,
-    dialogs,
-    panel,
-    settings,
-    compare,
-    prompts,
-    runLog,
-    usage,
-    transcript,
-    machines,
-    artifact,
-    review,
-  }
-  for (const locale of ["en", "zh"] as const) {
-    const owner = new Map<string, string>()
-    for (const [file, part] of Object.entries(parts)) {
-      for (const ns of Object.keys(part[locale])) {
-        expect(owner.get(ns), `${locale}: "${ns}" is declared in ${owner.get(ns)} and ${file}`).toBeUndefined()
-        owner.set(ns, file)
-      }
-    }
-  }
+const parts = {
+  rail,
+  workspace,
+  dialogs,
+  panel,
+  settings,
+  compare,
+  prompts,
+  runLog,
+  usage,
+  transcript,
+  machines,
+  artifact,
+  review,
+}
+
+test.each(["en", "zh"] as const)("no two %s i18n files declare the same top-level namespace", (locale) => {
+  const owners = Object.entries(parts).flatMap(([file, part]) => Object.keys(part[locale]).map((ns) => [ns, file]))
+  expect(owners.filter(([ns]) => owners.filter(([other]) => other === ns).length > 1)).toEqual([])
 })

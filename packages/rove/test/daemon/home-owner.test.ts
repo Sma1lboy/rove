@@ -29,9 +29,10 @@ describe("daemon home lease", () => {
 
   it("parses exact positive PIDs and socket paths containing colons", () => {
     expect(parseHomeOwnerClaim("42:/run/a:b.sock\n")).toEqual({ pid: 42, socketPath: "/run/a:b.sock" })
-    for (const bad of ["", "42junk:/run/a", "1.5:/run/a", ":/run/a", "42:", "-1:/run/a"]) {
-      expect(parseHomeOwnerClaim(bad)).toBeNull()
-    }
+  })
+
+  it.each(["", "42junk:/run/a", "1.5:/run/a", ":/run/a", "42:", "-1:/run/a"])("rejects malformed claim %j", (bad) => {
+    expect(parseHomeOwnerClaim(bad)).toBeNull()
   })
 
   it("admits only one same-process boot before either socket exists", async () => {

@@ -56,11 +56,8 @@ describe("adoptTaskTabs", () => {
 
   it("leaves the write to the mounted component when one claims it", async () => {
     const kv = fakeKv()
-    const claimed: string[][] = []
-    tabActivationListeners.add(() => {
-      const ids = takeTabAdopt(TASK)
-      if (ids) claimed.push([...ids])
-    })
+    const claimed: unknown[] = []
+    tabActivationListeners.add(() => void claimed.push(takeTabAdopt(TASK)))
     expect(adoptTaskTabs(kv, TASK, ["tab-4"])).toBe(false)
     expect(claimed).toEqual([["tab-4"]])
     await flushTabs()

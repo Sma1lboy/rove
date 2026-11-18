@@ -181,11 +181,11 @@ describe("fork refusals", () => {
     expect(fs.readdirSync(path.dirname(dir))).toEqual([path.basename(dir)])
   })
 
-  test("a project's main checkout has no Rove worktree to clone", async () => {
+  test("a session in the project's checkout has no Rove worktree to clone", async () => {
     const orch = orchestratorWith(true)
-    const main = await orch.ensureMainTask(repo)
+    const checkout = await orch.openDirectoryTask({ dir: repo })
 
-    await expect(orch.createTask({ repo, forkFrom: main.id })).rejects.toThrow(FORK_UNSUPPORTED_CODE)
+    await expect(orch.createTask({ repo, forkFrom: checkout.id })).rejects.toThrow(FORK_UNSUPPORTED_CODE)
   })
 
   test("a multi-repo task cannot be forked", async () => {

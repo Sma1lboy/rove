@@ -2,7 +2,8 @@ import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { flushClientLog } from "@sma1lboy/rove-daemon/client/client-log"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   RECONNECT_LOG_ATTEMPT_CEILING,
   shouldLogReconnectAttempt,
@@ -86,8 +87,6 @@ function fakeClient(): Harness {
   }
 }
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
-
 describe("RemoteOrchestrator auto-reconnect", () => {
   let home: string
   const prev = process.env.ROVE_HOME_DIR
@@ -96,9 +95,12 @@ describe("RemoteOrchestrator auto-reconnect", () => {
     // init() logs to client.log — keep that off the real ~/.rove.
     home = await mkdtemp(join(tmpdir(), "rove-orch-reconnect-"))
     process.env.ROVE_HOME_DIR = home
+    vi.useFakeTimers({ toFake: ["setTimeout"] })
   })
 
   afterEach(async () => {
+    vi.useRealTimers()
+    await flushClientLog()
     // biome-ignore lint/performance/noDelete: env must fully unset when it was unset pre-test (assigning undefined leaves the string "undefined").
     if (prev === undefined) delete process.env.ROVE_HOME_DIR
     else process.env.ROVE_HOME_DIR = prev
@@ -107,63 +109,32 @@ describe("RemoteOrchestrator auto-reconnect", () => {
 
   it("a pane re-inits after the socket closes, without spawning a daemon", async () => {
     const h = fakeClient()
-    let ensureCalls = 0
-    const orch = new RemoteOrchestrator(h.client, {
-      role: "pane",
-      ensureReachable: async () => {
-        ensureCalls++
-      },
-    })
+    const ensureReachable = vi.fn(async () => {})
+    const orch = new RemoteOrchestrator(h.client, { role: "pane", ensureReachable })
     expect(orch.connectionStateSignal()()).toBe("online")
 
     h.triggerClose()
     expect(orch.connectionStateSignal()()).toBe("disconnected")
 
     // The loop's first attempt fires after a 500ms backoff.
-    await sleep(800)
-    expect(h.helloCount()).toBeGreaterThanOrEqual(1) // re-subscribed
-    expect(ensureCalls).toBe(0) // NON-spawning — never resurrects the daemon
-    expect(orch.connectionStateSignal()()).toBe("online") // re-synced
+    await vi.advanceTimersByTimeAsync(500)
+    await vi.waitFor(() => expect(orch.connectionStateSignal()()).toBe("online")) // re-synced
+    expect(h.helloCount()).toBe(1) // re-subscribed
+    expect(ensureReachable).not.toHaveBeenCalled() // NON-spawning — never resurrects the daemon
   })
 
   it("a gui silently ensures the daemon and re-subscribes after close", async () => {
     const h = fakeClient()
-    let ensureCalls = 0
-    const orch = new RemoteOrchestrator(h.client, {
-      role: "gui",
-      ensureReachable: async () => {
-        ensureCalls++
-      },
-    })
+    const ensureReachable = vi.fn(async () => {})
+    const orch = new RemoteOrchestrator(h.client, { role: "gui", ensureReachable })
     h.triggerClose()
     expect(orch.connectionStateSignal()()).toBe("disconnected")
     // The first GUI attempt carries up to 400ms of jitter (so concurrent
-    // GUIs don't all probe a cold-starting daemon at the same instant);
-    // wait past that window rather than assuming an immediate retry.
-    await sleep(600)
-    expect(ensureCalls).toBe(1)
+    // GUIs don't all probe a cold-starting daemon at the same instant).
+    await vi.advanceTimersByTimeAsync(400)
+    await vi.waitFor(() => expect(orch.connectionStateSignal()()).toBe("online"))
+    expect(ensureReachable).toHaveBeenCalledTimes(1)
     expect(h.helloCount()).toBe(1)
-    expect(orch.connectionStateSignal()()).toBe("online")
-  })
-
-  it("a gui silently retries when starting the daemon fails transiently", async () => {
-    const h = fakeClient()
-    let ensureCalls = 0
-    const orch = new RemoteOrchestrator(h.client, {
-      role: "gui",
-      ensureReachable: async () => {
-        ensureCalls++
-        if (ensureCalls === 1) throw new Error("daemon still stopping")
-      },
-    })
-
-    h.triggerClose()
-    // jitter (≤400ms) + the failed first attempt's 500ms backoff.
-    await sleep(1400)
-
-    expect(ensureCalls).toBe(2)
-    expect(h.helloCount()).toBe(1)
-    expect(orch.connectionStateSignal()()).toBe("online")
   })
 
   it("stops retrying once the client is disposed", async () => {
@@ -171,7 +142,7 @@ describe("RemoteOrchestrator auto-reconnect", () => {
     h.setDisposed(true) // host tore the pane down
     new RemoteOrchestrator(h.client, { role: "pane" })
     h.triggerClose()
-    await sleep(800)
+    await vi.advanceTimersByTimeAsync(3000)
     expect(h.helloCount()).toBe(0) // disposed → loop bails before any attempt
   })
 })
@@ -195,9 +166,12 @@ describe("RemoteOrchestrator on a stale install", () => {
   beforeEach(async () => {
     home = await mkdtemp(join(tmpdir(), "rove-orch-stale-"))
     process.env.ROVE_HOME_DIR = home
+    vi.useFakeTimers({ toFake: ["setTimeout"] })
   })
 
   afterEach(async () => {
+    vi.useRealTimers()
+    await flushClientLog()
     // biome-ignore lint/performance/noDelete: env must fully unset when it was unset pre-test (assigning undefined leaves the string "undefined").
     if (prev === undefined) delete process.env.ROVE_HOME_DIR
     else process.env.ROVE_HOME_DIR = prev
@@ -214,24 +188,20 @@ describe("RemoteOrchestrator on a stale install", () => {
 
   it("stops retrying, and says so, instead of failing forever", async () => {
     const h = fakeClient()
-    let ensureCalls = 0
-    const orch = new RemoteOrchestrator(h.client, {
-      role: "gui",
-      ensureReachable: async () => {
-        ensureCalls++
-        throw staleInstallError()
-      },
+    const ensureReachable = vi.fn(async () => {
+      throw staleInstallError()
     })
+    const orch = new RemoteOrchestrator(h.client, { role: "gui", ensureReachable })
     expect(orch.staleInstallSignal()()).toBe(null)
 
     h.triggerClose()
     // Long enough for several ordinary retries: jitter (≤400ms) plus the
     // 500ms → 1000ms → 2000ms backoff would be at least four attempts.
-    await sleep(2500)
+    await vi.advanceTimersByTimeAsync(4000)
 
     // Once. Not "fewer" — a second attempt would resolve the same missing
     // path and is pure waste.
-    expect(ensureCalls).toBe(1)
+    expect(ensureReachable).toHaveBeenCalledTimes(1)
     expect(h.helloCount()).toBe(0)
     // And it is now VISIBLE. Silence here is the actual bug: the client
     // looked like it was reconnecting for two days.
@@ -240,17 +210,16 @@ describe("RemoteOrchestrator on a stale install", () => {
 
   it("still retries an ordinary spawn failure — the two must not be conflated", async () => {
     const h = fakeClient()
-    let ensureCalls = 0
-    const orch = new RemoteOrchestrator(h.client, {
-      role: "gui",
-      ensureReachable: async () => {
-        ensureCalls++
-        if (ensureCalls === 1) throw new Error("daemon did not start (or stayed wedged)")
-      },
-    })
+    const ensureReachable = vi
+      .fn(async () => {})
+      .mockRejectedValueOnce(new Error("daemon did not start (or stayed wedged)"))
+    const orch = new RemoteOrchestrator(h.client, { role: "gui", ensureReachable })
     h.triggerClose()
-    await sleep(1400)
-    expect(ensureCalls).toBe(2) // retried, recovered
+    // jitter (<400ms), then the backoff doubles it (<800ms).
+    await vi.advanceTimersByTimeAsync(1200)
+    await vi.waitFor(() => expect(orch.connectionStateSignal()()).toBe("online"))
+    expect(ensureReachable).toHaveBeenCalledTimes(2) // retried, recovered
+    expect(h.helloCount()).toBe(1)
     expect(orch.staleInstallSignal()()).toBe(null) // and never flagged
   })
 })

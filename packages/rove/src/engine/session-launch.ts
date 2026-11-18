@@ -10,7 +10,7 @@ import { type PromptDeliveryIntent, resolveEngineLaunchInit } from "../state/rep
 import type { VendorId } from "../types/vendor.ts"
 import { protocolEntry } from "./engine-presets.ts"
 import { exposedRepos, multiRepoNote, repoEnv } from "./multi-repo-launch.ts"
-import { withDispatcherProtocol, withWorktreeProtocol } from "./worktree-protocol.ts"
+import { withWorktreeProtocol } from "./worktree-protocol.ts"
 
 export const SIGINT_GUARD = "trap ':' INT; "
 
@@ -184,7 +184,7 @@ export function engineLaunchLine(engineCommand: string, init?: EngineInitLaunch)
 
 export interface EngineSessionLaunchTask {
   readonly id: string
-  readonly kind?: "main" | "task" | "dir"
+  readonly kind?: "task" | "dir"
   readonly vendor?: VendorId
   readonly repo?: string
   /**
@@ -271,26 +271,18 @@ export function buildEngineSessionLaunch(input: EngineSessionLaunchInput): Engin
   // `add`) funnels through this canonical builder.
   const remoteKey = remoteKeyForRepo(input.task.repo) ?? remoteKeyForRepo(input.worktreePath)
   if (remoteKey) throw new RemoteEngineLaunchError(remoteKey)
-  const protocolTaskId = input.task.kind === "main" ? undefined : input.task.id
-  const dispatcherTaskId = input.task.kind === "main" ? input.task.id : undefined
   const gates = input.protocolGates
   const launchInit = resolveEngineLaunchInit(input.task.repo ?? "", input.worktreePath, input.promptIntent)
   // Field notes ride the protocol's --append-system-prompt: the only way a note reaches a session.
   const notes = (input.readNotes ?? readFieldNotes)(input.task.repo ?? "")
-  let argv = withDispatcherProtocol(
-    withWorktreeProtocol(
-      input.argv,
-      input.task.vendor,
-      protocolTaskId,
-      {
-        status: gates?.status,
-        notes: gates?.notes,
-      },
-      notes,
-    ),
+  let argv = withWorktreeProtocol(
+    input.argv,
     input.task.vendor,
-    dispatcherTaskId,
-    gates?.dispatcher,
+    input.task.id,
+    {
+      status: gates?.status,
+      notes: gates?.notes,
+    },
     notes,
   )
   // Extra worktrees through the engine's own flag; engines without one rely on the env and note below.

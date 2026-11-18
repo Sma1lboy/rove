@@ -132,7 +132,7 @@ describe("renameTaskFlow", () => {
 
     await renameTaskFlow(ctx, "t1")
 
-    expect(notifyError).toHaveBeenCalledWith("Couldn't rename the task — it keeps its old title: boom")
+    expect(notifyError).toHaveBeenCalledWith("Couldn't rename the task: boom")
     expect(reload).not.toHaveBeenCalled()
   })
 
@@ -161,17 +161,6 @@ describe("renameBranchFlow", () => {
     expect(reload).toHaveBeenCalledTimes(1)
   })
 
-  test("a `main` (project) row is a no-op — its branch isn't rove's to rename", async () => {
-    const tasks = [makeTask({ id: "m1", kind: "main" })]
-    const orch = makeOrch()
-    const { ctx, promptText } = makeCtx({ tasks, orch, promptTextResult: "x" })
-
-    await renameBranchFlow(ctx, "m1")
-
-    expect(promptText).not.toHaveBeenCalled()
-    expect(orch.setBranch).not.toHaveBeenCalled()
-  })
-
   test("cancelled prompt skips the RPC", async () => {
     const tasks = [makeTask({ id: "t1" })]
     const orch = makeOrch()
@@ -194,7 +183,7 @@ describe("renameBranchFlow", () => {
 
     await renameBranchFlow(ctx, "t1")
 
-    expect(notifyError).toHaveBeenCalledWith('Couldn\'t rename the branch — it stays "rove/t1": bad branch name')
+    expect(notifyError).toHaveBeenCalledWith("Couldn't rename the branch: bad branch name")
     expect(reload).not.toHaveBeenCalled()
   })
 })
@@ -228,7 +217,7 @@ describe("cycleVendorFlow", () => {
 
     await cycleVendorFlow(ctx, "t1")
 
-    expect(notifyError).toHaveBeenCalledWith("Couldn't switch the engine — the task keeps the one it had: nope")
+    expect(notifyError).toHaveBeenCalledWith("Couldn't switch the engine: nope")
     expect(notifyInfo).not.toHaveBeenCalled()
     expect(reload).not.toHaveBeenCalled()
   })
@@ -247,7 +236,7 @@ describe("cycleVendorFlow", () => {
     const tasks = [makeTask({ id: "t1" })]
     const { ctx } = makeCtx({ tasks, orch: null })
 
-    await cycleVendorFlow(ctx, "t1")
+    await expect(cycleVendorFlow(ctx, "t1")).resolves.toBeUndefined()
   })
 })
 
@@ -321,7 +310,7 @@ describe("setStatusFlow", () => {
 
     await setStatusFlow(ctx, "t1")
 
-    expect(notifyError).toHaveBeenCalledWith("Couldn't set the status — it stays backlog: daemon down")
+    expect(notifyError).toHaveBeenCalledWith("Couldn't set the status: daemon down")
     expect(notifyInfo).not.toHaveBeenCalled()
     expect(reload).not.toHaveBeenCalled()
   })
@@ -345,9 +334,7 @@ describe("setStatusFlow", () => {
 
     await setStatusFlow(ctx, "t1")
 
-    expect(notifyError).toHaveBeenCalledWith(
-      "Couldn't set the status — it stays done: illegal transition for task t1: done -> error",
-    )
+    expect(notifyError).toHaveBeenCalledWith("Couldn't set the status: illegal transition for task t1: done -> error")
     expect(reload).not.toHaveBeenCalled()
   })
 
@@ -411,7 +398,7 @@ describe("copyTaskFieldFlow", () => {
     await copyTaskFieldFlow(ctx, "t1", "path")
 
     expect(copyText).toHaveBeenCalledWith("/wt/not-yet")
-    for (const fn of Object.values(orch)) expect(fn).not.toHaveBeenCalled()
+    expect(Object.values(orch).filter((fn) => fn.mock.calls.length > 0)).toEqual([])
   })
 
   test("id: copies the task id `rove api --task-id` takes, even before the worktree exists", async () => {
@@ -434,8 +421,8 @@ describe("copyTaskFieldFlow", () => {
     expect(notifyInfo.mock.calls[0][0]).toContain("--tab tab-3")
   })
 
-  test("an empty branch (main/dir row) copies nothing and shows no toast", async () => {
-    const tasks = [makeTask({ id: "t1", branch: "", kind: "main" })]
+  test("an empty branch (dir row) copies nothing and shows no toast", async () => {
+    const tasks = [makeTask({ id: "t1", branch: "", kind: "dir" })]
     const { ctx, copyText, notifyInfo } = makeCtx({ tasks, orch: makeOrch() })
 
     await copyTaskFieldFlow(ctx, "t1", "branch")

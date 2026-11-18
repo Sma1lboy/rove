@@ -33,34 +33,32 @@ const SETUPS: Record<string, string> = {
   "full reset": "\x1b[?1049h\x1b[?1003h\x1b[?2004h\x1bc",
 }
 
-describe("terminal mode tracking", () => {
-  for (const [name, setup] of Object.entries(SETUPS)) {
-    it(`answers DA1 and DECRQM exactly as xterm.js after ${name}`, async () => {
-      const queries = [
-        "\x1b[c",
-        "\x1b[0c",
-        ...PRIVATE_MODES.map((mode) => `\x1b[?${mode}$p`),
-        ...ANSI_MODES.map((mode) => `\x1b[${mode}$p`),
-      ].join("")
-      const track = freshModeTrack()
-      // One byte at a time: every sequence straddles a chunk boundary.
-      const hostReplies = [...(setup + queries)].flatMap((byte) => scanTerminalModes(track, byte)).join("")
-      const { replies } = await xtermAfter(setup + queries)
-      expect(hostReplies).toBe(replies)
-    })
+describe.each(Object.entries(SETUPS))("terminal mode tracking after %s", (_name, setup) => {
+  it("answers DA1 and DECRQM exactly as xterm.js", async () => {
+    const queries = [
+      "\x1b[c",
+      "\x1b[0c",
+      ...PRIVATE_MODES.map((mode) => `\x1b[?${mode}$p`),
+      ...ANSI_MODES.map((mode) => `\x1b[${mode}$p`),
+    ].join("")
+    const track = freshModeTrack()
+    // One byte at a time: every sequence straddles a chunk boundary.
+    const hostReplies = [...(setup + queries)].flatMap((byte) => scanTerminalModes(track, byte)).join("")
+    const { replies } = await xtermAfter(setup + queries)
+    expect(hostReplies).toBe(replies)
+  })
 
-    it(`replays the modes of a trimmed ring (${name})`, async () => {
-      const track = freshModeTrack()
-      scanTerminalModes(track, setup)
-      const original = await xtermAfter(setup)
-      const replayed = await xtermAfter(terminalModePreamble(track.modes))
-      // Synchronized output is mid-frame at a ring cut; the ring carries its end.
-      expect({ ...replayed.term.modes, synchronizedOutputMode: false }).toEqual({
-        ...original.term.modes,
-        synchronizedOutputMode: false,
-      })
-      expect(replayed.term.modes.synchronizedOutputMode).toBe(false)
-      expect(replayed.term.buffer.active.type).toBe(original.term.buffer.active.type)
+  it("replays the modes of a trimmed ring", async () => {
+    const track = freshModeTrack()
+    scanTerminalModes(track, setup)
+    const original = await xtermAfter(setup)
+    const replayed = await xtermAfter(terminalModePreamble(track.modes))
+    // Synchronized output is mid-frame at a ring cut; the ring carries its end.
+    expect({ ...replayed.term.modes, synchronizedOutputMode: false }).toEqual({
+      ...original.term.modes,
+      synchronizedOutputMode: false,
     })
-  }
+    expect(replayed.term.modes.synchronizedOutputMode).toBe(false)
+    expect(replayed.term.buffer.active.type).toBe(original.term.buffer.active.type)
+  })
 })

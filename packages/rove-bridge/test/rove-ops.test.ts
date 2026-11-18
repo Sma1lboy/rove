@@ -9,19 +9,18 @@ import { argvToParams } from "@sma1lboy/rove/src/cli/api/invoke.ts"
 import { kvStatePath } from "@sma1lboy/rove/src/env.ts"
 import { addSavedRepo } from "@sma1lboy/rove/src/state/repos.ts"
 import { loadOrCreateToken } from "../src/auth.ts"
+import { newTabInvocation } from "../src/new-tab.ts"
 import { taskOpDeps } from "../src/ops/tasks-shared.ts"
 import type { BridgeApi } from "../src/ops/types.ts"
-import {
-  type EngineRow,
-  createRoveOps,
-  engineFor,
-  newTabInvocation,
-  remoteRowStatus,
-  taskRows,
-} from "../src/rove-ops.ts"
+import { type EngineRow, createRoveOps, remoteRowStatus, taskRows } from "../src/rove-ops.ts"
 import { isolateTaskOpDeps } from "./task-ops-harness.ts"
 
 isolateTaskOpDeps()
+
+function restoreEnv(key: string, prev: string | undefined): void {
+  if (prev === undefined) Reflect.deleteProperty(process.env, key)
+  else process.env[key] = prev
+}
 
 const ENGINES: EngineRow[] = [
   { id: "alpha", name: "Alpha", command: "alpha", protocol: "alpha", builtin: true, enabled: true },
@@ -53,14 +52,14 @@ function daemonStatus(rollup: RowStatus): TaskStatus {
 describe("task rows", () => {
   const now = 10_000_000
 
-  test("groups like `rove api context` and sorts what needs a person first, main tasks included", () => {
+  test("groups like `rove api context` and sorts what needs a person first", () => {
     const rows = taskRows(
-      [task({ id: "busy" }), task({ id: "blocked" }), task({ id: "main", kind: "main" }), task({ id: "dark" })],
+      [task({ id: "busy" }), task({ id: "blocked" }), task({ id: "idle", kind: "dir" }), task({ id: "dark" })],
       {
         tasks: {
           busy: daemonStatus({ kind: "running", state: "running", since: now - 1000 }),
           blocked: daemonStatus({ kind: "needs-input", state: "permission_needed", since: now - 1000 }),
-          main: daemonStatus({ kind: "idle", state: "idle", since: now - 1000 }),
+          idle: daemonStatus({ kind: "idle", state: "idle", since: now - 1000 }),
         },
         liveness: true,
       },
@@ -70,7 +69,7 @@ describe("task rows", () => {
     expect(rows.map((r) => [r.id, r.group])).toEqual([
       ["blocked", "waiting-on-you"],
       ["busy", "working"],
-      ["main", "idle"],
+      ["idle", "idle"],
       // No activity reading is "could not look", never idle.
       ["dark", "unknown"],
     ])
@@ -135,25 +134,6 @@ describe("task rows", () => {
   })
 })
 
-describe("engine identity", () => {
-  test("an exact preset command wins over the protocol's builtin; unknown engines fall back to the vendor id", () => {
-    expect(engineFor(task({ id: "a", vendor: "alpha", command: "alpha --fast" } as never), ENGINES)).toEqual({
-      id: "alpha-fast",
-      name: "Alpha Fast",
-    })
-    expect(engineFor(task({ id: "b", vendor: "alpha" } as never), ENGINES)).toEqual({ id: "alpha", name: "Alpha" })
-    expect(engineFor(task({ id: "c", vendor: "zeta" } as never), ENGINES)).toEqual({ id: null, name: "zeta" })
-  })
-
-  test("a task on an engine switched off still shows that engine's name", () => {
-    const off = ENGINES.map((e) => (e.id === "alpha-fast" ? { ...e, enabled: false } : e))
-    expect(engineFor(task({ id: "d", vendor: "alpha", command: "alpha --fast" } as never), off)).toEqual({
-      id: "alpha-fast",
-      name: "Alpha Fast",
-    })
-  })
-})
-
 describe("engines.list enabled flag", () => {
   test("follows Settings → Engines at once, though the engine scan itself is cached", async () => {
     const prev = process.env.ROVE_HOME_DIR
@@ -179,8 +159,7 @@ describe("engines.list enabled flag", () => {
       expect((await ops.engines()).map((e) => e.enabled)).toEqual([true])
       expect(scans).toBe(1)
     } finally {
-      if (prev === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
-      else process.env.ROVE_HOME_DIR = prev
+      restoreEnv("ROVE_HOME_DIR", prev)
     }
   })
 })
@@ -350,14 +329,14 @@ describe("task row extras", () => {
 })
 
 describe("diff file path", () => {
-  test("paths that could escape the worktree are refused before git or the filesystem is touched", async () => {
-    // Fixture: the guard must fire before any daemon request.
-    const client = { request: () => Promise.reject(new Error("daemon touched")) } as unknown as RoveDaemonClient
-    const ops = createRoveOps(client)
-    for (const path of ["/etc/passwd", "../outside", "a/../../b"]) {
-      await expect(ops.diffFile("T1", path, "working")).rejects.toMatchObject({ code: "BAD_ARGS" })
-    }
-  })
+  test.each(["/etc/passwd", "../outside", "a/../../b"])(
+    "%p could escape the worktree, so it is refused before git or the filesystem is touched",
+    async (path) => {
+      // Fixture: the guard must fire before any daemon request.
+      const client = { request: () => Promise.reject(new Error("daemon touched")) } as unknown as RoveDaemonClient
+      await expect(createRoveOps(client).diffFile("T1", path, "working")).rejects.toMatchObject({ code: "BAD_ARGS" })
+    },
+  )
 })
 
 describe("tab.new verb choice", () => {
@@ -373,21 +352,24 @@ describe("tab.new verb choice", () => {
     expect(newTabInvocation("T1", { kind: "engine", engine: "codex", latest: true }).argv).not.toContain("--latest")
   })
 
-  test("an engine tab is a child task: the reply names it so a client can open it", async () => {
-    const verbs: Array<{ name: string; reply: unknown }> = [
-      { name: "add", reply: { taskId: "KID", session: "KID::tab-1" } },
-      { name: "tab-new", reply: { taskId: "T1", childTaskId: "KID", tabId: "tab-1", session: "KID::tab-1" } },
-    ]
-    for (const { name, reply } of verbs) {
+  test.each([
+    ["add", { kind: "engine" as const, prompt: "go" }, { taskId: "KID", session: "KID::tab-1" }],
+    [
+      "tab-new",
+      { kind: "engine" as const },
+      { taskId: "T1", childTaskId: "KID", tabId: "tab-1", session: "KID::tab-1" },
+    ],
+  ] as const)(
+    "an engine tab is a child task: the %s reply names it so a client can open it",
+    async (_verb, request, reply) => {
       const api: BridgeApi = {
         verb: async <T>() => reply as T,
         rpc: () => Promise.reject(new Error("unused")),
       }
       const ops = createRoveOps({} as RoveDaemonClient, undefined, api)
-      const request = name === "add" ? { kind: "engine" as const, prompt: "go" } : { kind: "engine" as const }
       expect(await ops.newTab("T1", request)).toEqual({ tabId: "tab-1", taskId: "KID" })
-    }
-  })
+    },
+  )
 
   test("`add` answering with the task itself means the tab went into it: no child id", async () => {
     const api: BridgeApi = {
@@ -438,17 +420,19 @@ describe("repos.list", () => {
     const home = mkdtempSync(join(tmpdir(), "rove-bridge-repos-"))
     process.env.ROVE_HOME_DIR = home
     try {
-      addSavedRepo("/work/app", { skipGate: true })
+      // A real directory: a saved project whose directory is gone is not listed.
+      const app = join(home, "app")
+      mkdirSync(app)
+      addSavedRepo(app, { skipGate: true })
       const tasks = [
-        task({ id: "m", kind: "main", repo: "/work/app" }),
+        task({ id: "m", kind: "dir", repo: app }),
         task({ id: "nf", kind: "dir", repo: home, noProject: true }),
         task({ id: "rt", kind: "dir", repo: join(home, ".rove", "routines", "r1"), noProject: true }),
       ]
       const client = { request: async () => ({ tasks }) } as unknown as RoveDaemonClient
-      expect(await createRoveOps(client).repos()).toEqual(["/work/app"])
+      expect(await createRoveOps(client).repos()).toEqual([app])
     } finally {
-      if (prev === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
-      else process.env.ROVE_HOME_DIR = prev
+      restoreEnv("ROVE_HOME_DIR", prev)
     }
   })
 })

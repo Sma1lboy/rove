@@ -281,7 +281,7 @@ export function IssueDrawer(props: {
               value={title}
               onChange={(e) => setTitle(e.target.value.replace(/[\r\n]+/g, " "))}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.ctrlKey && !e.metaKey) {
+                if (e.key === "Enter" && !e.ctrlKey && !e.metaKey && !e.nativeEvent.isComposing) {
                   e.preventDefault()
                   refs.current.description?.focus()
                 }

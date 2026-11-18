@@ -13,6 +13,7 @@ import {
   ROVE_API_VERSION,
 } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { ensurePluginEnginesLoaded } from "../../engine/plugin-engines.ts"
+import { REPO_HAS_NO_COMMITS_CODE, REPO_HAS_NO_COMMITS_HINT } from "../../orchestrator/errors.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { REPEAT_SEP, VerbArgs, parseFlags, validateAgainstSpec } from "./flags.ts"
 import { defaultApiRuntime } from "./runtime.ts"
@@ -69,6 +70,9 @@ export function toApiError(err: unknown): ApiError {
   }
   if (/unknown daemon request:/i.test(message)) return versionSkewError(message)
   const coded = splitDaemonCode(message)
+  if (coded?.code === REPO_HAS_NO_COMMITS_CODE) {
+    return new ApiError(coded.rest, coded.code, { hint: REPO_HAS_NO_COMMITS_HINT })
+  }
   if (coded) return new ApiError(coded.rest, coded.code)
   return new ApiError(message, "RPC_ERROR")
 }

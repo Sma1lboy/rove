@@ -72,6 +72,9 @@ export const SIDE_VIEW = "side-view flex min-h-0 min-w-0 flex-1 flex-col [&[hidd
 export const SIDE_EMPTY =
   "m-auto flex max-w-[44ch] flex-col items-center gap-2.5 p-4 text-center font-mono text-meta leading-[1.5] text-subtle normal-nums"
 
+/** A list of choices inside `SIDE_EMPTY` (the pages a blank Browser tab offers): full width, read left to right. */
+export const SIDE_EMPTY_LIST = "flex w-[36ch] max-w-full flex-col text-left text-ink"
+
 export const BROWSER = "flex min-h-0 flex-1 flex-col gap-1.5"
 export const BROWSER_BAR = "flex items-center gap-0.5 [&_svg]:flex-none"
 /** A plain inset field, no border; an address that was not taken dims. */

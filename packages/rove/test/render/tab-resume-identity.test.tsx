@@ -9,6 +9,11 @@ import type { TabsState } from "../../src/tui/workspace/terminal-tabs-core"
 import type { VendorId } from "../../src/types/vendor"
 import { act, renderComponent } from "./harness"
 
+/** Fire a snapshot of `listeners` (one may unsubscribe while it runs). */
+function notifyAll(listeners: ReadonlySet<() => void>): void {
+  for (const listener of [...listeners]) listener()
+}
+
 const restore: (() => void)[] = []
 afterEach(() => {
   for (const run of restore.splice(0)) run()
@@ -60,7 +65,7 @@ test("a restored tab keeps its session through shell startup and demotes only af
   const observe = async (vendor: VendorId | null | undefined) => {
     await act(async () => {
       live = vendor
-      for (const listener of [...listeners]) listener()
+      notifyAll(listeners)
     })
     await rendered.rerender()
   }

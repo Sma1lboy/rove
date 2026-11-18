@@ -134,10 +134,14 @@ describe("prefix HUD feed", () => {
   test("the feed keeps only the latest three entries", () => {
     const stack = [registration(1, "t", "tab.new")]
 
-    for (const [i, key] of ["t", "x", "y", "z"].entries()) {
-      dispatchKeyEvent(stack, event("a", true), 1000 * i)
-      dispatchKeyEvent(stack, event(key), 1000 * i + 1)
-    }
+    dispatchKeyEvent(stack, event("a", true), 0)
+    dispatchKeyEvent(stack, event("t"), 1)
+    dispatchKeyEvent(stack, event("a", true), 1000)
+    dispatchKeyEvent(stack, event("x"), 1001)
+    dispatchKeyEvent(stack, event("a", true), 2000)
+    dispatchKeyEvent(stack, event("y"), 2001)
+    dispatchKeyEvent(stack, event("a", true), 3000)
+    dispatchKeyEvent(stack, event("z"), 3001)
 
     const strokes = prefixHudState().entries.map((entry) => entry.stroke)
     expect(strokes).toEqual(["x", "y", "z"])

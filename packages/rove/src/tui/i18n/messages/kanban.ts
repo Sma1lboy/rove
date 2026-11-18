@@ -67,7 +67,6 @@ export const en = {
     workspace: "WORKSPACE",
     placement: {
       worktree: "New worktree task — its own workspace",
-      projectWorktree: "New worktree — as a chattab in the project workspace",
       project: "Project checkout — a new chattab, no worktree",
     },
     /** The follow-or-stay toggle (orthogonal to placement). */
@@ -158,7 +157,6 @@ export const zh: typeof en = {
     workspace: "工作区",
     placement: {
       worktree: "新建 worktree 任务——独立工作区",
-      projectWorktree: "新建 worktree——作为项目工作区里的 chattab",
       project: "项目主目录——新开 chattab,不建 worktree",
     },
     jumpLabel: "启动后",

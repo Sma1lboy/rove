@@ -10,7 +10,7 @@ import type { AppModel } from "./model.ts"
 import { isPanelPush, panelFields } from "./panel-contract.ts"
 import { panelOpen } from "./panel-layout.ts"
 import { applyPanelPush, onPanelsChange, panelShown } from "./panel-state.ts"
-import { zen } from "./ui.ts"
+import { newSession, page, zen } from "./ui.ts"
 
 export function watchPanel(model: AppModel, client: BridgeClient): void {
   // The panel of the task on screen, not the shared flag: an agent asking what the human sees gets this task's.
@@ -20,6 +20,8 @@ export function watchPanel(model: AppModel, client: BridgeClient): void {
   panelOpen.subscribe(report)
   onPanelsChange(report)
   zen.subscribe(report)
+  newSession.subscribe(report)
+  page.subscribe(report)
   onNarrowChange(report)
   client.on("panel", (data) => {
     if (isPanelPush(data)) applyPanelPush(data, model.selection.get().taskId)

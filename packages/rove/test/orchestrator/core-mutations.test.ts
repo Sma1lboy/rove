@@ -1,9 +1,9 @@
 /**
  * Orchestrator mutation methods not exercised by the flow-specific suites
- * (adopt / ensure-worktree / branch-follow / main-task / active-task):
+ * (adopt / ensure-worktree / branch-follow / active-task):
  * setVendor, setPinned, setStatus (incl. the done↔error refusal),
  * setPRStatus (incl. the no-op diff guard), moveTask, and
- * deleteTask's safety ladder (main-row refusal, dirty-worktree guard, force
+ * deleteTask's safety ladder (dirty-worktree guard, force
  * override, remove-failure keeping the index entry).
  *
  * Uses the house pattern: a REAL TaskIndexStore on a temp ROVE home (these
@@ -19,7 +19,6 @@ import { SESSION_PR_CAP } from "@sma1lboy/rove-daemon/daemon/session-prs"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Orchestrator } from "../../src/orchestrator/core.ts"
 import {
-  CannotDeleteMainTaskError,
   DirtyWorktreeError,
   IllegalTransitionError,
   WorktreeRemoveFailedError,
@@ -65,20 +64,6 @@ async function makeTask(overrides: { title?: string; worktreePath?: string; repo
     await store.update(task.id, { worktreePath: overrides.worktreePath })
   }
   return orch.getTask(task.id)!
-}
-
-async function makeMainTask() {
-  // ensureMainTask resolves the repo root via git; a plain temp dir is not a
-  // repo, so create the main row through the store directly — same shape.
-  return store.create({
-    repo: "/repo",
-    title: "repo",
-    branch: "",
-    worktreePath: "/repo",
-    status: "backlog",
-    kind: "main",
-    vendor: "claude",
-  })
 }
 
 describe("setVendor", () => {
@@ -169,14 +154,10 @@ describe("setPinned", () => {
     expect(orch.getTask(t.id)?.pinned).toBe(false)
   })
 
-  it("sets an explicit value and no-ops for main rows", async () => {
+  it("sets an explicit value", async () => {
     const t = await makeTask()
     await orch.setPinned(t.id, true)
     expect(orch.getTask(t.id)?.pinned).toBe(true)
-
-    const main = await makeMainTask()
-    await orch.setPinned(main.id, true)
-    expect(orch.getTask(main.id)?.pinned).toBeUndefined()
   })
 })
 
@@ -275,12 +256,7 @@ describe("moveTask", () => {
     await store.update(a.id, { repo: "C:\\repo" })
     await store.update(b.id, { repo: "C:/repo/" })
     await orch.moveTask(b.id, -1)
-    expect(
-      orch
-        .listTasks()
-        .filter((task) => task.kind !== "main")
-        .map((task) => task.title),
-    ).toEqual(["b", "a"])
+    expect(orch.listTasks().map((task) => task.title)).toEqual(["b", "a"])
   })
   it("moves a task within its partition and skips pinned siblings", async () => {
     await makeTask({ title: "a" })
@@ -291,9 +267,7 @@ describe("moveTask", () => {
     await orch.moveTask(c.id, -1) // c above a (b not in the way)
     const order = orch
       .listTasks()
-      // createTask auto-ensures the repo's main row now — not part of the
-      // move partition under test.
-      .filter((t) => !t.pinned && t.kind !== "main")
+      .filter((t) => !t.pinned)
       .map((t) => t.title)
     expect(order).toEqual(["c", "a"])
   })
@@ -309,10 +283,7 @@ describe("moveTask", () => {
     // b up: its repo neighbour is a — `other` (between them in the store) is
     // not in the partition and must be skipped, not swapped with.
     await orch.moveTask(b.id, -1)
-    const titles = orch
-      .listTasks()
-      .filter((t) => t.kind !== "main")
-      .map((t) => t.title)
+    const titles = orch.listTasks().map((t) => t.title)
     expect(titles).toEqual(["b", "a", "other"])
 
     // Edge-stop within the repo group: b is now the group's first row, so a
@@ -325,63 +296,9 @@ describe("moveTask", () => {
     await orch.moveTask(other.id, 1)
     expect(orch.listTasks().map((t) => t.id)).toEqual(before)
   })
-
-  // Projects render stored order, so main rows are
-  // movable — among each other only, never mixing into the task partition.
-  it("moves a main row among other main rows, leaving tasks in place", async () => {
-    const regular = await makeTask({ title: "reg" })
-    const mainA = await makeMainTask()
-    const mainB = await store.create({
-      repo: "/repo-b",
-      title: "repo-b",
-      branch: "",
-      worktreePath: "/repo-b",
-      status: "backlog",
-      kind: "main",
-    })
-
-    const mainIds = () =>
-      orch
-        .listTasks()
-        .filter((t) => t.kind === "main")
-        .map((t) => String(t.id))
-    await orch.moveTask(mainB.id, -1)
-    const after = mainIds()
-    expect(after.indexOf(String(mainB.id))).toBeLessThan(after.indexOf(String(mainA.id)))
-    // The regular task partition is untouched.
-    expect(orch.getTask(regular.id)?.title).toBe("reg")
-    // Moving past the top of the partition is a harmless no-op.
-    for (const _ of after) await orch.moveTask(mainB.id, -1)
-    const pinnedTop = orch.listTasks().map((t) => t.id)
-    await orch.moveTask(mainB.id, -1)
-    expect(orch.listTasks().map((t) => t.id)).toEqual(pinnedTop)
-  })
 })
 
 describe("moveTaskToTop", () => {
-  const mainOf = (repo: string) =>
-    store.create({ repo, title: repo, branch: "", worktreePath: repo, status: "backlog", kind: "main" })
-  const mainRepos = () =>
-    orch
-      .listTasks()
-      .filter((t) => t.kind === "main")
-      .map((t) => t.repo)
-
-  it("lifts a main above every other main in one write", async () => {
-    await mainOf("/repo-a")
-    await mainOf("/repo-b")
-    const last = await mainOf("/repo-c")
-    const before = mainRepos()
-
-    await orch.moveTaskToTop(last.id)
-    expect(mainRepos()).toEqual(["/repo-c", ...before.filter((repo) => repo !== "/repo-c")])
-
-    // Already on top: a no-op, not a wrap.
-    const top = orch.listTasks().map((t) => t.id)
-    await orch.moveTaskToTop(last.id)
-    expect(orch.listTasks().map((t) => t.id)).toEqual(top)
-  })
-
   it("keeps a regular task inside its repo group and pin partition", async () => {
     await makeTask({ title: "a" })
     await makeTask({ title: "other", repo: "/repo-b" })
@@ -390,10 +307,7 @@ describe("moveTaskToTop", () => {
     const c = await makeTask({ title: "c" })
 
     await orch.moveTaskToTop(c.id)
-    const titles = orch
-      .listTasks()
-      .filter((t) => t.kind !== "main")
-      .map((t) => t.title)
+    const titles = orch.listTasks().map((t) => t.title)
     // Lands just above `a`, its partition's head: `other` and `pinned` aren't passed over.
     expect(titles).toEqual(["c", "a", "other", "pinned"])
   })
@@ -402,12 +316,6 @@ describe("moveTaskToTop", () => {
 describe("deleteTask — safety ladder", () => {
   it("silently no-ops for an unknown id", async () => {
     await expect(orch.deleteTask("nope")).resolves.toBeUndefined()
-  })
-
-  it("refuses main rows with CannotDeleteMainTaskError", async () => {
-    const main = await makeMainTask()
-    await expect(orch.deleteTask(main.id)).rejects.toThrow(CannotDeleteMainTaskError)
-    expect(orch.getTask(main.id)).toBeDefined()
   })
 
   it("throws DirtyWorktreeError for a dirty worktree without force, keeping everything", async () => {
@@ -482,9 +390,6 @@ describe("signals + subscription surface", () => {
       seen.push(snapshot.length)
     })
     await makeTask()
-    // ONE task: `/repo` is a synthetic path, not a git repo, so the project
-    // row is refused (state/project-eligibility.ts). createTask still creates
-    // the task — the gate withholds the permanent project row, nothing else.
     expect(seen.at(-1)).toBe(1)
     expect(orch.tasksSignal()()).toHaveLength(1)
     unsub()

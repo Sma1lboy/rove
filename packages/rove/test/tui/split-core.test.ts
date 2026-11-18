@@ -18,6 +18,9 @@ import { type EngineTab, splitLeafNames, splitLeafPtyKey, tabTitle } from "../..
 /** Terminal-flavored payload in these tests; the tree never inspects it. */
 const MAIN = null
 const SH = ["/bin/zsh"]
+/** `count` alternating row/column splits, so each one nests a level deeper. */
+const alternating = (count: number) =>
+  Array.from({ length: count }, (_, i) => (i % 2 === 0 ? "row" : "column") as "row" | "column")
 
 describe("split tree (content-agnostic)", () => {
   it("starts as a single leaf with no groups", () => {
@@ -49,11 +52,10 @@ describe("split tree (content-agnostic)", () => {
 
   it(`splits past MAX_SPLIT_DEPTH (${MAX_SPLIT_DEPTH}) no-op; siblings still allowed`, () => {
     // Alternate orientations so every split nests one level deeper.
-    let s = initialSplit<string[] | null>(MAIN)
-    for (let i = 0; i < MAX_SPLIT_DEPTH; i++) {
-      s = splitActive(s, i % 2 === 0 ? "row" : "column", SH)
-    }
-    const atCap = s
+    const atCap = alternating(MAX_SPLIT_DEPTH).reduce(
+      (s, orientation) => splitActive(s, orientation, SH),
+      initialSplit<string[] | null>(MAIN),
+    )
     // One more alternating split would nest to depth 5 — refused.
     expect(splitActive(atCap, MAX_SPLIT_DEPTH % 2 === 0 ? "row" : "column", SH)).toBe(atCap)
     // A same-orientation split inserts a sibling (no deeper) — allowed.
@@ -89,10 +91,10 @@ describe("split tree (content-agnostic)", () => {
     })
 
     it("with a real size, nesting past MAX_SPLIT_DEPTH is allowed", () => {
-      let s = initialSplit<string[] | null>(MAIN)
-      for (let i = 0; i <= MAX_SPLIT_DEPTH; i++) {
-        s = splitActive(s, i % 2 === 0 ? "row" : "column", SH, BIG)
-      }
+      const s = alternating(MAX_SPLIT_DEPTH + 1).reduce(
+        (acc, orientation) => splitActive(acc, orientation, SH, BIG),
+        initialSplit<string[] | null>(MAIN),
+      )
       // MAX_SPLIT_DEPTH+1 alternating splits all landed — screen decides.
       expect(leaves(s.root)).toHaveLength(MAX_SPLIT_DEPTH + 2)
     })
@@ -170,11 +172,10 @@ describe("split tree (content-agnostic)", () => {
   })
 
   it("leaf ids are never reused after a close (monotonic ordinals)", () => {
-    let s = splitActive(initialSplit(MAIN), "row", SH) // 1, 2
-    const r = removeLeaf(s, "leaf-2")
+    const first = splitActive(initialSplit(MAIN), "row", SH) // 1, 2
+    const r = removeLeaf(first, "leaf-2")
     expect(r).not.toBeNull()
-    if (!r) return
-    s = splitActive(r, "row", SH)
+    const s = splitActive(r ?? first, "row", SH)
     expect(leaves(s.root).map((l) => l.id)).toEqual(["leaf-1", "leaf-3"])
   })
 
@@ -290,15 +291,16 @@ describe("tabTitle (tab naming policy)", () => {
 
   it("collapsed to a sole NON-engine leaf: leaf rename, else live process, else shell", () => {
     const split = splitActive(initialSplit(MAIN), "row", SH)
-    const soleShell = removeLeaf(split, "leaf-1") // only leaf-2 (shell) survives
-    expect(soleShell).not.toBeNull()
-    if (!soleShell) return
+    const removed = removeLeaf(split, "leaf-1") // only leaf-2 (shell) survives
+    expect(removed).not.toBeNull()
+    const soleShell = removed ?? split
     expect(tabTitle(engine({ splitTree: soleShell }), "claude", "vim")).toBe("vim 1")
     expect(tabTitle(engine({ splitTree: soleShell }), "claude")).toBe("shell 1")
     const renamed = renameLeaf(soleShell, "leaf-2", "logs")
     expect(tabTitle(engine({ splitTree: renamed }), "claude", "vim")).toBe("logs")
     // A sole surviving leaf-1 is the pristine engine — normal precedence.
     const soleEngine = removeLeaf(split, "leaf-2")
-    if (soleEngine) expect(tabTitle(engine({ splitTree: soleEngine }), "claude")).toBe("claude 1")
+    expect(soleEngine).not.toBeNull()
+    expect(tabTitle(engine({ splitTree: soleEngine ?? split }), "claude")).toBe("claude 1")
   })
 })

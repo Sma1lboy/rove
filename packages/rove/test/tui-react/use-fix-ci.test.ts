@@ -105,15 +105,15 @@ describe("fixCIAction", () => {
     expect(sent).toEqual([])
   })
 
-  test("does nothing without an engine, a worktree, or a task", async () => {
-    for (const over of [{ sendToEngineFn: { current: null } }, { worktree: null }, { getTask: () => null }] as Partial<
-      Parameters<typeof fixCIAction>[0]
-    >[]) {
-      const { base, sent, errors } = deps(over)
-      await fixCIAction(base)("t1")
-      expect(sent).toEqual([])
-      expect(errors).toEqual([])
-    }
+  test.each<[string, Partial<Parameters<typeof fixCIAction>[0]>]>([
+    ["an engine", { sendToEngineFn: { current: null } }],
+    ["a worktree", { worktree: null }],
+    ["a task", { getTask: () => null }],
+  ])("does nothing without %s", async (_name, over) => {
+    const { base, sent, errors } = deps(over)
+    await fixCIAction(base)("t1")
+    expect(sent).toEqual([])
+    expect(errors).toEqual([])
   })
 })
 

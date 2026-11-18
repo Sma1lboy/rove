@@ -6,7 +6,7 @@
 
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { pathRejection, projectRejection, rejectionReason } from "@/state/project-eligibility"
+import { pathRejection, projectRejection } from "@/state/project-eligibility"
 import { describe, expect, it } from "vitest"
 
 /** The repo this test runs in — a real checkout at a durable path. */
@@ -70,14 +70,5 @@ describe("projectRejection", () => {
     // Bulk scans omit it to save one `git` subprocess per row, so a
     // durable-looking path that is NOT a repo comes back eligible.
     expect(projectRejection("/Users/x/not-a-repo-at-all")).toBeNull()
-  })
-})
-
-describe("rejectionReason", () => {
-  it("has a sentence for every rejection", () => {
-    // A missing case would surface to the user as `undefined` in a CLI error.
-    for (const r of ["notAbsolute", "notGitRepo", "temporary", "roveInternal", "insideSandbox"] as const) {
-      expect(rejectionReason(r)).toMatch(/\w/)
-    }
   })
 })

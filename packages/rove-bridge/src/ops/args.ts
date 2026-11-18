@@ -85,3 +85,11 @@ export function absPath(args: Args, name: string): string {
   }
   return v
 }
+
+/** One line for a shell to run: typed with Enter, so nothing in it may end the line early. */
+export function optShellLine(args: Args, name: string): string | undefined {
+  const line = optText(args, name, 2000)?.trim()
+  if (!line) return undefined
+  if ([...line].some((ch) => ch < " " || ch === "\x7f")) throw new BridgeError("BAD_ARGS", `${name} must be one line`)
+  return line
+}

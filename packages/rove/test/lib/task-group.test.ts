@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest"
 import {
   DEAD_SETTLE_MS,
   ERROR_SETTLE_MS,
-  TASK_GROUPS,
   type TaskActivitySignal,
   deriveTaskGroup,
   taskGroupRank,
@@ -31,7 +30,6 @@ function act(state: TaskActivitySignal["state"], agoMs = 0): TaskActivitySignal 
 
 describe("taskGroupRank", () => {
   it("ranks the human's queue most-needs-you first", () => {
-    expect(TASK_GROUPS.map(taskGroupRank)).toEqual([0, 1, 2, 3, 4, 5])
     expect(taskGroupRank("waiting-on-you")).toBeLessThan(taskGroupRank("landing"))
     expect(taskGroupRank("landing")).toBeLessThan(taskGroupRank("ready-for-review"))
     expect(taskGroupRank("ready-for-review")).toBeLessThan(taskGroupRank("working"))

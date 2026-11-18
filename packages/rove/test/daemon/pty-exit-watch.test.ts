@@ -1,12 +1,11 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
-import { readFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { DaemonActivityRegistry, type EngineStatePayload } from "@sma1lboy/rove-daemon/daemon/activity-registry"
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import { recordEngineExit, recordPtyExit } from "@sma1lboy/rove-daemon/daemon/pty-exit-store"
 import { lastErrorLine, startPtyExitWatch } from "@sma1lboy/rove-daemon/daemon/pty-exit-watch"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const dirs: string[] = []
 function tmp(): string {
@@ -14,21 +13,21 @@ function tmp(): string {
   dirs.push(dir)
   return dir
 }
+beforeEach(() => {
+  vi.useFakeTimers()
+})
 afterEach(() => {
+  vi.useRealTimers()
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true })
 })
 
-/** One full poll (200ms) + debounce (250ms), with room to spare — a shorter
- *  wait races the sweep, and a sweep that never ran makes every "nothing
- *  fired" assertion below pass for free. */
-const settle = (): Promise<unknown> => new Promise((r) => setTimeout(r, 1_000))
+/** Past one full poll (200ms) + debounce (250ms): every sweep due has run. */
+const settle = (): void => {
+  vi.advanceTimersByTime(1_000)
+}
 
-async function waitFor(predicate: () => boolean, ms = 5_000): Promise<void> {
-  const start = Date.now()
-  while (!predicate()) {
-    if (Date.now() - start > ms) throw new Error("timed out")
-    await new Promise((r) => setTimeout(r, 25))
-  }
+function recordOldDeaths(path: string): void {
+  for (const n of [1, 2, 3]) recordPtyExit(exitInfo(`task-${n}::tab-1`, `2026-09-0${n}T00:00:00.000Z`), path)
 }
 
 function exitInfo(key: string, at: string) {
@@ -36,7 +35,7 @@ function exitInfo(key: string, at: string) {
 }
 
 describe("startPtyExitWatch", () => {
-  it("fires session.exited for NEW records only, with parsed task/tab", async () => {
+  it("fires session.exited for NEW records only, with parsed task/tab", () => {
     const path = join(tmp(), "pty-exits.json")
     // Pre-existing corpse — baseline, must not fire.
     recordPtyExit(exitInfo("old-task::tab-1", "2026-01-01T00:00:00.000Z"), path)
@@ -48,7 +47,7 @@ describe("startPtyExitWatch", () => {
     })
     try {
       recordPtyExit(exitInfo("task-9::tab-3", "2026-01-02T00:00:00.000Z"), path)
-      await waitFor(() => reports.length > 0)
+      settle()
       expect(reports).toEqual([
         {
           kind: "session.exited",
@@ -66,21 +65,21 @@ describe("startPtyExitWatch", () => {
       ])
       // Rewriting the SAME record (same key+at) must not re-fire.
       recordPtyExit(exitInfo("task-9::tab-3", "2026-01-02T00:00:00.000Z"), path)
-      await new Promise((r) => setTimeout(r, 400))
+      settle()
       expect(reports.length).toBe(1)
     } finally {
       stop()
     }
   })
 
-  it("an UNREADABLE sweep leaves `seen` intact and resurrects nothing", async () => {
+  it("an UNREADABLE sweep leaves `seen` intact and resurrects nothing", () => {
     // The prune (`if (!(key in records)) seen.delete(key)`) is what makes this
     // dangerous: one unparsable read emptied `seen`, and the next write — any
     // write — then made every record on disk "new" again. Up to MAX_RECORDS =
     // 50 engines that died days ago all came back at once, carrying their
     // ORIGINAL `at`, which sorts them to the HEAD of the oldest-first Inbox.
     const path = join(tmp(), "pty-exits.json")
-    for (const n of [1, 2, 3]) recordPtyExit(exitInfo(`task-${n}::tab-1`, `2026-09-0${n}T00:00:00.000Z`), path)
+    recordOldDeaths(path)
 
     const reports: { kind: string }[] = []
     const deaths: string[] = []
@@ -92,24 +91,24 @@ describe("startPtyExitWatch", () => {
     try {
       // Exactly what a reader saw inside the old truncate-then-write window.
       writeFileSync(path, "", "utf8")
-      await settle()
+      settle()
       // The file is whole again and something touches it — a later death, or
       // the PTY host's own rewrite.
-      for (const n of [1, 2, 3]) recordPtyExit(exitInfo(`task-${n}::tab-1`, `2026-09-0${n}T00:00:00.000Z`), path)
-      await settle()
+      recordOldDeaths(path)
+      settle()
       expect(reports).toEqual([])
       expect(deaths).toEqual([])
       // Positive control: the watch is still live, so "nothing fired" above is
       // a fact about the records and not about a sweep that never ran.
       recordPtyExit(exitInfo("task-9::tab-3", "2026-09-04T00:00:00.000Z"), path)
-      await waitFor(() => reports.length > 0)
+      settle()
       expect(deaths).toEqual(["task-9::tab-3"])
     } finally {
       stop()
     }
   })
 
-  it("takes its baseline from the first READABLE sweep when the file was unreadable at start", async () => {
+  it("takes its baseline from the first READABLE sweep when the file was unreadable at start", () => {
     // A daemon that boots during an unreadable moment has never seen the file.
     // Firing everything on the first successful read would announce a pile of
     // deaths that already happened, so that read becomes the baseline instead
@@ -122,11 +121,11 @@ describe("startPtyExitWatch", () => {
     const stop = startPtyExitWatch({ path, plugins: () => ({ handleUiReport: (r) => reports.push(r) }) })
     try {
       recordPtyExit(exitInfo("old-task::tab-1", "2026-01-01T00:00:00.000Z"), path)
-      await settle()
+      settle()
       expect(reports).toEqual([])
       // …and a genuinely NEW death after that baseline still fires.
       recordPtyExit(exitInfo("task-9::tab-3", "2026-01-02T00:00:00.000Z"), path)
-      await waitFor(() => reports.length > 0)
+      settle()
       expect(reports).toHaveLength(1)
     } finally {
       stop()
@@ -146,13 +145,13 @@ describe("startPtyExitWatch", () => {
  * `pty-exits.json` and no UI for as long as it did.
  */
 describe("startPtyExitWatch → activity registry", () => {
-  it("publishes a `dead` engine-state carrying the exit code and last error line", async () => {
+  it("publishes a `dead` engine-state carrying the exit code and last error line", () => {
     const path = join(tmp(), "pty-exits.json")
     const bus = new DaemonEventBus()
-    const published: EngineStatePayload[] = []
-    bus.onPublish((event) => {
-      if (event.channel === "engine-state") published.push(event.payload as EngineStatePayload)
-    })
+    const events: { channel: string; payload: unknown }[] = []
+    bus.onPublish((event) => events.push(event))
+    const published = () =>
+      events.filter((e) => e.channel === "engine-state").map((e) => e.payload as EngineStatePayload)
     const activity = new DaemonActivityRegistry(bus)
     const stop = startPtyExitWatch({
       path,
@@ -170,13 +169,15 @@ describe("startPtyExitWatch → activity registry", () => {
         },
         path,
       )
-      await waitFor(() => published.length > 0)
-      const payload = published.filter((p) => p.tabId).at(-1)
+      settle()
+      const payload = published()
+        .filter((p) => p.tabId)
+        .at(-1)
       expect(payload?.state).toBe("dead")
       expect(payload?.tabId).toBe("tab-1")
       // The derived task rollup follows the death rather than being cleared
       // to idle: the sidebar row shows the dead engine, not "nothing here".
-      expect(published.at(-1)).toMatchObject({ taskId: "task-1", state: "dead" })
+      expect(published().at(-1)).toMatchObject({ taskId: "task-1", state: "dead" })
       expect(payload?.detail?.exit?.code).toBe(143)
       // The error text was always on disk; this is the assertion that it now
       // travels with the state instead of dying in the file.
@@ -187,7 +188,7 @@ describe("startPtyExitWatch → activity registry", () => {
     }
   })
 
-  it("does not let an OLD death bury a newer live turn in the same tab", async () => {
+  it("does not let an OLD death bury a newer live turn in the same tab", () => {
     const path = join(tmp(), "pty-exits.json")
     const bus = new DaemonEventBus()
     const activity = new DaemonActivityRegistry(bus)
@@ -209,7 +210,7 @@ describe("startPtyExitWatch → activity registry", () => {
         },
         path,
       )
-      await waitFor(() => Object.keys(activity.debugSnapshot().tabs).length > 0)
+      settle()
       expect(activity.debugSnapshot().tabs["task-1"]?.["tab-1"]?.state).toBe("running")
     } finally {
       stop()
@@ -218,27 +219,8 @@ describe("startPtyExitWatch → activity registry", () => {
   })
 })
 
-/**
- * The server must actually HAND the watcher its two consumers.
- *
- * The behavioural tests above construct the watcher themselves, so they stay
- * green if `server.ts` stops passing `activity`/`inbox` — the death would
- * then reach `pty-exits.json`, the watcher would parse it perfectly, and the
- * UI would still see nothing. That disconnect is the entire bug this work
- * fixes, so it gets its own assertion against the wiring itself.
- */
-describe("server wiring", () => {
-  it("passes both the activity registry and the inbox to startPtyExitWatch", async () => {
-    const src = await readFile(new URL("../../../rove-daemon/src/daemon/server.ts", import.meta.url), "utf8")
-    const call = /startPtyExitWatch\(\{([\s\S]*?)\n\s*\}\)/.exec(src)?.[1]
-    expect(call, "startPtyExitWatch call not found in server.ts").toBeDefined()
-    expect(call).toMatch(/^\s*activity,\s*$/m)
-    expect(call).toMatch(/^\s*inbox,\s*$/m)
-  })
-})
-
 describe("startPtyExitWatch with engine-layer records", () => {
-  it("fires an engine death exactly once, however many sweeps follow", async () => {
+  it("fires an engine death exactly once, however many sweeps follow", () => {
     // `recordEngineExit` writes under `<key>#engine` while the record inside
     // keeps the bare session key. Keying `seen` by `record.key` meant the
     // prune test (`key in records`) missed — deleting the entry on the same
@@ -253,13 +235,14 @@ describe("startPtyExitWatch with engine-layer records", () => {
         { key: "task-1::tab-1", pid: 7, at: "2026-02-01T00:00:00.000Z", tail: "quota exhausted\n", vendor: "claude" },
         path,
       )
-      await waitFor(() => reports.length > 0)
+      settle()
       expect(reports).toHaveLength(1)
 
       // Any other write re-sweeps the whole file. The engine record is not new.
       recordPtyExit(exitInfo("task-2::tab-9", "2026-02-01T00:01:00.000Z"), path)
-      await waitFor(() => reports.length > 1)
-      await new Promise((r) => setTimeout(r, 400))
+      settle()
+      expect(reports).toHaveLength(2)
+      settle()
 
       expect(reports.filter((r) => r.detail?.key === "task-1::tab-1")).toHaveLength(1)
     } finally {

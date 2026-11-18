@@ -88,6 +88,24 @@ function sceneHub(machines: readonly MachineLayerEntry[] | undefined): MachineFe
   return { machinesSignal: () => ({ get: () => machines, subscribe: () => () => {} }) } as unknown as MachineFeed
 }
 
+/** Type each scene key on its own commit. */
+async function typeKeys(mockInput: { typeText(text: string): unknown }, keys: readonly string[]): Promise<void> {
+  for (const key of keys) {
+    // `act` is what makes the keyed scenes deterministic, not the sleep.
+    // The sidebar's search box captures keys on a RAW renderer listener and
+    // calls `setQuery` from it (use-tree-search.ts), outside React's event
+    // system and outside `flushSync` — so the commit rides the concurrent
+    // scheduler and a fixed sleep is a bet on when it lands. Losing that bet
+    // captures the frame BEFORE the query renders, which is the `/ █ fuzzy
+    // filter` vs `/review█ 2/5` golden diff seen on CI. Awaiting `act` flushes
+    // the pending work instead of waiting for it.
+    await act(async () => {
+      await mockInput.typeText(key)
+    })
+    await settle(SETTLE_MS)
+  }
+}
+
 afterAll(() => {
   setMachineHub(null)
   setLocaleLang(restoreLang as Parameters<typeof setLocaleLang>[0])
@@ -103,20 +121,7 @@ for (const scene of SCENES) {
       height: SCENE_HEIGHT,
     })
     await settle(SETTLE_MS)
-    for (const key of scene.keys ?? []) {
-      // `act` is what makes the keyed scenes deterministic, not the sleep.
-      // The sidebar's search box captures keys on a RAW renderer listener and
-      // calls `setQuery` from it (use-tree-search.ts), outside React's event
-      // system and outside `flushSync` — so the commit rides the concurrent
-      // scheduler and a fixed sleep is a bet on when it lands. Losing that bet
-      // captures the frame BEFORE the query renders, which is the `/ █ fuzzy
-      // filter` vs `/review█ 2/5` golden diff seen on CI. Awaiting `act` flushes
-      // the pending work instead of waiting for it.
-      await act(async () => {
-        await mockInput.typeText(key)
-      })
-      await settle(SETTLE_MS)
-    }
+    await typeKeys(mockInput, scene.keys ?? [])
     const captured = scene.animated ? maskSpinner(await frame()) : await frame()
     const document = frameDocument(scene, captured)
     expect(matchGolden(goldenPath(import.meta.url, `${scene.name}.frame.txt`), document)).toBeNull()
@@ -128,5 +133,5 @@ test("scene names are unique and every scene explains itself", () => {
   // two tests would then take turns rewriting the same file.
   const names = SCENES.map((scene) => scene.name)
   expect(new Set(names).size).toBe(names.length)
-  for (const scene of SCENES) expect(scene.about.length).toBeGreaterThan(20)
+  expect(SCENES.filter((scene) => scene.about.length <= 20).map((scene) => scene.name)).toEqual([])
 })

@@ -287,7 +287,7 @@ This table is the one-line index. **Per-event trigger semantics, exact
 | `quota.exhausted` / `quota.resumed` | rate-limit auto-resume armed / delivered its continue prompt | `vendor`, `resumeAt` / `delivered` |
 | `session.exited` | a hosted PTY child died abnormally (the crash signal; the engine's own `session.end` hook never fires on a crash) | `tabId`, `pid`, `code`, `signal`, `exitedAt`, `tail` |
 | `plugin.enabled` / `plugin.disabled` | YOUR plugin was enabled/disabled in the registry (delivered only to the affected plugin). Registry membership only — a manifest that stops parsing does not fire teardown | `pluginId` |
-| `task.opened` / `project.opened` | the user selects/enters a task / project row | |
+| `task.opened` | the user selects/enters a task row (`project.opened` stays in the contract but never fires) | |
 | `file.will-open` / `file.opened` / `file.closed` | Files-pane open, before/after; editor tab closed | `path`, `via: plugin\|editor\|external` |
 | `tab.opened` / `tab.closed` | a workspace tab appeared/went away (restores don't fire) | `tabId`, `kind`, `title`, `vendor`, `purpose` |
 | `agent.running` / `agent.idle` / `agent.turn-complete` / `agent.permission-needed` / `agent.rate-limited` / `agent.error` | activity-STATE transitions, deduped per task+tab | `tabId` when the source state identifies a tab |
@@ -521,9 +521,9 @@ import { setRowToken, clearRowToken } from "@sma1lboy/rove-plugin-sdk"
 await setRowToken(taskId, "@ana", { key: "claim", ttlSeconds: 600, tone: "info" })
 ```
 
-### Every token expires
+### A token expires unless it is kept
 
-**This is not optional and it is the point.** A token carries a TTL (default
+**Expiry is the default and it is the point.** A token carries a TTL (default
 60s, max 1h); readers drop it when it lapses, and the host republishes at each
 expiry so a label **fades on its own**. Keep a label by re-writing it — the
 same `--key` replaces the token and renews its deadline.
@@ -531,9 +531,14 @@ same `--key` replaces the token and renews its deadline.
 So the label on screen is evidence that your plugin is alive and still
 believes what it says, not a record that something once wrote it. Disable your
 plugin, kill it, let it crash: every label it painted is gone within its TTL,
-with nothing to clean up. Tokens are in memory only — a daemon restart clears
-them, deliberately, because restoring a claim whose author is gone is exactly
-the stale state the TTL prevents.
+with nothing to clean up. These tokens are in memory only — a daemon restart
+clears them, deliberately, because restoring a claim whose author is gone is
+exactly the stale state the TTL prevents.
+
+`rove api row-token --keep` is the other kind: a label with no deadline, saved
+to disk, there until it is replaced, cleared or its task is deleted. It is for
+a fact someone set once (an agent asked to label its task), not for state your
+plugin must be running to vouch for. Nothing removes it when its writer dies.
 
 `clearRowToken()` exists for the moment you *know* a label is wrong. Waiting
 out the TTL is the normal removal.
@@ -561,7 +566,7 @@ engine name belongs in one: the engine adapter owns that vocabulary
   title and branch; past that a token stops being a label and becomes the row.
 - **2 slots per plugin per task.** How many plugins are installed is the
   user's own decision; one plugin filling the row is not.
-- **TTL 1s…1h**, clamped. "Forever" is not expressible.
+- **TTL 1s…1h**, clamped. "Forever" is `--keep`, never a long TTL.
 - `source` is your `ROVE_PLUGIN_ID`, carried for attribution and the quota
   above. It is not authenticated — a plugin already runs arbitrary code as the
   user — so treat it as a label, not a permission.
@@ -650,8 +655,10 @@ Rove → mod  {"type":"event","event":{"event":"task.created","taskId":"…",…
 Stdout is the protocol, so log to stderr (it lands in `log.jsonl`). A mod
 that exits loses its panes and is restarted after 1s, backing off to 30s; a
 run longer than a minute resets the backoff. Editing the `[mod]` command in
-the manifest restarts it; for a code change, disable and re-enable the
-plugin. The mod gets the usual environment contract with
+the manifest restarts it, and so does saving a file that command names inside
+the plugin root (`mod.ts` in `["bun", "mod.ts"]`): the mod comes back on the
+new code within a second. A file it only imports does not: save the entry
+too, or disable and re-enable the plugin. The mod gets the usual environment contract with
 `ROVE_PLUGIN_EVENT=mod`; read live state the events do not carry from the
 daemon socket (`RoveSocket`), as the example does.
 

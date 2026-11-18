@@ -7,21 +7,24 @@ import {
   statusActivity,
 } from "../../../rove-daemon/src/daemon/osc-signals"
 
+/** Feeds `raw` to a fresh parser in two chunks cut at `split`; the anonymous record it leaves. */
+function statusAfterSplit(raw: string, split: number) {
+  const state = createOscSignals()
+  scanOscSignals(state, Buffer.from(raw.slice(0, split)), 1)
+  scanOscSignals(state, Buffer.from(raw.slice(split)), 1)
+  return state.records.get("")
+}
+
 describe("OSC signals", () => {
-  it("accepts every byte split, BEL and ST, and maps blocked to permission activity", () => {
-    for (const end of ["\x07", "\x1b\\"]) {
+  it.each(["\x07", "\x1b\\"])(
+    "accepts every byte split (terminator %j) and maps blocked to permission activity",
+    (end) => {
       const raw = `\x1b]7501;state=blocked:kind=permission:msg=QXBwcm92ZT8=${end}`
-      for (let split = 0; split <= raw.length; split++) {
-        const state = createOscSignals()
-        scanOscSignals(state, Buffer.from(raw.slice(0, split)), 1)
-        scanOscSignals(state, Buffer.from(raw.slice(split)), 1)
-        const status = state.records.get("")
-        expect(status?.msg).toBe("Approve?")
-        if (!status) throw new Error("missing")
-        expect(statusActivity(status)).toMatchObject({ kind: "awaiting-input", detail: { waiting: "permission" } })
-      }
-    }
-  })
+      const statuses = Array.from({ length: raw.length + 1 }, (_, split) => statusAfterSplit(raw, split))
+      expect(statuses.map((status) => status?.msg)).toEqual(Array(raw.length + 1).fill("Approve?"))
+      expect(statusActivity(statuses[0]!)).toMatchObject({ kind: "awaiting-input", detail: { waiting: "permission" } })
+    },
+  )
   it("ignores invalid reports and clears descendants without touching siblings", () => {
     const s = createOscSignals()
     applyProgramStatus(s, "state=working:id=build", 1)

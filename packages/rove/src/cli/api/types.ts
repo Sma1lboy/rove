@@ -192,7 +192,7 @@ export function requireVerbInstalled(verb: VerbSpec): void {
 export interface PromptTarget {
   readonly id: string
   readonly worktreePath: string
-  readonly kind?: "main" | "task" | "dir"
+  readonly kind?: "task" | "dir"
   /** Resolved PROTOCOL (history reader / trust store / delivery mode). */
   readonly vendor?: VendorId
   /** Raw launch command pinned on the task; wins over {@link vendor} at spawn. */

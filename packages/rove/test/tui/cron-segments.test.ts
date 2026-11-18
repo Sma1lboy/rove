@@ -66,9 +66,7 @@ describe("stepSegment", () => {
   })
 
   test("every ladder starts at `*` so clearing a segment is one step away", () => {
-    for (const segment of CRON_SEGMENTS) {
-      expect(ladderFor(segment)[0], segment).toBe("*")
-    }
+    expect(CRON_SEGMENTS.map((segment) => ladderFor(segment)[0])).toEqual(CRON_SEGMENTS.map(() => "*"))
   })
 })
 
@@ -90,21 +88,18 @@ describe("describeCron", () => {
     expect(describeCron("30 6 * * *")).toBe("every day at 06:30")
   })
 
-  test("pluralizes ALL seven days — not just the ones where code+`days` happens to read", () => {
-    // MON/FRI/SUN read fine with naive `${code}days`; TUE/WED/THU/SAT don't
-    // ("Tuedays"). Sampling one lucky day is how the bug shipped green.
-    const days: Array<[string, string]> = [
-      ["MON", "Mondays"],
-      ["TUE", "Tuesdays"],
-      ["WED", "Wednesdays"],
-      ["THU", "Thursdays"],
-      ["FRI", "Fridays"],
-      ["SAT", "Saturdays"],
-      ["SUN", "Sundays"],
-    ]
-    for (const [code, name] of days) {
-      expect(describeCron(`0 9 * * ${code}`), code).toBe(`${name} at 09:00`)
-    }
+  // MON/FRI/SUN read fine with naive `${code}days`; TUE/WED/THU/SAT don't
+  // ("Tuedays"). Sampling one lucky day is how the bug shipped green.
+  test.each([
+    ["MON", "Mondays"],
+    ["TUE", "Tuesdays"],
+    ["WED", "Wednesdays"],
+    ["THU", "Thursdays"],
+    ["FRI", "Fridays"],
+    ["SAT", "Saturdays"],
+    ["SUN", "Sundays"],
+  ])("pluralizes %s as %s", (code, name) => {
+    expect(describeCron(`0 9 * * ${code}`)).toBe(`${name} at 09:00`)
   })
 
   test("adds 'every day' only to a specific time — an every-N phrase already recurs", () => {
@@ -113,17 +108,6 @@ describe("describeCron", () => {
     expect(describeCron("0 */6 * * *")).toBe("every 6h")
     expect(describeCron("* * * * *")).toBe("every minute")
     expect(describeCron("30 * * * *")).toBe("every day hourly at :30")
-  })
-
-  test("spells every weekday the ladder can reach", () => {
-    // Mechanical `TUE` + "days" spelled four of the seven wrong
-    // ("Tuedays", "Weddays", "Thudays", "Satdays").
-    expect(describeCron("0 9 * * TUE")).toBe("Tuesdays at 09:00")
-    expect(describeCron("0 9 * * WED")).toBe("Wednesdays at 09:00")
-    expect(describeCron("0 9 * * THU")).toBe("Thursdays at 09:00")
-    expect(describeCron("0 9 * * FRI")).toBe("Fridays at 09:00")
-    expect(describeCron("0 9 * * SAT")).toBe("Saturdays at 09:00")
-    expect(describeCron("0 9 * * SUN")).toBe("Sundays at 09:00")
   })
 
   test("stays silent on an hourly list/range minute instead of naming a false time", () => {

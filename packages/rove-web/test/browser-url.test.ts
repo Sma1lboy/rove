@@ -13,19 +13,17 @@ describe("normalizeUrl", () => {
     expect(normalizeUrl("  https://example.com  ")).toBe("https://example.com/")
   })
 
-  test("other schemes, blanks and junk are refused", () => {
-    for (const bad of [
-      "",
-      "   ",
-      "javascript:alert(1)",
-      "data:text/html,hi",
-      "file:///etc/passwd",
-      "blob:abc",
-      "a b",
-      "http://",
-    ]) {
-      expect(normalizeUrl(bad)).toBeNull()
-    }
+  test.each([
+    "",
+    "   ",
+    "javascript:alert(1)",
+    "data:text/html,hi",
+    "file:///etc/passwd",
+    "blob:abc",
+    "a b",
+    "http://",
+  ])("other schemes, blanks and junk are refused: %p", (bad) => {
+    expect(normalizeUrl(bad)).toBeNull()
   })
 })
 

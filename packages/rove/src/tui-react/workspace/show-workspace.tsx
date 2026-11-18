@@ -113,10 +113,7 @@ export function ShowWorkspace(props: {
   }
   // Existing checkouts wait for an explicit start; managed and scratch tasks auto-start.
   const known = props.task ? knownTaskTabs(kv, String(props.task.id)) : null
-  if (
-    props.task &&
-    (known ? known.tabs.length === 0 : !props.task.scratch && (props.task.kind === "main" || props.task.kind === "dir"))
-  ) {
+  if (props.task && (known ? known.tabs.length === 0 : !props.task.scratch && props.task.kind === "dir")) {
     return (
       <EmptyWorkspacePane
         taskId={String(props.task.id)}
@@ -133,7 +130,7 @@ export function ShowWorkspace(props: {
   return (
     // The center column IS the engine: an in-process PTY running the real
     // CLI, never re-rendered by Rove. Keyed by TASK, not path: two tasks can
-    // share a directory (project-main + dir task), and a path key would carry
+    // share a directory (two sessions in one checkout), and a path key would carry
     // one task's TabsState into the other's persistKey. PTY reuse is
     // unaffected (registry keys are `taskId::tabId`).
     <TerminalTabs

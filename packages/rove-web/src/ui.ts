@@ -3,6 +3,7 @@
  */
 
 import type { ReactNode } from "react"
+import { type SkyScene, nextSky } from "./celestial/visits.ts"
 import type { DiffScope } from "./panel-model.ts"
 import { createStore } from "./store.ts"
 
@@ -104,7 +105,17 @@ export interface Preview {
   readonly file?: true
 }
 
-const PAGE_IDS = ["worktrees", "update", "kanban", "routines", "issues", "mods", "compare", "usage"] as const
+const PAGE_IDS = [
+  "worktrees",
+  "update",
+  "kanban",
+  "routines",
+  "issues",
+  "mods",
+  "compare",
+  "usage",
+  "sessions",
+] as const
 export type PageId = (typeof PAGE_IDS)[number]
 
 /** A store a reload of this browser tab comes back to (`sessionStorage`); blocked storage or a corrupt entry starts empty. */
@@ -132,12 +143,17 @@ export const routineFocus = createStore<string | null>(null)
 export const compareGroup = keptAcrossReload<string>("rove.web.compareGroup", (raw) =>
   typeof raw === "string" ? raw : null,
 )
+/** The project the Sessions page lists; `""` = every project. Kept with the page. */
+export const sessionsRepo = keptAcrossReload<string>("rove.web.sessionsRepo", (raw) =>
+  typeof raw === "string" ? raw : null,
+)
 /** The terminal stream this page has attached (`task::tab`); Files `a` pastes into it. */
 export const activeStream = createStore<string | null>(null)
 /** Zen hides the Files pane (TUI prefix z), on until the stored pref says otherwise. `prefs-apply.ts` keeps it in step with the TUI's `zen.active`. */
 export const zen = createStore<boolean>(true)
 /** What the New session composer starts from: a project (a path on `machine` when one is named) and the branch to cut the task from. */
 export interface NewSessionStart {
+  readonly sky?: SkyScene
   readonly repo?: string
   readonly baseBranch?: string
   /** A registered machine's alias; absent = this machine. */
@@ -201,7 +217,7 @@ export function openNewSession(
 export function openNewSessionFrom(seed: NewSessionStart): void {
   page.set(null)
   dialog.set(null)
-  newSession.set(seed)
+  newSession.set({ ...seed, sky: nextSky() })
 }
 
 /**

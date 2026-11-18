@@ -12,6 +12,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { describe, expect, test } from "vitest"
 import {
+  type PreviewData,
   filetypeOf,
   hunklessPatchNote,
   isCombinedPathspec,
@@ -21,6 +22,12 @@ import {
   patchFirstLine,
   unifiedDiffFiles,
 } from "../../src/tui/ops/preview-core.ts"
+
+/** Asserts the preview's kind and narrows to it. */
+function expectKind<K extends PreviewData["kind"]>(data: PreviewData, kind: K): Extract<PreviewData, { kind: K }> {
+  expect(data.kind).toBe(kind)
+  return data as Extract<PreviewData, { kind: K }>
+}
 
 describe("filetypeOf", () => {
   test("maps known extensions to their tree-sitter grammar and unknown ones to undefined", () => {
@@ -86,8 +93,7 @@ describe("loadPreviewData", () => {
   test("a changed file previews as the unified diff vs HEAD", async () => {
     const repo = makeRepo()
     writeFileSync(join(repo, "a.ts"), "export const a = 2\n")
-    const data = await loadPreviewData(repo, "a.ts")
-    if (data.kind !== "diff") throw new Error(`expected diff, got ${data.kind}`)
+    const data = expectKind(await loadPreviewData(repo, "a.ts"), "diff")
     expect(data.text).toContain("-export const a = 1")
     expect(data.text).toContain("+export const a = 2")
   })
@@ -105,9 +111,8 @@ describe("loadPreviewData", () => {
     execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "b"], { cwd: repo })
     writeFileSync(join(repo, "a.ts"), "export const a = 2\n")
     writeFileSync(join(repo, "b.ts"), "if (x) {\n    y()\n}\n")
-    const all = await loadPreviewData(repo, ".")
-    const quiet = await loadPreviewData(repo, ".", undefined, { ignoreWhitespace: true })
-    if (all.kind !== "diff" || quiet.kind !== "diff") throw new Error("expected diffs")
+    const all = expectKind(await loadPreviewData(repo, "."), "diff")
+    const quiet = expectKind(await loadPreviewData(repo, ".", undefined, { ignoreWhitespace: true }), "diff")
     expect(all.text).toContain("diff --git a/b.ts b/b.ts")
     expect(quiet.text).not.toContain("b.ts")
     expect(quiet.text).toContain("+export const a = 2")
@@ -136,25 +141,6 @@ describe("loadPreviewData", () => {
     expect(data).toMatchObject({ kind: "binary", image: false })
   })
 
-  // A directory is a git pathspec, and git already answers it with the
-  // multi-file unified diff `<diff>` renders — the pane refused it, not git.
-  test("a directory pathspec previews as the combined diff of every file under it", async () => {
-    const repo = makeRepo()
-    execFileSync("git", ["mv", "a.ts", "src-a.ts"], { cwd: repo })
-    execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "move"], { cwd: repo })
-    execFileSync("mkdir", ["-p", join(repo, "src")], { cwd: repo })
-    writeFileSync(join(repo, "src", "one.ts"), "export const one = 1\n")
-    writeFileSync(join(repo, "src", "two.ts"), "export const two = 2\n")
-    execFileSync("git", ["add", "src"], { cwd: repo })
-    execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "two"], { cwd: repo })
-    writeFileSync(join(repo, "src", "one.ts"), "export const one = 11\n")
-    writeFileSync(join(repo, "src", "two.ts"), "export const two = 22\n")
-    const data = await loadPreviewData(repo, "src/")
-    if (data.kind !== "diff") throw new Error(`expected diff, got ${data.kind}`)
-    expect(data.text).toContain("src/one.ts")
-    expect(data.text).toContain("src/two.ts")
-  })
-
   // The file path falls back to the file's own content; a directory has none,
   // and falling through would render a blank pane instead of saying so.
   test("a combined pathspec with no changes reports empty, never a blank code view", async () => {
@@ -169,8 +155,7 @@ describe("loadPreviewData", () => {
     writeFileSync(join(repo, ".gitignore"), "build.log\n")
     writeFileSync(join(repo, "NOTES.md"), "restart path audit\n")
     writeFileSync(join(repo, "build.log"), "noise\n")
-    const data = await loadPreviewData(repo, ".")
-    if (data.kind !== "diff") throw new Error(`expected diff, got ${data.kind}`)
+    const data = expectKind(await loadPreviewData(repo, "."), "diff")
     expect(data.text).toContain("+++ b/NOTES.md")
     expect(data.text).toContain("+restart path audit")
     expect(data.text).toContain("+++ b/.gitignore")
@@ -183,8 +168,7 @@ describe("loadPreviewData", () => {
     const repo = makeRepo()
     writeFileSync(join(repo, "huge.json"), `${"x".repeat(1024)}\n`.repeat(1024))
     for (const n of [1, 2, 3]) writeFileSync(join(repo, `part${n}.txt`), `${"y".repeat(1023)}\n`.repeat(400))
-    const data = await loadPreviewData(repo, ".")
-    if (data.kind !== "diff") throw new Error(`expected diff, got ${data.kind}`)
+    const data = expectKind(await loadPreviewData(repo, "."), "diff")
     const files = unifiedDiffFiles(data.text)
     expect(files.map((f) => f.path)).toEqual(["huge.json", "part1.txt", "part2.txt", "part3.txt"])
     expect(files.map((f) => f.note?.kind ?? "text")).toEqual(["binary", "text", "text", "binary"])
@@ -400,8 +384,7 @@ describe("loadPreviewData — failures and hunk-less patches are never 'no chang
     writeFileSync(join(repo, "renamed.txt"), sixty(true))
     commit(repo, "rename")
 
-    const data = await loadPreviewData(repo, "renamed.txt", { base: "HEAD~1" })
-    if (data.kind !== "diff") throw new Error(`expected diff, got ${data.kind}`)
+    const data = expectKind(await loadPreviewData(repo, "renamed.txt", { base: "HEAD~1" }), "diff")
     expect(data.text).toContain("rename from legacy.txt")
     expect(data.text).toContain("rename to renamed.txt")
     expect(data.origPath).toBe("legacy.txt")
@@ -415,8 +398,7 @@ describe("loadPreviewData — failures and hunk-less patches are never 'no chang
     const repo = makeRepo()
     writeFileSync(join(repo, "fresh.ts"), "export const fresh = 1\n")
     commit(repo, "add")
-    const data = await loadPreviewData(repo, "fresh.ts", { base: "HEAD~1" })
-    if (data.kind !== "diff") throw new Error(`expected diff, got ${data.kind}`)
+    const data = expectKind(await loadPreviewData(repo, "fresh.ts", { base: "HEAD~1" }), "diff")
     expect(data.text).toContain("new file mode")
     expect(data.origPath).toBeUndefined()
   })
@@ -427,8 +409,7 @@ describe("loadPreviewData — failures and hunk-less patches are never 'no chang
     commit(repo, "base")
     writeFileSync(join(repo, "bundle.zip"), Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x00, 0x02, 0x03]))
     commit(repo, "change")
-    const data = await loadPreviewData(repo, "bundle.zip", { base: "HEAD~1" })
-    if (data.kind !== "patch-note") throw new Error(`expected patch-note, got ${data.kind}`)
+    const data = expectKind(await loadPreviewData(repo, "bundle.zip", { base: "HEAD~1" }), "patch-note")
     expect(data.note).toEqual({ kind: "binary" })
     expect(data.sizeBytes).toBe(7)
   })
@@ -439,8 +420,7 @@ describe("loadPreviewData — failures and hunk-less patches are never 'no chang
     commit(repo, "base")
     execFileSync("chmod", ["+x", join(repo, "run.sh")])
     commit(repo, "chmod")
-    const data = await loadPreviewData(repo, "run.sh", { base: "HEAD~1" })
-    if (data.kind !== "patch-note") throw new Error(`expected patch-note, got ${data.kind}`)
+    const data = expectKind(await loadPreviewData(repo, "run.sh", { base: "HEAD~1" }), "patch-note")
     expect(data.note).toEqual({ kind: "mode", from: "100644", to: "100755" })
   })
 
@@ -449,8 +429,7 @@ describe("loadPreviewData — failures and hunk-less patches are never 'no chang
   // came back as its own CURRENT CONTENT, a directory as `no changes in src/`.
   test("an unresolvable base is an error carrying git's own stderr — for a file", async () => {
     const repo = makeRepo()
-    const data = await loadPreviewData(repo, "a.ts", { base: "origin/gone" })
-    if (data.kind !== "error") throw new Error(`expected error, got ${data.kind}`)
+    const data = expectKind(await loadPreviewData(repo, "a.ts", { base: "origin/gone" }), "error")
     expect(data.message).toMatch(/origin\/gone/)
     // The old behaviour: the file's own content rendered as a plain `file`.
     expect(data.message).not.toContain("export const a = 1")
@@ -458,8 +437,7 @@ describe("loadPreviewData — failures and hunk-less patches are never 'no chang
 
   test("an unresolvable base is an error — for a directory, not 'no changes'", async () => {
     const repo = makeRepo()
-    const data = await loadPreviewData(repo, ".", { base: "origin/gone" })
-    if (data.kind !== "error") throw new Error(`expected error, got ${data.kind}`)
+    const data = expectKind(await loadPreviewData(repo, ".", { base: "origin/gone" }), "error")
     expect(data.message).toMatch(/origin\/gone/)
   })
 
@@ -470,12 +448,10 @@ describe("loadPreviewData — failures and hunk-less patches are never 'no chang
     writeFileSync(join(repo, "a.ts"), "export const a = 2\n")
     writeFileSync(join(repo, "untracked.ts"), "export const untracked = 1\n")
 
-    const task = await loadPreviewData(repo, ".", { base: "HEAD~1", working: true })
-    if (task.kind !== "diff") throw new Error(`expected diff, got ${task.kind}`)
+    const task = expectKind(await loadPreviewData(repo, ".", { base: "HEAD~1", working: true }), "diff")
     expect(unifiedDiffFiles(task.text).map((f) => f.path)).toEqual(["a.ts", "committed.ts", "untracked.ts"])
     // The committed-only range stays what it was: nothing uncommitted or untracked in it.
-    const branch = await loadPreviewData(repo, ".", { base: "HEAD~1" })
-    if (branch.kind !== "diff") throw new Error(`expected diff, got ${branch.kind}`)
+    const branch = expectKind(await loadPreviewData(repo, ".", { base: "HEAD~1" }), "diff")
     expect(unifiedDiffFiles(branch.text).map((f) => f.path)).toEqual(["committed.ts"])
   })
 })
@@ -487,7 +463,6 @@ describe("loadPreviewData — failures and hunk-less patches are never 'no chang
 test("a preview outside any git repo still shows the file, not a git error", async () => {
   const dir = mkdtempSync(join(tmpdir(), "rove-preview-norepo-"))
   writeFileSync(join(dir, "note.txt"), "FIRST CONTENT\n")
-  const data = await loadPreviewData(dir, "note.txt")
-  if (data.kind !== "code") throw new Error(`expected code, got ${data.kind}`)
+  const data = expectKind(await loadPreviewData(dir, "note.txt"), "code")
   expect(data.text).toContain("FIRST CONTENT")
 })

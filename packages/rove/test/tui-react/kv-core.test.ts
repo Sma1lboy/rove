@@ -106,14 +106,10 @@ describe("createKvCore", () => {
   it("an orphan sweep triggered by kv snapshot changes converges instead of recursively rearming itself", () => {
     isolatedHome({ "draft.orphan": { text: "" }, "draft.live": { text: "x" } })
     const kv = createKvCore()
-    let sweeps = 0
-    const runSweep = () => {
-      sweeps++
-      if (sweeps > 5) throw new Error("orphan sweep recursively rearmed")
-      for (const key of Object.keys(kv.snapshot())) {
-        if (key.startsWith("draft.") && key !== "draft.live") kv.set(key, undefined)
-      }
-    }
+    const runSweep = vi.fn(() => {
+      const orphans = Object.keys(kv.snapshot()).filter((key) => key.startsWith("draft.") && key !== "draft.live")
+      orphans.map((key) => kv.set(key, undefined))
+    })
     const unsubscribe = kv.subscribe(runSweep)
 
     // Models a subscribed effect: the first sweep changes the KV identity and
@@ -121,7 +117,7 @@ describe("createKvCore", () => {
     // write, and the subscription chain settles.
     runSweep()
 
-    expect(sweeps).toBe(2)
+    expect(runSweep).toHaveBeenCalledTimes(2)
     expect(Object.keys(kv.snapshot())).toEqual(["draft.live"])
     unsubscribe()
     expect(kv.flush()).toBe(true)
@@ -392,22 +388,22 @@ describe("createKvCore", () => {
     expect(notified).toBe(1)
   })
 
-  it.each([undefined, ["original"]])(
-    "notifies when a remote quiet value reverts to the old snapshot: %j",
-    (original) => {
-      isolatedHome(original === undefined ? {} : { inboxVisits: original })
-      const kv = createKvCore()
-      kv.setQuiet("inboxVisits", ["local"])
-      kv.flush()
-      let notified = 0
-      kv.subscribe(() => notified++)
-      kv.follow(original === undefined ? {} : { inboxVisits: original })
-      expect(kv.get("inboxVisits")).toEqual(original)
-      expect(notified).toBe(1)
-      kv.follow(original === undefined ? {} : { inboxVisits: original })
-      expect(notified).toBe(1)
-    },
-  )
+  it.each<[string, Record<string, unknown>, unknown]>([
+    ["absent", {}, undefined],
+    ["present", { inboxVisits: ["original"] }, ["original"]],
+  ])("notifies when a remote quiet value reverts to the old snapshot (%s)", (_name, remote, original) => {
+    isolatedHome(remote)
+    const kv = createKvCore()
+    kv.setQuiet("inboxVisits", ["local"])
+    kv.flush()
+    let notified = 0
+    kv.subscribe(() => notified++)
+    kv.follow(remote)
+    expect(kv.get("inboxVisits")).toEqual(original)
+    expect(notified).toBe(1)
+    kv.follow(remote)
+    expect(notified).toBe(1)
+  })
 
   it("keeps pending writes off an invalid file until repair, across debounce and exit flushes", () => {
     vi.useFakeTimers()

@@ -4,6 +4,7 @@
  * the work in flight when a prompt lands mid-turn, and Enter into a menu confirms its highlighted option.
  */
 
+import assert from "node:assert"
 import { describe, expect, it, vi } from "vitest"
 import type { TaskActivityState } from "../../../rove-daemon/src/daemon/attention-contracts.ts"
 import { DaemonEventBus } from "../../../rove-daemon/src/daemon/event-bus.ts"
@@ -132,7 +133,7 @@ describe("PromptQueue", () => {
     to("turn_complete")
     await vi.waitFor(() => expect(queue.list()).toMatchObject([{ text: "lost?", lastError: "no-engine" }]))
     expect(pasted).toEqual([])
-    if (!added.queued) throw new Error("expected queued")
+    assert(added.queued)
     expect(queue.cancel(added.item.id)).toBe(true)
     expect(queue.list()).toEqual([])
   })
@@ -141,7 +142,7 @@ describe("PromptQueue", () => {
     const { queue, pasted, to } = harness("running")
     const first = queue.add({ taskId: "t", tabId: "tab-1", text: "one" })
     queue.add({ taskId: "t", tabId: "tab-1", text: "two" })
-    if (!first.queued) throw new Error("expected queued")
+    assert(first.queued)
     expect(queue.edit(first.item.id, "one, fixed")).toMatchObject({ edited: true, item: { id: first.item.id } })
     expect(queue.list().map((i) => i.text)).toEqual(["one, fixed", "two"])
     to("turn_complete")
@@ -164,7 +165,7 @@ describe("PromptQueue", () => {
       () => Promise.resolve(),
     )
     const added = queue.add({ taskId: "t", tabId: "tab-1", text: "old" })
-    if (!added.queued) throw new Error("expected queued")
+    assert(added.queued)
     bus.publish("engine-state", { taskId: "t", tabId: "tab-1", state: "turn_complete", at: 0 })
     await vi.waitFor(() => expect(pasted).toEqual(["old"]))
     expect(queue.edit(added.item.id, "new")).toEqual({ edited: false, reason: "pasting" })

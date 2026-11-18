@@ -1,5 +1,173 @@
 # Changelog
 
+## 0.9.299
+
+### Patch Changes
+
+- [#2120](https://github.com/Sma1lboy/rove/pull/2120) [`9a3fae9`](https://github.com/Sma1lboy/rove/commit/9a3fae9d2bf4eb5cfac9139b591c318e4585c43c) The macOS preview places the window controls and navigation above the task list in a single row. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2117](https://github.com/Sma1lboy/rove/pull/2117) [`adbbccb`](https://github.com/Sma1lboy/rove/commit/adbbccb7ac626fd8b05a83d17e3238fa9ef246cc) Add an opt-in macOS workspace preview with native terminal input, selection, scrollback, and window navigation. The Usage page waits for its bridge connection when restored. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2115](https://github.com/Sma1lboy/rove/pull/2115) [`d0d49c8`](https://github.com/Sma1lboy/rove/commit/d0d49c8ebc513cd35c9fba37464c800b40eeac1e) Click project headers to fold them. Sidebar search finds named directory tasks by their original title and temporarily opens folded projects. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2116](https://github.com/Sma1lboy/rove/pull/2116) [`2673e52`](https://github.com/Sma1lboy/rove/commit/2673e52b8c0120f5340412b1735a64f806a588e9) Rove Web now shows a quiet Refresh Rove action in navigation when bridge and daemon versions differ. Hover or focus to see both versions and the configured shortcut. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2118](https://github.com/Sma1lboy/rove/pull/2118) [`82170ce`](https://github.com/Sma1lboy/rove/commit/82170cea3dcde74dda41808843e62faa908f1226) In Rove Web, click a repo name to see its active and archived sessions. The arrow beside it folds the list. Sessions no longer takes up a row in the top-left navigation. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2119](https://github.com/Sma1lboy/rove/pull/2119) [`51ecc52`](https://github.com/Sma1lboy/rove/commit/51ecc5234072f017df840b0e55ecae3ab84d6af3) Rove Web opens Update as a standalone page from the new-version indicator or the sidebar’s `u` shortcut. Use the usual navigation to return to a task. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.298
+
+### Patch Changes
+
+- [#2105](https://github.com/Sma1lboy/rove/pull/2105) [`b97e479`](https://github.com/Sma1lboy/rove/commit/b97e479dfaa614848648077fcd57bca969f340cc) Switching an engine off (or adding or removing a custom engine) in Settings → Engines no longer undoes the switch another window or the web made a moment earlier: the TUI now changes just that one engine in the list instead of writing back its own copy of the whole list. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2114](https://github.com/Sma1lboy/rove/pull/2114) [`fd7a3cf`](https://github.com/Sma1lboy/rove/commit/fd7a3cf699f4f4c475e9691fd45e7b5783ba22f3) The web's folded task list now floats at the default width when you hover the left edge, instead of at whatever width you last dragged the docked list to. Unfolding brings your dragged width back. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2102](https://github.com/Sma1lboy/rove/pull/2102) [`48e9202`](https://github.com/Sma1lboy/rove/commit/48e92027ec68f47c9e0804c2d76ae29c78a2ea5d) `bun run perf:golden` runs again: its daemon benchmark's stand-in orchestrator answers the boot step that settles project rows. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2112](https://github.com/Sma1lboy/rove/pull/2112) [`f8b5f81`](https://github.com/Sma1lboy/rove/commit/f8b5f81a5d272aac06967279d1130e724b785f87) A session's row now follows the engine actually running in it. Quit one engine to the shell and start another by hand (say Codex inside a Claude session) and the web rail shows that engine's icon, and the running status appears within a few seconds instead of up to a minute later. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2103](https://github.com/Sma1lboy/rove/pull/2103) [`03d0f12`](https://github.com/Sma1lboy/rove/commit/03d0f12e00d3177d79037efd6210bb0dd5fcdbda) - `rove api send --repo` reads its path like every other repo flag: a leading `~` expands, a relative path from the daemon or web bridge is refused instead of silently meaning the daemon's own directory, and a remote project's `ssh://` key reaches that project instead of turning into a bogus local path. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2110](https://github.com/Sma1lboy/rove/pull/2110) [`0a6cf05`](https://github.com/Sma1lboy/rove/commit/0a6cf0503e2b7c8e2aafaa5f780c4c5779c1a606) Match web sidebar ordering for pinned tasks and for projects sorted by name or newest task. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2109](https://github.com/Sma1lboy/rove/pull/2109) [`49d0b3f`](https://github.com/Sma1lboy/rove/commit/49d0b3fbc0d6d7c4c3af8e94cac161b5957897db) Keep remote workspace projects visible in the TUI sidebar after their last tab closes. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2113](https://github.com/Sma1lboy/rove/pull/2113) [`22c8ce5`](https://github.com/Sma1lboy/rove/commit/22c8ce56636a3cd361ab97c71f4a34847ae05ad3) Files attached to a new session with No folder picked now reach the engine. That start sent only the typed text, so an attached image was dropped. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2104](https://github.com/Sma1lboy/rove/pull/2104) [`5de1503`](https://github.com/Sma1lboy/rove/commit/5de15031493b190f76b967520cb014e0383271f4) - Usage percentages can read as what is left: Settings → General → Usage flips the footer's quota and context chips and the Settings meters between used and left. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2111](https://github.com/Sma1lboy/rove/pull/2111) [`cbb2350`](https://github.com/Sma1lboy/rove/commit/cbb2350b90c46e27576f4ddb1ce0902ad5e9630a) The web's New session has a Shell entry at the end of the Engine menu: it opens a plain terminal instead of an agent, in a new worktree, the project's checkout or no folder. Anything typed in the box runs as its first command. `rove api tab-new --kind shell --own` does the same from a script. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2107](https://github.com/Sma1lboy/rove/pull/2107) [`2c82f1c`](https://github.com/Sma1lboy/rove/commit/2c82f1c17e432fd631ff5864fb15c69aea675b3f) Restart on the web Update page no longer kills `rove --web`: after an update it comes back on the new build instead of exiting. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.297
+
+### Patch Changes
+
+- [#2100](https://github.com/Sma1lboy/rove/pull/2100) [`69f86b9`](https://github.com/Sma1lboy/rove/commit/69f86b92249aa9ede732591b90203631d23a698e) A project no longer has a "main" session of its own. Opening a project (`rove .`, New task → Open, the web's Open project, a Kanban story started in the project checkout) starts a new session in its checkout every time, listed like any other session: it can be pinned, moved to another project, archived and removed. Existing main sessions become ordinary sessions on the first start after the update; one that had no tab open, no child task and was not archived is dropped, and your project order is kept.
+
+  `rove api send --repo PATH --prompt "…"` starts a session in that project's checkout and delivers the prompt there. It replaces sending to a project's main row, which no longer exists. `rove api list` never reports `kind: "main"`.
+
+  A project header's menu has Move to top, Move up and Move down in place of Reorder project. The Kanban "New worktree as a chattab in the project workspace" placement is gone, since there is no project workspace to put the tab in. Plugins no longer receive `project.opened`; entering any session sends `task.opened`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.296
+
+### Patch Changes
+
+- [#2087](https://github.com/Sma1lboy/rove/pull/2087) [`ba29e8a`](https://github.com/Sma1lboy/rove/commit/ba29e8abc617f5547f15f8a30e275dc409c92ffc) A mod restarts on its new code when you save its file, with no disable and re-enable, and the rove skill teaches an agent to write one when asked for a new piece of UI. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2099](https://github.com/Sma1lboy/rove/pull/2099) [`c9849fd`](https://github.com/Sma1lboy/rove/commit/c9849fdc431098296b17231bbb482a4d52d92427) Mute one task's notifications from its sidebar row's right-click menu: a muted task keeps its unread dot but stops toasting and ringing, and its errors still toast without a chime. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2085](https://github.com/Sma1lboy/rove/pull/2085) [`d2d917d`](https://github.com/Sma1lboy/rove/commit/d2d917dfdd02a61a8af64817b1a2e9c1dd4bbe78) The web task list shows the labels plugins and agents put on a task's row, and `rove api row-token --keep` writes a label that stays across daemon restarts until it is cleared. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2086](https://github.com/Sma1lboy/rove/pull/2086) [`57b8c99`](https://github.com/Sma1lboy/rove/commit/57b8c99b6b7960f376b5da080f545ea780777f43) The web client's New session draws its engine and model chips at once instead of waiting for the engine list each time: it reuses the list the page read when it opened and the one from the last visit. A composer restored by a page reload no longer stays without those chips. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2089](https://github.com/Sma1lboy/rove/pull/2089) [`23464ae`](https://github.com/Sma1lboy/rove/commit/23464aec47a46db29384c4584f0b5c6c218186e1) In the web client's Kanban card, pressing Enter to confirm an input-method candidate in the title no longer jumps to the description. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2088](https://github.com/Sma1lboy/rove/pull/2088) [`d265762`](https://github.com/Sma1lboy/rove/commit/d2657620973bcc8857cf27ba5ff580a6d06dfdac) The web client's New session model chip reads "Default" until you pick a model, instead of "Model". — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2084](https://github.com/Sma1lboy/rove/pull/2084) [`2e4db65`](https://github.com/Sma1lboy/rove/commit/2e4db65ae01892a4a77ca19a048f2af2ef5d7950) The web client's New session shows the model chip with Worktree off and with No folder too, and the session starts on the model you picked. It used to appear only for worktree sessions. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2090](https://github.com/Sma1lboy/rove/pull/2090) [`b2a4432`](https://github.com/Sma1lboy/rove/commit/b2a4432610e66634a35fc35eaf4ccae21eabcbde) The web client's Sessions page is now easy to find: it has its own row under Routines in the sidebar, and each project header shows a button for that project's sessions beside the +. The thin bar that appeared at the left edge of a hovered sidebar row is gone. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2083](https://github.com/Sma1lboy/rove/pull/2083) [`4f30de3`](https://github.com/Sma1lboy/rove/commit/4f30de31ce183455a44a102fa62b448ce62d15e5) The web client has a Sessions page: a project's sessions as Active and Archived lists, so an archived session can be seen, opened and unarchived without searching for its title. Open it from a project header's menu (View all sessions); Tab switches project, and a project with only archived sessions is listed there too. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.295
+
+### Patch Changes
+
+- [#2080](https://github.com/Sma1lboy/rove/pull/2080) [`605a1d3`](https://github.com/Sma1lboy/rove/commit/605a1d363d453fc9500231220413eb301d294f5c) Every session can be archived now, a project's main session included: the row menu offers Archive on it in the terminal and on the web, and `rove api archive` no longer refuses it with `MAIN_TASK`. Opening the project again (New task → Open, the web's Open project, or `rove <dir>`) brings an archived main session back. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2077](https://github.com/Sma1lboy/rove/pull/2077) [`6936a32`](https://github.com/Sma1lboy/rove/commit/6936a3229bf2b4878e9aec9b0e60511fe2920a3b) Docs: the CLI reference now covers `rove machine` and lists the verbs tab completion really offers, and the API reference documents `row-token` and `routine-create --webhook`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2079](https://github.com/Sma1lboy/rove/pull/2079) [`1afab37`](https://github.com/Sma1lboy/rove/commit/1afab376195c7682f265c3922c0dcf035b0d0bd3) Settings → Engines no longer offers the on/off switch or "Make default" for an engine whose program is not on this machine, in the terminal and on the web. The project list also leaves out a saved project whose folder is gone (renamed, or on an unmounted drive); it comes back when the folder does. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2076](https://github.com/Sma1lboy/rove/pull/2076) [`ff08a16`](https://github.com/Sma1lboy/rove/commit/ff08a164b486dd0da0b3504476d73fdc8bfd4e79) Set how often open PRs refresh their status and checks with `pr.refreshSeconds` in `state.json` (30-3600 seconds, or `0` to pause background refresh); the daemon picks up the change without a restart, so many open PRs no longer have to spend GitHub API quota every 30 seconds. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2073](https://github.com/Sma1lboy/rove/pull/2073) [`41978bb`](https://github.com/Sma1lboy/rove/commit/41978bb195bafd97c44066fdecd622620220169f) `rove api send` to a project's main row with no tab open starts a new session in that checkout instead of reviving the row. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2075](https://github.com/Sma1lboy/rove/pull/2075) [`f53fa14`](https://github.com/Sma1lboy/rove/commit/f53fa14dab9961ce23bab072b64f937de869b02e) A `rove api send` that is refused as an empty-branch `succeeded:` report no longer leaves a new, empty session behind when it was addressed to a project row with no tab open; the session is opened only once the send is allowed through. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2081](https://github.com/Sma1lboy/rove/pull/2081) [`598a49d`](https://github.com/Sma1lboy/rove/commit/598a49db0cf7cd36f0ecfb2ffe810cbaff182520) The web terminal no longer loses most of its characters after the browser's graphics process resets (a driver restart, sleep and wake, or the browser reclaiming GPU memory): text drawn before the reset came back blank while newly seen characters still drew. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2074](https://github.com/Sma1lboy/rove/pull/2074) [`2deff57`](https://github.com/Sma1lboy/rove/commit/2deff576510334bbf6832c7fae328bb9e6531157) Web: the terminal redraws when you come back to its browser tab, so it no longer shows blank or garbled text after another GPU-heavy tab was in front. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2078](https://github.com/Sma1lboy/rove/pull/2078) [`d75e678`](https://github.com/Sma1lboy/rove/commit/d75e678309b15a1282035a965f77001cb1c83b91) Web: the side panel (Files, Diff, Browser) shows only beside its own task. New task and pages such as Routines no longer keep the last task's Browser on the right. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.294
+
+### Patch Changes
+
+- [#2039](https://github.com/Sma1lboy/rove/pull/2039) [`b2aa991`](https://github.com/Sma1lboy/rove/commit/b2aa991e73102d315d4492030c0ce04f42c0dfff) Archiving a task now ends its sessions. Every engine and shell process of the task and its child tasks is stopped; the worktree, branch and conversations are kept, and a tab reopens its conversation after you unarchive. A task that is still working asks first, and `rove api archive --force` stops it. Removing a project also closes the sessions that ran in its main checkout. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2044](https://github.com/Sma1lboy/rove/pull/2044) [`aa63efd`](https://github.com/Sma1lboy/rove/commit/aa63efda36bfea1274a6bf4fd68654b2279fee48) The web Browser panel no longer goes blank about a minute after a page loads. The page stays until you change the address or close the tab. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2042](https://github.com/Sma1lboy/rove/pull/2042) [`d826960`](https://github.com/Sma1lboy/rove/commit/d8269608e0faa189b5c51148c32091c537604d14) In the web client, a Files row now has a right-click menu: attach it as context, copy its relative path, absolute path or name, open its diff, show it in Finder, or open a terminal in its folder. A blank Browser tab lists the pages the task's dev servers serve, one click each. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2036](https://github.com/Sma1lboy/rove/pull/2036) [`fb52cd0`](https://github.com/Sma1lboy/rove/commit/fb52cd0cf510d72d96b3ac9edeb55c08890eb0d3) You can now update Rove on another machine without logging in to it. `rove machine update <alias>` (or with no alias, every machine) has that machine install the newest build of your channel and restart itself; on the web, a machine that runs an older build shows `[ update rove ]` in the Machines overview. Sessions on that machine keep running.
+
+  `rove daemon restart` on a machine where systemd runs Rove now restarts it through systemd. Before, it started a second copy outside systemd and the two fought over the same socket. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2038](https://github.com/Sma1lboy/rove/pull/2038) [`a7bd9b6`](https://github.com/Sma1lboy/rove/commit/a7bd9b6b78d42a56afbd39a17864f9f12deb5695) Your other machines now keep up with this one. A registered machine that connects on an older Rove is updated from here on its own, once nothing is running in its Rove; it is never downgraded. Set `"machines.autoUpdate": false` in `state.json` to keep updating by hand with `rove machine update`.
+
+  Updating a machine no longer restarts its Rove when there was nothing newer to install. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2065](https://github.com/Sma1lboy/rove/pull/2065) [`2f82215`](https://github.com/Sma1lboy/rove/commit/2f82215f4c8fd50fade0289383f8b94fb8efbfb5) `next` and `nightly` builds now report their own version. They used to print the previous stable version, which made `rove update --next` fail its install check after a successful install. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2040](https://github.com/Sma1lboy/rove/pull/2040) [`09614c9`](https://github.com/Sma1lboy/rove/commit/09614c9e3500c2a0b8736c5b463024702fda144c) The web Files pane now shows `[ open :PORT ]` for every port where a task's own processes serve a page, so a dev server an agent started opens in the Browser panel with nothing to set up. The `.rove/run.sh` run action (`[ run ]` / `[ stop ]`, with `run.portBase` and `run.portCount`) is removed: start the dev server from the agent or a shell tab instead. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2067](https://github.com/Sma1lboy/rove/pull/2067) [`b12df46`](https://github.com/Sma1lboy/rove/commit/b12df46be4113ced45e7e270215cd511963afb74) Web: the side panel's automatic width is a share of the space beside the task list instead of a fixed size, so unfolding or widening the task list narrows the terminal and the panel together. With three panel columns open the terminal was held at its 320px minimum; it now keeps two fifths of the row. A width you dragged stays as you set it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2049](https://github.com/Sma1lboy/rove/pull/2049) [`791acbc`](https://github.com/Sma1lboy/rove/commit/791acbcce96d00018dcd37898fbd065f9ad90942) In the web client, opening a task from the folded sidebar no longer flashes the previous task's terminal over the sidebar. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2066](https://github.com/Sma1lboy/rove/pull/2066) [`0c86ba9`](https://github.com/Sma1lboy/rove/commit/0c86ba9587404d6f73f0e1805d63a0e61f00be0b) The version picker lists releases again. It had gone empty because it read only the newest 12 entries on the Releases page, and every `next` build now adds one there. The update notes had the same limit at 100 entries and are fixed too. On the `next` channel, the update page now shows what each build changed. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2041](https://github.com/Sma1lboy/rove/pull/2041) [`43ebf45`](https://github.com/Sma1lboy/rove/commit/43ebf4562503fdedb9eda61f342acafa308a6f3b) The toast after archiving a task is now just "Archived <task>". — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2070](https://github.com/Sma1lboy/rove/pull/2070) [`cfbee53`](https://github.com/Sma1lboy/rove/commit/cfbee53cf99c95dc75ca0e4ede5452ff71369f32) Web: switching back to a task no longer shows its terminal blank for a moment. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2069](https://github.com/Sma1lboy/rove/pull/2069) [`3dd876d`](https://github.com/Sma1lboy/rove/commit/3dd876d5260efd11e610576675edae01e5c32a55) Web: a terminal no longer goes blank or shows wrong characters after a long session. Once enough distinct coloured characters had been drawn (pasted images get there fastest), the terminal's renderer began failing on every frame and stopped painting text, and a terminal in the background could come back with other characters in place of its own. Reloading the page was the only way out. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2071](https://github.com/Sma1lboy/rove/pull/2071) [`cee5635`](https://github.com/Sma1lboy/rove/commit/cee56350b2993f93755bf7b63930465e1cfd4383) Web: a terminal that fell behind on output (a burst of output, or the page in a background tab while the agent worked) no longer comes back mostly blank with stray characters. Catching up replaces the screen from a buffer that begins partway through a redraw; the agent is now asked to redraw afterwards, as it already was on reconnect. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2068](https://github.com/Sma1lboy/rove/pull/2068) [`80cda97`](https://github.com/Sma1lboy/rove/commit/80cda975faf4f791b6e5c79b13203de502768216) Web: typing a long phrase with an input method (Chinese pinyin, Japanese) no longer pushes the terminal sideways. Once the uncommitted text ran past the terminal's right edge, the browser scrolled the whole terminal left to follow it, cutting off the start of every line. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2048](https://github.com/Sma1lboy/rove/pull/2048) [`de3ee7a`](https://github.com/Sma1lboy/rove/commit/de3ee7ae8b60d9e00a196f9ae7c0d12c70472fde) Fix web task clicks leaving the Update and Worktrees pages, including clicks on the already selected task. Keep restoring the open page after a reload. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2043](https://github.com/Sma1lboy/rove/pull/2043) [`c1524c8`](https://github.com/Sma1lboy/rove/commit/c1524c86584896cfb86a824c84e4936cbecb9893) Failure toasts now say what failed and why, without the extra clause about what stayed unchanged. Clicking a toast about a task (a finished turn, an answer needed, PR checks landing) opens that task and tab; in the web app those toasts have an Open button. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2035](https://github.com/Sma1lboy/rove/pull/2035) [`14d85da`](https://github.com/Sma1lboy/rove/commit/14d85da443a8ca56b060301770e0163fb3ebd700) fix(web): a repository picked in New session is cloned into `~/.rove/repos/<host>/<owner>/<name>`, not into your home folder. It is the folder `rove api add --clone` uses, and a repository already cloned there is opened instead of cloned again. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2045](https://github.com/Sma1lboy/rove/pull/2045) [`9157c47`](https://github.com/Sma1lboy/rove/commit/9157c4757263f740a4f61188b4f75090272b951a) Web: a folded sidebar opened by hovering the left edge stays open while you move through a right-click menu opened from it, and closes once the menu does. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2037](https://github.com/Sma1lboy/rove/pull/2037) [`80f9fe7`](https://github.com/Sma1lboy/rove/commit/80f9fe7e5939273dd8256a6bd140124dac74ce62) fix(web): Shift+Enter in a web terminal adds a new line to the engine's prompt instead of sending it, as it does in the terminal app.
+
+  Honor the context-usage collector’s configured polling cadence. — [@lincleejun](https://github.com/lincleejun)
+
+- [#2056](https://github.com/Sma1lboy/rove/pull/2056) [`efcefb2`](https://github.com/Sma1lboy/rove/commit/efcefb21e35a10644c8c17a2a24e47c2c64ccd85) Web: a notification toast's `[ Open ]` button stays on the first line at the right edge in monospace, instead of dropping to its own left-aligned line when the title wraps. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.293
+
+### Patch Changes
+
+- [#2027](https://github.com/Sma1lboy/rove/pull/2027) [`6bda084`](https://github.com/Sma1lboy/rove/commit/6bda084b77d41920ca6940ea366c8691146546e9) Starting a task on another machine in a repo it has to clone first no longer loses the task. The clone used to freeze that machine's Rove until it finished, so a clone longer than a few seconds made the machine look offline; Rove then restarted it, which killed the clone and dropped the task. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2028](https://github.com/Sma1lboy/rove/pull/2028) [`10482df`](https://github.com/Sma1lboy/rove/commit/10482dfe950439c2ad27f52a7d6531997361f0db) On a phone, the web composer under a terminal always shows its send button at the right end of the hold-to-talk row, greyed until a file is attached. It used to appear only after attaching, which shifted the row and left the paperclip without a counterpart. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2029](https://github.com/Sma1lboy/rove/pull/2029) [`4c344c3`](https://github.com/Sma1lboy/rove/commit/4c344c39d58dd169095509b4d71dce23c2abd88a) Rove keeps answering while it pushes a branch, opens a pull request, deletes a remote branch or sets up a workspace on another machine. Each of these used to freeze it until the network replied, which could make another machine think it had died.
+
+  A machine whose Rove is busy is no longer restarted from the other side. Before, a few seconds without an answer was enough to restart it, which ended its sessions and whatever it was doing. Now the machine shows as unreachable and the message says to restart it there if it stays that way. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2026](https://github.com/Sma1lboy/rove/pull/2026) [`8aec531`](https://github.com/Sma1lboy/rove/commit/8aec531a18c68ea4cb4a444fbdd94b5ac82aef6c) On a phone, the web New session page starts the session with the same small up-arrow send button the terminal composer uses, instead of a wide "Start session" button with a different corner radius than the hold-to-talk control beside it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2034](https://github.com/Sma1lboy/rove/pull/2034) [`0fe8d40`](https://github.com/Sma1lboy/rove/commit/0fe8d40cc4af9f74ce976c39ab837a5eabb116f3) A diff review note added on the web or in another Rove window is no longer lost when you add, remove or send notes in the terminal. The terminal used to save its own copy of the task's notes over the newer list, and sending marked a note written elsewhere in the meantime as sent although the agent never received it.
+
+  Failed note writes retain pending edits for retry against fresh disk state, including removals and sent markers, instead of losing a typed note. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2033](https://github.com/Sma1lboy/rove/pull/2033) [`1c1aaa0`](https://github.com/Sma1lboy/rove/commit/1c1aaa04ca1edcb8c1602091a7da3f9eb60c3456) `rove api worktree-reclaim --merged` (or `--idle-days N`) frees the disk of every finished task's worktree in one go, keeping each task and branch; anything with work in it, a busy engine or your own checkout is skipped and reported, and `--dry-run` previews the list. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.292
 
 ### Patch Changes

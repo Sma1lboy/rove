@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Orchestrator } from "../../src/orchestrator/core.ts"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
-import { buildRows } from "../../src/tui/panes/sidebar/groups.ts"
+import { compareNewest } from "../../src/tui/panes/sidebar/groups.ts"
 
 describe("Orchestrator active task recency", () => {
   let home: string
@@ -38,12 +38,7 @@ describe("Orchestrator active task recency", () => {
     const b = await orch.createTask({ repo: "/repo", title: "b", branch: "b", vendor: "claude" })
     vi.setSystemTime(new Date("2026-01-01T00:00:02.000Z"))
     const c = await orch.createTask({ repo: "/repo", title: "c", branch: "c", vendor: "claude" })
-    const ours = new Set<string>([a.id, b.id, c.id])
-    // createTask also provisions the repo's `main` row; only the three tasks matter here.
-    const order = () =>
-      buildRows(orch.listTasks(), "", "recent")
-        .map((r) => String(r.task.id))
-        .filter((id) => ours.has(id))
+    const order = () => [...orch.listTasks()].sort(compareNewest).map((t) => String(t.id))
 
     expect(order()).toEqual([c.id, b.id, a.id])
 

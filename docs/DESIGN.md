@@ -39,13 +39,11 @@ normalization. Neutral layers never hard-code vendor UI data.
 Managed task = git worktree + branch + terminal tabs
 ```
 
-A managed Task owns one Worktree and may own several Terminal Tabs. Project-main
-Tasks reuse the saved repository checkout; directory Tasks reuse a user-owned
-directory. Those two variants do not own a Rove-created worktree or branch.
+A managed Task owns one Worktree and may own several Terminal Tabs. Directory
+Tasks reuse a user-owned directory or a saved project's own checkout, and own no
+Rove-created worktree or branch. A project is a saved repository, not a Task.
 
-Explicit delete is kind-aware: the main row's delete action forgets the saved
-project while keeping its repository and managed Tasks, a directory Task
-removes only its Rove record, and a managed Task removes its Worktree after
+Explicit delete is kind-aware: a directory Task removes only its Rove record, and a managed Task removes its Worktree after
 the dirty-worktree safety check before attempting to remove its task branch.
 
 ### 3. Process ownership is explicit

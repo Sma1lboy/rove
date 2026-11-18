@@ -135,26 +135,20 @@ describe("hosted pty inbound dispatch budget", () => {
     // the op budget. Spy it before the handles open so every call is caught.
     const feed = vi.spyOn(HostedTaskPty.prototype, "feedFrame")
 
-    const ptys: HostedTaskPty[] = []
-    for (let i = 0; i < N; i++) ptys.push(new HostedTaskPty({ taskId: `t${i}::tab`, ...OPTS }))
+    const ptys = Array.from({ length: N }, (_, i) => new HostedTaskPty({ taskId: `t${i}::tab`, ...OPTS }))
     // Wait until every handle has attached (opened its remote), so all N are
     // registered in the shared map and would be walked by an O(N) fan-out.
     await until(() => ptys.every((p) => (p as unknown as { opened: boolean }).opened))
     feed.mockClear()
 
-    // ONE frame for a single key → exactly ONE dispatch-body run, not N.
+    // A frame for an unknown key touches NO handle (dropped by the map miss),
+    // and ONE frame for a single key → exactly ONE dispatch-body run, not N.
+    // Frames arrive in order, so once the second lands the first was handled.
+    host.push(dataFrame("nobody::tab"))
     host.push(dataFrame("t3::tab"))
     await until(() => feed.mock.calls.length > 0)
     expect(feed).toHaveBeenCalledTimes(1)
     expect(feed.mock.instances[0]).toBe(ptys[3])
-
-    // A frame for an unknown key touches NO handle (dropped by the map miss,
-    // like a per-handle key-compare rejecting) — and this holds no
-    // matter how many tabs are open, i.e. per-frame cost doesn't grow with N.
-    feed.mockClear()
-    host.push(dataFrame("nobody::tab"))
-    await new Promise((r) => setTimeout(r, 80))
-    expect(feed).toHaveBeenCalledTimes(0)
 
     for (const p of ptys) p.detach()
   })
@@ -162,12 +156,17 @@ describe("hosted pty inbound dispatch budget", () => {
   it("detach removes the map entry — a later frame reaches no handle (no leak)", async () => {
     const feed = vi.spyOn(HostedTaskPty.prototype, "feedFrame")
     const pty = new HostedTaskPty({ taskId: "solo::tab", ...OPTS })
-    await until(() => (pty as unknown as { opened: boolean }).opened)
+    const sentinel = new HostedTaskPty({ taskId: "sentinel::tab", ...OPTS })
+    await until(() => [pty, sentinel].every((p) => (p as unknown as { opened: boolean }).opened))
 
     feed.mockClear()
     pty.detach() // app-teardown / park route — must delete the registration
     host.push(dataFrame("solo::tab"))
-    await new Promise((r) => setTimeout(r, 80))
-    expect(feed).toHaveBeenCalledTimes(0)
+    // Frames arrive in order: once the sentinel's lands, solo's was handled.
+    host.push(dataFrame("sentinel::tab"))
+    await until(() => feed.mock.calls.length > 0)
+    expect(feed).toHaveBeenCalledTimes(1)
+    expect(feed.mock.instances[0]).toBe(sentinel)
+    sentinel.detach()
   })
 })

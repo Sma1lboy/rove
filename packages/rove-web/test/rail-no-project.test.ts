@@ -7,7 +7,7 @@ const task = (id: string, extra: Partial<TaskRow> = {}): TaskRow =>
 
 describe("the Ungrouped group", () => {
   const rows = [
-    task("app-main", { kind: "main" }),
+    task("app-checkout", { kind: "dir" }),
     task("shell", { kind: "dir", repo: "/Users/me", scratch: true }),
     task("fresh-run", { kind: "dir", repo: "/home/.rove/routines/a", noProject: true }),
     task("standing", { kind: "dir", repo: "/home/.rove/routines/b", noProject: true, routine: true }),
@@ -28,7 +28,7 @@ describe("the Ungrouped group", () => {
       "shell",
       "fresh-run",
       "project:/r/app",
-      "app-main",
+      "app-checkout",
       "project:/r/plain",
       "plain-dir",
     ])

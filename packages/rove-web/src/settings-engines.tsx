@@ -143,6 +143,8 @@ function EngineItem(props: { engine: EngineSetting; open: boolean; onToggleOpen:
   const { engine: e, run } = props
   const detailId = useId()
   const status = health(e)
+  // An engine Rove cannot start has nothing to switch on or make the default.
+  const missing = e.binaryFound === false
   return (
     <div className={ENG_ITEM}>
       <div className={ENG_ROW}>
@@ -169,7 +171,7 @@ function EngineItem(props: { engine: EngineSetting; open: boolean; onToggleOpen:
         <div className={ENG_DEFAULT}>
           {e.isDefault ? (
             <span className={ENG_PILL}>{ts("engines.defaultMark")}</span>
-          ) : e.canBeDefault ? (
+          ) : e.canBeDefault && !missing ? (
             <button
               type="button"
               className={ENG_MAKE_DEFAULT}
@@ -180,11 +182,15 @@ function EngineItem(props: { engine: EngineSetting; open: boolean; onToggleOpen:
             </button>
           ) : null}
         </div>
-        <Switch
-          on={e.enabled}
-          aria-label={t("settings.engines.enabled", { name: e.name })}
-          onClick={() => run("engine.setEnabled", { id: e.id, enabled: !e.enabled })}
-        />
+        {missing ? (
+          <span />
+        ) : (
+          <Switch
+            on={e.enabled}
+            aria-label={t("settings.engines.enabled", { name: e.name })}
+            onClick={() => run("engine.setEnabled", { id: e.id, enabled: !e.enabled })}
+          />
+        )}
       </div>
       {props.open ? <EngineDetail id={detailId} engine={e} run={run} /> : null}
     </div>

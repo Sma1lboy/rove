@@ -50,6 +50,8 @@ export interface DaemonRuntimeAdapter {
    * the registry on `state`. Returns stop(). Absent in test doubles.
    */
   startMachineHub?(bus: Pick<import("./event-bus.ts").DaemonEventBus, "publish" | "onPublish">): () => void
+  /** Delete prompt attachments past their keep time, now and daily. Returns stop(). Absent in test doubles. */
+  startAttachmentSweep?(log: (line: string) => void): () => void
   invokeApi?(
     verb: string,
     params: ApiParams,

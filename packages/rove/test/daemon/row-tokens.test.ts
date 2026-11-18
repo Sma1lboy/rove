@@ -4,6 +4,9 @@
  * plugin that dies leaves its labels on the user's screen forever.
  */
 
+import { mkdtempSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import type { DaemonRequestName } from "@sma1lboy/rove-daemon/daemon/protocol"
 import {
   ROW_TOKEN_DEFAULT_TTL_MS,
@@ -21,7 +24,7 @@ import {
   createDaemonHandlerRegistry,
   dispatchDaemonRequest,
 } from "@sma1lboy/rove-daemon/daemon/server"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { fakeCtx } from "./handler-test-context.ts"
 
 function dispatch(name: DaemonRequestName, payload: unknown, ctx: DaemonHandlerContext): Promise<unknown> {
@@ -78,19 +81,24 @@ describe("RowTokenStore", () => {
     expect(store.snapshot()).toEqual({})
   })
 
-  it("republishes at the expiry so a fading label needs no writer", async () => {
-    // Real timers here on purpose: the republish IS a timer, and a fake clock
-    // would prove only that the arithmetic is right, not that anything fires.
-    const published: RowTokenMap[] = []
-    const store = new RowTokenStore({
-      publish: (_channel: string, payload: unknown) => published.push((payload as { tokens: RowTokenMap }).tokens),
-    })
-    store.set({ taskId: "t1", source: "p", key: "k", text: "@ana", ttlMs: ROW_TOKEN_MIN_TTL_MS })
-    expect(published).toHaveLength(1)
-    await new Promise((r) => setTimeout(r, ROW_TOKEN_MIN_TTL_MS + 150))
-    expect(published.length).toBeGreaterThanOrEqual(2)
-    expect(published.at(-1)).toEqual({})
-    store.close()
+  it("republishes at the expiry so a fading label needs no writer", () => {
+    // The store's default clock and expiry timer, both faked: the republish
+    // must come from the timer firing, not from another write.
+    vi.useFakeTimers()
+    try {
+      const published: RowTokenMap[] = []
+      const store = new RowTokenStore({
+        publish: (_channel: string, payload: unknown) => published.push((payload as { tokens: RowTokenMap }).tokens),
+      })
+      store.set({ taskId: "t1", source: "p", key: "k", text: "@ana", ttlMs: ROW_TOKEN_MIN_TTL_MS })
+      expect(published).toHaveLength(1)
+      vi.advanceTimersByTime(ROW_TOKEN_MIN_TTL_MS + 150)
+      expect(published.length).toBeGreaterThanOrEqual(2)
+      expect(published.at(-1)).toEqual({})
+      store.close()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it("replaces the same key rather than stacking copies — that is how a refresh works", () => {
@@ -136,6 +144,34 @@ describe("RowTokenStore", () => {
     store.set({ taskId: "t1", source: "p", key: "a", text: "a" })
     store.clearTask("t1")
     expect(published.at(-1)).toEqual({})
+  })
+})
+
+describe("kept row tokens", () => {
+  it("keeps a token written with keep past every TTL and across a new store on the same file", () => {
+    const path = join(mkdtempSync(join(tmpdir(), "rove-row-tokens-")), "row-tokens.json")
+    const bus = { publish: () => undefined }
+    let now = 1_000_000
+    const first = new RowTokenStore(bus, () => now, path)
+    first.set({ taskId: "t1", source: "cli", key: "doing", text: "refactoring login", keep: true })
+    first.set({ taskId: "t1", source: "cli", key: "claim", text: "@ana", ttlMs: ROW_TOKEN_MAX_TTL_MS })
+    first.close()
+    now += ROW_TOKEN_MAX_TTL_MS + 1
+
+    const restarted = new RowTokenStore(bus, () => now, path)
+
+    expect(restarted.snapshot().t1?.map((t) => t.text)).toEqual(["refactoring login"])
+    restarted.close()
+  })
+
+  it("forgets a kept token once it is cleared", () => {
+    const path = join(mkdtempSync(join(tmpdir(), "rove-row-tokens-")), "row-tokens.json")
+    const bus = { publish: () => undefined }
+    const first = new RowTokenStore(bus, Date.now, path)
+    first.set({ taskId: "t1", source: "cli", key: "doing", text: "refactoring login", keep: true })
+    first.clear("t1", "cli", "doing")
+
+    expect(new RowTokenStore(bus, Date.now, path).snapshot()).toEqual({})
   })
 })
 

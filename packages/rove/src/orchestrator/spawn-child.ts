@@ -24,7 +24,7 @@ import {
 import type { TaskCreateInput, TaskIndexStore } from "./index/store.ts"
 import { type LinkedRepo, scanLinkedRepos } from "./linked-repos.ts"
 import { PLACEHOLDER_TASK_TITLE, sanitizeTaskTitle } from "./title.ts"
-import { git } from "./worktree/git.ts"
+import { git, headCommit } from "./worktree/git.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 
 export type { SpawnChildInput }
@@ -123,7 +123,7 @@ export async function spawnChildTaskRow(deps: SpawnChildDeps, input: SpawnChildI
   const top = source ? sourceDir : gitOut(sourceDir, ["rev-parse", "--show-toplevel"])
   const sub = relative(canonPath(top), canonPath(sourceDir))
   const cwdSubpath = sub && !sub.split(sep).includes("..") && !isAbsolute(sub) ? sub : undefined
-  const baseRef = input.baseRef?.trim() || gitOut(sourceDir, ["rev-parse", "HEAD"])
+  const baseRef = input.baseRef?.trim() || headCommit(sourceDir)
   // Keep a managed parent's own repo key; a dir or linked repo resolves to its primary checkout.
   const repo = source || parent.kind === "dir" ? resolveMainRepoRoot(sourceDir) : gitRepoOf(parent)
   const parentDirty = await isDirty(deps, sourceDir)

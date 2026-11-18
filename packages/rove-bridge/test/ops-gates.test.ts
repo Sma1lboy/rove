@@ -41,33 +41,29 @@ describe("gate.answer", () => {
     })
   })
 
-  test("a closed gate and a bad option key are named, not flattened to RPC_ERROR", async () => {
-    for (const code of ["GATE_NOT_OPEN", "BAD_OPTION"]) {
-      const { api } = fakeApi({
-        "gate.answer": () => {
-          throw new Error(`${code}: nope`)
-        },
-      })
-      await expect(GATE_OPS["gate.answer"]?.run({ gateId: "g-1", option: "a" }, { api })).rejects.toMatchObject({
-        code,
-      })
-    }
+  test.each(["GATE_NOT_OPEN", "BAD_OPTION"])("%s is named, not flattened to RPC_ERROR", async (code) => {
+    const { api } = fakeApi({
+      "gate.answer": () => {
+        throw new Error(`${code}: nope`)
+      },
+    })
+    await expect(GATE_OPS["gate.answer"]?.run({ gateId: "g-1", option: "a" }, { api })).rejects.toMatchObject({
+      code,
+    })
   })
 
-  test("a malformed request never reaches the daemon", async () => {
-    for (const args of [
-      {},
-      { option: "a" },
-      { gateId: "g-1" },
-      { gateId: "--force", option: "a" },
-      { gateId: "g-1", option: "--x" },
-      { gateId: "g-1", option: 7 },
-      { gateId: "g-1", text: "   " },
-      { gateId: "g-1", text: "x".repeat(4001) },
-    ]) {
-      const { run, calls } = answer(args)
-      await expect(run).rejects.toMatchObject({ code: "BAD_ARGS" })
-      expect(calls).toEqual([])
-    }
+  test.each([
+    {},
+    { option: "a" },
+    { gateId: "g-1" },
+    { gateId: "--force", option: "a" },
+    { gateId: "g-1", option: "--x" },
+    { gateId: "g-1", option: 7 },
+    { gateId: "g-1", text: "   " },
+    { gateId: "g-1", text: "x".repeat(4001) },
+  ] as Record<string, unknown>[])("a malformed request %j never reaches the daemon", async (args) => {
+    const { run, calls } = answer(args)
+    await expect(run).rejects.toMatchObject({ code: "BAD_ARGS" })
+    expect(calls).toEqual([])
   })
 })

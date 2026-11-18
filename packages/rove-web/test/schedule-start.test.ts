@@ -25,9 +25,10 @@ describe("parseStartAt", () => {
     expect(parseStartAt("+1h30m", NOW)?.getTime()).toBe(NOW.getTime() + 90 * 60_000)
   })
 
-  test("anything that is not a time ahead is refused", () => {
-    for (const text of ["", "soon", "+", "+0m", "25:00", "9:75", "13pm", "tomorrow", "10 minutes"]) {
+  test.each(["", "soon", "+", "+0m", "25:00", "9:75", "13pm", "tomorrow", "10 minutes"])(
+    "anything that is not a time ahead is refused: %p",
+    (text) => {
       expect(parseStartAt(text, NOW)).toBeNull()
-    }
-  })
+    },
+  )
 })

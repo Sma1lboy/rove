@@ -35,7 +35,7 @@ function deps(tasks: DaemonTask[], started = true) {
       getTask: (id) => tasks.find((t) => t.id === id),
       setScheduledStart: async (id) => void calls.push(`clear:${id}`),
       setPrompt: async (id, p) => void calls.push(`prompt:${id}:${p}`),
-      ensureMainTask: async () => {
+      ensureProject: async () => {
         throw new Error("no pending start in this test")
       },
       openDirectoryTask: async () => {

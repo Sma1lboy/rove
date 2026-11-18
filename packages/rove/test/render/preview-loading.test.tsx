@@ -1,5 +1,5 @@
 /** @jsxImportSource @opentui/react */
-import { expect, test } from "bun:test"
+import { beforeAll, expect, test } from "bun:test"
 import { execFileSync } from "node:child_process"
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { writeFile } from "node:fs/promises"
@@ -8,7 +8,7 @@ import { join } from "node:path"
 import { useState } from "react"
 import { useBindings } from "../../src/tui-react/lib/keymap"
 import { PreviewScreen } from "../../src/tui-react/ops/preview"
-import { renderComponent, settle, waitForFrameText } from "./harness"
+import { act, renderComponent, settle, waitForFrameText } from "./harness"
 
 function SwitchingPreview({ worktree }: { worktree: string }) {
   const [path, setPath] = useState<string | null>("first.txt")
@@ -49,6 +49,7 @@ for (const action of ["switch", "close"] as const) {
     const expected = action === "switch" ? "SECOND FILE" : "preview closed"
     await waitForFrameText(handle.frame, expected)
     await release
+    // Negative check: nothing signals "the late read was dropped", so give it a moment to (wrongly) land.
     await settle(120)
     expect(await handle.frame()).toContain(expected)
     expect(await handle.frame()).not.toContain("LATE CONTENT")
@@ -70,37 +71,38 @@ test("a failed read has retry and a valid empty file has its own state", async (
   expect(await handle.frame()).not.toContain("Cannot read")
 })
 
-test("hunkless previews state the change and cannot anchor a review note", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "rove-preview-notes-"))
-  const git = (...args: string[]) => execFileSync("git", args, { cwd: dir })
+let notesRepo: string
+
+beforeAll(() => {
+  notesRepo = mkdtempSync(join(tmpdir(), "rove-preview-notes-"))
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: notesRepo })
   git("init", "-q")
-  writeFileSync(join(dir, "old.txt"), "unchanged\n")
-  writeFileSync(join(dir, "empty-deleted.txt"), "")
-  writeFileSync(join(dir, "binary.bin"), Buffer.from("before\0bytes"))
+  writeFileSync(join(notesRepo, "old.txt"), "unchanged\n")
+  writeFileSync(join(notesRepo, "empty-deleted.txt"), "")
+  writeFileSync(join(notesRepo, "binary.bin"), Buffer.from("before\0bytes"))
   git("add", ".")
   git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "fixture")
   git("mv", "old.txt", "new.txt")
   git("rm", "empty-deleted.txt")
-  writeFileSync(join(dir, "binary.bin"), Buffer.from("after\0bytes"))
+  writeFileSync(join(notesRepo, "binary.bin"), Buffer.from("after\0bytes"))
+})
+
+test.each([
+  ["new.txt", "renamed from old.txt"],
+  ["empty-deleted.txt", "empty file deleted"],
+  ["binary.bin", "binary file changed"],
+])("hunkless preview of %s states the change and cannot anchor a review note", async (path, label) => {
   const added: unknown[] = []
-  for (const [path, label] of [
-    ["new.txt", "renamed from old.txt"],
-    ["empty-deleted.txt", "empty file deleted"],
-    ["binary.bin", "binary file changed"],
-  ]) {
-    const handle = await renderComponent(
-      <PreviewScreen
-        worktree={dir}
-        relPath={path ?? "."}
-        review={{ comments: [], add: (note) => added.push(note), remove: () => {}, send: () => false }}
-      />,
-      { width: 100, height: 22, providers: { dialog: true, notifications: true } },
-    )
-    await waitForFrameText(handle.frame, label ?? "")
-    handle.mockInput.typeText("c")
-    await settle(80)
-    expect(await handle.frame()).not.toContain("Review note")
-    expect(added).toEqual([])
-    handle.destroy()
-  }
+  const handle = await renderComponent(
+    <PreviewScreen
+      worktree={notesRepo}
+      relPath={path}
+      review={{ comments: [], add: (note) => added.push(note), remove: () => {}, send: () => false }}
+    />,
+    { width: 100, height: 22, providers: { dialog: true, notifications: true } },
+  )
+  await waitForFrameText(handle.frame, label)
+  await act(async () => handle.mockInput.typeText("c"))
+  expect(await handle.frame()).not.toContain("Review note")
+  expect(added).toEqual([])
 })

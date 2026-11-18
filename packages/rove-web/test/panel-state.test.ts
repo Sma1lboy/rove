@@ -45,3 +45,19 @@ test("a task's panel is its own: another task opening or closing one changes not
   expect(panelShown("B")).toBe(false)
   expect(panelShown("A")).toBe(true)
 })
+
+test("the panel shows only beside its task: the New session composer and a page show none", async () => {
+  const { newSession, page } = await import("../src/ui.ts")
+  openFile("C", "README.md")
+  expect(panelShown("C")).toBe(true)
+
+  newSession.set({})
+  expect(panelShown("C")).toBe(false)
+  newSession.set(null)
+  expect(panelShown("C")).toBe(true)
+
+  page.set("routines")
+  expect(panelShown("C")).toBe(false)
+  page.set(null)
+  expect(panelShown("C")).toBe(true)
+})

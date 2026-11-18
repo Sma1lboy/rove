@@ -28,7 +28,7 @@ import { createStateCell } from "../../src/lib/external-store"
 import { WorkspaceRoot } from "../../src/tui-react/workspace/host"
 import { setUiEventReporter } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import { type PRCheckState, type Task, toTaskId } from "../../src/types/task"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent, waitForFrameText } from "./harness"
 
 let previousHome: string | undefined
 
@@ -129,7 +129,6 @@ test("checks resolving on an unselected task raise the host's toast — starting
     height: 24,
     providers: { kv: true, focus: true, dialog: true, notifications: true },
   })
-  await settle(120)
   expect(await frame()).not.toContain("Checks")
 
   // CI starts. Not a resolution — the user learns nothing from being told a
@@ -137,16 +136,13 @@ test("checks resolving on an unselected task raise the host's toast — starting
   await act(async () => {
     tasks.set([HELD, withChecks("pending")])
   })
-  await settle(120)
   expect(await frame()).not.toContain("Checks")
 
   // CI lands red: the edge worth interrupting for.
   await act(async () => {
     tasks.set([HELD, withChecks("failing")])
   })
-  await settle(120)
-  const text = await frame()
-  expect(text).toContain('Checks failed for "beta"')
+  const text = await waitForFrameText(frame, 'Checks failed for "beta"')
   // The body names WHICH pr — the sidebar chip can't, and a parallel-task user
   // has several in flight.
   expect(text).toContain("#7")
@@ -155,6 +151,5 @@ test("checks resolving on an unselected task raise the host's toast — starting
   await act(async () => {
     tasks.set([HELD, withChecks("failing")])
   })
-  await settle(120)
   expect(occurrences(await frame(), "Checks failed")).toBe(1)
 })

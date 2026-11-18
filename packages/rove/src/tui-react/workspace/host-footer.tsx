@@ -13,6 +13,7 @@ import type { ReactNode } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { engineDisplayName } from "../../engine/interactive-command"
 import { displayWidth } from "../../lib/display-width"
+import { USAGE_SHOW_KEY, type UsageShow, normalizeUsageShow } from "../../state/usage-show"
 import { StatusKeyHintBar, useStatusKeyHintItems } from "../component/keyboard-hints"
 import {
   buildFooterChips,
@@ -21,6 +22,7 @@ import {
   usageChipsBudget,
 } from "../component/settings-dialog/usage-core"
 import { ShortcutRevealProvider } from "../component/shortcut-reveal"
+import { useOptionalKV } from "../context/kv"
 import { useTheme } from "../context/theme"
 import { isNarrowWidth } from "../lib/narrow-mode"
 import { useAccessor } from "../lib/use-accessor"
@@ -65,7 +67,7 @@ function TokenChip(props: { chip: ReturnType<typeof tokenTotalChip> }) {
   )
 }
 
-function UsageChips(props: { orchestrator: RemoteOrchestrator; narrow: boolean; budget: number }) {
+function UsageChips(props: { orchestrator: RemoteOrchestrator; narrow: boolean; budget: number; show: UsageShow }) {
   const { theme } = useTheme()
   const usage = useAccessor(props.orchestrator.usageSnapshotSignal())
   const toneColor = { ok: theme.success, warn: theme.warning, crit: theme.error } as const
@@ -78,6 +80,7 @@ function UsageChips(props: { orchestrator: RemoteOrchestrator; narrow: boolean; 
           nowMs: now,
           vendorLabel: engineDisplayName,
           forceCompact: props.narrow,
+          show: props.show,
         })
       : null
   if (!view) return null
@@ -150,7 +153,8 @@ export function WorkspaceFrame(props: {
   const context = useAccessor(props.orchestrator.contextUsageSignal())
   const usageEntry =
     props.activeTaskId && props.activeTabId ? context?.get(`${props.activeTaskId}::${props.activeTabId}`) : undefined
-  const ctxChip = contextChip(usageEntry)
+  const usageShow = normalizeUsageShow(useOptionalKV()?.get(USAGE_SHOW_KEY, undefined))
+  const ctxChip = contextChip(usageEntry, usageShow)
   const tokChip = tokenTotalChip(usageEntry)
   // Same options as the rendered bar, so the budget measures what's on screen.
   const hintItems = useStatusKeyHintItems({
@@ -184,7 +188,7 @@ export function WorkspaceFrame(props: {
             <box flexGrow={1} flexShrink={1} flexDirection="row" gap={2} overflow="hidden">
               <ContextChip chip={ctxChip} />
               <TokenChip chip={tokChip} />
-              <UsageChips orchestrator={props.orchestrator} narrow={narrow} budget={chipsBudget} />
+              <UsageChips orchestrator={props.orchestrator} narrow={narrow} budget={chipsBudget} show={usageShow} />
             </box>
             {/* Narrow drops the verbs and the [settings] chip: `⌃A · F1`. */}
             <StatusKeyHintBar onOpenSettings={narrow ? undefined : props.onOpenSettings} compact={narrow} />

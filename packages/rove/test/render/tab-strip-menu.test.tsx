@@ -16,7 +16,7 @@ import { useBindings } from "../../src/tui-react/lib/keymap"
 import { TabStrip } from "../../src/tui-react/workspace/tab-strip"
 import { useTabStripMenu } from "../../src/tui-react/workspace/use-tab-strip-menu"
 import type { TerminalTab } from "../../src/tui/workspace/terminal-tabs-core"
-import { renderComponent } from "./harness"
+import { renderComponent, settle, waitForFrameText } from "./harness"
 
 process.env.ROVE_HOME_DIR ??= mkdtempSync(join(tmpdir(), "rove-tab-strip-menu-"))
 mkdirSync(join(process.env.ROVE_HOME_DIR, ".config", "rove"), { recursive: true })
@@ -26,7 +26,6 @@ writeFileSync(
 )
 
 const RIGHT = 2
-const settle = () => new Promise((r) => setTimeout(r, 80))
 
 function Driver(props: {
   tabs: readonly TerminalTab[]
@@ -45,6 +44,8 @@ function Driver(props: {
   useBindings(() => ({ bindings: [{ key: "ctrl+]", cmd: () => setActiveId("tab-1") }] }))
   const menu = useTabStripMenu({
     taskId: "alpha",
+    vendor: "claude",
+    worktree: "/repo/alpha",
     tabs,
     activeId,
     select: setActiveId,
@@ -90,23 +91,19 @@ test("right-clicking an inactive tab opens its menu, and Rename acts on that tab
     <Driver tabs={tabs} onRename={(id) => renamed.push(id)} />,
     { width: 80, height: 16, providers },
   )
-  await settle()
   const at = cellOf(await frame(), "beta-two")
-  await mockMouse.click(at.x, at.y, RIGHT)
-  await settle()
-  const open = await frame()
-  expect(open).toContain("Rename tab")
+  await act(async () => mockMouse.click(at.x, at.y, RIGHT))
+  const open = await waitForFrameText(frame, "Rename tab")
   expect(open).toContain("Copy tab address")
   expect(open).toContain("Close other tabs")
   expect(open).toContain("Close tab")
 
-  mockInput.pressEnter()
-  await settle()
+  await act(async () => mockInput.pressEnter())
   expect(renamed).toEqual(["tab-2"])
   expect(await frame()).not.toContain("Close other tabs")
 })
 
-test("an engine tab offers Continue in another engine and it acts on the clicked tab; a shell tab does not", async () => {
+test("an engine tab offers Continue in another engine and Copy session ID, acting on the clicked tab; a shell tab does not", async () => {
   const tabs: readonly TerminalTab[] = [
     { kind: "engine", id: "tab-1", title: "alpha-one", ordinal: 1 },
     { kind: "engine", id: "tab-2", title: "beta-two", ordinal: 2 },
@@ -117,21 +114,22 @@ test("an engine tab offers Continue in another engine and it acts on the clicked
     <Driver tabs={tabs} onRename={() => {}} onContinue={(id) => continued.push(id)} />,
     { width: 80, height: 16, providers },
   )
-  await settle()
   const shell = cellOf(await frame(), "gamma-three")
-  await mockMouse.click(shell.x, shell.y, RIGHT)
-  await settle()
-  expect(await frame()).not.toContain("Continue in another engine")
+  await act(async () => mockMouse.click(shell.x, shell.y, RIGHT))
+  const shellMenu = await waitForFrameText(frame, "Rename tab")
+  expect(shellMenu).not.toContain("Continue in another engine")
+  expect(shellMenu).not.toContain("Copy session ID")
   mockInput.pressEscape()
+  // The lone ESC byte is held for opentui's escape-sequence window.
   await settle()
 
   const engine = cellOf(await frame(), "beta-two")
-  await mockMouse.click(engine.x, engine.y, RIGHT)
-  await settle()
-  expect(await frame()).toContain("Continue in another engine")
-  mockInput.pressArrow("down")
-  mockInput.pressEnter()
-  await settle()
+  await act(async () => mockMouse.click(engine.x, engine.y, RIGHT))
+  expect(await waitForFrameText(frame, "Continue in another engine")).toContain("Copy session ID")
+  await act(async () => {
+    mockInput.pressArrow("down")
+    mockInput.pressEnter()
+  })
   expect(continued).toEqual(["tab-2"])
 })
 
@@ -144,12 +142,9 @@ test("a lone preview tab offers only rename and close; escape dismisses", async 
     height: 16,
     providers,
   })
-  await settle()
   const at = cellOf(await frame(), "notes.md")
-  await mockMouse.click(at.x, at.y, RIGHT)
-  await settle()
-  const open = await frame()
-  expect(open).toContain("Rename tab")
+  await act(async () => mockMouse.click(at.x, at.y, RIGHT))
+  const open = await waitForFrameText(frame, "Rename tab")
   expect(open).toContain("Close tab")
   // Nothing runs in a preview for `rove api send --tab` to reach, and no sibling to close.
   expect(open).not.toContain("Copy tab address")
@@ -171,48 +166,50 @@ test("on a narrow screen the one visible tab opens the same menu", async () => {
     height: 16,
     providers,
   })
-  await settle()
   const at = cellOf(await frame(), "alpha-one")
-  await mockMouse.click(at.x, at.y, RIGHT)
-  await settle()
-  expect(await frame()).toContain("Close other tabs")
+  await act(async () => mockMouse.click(at.x, at.y, RIGHT))
+  expect(await waitForFrameText(frame, "Close other tabs")).toContain("Close other tabs")
 })
 
-for (const change of ["keyboard", "external selection", "disappearance"] as const) {
-  for (const action of ["rename", "close"] as const) {
-    test(`${action} cannot act on a stale menu after ${change}`, async () => {
-      const tabs: readonly TerminalTab[] = [
-        { kind: "engine", id: "tab-1", title: "alpha-one", ordinal: 1 },
-        { kind: "engine", id: "tab-2", title: "beta-two", ordinal: 2 },
-      ]
-      const actions: string[] = []
-      const controls: { select?: (id: string) => void; remove?: () => void } = {}
-      const { frame, mockMouse, mockInput } = await renderComponent(
-        <Driver
-          tabs={tabs}
-          controls={controls}
-          onRename={(id) => actions.push(`rename:${id}`)}
-          onClose={(id) => actions.push(`close:${id}`)}
-        />,
-        { width: 80, height: 16, providers },
-      )
-      await settle()
-      const at = cellOf(await frame(), "beta-two")
-      await mockMouse.click(at.x, at.y, RIGHT)
-      await settle()
-      if (action === "close") {
-        for (let i = 0; i < 3; i++) act(() => mockInput.pressKey("j"))
-      }
-      act(() => {
-        if (change === "keyboard") mockInput.pressKey("]", { ctrl: true })
-        else if (change === "external selection") controls.select?.("tab-1")
-        else controls.remove?.()
-      })
-      await settle()
-      act(() => mockInput.pressEnter())
-      await settle()
-      expect(actions).toEqual([])
-      expect(await frame()).not.toContain("Rename tab")
-    })
-  }
-}
+type MenuInput = { pressKey: (key: string, modifiers?: { ctrl?: boolean }) => void }
+type MenuControls = { select?: (id: string) => void; remove?: () => void }
+
+/** How the menu goes stale under the user: the active tab moves, or the clicked tab goes away. */
+const CHANGES = [
+  ["keyboard", (input: MenuInput) => input.pressKey("]", { ctrl: true })],
+  ["external selection", (_input: MenuInput, controls: MenuControls) => controls.select?.("tab-1")],
+  ["disappearance", (_input: MenuInput, controls: MenuControls) => controls.remove?.()],
+] as const
+/** Cursor moves from the menu's first row onto the verb: rename, continue, copy address, copy session, close others, close. */
+const ACTIONS = [
+  ["rename", 0],
+  ["close", 5],
+] as const
+
+test.each(
+  ACTIONS.flatMap(([action, moves]) => CHANGES.map(([change, mutate]) => [action, change, moves, mutate] as const)),
+)("%s cannot act on a stale menu after %s", async (_action, _change, moves, mutate) => {
+  const tabs: readonly TerminalTab[] = [
+    { kind: "engine", id: "tab-1", title: "alpha-one", ordinal: 1 },
+    { kind: "engine", id: "tab-2", title: "beta-two", ordinal: 2 },
+  ]
+  const actions: string[] = []
+  const controls: MenuControls = {}
+  const { frame, mockMouse, mockInput } = await renderComponent(
+    <Driver
+      tabs={tabs}
+      controls={controls}
+      onRename={(id) => actions.push(`rename:${id}`)}
+      onClose={(id) => actions.push(`close:${id}`)}
+    />,
+    { width: 80, height: 16, providers },
+  )
+  const at = cellOf(await frame(), "beta-two")
+  await act(async () => mockMouse.click(at.x, at.y, RIGHT))
+  await waitForFrameText(frame, "Rename tab")
+  Array.from({ length: moves }, () => act(() => mockInput.pressKey("j")))
+  await act(async () => mutate(mockInput, controls))
+  await act(async () => mockInput.pressEnter())
+  expect(actions).toEqual([])
+  expect(await frame()).not.toContain("Rename tab")
+})

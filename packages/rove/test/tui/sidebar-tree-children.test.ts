@@ -120,8 +120,8 @@ describe("child tasks", () => {
   test("nest under a parent in another project, and drop the header left with nothing", () => {
     const result = rows({
       tasks: [
-        task("m1", { kind: "main", repo: "/repos/a", branch: "", worktreePath: "/repos/a" }),
-        task("m2", { kind: "main", repo: "/repos/b", branch: "", worktreePath: "/repos/b" }),
+        task("m1", { kind: "dir", repo: "/repos/a", branch: "", worktreePath: "/repos/a" }),
+        task("m2", { kind: "dir", repo: "/repos/b", branch: "", worktreePath: "/repos/b" }),
         task("far", { repo: "/repos/b", parentTaskId: toTaskId("m1") }),
       ],
     })
@@ -134,7 +134,7 @@ describe("child tasks", () => {
     ])
     const onlyChild = rows({
       tasks: [
-        task("m1", { kind: "main", repo: "/repos/a", branch: "", worktreePath: "/repos/a" }),
+        task("m1", { kind: "dir", repo: "/repos/a", branch: "", worktreePath: "/repos/a" }),
         task("far", { repo: "/repos/b", parentTaskId: toTaskId("m1") }),
       ],
     })

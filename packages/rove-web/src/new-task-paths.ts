@@ -89,7 +89,7 @@ export function deriveFolderName(url: string): string {
   return (cut >= 0 ? trimmed.slice(cut + 1) : trimmed).replace(/\.git$/i, "")
 }
 
-/** localStorage key of the folder clones land in; the New task dialog's clone tab and the composer share it. */
+/** localStorage key of the folder the New task dialog's clone tab last cloned into. */
 export const CLONE_PARENT_KEY = "rove.web.cloneParent"
 
 const GIT_URL = /^(?:(?:https?|ssh|git):\/\/[A-Za-z0-9[]\S*|[A-Za-z0-9._-]+@[A-Za-z0-9][A-Za-z0-9.-]*:\S+)$/i

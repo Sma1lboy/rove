@@ -48,8 +48,8 @@ export function buildIssueChatBackgroundSpawn(input: {
   vendor: VendorId
   /** Shell-ready `rove api` prefix for the prompt's status protocol. */
   api: string
-  /** The task's kind (default `task`); a child sharing the main checkout is `dir`. */
-  kind?: "main" | "task" | "dir"
+  /** The task's kind (default `task`); a child sharing a `dir` task's checkout is `dir`. */
+  kind?: "task" | "dir"
   /** Replaces the worktree story prompt (the `project` placement's variant). */
   prompt?: string
   shell?: string
@@ -84,7 +84,7 @@ export function buildIssueChatBackgroundSpawn(input: {
  * that passes the first-tab prompt policy (the real tab-1 already spawned).
  */
 export function buildIssueTabSpawn(input: {
-  /** The task hosting the tab (the repo's main task) + its checkout. */
+  /** The task hosting the tab + its checkout. */
   taskId: string
   repoRoot: string
   worktreePath: string
@@ -105,7 +105,7 @@ export function buildIssueTabSpawn(input: {
     live: false,
     shell: input.shell ?? defaultShell(),
     prompt: input.prompt,
-    task: { id: input.taskId, kind: "main", vendor: input.vendor, repo: input.repoRoot },
+    task: { id: input.taskId, kind: "dir", vendor: input.vendor, repo: input.repoRoot },
     worktreePath: input.worktreePath,
     inlineImages: terminalDrawsKitty(),
   })

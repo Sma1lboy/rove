@@ -102,24 +102,23 @@ describe("the tasks payload", () => {
   afterEach(() => mock.restore())
 
   test("carries the gates signal next to tasks and attention", async () => {
-    const client = {
-      request: async (name: string) => {
-        if (name === "task.list") return { tasks }
-        if (name === "attention.list")
-          return {
-            items: [
-              {
-                taskId: "T1",
-                tabId: null,
-                state: "decision_needed",
-                unread: true,
-                at: 5,
-                detail: { gate: { id: "g-7", question: "Which approach?", options: [] } },
-              },
-            ],
-          }
-        throw new Error("not served")
+    const replies: Record<string, unknown> = {
+      "task.list": { tasks },
+      "attention.list": {
+        items: [
+          {
+            taskId: "T1",
+            tabId: null,
+            state: "decision_needed",
+            unread: true,
+            at: 5,
+            detail: { gate: { id: "g-7", question: "Which approach?", options: [] } },
+          },
+        ],
       },
+    }
+    const client = {
+      request: async (name: string) => replies[name] ?? Promise.reject(new Error("not served")),
     } as unknown as RoveDaemonClient
     const ops = createRoveOps(client, {
       changes: () => null,

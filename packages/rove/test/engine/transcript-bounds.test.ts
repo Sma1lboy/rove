@@ -63,13 +63,8 @@ describe("codex listRolloutFiles complete traversal", () => {
     )
     const deps: HistoryDeps = {
       sessionsDir: () => "/s",
-      readdir: async (p) => {
-        if (p === "/s") return ["2026"]
-        if (p === "/s/2026") return ["06"]
-        if (p === "/s/2026/06") return ["10"]
-        if (p === "/s/2026/06/10") return files
-        return []
-      },
+      readdir: async (p) =>
+        ({ "/s": ["2026"], "/s/2026": ["06"], "/s/2026/06": ["10"], "/s/2026/06/10": files })[p] ?? [],
       readFile: async () => "",
       stat: async () => ({ mtimeMs: 0 }),
     }

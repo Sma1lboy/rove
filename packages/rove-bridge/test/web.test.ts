@@ -15,11 +15,12 @@ afterEach(() => {
 })
 
 function webRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), "rove-web-"))
+  const parent = mkdtempSync(join(tmpdir(), "rove-web-"))
+  const root = join(parent, "root")
+  mkdirSync(join(root, "assets"), { recursive: true })
   writeFileSync(join(root, "index.html"), "<!doctype html><title>shell</title>")
-  mkdirSync(join(root, "assets"))
   writeFileSync(join(root, "assets", "app-abc.js"), "console.log(1)")
-  writeFileSync(join(tmpdir(), "rove-web-secret.txt"), "outside")
+  writeFileSync(join(parent, "rove-web-secret.txt"), "outside")
   return root
 }
 

@@ -47,11 +47,12 @@ describe("maybeAutoStart", () => {
     expect(orch.moves).toEqual([])
   })
 
-  it("never touches a task the user placed anywhere else", async () => {
-    for (const status of ["in_progress", "in_review", "done", "canceled", "error"] as const) {
+  it.each(["in_progress", "in_review", "done", "canceled", "error"] as const)(
+    "never touches a task the user placed in %s",
+    async (status) => {
       const orch = fakeOrch(task({ status }))
       await expect(maybeAutoStart(orch, "t1", () => true)).resolves.toBe("skipped")
       expect(orch.moves).toEqual([])
-    }
-  })
+    },
+  )
 })

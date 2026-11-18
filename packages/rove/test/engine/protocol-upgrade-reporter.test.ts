@@ -22,7 +22,7 @@ import { startActivityObserver } from "@sma1lboy/rove-daemon/daemon/activity-obs
 import { DaemonActivityRegistry } from "@sma1lboy/rove-daemon/daemon/activity-registry"
 import { createProtocolUpgradeReporter } from "@sma1lboy/rove-daemon/daemon/collectors"
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { protocolUpgradeFromLiveSession } from "../../src/engine/protocol-sniff.ts"
 import { engineTitleTurnHint } from "../../src/engine/registry.ts"
 
@@ -95,11 +95,17 @@ describe("createProtocolUpgradeReporter", () => {
 })
 
 describe("observer → reporter relay", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   const waitFor = async (cond: () => boolean, timeoutMs = 1500): Promise<void> => {
-    const deadline = Date.now() + timeoutMs
-    while (!cond()) {
-      if (Date.now() > deadline) throw new Error("condition not met in time")
-      await new Promise((r) => setTimeout(r, 10))
+    for (let elapsed = 0; !cond(); elapsed += 5) {
+      if (elapsed > timeoutMs) throw new Error("condition not met in time")
+      await vi.advanceTimersByTimeAsync(5)
     }
   }
 
@@ -154,7 +160,7 @@ describe("observer → reporter relay", () => {
     const orch = fakeOrch({ vendor: "generic", command: "my-repl" })
     observe(orch, [{ key: "task-1::tab-1", pid: 42, title: "my-repl" }], new Map([[42, null]]))
     // Let several observe ticks (and a walk) pass, then assert nothing wrote.
-    await new Promise((r) => setTimeout(r, 120))
+    await vi.advanceTimersByTimeAsync(120)
     expect(orch.setCommandCalls).toEqual([])
     expect(orch.tasks.get("task-1")?.vendor).toBe("generic")
   })

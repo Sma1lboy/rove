@@ -93,7 +93,8 @@ beforeEach(() => {
   mocks.adapter.supportsWorktreeSync.mockClear().mockReturnValue(true)
   mocks.adapter.activityDetailFromPayload.mockClear().mockReturnValue(undefined)
   mocks.adapter.sessionFromPayload.mockClear().mockReturnValue(undefined)
-  mocks.adapter.isUnattendedSession.mockClear().mockReturnValue(false)
+  // Reassigned, not cleared: one test deletes the optional method outright.
+  mocks.adapter.isUnattendedSession = vi.fn(() => false)
   mocks.adapter.globalSettingsPath.mockClear().mockReturnValue("/fake/.claude/settings.json")
   mocks.adapter.installActivityHooks.mockClear()
   mocks.adapter.cwdFromPayload.mockReset().mockReturnValue(undefined)
@@ -193,16 +194,12 @@ describe("runHookSubcommand — activity verbs", () => {
   // absent) must keep reporting — the guard may never silence a whole vendor.
   it("keeps reporting for an engine whose adapter has no attendance signal", async () => {
     Reflect.deleteProperty(mocks.adapter, "isUnattendedSession")
-    try {
-      stubStdin({ cwd: "/some/task/worktree" })
-      await runHookSubcommand(["turn-complete"])
-      expect(mocks.request).toHaveBeenCalledWith("engine.reportEvent", {
-        cwd: "/some/task/worktree",
-        kind: "turn-complete",
-      })
-    } finally {
-      mocks.adapter.isUnattendedSession = vi.fn(() => false)
-    }
+    stubStdin({ cwd: "/some/task/worktree" })
+    await runHookSubcommand(["turn-complete"])
+    expect(mocks.request).toHaveBeenCalledWith("engine.reportEvent", {
+      cwd: "/some/task/worktree",
+      kind: "turn-complete",
+    })
   })
 
   it("attaches the adapter's normalized detail when one is produced", async () => {

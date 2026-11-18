@@ -12,7 +12,7 @@
 import { expect, test } from "bun:test"
 import { createStateCell } from "../../src/lib/external-store"
 import { AutomationsPage } from "../../src/tui-react/component/automations-page"
-import { renderComponent } from "./harness"
+import { renderComponent, settle, waitForFrameText } from "./harness"
 
 const NOW = Date.now()
 const AUTOMATION = {
@@ -35,6 +35,17 @@ const AUTOMATION = {
  *  changes, so a cell built inside the accessor would churn every render. */
 const ONLINE = createStateCell("online")
 
+/** The first `listAutomations()` result has rendered. */
+const EMPTY_LOADED = "No routines scheduled."
+
+async function waitUntil(check: () => boolean | Promise<boolean>): Promise<void> {
+  const deadline = Date.now() + 3_000
+  while (!(await check())) {
+    if (Date.now() >= deadline) throw new Error("condition not met within 3000ms")
+    await settle(20)
+  }
+}
+
 function orchestrator(automations: unknown[] = []) {
   return {
     // The page does not read this; kept so a re-added reader can't silently
@@ -53,18 +64,16 @@ test("esc closes the create flow", async () => {
     <AutomationsPage orchestrator={orchestrator() as never} focused={true} onClose={() => {}} />,
     { width: 60, height: 16, providers: { dialog: true, notifications: true } },
   )
-  await new Promise((r) => setTimeout(r, 100))
+  await waitForFrameText(frame, EMPTY_LOADED)
   mockInput.typeText("n")
-  await new Promise((r) => setTimeout(r, 100))
-  expect(await frame()).toContain("New routine")
+  await waitForFrameText(frame, "New routine")
   mockInput.pressEscape()
-  await new Promise((r) => setTimeout(r, 100))
-  expect(await frame()).not.toContain("New routine")
+  await waitUntil(async () => !(await frame()).includes("New routine"))
 })
 
 test("esc closes the page", async () => {
   let closed = false
-  const { mockInput } = await renderComponent(
+  const { frame, mockInput } = await renderComponent(
     <AutomationsPage
       orchestrator={orchestrator() as never}
       focused={true}
@@ -74,10 +83,9 @@ test("esc closes the page", async () => {
     />,
     { width: 60, height: 16, providers: { dialog: true, notifications: true } },
   )
-  await new Promise((r) => setTimeout(r, 100))
+  await waitForFrameText(frame, EMPTY_LOADED)
   mockInput.pressEscape()
-  await new Promise((r) => setTimeout(r, 100))
-  expect(closed).toBe(true)
+  await waitUntil(() => closed)
 })
 
 test("keys stay dead while another pane holds focus", async () => {
@@ -87,9 +95,8 @@ test("keys stay dead while another pane holds focus", async () => {
     <AutomationsPage orchestrator={orchestrator() as never} focused={false} onClose={() => {}} />,
     { width: 60, height: 16, providers: { dialog: true, notifications: true } },
   )
-  await new Promise((r) => setTimeout(r, 100))
+  await waitForFrameText(frame, EMPTY_LOADED)
   mockInput.typeText("n")
-  await new Promise((r) => setTimeout(r, 100))
   expect(await frame()).not.toContain("New routine")
 })
 
@@ -100,18 +107,12 @@ test("the schedule row is five editable cells, not a text field", async () => {
     <AutomationsPage orchestrator={orchestrator() as never} focused={true} onClose={() => {}} />,
     { width: 72, height: 30, providers: { dialog: true, notifications: true } },
   )
-  await new Promise((r) => setTimeout(r, 120))
+  await waitForFrameText(frame, EMPTY_LOADED)
   mockInput.typeText("n")
-  await new Promise((r) => setTimeout(r, 120))
-
-  const before = await frame()
-  expect(before).toContain("0 9 * * MON-FRI".split(" ").join("    ").slice(0, 1))
+  // The whole thing is restated in words plus a real next-run time.
+  const before = await waitForFrameText(frame, "weekdays at 09:00")
   // Each cell is labelled — the structure is visible without knowing cron.
-  for (const label of ["min", "hour", "day", "month", "weekday"]) {
-    expect(before, label).toContain(label)
-  }
-  // And the whole thing is restated in words plus a real next-run time.
-  expect(before).toContain("weekdays at 09:00")
+  expect(before).toMatch(/min.*hour.*day.*month.*weekday/)
 
   // Tab to schedule (name → repo → target → prompt → schedule), step to the hour cell,
   // and change it.
@@ -119,10 +120,9 @@ test("the schedule row is five editable cells, not a text field", async () => {
   mockInput.pressTab()
   mockInput.pressTab()
   mockInput.pressTab()
-  await new Promise((r) => setTimeout(r, 60))
+  await frame()
   mockInput.pressArrow("right")
   mockInput.pressArrow("up")
-  await new Promise((r) => setTimeout(r, 80))
 
   // The hour ladder starts at `*`, so one step off `9` lands there and the
   // description follows it.
@@ -136,8 +136,7 @@ test("a selected routine offers an on-demand run", async () => {
     <AutomationsPage orchestrator={orchestrator([AUTOMATION]) as never} focused={true} onClose={() => {}} />,
     { width: 74, height: 20, providers: { dialog: true, notifications: true } },
   )
-  await new Promise((r) => setTimeout(r, 150))
-  expect(await frame()).toContain("run now")
+  await waitForFrameText(frame, "run now")
 })
 
 test.each([
@@ -157,30 +156,30 @@ test.each([
     <AutomationsPage orchestrator={orch as never} focused={true} focusRepo={focusRepo} onClose={() => {}} />,
     { width: 100, height: 48, providers: { dialog: true, notifications: true } },
   )
-  await new Promise((r) => setTimeout(r, 100))
+  await waitForFrameText(frame, EMPTY_LOADED)
   mockInput.typeText("n")
-  await new Promise((r) => setTimeout(r, 100))
+  await waitForFrameText(frame, "New routine")
   mockInput.typeText("Existing routine")
   mockInput.pressTab()
   mockInput.pressTab()
-  await new Promise((r) => setTimeout(r, 30))
+  await frame()
   mockInput.pressArrow("down")
-  await new Promise((r) => setTimeout(r, 30))
-  expect(await frame()).toContain("My existing task")
-  expect(await frame()).toContain("EXISTING ENGINE TAB")
+  const bound = await frame()
+  expect(bound).toContain("My existing task")
+  expect(bound).toContain("EXISTING ENGINE TAB")
   mockInput.pressTab()
-  await new Promise((r) => setTimeout(r, 30))
+  await frame()
   mockInput.pressArrow("right")
   mockInput.pressBackspace()
   mockInput.typeText("2")
   mockInput.pressTab()
-  await new Promise((r) => setTimeout(r, 30))
+  await frame()
   mockInput.typeText("Run the report")
   mockInput.pressTab()
   mockInput.pressTab()
-  await new Promise((r) => setTimeout(r, 30))
+  await frame()
   mockInput.pressEnter()
-  await new Promise((r) => setTimeout(r, 100))
+  await waitUntil(() => calls.length > 0)
   expect(calls).toEqual([
     expect.objectContaining({
       name: "Existing routine",
@@ -212,9 +211,7 @@ test("a bound routine shows its exact target in the detail box", async () => {
     <AutomationsPage orchestrator={orch as never} focused={true} onClose={() => {}} />,
     { width: 110, height: 28, providers: { dialog: true, notifications: true } },
   )
-  await new Promise((r) => setTimeout(r, 150))
-  const text = await frame()
-  expect(text).toContain("My existing task / tab-2")
+  const text = await waitForFrameText(frame, "My existing task / tab-2")
   expect(text).toContain("tab-2")
 })
 
@@ -232,9 +229,7 @@ test("a routine says what its runs launch on: the model on its row, engine and m
     <AutomationsPage orchestrator={orchestrator([pinned, bound]) as never} focused={true} onClose={() => {}} />,
     { width: 130, height: 30, providers: { dialog: true, notifications: true } },
   )
-  await Bun.sleep(150)
-  const text = await frame()
-  expect(text).toContain("0 9 * * MON-FRI · gpt-9-test")
+  const text = await waitForFrameText(frame, "0 9 * * MON-FRI · gpt-9-test")
   expect(text).toContain("Codex · gpt-9-test · high")
   // A bound tab keeps its own engine: the routine's stored one would be a lie.
   expect(text).not.toContain("never-shown")
@@ -264,8 +259,7 @@ test("a click on an older run opens that run's task, not the latest", async () =
     />,
     { width: 110, height: 28, providers: { dialog: true, notifications: true } },
   )
-  await new Promise((r) => setTimeout(r, 150))
-  const lines = (await frame()).split("\n")
+  const lines = (await waitForFrameText(frame, "#1 ")).split("\n")
   const y = lines.findIndex((line) => line.includes("#1 "))
   expect(y).toBeGreaterThan(0)
   await mockMouse.click((lines[y] ?? "").indexOf("#1 ") + 1, y)

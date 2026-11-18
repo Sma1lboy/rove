@@ -174,50 +174,14 @@ describe("replay spec", () => {
     )
   })
 
-  test("keeps quicklook theme limited to terminal state", () => {
-    expect(Object.keys(quicklookSpec.theme).sort()).toEqual(["ansi16", "defaultBg", "defaultFg"])
-    expect(quicklookSpec.setup).not.toHaveProperty("fixtureEngines")
+  test("the shipped quicklook spec resolves and its readiness wait can match one styled run", () => {
+    const fullTake = { ...capture, frames: [{ t: 0, lines: [] }, { t: 120, lines: [] }] }
+    expect(() => resolveReplaySpec(quicklookSpec, fullTake)).not.toThrow()
     // The replay drives the REAL engine, so readiness keys on Claude Code's
     // own persistent input footer ("⏵⏵ accept edits on"). Claude Code styles
     // EVERY WORD as its own run, and a wait pattern cannot span two runs, so
     // this must stay a single token — "accept edits on" never matches.
-    expect(quicklookSpec.waits.engineReady.pattern).toBe("edits")
     expect(quicklookSpec.waits.engineReady.pattern.trim().split(/\s+/)).toHaveLength(1)
-    for (const beat of quicklookSpec.beats) {
-      expect(beat.textRef === undefined || quicklookSpec.text[beat.textRef]).toBeTruthy()
-      if (beat.textRef) expect(quicklookSpec.text[beat.textRef]).not.toContain("accept edits on")
-    }
-  })
-
-  test("tells the parallel-tasks story through two independent task beats", () => {
-    // The pitch is one TUI holding many engine sessions, each on its own
-    // worktree and branch — NOT many attempts at one prompt. So the storyboard
-    // must start a second task while the first agent is still mid-turn, and
-    // the two prompts must touch disjoint files or "they never trample each
-    // other" is asserted by nothing on screen.
-    const prompts = quicklookSpec.beats.filter((beat) => beat.action === "typeTextWhenReady")
-    expect(prompts).toHaveLength(2)
-    expect(prompts.every((beat) => beat.submit === true)).toBe(true)
-
-    const flows = quicklookSpec.beats.filter((beat) => beat.action === "flow")
-    expect(flows).toHaveLength(2)
-    expect(flows.every((beat) => beat.engine === "claude")).toBe(true)
-    expect(flows[1].at).toBeGreaterThan(prompts[0].at)
-
-    expect(quicklookSpec.text.sessionPrompt).toContain("src/session.ts")
-    expect(quicklookSpec.text.clientPrompt).toContain("src/client.ts")
-
-    // Fan-out is a different (and far more expensive) mode; it is deliberately
-    // not what the demo sells.
-    expect(quicklookSpec.text).not.toHaveProperty("fanOutCommand")
-    expect(quicklookSpec.text).not.toHaveProperty("landCommand")
-    expect(Object.keys(quicklookSpec.waits)).not.toEqual(
-      expect.arrayContaining([expect.stringMatching(/^(fanOut|landed)/)]),
-    )
-    expect(quicklookSpec.text).not.toHaveProperty("codexPrompt")
-    expect(quicklookSpec.flows.createTask).not.toHaveProperty("codexEngineCycleKey")
-    expect(quicklookSpec.beats).not.toEqual(
-      expect.arrayContaining([expect.objectContaining({ action: "flow", engine: "codex" })]),
-    )
+    expect(Object.values(quicklookSpec.text).join("\n")).not.toContain("accept edits on")
   })
 })

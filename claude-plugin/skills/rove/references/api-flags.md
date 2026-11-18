@@ -135,8 +135,8 @@ needs numbers, not when you want to know what a task is doing.
 
 <!-- generated:begin drive -->
 ```text
-send               --task-id --prompt|--prompt-file --tab --replace --command --respawn
-                   --plain --allow-empty --expect-report --if-runnable --queue
+send               --task-id --repo --prompt|--prompt-file --tab --replace --command
+                   --respawn --plain --allow-empty --expect-report --if-runnable --queue
 dispatch           --task-id(REQ) --prompt|--prompt-file(REQ) --tab
 interrupt          --task-id --group --all --tab
 resume-quota       --task-id --all
@@ -151,7 +151,7 @@ pane-close         --task-id --title(REQ) --tab
 pane-graphics      --task-id --tab(REQ) --image-id
 tab-close          --task-id(REQ) --tab(REQ)
 tab-new            --task-id(REQ) --kind{shell|engine|editor|pane|viewport}(REQ) --command
-                   --latest --file --line --pane --tab --view-task --type
+                   --latest --file --line --pane --tab --view-task --type --own
 tab-split          --task-id(REQ) --tab(REQ) --action{open|close|rename|reset}(REQ)
                    --direction{right|down}(right) --leaf --title --cols --rows
 tab-revive         --task-id(REQ) --tab(REQ) --restart-exited
@@ -161,7 +161,7 @@ prompt             --title(REQ) --placeholder --initial --timeout
 engine-report      --task-id
                    --kind{session-start|turn-start|turn-complete|turn-failed|turn-interrupted|awaiting-input|session-end|tool-pre|tool-post|tool-failed|pre-compact|post-compact|subagent-start|subagent-stop}(REQ)
                    --engine --tab --detail
-row-token          --task-id(REQ) --text --ttl(60) --key(default)
+row-token          --task-id(REQ) --text --ttl(60) --keep --key(default)
                    --tone{info|success|warning|error|muted} --clear
 set-active         --task-id --none
 report             --delivery --outcome{done|partial|blocked|failed} --summary --evidence
@@ -249,34 +249,35 @@ clear the shared active task.
 
 <!-- generated:begin create,edit,lifecycle -->
 ```text
-publish        --task-id(REQ) --remote
-pr-attach      --url(REQ) --task-id
-add            --repo(REQ) --clone --fork --workspace{layerfs} --workspace-on
-               --engine-there --allow-fork --parent --no-parent --no-worktree
-               --handoff-from --no-dispatcher --isolate-in --title --branch --base-branch
-               --base-for --worktree-name --command --effort
-               --tier{swift|standard|deep|auto} --model --count
-               --agents <claude:2,codex:1>
-               --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
-               --require-report --expect-report --activate(false) --worktree-only --start
-               --prompt|--prompt-file
-update         --task-id --title --tab --branch --parent --project --group --command
-               --model --effort --pinned --kept --require-report{on|off}
-               --auto-fix-ci{on|off}
-               --status{backlog|in_progress|in_review|done|canceled|error} --report-branch
-               --report-pr --report-summary
-todo           --task-id --add --check --uncheck --edit --text --remove --notes
-               --clear-notes
-land           --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delete-branch
-               --remove-worktree(true) --repo
-sync           --task-id(REQ) --repo
-delete         --task-id --group --cascade --force --delete-branch --delete-remote --wait
-archive        --task-id(REQ) --force
-unarchive      --task-id(REQ)
-github-login   --cancel
-github-logout  (none)
-github-sync    --to(REQ)
-github-apply   --token(REQ)
+publish         --task-id(REQ) --remote
+pr-attach       --url(REQ) --task-id
+add             --repo(REQ) --clone --fork --workspace{layerfs} --workspace-on
+                --engine-there --allow-fork --parent --no-parent --no-worktree
+                --handoff-from --no-dispatcher --isolate-in --title --branch --base-branch
+                --base-for --worktree-name --command --effort
+                --tier{swift|standard|deep|auto} --model --count
+                --agents <claude:2,codex:1>
+                --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
+                --require-report --expect-report --activate(false) --worktree-only --start
+                --prompt|--prompt-file
+update          --task-id --title --tab --branch --parent --project --group --command
+                --model --effort --pinned --kept --require-report{on|off}
+                --auto-fix-ci{on|off}
+                --status{backlog|in_progress|in_review|done|canceled|error}
+                --report-branch --report-pr --report-summary
+todo            --task-id --add --check --uncheck --edit --text --remove --notes
+                --clear-notes
+land            --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delete-branch
+                --remove-worktree(true) --repo
+sync            --task-id(REQ) --repo
+delete          --task-id --group --cascade --force --delete-branch --delete-remote --wait
+archive         --task-id(REQ) --force
+unarchive       --task-id(REQ)
+github-login    --cancel
+github-logout   (none)
+github-sync     --to(REQ)
+github-apply    --token(REQ)
+machine-update  --to(REQ)
 ```
 <!-- generated:end -->
 
@@ -311,6 +312,7 @@ checkpoint          --task-id(REQ)
 rewind              --task-id(REQ) --to(REQ) --force
 export-branch       --task-id(REQ)
 worktree-usage      --task-id --idle-days --merged
+worktree-reclaim    --idle-days --merged --dry-run
 discover-adoptable  --repo(REQ)
 adopt               --repo(REQ) --worktree(REQ) --branch --command --title
 ```

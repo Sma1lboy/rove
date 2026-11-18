@@ -63,12 +63,12 @@ describe("resolveThemeSlotHex", () => {
     expect(resolveThemeSlotHex(theme, "missing")).toBeNull()
   })
 
-  test("every bundled theme resolves the slots the border styling needs", () => {
-    for (const [name, json] of Object.entries(BUNDLED_THEME_JSONS)) {
+  test.each(Object.entries(BUNDLED_THEME_JSONS))(
+    "bundled theme %s resolves the slots the border styling needs",
+    (_name, json) => {
       const border = resolveThemeSlotHex(json, "border") ?? resolveThemeSlotHex(json, "text")
-      const primary = resolveThemeSlotHex(json, "primary")
-      expect(border, `${name} border`).toMatch(/^#[0-9a-f]{6}$/)
-      expect(primary, `${name} primary`).toMatch(/^#[0-9a-f]{6}$/)
-    }
-  })
+      expect(border).toMatch(/^#[0-9a-f]{6}$/)
+      expect(resolveThemeSlotHex(json, "primary")).toMatch(/^#[0-9a-f]{6}$/)
+    },
+  )
 })

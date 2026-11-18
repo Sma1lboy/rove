@@ -7,7 +7,7 @@
  * mode's "↩ recent" row never appears.
  */
 
-import { describe, expect, it } from "bun:test"
+import { afterEach, describe, expect, it } from "bun:test"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -16,7 +16,7 @@ import { createStateCell } from "../../src/lib/external-store"
 import { useWorkspaceSelection } from "../../src/tui-react/workspace/use-workspace-selection"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent } from "./harness"
 
 function task(id: string): Task {
   return {
@@ -49,6 +49,11 @@ function mockOrchestrator(activeCell: ReturnType<typeof createStateCell<string |
 }
 
 const KV = { store: {}, set: () => {} }
+const priorHome = process.env.ROVE_HOME_DIR
+afterEach(() => {
+  if (priorHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = priorHome
+})
 
 function Probe(props: {
   orch: RemoteOrchestrator
@@ -87,20 +92,18 @@ describe("selectTask on a fresh home", () => {
       />,
       { width: 46, height: 10 },
     )
-    await settle()
+    await act(async () => {})
     // Fresh home: the fallback effect selected the first task, but nothing
     // was PUBLISHED — the active record is still null.
     expect(selectedId).toBe("alpha")
     expect(published).toEqual([])
 
     // Entering that pre-selected task must publish it.
-    act(() => selectTask?.("alpha"))
-    await settle()
+    await act(async () => selectTask?.("alpha"))
     expect(published).toEqual(["alpha"])
 
     // Idempotent: once the daemon agrees, re-entering does not re-publish.
-    act(() => selectTask?.("alpha"))
-    await settle()
+    await act(async () => selectTask?.("alpha"))
     expect(published).toEqual(["alpha"])
   })
 })
