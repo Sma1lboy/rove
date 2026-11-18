@@ -491,3 +491,11 @@ Run 1 (patched) exited 0, nothing past tolerance: firstFrame 416.1, boot.ready 1
 **Sandbox:** bun 1.3.14 from npm, `ELECTRON_SKIP_BINARY_DOWNLOAD=1`; dir symlinks `/tmp/pwshim/chromium_headless_shell-{1243,1228}` → `/opt/pw-browsers/chromium_headless_shell-1243`.
 
 **Update 2026-11-17:** #2102 merged. Next run needs no local patch to perf-golden.ts.
+
+## 2026-11-18 — notes, no attempt (main 19205f8)
+
+**No regression.** One run, exit 0, nothing past tolerance in either direction, so the baseline is unchanged. Counts at floor: switch commit.root/workspace 6, sidebar 2, frame 2.5, overlay 3, stateNotify/stateListener 2, spawns 0.1; typing 1/key everywhere (spawns 0.07, the 2 s foreground walk); idle 0. Timings: boot.firstFrame 847.9 (+224, inside the 50% tolerance), boot.ready 2194, switch.shown 194, typing.echo 156.4, cli-startup 34.4, vt-1mb-parse 118. 27 commits since 4a510ee (28 files under `packages/rove/src`), no count moved. Only open issue is #2106 (panel-show), so no `perf:` issues. Tonight's history line is this run.
+
+**No attempt:** same as 11-13 to 11-17. Every measured per-op count is at its floor. The owner calls still stand: give the nightly a new scenario so it has counts to optimize, and make the idle phase wait for quiet instead of a fixed 3 s.
+
+**Sandbox:** bun 1.3.14 from npm; `bun install --frozen-lockfile` passed on the first try. Dir symlinks `/tmp/pwshim/chromium_headless_shell-{1243,1228}` → `/opt/pw-browsers/chromium_headless_shell-1243`.
