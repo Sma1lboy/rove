@@ -14,6 +14,7 @@ configured using Git-style forward slashes without creating a second entry.
 | `~/.config/rove/state.json` | All your preferences, as flat JSON | Rove (Settings, CLI); yours to hand-edit |
 | `~/.rove/secrets.json` | Credentials Rove holds for you (today: the tier classifier's API key) | Settings → Auto routing; **not** part of `state.json`, and never printed |
 | `~/.rove/themes/*.json` | Installed themes | `rove theme add`, or drop files in |
+| `~/.rove/attachments/` | Images and files attached to a prompt; the engine reads them by path | Rove; cleaned up after [`attachments.keepDays`](#attachments) |
 | `~/.rove/settings/keybindings.yaml` | Keybinding overrides | You only |
 | `<repo>/.rove/init.sh` + `init-prompt.md` | Per-repo worktree setup | You (committed to the repo) |
 | `<repo>/.rove/teardown.sh` | Per-repo cleanup before a task worktree is removed | You (committed to the repo) |
@@ -351,6 +352,12 @@ keep the buffer they were born with.
 
 Only the number flips: a window's colour still warns as it fills, whichever
 way it reads. Settings → General → Usage cycles it.
+
+### Attachments
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `attachments.keepDays` | whole number | `30` | Days a file in `~/.rove/attachments/` is kept. The daemon deletes older ones when it starts and once a day after. A file that a task's prompt, an issue or a routine still names is kept however old it is. `0` keeps everything. |
 
 ### Prompt snippets
 
