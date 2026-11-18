@@ -12,12 +12,14 @@ import { useEffect, useRef, useState } from "react"
 import { type BridgeClient, BridgeRequestError } from "./bridge.ts"
 import { DialogShell } from "./dialogs.tsx"
 import { locale, t, useLocale } from "./i18n/index.ts"
+import { openPage } from "./layout.ts"
 import { usePrefs } from "./prefs.ts"
 import { ReleaseNotes } from "./release-notes.tsx"
 import { createStore, useStore } from "./store.ts"
 import { dialog, page } from "./ui.ts"
 import { Button, buttonClass } from "./ui/button.tsx"
-import { PAGE_TITLE, PG_TOP } from "./ui/page.ts"
+import { PAGE_TITLE } from "./ui/page.ts"
+import { HEAD_CHIP } from "./ui/shell.ts"
 import { ACTIONS, LINK } from "./ui/text.ts"
 import {
   RELEASE_NOTES,
@@ -62,19 +64,25 @@ export function checkForUpdate(client: BridgeClient, channel?: ReleaseChannel): 
   )
 }
 
-/** The Update destination stays available when notifications are off or the build is current. */
-export function UpdateBadge() {
+export function UpdateChip() {
   const u = useCatalog()
   const state = useStore(updateState)
   const { prefs } = usePrefs()
   if (!prefs.updateNotify || !state?.info?.hasUpdate) return null
+  const hint = fill(u.available, { version: state.info.latest })
   return (
-    <span
-      className="ml-auto truncate pl-2 font-mono text-meta text-warning"
-      title={fill(u.available, { version: state.info.latest })}
+    <Button
+      variant="row"
+      className={`${HEAD_CHIP} whitespace-nowrap font-mono text-meta text-warning`}
+      aria-label={`${t("rail.update")} · ${hint}`}
+      title={hint}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") e.stopPropagation()
+      }}
+      onClick={() => openPage("update")}
     >
-      {fill(u.chip, { version: state.info.latest })}
-    </span>
+      ↑<span className="rail-tight:hidden"> {state.info.latest}</span>
+    </Button>
   )
 }
 
@@ -206,12 +214,7 @@ export function UpdateView({ client }: { client: BridgeClient }) {
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
     <div className={UPDATE_PAGE} tabIndex={0} ref={host} onKeyDown={onKey}>
-      <div className={PG_TOP}>
-        <h1 className={PAGE_TITLE}>{t("rail.update")}</h1>
-        <Button title={u.closeHint} onClick={() => activate("close")}>
-          {u.actions.close}
-        </Button>
-      </div>
+      <h1 className={PAGE_TITLE}>{t("rail.update")}</h1>
       <div className={UPDATE_SCROLL}>
         <p className={`mono ${UPDATE_VERSIONS}`}>
           <span className="text-muted">{u.current}</span> <b>v{current}</b>{" "}
