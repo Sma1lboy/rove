@@ -64,6 +64,7 @@ import { RefreshRoveButton } from "./ui/refresh-rove-button.tsx"
 import { CHIPS, ROW_TITLE_RAIL, ROW_TITLE_RUNNING, rowClass } from "./ui/row.ts"
 import { BRACKET, HEAD_CHIP, WORDMARK } from "./ui/shell.ts"
 import { StatusDots } from "./ui/status-dots.tsx"
+import { UpdateChip } from "./update-view.tsx"
 import { WelcomePane } from "./welcome-view.tsx"
 
 /** Right click opens the row's menu where the pointer is (TUI tree menu). */
@@ -164,6 +165,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
           </button>
           <ShortcutBadge model={model} bindingId="inbox.show" head />
         </span>
+        <UpdateChip />
         <RefreshRoveButton client={model.client} railBar={!narrow} />
       </header>
       {moving && (

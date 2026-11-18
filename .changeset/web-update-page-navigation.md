@@ -2,4 +2,4 @@
 "@sma1lboy/rove": patch
 ---
 
-Open Update from the Rove Web sidebar, alongside Routines. When a new version is available, its number appears on the Update row.
+Rove Web opens Update as a standalone page from the new-version indicator or the sidebar’s `u` shortcut. Use the usual navigation to return to a task.
