@@ -1,8 +1,8 @@
-import { mkdtempSync, readdirSync, utimesSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readdirSync, utimesSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { expect, test } from "vitest"
-import { normalizeKeepDays, sweepAttachments } from "../../src/state/attachment-sweep"
+import { afterEach, expect, test, vi } from "vitest"
+import { normalizeKeepDays, startAttachmentSweep, sweepAttachments } from "../../src/state/attachment-sweep"
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const NOW = Date.UTC(2026, 10, 17)
@@ -16,6 +16,27 @@ function dirWith(files: Record<string, number>): string {
   }
   return dir
 }
+
+afterEach(() => {
+  vi.unstubAllEnvs()
+})
+
+test("an attachment a start scheduled for later still names survives the daemon's sweep", () => {
+  const home = mkdtempSync(join(tmpdir(), "attach-sweep-home-"))
+  vi.stubEnv("ROVE_HOME_DIR", home)
+  const state = join(home, ".rove")
+  const dir = join(state, "attachments")
+  mkdirSync(dir, { recursive: true })
+  const old = (Date.now() - 40 * DAY_MS) / 1000
+  for (const name of ["attach-later.png", "attach-orphan.png"]) {
+    writeFileSync(join(dir, name), "x")
+    utimesSync(join(dir, name), old, old)
+  }
+  const prompt = `fix this\n\nimages[0]: ${join(dir, "attach-later.png")}`
+  writeFileSync(join(state, "pending-starts.json"), JSON.stringify({ version: 1, starts: [{ id: "s1", prompt }] }))
+  startAttachmentSweep()()
+  expect(readdirSync(dir)).toEqual(["attach-later.png"])
+})
 
 test("only Rove's own files past the keep time go, and never one something still names", () => {
   const dir = dirWith({

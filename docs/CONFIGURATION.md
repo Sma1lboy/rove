@@ -357,7 +357,7 @@ way it reads. Settings → General → Usage cycles it.
 
 | Key | Type | Default | What it does |
 |---|---|---|---|
-| `attachments.keepDays` | whole number | `30` | Days a file in `~/.rove/attachments/` is kept. The daemon deletes older ones when it starts and once a day after. A file that a task's prompt, an issue or a routine still names is kept however old it is. `0` keeps everything. |
+| `attachments.keepDays` | whole number | `30` | Days a file in `~/.rove/attachments/` is kept. The daemon deletes older ones when it starts and once a day after. A file that a task's prompt, an issue, a routine or a start scheduled for later still names is kept however old it is. `0` keeps everything. |
 
 ### Prompt snippets
 
