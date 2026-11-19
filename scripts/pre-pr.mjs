@@ -47,6 +47,13 @@ export function packagesToTest(files, manifests) {
   return [...names].sort()
 }
 
+const AI_ATTRIBUTION = /co-authored-by:[^\n]*(claude|anthropic|codex|openai)|generated with \[?claude/i
+
+/** The commit messages or PR body lines that credit an AI tool, which AGENTS.md forbids. */
+export function aiAttribution(text) {
+  return text.split("\n").filter((line) => AI_ATTRIBUTION.test(line))
+}
+
 /** Path-filtered suites, matching the `paths` filters of their workflows. */
 export function touchedAreas(files) {
   const any = (re) => files.some((f) => re.test(f))
@@ -215,10 +222,14 @@ function heavyJobs(touched) {
   return jobs
 }
 
-/** The fast tier's suites: the package tests the diff calls for, and the docs build. */
+/** The fast tier's suites: the repo-wide guards, the package tests the diff calls for, and the docs build. */
 function fastJobs(touched) {
   const jobs = packagesToTest(touched, readManifests()).map((name) => job(`${name} tests`, [bun(["--filter", name, "test"])]))
-  if (touchedAreas(touched).docs) jobs.push(job("docs site build", [bun(["run", "--filter", "@sma1lboy/rove-docs", "build"])]))
+  // Repo-wide invariants (skill fingerprint, engine-owned copy, i18n keys) break from any diff, in seconds.
+  const guards = bun(["x", "vitest", "run", "test/architecture"], ROVE)
+  // The guards regenerate rove-docs/content/docs, so the docs build must not run beside them.
+  if (touchedAreas(touched).docs) jobs.push(job("rove architecture guards, docs site build", [guards, bun(["run", "--filter", "@sma1lboy/rove-docs", "build"])]))
+  else jobs.push(job("rove architecture guards", [guards]))
   return jobs
 }
 
@@ -268,7 +279,8 @@ async function main() {
   if (opts.suitesOnly) {
     // The WSL half: HEAD is a detached copy with no origin, so the host passes the diff.
     const touched = readFileSync(opts.touchedFile, "utf8").split("\n").filter(Boolean)
-    if (!opts.full) await pool(fastJobs(touched), opts.jobs)
+    // Typecheck builds the plugin SDK's dist, which the architecture guards import.
+    if (!opts.full) step("typecheck", () => run("bun", ["run", "typecheck"])) && (await pool(fastJobs(touched), opts.jobs))
     else if (step("build", () => run("bun", ["run", "build"]))) await pool(heavyJobs(touched), opts.jobs)
     return finish()
   }
@@ -285,6 +297,14 @@ async function main() {
   })
   step("changeset frontmatter", () => run("bun", ["scripts/check-changeset.mjs"]))
   step("lint", () => run("bun", ["run", "lint"]))
+  step("no AI attribution", () => {
+    const hits = aiAttribution(`${git(["log", "--format=%B", `origin/${opts.base}..HEAD`]).join("\n")}\n${body ?? ""}`)
+    if (hits.length === 0) return true
+    for (const line of hits) console.error(`  ${line.trim()}`)
+    console.error("AGENTS.md forbids AI attribution in commits and PR bodies. Drop the line from the PR body; for commits run")
+    console.error(`  git filter-branch -f --msg-filter "grep -viE 'co-authored-by:.*(claude|anthropic|codex|openai)|generated with \\[?claude'" origin/${opts.base}..HEAD`)
+    return false
+  })
   step("no silent catch", () => run("node", ["scripts/no-silent-catch.mjs"]))
   step("web ui rules", () => run("node", ["scripts/web-ui-gate.mjs", range]))
 
