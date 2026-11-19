@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { missingChangeset, packagesToTest, touchedAreas } from './pre-pr.mjs'
+import { aiAttribution, missingChangeset, packagesToTest, touchedAreas } from './pre-pr.mjs'
 import { pickDistro, toWslPath, wslScript } from './pre-pr-wsl.mjs'
 
 const manifests = {
@@ -47,4 +47,11 @@ test('the WSL script survives wsl.exe argv re-quoting', () => {
   assert.ok(!script.includes('"') && !script.includes('\n'))
   assert.match(script, /--touched-file \/mnt\/c\/T\/touched\.txt --jobs 4$/)
   assert.match(wslScript({ name: 'wt', gitDir: 'C:/r/.git', ref: 'r', touchedFile: 'C:/t', jobs: 2, full: true }), /--jobs 2 --full$/)
+})
+
+test('AI attribution lines are caught; prose that names the tools is not', () => {
+  const tool = 'Cl' + 'aude'
+  const msg = `fix: x\n\nbody about ${tool} Code sessions\n\nCo-Authored-By: ${tool} Opus 5.5 <noreply@anthropic.com>\n🤖 Generated with [${tool} Code](https://claude.com)`
+  assert.equal(aiAttribution(msg).length, 2)
+  assert.deepEqual(aiAttribution('Co-authored-by: Jane <jane@example.com>\nengine adapter for codex'), [])
 })
