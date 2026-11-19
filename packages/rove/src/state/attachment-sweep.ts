@@ -12,8 +12,8 @@ import { loadStateFile } from "./store"
 export const ATTACHMENT_KEEP_DAYS_KEY = "attachments.keepDays"
 const DEFAULT_KEEP_DAYS = 30
 const DAY_MS = 24 * 60 * 60 * 1000
-/** Where a prompt outlives the composer: task prompts, issue bodies, routines and held first messages. */
-const REFERENCE_FILES = ["tasks.json", "issues.json", "automations.json", "deferred-prompts.json"]
+/** Where a prompt outlives the composer: task prompts, issue bodies, routines and starts scheduled for later. */
+const REFERENCE_FILES = ["tasks.json", "issues.json", "automations.json", "pending-starts.json"]
 
 /** A whole number of days, 0 for "never delete"; anything else is the default. */
 export function normalizeKeepDays(value: unknown): number {
