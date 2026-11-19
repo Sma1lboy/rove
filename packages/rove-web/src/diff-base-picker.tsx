@@ -1,5 +1,6 @@
 /** `main → All changes ▾`: one menu for what the diff shows, and against which branch, tag or commit (a typed ref works too). */
 
+import { matchBranch } from "@sma1lboy/rove/src/lib/branch-match.ts"
 import { useEffect, useState } from "react"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
@@ -34,9 +35,20 @@ function choices(refs: Refs | null, base: string, typed: string): Choice[] {
   }
   const q = typed.trim().toLowerCase()
   if (q === "") return all.slice(0, 40)
-  const hits = all.filter((c) => `${c.suggestion.text} ${c.suggestion.dim ?? ""}`.toLowerCase().includes(q))
-  const exact = (c: Choice) => (c.suggestion.text.toLowerCase() === q ? 0 : 1)
-  return hits.sort((a, b) => exact(a) - exact(b)).slice(0, 40)
+  const rank = (c: Choice) => {
+    if (c.suggestion.text.toLowerCase() === q) return 0
+    const match = matchBranch(c.suggestion.text, q)
+    if (match === "substring" || (c.suggestion.dim ?? "").toLowerCase().includes(q)) return 1
+    return match === "segments" ? 2 : null
+  }
+  const hits = all.flatMap((c) => {
+    const r = rank(c)
+    return r === null ? [] : [{ c, r }]
+  })
+  return hits
+    .sort((a, b) => a.r - b.r)
+    .map((h) => h.c)
+    .slice(0, 40)
 }
 
 export function DiffScopeMenu(props: {

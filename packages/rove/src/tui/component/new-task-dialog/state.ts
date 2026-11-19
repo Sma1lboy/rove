@@ -319,12 +319,7 @@ export function filterRepos(all: readonly string[], query: string): readonly str
   return all.filter((p) => p.toLowerCase().includes(q))
 }
 
-/** Same rules as {@link filterRepos}. */
-export function filterBranches(all: readonly string[], query: string): readonly string[] {
-  const q = query.trim().toLowerCase()
-  if (!q) return all
-  return all.filter((b) => b.toLowerCase().includes(q))
-}
+export { filterBranches } from "@/lib/branch-match"
 
 /** Cap visible rows (80+ branches mustn't push the dialog off-screen), scrolled to keep the cursor in view. */
 export function windowAround(list: readonly string[], cursor: number, cap = PICKER_MAX_VISIBLE): PickerWindow {
