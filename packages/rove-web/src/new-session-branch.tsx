@@ -1,5 +1,6 @@
 /** The composer's branch chips: the Worktree toggle and where the worktree is cut from (this machine), or the remote's base ref. */
 
+import { filterBranches } from "@sma1lboy/rove/src/lib/branch-match.ts"
 import { useState } from "react"
 import { t } from "./i18n/index.ts"
 import { BranchIcon } from "./new-session-icons.tsx"
@@ -7,7 +8,7 @@ import { RemoteBranchChip } from "./new-session-machine.tsx"
 import { BranchesMenu, ChipPopover, SearchList } from "./new-session-menus.tsx"
 import type { RemotePick } from "./new-session-remote.ts"
 import type { ProbeResult } from "./new-task-dialog.tsx"
-import { filterText, splitRepoRow } from "./new-task-paths.ts"
+import { splitRepoRow } from "./new-task-paths.ts"
 import { ComposerToggle } from "./ui/composer-toggle.tsx"
 import { CHIP_WORD } from "./ui/composer.ts"
 
@@ -40,7 +41,7 @@ export function BranchChips(props: {
   const primary = repos[0] ?? ""
   const probe = props.probes[primary] ?? null
   const label = bases[primary] || probe?.current || ""
-  const rows = filterText(probe?.branches ?? [], query).map((name) => ({
+  const rows = filterBranches(probe?.branches ?? [], query).map((name) => ({
     key: name,
     text: name,
     checked: name === (bases[primary] || probe?.current),

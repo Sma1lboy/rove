@@ -286,6 +286,15 @@ describe("filterRepos / filterBranches (substring filters)", () => {
     expect(filterRepos(["/Users/me/Rove", "/tmp/other"], "rove")).toEqual(["/Users/me/Rove"])
     expect(filterBranches(["main", "feature/Login", "fix"], "login")).toEqual(["feature/Login"])
   })
+
+  it("finds a branch from the starts of its path segments, after the substring hits", () => {
+    const branches = ["feature/topic", "user/Feature/Top-bar", "feat/top", "fix/topic"]
+    expect(filterBranches(branches, "feat/top")).toEqual(["feat/top", "feature/topic", "user/Feature/Top-bar"])
+  })
+
+  it("keeps the query's segment order and needs every piece", () => {
+    expect(filterBranches(["topic/feature", "feature/topic", "feature/other"], "fe/to")).toEqual(["feature/topic"])
+  })
 })
 
 describe("resolveBaseRef (picker highlight vs typed text)", () => {

@@ -5,6 +5,7 @@
  * machine's task starts from the composer.
  */
 
+import { filterBranches } from "@sma1lboy/rove/src/lib/branch-match.ts"
 import { useEffect, useRef, useState } from "react"
 import { ChipRow } from "./chip-row.tsx"
 import { DialogActions, DialogShell, useSubmit } from "./dialogs.tsx"
@@ -223,7 +224,7 @@ function ExistingTab(props: TabProps & { repo: RepoField }) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: a different repo resets the choice
   useEffect(() => setIntent("task"), [repo.expanded])
 
-  const filtered = filterText(branches, baseRef)
+  const filtered = filterBranches(branches, baseRef)
   const create = (ref?: string) =>
     props.run(async () => {
       if (repo.ambiguous) {
