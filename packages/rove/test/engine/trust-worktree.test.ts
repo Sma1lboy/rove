@@ -94,6 +94,22 @@ describe("trustClaudeWorktree", () => {
     })
   })
 
+  it("merges trust into the active legacy store when both files exist", () => {
+    const home = tempHome()
+    const profile = path.join(home, ".claude")
+    fs.mkdirSync(profile)
+    const legacy = path.join(profile, ".config.json")
+    const current = path.join(home, ".claude.json")
+    fs.writeFileSync(legacy, '{"numStartups":9}')
+    fs.writeFileSync(current, "{}")
+    trustClaudeWorktree(WORKTREE, home)
+    expect(JSON.parse(fs.readFileSync(legacy, "utf8"))).toMatchObject({
+      numStartups: 9,
+      projects: { [WORKTREE]: { hasTrustDialogAccepted: true } },
+    })
+    expect(fs.readFileSync(current, "utf8")).toBe("{}")
+  })
+
   it("creates a fresh store when none exists, and skips a second accept", () => {
     const home = tempHome()
     trustClaudeWorktree(WORKTREE, home)

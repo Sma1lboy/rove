@@ -203,7 +203,8 @@ directory itself — `~/.pi/agent` by default). With `CLAUDE_CONFIG_DIR` set, th
 trust file is `<CLAUDE_CONFIG_DIR>/.claude.json`. Blank overrides use the
 default paths above. Claude’s hosted launch writes the resolved worktree path
 after login-shell setup and repo init, so their profile exports apply. The
-launch sends no keystrokes to trust or permission dialogs.
+launch honors a populated legacy `.config.json` in the Claude profile directory and
+sends no keystrokes to trust or permission dialogs.
 
 Claude and Codex leave unreadable, non-regular, oversized (over 8 MiB), or
 invalid configuration unchanged; launch continues with the engine's own trust

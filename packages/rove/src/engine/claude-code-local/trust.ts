@@ -8,17 +8,25 @@
  * read its module doc before changing the write.
  */
 
+import { existsSync, lstatSync } from "node:fs"
+import path from "node:path"
 import { isObject } from "../../lib/is-object.ts"
 import { realPathOrSelf } from "../../lib/real-path.ts"
 import { updateSharedJsonSync } from "../shared-config-write.ts"
-import { claudeGlobalConfigPath, vendorWriteHomeDeps } from "../vendor-home.ts"
+import { claudeGlobalConfigPath, vendorConfigHome, vendorWriteHomeDeps } from "../vendor-home.ts"
 
 export function trustClaudeWorktree(worktreePath: string, home?: string): void {
   const resolved = realPathOrSelf(worktreePath)
   const project = process.platform === "win32" ? resolved.replaceAll("\\", "/") : resolved
   const deps = vendorWriteHomeDeps(home)
+  const current = claudeGlobalConfigPath(deps.env, deps.home())
+  const legacy = path.join(vendorConfigHome("claude", deps), ".config.json")
+  const stat = lstatSync(legacy, { throwIfNoEntry: false })
+  if (stat?.isSymbolicLink()) throw new Error("Refusing to replace a symlinked Claude config")
+  // Claude still prefers a populated legacy store, even when the newer file exists.
+  const useLegacy = stat?.isFile() && (stat.size > 0 || ((stat.mode & 0o222) !== 0 && !existsSync(current)))
   updateSharedJsonSync(
-    claudeGlobalConfigPath(deps.env, deps.home()),
+    useLegacy ? legacy : current,
     (raw) => {
       if (raw === undefined) return {}
       const doc: unknown = JSON.parse(raw)
