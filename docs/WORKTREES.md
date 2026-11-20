@@ -229,6 +229,12 @@ forces: a checkout with work in it, a busy engine or your own worktree is
 reported as skipped rather than removed. Add `--dry-run` first to see the
 list.
 
+The daemon also watches the disks your task worktrees live on. When one drops
+below 5 GB free, every attached TUI shows a warning naming the free space, how
+many worktrees share that disk, and the `worktree-reclaim --merged --dry-run`
+command. It warns once per disk, reminds every six hours while the disk stays
+low, and warns afresh only after free space climbs back above 8 GB.
+
 ### When git removes the worktree but not its directory
 
 `git worktree remove` does two things — deregister the worktree's metadata and
