@@ -91,7 +91,7 @@ export function engineTabSpawnFor(
   // A hosted session can't answer a trust dialog; pre-trust. Tab vendor wins.
   trustEngineWorktree(tab.vendor ?? opts.task.vendor, ref?.worktree ?? opts.worktreePath)
   const launch = buildEngineSessionLaunch({
-    task: ref ? { ...opts.task, id: ref.id, kind: "task" } : opts.task,
+    task: ref ? { ...opts.task, id: ref.id, kind: undefined } : opts.task,
     worktreePath: ref?.worktree ?? opts.worktreePath,
     shell,
     argv: engineTabArgv(tab, base, live, opts.task.vendor),

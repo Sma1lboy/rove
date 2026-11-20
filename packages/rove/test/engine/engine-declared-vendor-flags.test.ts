@@ -12,12 +12,25 @@
  * built-ins alone proves nothing — they were green while both bugs were live.
  */
 
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { execFileSync } from "node:child_process"
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-const trusted = vi.hoisted(() => ({ paths: [] as string[] }))
+vi.mock("../../src/cli/invocation.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/cli/invocation.ts")>()
+  return { ...actual, roveCliInvocation: () => ["bun", ...actual.roveCliInvocation().slice(1)] }
+})
 
 vi.mock("../../src/engine/registry.ts", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../src/engine/registry.ts")>()
@@ -33,20 +46,15 @@ vi.mock("../../src/engine/registry.ts", async (importOriginal) => {
           modelArgv: (base: readonly string[], model: string) => [...base, "--llm", model],
         }
       }
-      // Claude's real trustWorktree writes the user's ~/.claude.json (it
-      // takes homedir() with no seam), so record the call instead.
-      if (vendor === "claude") {
-        return { ...entry, trustWorktree: (worktreePath: string) => trusted.paths.push(worktreePath) }
-      }
       return entry
     },
   }
 })
 
 const { withEngineEffort, withEngineModel } = await import("../../src/engine/interactive-command.ts")
+const { setRepoInitOverride } = await import("../../src/state/repos.ts")
 const { engineLaunchArgv } = await import("../../src/engine/engine-presets.ts")
 const { withWorktreeProtocol } = await import("../../src/engine/worktree-protocol.ts")
-const { trustEngineWorktree } = await import("../../src/engine/trust-worktree.ts")
 const { buildEngineSessionLaunch } = await import("../../src/engine/session-launch.ts")
 const { latestTranscriptMtime } = await import("../../src/monitor/activity.ts")
 const { encodeCwd } = await import("../../src/engine/claude-code-local/history.ts")
@@ -80,7 +88,6 @@ beforeEach(() => {
   // Claude's transcript reader honours this, so the history assertions read
   // fixtures under the temp home instead of the developer's ~/.claude.
   process.env.CLAUDE_CONFIG_DIR = join(home, ".claude")
-  trusted.paths.length = 0
   writeState({})
 })
 
@@ -180,18 +187,45 @@ describe("a declared protocol reaches trust, delivery and history", () => {
     return worktree
   }
 
-  it("pre-answers the trust dialog through the wrapped engine's store", () => {
+  const launchTrustFixture = (vendor: string, kind: "task" | "dir") => {
+    const checkout = join(home, "checkout")
+    const alias = join(home, "linked checkout")
+    mkdirSync(checkout)
+    symlinkSync(checkout, alias, "junction")
+    setRepoInitOverride(alias, { initScript: 'export CLAUDE_CONFIG_DIR="$PWD/profile"' })
+    const launch = buildEngineSessionLaunch({
+      task: { id: "probe", kind, repo: alias, vendor },
+      argv: ["true"],
+      shell: "/bin/sh",
+      worktreePath: alias,
+      promptIntent: { kind: "none" },
+    })
+    execFileSync("sh", ["-c", launch.command[2] ?? ""], {
+      cwd: alias,
+      stdio: "ignore",
+      env: { ...process.env, HOME: home, SHELL: "true" },
+    })
+    expect(existsSync(join(home, ".claude", ".claude.json"))).toBe(false)
+    return join(checkout, "profile", ".claude.json")
+  }
+
+  it("trusts the physical worktree in the wrapped engine's post-init profile", () => {
     registerClaudeWrapper()
-    trustEngineWorktree("claudecpa", "/repo/.worktrees/t1")
-    expect(trusted.paths).toEqual(["/repo/.worktrees/t1"])
+    const file = launchTrustFixture("claudecpa", "task")
+    expect(JSON.parse(readFileSync(file, "utf8")).projects).toEqual({
+      [realpathSync(join(home, "checkout"))]: {
+        hasTrustDialogAccepted: true,
+        hasCompletedProjectOnboarding: true,
+      },
+    })
   })
 
-  it("still writes no trust entry for a preset that declares no protocol", () => {
-    // A generic preset has no store to pre-answer — the honest answer is to
-    // do nothing, not to guess claude's.
+  it.each([
+    ["claude", "dir"],
+    ["plainshim", "task"],
+  ] as const)("leaves trust to the user for %s in a %s", (vendor, kind) => {
     writeState({ customEngineIds: ["plainshim"], "engineCommand.plainshim": "plain-shim" })
-    trustEngineWorktree("plainshim", "/repo/.worktrees/t1")
-    expect(trusted.paths).toEqual([])
+    expect(existsSync(launchTrustFixture(vendor, kind))).toBe(false)
   })
 
   it("pastes a kimi-protocol preset's first message instead of putting it on argv", () => {

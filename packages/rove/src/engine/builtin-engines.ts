@@ -12,6 +12,7 @@ import { existsSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import type { BuiltinVendorId } from "@/types/vendor"
+import { roveCliInvocation } from "../cli/invocation.ts"
 import {
   detectBobAccount,
   detectClaudeAccount,
@@ -26,7 +27,6 @@ import { ClaudeHookAdapter } from "./claude-code-local/hook-adapter.ts"
 import { isRovePluginEnabled } from "./claude-code-local/plugin-migration.ts"
 import { fetchClaudeQuotaUsage } from "./claude-code-local/quota.ts"
 import { claudeRemoteNotes, claudeRemoteWorkspaceArgv } from "./claude-code-local/remote-workspace.ts"
-import { trustClaudeWorktree } from "./claude-code-local/trust.ts"
 import { readClaudeTurns } from "./claude-code-local/turns.ts"
 import { codexCapabilities, codexIdentity } from "./codex-local/capabilities.ts"
 import { CodexHookAdapter } from "./codex-local/hook-adapter.ts"
@@ -101,7 +101,7 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     createTurnDetector: () => new ClaudeTurnDetector(),
     capabilities: claudeCapabilities,
     identity: claudeIdentity,
-    trustWorktree: trustClaudeWorktree,
+    trustWorktreeArgv: (paths) => [...roveCliInvocation({ sameInstall: true }), "_trust-claude-worktree", ...paths],
     terminalTitle: {
       ownsStatus: true,
       // `${prefix} ${title}` where prefix is ✳ at rest and cycles through

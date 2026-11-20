@@ -94,6 +94,22 @@ describe("trustClaudeWorktree", () => {
     })
   })
 
+  it("merges trust into the active legacy store when both files exist", () => {
+    const home = tempHome()
+    const profile = path.join(home, ".claude")
+    fs.mkdirSync(profile)
+    const legacy = path.join(profile, ".config.json")
+    const current = path.join(home, ".claude.json")
+    fs.writeFileSync(legacy, '{"numStartups":9}')
+    fs.writeFileSync(current, "{}")
+    trustClaudeWorktree(WORKTREE, home)
+    expect(JSON.parse(fs.readFileSync(legacy, "utf8"))).toMatchObject({
+      numStartups: 9,
+      projects: { [WORKTREE]: { hasTrustDialogAccepted: true } },
+    })
+    expect(fs.readFileSync(current, "utf8")).toBe("{}")
+  })
+
   it("creates a fresh store when none exists, and skips a second accept", () => {
     const home = tempHome()
     trustClaudeWorktree(WORKTREE, home)
@@ -261,7 +277,7 @@ describe("BUILTIN_ENGINES trust coverage", () => {
   it("every builtin engine pre-trusts a Rove worktree", async () => {
     const { BUILTIN_ENGINES } = await import("../../src/engine/builtin-engines.ts")
     const missing = Object.entries(BUILTIN_ENGINES)
-      .filter(([, entry]) => typeof entry.trustWorktree !== "function")
+      .filter(([, entry]) => !entry.trustWorktree && !entry.trustWorktreeArgv)
       .map(([vendor]) => vendor)
       .filter((vendor) => !NO_TRUST_GATE.includes(vendor))
     expect(missing, `no trustWorktree hook: ${missing.join(", ")}`).toEqual([])

@@ -213,6 +213,8 @@ export interface EngineRegistryEntry {
    * merge-preserving. Absent = no gate rove can pre-answer.
    */
   readonly trustWorktree?: (worktreePath: string) => void
+  /** Pre-trust inside the launch shell when the profile can change during login or repo init. */
+  readonly trustWorktreeArgv?: (worktrees: readonly string[]) => readonly string[]
   /** Completed {@link AgentTurn}s from one session transcript. Absent = no per-turn data; nothing is guessed. */
   readonly readTurns?: EngineTurnReader
   /**
