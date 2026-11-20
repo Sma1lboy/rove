@@ -1,4 +1,8 @@
-import { describe, expect, test } from "vitest"
+import { mkdtempSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { afterEach, describe, expect, test } from "vitest"
+import { createKvCore } from "../../src/tui-react/context/kv-core"
 import {
   type InboxVisit,
   inboxVisitIndex,
@@ -17,9 +21,10 @@ function fakeKv(seed: unknown = undefined) {
   let writes = 0
   return {
     get: (key: string) => store.get(key),
-    setQuiet: (key: string, value: unknown) => {
+    update: (key: string, mutate: (current: unknown) => unknown) => {
       writes++
-      store.set(key, value)
+      store.set(key, mutate(store.get(key)))
+      return true
     },
     writes: () => writes,
   }
@@ -72,5 +77,29 @@ describe("inbox visit log", () => {
     const index = inboxVisitIndex([visit("a", "tab-2", 5), visit("a", "tab-1", 1), visit("a", "tab-2", 4)])
     expect([...index.values()]).toEqual([visit("a", "tab-2", 5), visit("a", "tab-1", 1)])
     expect(index.get(inboxVisitKey(visit("a", "tab-2", 5)))).toEqual(visit("a", "tab-2", 5))
+  })
+})
+
+describe("inbox visit log across windows", () => {
+  const savedHome = process.env.ROVE_HOME_DIR
+  afterEach(() => {
+    if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+    else process.env.ROVE_HOME_DIR = savedHome
+  })
+
+  // Two windows both hydrated before either flushed: each window's copy of
+  // the log lacks the other's visit, so a whole-key write drops it.
+  test("keeps both windows' visits when they switch tabs inside one flush window", () => {
+    process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-inbox-visits-"))
+    const left = createKvCore()
+    const right = createKvCore()
+    writeInboxVisit(left, visit("a", "tab-1", 1))
+    writeInboxVisit(right, visit("b", "tab-1", 2))
+    expect(left.flush()).toBe(true)
+    expect(right.flush()).toBe(true)
+
+    const reopened = createKvCore()
+    expect(readInboxVisits(reopened)).toEqual([visit("b", "tab-1", 2), visit("a", "tab-1", 1)])
+    expect(readInboxVisits(right)).toEqual([visit("b", "tab-1", 2), visit("a", "tab-1", 1)])
   })
 })

@@ -62,8 +62,9 @@ export interface KvCore {
    * result. For a collection other clients also change: `mutate` gets their rows too.
    * Mutations must be pure: failed writes retain them for replay against fresh disk
    * state. False = pending persistence; the snapshot includes the local edit.
+   * `quiet`: the `setQuiet` flavour — debounced, `get` sees it, subscribers don't re-render.
    */
-  update(key: string, mutate: (current: unknown) => unknown): boolean
+  update(key: string, mutate: (current: unknown) => unknown, opts?: { readonly quiet?: boolean }): boolean
   /**
    * In-memory default seeding (the `signal(name, default)` contract): sets
    * the key ONLY when currently undefined, and never marks it dirty — a
@@ -147,11 +148,15 @@ export function createKvCore(): KvCore {
         return undefined
       }, "strict")
       pendingUpdates.clear()
-      for (const key of Object.keys(updated)) quiet.delete(key)
-      if (Object.keys(updated).length > 0) {
+      const loud = Object.entries(updated).filter(([key, value]) => {
+        if (!quiet.has(key)) return true
+        quiet.set(key, value)
+        return false
+      })
+      if (loud.length > 0) {
         store.update((snapshot) => {
           const next = { ...snapshot }
-          for (const [key, value] of Object.entries(updated)) {
+          for (const [key, value] of loud) {
             if (value === undefined) delete next[key]
             else next[key] = value
           }
@@ -198,7 +203,7 @@ export function createKvCore(): KvCore {
     }
     let quietChanged = false
     for (const key of [...quiet.keys()]) {
-      if (dirtyKeys.has(key)) continue
+      if (dirtyKeys.has(key) || pendingUpdates.has(key)) continue
       if (!keepQuiet || JSON.stringify(quiet.get(key)) !== JSON.stringify(fresh[key])) {
         quietChanged = true
         quiet.delete(key)
@@ -251,12 +256,17 @@ export function createKvCore(): KvCore {
       dirtyKeys.add(key)
       scheduleWrite()
     },
-    update(key, mutate) {
+    update(key, mutate, opts) {
       const next = mutate(quiet.has(key) ? quiet.get(key) : store.get()[key])
       const pending = pendingUpdates.get(key) ?? []
       pendingUpdates.set(key, [...pending, mutate])
       // Updates supersede older whole-key writes and always replay against fresh disk state.
       dirtyKeys.delete(key)
+      if (opts?.quiet) {
+        quiet.set(key, next)
+        scheduleWrite()
+        return false
+      }
       quiet.delete(key)
       store.update((s) => {
         const copy = { ...s }

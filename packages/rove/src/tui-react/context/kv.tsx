@@ -17,7 +17,7 @@ export type KVContext = {
   /** Persists without rebuilding this context; `get` sees it, `store` does not. */
   setQuiet(key: string, value: unknown): void
   /** Change one key from its value on disk now, so another client's rows survive (`kv-core.ts`). */
-  update(key: string, mutate: (current: unknown) => unknown): boolean
+  update(key: string, mutate: (current: unknown) => unknown, opts?: { readonly quiet?: boolean }): boolean
   /** Synchronously flush pending state (standalone pages, before exit). */
   flush(): boolean
   /** Wipe every persisted key; false leaves state and pending edits intact. */
