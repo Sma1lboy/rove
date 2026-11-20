@@ -1,9 +1,15 @@
-/** `dialog`, `whatsNew`, `menu`, `confirm`, `newTask`, `newChat`, `newSession`, `search`, `taskops` messages. English is the source of truth; `zh: typeof en` keeps the shapes locked together. */
+/** `dialog`, `crash`, `whatsNew`, `menu`, `confirm`, `newTask`, `newChat`, `newSession`, `search`, `taskops` messages. English is the source of truth; `zh: typeof en` keeps the shapes locked together. */
 export const en = {
   dialog: {
     cancel: "cancel",
     save: "save",
     close: "close",
+  },
+  crash: {
+    title: "This page hit an error. Copy the report below before reloading.",
+    copy: "Copy report",
+    copied: "Copied",
+    reload: "Reload",
   },
   updatePrompt: {
     title: "Rove {version} is available",
@@ -201,6 +207,12 @@ export const zh: typeof en = {
     cancel: "取消",
     save: "保存",
     close: "关闭",
+  },
+  crash: {
+    title: "页面出错了。刷新前先把下面的报告复制下来。",
+    copy: "复制报告",
+    copied: "已复制",
+    reload: "刷新",
   },
   updatePrompt: {
     title: "Rove {version} 可以更新了",
