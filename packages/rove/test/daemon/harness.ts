@@ -127,6 +127,7 @@ export async function bootDaemonHarness(opts: DaemonHarnessOptions = {}): Promis
     keybindingsDebounceMs: 0,
     worktreeChangesTickMs: 0,
     transcriptActivityTickMs: 0,
+    lowDiskTickMs: 0,
     ...opts.server,
   })
 

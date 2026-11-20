@@ -28,6 +28,8 @@ export interface DaemonServerOptions {
   readonly worktreeChangesTickMs?: number
   /** Transcript-activity collector tick in ms; `0` disables. Defaults to `DEFAULT_TRANSCRIPT_ACTIVITY_TICK_MS`. */
   readonly transcriptActivityTickMs?: number
+  /** Low-disk check interval in ms; `0` disables. Defaults to `DEFAULT_LOW_DISK_TICK_MS`. */
+  readonly lowDiskTickMs?: number
   /** Enable the plugin runtime; `binPath` becomes plugins' ROVE_BIN_PATH plus its legacy alias. */
   readonly plugins?: { readonly binPath: string }
   /** Socket-ownership watch interval in ms; `0` disables the periodic check. */

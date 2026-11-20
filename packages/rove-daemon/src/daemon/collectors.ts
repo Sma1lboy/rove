@@ -27,6 +27,7 @@ import {
   defaultKeybindingsPath,
   startKeybindingsWatcher,
 } from "./keybindings-watcher.ts"
+import { DEFAULT_LOW_DISK_TICK_MS, readDisk, startLowDiskWatch } from "./low-disk-watch.ts"
 import { makePrRefreshReader } from "./pr-refresh-setting.ts"
 import { DEFAULT_PR_STATUS_POLL_MS, startPrStatusPoller } from "./pr-status-collector.ts"
 import type { PtyOwnerResolver } from "./pty-exit-watch.ts"
@@ -63,6 +64,7 @@ export interface DaemonCollectorOptions {
   readonly autoFixTickMs?: number
   readonly quotaUsageTickMs?: number
   readonly automationTickMs?: number
+  readonly lowDiskTickMs?: number
   /** Whose a hosted PTY is (default: the child aliased to it, else the key's task); the server adds released aliases. */
   readonly ownerOf?: PtyOwnerResolver
   /** Each walked tab's foreground engine (null = none), every observer tick. */
@@ -285,6 +287,13 @@ export function startDaemonCollectors(
     activity ? () => activity.workingTaskIds() : undefined,
   )
 
+  // Gated on a notice listener: the warning only matters to someone who can read it.
+  const stopLowDiskWatch = startLowDiskWatch(
+    { listTasks: () => orch.listTasks(), readDisk, publish: (n) => bus.publish("notice.event", n), now: Date.now },
+    options.lowDiskTickMs ?? DEFAULT_LOW_DISK_TICK_MS,
+    () => hasSubscribersFor("notice.event"),
+  )
+
   const stopTranscriptActivityCollector = startTranscriptActivityCollector(
     orch,
     runtime,
@@ -419,6 +428,7 @@ export function startDaemonCollectors(
         stopAttachmentSweep,
         stopKeybindingsWatcher,
         stopWorktreeChangesCollector,
+        stopLowDiskWatch,
         stopTranscriptActivityCollector,
         stopContextUsageCollector,
       ].map(async (stop) => stop()),
