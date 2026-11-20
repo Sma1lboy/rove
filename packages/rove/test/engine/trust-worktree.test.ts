@@ -261,7 +261,7 @@ describe("BUILTIN_ENGINES trust coverage", () => {
   it("every builtin engine pre-trusts a Rove worktree", async () => {
     const { BUILTIN_ENGINES } = await import("../../src/engine/builtin-engines.ts")
     const missing = Object.entries(BUILTIN_ENGINES)
-      .filter(([, entry]) => typeof entry.trustWorktree !== "function")
+      .filter(([, entry]) => !entry.trustWorktree && !entry.trustWorktreeArgv)
       .map(([vendor]) => vendor)
       .filter((vendor) => !NO_TRUST_GATE.includes(vendor))
     expect(missing, `no trustWorktree hook: ${missing.join(", ")}`).toEqual([])

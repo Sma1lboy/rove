@@ -201,7 +201,9 @@ Claude, Codex, and Kimi trust writes follow `CLAUDE_CONFIG_DIR`, `CODEX_HOME`,
 and `KIMI_CODE_HOME`, respectively; Pi's follows `PI_CODING_AGENT_DIR` (the
 directory itself — `~/.pi/agent` by default). With `CLAUDE_CONFIG_DIR` set, the Claude
 trust file is `<CLAUDE_CONFIG_DIR>/.claude.json`. Blank overrides use the
-default paths above. Each write resolves the current profile again.
+default paths above. Claude’s hosted launch writes the resolved worktree path
+after login-shell setup and repo init, so their profile exports apply. The
+launch sends no keystrokes to trust or permission dialogs.
 
 Claude and Codex leave unreadable, non-regular, oversized (over 8 MiB), or
 invalid configuration unchanged; launch continues with the engine's own trust

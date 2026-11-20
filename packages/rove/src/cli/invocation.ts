@@ -15,9 +15,13 @@ import { ROVE_PRODUCT_NAME } from "../product.ts"
  * entry (the build passes it too). JSX pragmas need no preload. (Spelling the
  * pragma out here makes knip report an unlisted dependency.)
  */
-export function roveCliInvocation(): string[] {
+export function roveCliInvocation(options: { sameInstall?: boolean } = {}): string[] {
   const cliName = ROVE_PRODUCT_NAME
   const isBuilt = import.meta.url.endsWith(".js")
+  if (options.sameInstall) {
+    if (import.meta.url.includes("/$bunfs/") || import.meta.url.includes("B:\\~BUN")) return [process.execPath]
+    if (isBuilt) return [process.execPath, fileURLToPath(new URL(`./${cliName}-run.js`, import.meta.url))]
+  }
   if (isBuilt) return [cliName]
   const entryName = "rove.ts"
   const entry = fileURLToPath(new URL(`./${entryName}`, import.meta.url))

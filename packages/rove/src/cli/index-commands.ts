@@ -9,6 +9,19 @@ export type CommandHandler = (args: string[]) => Promise<void>
 
 export const DYNAMIC_COMMANDS = new Map<string, CommandHandler>([
   [
+    "_trust-claude-worktree",
+    async (paths) => {
+      const { trustClaudeWorktree } = await import("../engine/claude-code-local/trust.ts")
+      for (const path of paths) {
+        try {
+          trustClaudeWorktree(path)
+        } catch {
+          // Leave Claude's own trust dialog available if its store cannot be updated.
+        }
+      }
+    },
+  ],
+  [
     "completions",
     async (args) => {
       const { runCompletionsSubcommand } = await import("./completions-cmd.ts")

@@ -306,7 +306,10 @@ export function buildEngineSessionLaunch(input: EngineSessionLaunchInput): Engin
   if (firstText && !pasteFirstMessage) argv = protocol.firstMessageArgv?.(argv, firstText) ?? [...argv, firstText]
   const markerPath = launchInit.initScript ? worktreeInitMarkerPath(input.worktreePath) : undefined
   const initTimeoutMs = resolveRepoInitTimeoutSeconds(input.initTimeoutSeconds) * 1000
-  const script = engineLaunchLine(quoteShellArgv(argv, { bareSafe: true }), {
+  const engine = quoteShellArgv(argv, { bareSafe: true })
+  const paths = [input.worktreePath, ...(repos ?? []).filter((r) => !r.primary).map((r) => r.worktreePath)]
+  const trust = !remote && input.task.kind === "task" ? protocol.trustWorktreeArgv?.(paths) : undefined
+  const script = engineLaunchLine(trust ? `${quoteShellArgv(trust)}\n${engine}` : engine, {
     initScript: launchInit.initScript,
     markerPath,
     timeoutSeconds: input.initTimeoutSeconds,

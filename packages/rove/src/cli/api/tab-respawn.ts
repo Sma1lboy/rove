@@ -96,7 +96,7 @@ export function restoredTabLaunch(
   return buildEngineSessionLaunch({
     task: {
       id: task.id,
-      kind: (task.kind as "task") ?? "task",
+      kind: task.kind === "task" ? "task" : "dir",
       vendor: tab.vendor ?? task.vendor,
       repo: task.repo,
       repos: task.repos,
