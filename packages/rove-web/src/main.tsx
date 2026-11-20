@@ -4,12 +4,14 @@ import "@fontsource/jetbrains-mono/400.css"
 import "@fontsource/jetbrains-mono/500.css"
 import "@fontsource/jetbrains-mono/600.css"
 import "@fontsource/jetbrains-mono/700.css"
-import { StrictMode } from "react"
+import { type ReactNode, StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { App } from "./app.tsx"
 import { swipeBackToTasks } from "./back-swipe.ts"
 import { BridgeClient, bridgeUrl } from "./bridge.ts"
 import { ConnectScreen } from "./connect-view.tsx"
+import { captureErrors } from "./crash-log.ts"
+import { CrashBoundary } from "./crash-screen.tsx"
 import { trapDialogFocus } from "./focus-trap.ts"
 import { watchLeaving } from "./leave.ts"
 import { LoginScreen } from "./login-view.tsx"
@@ -25,6 +27,7 @@ import { followVisualViewport } from "./viewport.ts"
 // The one stylesheet: tokens, reset and the Tailwind theme.
 import "./tailwind.css"
 
+captureErrors()
 const root = createRoot(document.getElementById("root") as HTMLElement)
 followVisualViewport()
 longPressOpensMenus()
@@ -33,6 +36,12 @@ revealScrollbarsOnScroll()
 watchLeaving()
 trapDialogFocus()
 installTooltips()
+const show = (node: ReactNode) =>
+  root.render(
+    <StrictMode>
+      <CrashBoundary>{node}</CrashBoundary>
+    </StrictMode>,
+  )
 function start(token: string): void {
   const client = new BridgeClient(bridgeUrl(), token)
   const model = new AppModel(client)
@@ -45,11 +54,7 @@ function start(token: string): void {
   // An upgrade restarts the bridge under the open page: reload once into the new client.
   watchBridgeVersion(client)
   client.start()
-  root.render(
-    <StrictMode>
-      <App model={model} />
-    </StrictMode>,
-  )
+  show(<App model={model} />)
 }
 
 const token = storedToken()
@@ -59,6 +64,6 @@ else {
   // signs in instead of asking for the link.
   void Promise.all([openWithoutToken(), passwordLoginOn()]).then(([open, password]) => {
     if (open) start("")
-    else root.render(<StrictMode>{password ? <LoginScreen /> : <ConnectScreen />}</StrictMode>)
+    else show(password ? <LoginScreen /> : <ConnectScreen />)
   })
 }
