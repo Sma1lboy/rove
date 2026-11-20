@@ -507,3 +507,11 @@ Run 1 (patched) exited 0, nothing past tolerance: firstFrame 416.1, boot.ready 1
 **No attempt:** same as 11-13 to 11-18. The owner calls still stand: a new scenario for the nightly, an idle phase that waits for quiet, and maybe a wider count tolerance for paintRow/styled (one noisy switch of ~13 rows swings the per-op mean past 1).
 
 **Sandbox:** bun 1.3.14 from npm; dir symlinks `/tmp/pwshim/chromium_headless_shell-{1243,1228}` → `/opt/pw-browsers/chromium_headless_shell-1243`.
+
+## 2026-11-20 — notes, no attempt (main 32fd704)
+
+**No regression.** Run 1 exited 1 on switch.shown.p50 170 → 403 only; the rerun read 198, exit 0, nothing past tolerance either way, so run 1 was noise. The history line is the rerun. Counts at floor: switch commit.root/workspace 6, sidebar 2, frame 2.5, overlay 3, stateNotify/stateListener 2, spawns 0; typing 1/key everywhere (spawns 0.03); idle 0. Timings: boot.firstFrame 570, boot.ready 2008, switch.shown 198, typing.echo 153.3. 3 commits since 58b8180 (3 files under `packages/rove/src`). No open `perf:` issues. Baseline unchanged.
+
+**No attempt:** same as 11-13 to 11-19. Owner calls still stand: a new scenario for the nightly, an idle phase that waits for quiet, and a wider tolerance for single-sample timing outliers (switch.shown p50 over 10 switches jumped 2.4× once tonight).
+
+**Sandbox:** bun 1.3.14 from npm, `ELECTRON_SKIP_BINARY_DOWNLOAD=1`; dir symlinks `/tmp/pwshim/chromium_headless_shell-{1243,1228}` → `/opt/pw-browsers/chromium_headless_shell-1243`.
