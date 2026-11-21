@@ -23,6 +23,7 @@ import run.rove.mobile.domain.*
     var state by remember { mutableStateOf<SettingsLoad<EnginesSettingsPayload>>(SettingsLoad.Loading) }
     var reloadError by remember { mutableStateOf<String?>(null) }
     var selected by remember { mutableStateOf<String?>(null) }
+    var installing by remember { mutableStateOf<InstallAction?>(null) }
 
     suspend fun load() {
         engineSettingsCall(fallback) { model.repository.engineSettings() }
@@ -45,8 +46,16 @@ import run.rove.mobile.domain.*
                     }
                 }
                 Hint(stringResource(R.string.engines_hint_launch))
+                InstallSections(s.value.engines) { installing = it }
             }
         }
+    }
+
+    installing?.let { action ->
+        val label = action.label()
+        SettingsConfirmSheet(title = stringResource(R.string.engines_confirm_title, label), kicker = stringResource(R.string.engines_kicker),
+            prose = stringResource(action.prose), label = label, onDismiss = { installing = null },
+            run = { action.run(model.repository); load() }, failed = { load() })
     }
 
     selected?.let { id ->
@@ -214,5 +223,55 @@ private suspend fun EngineAction.run(repository: RoveRepository, id: String) {
             }
         }
         Hint(stringResource(R.string.engines_hint_blank_clears))
+    }
+}
+
+/** Web Settings › Engines' two bulk writes into the engines' own config dirs on the Mac. */
+private enum class InstallAction(val prose: Int) {
+    InstallHooks(R.string.engines_hooks_prose_install),
+    RemoveHooks(R.string.engines_hooks_prose_remove),
+    InstallSkill(R.string.engines_skill_prose_install);
+
+    suspend fun run(repository: RoveRepository) = when (this) {
+        InstallHooks -> repository.installHooks()
+        RemoveHooks -> repository.uninstallHooks()
+        InstallSkill -> repository.installSkill()
+    }
+
+    @Composable fun label() = when (this) {
+        InstallHooks -> stringResource(R.string.engines_hooks_install)
+        RemoveHooks -> stringResource(R.string.engines_hooks_remove)
+        InstallSkill -> stringResource(R.string.engines_skill_install)
+    }
+}
+
+@Composable private fun InstallSections(engines: List<EngineSetting>, choose: (InstallAction) -> Unit) {
+    val hooks = EngineLogic.hooks(engines)
+    if (hooks.shown) FormSection(stringResource(R.string.engines_hooks_title),
+        trailing = stringResource(R.string.engines_installed_count, hooks.installed, hooks.total)) {
+        EngineSettingsGroup {
+            if (hooks.missing > 0) ActionRow(stringResource(R.string.engines_hooks_install_count, hooks.missing), tint = Rove.c.accent) {
+                choose(InstallAction.InstallHooks)
+            } else SettingsInfoRow(stringResource(R.string.engines_up_to_date), "")
+            if (hooks.onDisk > 0) {
+                SettingsDivider()
+                ActionRow(stringResource(R.string.engines_hooks_remove_count, hooks.onDisk), tint = Rove.c.error) { choose(InstallAction.RemoveHooks) }
+            }
+        }
+        Hint(stringResource(R.string.engines_hooks_hint))
+    }
+    val skill = EngineLogic.skill(engines)
+    FormSection(stringResource(R.string.engines_skill_title),
+        trailing = if (skill.total > 0) stringResource(R.string.engines_installed_count, skill.installed, skill.total) else null) {
+        EngineSettingsGroup {
+            when {
+                skill.total == 0 -> SettingsInfoRow(stringResource(R.string.engines_skill_none), "")
+                skill.missing > 0 -> ActionRow(stringResource(R.string.engines_skill_install_count, skill.missing), tint = Rove.c.accent) {
+                    choose(InstallAction.InstallSkill)
+                }
+                else -> SettingsInfoRow(stringResource(R.string.engines_up_to_date), "")
+            }
+        }
+        Hint(stringResource(R.string.engines_skill_hint))
     }
 }
