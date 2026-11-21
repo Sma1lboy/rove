@@ -130,6 +130,11 @@ signal when it finishes:
   `rove api report --delivery d-<n> …`, nothing else. Rove pastes one line
   into the dispatcher's tab — `[ROVE REPORT] "<title>" (task <id>, branch <b>)
   done: <summary's first line>` — so the worker sends no `succeeded:` message.
+- **Its engine hits a usage or billing limit**: Rove pastes one line into the
+  dispatcher's tab — `[ROVE WORKER] "<title>" (task <id>, branch <b>) hit its
+  usage limit; Rove resumes it automatically at <time> UTC.` (or that no reset
+  is known, or that a billing stop needs a human) — once per wall, and not
+  while the dispatcher's own tab is on a limit, at a prompt or at a menu.
 - **Otherwise**, one bare `send` — no `--task-id` — routes its outcome back
   to that exact tab:
 
