@@ -7,6 +7,8 @@ struct InboxView: View {
     @Environment(\.dismiss) private var dismiss
     /// Title and running flag for the tabs RECENT shows, keyed `task\0tab`.
     @State private var tabInfo: [String: RecentTab] = [:]
+    /// The row whose peek is open (`InboxLogic.key`); one at a time.
+    @State private var peeked: String?
 
     struct RecentTab: Equatable {
         var title: String
@@ -77,7 +79,18 @@ struct InboxView: View {
 
     // MARK: Rows
 
-    private func attentionRow(_ item: AttentionItem) -> some View {
+    @ViewBuilder private func attentionRow(_ item: AttentionItem) -> some View {
+        let mode = InboxLogic.peekMode(item, task: item.taskId.flatMap { store.task(id: $0) })
+        let key = InboxLogic.key(item)
+        attentionLine(item, peek: mode.map { _ in key })
+        if let mode, peeked == key, let taskId = item.taskId, let tabId = item.tabId {
+            InboxPeek(taskId: taskId, tabId: tabId, mode: mode) { open(item) }
+                .transition(.opacity)
+        }
+    }
+
+    /// `peek`: the row's key when it has a peek to toggle.
+    private func attentionLine(_ item: AttentionItem, peek: String?) -> some View {
         let blocking = InboxLogic.isBlocking(item)
         let task = item.taskId.flatMap { store.task(id: $0) }
         let title = task?.displayTitle ?? item.label ?? item.taskId ?? String(localized: "routine")
@@ -119,6 +132,15 @@ struct InboxView: View {
                 .buttonStyle(.pressable)
                 .accessibilityLabel("Dismiss without opening")
                 .accessibilityIdentifier("dismiss-\(InboxLogic.key(item))")
+            }
+            if let peek {
+                Button { withAnimation(Theme.spring) { peeked = peeked == peek ? nil : peek } } label: {
+                    Text(peeked == peek ? String(localized: "hide") : String(localized: "reply"))
+                        .font(Theme.mono(12)).foregroundStyle(Theme.accent)
+                        .padding(.horizontal, 10).frame(minHeight: 44)
+                }
+                .buttonStyle(.pressable)
+                .accessibilityIdentifier("peek-\(peek)")
             }
         }
         .padding(.horizontal, 8)
