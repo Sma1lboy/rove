@@ -27,13 +27,14 @@ import {
   treeFlatIds,
   withRecentRow,
 } from "../../../tui/panes/sidebar/tree-core"
+import type { KVContext } from "../../context/kv"
 import type { TabsSnapshotKv } from "../../workspace/terminal-tabs-persist"
 import { useSidebarGroups } from "./use-sidebar-groups"
 
 export interface TreeStateOpts {
   readonly tasks: readonly Task[]
   /** Null when no KV provider is mounted — see `knownTaskTabs`. */
-  readonly kv: TabsSnapshotKv | null
+  readonly kv: FoldKv | null
   /** The task whose session the right pane is showing. */
   readonly selectedTaskId: string | null
   /** Live `/` query. Non-empty prunes the tree to matches + their ancestors. */
@@ -64,9 +65,24 @@ interface Folds {
   readonly opened: ReadonlySet<string>
 }
 
-function readIds(kv: TabsSnapshotKv | null, key: string): ReadonlySet<string> {
-  const stored = kv?.store[key]
+type FoldKv = TabsSnapshotKv & Pick<KVContext, "update">
+
+function idsOf(stored: unknown): Set<string> {
   return new Set(Array.isArray(stored) ? stored.filter((id): id is string => typeof id === "string") : [])
+}
+
+function readIds(kv: FoldKv | null, key: string): ReadonlySet<string> {
+  return idsOf(kv?.store[key])
+}
+
+/** Adds or drops one id against the list on disk, not this window's copy: another window's folds survive. */
+function persistId(kv: FoldKv | null, key: string, id: string, present: boolean): void {
+  kv?.update(key, (current) => {
+    const ids = idsOf(current)
+    if (present) ids.add(id)
+    else ids.delete(id)
+    return [...ids]
+  })
 }
 
 /** Shared, so no machines never invalidates the memo with a fresh literal. */
@@ -94,9 +110,10 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
   const [collapsedProjects, setCollapsedProjects] = useState(() => readIds(kv, COLLAPSED_PROJECTS_KEY))
   const toggleProject = (id: string): void => {
     const next = new Set(collapsedProjects)
-    if (!next.delete(id)) next.add(id)
+    const folding = !next.delete(id)
+    if (folding) next.add(id)
     setCollapsedProjects(next)
-    kv?.set(COLLAPSED_PROJECTS_KEY, [...next])
+    persistId(kv, COLLAPSED_PROJECTS_KEY, id, folding)
   }
 
   // The folds the user set by hand over the automatic rule.
@@ -123,8 +140,8 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
       const next = { collapsed, opened }
       foldsRef.current = next
       setFolds(next)
-      kv?.set(COLLAPSED_TASKS_KEY, [...collapsed])
-      kv?.set(OPENED_TASKS_KEY, [...opened])
+      persistId(kv, COLLAPSED_TASKS_KEY, taskId, !wasFolded)
+      persistId(kv, OPENED_TASKS_KEY, taskId, wasFolded)
     },
     [kv],
   )
