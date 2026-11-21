@@ -515,3 +515,11 @@ Run 1 (patched) exited 0, nothing past tolerance: firstFrame 416.1, boot.ready 1
 **No attempt:** same as 11-13 to 11-19. Owner calls still stand: a new scenario for the nightly, an idle phase that waits for quiet, and a wider tolerance for single-sample timing outliers (switch.shown p50 over 10 switches jumped 2.4× once tonight).
 
 **Sandbox:** bun 1.3.14 from npm, `ELECTRON_SKIP_BINARY_DOWNLOAD=1`; dir symlinks `/tmp/pwshim/chromium_headless_shell-{1243,1228}` → `/opt/pw-browsers/chromium_headless_shell-1243`.
+
+## 2026-11-21 — notes, no attempt (main c7544b5)
+
+**No regression.** One run, exit 0, nothing past tolerance either way; baseline unchanged. Counts at floor: switch commit.root/workspace 6, sidebar 2, frame 2.6, overlay 3, stateNotify/stateListener 2, feed 0, paintRow/styled 1, spawns 0; typing 1/key everywhere (spawns 0.03 = one `engine.foregroundWalk` `ps -A` landing in the window, the throttled poll from #1645); idle 0. Timings: boot.firstFrame 708, boot.ready 2527, switch.shown 214, typing.echo 154.4, cli-startup 40.8, vt-1mb-parse 114.4 (all inside tolerance). 4 commits since 32fd704 (web error page, workspace trust, Inbox visits, low-disk warning), none on the switch/typing path. No open `perf:` issues.
+
+**No attempt:** same as 11-13 to 11-20. Owner calls still stand: a new nightly scenario (streaming engine tab, many sidebar tasks, split pane), an idle phase that waits for quiet, and a wider tolerance for single-sample timing outliers.
+
+**Sandbox:** bun 1.3.14 from npm; `/tmp/pwshim/chromium_headless_shell-{1243,1228}` → `/opt/pw-browsers/chromium_headless_shell-1243` (the harness launches 1228).
