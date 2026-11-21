@@ -8,6 +8,7 @@ import { ingestAgentTurnsBestEffort } from "./agent-turns-ingest.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { matchTaskByCwd, resolvePtyOwner } from "./cwd-task.ts"
 import { trackDeliveryTurn } from "./delivery-ops.ts"
+import { tellDispatcherQuotaWall } from "./dispatcher-notify.ts"
 import { optionalActivityDetail, optionalString, requireString } from "./handler-validators.ts"
 import { deliveryDepsOf } from "./handlers-deliveries.ts"
 import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
@@ -77,6 +78,10 @@ export const ENGINE_REPORT_HANDLER: DaemonRequestHandler = {
     // Lifecycle-only kinds (tool/compact/subagent) skip badge + inbox, or every
     // tool call would broadcast to every client. They still reach plugins.
     const isStateKind = ctx.runtime.affectsActivityState(kind)
+    const failure = kind === "turn-failed" ? detail?.failure : undefined
+    const limitHit = failure === "rate_limit" || failure === "billing"
+    // Read before the report folds in: `rate_limited` is sticky until the next turn, so a repeat is not a new wall.
+    const alreadyWalled = limitHit && ctx.activity.stateOf(taskId, tabId ?? null) === "rate_limited"
     if (isStateKind) {
       ctx.activity.report(taskId, kind, detail, tabId, session, vendor)
       // No tab id still records at TASK level (bare-shell engines). Only an
@@ -164,17 +169,17 @@ export const ENGINE_REPORT_HANDLER: DaemonRequestHandler = {
         void ctx.orch.setQuotaResume(taskId, null).catch((err) => logDaemonError("quota-resume", err))
       }
     }
-    // Arm auto-resume at the quota reset. Fire-and-forget (network probe).
-    // `billing` is excluded: it needs a human, not a timer.
-    if (kind === "turn-failed" && detail?.failure === "rate_limit") {
-      void scheduleQuotaResume(
-        ctx.orch,
-        ctx.runtime,
-        ctx.quotaUsage,
-        taskId,
-        undefined,
-        () => ctx.plugins ?? null,
-      ).catch((err) => logDaemonError("quota-resume", err))
+    // Arm auto-resume at the quota reset, then tell the dispatcher whether it
+    // is armed. Fire-and-forget (network probe). `billing` needs a human, not a timer.
+    if (failure === "rate_limit" || failure === "billing") {
+      const armed =
+        failure === "rate_limit"
+          ? scheduleQuotaResume(ctx.orch, ctx.runtime, ctx.quotaUsage, taskId, undefined, () => ctx.plugins ?? null)
+          : Promise.resolve()
+      void armed
+        .catch((err) => logDaemonError("quota-resume", err))
+        .then(() => (explicitId && !alreadyWalled ? tellDispatcherQuotaWall(ctx, taskId, failure) : false))
+        .catch((err) => logDaemonError("dispatcher-notify", err))
     }
     return {}
   },

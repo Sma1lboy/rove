@@ -149,7 +149,9 @@ task)` rows until the engines write their first transcripts.
 signal back to the dispatching engine tab: creation records the dispatcher
 (task + tab). If its prompt was armed, that signal is `report` (Rove then
 pastes one `[ROVE REPORT]` line into the dispatcher's tab); otherwise a bare
-`send` routes home without any id in hand. No blocking wait. Silence is a
+`send` routes home without any id in hand. A worker stopped by its engine's
+usage or billing limit is announced the same way, as one `[ROVE WORKER]` line
+saying when Rove resumes it. No blocking wait. Silence is a
 checkpoint, never a verdict:
 
 ```bash
