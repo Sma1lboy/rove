@@ -382,8 +382,8 @@ changes, push the branch, and run `gh pr create`.
 
 Watch the engine tab for progress, failures, or questions. The action is
 unavailable on the target branch and requires an active engine session. A
-project's `main` row is that repo's own checkout rather than a task branch, so
-the chip is not offered there; `ctrl+a` `p` still answers with the reason. A repo
+session opened in a project's own checkout usually sits on that branch, so
+the chip and `ctrl+a` `p` answer with a toast naming it instead of prompting. A repo
 can replace the prompt with `.rove/pr-instructions.md`; see
 [Per-repo init](CONFIGURATION.md#per-repo-init). Because the engine performs the
 work, its own skills and approval rules still apply. The default prompt expects

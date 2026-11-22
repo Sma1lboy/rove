@@ -1755,8 +1755,8 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
     engine Rove knows.
   - `--effort LEVEL`: reasoning effort (next session rebuild). Levels are
     declared by the task's engine — codex accepts `none`, `low`, `medium`,
-    `high`, `xhigh`, `max`; claude declares none. A level the engine does not
-    declare is rejected (`BAD_EFFORT`, naming the levels it does accept)
+    `high`, `xhigh`, `max`; claude accepts `low`, `medium`, `high`, `xhigh`,
+    `max`. A level the engine does not declare is rejected (`BAD_EFFORT`, naming the levels it does accept)
     rather than passed through, because the launch path drops an unknown level
     silently.
   - `--model M`: pin the model (next session rebuild). Passed to the engine
