@@ -767,8 +767,11 @@ chord is only bound while the two builds actually differ.
 ## Narrow terminals (phone SSH)
 
 Below **70 columns** the TUI switches to one panel at a time, made for
-phone-sized SSH sessions. Nothing changes at 70 columns or wider, and there
-is no setting: it follows the terminal width.
+phone-sized SSH sessions. Nothing changes at 70 columns or wider. It follows
+the terminal width live; to move the line, set
+[`layout.narrowBelow`](./CONFIGURATION.md#appearance) (`0` never switches, so
+a slim split keeps all three panes; a larger width gives a tmux split one
+panel at a time).
 
 - The task list and the workspace alternate: opening a task shows the
   workspace full-width. A `‹ Tasks` row at its top-left returns to the list,
