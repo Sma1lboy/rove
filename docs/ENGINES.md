@@ -18,7 +18,7 @@ you need git-level isolation and a separate branch.
 
 | Engine | Id | Account detect | Activity badge | History | Effort levels | Model flag |
 |---|---|---|---|---|---|---|
-| Claude Code | `claude` | ✓ | ✓ | ✓ | — | `--model` (aliases `fable`/`opus`/`sonnet`, or a full id) |
+| Claude Code | `claude` | ✓ | ✓ | ✓ | `low`/`medium`/`high`/`xhigh`/`max` | `--model` (aliases `fable`/`opus`/`sonnet`, or a full id) |
 | Codex | `codex` | ✓ | ✓ (after you trust hooks) | ✓ | `none`/`low`/`medium`/`high`/`xhigh`/`max` | `--model` (a slug) |
 | GitHub Copilot | `copilot` | ✓ | ✓ (screen-based) | ✓ | — | — |
 | Kimi Code | `kimi` | ✓ | ✓ | handoff only | — | `--model` (an alias from its config) |
@@ -110,15 +110,16 @@ it, so Rove assumes you meant it.
 
 ### Reasoning effort
 
-Codex accepts `none`, `low`, `medium`, `high`, `xhigh`, `max`, passed as
-`-c model_reasoning_effort=<level>`. Pi and OMP take `off`, `minimal`, `low`,
-`medium`, `high`, `xhigh`, `max` as `--thinking <level>` — `minimal` in place
-of Codex's `none`, plus `off`. The remaining engines have no effort flag Rove
+Claude Code accepts `low`, `medium`, `high`, `xhigh`, `max`, passed as
+`--effort <level>`. Codex accepts `none`, `low`, `medium`, `high`, `xhigh`,
+`max`, passed as `-c model_reasoning_effort=<level>`. Pi and OMP take `off`,
+`minimal`, `low`, `medium`, `high`, `xhigh`, `max` as `--thinking <level>` —
+`minimal` in place of Codex's `none`, plus `off`. The remaining engines have no effort flag Rove
 can drive; a selected effort is ignored there rather than passed through.
 
 Three places select one:
 
-- `rove api add --command codex --effort LEVEL`, which is the only one that
+- `rove api add --effort LEVEL` (with `--command codex` for Codex), which is the only one that
   reaches the task's **first** session — the other two rebuild it;
 - the sidebar row menu's **Change engine** entry, whose second row lists the
   engine's levels (`←→` picks one, and "engine default" clears it). Engines
