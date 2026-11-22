@@ -169,8 +169,9 @@ test("confirming a delete leaves the reader open — the confirm stacks, it does
   // Step off the danger default and commit.
   act(() => mockInput.pressArrow("left"))
   act(() => mockInput.pressEnter())
-  // The reopen is chained off the store call; wait for the deleted note to leave.
-  await waitUntil(async () => !(await frame()).includes("tests must run under bun"))
+  // The reopen is chained off the store call, and the frames before it are
+  // blank, so wait for the surviving note rather than the deleted one leaving.
+  await waitForFrameText(frame, "the daemon needs a restart")
 
   expect(removed).toEqual([2])
   const after = await frame()
