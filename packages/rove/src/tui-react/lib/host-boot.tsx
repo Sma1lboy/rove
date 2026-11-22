@@ -18,6 +18,8 @@ import type { UiPrefsPayload } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { type ReactNode, useEffect } from "react"
 import { connectPaneOrchestrator } from "../../client/connect-pane-orchestrator"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
+import { NARROW_BELOW_KEY } from "../../state/narrow-layout"
+import { loadStateFile } from "../../state/store"
 import { applyUserKeybindings, reloadUserKeybindings } from "../../tui/context/keybindings-user"
 import { loadUserThemes } from "../../tui/context/theme/loader"
 import { type UiPrefsTarget, applyUiPrefs } from "../../tui/lib/apply-ui-prefs"
@@ -54,6 +56,8 @@ import {
 import { DEFAULT_THEME } from "../context/theme"
 import { isLocaleId, setLocaleLang } from "../i18n"
 import { DialogProvider } from "../ui/dialog"
+import { NarrowLayoutSync } from "./narrow-layout-sync"
+import { setNarrowBreakpoint } from "./narrow-mode"
 import { PaneErrorBoundary } from "./pane-error-boundary"
 import { RenderProfiler } from "./render-profiler"
 
@@ -182,6 +186,7 @@ export async function bootPaneHost(opts: BootPaneHostOpts): Promise<void> {
     focusAccent: prefs.focusAccent,
   })
   setLocaleLang(prefs.locale)
+  setNarrowBreakpoint(loadStateFile()[NARROW_BELOW_KEY])
 
   const kv = opts.providers?.kv ?? false
   const focus = opts.providers?.focus ?? true
@@ -220,6 +225,7 @@ export async function bootPaneHost(opts: BootPaneHostOpts): Promise<void> {
   const body = (
     <>
       <UiPrefsSync />
+      <NarrowLayoutSync />
       <KvWriteErrorToasts />
       <PaneErrorBoundary>
         <RenderProfiler id="root">{screen.root()}</RenderProfiler>

@@ -1,10 +1,36 @@
-import { describe, expect, it } from "vitest"
-import { NARROW_BREAKPOINT, isNarrowWidth, narrowSurface } from "../../src/tui-react/lib/narrow-mode"
+import { afterEach, describe, expect, it } from "vitest"
+import {
+  NARROW_BREAKPOINT,
+  isNarrowWidth,
+  narrowSurface,
+  setNarrowBreakpoint,
+} from "../../src/tui-react/lib/narrow-mode"
 
 describe("isNarrowWidth", () => {
+  afterEach(() => setNarrowBreakpoint(undefined))
+
   it("is exclusive at the breakpoint: 70 cols keeps the desktop layout", () => {
     expect(isNarrowWidth(NARROW_BREAKPOINT)).toBe(false)
     expect(isNarrowWidth(NARROW_BREAKPOINT - 1)).toBe(true)
+  })
+
+  it("follows layout.narrowBelow: a split pane can ask for one panel at 100 cols", () => {
+    setNarrowBreakpoint(120)
+    expect(isNarrowWidth(100)).toBe(true)
+    expect(isNarrowWidth(120)).toBe(false)
+  })
+
+  it("0 keeps the desktop layout at any width", () => {
+    setNarrowBreakpoint(0)
+    expect(isNarrowWidth(1)).toBe(false)
+  })
+
+  it("an unreadable value falls back to 70, a negative one clamps to 0", () => {
+    setNarrowBreakpoint("wide")
+    expect(isNarrowWidth(69)).toBe(true)
+    expect(isNarrowWidth(70)).toBe(false)
+    setNarrowBreakpoint(-5)
+    expect(isNarrowWidth(1)).toBe(false)
   })
 })
 

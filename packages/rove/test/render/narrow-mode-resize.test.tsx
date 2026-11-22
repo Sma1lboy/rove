@@ -2,14 +2,20 @@
 /**
  * Narrow-mode breakpoint under a REAL opentui renderer:
  * proves the flag consumers derive from `useTerminalSize().width`
- * flips live when the terminal resizes across the 70-col boundary — the
- * same reactive path the workspace host will branch its layout on.
+ * flips live when the terminal resizes across the 70-col boundary, and when
+ * `layout.narrowBelow` changes without a resize — the same reactive path the
+ * workspace host branches its layout on.
  */
 
-import { expect, test } from "bun:test"
-import { isNarrowWidth } from "../../src/tui-react/lib/narrow-mode"
+import { afterEach, expect, test } from "bun:test"
+import { useKV } from "../../src/tui-react/context/kv"
+import { NarrowLayoutSync } from "../../src/tui-react/lib/narrow-layout-sync"
+import { isNarrowWidth, setNarrowBreakpoint } from "../../src/tui-react/lib/narrow-mode"
 import { useTerminalSize } from "../../src/tui-react/lib/use-terminal-size"
-import { act, renderComponent } from "./harness"
+import { act, isolateHome, renderComponent } from "./harness"
+
+isolateHome()
+afterEach(() => setNarrowBreakpoint(undefined))
 
 function NarrowProbe() {
   const dims = useTerminalSize()
@@ -29,6 +35,32 @@ test("narrow flag flips live on resize across the breakpoint", async () => {
   // Back to exactly the breakpoint — desktop layout, not narrow.
   await act(async () => {
     resize(70, 24)
+  })
+  expect(await frame()).toContain("layout:wide")
+})
+
+test("changing layout.narrowBelow switches the layout without a resize", async () => {
+  let kv: ReturnType<typeof useKV> | null = null
+  function Probe() {
+    kv = useKV()
+    return <NarrowProbe />
+  }
+  const { frame } = await renderComponent(
+    <>
+      <NarrowLayoutSync />
+      <Probe />
+    </>,
+    { width: 100, height: 24, providers: { kv: true } },
+  )
+  expect(await frame()).toContain("layout:wide")
+
+  await act(async () => {
+    kv?.set("layout.narrowBelow", 120)
+  })
+  expect(await frame()).toContain("layout:narrow")
+
+  await act(async () => {
+    kv?.set("layout.narrowBelow", 0)
   })
   expect(await frame()).toContain("layout:wide")
 })

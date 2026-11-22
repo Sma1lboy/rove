@@ -3,11 +3,22 @@
  * is single-panel; at or above it the desktop layout must be byte-identical
  * (golden stubs), so every narrow consumer gates on this one predicate.
  */
-export const NARROW_BREAKPOINT = 70
+
+import { DEFAULT_NARROW_BELOW, normalizeNarrowBelow } from "../../state/narrow-layout"
+
+/** The default; the TUI's own breakpoint is `layout.narrowBelow`. Kept fs-free: rove-web imports this module. */
+export const NARROW_BREAKPOINT = DEFAULT_NARROW_BELOW
+
+let breakpoint = DEFAULT_NARROW_BELOW
+
+/** Adopt a `layout.narrowBelow` value: host boot reads it from `state.json`, KV hosts keep it live. */
+export function setNarrowBreakpoint(value: unknown): void {
+  breakpoint = normalizeNarrowBelow(value)
+}
 
 /** True when the terminal is too narrow for the three-pane desktop layout. */
 export function isNarrowWidth(cols: number): boolean {
-  return cols < NARROW_BREAKPOINT
+  return cols < breakpoint
 }
 
 export type NarrowSurface = "sidebar" | "content"
