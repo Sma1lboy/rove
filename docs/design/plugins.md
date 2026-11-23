@@ -115,7 +115,6 @@ host and `rove plugin action invoke`):
 - actions: `ROVE_PLUGIN_ACTION_ID`, `ROVE_PLUGIN_INVOKE_CWD` (where the user
   ran the invoke — "the repo I mean"), extra CLI args appended to argv
 
-Every canonical variable is also injected as a `ROVE_*` compatibility alias.
 Do not store durable state under `ROVE_PLUGIN_ROOT`: GitHub installs are
 managed checkouts, replaced on reinstall.
 
@@ -127,6 +126,8 @@ non-interactively without it) → run `[[build]]` → move under
 `~/.rove/plugins/<id>/checkout/` → register. `rove plugin link <dir>` for
 local authoring (no build; your tree, your build). `uninstall` removes the
 managed checkout but keeps `config/` + `state/`; `unlink` never touches files.
+`plugin outdated` compares a GitHub install's checkout HEAD with the remote
+HEAD, and `plugin update` reinstalls it; linked plugins are never touched.
 
 Registry: `~/.rove/plugins.json`, written only by the CLI. The daemon
 (`plugins/runtime.ts`, wired in `daemon/server.ts`) stat-polls it (not
@@ -141,8 +142,7 @@ manifest and previews commands but does not sandbox or review.
 
 ## Marketplace
 
-Zero infrastructure: the canonical GitHub topic is **`rove-plugin`**. Search
-also unions the legacy **`rove-plugin`** topic, so existing publishers stay listed.
+Zero infrastructure: the GitHub topic is **`rove-plugin`**.
 The landing page (`packages/rove-landing/plugins.html`, rove.run)
 queries GitHub's repo search client-side and lists tagged public repos;
 first-party examples live in [Sma1lboy/rove-plugins](https://github.com/Sma1lboy/rove-plugins) (topic-tagged, so the repo auto-lists) and also seed the list per-plugin. No
@@ -160,8 +160,9 @@ self-closing command tab instead; overlay/popup are tolerated with a warning
 and treated as split. Falls back to a tab when the active tab can't host a
 split (content tab / min-pane-size gate). The pane's cwd is the task
 worktree;
-`$ROVE_PLUGIN_ROOT` (or legacy `$ROVE_PLUGIN_ROOT`) in command elements is expanded by the CLI, and the
-plugin env contract rides an `env` prefix inside one `sh -lc` script, so no
+`$ROVE_PLUGIN_ROOT` in command elements is expanded by the CLI, and the
+plugin env contract rides an `env` prefix inside one script run by the
+user's login shell with `-ilc`, so no
 tab/PTY schema knows about plugins. Trust: same boundary as `pty.open` —
 the daemon socket already grants argv execution.
 
@@ -181,10 +182,9 @@ Mechanics + resolution record: docs/KEYBINDINGS.md §Plugin chords.
 ## Deferred (v2+, deliberate)
 
 - **Pane placements** beyond `split`/`tab` (overlay / popup) and Windows
-  pane support (the v1 wrap is `sh -lc`).
+  pane support (the wrap is a POSIX login shell's `-ilc`).
 - **Link handlers** — needs the terminal URL-click plumbing.
 - **Richer context JSON** (active task, selection) on action invokes.
-- **`plugin update`** — reinstall replaces the checkout.
 
 ## What the ecosystem says people actually build
 
@@ -200,7 +200,7 @@ signal:
    `examples.github-start`, `examples.worktree-include`; `.rove/init.sh`
    already covers in-worktree setup.
 3. **Sidebar tools in panes** — file viewers, lazygit, kanban boards, PR
-   review TUIs. Blocked on pane support (v2).
+   review TUIs. Plugin panes (`[[panes]]`) host these.
 4. **Session/agent management** — handoff between engines, session parking,
    auto-rename, usage dashboards. Rove ships auto-title, quota-resume, and
    telemetry natively; the gap is third-party experimentation space.

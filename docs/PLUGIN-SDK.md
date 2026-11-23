@@ -16,9 +16,7 @@ npm install @sma1lboy/rove-plugin-sdk
 bun add @sma1lboy/rove-plugin-sdk
 ```
 
-The package is zero-dependency and runs on Node ≥ 18 or Bun. It publishes the
-same files under both `@sma1lboy/rove-plugin-sdk` and the legacy
-`@sma1lboy/rove-plugin-sdk` names.
+The package is zero-dependency and runs on Node ≥ 18 or Bun.
 
 ## Context
 
@@ -152,9 +150,6 @@ They resolve with `RoveRunResult`:
 | `stdout` | string | Captured stdout (8 MB cap). |
 | `stderr` | string | Captured stderr. |
 
-`RoveRunOptions` and `RoveRunResult` are deprecated aliases of these two,
-kept for plugins written against the original package name.
-
 ## Socket client
 
 `RoveSocket` is a newline-delimited JSON client for the daemon unix socket. It
@@ -166,8 +161,7 @@ call on an instance (`new RoveSocket().connect()`), not a named import.
 | Member | Signature | Purpose |
 |---|---|---|
 | `RoveSocket` | class (export) | Daemon socket client. |
-| `RoveSocket` | alias (export) | Deprecated alias of `RoveSocket`. |
-| `RoveSocketOptions` | type (export) | `{ socketPath?: string }` — `connect()`'s argument. Defaults to `$ROVE_SOCKET_PATH`, then `$ROVE_SOCKET_PATH`; rejects when neither is set. `RoveSocketOptions` is its deprecated alias. |
+| `RoveSocketOptions` | type (export) | `{ socketPath?: string }` — `connect()`'s argument. Defaults to `$ROVE_SOCKET_PATH`; rejects when it is not set. |
 | `DaemonInfo` | type (export) | What `hello()` resolves with (fields below). |
 | `.connect` | method: `(opts?: RoveSocketOptions) => Promise<void>` | Connect to the daemon socket. |
 | `.request` | method: `<T>(name, payload?) => Promise<T>` | One request → response; rejects on daemon error frames. |
@@ -203,8 +197,7 @@ if (!info.capabilities.includes("usage.snapshot")) {
 }
 ```
 
-`DaemonInfo` carries `roveVersion` / `roveVersion` (the same build version
-under both spellings; the wire field is `roveVersion`), `capabilities`,
+`DaemonInfo` carries `roveVersion` (the daemon's build version), `capabilities`,
 `protocolVersion` / `minProtocolVersion`, `apiVersion` (the verb contract
 `invoke` speaks; absent on a daemon without it), `daemonPid`, and `homeDir` — a
 `homeDir` that is not yours means you reached a foreign daemon. It is also
@@ -397,9 +390,3 @@ for the event catalog and channel list, so host and SDK cannot drift.
 
 Event semantics (when each fires, what `detail` contains) are documented in
 the per-event contract in the [plugin event reference](./PLUGIN-EVENTS.md).
-
-## Compatibility aliases
-
-For plugins written against the original `@sma1lboy/rove-plugin-sdk` naming,
-the SDK also exports `rove`, `roveJson`, and `RoveSocket` as aliases for
-`rove`, `roveJson`, and `RoveSocket`.
