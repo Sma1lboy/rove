@@ -72,7 +72,9 @@ label is a settings KEY, an identifier rather than a name).
 Left for a follow-up: `branch-picker-dialog`, `run-again-dialog`,
 `field-notes-dialog` and `settings-dialog/`. Each is one list or one input
 behind the same header + footer shape, so nothing about them reads foreign
-yet; convert one when it grows a choose-one field.
+yet; convert one when it grows a choose-one field. `DialogChoice` (and the
+`DialogConfirm` built on it) draws its own title row and `esc` hint instead of
+`DialogHeader`, and carries no `DialogFooter`.
 
 `test/architecture/dialog-choose-one.test.ts` holds the line: a dialog file
 that maps choices into `<text … onMouseUp>` with a `▸ ` marker is rejected,
