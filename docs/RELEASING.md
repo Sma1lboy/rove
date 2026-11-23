@@ -29,7 +29,7 @@ bun run changeset:check         # all pending changesets
 bun run hooks:install           # once per clone — runs the same check on commit
 ```
 
-Worth the two seconds: the same check (`scripts/check-changeset.mjs`) runs in `pre-pr` and in `pr-gates.yml`, and nothing later in CI repeats it. Once a bad package name merges, **main and every branch cut from it stay red** until someone retargets that line (PR #445, 2026-08-15). The pre-commit hook exists to move that discovery from "everyone else's CI" to "your keyboard".
+Worth the two seconds: the same check (`scripts/check-changeset.mjs`) runs in `pre-pr` and in `pr-gates.yml`. Once a bad package name merges, it checks every pending changeset, so **`pre-pr` on every branch cut from main fails** until someone retargets that line (PR #445, 2026-08-15). The pre-commit hook exists to move that discovery from "everyone else's CI" to "your keyboard".
 
 ### 2. Cutting a release — on demand
 

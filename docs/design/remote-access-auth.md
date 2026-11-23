@@ -64,7 +64,7 @@ key per hub, so it can be revoked on its own and restricted with
 | # | What | Fixes gap |
 |---|---|---|
 | A1 | **Per-device bridge credentials.** Each pairing mints a named token (`rove bridge devices list / revoke <name>`, last-used time). The legacy single token is migrated as `legacy`. Every `api.invoke` is logged with its credential name | 1 |
-| A2 | **Hub identity on forwarded calls.** The forwarding daemon sends `{ forwarded: true, from: <hostname> }`; the runner names that hostname in a refusal and its log. The credential name that drove the hub is not forwarded | 1, 2 |
+| A2 | **Hub identity on forwarded calls.** The forwarding daemon sends `{ forwarded: true, from: <hostname> }`; the runner names that hostname in an `INBOUND_DENIED` refusal and does not log it for calls it accepts. The credential name that drove the hub is not forwarded | 1, 2 |
 | A3 | **Runner inbound policy.** `machineInbound` in the runner's own `state.json`: a deny list of verb classes (the `rove api schema` groups, plus `land` for `land`/`publish` and `credentials` for the `github-*` verbs). Nothing is denied by default; there is no repo allow-list and no custom-command switch. Enforced in `api.invoke` when `forwarded: true`. The hub cannot change it | 2 |
 | A4 | **Shown, confirmed host key** on first connect (see the setup flow) | 3 |
 | A5 | **Restricted hub key** (optional): a forced command that reaches only the Rove daemon | 2 |

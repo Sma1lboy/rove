@@ -120,7 +120,7 @@ sequenceDiagram
   participant TUI
   participant Daemon
 
-  TUI->>Daemon: connect <home>/.rove/daemon.sock
+  TUI->>Daemon: connect ~/.rove/daemon.sock
   TUI->>Daemon: request hello { protocolVersion, minProtocolVersion }
   Daemon-->>TUI: response hello { protocolVersion, roveVersion, daemonPid, homeDir, tasks, ... }
 
