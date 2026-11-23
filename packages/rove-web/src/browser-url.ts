@@ -41,6 +41,8 @@ export function normalizeUrl(input: string): string | null {
       : `https://${text.replace(/^\/\//, "")}`
   try {
     const url = new URL(withScheme)
+    // A CSP `frame-src` cannot name an IPv6 literal, so the page could never frame this one.
+    if (url.hostname === "[::1]") url.hostname = "localhost"
     return url.hostname ? url.href : null
   } catch {
     return null

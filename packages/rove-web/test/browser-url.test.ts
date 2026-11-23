@@ -8,7 +8,7 @@ describe("normalizeUrl", () => {
   test("a bare local address means http, anything else bare means https", () => {
     expect(normalizeUrl("localhost:3000")).toBe("http://localhost:3000/")
     expect(normalizeUrl("127.0.0.1:5173/app?x=1")).toBe("http://127.0.0.1:5173/app?x=1")
-    expect(normalizeUrl("[::1]:8080")).toBe("http://[::1]:8080/")
+    expect(normalizeUrl("[::1]:8080")).toBe("http://localhost:8080/")
     expect(normalizeUrl("example.com/docs")).toBe("https://example.com/docs")
     expect(normalizeUrl("  https://example.com  ")).toBe("https://example.com/")
   })

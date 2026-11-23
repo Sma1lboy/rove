@@ -61,6 +61,13 @@ export function loadTerminalRenderer(term: Terminal, refit: () => void): { dispo
       const { CanvasAddon } = await import("@xterm/addon-canvas")
       if (disposed) return
       const addon = new CanvasAddon()
+      // addon-canvas 0.7 puts the DOM renderer back on dispose, which throws in a disposed terminal; xterm has
+      // already disposed the canvas renderer by then.
+      const dispose = addon.dispose.bind(addon)
+      const core = (term as unknown as { _core?: { _store?: { _isDisposed?: boolean } } })._core
+      addon.dispose = () => {
+        if (!core?._store?._isDisposed) dispose()
+      }
       term.loadAddon(addon)
       canvas = addon
     } catch {
