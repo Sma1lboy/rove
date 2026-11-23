@@ -94,7 +94,7 @@ worktree on the shared branch name. `taskRepos(task)` (in `rove-daemon`'s
 
 ## 2. Package map
 
-- `packages/rove/` — CLI and PureTUI, published as `@sma1lboy/rove`. (The directory keeps its old name; the `@sma1lboy/rove` package was published in lockstep until 0.9.64 and is now frozen.)
+- `packages/rove/` — CLI and PureTUI, published as `@sma1lboy/rove`.
   - `src/cli/` — command routing, help, API handlers, daemon and PTY-host
     process entrypoints.
   - `src/engine/` — engine registry, command/capability/history adapters,
@@ -127,8 +127,18 @@ worktree on the shared branch name. `taskRepos(task)` (in `rove-daemon`'s
   because the SPA is a product surface. Every extra GUI consumer is another
   lifetime the daemon has to refcount, which is where the orphan/OOM
   incidents came from. Fix bugs and keep `/harness` working; take new
-  surface work to the TUI. The `rove-desktop` Electron shell was removed the
-  same day for the same reason.
+  surface work to the TUI.
+- `packages/rove-bridge/` — the WebSocket bridge between the daemon and the
+  browser and phone clients (`rove --web`).
+- `packages/rove-web/` — the browser client the bridge serves.
+- `packages/rove-desktop/` — the desktop app: rove-web in its own Electron
+  window against the local Rove (see [docs/DESKTOP.md](./DESKTOP.md)).
+- `packages/rove-weixin/` — the WeChat chat channel, bundled into the CLI.
+- `packages/rove-plugin-sdk/` — the typed plugin SDK, published as
+  `@sma1lboy/rove-plugin-sdk`.
+- `packages/rove-android/`, `packages/rove-ios/` — the native phone apps.
+- `packages/rove-landing/` — the rove.run landing page.
+- `packages/promo-kit/` — the team's promo asset site.
 - `packages/branding/` — Remotion assets and checked-in replay rendering.
 - `packages/rove-docs/` — public docs site (Fumadocs on Next.js, static
   export). Content is synced from `docs/` by `scripts/sync-docs.mjs`
@@ -137,8 +147,7 @@ worktree on the shared branch name. `taskRepos(task)` (in `rove-daemon`'s
 - Official plugins live in the separate
   [Sma1lboy/rove-plugins](https://github.com/Sma1lboy/rove-plugins) repo
   (`rove plugin install Sma1lboy/rove-plugins/<name>`). New plugins use
-  `rove-plugin.toml` and `@sma1lboy/rove-plugin-sdk`; legacy Rove spellings
-  remain accepted.
+  `rove-plugin.toml` and `@sma1lboy/rove-plugin-sdk`.
 
 ## 3. Launch and lifetime
 
@@ -207,21 +216,22 @@ this capability refuse capped launches rather than opening without admission.
 
 ## 6. State
 
-- Task index: `<ROVE_HOME>/.rove/tasks.json` (legacy `.rove/tasks.json` is copied additively when the new daemon starts, after the old writer stops)
-- Runtime: `<ROVE_HOME>/.rove/{daemon,pty}.{sock,pid,log}` + `client.log`. A socket is the ADDRESS of a live process, so a legacy `.rove` path is still used while the process holding it is alive (`daemon/paths.ts`) — otherwise an upgrade would orphan every engine tab the running PTY host owns.
-- UI/settings state: platform config home, normally
-  `~/.config/rove/state.json` (legacy `.config/rove/state.json` is copied without overwrite)
-- Daemon socket/pid/log: derived from `ROVE_HOME_DIR` (`ROVE_HOME_DIR` fallback) and intentionally retain legacy `.rove` runtime names
+- Task index: `<ROVE_HOME>/.rove/tasks.json` (the pre-rename state directory's `tasks.json`, `pre-rename-runtime.ts`, is copied additively when the new daemon starts, after the old writer stops)
+- Runtime: `<ROVE_HOME>/.rove/{daemon,pty}.{sock,pid,log}` + `client.log`. A socket is the ADDRESS of a live process, so a pre-rename runtime path is still used while the process holding it is alive (`daemon/paths.ts`) — otherwise an upgrade would orphan every engine tab the running PTY host owns.
+- UI/settings state: `<ROVE_HOME>/.config/rove/state.json`, fixed under the
+  home directory (no `XDG_CONFIG_HOME` or platform config directory); the
+  pre-rename config directory's `state.json` is copied without overwrite
+- Daemon socket/pid/log: derived from `ROVE_HOME_DIR`, falling back to the user's home
 - PTY Host socket/pid/log plus bounded `pty-sessions/` recovery snapshots and
   `pty-exits.json` abnormal-exit tails: derived independently from the same home
 - Engine conversation history: engine-owned locations such as
   `~/.claude/projects/**`
 - Plugins: registry `<ROVE_HOME>/.rove/plugins.json` (CLI-written,
   daemon-watched); per-plugin checkout/config/state/log under
-  `<ROVE_HOME>/.rove/plugins/<id>/`. A pre-rename install still under `.rove`
-  is read from there until the daemon's next start MOVES the tree across
-  (`state/layout-migration.ts`); new commands receive both `ROVE_PLUGIN_*` and
-  `ROVE_PLUGIN_*` variables pointing at the same data.
+  `<ROVE_HOME>/.rove/plugins/<id>/`. Plugin paths resolve only there: the
+  daemon's start MOVES a pre-rename install across
+  (`state/layout-migration.ts`), and until that move succeeds the old tree is
+  not read. Commands receive `ROVE_PLUGIN_*` variables.
 
 Never treat browser storage as authoritative for local product state.
 
