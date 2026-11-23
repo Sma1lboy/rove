@@ -48,12 +48,12 @@ This caught real gaps in one night, three shapes of it:
 
 ## Red CI is not automatically the change's fault
 
-Before bouncing a PR back to a worker, distinguish which of four things the red actually is:
+The owner's PRs start no cloud CI: their gate is `bun run pre-pr` (see [`dev-loop.md`](./dev-loop.md)), so a red there is the branch's own run. Cloud `ci.yml` runs on other people's PRs and on `main`'s scheduled batch, and that is where this triage applies. Before bouncing a PR back to a worker, distinguish which of four things the red actually is:
 
 1. **A real regression** — the only one that's the worker's problem. If the same test fails twice on the branch, treat it as this.
 2. **A known flake** — issue #61 tracks an intermittent `test:fast` residual (roughly 1 in 8 full runs after PR #590's fix; `terminal-pty-scrollback-cache` is one named residual that only fails under full-suite concurrency). A failure that doesn't reproduce on a re-run and touches files the PR never went near is this.
 3. **A hung job** — `behavior` normally finishes in ~65 s; it has been seen stuck for 40 minutes with sibling jobs long done. That's infrastructure: cancel and rerun.
-4. **A stale green check** — the inverse trap: a *green* check earned against an older CI definition looks identical to a fresh one (issue #56; required-check names match across CI versions). And `gh run rerun` does **not** refresh it — rerun reuses the frozen workflow definition and event payload, manufacturing a fresh timestamp on a stale conclusion. Only a new commit (rebase / update branch) re-runs current CI.
+4. **A stale green check** — the inverse trap: a *green* check earned against an older CI definition looks identical to a fresh one (issue #56; required-check names match across CI versions). And `gh run rerun` does **not** refresh it — rerun reuses the frozen workflow definition and event payload, manufacturing a fresh timestamp on a stale conclusion. Only a new commit (rebase / update branch) or `gh workflow run ci.yml --ref <branch>` runs the current CI.
 
 ```bash
 gh run list --workflow=ci.yml --branch <branch>   # what actually ran, when
