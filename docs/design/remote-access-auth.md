@@ -5,7 +5,9 @@
 > `machine doctor` (`machines/setup.ts`) with the hub key and `install` fixes;
 > per-device bridge tokens (A1: `rove --web --device`, `--list-devices`,
 > `--revoke-device`); the runner inbound policy (A3: `rove machine inbound`);
-> and the stdio transport (`rove daemon relay`). Not done: the restricted hub
+> and the stdio transport (`rove daemon relay`). Partial: hub identity (A2)
+> forwards the hub's hostname but not the credential that drove it. Not done:
+> the restricted hub
 > key (A5, [MACHINES.md](../MACHINES.md#what-this-release-does-not-do-yet)),
 > Tailscale SSH detection, the resident prompt and the peer-uid check (A6).
 > The "Today" table and the first three gaps below describe the state before
@@ -62,8 +64,8 @@ key per hub, so it can be revoked on its own and restricted with
 | # | What | Fixes gap |
 |---|---|---|
 | A1 | **Per-device bridge credentials.** Each pairing mints a named token (`rove bridge devices list / revoke <name>`, last-used time). The legacy single token is migrated as `legacy`. Every `api.invoke` is logged with its credential name | 1 |
-| A2 | **Hub identity on forwarded calls.** The forwarding daemon sends `{ hub: <hostname>, via: <credential name> }`. The runner logs it beside the verb | 1, 2 |
-| A3 | **Runner inbound policy.** `machines.inbound` in the runner's own `state.json`: allowed verbs (default denies `delete`, `land`, `remove-worktree`, `reset`), allowed repos, `allowCustomCommand: false` (engines from the registry only). Enforced in `api.invoke` when `forwarded: true`. The hub cannot change it | 2 |
+| A2 | **Hub identity on forwarded calls.** The forwarding daemon sends `{ forwarded: true, from: <hostname> }`; the runner names that hostname in a refusal and its log. The credential name that drove the hub is not forwarded | 1, 2 |
+| A3 | **Runner inbound policy.** `machineInbound` in the runner's own `state.json`: a deny list of verb classes (the `rove api schema` groups, plus `land` for `land`/`publish` and `credentials` for the `github-*` verbs). Nothing is denied by default; there is no repo allow-list and no custom-command switch. Enforced in `api.invoke` when `forwarded: true`. The hub cannot change it | 2 |
 | A4 | **Shown, confirmed host key** on first connect (see the setup flow) | 3 |
 | A5 | **Restricted hub key** (optional): a forced command that reaches only the Rove daemon | 2 |
 | A6 | **Peer-uid check** on the daemon and PTY sockets (`SO_PEERCRED` / `getpeereid`) as defense in depth behind the directory mode. **OPEN:** whether Bun exposes it | — |
@@ -202,10 +204,9 @@ Recommend 2.
    `~/.rove/ssh/`, and revoked by deleting one `authorized_keys` line. When
    ssh-agent already authenticates the target, no key is created.
 3. **Bridge setup is `rove --web --setup`.**
-4. **`land` is allowed by default.** The default deny list is the
-   irreversible verbs only: `delete`, `remove-worktree`, `reset`. The policy
-   is changed on the runner itself (`rove machine inbound allow|deny <verb>`),
-   never by the hub.
+4. **Nothing is denied by default, `land` included.** The policy is a deny
+   list of verb classes, changed on the runner itself
+   (`rove machine inbound allow|deny <class>`), never by the hub.
 5. **One ssh channel per stream** (daemon, each PTY attach) over the existing
    ControlMaster. ssh already multiplexes channels on one connection, so Rove
    adds no framing of its own.
