@@ -227,7 +227,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `INBOUND_DENIED` | The target machine's inbound policy refuses this verb's class from other machines (`rove machine inbound`). |
 | `PUSH_FAILED` | `publish` (or `land` of a remote task) could not push the task's branch. |
 | `MACHINE_VERSION_SKEW` | That machine's Rove predates forwarded verbs; upgrade it. |
-| `MISSING_TARGET` | No `--task-id`, no `$ROVE_TASK_ID`, no active task — nothing was named. |
+| `MISSING_TARGET` | No `--task-id`, no `$ROVE_TASK_ID`, no active task — nothing was named; or `add --no-worktree` / `--isolate-in` with no `--parent` and no verified calling session. |
 | `NO_REPLY_ADDRESS` | `send` without `--task-id` from a Rove session whose task has no `dispatcher` (a task added with `--no-dispatcher` has none); name the target. |
 | `NOT_RATE_LIMITED` | `resume-quota --task-id` on a task that is not waiting on a quota reset. |
 | `MISSING_TEXT` | `row-token` was given neither `--text` to write nor `--clear` to remove. |
@@ -249,7 +249,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `BAD_OPTION` | `gate-answer --option` is not one of the gate's option keys (or the gate is free-text only). |
 | `NO_ENGINE_TAB` | The task has live tabs but none of them is an engine, so there is nothing to deliver to or interrupt. |
 | `NOT_A_REPO` | `--repo` does not point at a git repository. |
-| `NOT_A_GIT_REPO` | One of several `--repo` values is not a git repository (the message names it). |
+| `NOT_A_GIT_REPO` | One of several `--repo` values is not a git repository (the message names it); `add` (or `add --isolate-in`) under a `dir` task that is not inside a git repository; `update --project PATH` where PATH is not inside a git repository. |
 | `REPO_DUPLICATE` | `add` names the same repo root twice; a subdirectory counts as its root. |
 | `TOO_MANY_REPOS` | `add` names more than 8 repos for one task. |
 | `REMOTE_EXTRA_UNSUPPORTED` | A multi-repo `add` includes a remote project; every repo must be local. |
@@ -281,16 +281,13 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `BAD_MODEL` | The task's engine declares no model flag, so a model cannot be passed to it. |
 | `CONFLICTING_FLAGS` | `add --tier` beside `--command`, `--model`, `--effort` or `--agents` — the tier already fills those. `add --parent` beside `--no-parent`; `--no-worktree` / `--isolate-in` beside `--no-parent`, each other, or a flag that names a repo or fork point of their own. |
 | `EMPTY_SESSION` | `add` with nothing to run (no `--prompt`, `--prompt-file`, `--start`, `--count`, `--agents` or `--worktree-only`), from any caller: it would leave a task with no agent. |
-| `NOT_A_GIT_REPO` | `add` under a `dir` task that is not inside a git repository (`add --isolate-in` too). |
 | `REPO_HAS_NO_COMMITS` | `add` with a worktree (or `--fork`) from a repo with no commits yet; `hint` says to make a first commit or pass `--no-worktree`. |
-| `NOT_A_GIT_REPO` | `update --project PATH` where PATH is not inside a git repository. |
 | `SAME_PROJECT` | `update --project` names the project the task already belongs to. |
 | `CHILD_NOT_MOVABLE` | `update --project` on a child task: move its parent instead (children follow), or `update --parent none` first. |
 | `REMOTE_MOVE_UNSUPPORTED` | `update --project` where the task or the target project lives on another machine. |
 | `NOT_A_LINKED_REPO` | `add --isolate-in` names something that is not a top-level symlink to another git checkout. |
 | `REMOTE_PARENT_UNSUPPORTED` | `add` under a task that lives on another machine's project, or `update --parent` with either task on one. |
 | `PARENT_NOT_FOUND` | `update --parent` or `add --parent` names no task on the task's own machine. |
-| `MISSING_TARGET` | `add --no-worktree` or `--isolate-in` with no `--parent` and no verified calling session. |
 | `PARENT_IS_SELF` | `update --parent` names the task itself. |
 | `PARENT_CYCLE` | `update --parent` names one of the task's own descendants. |
 | `PARENT_IN_GROUP` | `update --group G --parent ID` where `ID` is itself a task of round `G`. |
