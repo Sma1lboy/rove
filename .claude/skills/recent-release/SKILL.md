@@ -21,7 +21,7 @@ Do NOT use this to draft changelog entries — that's `changelog-generator`. Thi
 
 ## Inputs
 
-- **Version range.** Default: the releases from **today** plus any from the last ~2–3 days so "几个发版" has content (Rove ships multiple releases/day — see the `main moves fast` reality). If the user names a range ("0.7.34 → 0.7.37", "最近 5 个版本", "今天的"), honor it exactly.
+- **Version range.** Default: the newest 3 stable releases in `CHANGELOG.md`. Stable releases are cut on demand and batched (`docs/RELEASING.md`), so a window of a few days often holds none; `next` and nightly builds are not in `CHANGELOG.md`. If the user names a range ("0.7.34 → 0.7.37", "最近 5 个版本", "今天的"), honor it exactly.
 - **Language.** Default zh-CN. `en` on request.
 - **Output path.** Default `rove-release-notes-zh.html` at the repo root (`-en` suffix for English). Honor an explicit path.
 

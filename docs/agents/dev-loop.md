@@ -12,7 +12,7 @@ Three runners in `packages/rove`. Picking the wrong one looks like a broken envi
 | `test/daemon/**` | vitest with `ROVE_INCLUDE_SOCKET=1` | `bun run test:socket` |
 | everything else | vitest | `bun run test:fast`, or `bun x vitest run <file>` |
 
-- `packages/rove/vitest.config.ts` excludes `test/daemon/**` and `test/orchestrator/bridge.test.ts` unless `ROVE_INCLUDE_SOCKET=1`. Run plainly they match no file, which reads like a missing file, not a wrong command; `test:fast` passes with no tests at all.
+- `packages/rove/vitest.config.ts` excludes `test/daemon/**` unless `ROVE_INCLUDE_SOCKET=1`. Run plainly they match no file, which reads like a missing file, not a wrong command; `test:fast` passes with no tests at all.
 - A vitest file run with `bun test` fails on vitest-only APIs. `vi.hoisted is not a function` is the usual signature and reads like a missing dependency.
 - If a test "can't run", check the runner before concluding anything about the environment.
 
@@ -21,7 +21,7 @@ Three runners in `packages/rove`. Picking the wrong one looks like a broken envi
 Run scripts via `bun --filter @sma1lboy/rove <script>` or `cd packages/rove && bun <script>`.
 
 - `dev` — real engines, **production** Rove state.
-- `dev:sandbox` — real engines + your real `HOME`, throwaway Rove state under `packages/rove/.dev-sandbox/home`. Use this one. Its daemon, PTY host and engines keep running after the command exits. A sandbox under `.dev-sandbox/` or a temp directory that no `dev:sandbox` command has touched for 6 hours is stopped, engines included, by the next `dev:sandbox` command or by `dev:sandbox sweep`; its files stay. A running TUI or `--web` bridge counts as use. Stop yours right away with `reset`.
+- `dev:sandbox` — real engines + your real `HOME`, throwaway Rove state under `packages/rove/.dev-sandbox/home`. Use this one. Its daemon, PTY host and engines keep running after the command exits. A sandbox under `.dev-sandbox/` or a temp directory that no `dev:sandbox` command has touched for 6 hours is stopped, engines included, by the next `dev:sandbox` command or by `dev:sandbox sweep`, which also deletes its `fixture-repo`; its other files stay. A running TUI or `--web` bridge counts as use. Stop yours right away with `reset`.
 
 The retired npm package `@sma1lboy/kobe` is frozen at 0.9.64; `rove-docs/` is the public docs site (Fumadocs on Next.js, static export, content synced from `docs/`).
 
@@ -79,7 +79,7 @@ The owner's machine only. The owner's live web is the test build: rove-web.sma1l
 
 ## Web screenshot regression
 
-`bun run build`, then `bun --filter rove-harness web:shots` shoots rove-web's pages (desktop 1440 and phone 390) on the isolated visual fixture and compares them with the last run's. It prints `{ dir, from, to, changed, added }`: `changed` lists the shots that differ by more than rounding noise, between commits `from` and `to`. The new shots are in `<dir>/current`, the ones they were compared with in `<dir>/previous`; `ROVE_WEB_SHOTS_DIR` moves `<dir>` (default `.scratch/web-shots`). A failed run leaves both as they were and writes `failed-<scene>.png`. It is not a `pre-pr` gate: a daily routine runs it against `main`. Known noise: the terminal prompt in `workspace-desktop` sometimes draws at another weight (about 300 pixels).
+`bun run build`, then `bun --filter rove-harness web:shots` shoots rove-web's pages (desktop 1440 and phone 390) on the isolated visual fixture and compares them with the last run's. It prints `{ dir, from, to, changed, added }`: `changed` lists the shots that differ by more than rounding noise, between commits `from` and `to`. The new shots are in `<dir>/current`, the ones they were compared with in `<dir>/previous`; `ROVE_WEB_SHOTS_DIR` moves `<dir>` (default `.scratch/web-shots`). A failed run leaves both as they were and writes `failed-<scene>-<viewport>.png`. It is not a `pre-pr` gate: a daily routine runs it against `main`. Known noise: the terminal prompt in `workspace-desktop` sometimes draws at another weight (about 300 pixels, over the 50-pixel noise threshold, so it can land in `changed`). Shots of a page that no longer exists stay in `current`.
 
 ## Diagrams in `docs/`
 

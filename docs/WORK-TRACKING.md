@@ -57,7 +57,7 @@ Code changes still land their user-facing line as a **Changeset** (see [`RELEASI
 
 Use repo-local artifacts instead of external tickets:
 
-- Backlog / "we should do X" items go in the daemon issue tracker.
+- Backlog / "we should do X" items go in `TODO.md`, or in the daemon issue tracker when the Kanban mod is installed.
 - Immediate operational notes for the next session go in `HANDOFF.md`.
 - Durable design notes go in `docs/`.
 - Release-facing changes go in a Changeset → `CHANGELOG.md`.

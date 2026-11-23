@@ -71,11 +71,14 @@ writer). Types in [`contracts.ts`](../../packages/rove-daemon/src/daemon/contrac
 |---|---|
 | `dispatched` | Task created (or delivered into the standing session), engine started with the prompt |
 | `revived` | Standing session whose engine was not running (stopped after its last run), started again in the same worktree on the conversation its tab row holds |
+| `skipped_cancelled` | The routine was disabled, edited, deleted, or its runner stopped before delivery |
 | `skipped_precheck` | The precheck said there was nothing to do — **healthy** |
-| `skipped_blocked` | Should-run declined the tick: the target task is busy, awaiting the owner, rate limited, … (`blocked` carries the verdict; see `long-run-controls.md` § 2) — no alarm, the cause is already in the Inbox. `engine-dead` / `engine-error` have no Inbox row of their own and are recorded `dispatch_failed` instead |
-| `skipped_missed` | The occurrence was older than the grace window |
+| `skipped_blocked` | Should-run declined the tick: the target task is busy, awaiting the owner, rate limited, … (`blocked` carries the verdict; see `long-run-controls.md` § 2) — no alarm, the cause is already in the Inbox. A firing that would create a fresh task lands here too when the cached quota snapshot says the window is exhausted. `engine-dead` / `engine-error` have no Inbox row of their own and are recorded `dispatch_failed` instead |
+| `skipped_missed` | The occurrence was older than the grace window, or the sweep passed over it |
 | `skipped_unavailable` | The repo/worktree could not be resolved (or, with no project, the routine directory could not be made) |
 | `dispatch_failed` | Task created but its engine did not start |
+| `ran` | A script routine's command exited 0 |
+| `script_failed` | A script routine's command exited non-zero, timed out or could not start |
 
 The "didn't run" reasons are deliberately distinct. Unattended automation
 is only trustworthy if a glance tells you whether a human is needed;
@@ -245,17 +248,9 @@ argv and is typed once the engine is up.
 
 ## Not implemented
 
-- **Quota awareness.** A firing consults nothing about the vendor's rate limit.
-  Measured, three firings of a `* * * * *` routine on an exhausted vendor: three
-  tasks, three worktrees, three `dispatched` rows, and a `quotaResume` armed on
-  the first throwaway task for five days out — a task nobody will read, woken by
-  a timer, in a branch nobody will land. The run history says the routine is
-  healthy. A fix is a STATUS, not a scheduler: ask the quota cache's
-  `exhaustedResetAtMs` before dispatch and record a distinct run naming the
-  reset time instead of spawning. That needs `QuotaUsageCache` threaded into
-  `RunnerDeps` (the sweep holds no reference to it today) and a new row in the
-  run-status table above, which is a vocabulary call. Rescheduling the routine
-  ONTO the reset is a separate, larger question — a routine that fires hourly
-  does not want a backlog of eight deferred turns at 07:00.
+- Moving a quota-skipped firing onto the reset time. A firing that would
+  create a fresh task reads the engine's cached quota snapshot and records
+  `skipped_blocked` when the window is exhausted (an unknown quota does not
+  skip); the occurrence is dropped, not deferred.
 - Timezones (the daemon host's local time)
 - Cost attribution per run, remote/SSH execution targets

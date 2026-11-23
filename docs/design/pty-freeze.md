@@ -17,9 +17,11 @@ tricks — rejected as not worth it, same call as the original daemon doc).
 - **Freeze** (`pty-freeze-store.ts`): one JSON file per session under
   `<home>/.rove/pty-sessions/<urlencoded-key>.json` — key, cwd, launch
   command, size, title, monotonic byte offset, exit record, and the ring
-  buffer (base64, already capped at ~512 KiB). Written at most once per 5s
-  per session while streaming (crash-loss bound), immediately on exit, and
-  for every session during `shutdown()`. Atomic tmp+rename; every operation
+  buffer (base64, already capped at ~512 KiB). While streaming, a session is
+  rewritten at most once per 5s, and only once 64 KiB of new output has
+  arrived or 60s have passed since its last freeze (`pty-freeze-policy.ts`);
+  it is written immediately on exit and rename, and for every session during
+  `shutdown()`. Atomic tmp+rename; every operation
   is best-effort — a freeze hiccup must never take the terminal down.
 - **Restore**: at boot (before listen) the host thaws each record into a
   dead session marked `restored`, ring intact. It stays a corpse — zero
@@ -34,9 +36,9 @@ tricks — rejected as not worth it, same call as the original daemon doc).
   A failed respawn clears `restored` and degrades to the ordinary view-only
   corpse behavior (the one-shot resume guard TUI-side stays the backstop).
 - **Forgetting**: explicit `pty.kill` (tab close, task delete) drops the
-  record — an intentional end is not a restart casualty. `rove reset`'s
-  graceful `daemon.stop` wipes the whole store ("starts fresh"); a bare
-  SIGTERM/crash/reboot keeps it.
+  record — an intentional end is not a restart casualty. The host never
+  wipes the store, whatever stops it: `rove reset` clears it itself
+  (`clearFrozenSessions`) once the host is gone.
 
 ## What changed outside the host
 

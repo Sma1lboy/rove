@@ -13,7 +13,9 @@ matters.
 - `bun run test:behavior` — built-CLI black-box tests.
 - `bun run test` — the package's required fast + socket aggregate.
 
-The render track is a required macOS CI/release gate. It uses Bun's native
+The render track is a required CI/release gate, split by platform: Linux runs
+every file except those listed in `test/render-linux-known-failing.txt`, and
+macOS runs exactly that list plus the PTY half. It uses Bun's native
 OpenTUI renderer to mount `.tsx` components and React-owning hooks and assert on
 real frames; it enforces no line-coverage floor. The separate required visual gate
 runs the committed browser journey on Linux, which compiles node-pty and can
@@ -135,15 +137,15 @@ Set either variable on any Rove process to record the same data by hand. Add a c
 
 ## Behavioral self-test
 
-`test/behavior/harness.ts` runs the published `dist/cli/rove.js` and
-`dist/cli/rove.js` entries in a disposable HOME and XDG tree with PATH-first
+`test/behavior/harness.ts` runs the published `dist/cli/rove.js` entry in a
+disposable HOME and XDG tree with PATH-first
 CLI and fake engine shims. Daemon and PTY Host paths derive from that home, so
 setup and teardown cannot reach production state.
 
 The suite currently pins:
 
 - built CLI update behavior;
-- `rove` identity plus `ROVE_*` precedence through both public entry points;
+- `rove` identity and `ROVE_*` precedence through the public entry point;
 - PureTUI terminal title publication when native PTY support is available;
 - headless `rove api add --prompt` auto-starting `<taskId>::tab-1`;
 - `send` reusing that exact hosted session;
@@ -166,10 +168,11 @@ reaching the release pipeline:
 - **Retry is configured** (`--retry=2` on `test:behavior`), for this suite
   only. A single red run of a process-driving test is not evidence.
 - **Poll, never sleep-then-assert.** A fixed wait encodes one runner's speed.
-  Re-assert the precondition inside the retry loop, not once before it: the
-  open-worktree test pressed `ctrl+q` once, then retried only `o` for 15s, so
-  a boot that placed focus a beat late spent every retry on the wrong pane
-  (green on `ci.yml`, red on `release.yml`, same commit — v0.8.58).
+  Retry only presses that are safe to repeat. A key that changes state is sent
+  once, before the loop: the open-worktree test presses `ctrl+q` once to reach
+  the sidebar, then retries `o` until the editor shim records the open.
+  Re-sending `ctrl+q` inside the loop would open the quit confirm once focus is
+  already on the sidebar, and its modal would swallow every later `o`.
 
 ## OpenTUI visual ground truth
 
@@ -185,8 +188,8 @@ bun run visual          # hermetic journey: real OpenTUI drives, assertions read
 
 bun run visual:serve    # warm iteration servers + reusable fixture (keep running)
 bun run visual:dev      # fast baseline check against visual:serve (~2s)
-cd packages/rove-harness && bun run visual:shot -- ctrl+h c   # ad-hoc screenshot (~2s)
-cd packages/rove-harness && bun run visual:shot -- --scale=2 --out=shot.png
+cd packages/rove-harness && bun run visual:shot -- ctrl+a 1   # ad-hoc screenshot: Kanban (~2s)
+cd packages/rove-harness && bun run visual:shot -- --out=shot.png
 ```
 
 Iterate with the warm loop (`visual:serve` once, then `visual:dev` /
@@ -196,9 +199,9 @@ refuses to reuse a running server — stop `visual:serve` first.
 `ROVE_VISUAL_FRESH=1` forces a fixture rebuild.
 
 `--scale=N` sets the device pixel ratio while the viewport stays 1280×800, so
-the TUI keeps its cell grid and only the raster gets denser — that is how a
-`docs/assets` still gets captured at 2× without changing what the TUI lays
-out. Ports come from `ROVE_VISUAL_PORT_BASE`, so pointing the shot at another
+the TUI should keep its cell grid and only the raster should get denser. At 2
+the layout is currently wrong (see "Stills ship at 1×" below), so shoot at 1×.
+Ports come from `ROVE_VISUAL_PORT_BASE`, so pointing the shot at another
 harness instance (a throwaway home with a richer fixture, say) is just an env
 var — the ground-truth path is unchanged.
 
@@ -520,13 +523,15 @@ bun run pty:soak -- --tabs=50 --cycles=5 --lines=1200
 It creates a disposable `ROVE_HOME_DIR`, drives long output through real hosted
 shells, parks every tab, lets them keep emitting while hidden, then proves each
 wake sees its exact delta. It fails on lost markers or any full-replay fallback,
-not timing. `--tabs` accepts up to 100; the printed temporary home is retained
-for post-failure inspection and never points at production state.
+not timing. `--tabs` accepts up to 100. The temporary home
+(`$TMPDIR/rove-pty-soak-*`) is never deleted, so a failed run can still be
+inspected, though only the success line prints its path; it never points at
+production state.
 
 ## Regression policy
 
-- A bug fix includes a test that fails for the reported defect and passes with
-  the fix.
+- A bug fix earns a test only if nothing else sees the defect (`AGENTS.md`
+  Tests); that test fails for the reported defect and passes with the fix.
 - Environment-shaped defects belong in `test/behavior/` when mocks would hide
   the real packaged path or process boundary.
 - Protocol and lifecycle defects use real socket tests when practical.
@@ -554,21 +559,17 @@ per-touched-file floor and the `coverage-exemption:` lines it read. Line
 coverage says a line ran, not that anything checked it; write tests by the
 "pin behavior" rule in `AGENTS.md` instead.
 
-### Editing the PR body does not re-run CI
+### Editing the PR body re-runs the description gates
 
-`pr-gates.yml` reads the PR body **during a workflow run**, so a fix to the body
-(UI evidence, an exemption line) after a failing run is invisible until a new run
-starts: `gh pr edit <n> --body-file <file>`, then push a commit
-(`git commit --allow-empty -m "chore: re-trigger CI"`). `gh run rerun` replays the
-frozen event payload, which carries the old body.
+`pr-gates.yml` runs on `edited` and its file-size and UI gates read the PR's
+current body through the API, so `gh pr edit <n> --body-file <file>` re-runs
+them; no new commit is needed. The owner's PRs pass the same gates in
+`bun run pre-pr -- --body-file <body>` instead.
 
 ## Required pre-PR command
 
 ```bash
-bun run lint && \
-bun run typecheck && \
-bun run test && \
-(cd packages/rove && bun run build && bun run test:behavior)
+bun run pre-pr -- --body-file <body>   # tiers and timing: docs/agents/dev-loop.md
 ```
 
 Inspect `git status`, `git diff`, touched-file sizes, and the changeset before

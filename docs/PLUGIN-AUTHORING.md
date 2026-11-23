@@ -498,7 +498,7 @@ export default function page(host) {
   are listed first, not installed until you install them there or with
   `rove plugin install kanban`.
 - **Settings → Marketplace**: your repo's `rove-plugin` topic listing, its
-  description, and the install preview built from your manifest's commands.
+  description, and the install preview built from your manifest's build, startup, action and event commands.
 - **CLI**: `rove plugin action invoke`, `rove plugin pane open`, `rove
   plugin log`, `rove plugin config-dir` (prints the plugin's config
   directory).
@@ -680,8 +680,10 @@ Runnable example: [`examples/counter-mod/`](../packages/rove-plugin-sdk/examples
   tweaks (deny a tool call) belong in engine-native hooks the user installs
   directly.
 - **Trust model**: plugins run as the user with their environment; installs
-  preview every command and build step first — on the CLI and in Settings →
-  Marketplace alike — but nothing is sandboxed.
+  first preview the `[[build]]`, `[[startup]]`, `[[actions]]` and `[[events]]`
+  commands — on the CLI and in Settings → Marketplace alike — but nothing is
+  sandboxed. `[[shutdown]]`, `[[panes]]`, `[mod]`, `[[pages]]`, `[[engines]]`
+  and `[[file_handlers]]` are not in the preview.
   Keep your repo auditable. That's what gets you installed.
 - Reference implementations: the first-party plugins in
   [Sma1lboy/rove-plugins](https://github.com/Sma1lboy/rove-plugins)

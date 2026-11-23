@@ -47,7 +47,8 @@ operations and render what it broadcasts; none writes the state itself.
   ranges are disjoint, so no two clients mint the same id.
 - **Tombstones.** A closed id is remembered per task; `open` refuses it. A
   stale copy, or the orphan poll seeing a session that is still exiting,
-  cannot bring a closed tab back.
+  cannot bring a closed tab back. Tombstones live in the daemon's memory
+  (up to 256 per task), so the guarantee holds for one daemon lifetime.
 - **Per-client state stays per client.** Which tab a client is looking at is
   its own; the store keeps the last focused one (`focus`) only as the start
   point for a fresh client or a restart.

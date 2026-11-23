@@ -25,4 +25,4 @@ This repo has two other tracking surfaces that this file does NOT replace:
 - **Daemon issue store** (`rove api issue-*`) — the product backlog when the Kanban mod is installed (otherwise the local `TODO.md`), per [`../WORK-TRACKING.md`](../WORK-TRACKING.md). Long-lived "we should do X" items still belong there.
 - **GitHub Issues** — inbound end-user bug reports only (e.g. #192). Never file agent work items there automatically.
 
-`.scratch/` is the working layer for skill-driven feature flows (PRD → issues → QA within a session/feature). When a `.scratch` issue graduates into durable backlog, move it to the daemon store.
+`.scratch/` is the working layer for skill-driven feature flows (PRD → issues → QA within a session/feature). When a `.scratch` issue graduates into durable backlog, move it to `TODO.md`, or to the daemon store when the Kanban mod is installed.

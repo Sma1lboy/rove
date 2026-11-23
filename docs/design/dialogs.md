@@ -48,7 +48,9 @@ per choice, ←/→ while focused. One selector shape per dialog (owner call,
 ## The frames give way before the button does
 
 A well and a chip each cost two rows their content does not need, and the card
-is capped at the viewport with nothing to scroll it. The new-task dialog's
+is capped at the viewport. Only a form inside `DialogBody` (today the new-task
+dialog) scrolls within the card, with its header and actions kept outside the
+scroll; every other dialog has nothing to scroll it. The new-task dialog's
 Clone tab carries four fields plus a picker; on a 24-row terminal the borders
 pushed `[ Create ]` and `submitError` off the bottom, which is the exact
 silent failure `test/render/new-task-short-terminal.test.tsx` exists to catch.
@@ -70,7 +72,9 @@ label is a settings KEY, an identifier rather than a name).
 Left for a follow-up: `branch-picker-dialog`, `run-again-dialog`,
 `field-notes-dialog` and `settings-dialog/`. Each is one list or one input
 behind the same header + footer shape, so nothing about them reads foreign
-yet; convert one when it grows a choose-one field.
+yet; convert one when it grows a choose-one field. `DialogChoice` (and the
+`DialogConfirm` built on it) draws its own title row and `esc` hint instead of
+`DialogHeader`, and carries no `DialogFooter`.
 
 `test/architecture/dialog-choose-one.test.ts` holds the line: a dialog file
 that maps choices into `<text … onMouseUp>` with a `▸ ` marker is rejected,
