@@ -96,8 +96,9 @@ redraw is not bound. Engine sessions live in the PTY host and survive the
 relaunch; the tabs reattach to the same sessions. On a current Rove the
 refresh is absent from the keymap and the command guide, and `r` redraws.
 
-The sequence cancels on timeout, `esc`, an invalid second key, or a change of
-focus or dialog.
+The sequence cancels on timeout, `esc`, an invalid second key, focus moving
+into or out of an embedded terminal, a dialog opening, or a keybindings reload.
+Moving focus between other panes does not cancel it.
 
 ## Hold ctrl to reveal follow-up keys
 
@@ -403,7 +404,7 @@ bindings:
   sidebar.select: [enter]
   files.createPR: null   # null or [] unbinds
 
-darwin:                  # platform overlays win per chord
+darwin:                  # replaces the same id's `bindings:` entry on this platform
   bindings:
     files.openExternal: cmd+o
 ```
