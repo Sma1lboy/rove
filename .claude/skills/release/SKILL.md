@@ -12,8 +12,10 @@ manual flow in [`docs/RELEASING.md`](../../../docs/RELEASING.md) describes — r
 that doc once if anything here is ambiguous; it is the source of truth and this
 skill must never contradict it.
 
-> **Releases are on demand.** Merging a PR only banks its changeset;
-> nothing ships until someone runs `.github/workflows/changesets.yml`
+> **Releases are on demand.** Merging a PR that changes the package publishes
+> it to npm `next` and banks its changeset; nothing ships to `latest` until
+> someone runs
+> `.github/workflows/changesets.yml`
 > (CI-green wait → version + commit → tag → dispatch `release.yml`). That
 > workflow is the default path: do Step 1 against `origin/main` (the workflow
 > releases whatever is banked there), then `gh workflow run changesets.yml
@@ -104,7 +106,7 @@ bun run lint
 bun run typecheck
 bun run test            # fast Vitest + unix-socket daemon/bridge suite
 bun run build
-cd packages/rove && bun run perf:golden   # golden perf doctor (~90s incl. binary compile smoke; docs/HARNESS.md §Performance contracts)
+cd packages/rove && bun run perf:golden   # golden perf doctor (~90s incl. binary compile smoke; docs/HARNESS.md §Performance measurement)
 ```
 
 `perf:golden` ceilings are 2-3× the reference numbers, so a FAIL means a real
