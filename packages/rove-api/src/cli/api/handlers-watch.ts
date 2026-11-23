@@ -1,13 +1,15 @@
 /**
- * `watch` — block until a task's engine reaches a state, instead of polling
- * `collect`. A subscription to `engine-state` (which includes `dead`, written
- * from the pty exit record since a killed engine fires no hook) with a filter
- * and an exit condition — deliberately not a general event bus.
+ * `watch` — block until a task's engine or its PR reaches a state, instead of
+ * polling `collect`. A subscription to `engine-state` (which includes `dead`,
+ * written from the pty exit record since a killed engine fires no hook) and,
+ * for PR states, `task.snapshot` (which carries the daemon-polled `prStatus`),
+ * with a filter and an exit condition — deliberately not a general event bus.
  *
  * Output is a STREAM: one NDJSON line per transition, then the usual single
  * result object when the watch ends.
  */
 
+import type { ChannelName } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 
@@ -21,6 +23,32 @@ const WATCHABLE_STATES = [
   "error",
   "dead",
 ] as const
+
+/** States read from the task's polled PR, not its engine; a task can be in several at once. */
+const PR_STATES = ["ci_pending", "ci_passing", "ci_failing", "pr_conflicting", "pr_merged", "pr_closed"] as const
+
+const VALID_STATES: readonly string[] = [...WATCHABLE_STATES, ...PR_STATES]
+
+interface PrStatusView {
+  readonly lifecycle?: string
+  readonly checkState?: string
+  readonly mergeable?: string
+  readonly number?: number
+  readonly lastCheckedAt?: string
+}
+
+/** The PR states a task's last polled status puts it in. */
+function prStatesOf(pr: PrStatusView | undefined): string[] {
+  if (!pr) return []
+  const states: string[] = []
+  if (pr.lifecycle === "merged") states.push("pr_merged")
+  if (pr.lifecycle === "closed") states.push("pr_closed")
+  if (pr.checkState === "pending") states.push("ci_pending")
+  if (pr.checkState === "passing") states.push("ci_passing")
+  if (pr.checkState === "failing") states.push("ci_failing")
+  if ((pr.mergeable ?? "").toUpperCase() === "CONFLICTING") states.push("pr_conflicting")
+  return states
+}
 
 /** How often the watch proves the daemon is still there. */
 const HEARTBEAT_MS = 5_000
@@ -61,10 +89,10 @@ function parseUntil(raw: string): string[] {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean)
-  const unknown = states.filter((s) => !(WATCHABLE_STATES as readonly string[]).includes(s))
+  const unknown = states.filter((s) => !VALID_STATES.includes(s))
   if (unknown.length > 0) {
     throw new ApiError(
-      `--until names states that do not exist: ${unknown.join(", ")} (valid: ${WATCHABLE_STATES.join(", ")})`,
+      `--until names states that do not exist: ${unknown.join(", ")} (valid: ${VALID_STATES.join(", ")})`,
       "BAD_FLAG",
     )
   }
@@ -78,6 +106,8 @@ async function watch(ctx: VerbContext): Promise<unknown> {
   const until = new Set(parseUntil(ctx.args.require("until")))
   const timeoutRaw = ctx.args.int("timeout")
   const timeoutMs = timeoutRaw && timeoutRaw > 0 ? timeoutRaw : DEFAULT_TIMEOUT_MS
+  const watchesPr = [...until].some((state) => (PR_STATES as readonly string[]).includes(state))
+  const channels: ChannelName[] = watchesPr ? ["engine-state", "task.snapshot"] : ["engine-state"]
 
   return await new Promise((resolve, reject) => {
     let settled = false
@@ -100,13 +130,8 @@ async function watch(ctx: VerbContext): Promise<unknown> {
       fn()
     }
 
-    const off = daemon.onChannel("engine-state", (payload) => {
-      const event = payload as unknown as EngineStateEvent
-      if (!taskIds.has(event.taskId)) return
-      const key = `${event.taskId}::${event.tabId ?? ""}::${event.state}::${event.at}`
-      if (seen.has(key)) return
-      if (seen.size >= SEEN_CAP) seen.clear()
-      seen.add(key)
+    const record = (event: EngineStateEvent & { readonly pr?: number }): void => {
+      if (settled) return
       events++
       process.stdout.write(
         `${JSON.stringify({
@@ -114,6 +139,7 @@ async function watch(ctx: VerbContext): Promise<unknown> {
           ...(event.tabId ? { tabId: event.tabId } : {}),
           state: event.state,
           at: event.at,
+          ...(event.pr !== undefined ? { pr: event.pr } : {}),
         })}\n`,
       )
       if (!until.has(event.state)) return
@@ -123,10 +149,49 @@ async function watch(ctx: VerbContext): Promise<unknown> {
           watched: [...taskIds],
           until: [...until],
           events,
-          matched: { taskId: event.taskId, ...(event.tabId ? { tabId: event.tabId } : {}), state: event.state },
+          matched: {
+            taskId: event.taskId,
+            ...(event.tabId ? { tabId: event.tabId } : {}),
+            state: event.state,
+            ...(event.pr !== undefined ? { pr: event.pr } : {}),
+          },
         }),
       )
+    }
+
+    const offEngine = daemon.onChannel("engine-state", (payload) => {
+      const event = payload as unknown as EngineStateEvent
+      if (!taskIds.has(event.taskId)) return
+      const key = `${event.taskId}::${event.tabId ?? ""}::${event.state}::${event.at}`
+      if (seen.has(key)) return
+      if (seen.size >= SEEN_CAP) seen.clear()
+      seen.add(key)
+      record(event)
     })
+
+    // A snapshot repeats every task on any change, so only a PR state a task
+    // newly entered is a transition; the replayed first snapshot enters them all.
+    const prSeen = new Map<string, ReadonlySet<string>>()
+    const offPr = watchesPr
+      ? daemon.onChannel("task.snapshot", (payload) => {
+          for (const task of payload.tasks) {
+            if (!taskIds.has(task.id)) continue
+            const pr = task.prStatus as PrStatusView | undefined
+            const now = new Set(prStatesOf(pr))
+            const before = prSeen.get(task.id) ?? new Set<string>()
+            prSeen.set(task.id, now)
+            const checkedAt = pr?.lastCheckedAt ? Date.parse(pr.lastCheckedAt) : Number.NaN
+            const at = Number.isFinite(checkedAt) ? checkedAt : Date.now()
+            for (const state of now) {
+              if (!before.has(state)) record({ taskId: task.id, state, at, pr: pr?.number })
+            }
+          }
+        })
+      : () => {}
+    const off = (): void => {
+      offEngine()
+      offPr()
+    }
 
     const deadline = setTimeout(() => {
       finish(() =>
@@ -135,7 +200,7 @@ async function watch(ctx: VerbContext): Promise<unknown> {
             watched: [...taskIds],
             until: [...until],
             events,
-            hint: "the state may simply not have happened yet — `collect --task-ids` shows where each task is right now",
+            hint: "the state may simply not have happened yet — `collect --task-ids` shows where each task and its PR are right now",
             nextCommandArgs: ["api", "collect", "--task-ids", [...taskIds].join(",")],
           }),
         ),
@@ -159,7 +224,7 @@ async function watch(ctx: VerbContext): Promise<unknown> {
       })
     }, HEARTBEAT_MS)
 
-    daemon.subscribe({ channels: ["engine-state"] }).catch((err: unknown) => {
+    daemon.subscribe({ channels }).catch((err: unknown) => {
       finish(() => reject(err))
     })
   })
@@ -170,7 +235,7 @@ export const WATCH_VERB: VerbSpec = {
   group: "read",
   cliOnly: true,
   summary:
-    "Block until a watched task's engine reaches one of --until's states, streaming every transition as NDJSON on the way — the push-driven replacement for a `collect` polling loop. Each line is { taskId, tabId?, state, at }; the usual single result object follows when the watch ends. Exits 0 on a match (with `matched`), WATCH_TIMEOUT when --timeout elapses first, DAEMON_GONE when the daemon dies mid-watch (reconnect and re-run — this verb never reconnects on its own). `dead` is watchable and is the one state polling is worst at: a SIGKILLed engine fires no hook, so the daemon writes it from the pty exit record and pushes it here immediately.",
+    "Block until a watched task's engine or PR reaches one of --until's states, streaming every transition as NDJSON on the way — the push-driven replacement for a `collect` polling loop. Each line is { taskId, tabId?, state, at, pr? }; the usual single result object follows when the watch ends. Exits 0 on a match (with `matched`), WATCH_TIMEOUT when --timeout elapses first, DAEMON_GONE when the daemon dies mid-watch (reconnect and re-run — this verb never reconnects on its own). `dead` is watchable and is the one state polling is worst at: a SIGKILLed engine fires no hook, so the daemon writes it from the pty exit record and pushes it here immediately.",
   flags: [
     { name: "task-ids", type: "csv", placeholder: "a,b,c", description: "Comma-separated task ids to watch." },
     {
@@ -184,7 +249,7 @@ export const WATCH_VERB: VerbSpec = {
       type: "string",
       required: true,
       placeholder: "STATE[,STATE]",
-      description: `Stop at the first of these engine states: ${WATCHABLE_STATES.join(", ")}. A state that does not exist is refused up front — a typo would otherwise wait forever.`,
+      description: `Stop at the first of these engine states: ${WATCHABLE_STATES.join(", ")}; or PR states, read from the task's polled PR: ${PR_STATES.join(", ")}. A state that does not exist is refused up front — a typo would otherwise wait forever.`,
     },
     {
       name: "timeout",
