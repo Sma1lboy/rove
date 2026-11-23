@@ -531,3 +531,11 @@ Run 1 (patched) exited 0, nothing past tolerance: firstFrame 416.1, boot.ready 1
 **No attempt:** same as 11-13 to 11-21. Owner calls still stand: a new nightly scenario (streaming engine tab, many sidebar tasks, split pane), an idle phase that waits for quiet, and a wider tolerance for single-sample timing outliers.
 
 **Sandbox:** bun 1.3.14 from npm, `ELECTRON_SKIP_BINARY_DOWNLOAD=1`; `/tmp/pwshim/chromium_headless_shell-{1243,1228}` → `/opt/pw-browsers/chromium_headless_shell-1243`.
+
+## 2026-11-23 — notes, no attempt (main 7187449)
+
+**No regression.** Run 1 exited 1 on idle only (commit.root/workspace 5, sidebar 3, frame 4, stateNotify 7, stateListener 18; plus boot.firstFrame 862.9). That is the boot burst from 11-12 landing in the idle window, not a regression. Run 2 exited 0 with nothing past tolerance and idle back at 0. Run 2 counts: switch commit.root/workspace 6, sidebar 2, frame 2.7, overlay 3, stateNotify/stateListener 2, paintRow 1.7, spawns 0; typing 1/key. Timings: firstFrame 549.5, boot.ready 2021, switch.shown 172, typing.echo 146.5, cli-startup 44.6, vt-1mb 98.3. 3 commits since 1d0670f (#2142 single-panel width setting, #2143 docs, #2144 test), none on the measured paths. No open `perf:` issues. Baseline unchanged; tonight's history line is run 2.
+
+**No attempt:** same as 11-13 to 11-22. Owner calls still stand: a new nightly scenario, an idle phase that waits for quiet (tonight's run 1 is another false ✗ from the fixed 3 s wait), and a wider tolerance for single-sample timing outliers.
+
+**Sandbox:** bun 1.3.14 from npm, `ELECTRON_SKIP_BINARY_DOWNLOAD=1`; the preinstalled shell lives at `/opt/pw-browsers/chromium_headless_shell-1243/chrome-headless-shell-linux64/` (not `chrome-linux/` as the routine prompt says); per-file symlinks into `<shim>/chromium_headless_shell-{1228,1243}/chrome-headless-shell-linux64/`. The harness asks for 1228. The routine prompt still says `packages/kobe*`; the paths are `packages/rove*`.
