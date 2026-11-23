@@ -103,37 +103,13 @@ state survive?* Yes → daemon. No → TUI-local.
 
 ---
 
-## 5. Wire protocol sketch
+## 5. Wire protocol
 
-Newline-delimited JSON. Each frame:
-
-```json
-{ "type": "request"  | "response" | "event",
-  "id":   "<uuid>",                     // request/response correlation
-  "name": "task.spawn" | "chat.send" | ...,
-  "payload": { ... } }
-```
-
-### Request / response (TUI → daemon → TUI)
-- `task.list` → `{ tasks: Task[] }`
-- `task.spawn` `{ repo, title, ... }` → `{ taskId }`
-- `task.rename` `{ taskId, title }` → `{}`
-- `task.delete` `{ taskId }` → `{}`
-- `chat.history` `{ taskId, before?: messageId, limit }` → `{ messages }`
-- `chat.send` `{ taskId, text }` → `{ messageId }` (tail of stream arrives via events)
-
-### Push events (daemon → all attached TUIs)
-- `task.created` `{ task }`
-- `task.updated` `{ taskId, patch }`
-- `task.deleted` `{ taskId }`
-- `chat.delta` `{ taskId, messageId, delta }` (streaming token chunks)
-- `chat.complete` `{ taskId, messageId }`
-- `engine.status` `{ taskId, status: "running" | "offline" | "error" }`
-
-Event ordering: monotonically increasing `seq` per event so a client
-that briefly disconnects and reattaches can request "events since
-seq=N" — but **v1 just resyncs from snapshot on reattach**; the seq
-infrastructure goes in once a flake actually shows up.
+Newline-delimited JSON. Requests and responses carry an `id` (a per-connection
+counter, sent as a string); events carry no id and no sequence number. The
+frame shapes and the full request and event vocabulary live in
+`packages/rove-daemon/src/daemon/protocol.ts`; push events are the named
+channels in `channels.ts`, plus `daemon.stopping` and the `pty.*` events.
 
 ---
 
@@ -144,28 +120,20 @@ sequenceDiagram
   participant TUI
   participant Daemon
 
-  TUI->>Daemon: connect ~/.rove/daemon.sock
-  TUI->>Daemon: request hello { clientId, version }
-  Daemon-->>TUI: response hello { protocolVersion, daemonPid }
+  TUI->>Daemon: connect <home>/.rove/daemon.sock
+  TUI->>Daemon: request hello { protocolVersion, minProtocolVersion }
+  Daemon-->>TUI: response hello { protocolVersion, roveVersion, daemonPid, homeDir, tasks, ... }
 
-  TUI->>Daemon: request task.list
-  Daemon-->>TUI: response { tasks }
-
-  loop per visible task
-    TUI->>Daemon: request chat.history { taskId, limit: 50 }
-    Daemon-->>TUI: response { messages }
-  end
-
-  TUI->>Daemon: request subscribe { taskIds: ["all"] }
-  Daemon-->>TUI: response {}
+  TUI->>Daemon: request subscribe { channels? }
+  Daemon-->>TUI: event (last value of each populated channel)
 
   Note over TUI,Daemon: bidirectional from here on
-  Daemon-->>TUI: event chat.delta { ... }
-  TUI->>Daemon: request chat.send { ... }
 ```
 
-Subscribe is "all tasks" by default — broadcast cost is small and the
-TUI may show any task at any time.
+`hello` returns the task list, so there is no separate `task.list` round
+trip. `subscribe` takes an optional channel filter (all channels when
+omitted); the daemon replays each populated channel's last value to the new
+subscriber, then broadcasts only the channels it asked for.
 
 ---
 
@@ -315,23 +283,12 @@ Hard-cut. No auto-spawn. Two reasons:
 
 ---
 
-## 8. Crash recovery / engine-offline UX
+## 8. Crash recovery
 
-If `roved` dies (OOM, panic, kill -9):
-- All `claude` subprocesses die (they're children).
-- TUI's socket connection dies → TUI shows a banner: "daemon offline — `roved start` to resume".
-- After `roved start`, TUI reconnects automatically. Task list comes
-  back from disk. Each task's status is now `engine_offline`.
-- Pressing `r` on an offline task triggers a session resume (already
-  shipped in `src/tui/component/resume-dialog.tsx`).
-
-**Required for daemon v1:** orchestrator must persist task metadata
-(status, last activity, pinned) to disk on every mutation,
-not only on graceful shutdown. Chat / session JSONL is already
-persistent.
-
-Not in v1: auto-resume every task on daemon restart. User-driven
-resume per task via `r` is fine for the first cut.
+Engine and shell processes are children of the standalone PTY host, not of
+the daemon, so a daemon crash or restart leaves them running; the next client
+start spawns a new daemon, which reloads the task index from disk. What
+survives each kind of failure is in [`SESSIONS.md`](../SESSIONS.md).
 
 ---
 
