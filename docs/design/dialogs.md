@@ -48,7 +48,9 @@ per choice, ←/→ while focused. One selector shape per dialog (owner call,
 ## The frames give way before the button does
 
 A well and a chip each cost two rows their content does not need, and the card
-is capped at the viewport with nothing to scroll it. The new-task dialog's
+is capped at the viewport. Only a form inside `DialogBody` (today the new-task
+dialog) scrolls within the card, with its header and actions kept outside the
+scroll; every other dialog has nothing to scroll it. The new-task dialog's
 Clone tab carries four fields plus a picker; on a 24-row terminal the borders
 pushed `[ Create ]` and `submitError` off the bottom, which is the exact
 silent failure `test/render/new-task-short-terminal.test.tsx` exists to catch.
