@@ -1,5 +1,55 @@
 # Changelog
 
+## 0.9.300
+
+### Patch Changes
+
+- [#2133](https://github.com/Sma1lboy/rove/pull/2133) [`87c77ef`](https://github.com/Sma1lboy/rove/commit/87c77ef3919247365ae22b67ccdd26fd60b5f458) - A file attached to a web session scheduled with Later is no longer deleted by the 30-day attachment cleanup before that session starts: the cleanup now checks scheduled starts, as it already did task prompts, issues and routines. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2123](https://github.com/Sma1lboy/rove/pull/2123) [`d1f2150`](https://github.com/Sma1lboy/rove/commit/d1f21500b8776ac78e79f06050b6c2f6d0d962cb) Prompt attachments no longer pile up forever: the daemon deletes files in `~/.rove/attachments/` older than 30 days when it starts and once a day after. A file that a task's prompt, an issue or a routine still names is kept. Change the number of days with `attachments.keepDays` in `state.json`; `0` keeps everything. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2134](https://github.com/Sma1lboy/rove/pull/2134) [`54487b3`](https://github.com/Sma1lboy/rove/commit/54487b3b410064cffea8ffe0f7f95356dd3efe27) Branch pickers find a branch from the start of each part of its name: type `feat/top` to find `feature/topic`. Plain matches still come first. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2124](https://github.com/Sma1lboy/rove/pull/2124) [`f531bdc`](https://github.com/Sma1lboy/rove/commit/f531bdc8c381bf65676967b943795aaac3db9799) Give the web welcome screen a ringed planet with a shepherd moon. New session opens with the original orbiting planet and cycles through a comet and the rings on later visits. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2130](https://github.com/Sma1lboy/rove/pull/2130) [`ec0e5a7`](https://github.com/Sma1lboy/rove/commit/ec0e5a7287a19886c761262880844746ff528c7f) Right-click an engine tab and pick **Copy session ID** to copy the id of the conversation it is running, so you can resume it or look it up outside Rove. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2143](https://github.com/Sma1lboy/rove/pull/2143) [`bdb2ac3`](https://github.com/Sma1lboy/rove/commit/bdb2ac3ce42a3601ffb514a149ef9003e0ef8bf4) The Engines and API docs list Claude Code's effort levels (`low`, `medium`, `high`, `xhigh`, `max`) instead of saying it has none, and the TUI guide no longer describes a project `main` row hiding the Create PR chip. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2129](https://github.com/Sma1lboy/rove/pull/2129) [`19205f8`](https://github.com/Sma1lboy/rove/commit/19205f85e809ef254fd594ba3a48af3274d0239d) `rove api add` with a worktree in a repo that has no commits yet (a fresh `git init`) now fails with `REPO_HAS_NO_COMMITS` and a hint to make a first commit or pass `--no-worktree`, instead of a raw `git rev-parse HEAD` error under `RPC_ERROR`. Forking a task whose branch has no commits gets the same error. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2032](https://github.com/Sma1lboy/rove/pull/2032) [`ac43c5f`](https://github.com/Sma1lboy/rove/commit/ac43c5fbea6b9f33638484ebf1d5000d52fe4127) Sending feedback no longer freezes Rove while GitHub files the issue. Before, Settings › Feedback stopped drawing until `gh` answered (so "Submitting…" never showed), and the web Feedback page held up every other request from the browser in the meantime. A second Enter while a report is being filed no longer opens a duplicate issue. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2131](https://github.com/Sma1lboy/rove/pull/2131) [`5ff91ca`](https://github.com/Sma1lboy/rove/commit/5ff91caa8d2b24571a59e3195dde005f25709c72) Tasks no client shows no longer pile up in `rove api list`. A routine that starts a new task per run now deletes that task when the run finishes (a `done` report, or nothing to report): the worktree goes, while the branch, the engine's conversation and the run's report in the routine's history stay, and uncommitted work is saved to a salvage ref first. A run that reported `partial`, `blocked` or `failed` keeps its task. A checkout cut with `add --worktree-only` is now archived, unarchived and deleted together with the session that cut it, even when it was not nested under that session; before, it stayed behind with its worktree and had no row to remove it from. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2138](https://github.com/Sma1lboy/rove/pull/2138) [`a9d4707`](https://github.com/Sma1lboy/rove/commit/a9d47079c63c2d5c43498478737e2a5ba9bddadf) Hosted Claude Code sessions trust the managed worktree in the profile selected by the launch shell, including when the worktree path is a symlink. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2137](https://github.com/Sma1lboy/rove/pull/2137) [`5d86d55`](https://github.com/Sma1lboy/rove/commit/5d86d558ca080ba5c012a8cb6c055e1b124cea59) - Inbox visits recorded in two windows at the same time are both kept: one window's write no longer overwrites the other's. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2136](https://github.com/Sma1lboy/rove/pull/2136) [`7c8af5b`](https://github.com/Sma1lboy/rove/commit/7c8af5b6b883c8bd4c87163821757a223eef09db) When a disk holding your task worktrees drops below 5 GB free, Rove warns you once in the TUI, says how many worktrees share that disk, and points at `rove api worktree-reclaim --merged --dry-run` to find finished ones to free. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2142](https://github.com/Sma1lboy/rove/pull/2142) [`f6501ee`](https://github.com/Sma1lboy/rove/commit/f6501ee206f9d5bb259201600c8cf7dc2c1fbfd0) The width where the terminal app switches to one panel at a time is now a setting: `layout.narrowBelow` in `state.json` (default `70` columns). Set it higher to get the single-panel layout in a slim tmux split, or `0` to keep all three panes at any width. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2125](https://github.com/Sma1lboy/rove/pull/2125) [`efd1244`](https://github.com/Sma1lboy/rove/commit/efd124480b3768959849ee133cf023890e159056) The macOS preview embeds libghostty to display and interact with each task’s existing shell and agent sessions. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2122](https://github.com/Sma1lboy/rove/pull/2122) [`9c85f27`](https://github.com/Sma1lboy/rove/commit/9c85f277b4aaa7808320c6559cb0dc7e85dd8674) The desktop terminal scrollbar appears while scrolling and fades at rest, using the web workspace’s theme. The task sidebar leaves its bottom edge clear while j, k, and Enter still navigate tasks. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2140](https://github.com/Sma1lboy/rove/pull/2140) [`59d3b90`](https://github.com/Sma1lboy/rove/commit/59d3b9023b1a90dfb0c87b2fa65603670d5ccd87) - Folding a project or a task's children in one Rove window no longer wipes the folds another open window made: each fold is saved against what is on disk, so every window's folds are still there after a restart. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2127](https://github.com/Sma1lboy/rove/pull/2127) [`ad1c4f2`](https://github.com/Sma1lboy/rove/commit/ad1c4f2a3ee7cd9773e539a3baf3bb3de689478c) On the fourth visit to New session in a browser tab, bright stars unfold into a flock of starlings with a copper bird in the foreground. Reduced motion shows the flock mid-turn. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2132](https://github.com/Sma1lboy/rove/pull/2132) [`58b8180`](https://github.com/Sma1lboy/rove/commit/58b8180b7e7a6d072800ddd0ce9cd8651263fe6d) The web terminal keeps block art joined when WebGL is unavailable or its graphics context is lost. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2139](https://github.com/Sma1lboy/rove/pull/2139) [`c7544b5`](https://github.com/Sma1lboy/rove/commit/c7544b533f65c0a6934e9434c8e7f0674239e909) The web page no longer goes blank when something in it throws: it shows the error with a Copy report button, and keeps its recent errors in the browser so a reload doesn't lose them. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2147](https://github.com/Sma1lboy/rove/pull/2147) [`798205f`](https://github.com/Sma1lboy/rove/commit/798205f63dcab419b3f7ba85a6a7833bdf3952c4) Web: closing a terminal that had fallen back to the Canvas renderer (no WebGL, or after the browser's GPU process reset) no longer throws and leaves its empty box behind. The page's Content-Security-Policy no longer lists `http://[::1]:*`, which browsers reject with a console error; an address typed as `[::1]:port` in the Browser panel opens as `localhost:port`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2126](https://github.com/Sma1lboy/rove/pull/2126) [`47b8acc`](https://github.com/Sma1lboy/rove/commit/47b8accee5d298f4c8b8fa4aeef71f172e703d44) The What's New screen you see after an update now has a 🎉 next to its title, in the terminal and on the web. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2141](https://github.com/Sma1lboy/rove/pull/2141) [`1d0670f`](https://github.com/Sma1lboy/rove/commit/1d0670fbf19ff258fa2a7da14158c9583adfa487) - A session that dispatched a worker now hears when that worker stops on its engine's usage or billing limit: one `[ROVE WORKER]` line in its tab says when Rove resumes the worker automatically, that no reset is known, or that a billing stop needs a human, so the coordinator neither waits on silence nor re-dispatches work that will continue. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2031](https://github.com/Sma1lboy/rove/pull/2031) [`add7b35`](https://github.com/Sma1lboy/rove/commit/add7b353fdec1fc6cbd7158297a3a57fab178688) Restarting Rove no longer leaves it unable to start. If the old background process had exited but the program that launched it never collected it, every new start was refused with "already served by the daemon" until that program quit. Such a leftover now counts as stopped. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.299
 
 ### Patch Changes
