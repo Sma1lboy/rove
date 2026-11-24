@@ -1,7 +1,9 @@
+import { execFile } from "node:child_process"
 import { existsSync } from "node:fs"
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { promisify } from "node:util"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   ACTIVITY_EXTENSION_FILE,
@@ -172,5 +174,34 @@ describe("trustPiWorktree", () => {
     await writeFile(store, "not json at all")
     trustPiWorktree(join(home, "worktree"), { env: () => undefined, home: () => home })
     expect(await readFile(store, "utf8")).toBe("not json at all")
+  })
+
+  it("keeps every worktree when two Rove processes trust at once", async () => {
+    const trust = new URL("../../src/engine/pi-local/trust.ts", import.meta.url).pathname
+    const go = join(home, "go")
+    const client = (name: string) => {
+      const script = `
+        import { existsSync, writeFileSync } from 'node:fs';
+        import { trustPiWorktree } from ${JSON.stringify(trust)};
+        const home = ${JSON.stringify(home)};
+        writeFileSync(home + '/ready-${name}', '');
+        while (!existsSync(${JSON.stringify(go)})) {}
+        for (let i = 0; i < 100; i++) trustPiWorktree(home + '/wt-${name}-' + i, { env: () => undefined, home: () => home });
+      `
+      return promisify(execFile)("bun", ["-e", script], {
+        env: { ...process.env, HOME: home, ROVE_HOME_DIR: home },
+        timeout: 20_000,
+      })
+    }
+    const clients = [client("a"), client("b")]
+    await vi.waitFor(() => expect(existsSync(join(home, "ready-a")) && existsSync(join(home, "ready-b"))).toBe(true), {
+      timeout: 10_000,
+    })
+    await writeFile(go, "")
+    await Promise.all(clients)
+
+    const store = JSON.parse(await readFile(join(home, ".pi", "agent", "trust.json"), "utf8"))
+    expect(Object.keys(store).filter((key) => key.includes("/wt-a-"))).toHaveLength(100)
+    expect(Object.keys(store).filter((key) => key.includes("/wt-b-"))).toHaveLength(100)
   })
 })
