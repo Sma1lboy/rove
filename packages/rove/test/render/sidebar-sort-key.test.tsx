@@ -184,8 +184,6 @@ test("t cycles the sidebar through recent → attention → name → default", a
   expect(await press()).toBeLessThan(0)
   // Wraps home to recency rather than latching on the last mode.
   expect(await press()).toBeGreaterThan(0)
-  // The active order is named above the list.
-  expect(await frame()).toContain("sort: newest")
 })
 
 // Reorder edits the stored order, so under any other sort entering it must flip to manual first.
@@ -201,6 +199,5 @@ test("entering move mode under recency switches to manual order and says so", as
     hostState?.setMoveMode(true)
   })
   expect(orderOf(await frame())).toBeLessThan(0)
-  expect(await frame()).toContain("sort: manual")
   expect(notices).toHaveLength(1)
 })

@@ -208,8 +208,6 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     onOpenFile: (relPath) => void editor.onOpenFile(relPath),
     onOpenDiff: editor.onOpenDiff,
     onMention: editor.onMention,
-    onZenToggle: toggleZen,
-    onCreatePR: () => void editor.onCreatePR(),
   })
 
   // Tab open/close edges report as plugin events; once per host.

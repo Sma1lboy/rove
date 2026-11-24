@@ -497,8 +497,7 @@ Pinned tasks lead their siblings in every mode. Newest orders projects by their 
 name orders them by the displayed project label. Manual and attention keep the
 stored project order. Ungrouped stays first. The choice is saved as
 `activeSortMode` and read back on startup; with none saved, or a value this
-build does not recognise, the sidebar starts on `recent`. The active order is
-named on the line above the task list (`sort: newest`). Reorder (`shift+m`,
+build does not recognise, the sidebar starts on `recent`. Reorder (`shift+m`,
 the row menu) edits the manual order, so it switches any other sort to manual
 first and says so. A parent with more
 than five children starts folded behind its count; fold or open it by hand

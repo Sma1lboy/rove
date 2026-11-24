@@ -374,7 +374,7 @@ table.
 
 ## Create a pull request with the active agent
 
-Choose **Ask agent to create PR** above Files or press `ctrl+a` `p`. This is an agent
+Press `ctrl+a` `p`. This is an agent
 workflow, not a direct GitHub API action: Rove inspects the current branch,
 target branch, upstream, and dirty-file count, then submits a prompt to the
 active engine. The prompt asks the agent to review the diff, commit remaining
@@ -383,7 +383,7 @@ changes, push the branch, and run `gh pr create`.
 Watch the engine tab for progress, failures, or questions. The action is
 unavailable on the target branch and requires an active engine session. A
 session opened in a project's own checkout usually sits on that branch, so
-the chip and `ctrl+a` `p` answer with a toast naming it instead of prompting. A repo
+`ctrl+a` `p` answers with a toast naming it instead of prompting. A repo
 can replace the prompt with `.rove/pr-instructions.md`; see
 [Per-repo init](CONFIGURATION.md#per-repo-init). Because the engine performs the
 work, its own skills and approval rules still apply. The default prompt expects
