@@ -6,7 +6,7 @@ import { act, renderComponent } from "./harness"
 test("the skill banner names the engines and installs on click", async () => {
   let installs = 0
   const { frame, mockMouse } = await renderComponent(
-    <SkillBanner engines={["Claude", "Codex"]} error={null} onInstall={() => installs++} width={100} />,
+    <SkillBanner engines={["Claude", "Codex"]} error={null} onInstall={() => installs++} />,
     { width: 100, height: 8 },
   )
   await act(async () => {})
@@ -19,7 +19,7 @@ test("the skill banner names the engines and installs on click", async () => {
 })
 
 test("nothing missing, no banner", async () => {
-  const { frame } = await renderComponent(<SkillBanner engines={[]} error={null} onInstall={() => {}} width={100} />, {
+  const { frame } = await renderComponent(<SkillBanner engines={[]} error={null} onInstall={() => {}} />, {
     width: 100,
     height: 8,
   })

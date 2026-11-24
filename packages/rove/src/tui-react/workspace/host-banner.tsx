@@ -42,7 +42,7 @@ export interface HostBanner {
  * Outranking skew: this install was deleted, so no daemon can start. Latched,
  * never cleared; only a reinstall fixes it.
  */
-export function useHostBanner(orch: RemoteOrchestrator, width: number): HostBanner {
+export function useHostBanner(orch: RemoteOrchestrator): HostBanner {
   const daemonStale = useAccessor(orch.daemonStaleSignal())
   const daemonVersion = useAccessor(orch.daemonVersionSignal())
   const update = useAccessor(orch.updateSignal())
@@ -60,7 +60,7 @@ export function useHostBanner(orch: RemoteOrchestrator, width: number): HostBann
   }
   const available = planSelfRefresh(inputs).kind === "refresh"
   const element = staleInstall ? (
-    <StaleInstallBanner message={staleInstall} width={width} />
+    <StaleInstallBanner message={staleInstall} />
   ) : (
     <>
       <VersionSkewBanner
@@ -68,14 +68,8 @@ export function useHostBanner(orch: RemoteOrchestrator, width: number): HostBann
         daemonVersion={daemonVersion}
         clientVersion={CURRENT_VERSION}
         refreshChord={available ? refreshChord() : null}
-        width={width}
       />
-      <SkillBanner
-        engines={missingSkill}
-        error={skillError}
-        onInstall={() => setSkillError(installSkillNow())}
-        width={width}
-      />
+      <SkillBanner engines={missingSkill} error={skillError} onInstall={() => setSkillError(installSkillNow())} />
     </>
   )
   return { element, update: notify ? update : null, refresh: { available, inputs } }
