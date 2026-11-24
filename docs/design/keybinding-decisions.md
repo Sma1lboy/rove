@@ -8,6 +8,17 @@ reasoning is recorded so the next agent has the context.
 The user-facing vocabulary lives in [`../KEYBINDINGS.md`](../KEYBINDINGS.md).
 `F1` renders the live keymap and is authoritative over both.
 
+## PROPOSED: `ctrl+a` `tab` goes back to the previous task
+
+**2026-11-24 — PROPOSED, owner sign-off pending.** `ctrl+a` `tab` re-enters
+the task you were on before the current one; pressed again, it returns, so two
+tasks you are switching between are one chord apart. A task you since archived
+or are deleting is not a target, and with nothing to go back to a toast says so.
+
+**Why `tab`.** It is the usual "switch to the last thing" key, and it was free as
+a second stroke. Prefix-only, so it works from inside the engine terminal
+without taking a key from the engine. Nothing existing moves.
+
 ## PROPOSED: `D` acks every ATTENTION item in the Inbox
 
 **2026-11-07 — PROPOSED, owner sign-off pending.** In the Inbox (TUI dialog and

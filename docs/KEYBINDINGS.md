@@ -62,6 +62,7 @@ shows only actions that can run right now.
 | `ctrl+a` `f` | New-conversation dialog, preset to "fork a child task": new managed worktree, branched off this Task's branch. Its ATTEMPTS row fans one prompt out to a round of up to 5 |
 | `ctrl+a` `c` | New-conversation dialog, preset to "continue this chat" in a new child task sharing the same Task directory |
 | `ctrl+a` `i` | Open the Inbox |
+| `ctrl+a` `tab` | Back to the task you were on before this one; press again to return (**proposed — awaiting owner sign-off**) |
 | `ctrl+a` `h` / `l` | Move focus left / right across panes |
 | `ctrl+a` `o` | Open the Task directory in your editor |
 | `ctrl+a` `m` | Reorder sidebar rows (scope-aware: tab / task / project) |

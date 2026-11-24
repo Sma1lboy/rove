@@ -138,6 +138,7 @@ describe("workspace open-worktree bindings", () => {
       cycleVendor: vi.fn(),
       toggleZen: vi.fn(),
       jumpToNextAttention: vi.fn(),
+      backToPreviousTask: vi.fn(),
       openInbox: vi.fn(),
       enterMoveMode: vi.fn(),
       createPR: vi.fn(),

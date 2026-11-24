@@ -16,7 +16,12 @@ import { useT } from "../i18n"
 import { useLatest } from "../lib/use-latest"
 import type { TabsSnapshotKv } from "./terminal-tabs-persist"
 import { forgetTaskTabs, knownTaskTabs, reviveEmptiedTabs } from "./terminal-tabs-shared"
-import { activateWorkspaceTask, activationErrorMessage, firstSelectableTask } from "./use-task-selection"
+import {
+  activateWorkspaceTask,
+  activationErrorMessage,
+  firstSelectableTask,
+  previousTaskTarget,
+} from "./use-task-selection"
 
 /** What {@link useWorkspaceSelection} reports when a worktree vanishes under a task. */
 export interface WorktreeGoneEvent {
@@ -35,6 +40,8 @@ export interface WorkspaceSelection {
   readonly selectTask: (id: string) => void
   /** Enter/double-click activation — materializes the worktree if needed. */
   readonly activateTask: (id: string) => Promise<void>
+  /** Re-enter the task the user was on before this one; false when there is none to go back to. */
+  readonly backToPreviousTask: () => boolean
 }
 
 export function useWorkspaceSelection(args: {
@@ -59,6 +66,8 @@ export function useWorkspaceSelection(args: {
   const bootFocusRef = useRef(false)
   // The selected id while it was listed (not archived, not deleting); null otherwise.
   const liveSelectedRef = useRef<string | null>(null)
+  // The task the USER left for the current one; automatic moves (archive, delete) don't record.
+  const previousIdRef = useRef<string | null>(null)
   // Adopt the daemon's first restored focus, but never let later sibling-client
   // events yank a task the local user already selected.
   useEffect(() => {
@@ -161,6 +170,7 @@ export function useWorkspaceSelection(args: {
         void orch.setActiveTask(id).catch((error) => console.error("[rove workspace] setActiveTask failed:", error))
       return
     }
+    if (selectedId !== null) previousIdRef.current = selectedId
     setSelectedId(id)
     // silent-catch-ok: same focus-bookkeeping write as above.
     void orch.setActiveTask(id).catch((error) => console.error("[rove workspace] setActiveTask failed:", error))
@@ -193,6 +203,13 @@ export function useWorkspaceSelection(args: {
     )
   }
 
+  function backToPreviousTask(): boolean {
+    const id = previousTaskTarget(tasks, previousIdRef.current, selectedId)
+    if (id === null) return false
+    void activateTask(id)
+    return true
+  }
+
   const selectedTask = selectedId ? tasks.find((task) => task.id === selectedId) : undefined
-  return { selectedId, setSelectedId, selectedTask, selectTask, activateTask }
+  return { selectedId, setSelectedId, selectedTask, selectTask, activateTask, backToPreviousTask }
 }

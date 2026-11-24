@@ -96,6 +96,7 @@ function WorkspaceDriver(props: { children?: React.ReactNode; onToggleZen?: () =
     cycleVendor: NOOP,
     toggleZen: props.onToggleZen ?? NOOP,
     jumpToNextAttention: NOOP,
+    backToPreviousTask: NOOP,
     openInbox: NOOP,
     enterMoveMode: NOOP,
     createPR: NOOP,

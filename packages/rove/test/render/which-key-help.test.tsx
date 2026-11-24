@@ -80,6 +80,7 @@ function WorkspaceHelpDriver(props: { showDialogTarget?: boolean; showFocusTarge
     cycleVendor: NOOP,
     toggleZen: NOOP,
     jumpToNextAttention: NOOP,
+    backToPreviousTask: NOOP,
     openInbox: NOOP,
     enterMoveMode: NOOP,
     createPR: NOOP,

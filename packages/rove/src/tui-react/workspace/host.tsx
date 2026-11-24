@@ -106,15 +106,16 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
 
   const { notifyError, notifyInfo, notifyNeedsInput, notifyWorktreeGone } = useHostNotifiers({ notif, t })
 
-  const { selectedId, setSelectedId, selectedTask, selectTask, activateTask } = useWorkspaceSelection({
-    orch,
-    tasks,
-    activeTaskId,
-    focusWorkspace: () => focus.setFocused("workspace"),
-    kv,
-    notifyWorktreeGone,
-    notifyError,
-  })
+  const { selectedId, setSelectedId, selectedTask, selectTask, activateTask, backToPreviousTask } =
+    useWorkspaceSelection({
+      orch,
+      tasks,
+      activeTaskId,
+      focusWorkspace: () => focus.setFocused("workspace"),
+      kv,
+      notifyWorktreeGone,
+      notifyError,
+    })
   const worktree = selectedTask?.worktreePath || null
   const workingFlow =
     selectedId !== null &&
@@ -291,6 +292,9 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     cycleVendor: (id) => void taskActions.cycleVendor(id),
     toggleZen,
     jumpToNextAttention,
+    backToPreviousTask: () => {
+      if (!backToPreviousTask()) notifyInfo(t("workspace.noPreviousTask"))
+    },
     openInbox: inbox.show,
     reportProblem: scratch.reportProblem,
     paletteSearch: { orchestrator: orch, tasks, openTask: openTaskOnTab(pages.closePage, activateTask) },

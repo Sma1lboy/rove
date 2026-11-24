@@ -92,3 +92,14 @@ export function firstSelectableTask(
     newest(live.filter((task) => task.routine === undefined)) ?? newest(live) ?? tasks.find((task) => !task.deletion)
   )
 }
+
+/** The task "back" returns to: the one open before this, while it is still listed, not archived, and not deleting. */
+export function previousTaskTarget(
+  tasks: readonly Task[],
+  previousId: string | null,
+  selectedId: string | null,
+): string | null {
+  if (!previousId || previousId === selectedId) return null
+  const task = tasks.find((candidate) => candidate.id === previousId)
+  return task && task.archived !== true && !task.deletion ? previousId : null
+}
