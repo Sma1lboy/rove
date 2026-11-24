@@ -539,3 +539,9 @@ Run 1 (patched) exited 0, nothing past tolerance: firstFrame 416.1, boot.ready 1
 **No attempt:** same as 11-13 to 11-22. Owner calls still stand: a new nightly scenario, an idle phase that waits for quiet (tonight's run 1 is another false ✗ from the fixed 3 s wait), and a wider tolerance for single-sample timing outliers.
 
 **Sandbox:** bun 1.3.14 from npm, `ELECTRON_SKIP_BINARY_DOWNLOAD=1`; the preinstalled shell lives at `/opt/pw-browsers/chromium_headless_shell-1243/chrome-headless-shell-linux64/` (not `chrome-linux/` as the routine prompt says); per-file symlinks into `<shim>/chromium_headless_shell-{1228,1243}/chrome-headless-shell-linux64/`. The harness asks for 1228. The routine prompt still says `packages/kobe*`; the paths are `packages/rove*`.
+
+## 2026-11-24 — notes, no attempt (main 505da12)
+
+**No regression.** One run, exit 0, nothing past tolerance. Counts: switch commit.root/workspace 6, sidebar 2, frame 2.7, overlay 3, stateNotify/stateListener 2, paintRow 1.4, spawns 0; typing 1/key (spawns 0.03). Timings: firstFrame 687, boot.ready 2105, switch.shown 185, typing.echo 160.4, cli-startup 35.6, vt-1mb 88.5. 3 commits since 7187449 (#2147 web canvas terminal close, #2148 docs, 0.9.300 release), none on the measured paths. No open `perf:` issues. Baseline unchanged.
+
+**No attempt:** same as 11-13 to 11-23. Owner calls still stand: a new nightly scenario, an idle phase that waits for quiet, and a wider tolerance for single-sample timing outliers.
