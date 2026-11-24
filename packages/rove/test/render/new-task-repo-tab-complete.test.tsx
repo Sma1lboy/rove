@@ -61,12 +61,13 @@ async function pressTab(handle: { mockInput: { pressTab: () => void } }, times =
   }
 }
 
-/** Stops from the dialog's opening field (`tabs`) to `target` on `tab`. */
+/** Stops from the form's opening field to `target` on `tab`. */
 /** Counted from the focus chain, not hard-coded: this was 4 until the
  *  depth/model/effort rows left the dialog in 2026-09, after which it pointed
  *  at the wrong field and every test here failed about repo completion. */
 function stopsTo(target: Field, tab: DialogTab = "existing"): number {
-  let field: Field = "tabs"
+  // Switching mode lands on that tab's first field.
+  let field: Field = tab === "clone" ? "cloneUrl" : "prompt"
   for (let i = 1; i <= 24; i++) {
     field = nextField(field, tab, {
       intentVisible: false,
@@ -178,9 +179,9 @@ test("the Clone tab's parent dir walks the same way — one key, both path field
   mkdirSync(join(parent, "level1", "level2"))
   const h = await mount(repo("origin"))
 
-  // → on the mode selector switches to "For New Repo". Overshooting is not
+  // ctrl+] switches to "For New Repo". Overshooting is not
   // safe: a Tab on a parent dir that lists `$HOME` completes instead of moving.
-  act(() => h.mockInput.pressArrow("right"))
+  act(() => h.mockInput.pressKey("]", { ctrl: true }))
   await settle()
   await pressTab(h, stopsTo("cloneParent", "clone"))
   await act(async () => h.mockInput.typeText("\x15"))

@@ -47,7 +47,7 @@ function repoWithBranches(count: number): string {
  * left in 2026-09 every count pointed one field past where it meant.
  */
 function stopsTo(target: Field, opts: { intentVisible?: boolean } = {}): number {
-  let field: Field = "tabs"
+  let field: Field = "prompt"
   for (let i = 1; i <= 24; i++) {
     field = nextField(field, "existing", {
       intentVisible: opts.intentVisible ?? false,

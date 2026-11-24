@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The new-task dialog's JSX shell. Three sibling sub-tabs share one frame
+ * The new-task form's JSX shell (a page: `./index.tsx`). Three sibling sub-tabs share one frame
  * (Existing / New Repo / Adopt), a chip row switched with Ctrl+[ / Ctrl+] or
  * ←/→ while focused; the engine selector cycles with ctrl+e. All state, effects,
  * commit paths and key bindings live in `./view-model.ts` (pure helpers in
@@ -20,7 +20,7 @@ import { FailureHint } from "../failure-hint"
 import { ModelSection } from "../model-field"
 import { AdoptTab } from "./tab-adopt"
 import { CloneTab } from "./tab-clone"
-import { ExistingTab } from "./tab-existing"
+import { ExistingTab, PromptSection } from "./tab-existing"
 import { type NewTaskDialogProps, useNewTaskViewModel } from "./view-model"
 
 export type { NewTaskDialogProps } from "./view-model"
@@ -41,8 +41,7 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
 
   return (
     <box paddingLeft={padX} paddingRight={padX} gap={0} flexShrink={1} overflow="hidden">
-      {/* Scrolling border glyphs must not repaint the fixed title row. */}
-      <box flexShrink={0} zIndex={1} backgroundColor={theme.backgroundDialog}>
+      <box flexShrink={0}>
         <DialogHeader title={t("newTask.title")} onClose={() => props.onCancel()} />
       </box>
       <DialogBody>
@@ -62,6 +61,7 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
             onPick={(tabId) => vm.switchToTab(tabId)}
           />
         </DialogSection>
+        {vm.tab === "existing" ? <PromptSection vm={vm} /> : null}
         {/* Engine selector — Tab reaches it; ←/→ cycles while focused,
             ctrl+e from anywhere, click picks. Detected vendors only. */}
         <DialogSection
@@ -121,12 +121,11 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
           <FailureHint hint={t("newTask.retryHint")} />
         </box>
       ) : null}
-      {/* Enter's caption follows the focused stop: it commits only on Create
-          and walks the form at the other four, so a static "enter create" was
-          wrong at every stop the dialog actually opens on. */}
+      {/* Enter's caption follows the focused stop: it commits on the first
+          message and on Create, and walks the form everywhere else. */}
       <DialogFooter paddingBottom={0}>
         {t("newTask.legend", {
-          enter: t(vm.field === "confirm" ? "newTask.enterCreate" : "newTask.enterNext"),
+          enter: t(vm.field === "confirm" || vm.field === "prompt" ? "newTask.enterCreate" : "newTask.enterNext"),
         })}
       </DialogFooter>
       {/* Create commits on click; also reachable by tabbing to the confirm

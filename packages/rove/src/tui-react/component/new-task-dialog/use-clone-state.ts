@@ -37,7 +37,6 @@ export function useCloneState(args: {
   model?: string
   tier?: string
   onSubmit: (v: NewTaskInput) => void
-  clearDialog: () => void
   setField: (f: Field) => void
   setSubmitError: (e: string | null) => void
 }) {
@@ -165,7 +164,6 @@ export function useCloneState(args: {
       ...(args.tier ? { tier: args.tier } : {}),
       cloned: { parentDir: expandHome(cloneParent.trim()) },
     })
-    args.clearDialog()
   }
 
   return {

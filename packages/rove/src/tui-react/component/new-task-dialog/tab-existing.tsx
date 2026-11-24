@@ -1,5 +1,5 @@
 /** @jsxImportSource @opentui/react */
-/** Existing tab: repo input with saved/browse dropdown, base-branch picker, first message.
+/** Existing tab: first message, repo input with saved/browse dropdown, base-branch picker.
  *  JSX only; behavior lives in the view-model. */
 
 import { type ExistingIntent, splitRepoRow } from "../../../tui/component/new-task-dialog/state"
@@ -166,8 +166,6 @@ export function ExistingTab({ vm }: { vm: NewTaskVm }) {
               focused={vm.field === "baseRef"}
               onMouseUp={() => vm.setField("baseRef")}
               onInput={(v: string) => vm.setBaseRefText(v)}
-              // Last field on the tab — Enter resolves the highlighted branch
-              // and creates straight away.
               onSubmit={() => vm.onBaseRefSubmit()}
             />
           </DialogField>
@@ -189,26 +187,31 @@ export function ExistingTab({ vm }: { vm: NewTaskVm }) {
           paddingBottom={1}
         />
       ) : null}
-      {/* The task's first message; Enter creates. The project intent opens an existing checkout, so it has none. */}
-      {vm.intent === "project" && vm.canOpenProject ? null : (
-        <DialogSection
-          label={t("newTask.field.prompt")}
-          focused={vm.field === "prompt"}
-          onPress={() => vm.setField("prompt")}
-        >
-          <DialogField focused={vm.field === "prompt"}>
-            <input
-              {...INPUT_SCROLL}
-              value={vm.prompt}
-              placeholder={t("newTask.placeholder.prompt")}
-              focused={vm.field === "prompt"}
-              onMouseUp={() => vm.setField("prompt")}
-              onInput={(v: string) => vm.setPrompt(v)}
-              onSubmit={() => vm.commitExisting()}
-            />
-          </DialogField>
-        </DialogSection>
-      )}
     </>
+  )
+}
+
+/** The task's first message; Enter creates. The project intent opens an existing checkout, so it has none. */
+export function PromptSection({ vm }: { vm: NewTaskVm }) {
+  const t = useT()
+  if (vm.intent === "project" && vm.canOpenProject) return null
+  return (
+    <DialogSection
+      label={t("newTask.field.prompt")}
+      focused={vm.field === "prompt"}
+      onPress={() => vm.setField("prompt")}
+    >
+      <DialogField focused={vm.field === "prompt"}>
+        <input
+          {...INPUT_SCROLL}
+          value={vm.prompt}
+          placeholder={t("newTask.placeholder.prompt")}
+          focused={vm.field === "prompt"}
+          onMouseUp={() => vm.setField("prompt")}
+          onInput={(v: string) => vm.setPrompt(v)}
+          onSubmit={() => vm.commitExisting()}
+        />
+      </DialogField>
+    </DialogSection>
   )
 }

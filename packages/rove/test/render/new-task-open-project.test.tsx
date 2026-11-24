@@ -1,14 +1,14 @@
 /** @jsxImportSource @opentui/react */
 /**
  * The Existing tab's "open the project" choice, through the real
- * dialog entry point.
+ * page entry point.
  *
  * The flow-level tests (`test/tui/create-task-flow-open-project.test.ts`) pin
  * what `mode: "open"` DOES once submitted. What they cannot see is whether the
- * dialog ever produces it: `NewTaskDialog.show` is what wires `mainRepos` from
+ * form ever produces it: `NewTaskPage` is what wires `mainRepos` from
  * the caller's options down to the view-model, and a dropped prop there would
  * leave every one of those tests green while the choice never appeared on
- * screen. So these drive the mounted dialog and read the frame.
+ * screen. So these drive the mounted page and read the frame.
  *
  * The repos are real `git init` temp dirs because the tab reads branches and
  * validates the path synchronously — a fake path renders the error state
@@ -20,9 +20,7 @@ import { execSync } from "node:child_process"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { useEffect, useRef } from "react"
-import { NewTaskDialog } from "../../src/tui-react/component/new-task-dialog"
-import { useDialog } from "../../src/tui-react/ui/dialog"
+import { NewTaskPage } from "../../src/tui-react/component/new-task-dialog"
 import { type Field, type NewTaskInput, nextField } from "../../src/tui/component/new-task-dialog/state"
 import { act, isolateHome, renderComponent, settle } from "./harness"
 
@@ -34,29 +32,24 @@ function repo(): string {
   return dir
 }
 
-/**
- * Mount the dialog the way a host does — through `NewTaskDialog.show` on a
- * live dialog stack, which is the wiring under test.
- */
+/** Mount the page the way the host does: `NewTaskPage` is what wires `mainRepos` into the form. */
 function Harness(props: {
   repo: string
   saved?: readonly string[]
   mainRepos?: ReadonlySet<string>
   onSubmit: (v: NewTaskInput) => void
 }) {
-  const dialog = useDialog()
-  const opened = useRef(false)
-  useEffect(() => {
-    if (opened.current) return
-    opened.current = true
-    void NewTaskDialog.show(dialog, props.repo, props.saved ?? [props.repo], { mainRepos: props.mainRepos }).then(
-      (result) => {
+  return (
+    <NewTaskPage
+      defaultRepo={props.repo}
+      savedRepos={props.saved ?? [props.repo]}
+      options={{ mainRepos: props.mainRepos }}
+      focused
+      onDone={(result) => {
         if (result) props.onSubmit(result)
-      },
-    )
-  }, [dialog, props.repo, props.saved, props.mainRepos, props.onSubmit])
-  // DialogProvider renders the stack itself; this component only opens it.
-  return <box />
+      }}
+    />
+  )
 }
 
 async function mount(dir: string, mainRepos?: ReadonlySet<string>, saved?: readonly string[]) {
@@ -88,7 +81,7 @@ test("a repo with no project checkout does not", async () => {
  * left in 2026-09 every count pointed one field past where it meant.
  */
 function stopsTo(target: Field, opts: { intentVisible?: boolean; extrasVisible?: boolean } = {}): number {
-  let field: Field = "tabs"
+  let field: Field = "prompt"
   for (let i = 1; i <= 24; i++) {
     field = nextField(field, "existing", {
       intentVisible: opts.intentVisible ?? false,

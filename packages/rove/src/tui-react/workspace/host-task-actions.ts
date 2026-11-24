@@ -56,6 +56,7 @@ export type WorkspaceTaskActionDeps = {
   forgetTaskTabs: (taskId: string) => void
   /** New-task dialog with a first message: create the task and run its engine on it. */
   startWithPrompt?: CreateTaskContext["startWithPrompt"]
+  promptNewTask: CreateTaskContext["promptNewTask"]
 }
 
 export type WorkspaceTaskActions = {
@@ -107,6 +108,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
       orch: orchestrator,
       tasks,
       dialog,
+      promptNewTask: deps.promptNewTask,
       notifyError,
       notifyInfo: deps.notifyInfo,
       selectedId: deps.selectedId,

@@ -29,7 +29,6 @@ import { t } from "../../../tui/i18n"
 import { DEFAULT_BASE_REF, validateRepoPath } from "../../../tui/lib/git-snapshot"
 import { useBindings } from "../../lib/keymap"
 import { useTerminalSize } from "../../lib/use-terminal-size"
-import { useDialog } from "../../ui/dialog"
 import { engineAcceptsModel, useModelField } from "../model-field"
 import { resolveInitialVendor, resolveVendorSet } from "./pure"
 import { useAdoptState } from "./use-adopt-state"
@@ -57,6 +56,8 @@ export type NewTaskDialogProps = {
   mainRepos?: ReadonlySet<string>
   /** Seeds the base branch and keeps it through repo auto-sync. */
   initialBaseRef?: string
+  /** The page's pane has focus (default true); without it no field is focused and no key is bound. */
+  focused?: boolean
 }
 
 /** Stable default for `mainRepos` — a per-render `new Set()` defeats memos. */
@@ -67,16 +68,15 @@ export const TIER_CHOICES = [...AUTO_ROUTING_TIERS, "manual"] as const
 export type TierChoice = (typeof TIER_CHOICES)[number]
 
 export function useNewTaskViewModel(props: NewTaskDialogProps) {
-  const dialog = useDialog()
+  const active = props.focused !== false
 
   const [tab, setTab] = useState<DialogTab>("existing")
   const vendors = resolveVendorSet(props.availableVendors)
   const [vendor, setVendor] = useState<VendorId>(() =>
     resolveInitialVendor(resolveVendorSet(props.availableVendors), props.defaultVendor),
   )
-  // Open focused on the mode selector — ←/→ switches tabs immediately;
-  // Tab then walks engine → [effort] → [model] → repo → branch → Create.
-  const [field, setField] = useState<Field>("tabs")
+  // Open on the first message: type and Enter creates with the defaults below it.
+  const [field, setField] = useState<Field>("prompt")
   // Raw pick, READ through the current engine: an undeclared level reads as
   // "engine default" (same rule as change-engine's `seedEffort`).
   const effortLevels = engineEntry(vendor).effortLevels ?? []
@@ -141,8 +141,8 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     pickerRows,
     defaultRepo: props.defaultRepo,
     initialBaseRef: props.initialBaseRef,
-    onResolved: () => setField("prompt"),
-    onPicked: () => setField("prompt"),
+    onResolved: () => setField("confirm"),
+    onPicked: () => setField("confirm"),
   })
 
   const extras = useExtraRepos({ savedRepos: props.savedRepos, primary: expandedRepo, pickerRows })
@@ -154,7 +154,6 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     model: modelVisible ? modelField.value.trim() || undefined : undefined,
     tier: tier !== "manual" ? tier : undefined,
     onSubmit: props.onSubmit,
-    clearDialog: () => dialog.clear(),
     setField,
     setSubmitError,
   })
@@ -164,7 +163,6 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     vendor,
     discoverAdoptable: props.discoverAdoptable,
     onSubmit: props.onSubmit,
-    clearDialog: () => dialog.clear(),
     setSubmitError,
   })
 
@@ -200,7 +198,6 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     // `changeRepo`.
     if (intent === "project" && canOpenProject) {
       props.onSubmit({ mode: "open", repo: r, vendor })
-      dialog.clear()
       return
     }
     const b = branch.baseRef.trim() || DEFAULT_BASE_REF
@@ -215,7 +212,6 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       ...(firstMessage ? { prompt: firstMessage } : {}),
       ...(extras.extraPicked.length > 0 ? { extraRepos: extras.extraPicked } : {}),
     })
-    dialog.clear()
   }
 
   /** Fill the three engine fields from a tier. A tier whose engine isn't
@@ -279,9 +275,10 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
 
   function advanceField(from: Field): Field {
     const next = nextField(from, tab, focusStopsFor(tab))
-    // The "project" intent hides the branch and first-message fields (`tab-existing.tsx`); Create is next.
-    if (next === "baseRef" && tab === "existing" && intent === "project" && canOpenProject) return "confirm"
-    return next
+    // The "project" intent hides the first-message and branch fields; walk past each.
+    if (tab !== "existing" || intent !== "project" || !canOpenProject) return next
+    if (next === "prompt") return nextField("prompt", tab, focusStopsFor(tab))
+    return next === "baseRef" ? "confirm" : next
   }
 
   /* ── Navigation / selection handlers ── */
@@ -359,15 +356,17 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   /* ── Key bindings (config re-evaluated per keypress — closures fresh) ── */
 
   useBindings(() => ({
+    enabled: active,
     bindings: [
+      { key: "escape", cmd: () => props.onCancel() },
+      { key: "ctrl+c", cmd: () => props.onCancel() },
       {
         key: "tab",
         cmd: () => {
           if (!completeFocusedField()) setField(advanceField)
         },
       },
-      // No RoveKeymap row: the dialog labels `MODE  ctrl+[ ]` itself, and F1
-      // can't open over a modal.
+      // No RoveKeymap row: the page labels `MODE  ctrl+[ ]` itself.
       { key: "ctrl+]", cmd: () => switchToTab(nextDialogTab(tab)) },
       { key: "ctrl+[", cmd: () => switchToTab(prevDialogTab(tab)) },
       { key: "ctrl+e", cmd: () => cycleEngine(1) },
@@ -395,7 +394,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   // Enter on Create — separate registration with config-level `enabled` so
   // it is OUT of the dispatch stack while another field holds focus.
   useBindings(() => ({
-    enabled: field === "confirm" && !clone.cloneInFlight,
+    enabled: active && field === "confirm" && !clone.cloneInFlight,
     bindings: [{ key: "return", cmd: () => commit() }],
   }))
 
@@ -421,7 +420,8 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     tierVisible: tierTable !== null,
     tier,
     pickTier,
-    field,
+    /** The focused stop; none while the pane is unfocused, so no input holds the caret. */
+    field: active ? field : undefined,
     setField,
     /** Enter inside an input that is not the tab's last stop: walk on. */
     advanceFrom: (from: Field) => setField(advanceField(from)),

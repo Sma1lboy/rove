@@ -61,7 +61,7 @@ async function mount(defaultRepo: string, savedRepos: readonly string[] = [], wi
       onSubmit={(v) => submitted.push(v)}
       onCancel={() => {}}
     />,
-    { width, height: 40, providers: { kv: true, dialog: true } },
+    { width, height: 48, providers: { kv: true, dialog: true } },
   )
   await settle()
   return { ...handle, submitted }
@@ -97,7 +97,7 @@ async function pressTab(handle: { mockInput: { pressTab: () => void } }, times: 
  * them keeps this file honest the next time a field comes or goes.
  */
 function stopsTo(target: Field, extrasVisible = false): number {
-  let field: Field = "tabs"
+  let field: Field = "prompt"
   for (let i = 1; i <= 24; i++) {
     field = nextField(field, "existing", {
       intentVisible: false,
