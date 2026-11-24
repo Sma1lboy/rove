@@ -260,7 +260,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
   const cursorTaskIdRef = useRef<() => string | null>(() => null)
 
   // Above the keybindings: it also gates whether the refresh chord registers.
-  const banner = useHostBanner(orch, dims.width)
+  const banner = useHostBanner(orch)
   const refreshRove = (): void => {
     void selfRefreshAction(
       {
