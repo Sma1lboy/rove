@@ -135,6 +135,7 @@ function SortHost() {
     cycleVendor: () => {},
     toggleZen: () => {},
     jumpToNextAttention: () => {},
+    backToPreviousTask: () => {},
     openInbox: () => {},
     enterMoveMode: () => {},
     createPR: () => {},

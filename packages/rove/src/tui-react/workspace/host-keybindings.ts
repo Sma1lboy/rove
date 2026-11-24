@@ -41,6 +41,8 @@ export type WorkspaceKeybindingDeps = {
   cycleVendor: (id: string) => void
   toggleZen: () => void
   jumpToNextAttention: () => void
+  /** PROPOSED prefix+tab — re-enter the task open before this one. */
+  backToPreviousTask: () => void
   openInbox: () => void
   /** Palette-only "Report a problem": a new scratch conversation seeded to file a Rove issue. No chord. */
   reportProblem?: () => void
@@ -126,6 +128,7 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
         // f7: reserved from terminal passthrough too.
         "attention.next": prefixAction(() => deps.jumpToNextAttention()),
         "inbox.show": prefixAction(() => deps.openInbox()),
+        "task.previous": prefixAction(() => deps.backToPreviousTask()),
         // A page-open chord exists only while a registered page claims it.
         ...Object.fromEntries(
           pageEntries.flatMap((page) =>

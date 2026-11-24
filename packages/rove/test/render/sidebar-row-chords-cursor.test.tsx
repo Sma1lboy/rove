@@ -79,6 +79,7 @@ function ChordHost({ spies }: { spies: Spies }) {
     cycleVendor: (id) => spies.cycleVendor.push(id),
     toggleZen: () => {},
     jumpToNextAttention: () => {},
+    backToPreviousTask: () => {},
     openInbox: () => {},
     enterMoveMode: () => {},
     createPR: () => {},

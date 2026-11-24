@@ -12,6 +12,8 @@ export const en = {
   },
   /** Narrow layout's back row: returns to the task list. */
   narrowBack: "Tasks",
+  /** Toast for "back to the previous task" when there is nothing to go back to. */
+  noPreviousTask: "No previous task to go back to",
   empty: {
     selectTask: "Select a task with a worktree",
     /** Every tab of this task was closed — the task and its worktree remain.
@@ -93,6 +95,7 @@ export const zh: typeof en = {
     confirmLabel: "退出",
   },
   narrowBack: "任务",
+  noPreviousTask: "没有可以回去的上一个任务",
   empty: {
     selectTask: "请选择一个带 worktree 的任务",
     noSessions: "这里没有会话——按 ⏎ 启动 {engine}，或按 ctrl+e 另选一个",

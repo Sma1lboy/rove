@@ -255,6 +255,15 @@ export const RoveKeymap: readonly RoveBinding[] = [
     presentation: "onePress",
   },
   {
+    // PROPOSED (awaiting owner sign-off). Prefix-only so it works from inside the terminal.
+    id: "task.previous",
+    scope: "global",
+    keys: [],
+    prefixKeys: ["tab"],
+    category: "Navigation",
+    description: "Back to the previous task",
+  },
+  {
     // Keyboard counterpart of the sidebar's ☯ ZEN chip. Prefix-only (f6 passes
     // through to the shell); reachable from the terminal because the prefix's
     // first stroke never passes through.
