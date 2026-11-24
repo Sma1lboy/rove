@@ -10,12 +10,13 @@
  * - task jobs (`task.jobs`) and deletion (`task.snapshot`);
  * - who is looking at which tab (`ui.viewing`, per connection): a tab being
  *   watched never shows unseen, and opening it clears its inbox episode;
- * - answers (`activity.answered`): a question just answered stops showing `?`
- *   until the engine reports again.
+ * - what the user handled: a question answered (`activity.answered`) or an
+ *   Inbox episode gone (acked, opened) stops showing until the engine reports again.
  *
  * Clients send those two reports and render; none decides a status itself.
  */
 
+import type { RestoredSession } from "./attention-inbox.ts"
 import type { AttentionInboxItem, TaskActivityState } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
@@ -34,6 +35,8 @@ export interface StatusSession {
   readonly key: string
   readonly alive: boolean
   readonly restored?: boolean
+  /** New on every thaw: which restore a `restored` session is. */
+  readonly generation?: string
 }
 
 export interface RowStatusDeps {
@@ -48,6 +51,8 @@ export interface RowStatusDeps {
   readonly tabIdsOf?: (taskId: string) => readonly string[] | null
   /** Every successful session listing, for owners that follow PTY lifetimes (migrated children's aliases). */
   readonly onSessions?: (sessions: readonly StatusSession[]) => void
+  /** Every successful listing's freeze-restored sessions, all of them: the Inbox raises the new ones. */
+  readonly onRestored?: (sessions: readonly RestoredSession[]) => void
   readonly now?: () => number
 }
 
@@ -56,6 +61,18 @@ const POLL_IDLE_MS = 10_000
 const PUBLISH_DEBOUNCE_MS = 40
 
 const tabKey = (taskId: string, tabId: string) => `${taskId}::${tabId}`
+/** The listed sessions that are freeze-restored, as `taskId::tabId` keys name them. */
+function restoredOf(list: readonly StatusSession[]): RestoredSession[] {
+  return list.flatMap((s) => {
+    const match = /^(.+?)::(.+)$/.exec(s.key)
+    return s.restored && !s.alive && s.generation && match?.[1] && match[2]
+      ? [{ taskId: match[1], tabId: match[2], generation: s.generation }]
+      : []
+  })
+}
+
+/** A task-level episode (no tab) keys as `<task>::`, the tab-less activity's slot. */
+const episodeKey = (item: AttentionInboxItem) => tabKey(item.taskId ?? "", item.tabId ?? "")
 
 export class RowStatusStore {
   private readonly tabActivity = new Map<string, { state: TaskActivityState; at: number }>()
@@ -70,6 +87,8 @@ export class RowStatusStore {
     { viewer: string; taskId: string; tabId: string | null; info: ViewerInfo }
   >()
   private readonly answered = new Map<string, number>()
+  /** When each tab's (or `<task>::`'s) Inbox episode left the Inbox. */
+  private readonly handled = new Map<string, number>()
   private readonly engines = new Map<string, string>()
   private status: Record<string, TaskStatus> = {}
   private rev = 0
@@ -147,6 +166,12 @@ export class RowStatusStore {
     return this.answered.get(tabKey(taskId, tabId))
   }
 
+  /** The later of an answer and the episode leaving the Inbox. */
+  private handledAt(key: string): number | undefined {
+    const at = Math.max(this.answered.get(key) ?? -1, this.handled.get(key) ?? -1)
+    return at < 0 ? undefined : at
+  }
+
   close(): void {
     this.closed = true
     this.off()
@@ -165,7 +190,11 @@ export class RowStatusStore {
       return true
     }
     if (channel === "attention.inbox") {
-      this.inbox = (payload as { items?: AttentionInboxItem[] }).items ?? []
+      const next = (payload as { items?: AttentionInboxItem[] }).items ?? []
+      // An episode that left the Inbox was handled: the rail follows, whatever removed it.
+      const kept = new Set(next.map(episodeKey))
+      for (const key of this.inbox.map(episodeKey)) if (!kept.has(key)) this.handled.set(key, this.now())
+      this.inbox = next
       this.readViewedEpisodes()
       return true
     }
@@ -208,6 +237,7 @@ export class RowStatusStore {
       const list = await this.deps.listSessions()
       if (list) {
         this.deps.onSessions?.(list)
+        this.deps.onRestored?.(restoredOf(list))
         const next = new Map(list.map((s) => [s.key, { alive: s.alive, restored: s.restored === true }]))
         if (JSON.stringify([...next]) !== JSON.stringify([...this.sessions])) {
           this.sessions = next
@@ -234,7 +264,7 @@ export class RowStatusStore {
   private recompute(): void {
     const pending = new Map<string, { state: string; at: number }>()
     for (const item of this.inbox) {
-      if (item.taskId !== null) pending.set(`${item.taskId}::${item.tabId ?? ""}`, { state: item.state, at: item.at })
+      if (item.taskId !== null) pending.set(episodeKey(item), { state: item.state, at: item.at })
     }
     const next: Record<string, TaskStatus> = {}
     for (const task of this.tasks) {
@@ -261,7 +291,7 @@ export class RowStatusStore {
           ...(activity && activity.state !== "idle" ? { activity } : activity ? { activity } : {}),
           ...(pending.has(key) ? { pending: pending.get(key) } : {}),
           viewed: this.isViewed(task.id, tabId),
-          ...(this.answered.has(key) ? { answeredAt: this.answered.get(key) } : {}),
+          handledAt: this.handledAt(key),
           ...(session ? { session } : {}),
           ...(this.engines.has(key) ? { engine: this.engines.get(key) } : {}),
         })
@@ -272,7 +302,7 @@ export class RowStatusStore {
         tablessPending && !this.isViewed(task.id, null) && tablessPending.state === "turn_complete"
           ? { kind: "unseen", since: tablessPending.at }
           : tablessActivity
-            ? tabStatus({ activity: tablessActivity, viewed: false })
+            ? tabStatus({ activity: tablessActivity, viewed: false, handledAt: this.handledAt(`${task.id}::`) })
             : undefined
       const deletion = task.deletion
       const job = this.jobs.get(task.id)

@@ -147,7 +147,9 @@ flowchart TB
   [Scrollback](#scrollback) for what a periodic freeze costs and when it
   fires — immediately on exit, and in full at shutdown. A host that comes back up (after a crash, a reboot, an idle-exit)
   thaws each surviving record into a dead *restored* session: reattaching
-  replays the old screen and respawns the command in place. A boot restores
+  replays the old screen and respawns the command in place. Each restored tab
+  gets one `restored` Inbox item per restore; the task list marks it until
+  that item is acked or the tab is opened. A boot restores
   newest first up to **64MB** of scrollback and stops there; the records past
   that budget are left on disk untouched, so a directory bigger than one boot
   wants to read never loses anything. What actually deletes is age: a record

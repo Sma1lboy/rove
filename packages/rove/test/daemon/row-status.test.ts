@@ -41,9 +41,8 @@ describe("tab status", () => {
     expect(deriveTaskActivity([older, newer])?.state).toBe(row.state)
   })
 
-  it("restored and broken outrank running; running outranks a question; a question outranks unseen", () => {
+  it("broken outranks running; running outranks a question; a question outranks unseen", () => {
     const running = { activity: { state: "running" as const, at: 5 }, viewed: false }
-    expect(tabStatus({ ...running, session: { alive: false, restored: true } }).kind).toBe("attention")
     expect(tabStatus({ activity: { state: "error", at: 5 }, viewed: false })).toMatchObject({
       kind: "attention",
       reason: "error",
@@ -67,8 +66,8 @@ describe("tab status", () => {
 
   it("an answered question stops showing until the engine reports again", () => {
     const asking = { activity: { state: "permission_needed" as const, at: 5 }, viewed: false }
-    expect(tabStatus({ ...asking, answeredAt: 6 }).kind).toBe("idle")
-    expect(tabStatus({ ...asking, answeredAt: 4 }).kind).toBe("needs-input")
+    expect(tabStatus({ ...asking, handledAt: 6 }).kind).toBe("idle")
+    expect(tabStatus({ ...asking, handledAt: 4 }).kind).toBe("needs-input")
   })
 
   it("the task row takes the most urgent tab; a job or a deletion wins", () => {
@@ -149,8 +148,34 @@ describe("the store", () => {
     emit("attention.inbox", { items: [{ taskId: "t", tabId: "tab-1", state: "turn_complete", at: 10, unread: true }] })
     await flush()
     expect(latest().tabs["tab-1"]?.kind).toBe("unseen")
+    // A restored session is attention only while its Inbox episode is pending: acking it calms the rail.
+    expect(latest().tabs["tab-2"]).toMatchObject({ kind: "idle", restored: true })
+    emit("attention.inbox", {
+      items: [
+        { taskId: "t", tabId: "tab-1", state: "turn_complete", at: 10, unread: true },
+        { taskId: "t", tabId: "tab-2", state: "restored", at: 20, unread: true },
+      ],
+    })
+    await flush()
     expect(latest().tabs["tab-2"]).toMatchObject({ kind: "attention", restored: true })
     expect(latest().task.kind).toBe("attention")
+    store.close()
+    vi.useRealTimers()
+  })
+
+  it("acking an Inbox episode clears the rail's mark until the engine reports again", async () => {
+    const { store, emit, latest, flush } = harness()
+    const dead = { taskId: "t", tabId: "tab-1", state: "dead", at: 10, unread: true }
+    emit("engine-state", { taskId: "t", tabId: "tab-1", state: "dead", at: 10 })
+    emit("attention.inbox", { items: [dead] })
+    await flush()
+    expect(latest().tabs["tab-1"]?.kind).toBe("attention")
+    emit("attention.inbox", { items: [] })
+    await flush()
+    expect(latest().task.kind).toBe("idle")
+    emit("engine-state", { taskId: "t", tabId: "tab-1", state: "error", at: 2000 })
+    await flush()
+    expect(latest().tabs["tab-1"]?.kind).toBe("attention")
     store.close()
     vi.useRealTimers()
   })

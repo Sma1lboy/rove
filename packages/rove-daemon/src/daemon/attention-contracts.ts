@@ -85,6 +85,9 @@ export const ATTENTION_INBOX_STATES = [
   "rate_limited",
   /** The engine PROCESS died; nothing else tells the user the agent is gone. */
   "dead",
+  /** The PTY host came back (reboot, host crash) and thawed this tab's session from disk: its old
+   *  process is gone, and opening the tab relaunches the command. Once per thaw. */
+  "restored",
   /** A routine's latest firing needs a human ({@link automationRunNeedsAttention}).
    *  The only episode whose subject isn't a task: a routine on a moved repo
    *  never creates one. */
