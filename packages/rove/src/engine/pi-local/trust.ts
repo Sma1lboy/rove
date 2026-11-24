@@ -14,11 +14,15 @@
  * cwd's ANCESTORS for an entry, so one record covers the worktree.
  *
  * `omp` has no such gate (verified in a never-seen directory).
+ *
+ * Every Rove process that launches a tab writes here, and so does pi: the
+ * merge goes through `../shared-config-write.ts`.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
+import { isObject } from "../../lib/is-object.ts"
 import { realPathOrSelf } from "../../lib/real-path.ts"
+import { updateSharedJsonSync } from "../shared-config-write.ts"
 import { type VendorHomeDeps, vendorAgentDir } from "../vendor-home.ts"
 
 /** `<agentDir>/trust.json`. */
@@ -31,17 +35,23 @@ function piTrustPath(deps?: VendorHomeDeps): string {
  * unparseable store is left untouched. Never throws.
  */
 export function trustPiWorktree(worktreePath: string, deps?: VendorHomeDeps): void {
-  const file = piTrustPath(deps)
+  const resolved = realPathOrSelf(worktreePath)
   try {
-    const existing: Record<string, boolean> = {}
-    if (existsSync(file)) {
-      const parsed: unknown = JSON.parse(readFileSync(file, "utf8"))
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return
-      for (const [key, value] of Object.entries(parsed)) existing[key] = value === true
-    }
-    existing[realPathOrSelf(worktreePath)] = true
-    mkdirSync(path.dirname(file), { recursive: true })
-    writeFileSync(file, `${JSON.stringify(existing, null, 2)}\n`)
+    updateSharedJsonSync(
+      piTrustPath(deps),
+      (raw) => {
+        if (raw === undefined) return {}
+        const parsed: unknown = JSON.parse(raw)
+        return isObject(parsed) ? parsed : undefined
+      },
+      (doc) => {
+        if (doc[resolved] === true) return undefined
+        const merged: Record<string, boolean> = {}
+        for (const [key, value] of Object.entries(doc)) merged[key] = value === true
+        merged[resolved] = true
+        return `${JSON.stringify(merged, null, 2)}\n`
+      },
+    )
   } catch {
     /* best-effort — never block a launch */
   }
