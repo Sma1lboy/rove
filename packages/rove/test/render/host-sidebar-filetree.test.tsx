@@ -177,8 +177,6 @@ describe("HostFilesPane", () => {
             onOpenFile: NOOP,
             onOpenDiff: NOOP,
             onMention: (p: string) => void mentions.push(p),
-            onZenToggle: NOOP,
-            onCreatePR: NOOP,
           }}
         />,
         24,

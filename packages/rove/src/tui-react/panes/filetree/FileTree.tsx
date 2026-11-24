@@ -67,10 +67,6 @@ export type FileTreeProps = {
   /** `a` — paste an `@<path>` mention into the engine's composer, no submit
    *  (workspace host only; see docs/TUI.md). */
   onMention?: (relPath: string) => void
-  /** `p` — request PR creation (workspace host only); also rendered as a chip. */
-  onCreatePR?: () => void
-  /** Zen-mode chip left of Create PR (enter-only). */
-  onZenToggle?: () => void
   /** Whether the pane has keyboard focus. Defaults to `true`. */
   focused?: boolean
   /** CONTENT width (cells) of this pane; the path budget must come from it, not
@@ -371,8 +367,6 @@ export function FileTree(props: FileTreeProps) {
         scope={scope}
         base={base}
         onSelectTab={setTab}
-        onZenToggle={props.onZenToggle}
-        onCreatePR={props.onCreatePR}
         onDiffAll={
           props.onOpenDiff
             ? () => props.onOpenDiff?.(".", scope === "branch" && base != null ? base : undefined)

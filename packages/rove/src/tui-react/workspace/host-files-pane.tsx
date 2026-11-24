@@ -20,8 +20,6 @@ export type FilesPaneActions = {
   readonly onOpenDiff: (relPath: string, base?: string) => void
   /** `a` — paste an `@<path>` mention into the engine's composer (no submit). */
   readonly onMention: (relPath: string) => void
-  readonly onZenToggle: () => void
-  readonly onCreatePR: () => void
 }
 
 /** One identity per host for the host's per-render callbacks, so `HostFilesPane`'s
@@ -33,8 +31,6 @@ export function useFilesPaneActions(actions: FilesPaneActions): FilesPaneActions
       onOpenFile: (relPath) => latest.current.onOpenFile(relPath),
       onOpenDiff: (relPath, base) => latest.current.onOpenDiff(relPath, base),
       onMention: (relPath) => latest.current.onMention(relPath),
-      onZenToggle: () => latest.current.onZenToggle(),
-      onCreatePR: () => latest.current.onCreatePR(),
     }),
     [],
   )
@@ -92,9 +88,6 @@ export const HostFilesPane = memo(function HostFilesPane(props: {
               onOpenFile={props.actions.onOpenFile}
               onOpenDiff={props.actions.onOpenDiff}
               onMention={props.actions.onMention}
-              onZenToggle={props.actions.onZenToggle}
-              // prefix+P is GLOBAL, so it still fires here and explains itself with a toast.
-              onCreatePR={props.actions.onCreatePR}
             />
           )}
         </PaneErrorBoundary>
