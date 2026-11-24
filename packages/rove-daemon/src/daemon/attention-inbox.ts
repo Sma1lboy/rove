@@ -25,6 +25,16 @@ import { serialized, writeJsonAtomic } from "./json-file.ts"
 interface AttentionInboxFile {
   readonly version: 1
   readonly items: AttentionInboxItem[]
+  /** PTY generations already raised as `restored`: an acked one never comes back, across daemon restarts. */
+  readonly restoresSeen?: string[]
+}
+
+/** One freeze-restored PTY session, as the host lists it. */
+export interface RestoredSession {
+  readonly taskId: string
+  readonly tabId: string
+  /** New on every thaw, so the next reboot raises the tab again. */
+  readonly generation: string
 }
 
 /**
@@ -66,31 +76,46 @@ function normalizeItem(value: unknown): AttentionInboxItem | null {
   }
 }
 
-async function readStore(path: string): Promise<AttentionInboxItem[]> {
+async function readStore(path: string): Promise<{ items: AttentionInboxItem[]; restoresSeen: string[] }> {
+  const empty = { items: [], restoresSeen: [] }
   try {
     const parsed = JSON.parse(await readFile(path, "utf8")) as Partial<AttentionInboxFile>
-    if (!Array.isArray(parsed.items)) return []
-    return parsed.items.map(normalizeItem).filter((item): item is AttentionInboxItem => item !== null)
+    if (!Array.isArray(parsed.items)) return empty
+    return {
+      items: parsed.items.map(normalizeItem).filter((item): item is AttentionInboxItem => item !== null),
+      restoresSeen: Array.isArray(parsed.restoresSeen)
+        ? parsed.restoresSeen.filter((g): g is string => typeof g === "string")
+        : [],
+    }
   } catch (err) {
     const code = (err as NodeJS.ErrnoException).code
     // Nothing CAN be there (ENOTDIR: broken config; the write will fail too).
-    if (code === "ENOENT" || code === "ENOTDIR") return []
+    if (code === "ENOENT" || code === "ENOTDIR") return empty
     // An I/O failure is not an empty queue: `[]` would let the next commit()
     // rewrite the file empty, so one transient EACCES/EIO destroys the queue.
     // Malformed JSON (no errno) still reads as empty, by decision.
     if (code !== undefined) throw err
     logDaemonError("attention-inbox-load", err)
-    return []
+    return empty
   }
 }
 
-async function writeStore(path: string, items: readonly AttentionInboxItem[]): Promise<void> {
-  const body: AttentionInboxFile = { version: 1, items: [...items] }
+async function writeStore(
+  path: string,
+  items: readonly AttentionInboxItem[],
+  restoresSeen: ReadonlySet<string>,
+): Promise<void> {
+  const body: AttentionInboxFile = {
+    version: 1,
+    items: [...items],
+    ...(restoresSeen.size > 0 ? { restoresSeen: [...restoresSeen] } : {}),
+  }
   await writeJsonAtomic(path, body)
 }
 
 export class AttentionInboxStore {
   private readonly items = new Map<string, AttentionInboxItem>()
+  private restoresSeen = new Set<string>()
   private projection: () => AttentionInboxItem[] = () => []
   private hidden: (taskId: string) => boolean = () => false
   /** False until one read SUCCEEDED; {@link commit} refuses to write before that. */
@@ -104,9 +129,10 @@ export class AttentionInboxStore {
 
   async init(): Promise<void> {
     await this.enqueue(async () => {
-      const items = await readStore(this.path)
+      const { items, restoresSeen } = await readStore(this.path)
       this.items.clear()
       for (const item of items) this.items.set(attentionInboxItemKey(item), item)
+      this.restoresSeen = new Set(restoresSeen)
       this.loaded = true
       this.publish()
     })
@@ -185,6 +211,26 @@ export class AttentionInboxStore {
       next.delete(key)
       next.set(key, { taskId, tabId, state: "dead", detail, unread: true, at })
       await this.commit(next)
+    })
+  }
+
+  /**
+   * `restored` episodes for the host's freeze-restored sessions not raised before, given the
+   * WHOLE current list: generations no longer restored (respawned, closed) are forgotten.
+   */
+  async recordRestored(sessions: readonly RestoredSession[]): Promise<void> {
+    await this.enqueue(async () => {
+      const live = new Set(sessions.map((s) => s.generation))
+      const fresh = sessions.filter((s) => !this.restoresSeen.has(s.generation))
+      const stale = [...this.restoresSeen].some((g) => !live.has(g))
+      if (fresh.length === 0 && !stale) return
+      const next = new Map(this.items)
+      for (const { taskId, tabId } of fresh) {
+        const key = attentionInboxItemKey({ taskId, tabId })
+        next.delete(key)
+        next.set(key, { taskId, tabId, state: "restored", unread: true, at: this.now() })
+      }
+      await this.commit(next, live)
     })
   }
 
@@ -306,13 +352,17 @@ export class AttentionInboxStore {
   }
 
   /** Rewrite the whole file, then publish. */
-  private async commit(next: ReadonlyMap<string, AttentionInboxItem>): Promise<void> {
+  private async commit(
+    next: ReadonlyMap<string, AttentionInboxItem>,
+    restoresSeen: Set<string> = this.restoresSeen,
+  ): Promise<void> {
     // Never write a file we could not read: a failed load plus a whole-file
     // rewrite would permanently delete every pending episode.
     if (!this.loaded) throw new Error(`attention inbox never loaded (${this.path}) — refusing to overwrite it`)
     // Sorted ascending by `at`, so the tail is the newest — prune-oldest.
     const items = [...next.values()].sort(compareItems).slice(-MAX_EPISODES)
-    await writeStore(this.path, items)
+    await writeStore(this.path, items, restoresSeen)
+    this.restoresSeen = restoresSeen
     this.items.clear()
     for (const item of items) this.items.set(attentionInboxItemKey(item), item)
     this.publish()

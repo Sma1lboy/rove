@@ -6,9 +6,12 @@
  * and the mobile clients only map the result to their own glyphs
  * (`rove/src/lib/row-status-glyph.ts`).
  *
- * One tab's state, highest first: a freeze-restored session or an attention
- * state (rate limited, error, dead) → running → needs input (unless just
- * answered) → a finished turn nobody has looked at → idle. The task row: a job
+ * One tab's state, highest first: an attention state (rate limited, error,
+ * dead) → running → needs input → a finished turn nobody has looked at → idle.
+ * An attention state or a question the user has since handled (answered it, or
+ * its Inbox episode went) shows idle until the engine reports again, so the rail
+ * never says more than the Inbox. A freeze-restored session is attention while
+ * its `restored` Inbox episode is pending. The task row: a job
  * or deletion, else its most urgent tab, ranked running → needs input →
  * attention → unseen → idle.
  */
@@ -62,8 +65,8 @@ export interface TabStatusInput {
   readonly pending?: { readonly state: string; readonly at: number }
   /** A client is looking at this tab now. */
   readonly viewed: boolean
-  /** When a client last answered this tab's question (`activity.answered`). */
-  readonly answeredAt?: number
+  /** When the user last handled this tab: answered its question, or its Inbox episode left. */
+  readonly handledAt?: number
   /** From the PTY host's session list; undefined when the host did not answer. */
   readonly session?: { readonly alive: boolean; readonly restored: boolean }
   /** The engine the last foreground walk found in the session. */
@@ -80,12 +83,15 @@ export function tabStatus(input: TabStatusInput): TabStatus {
     ...(input.engine && input.session?.alive ? { engine: input.engine } : {}),
   }
   const a = input.activity
-  if (session.restored) return { kind: "attention", reason: "restored", since: a?.at ?? 0, ...session }
-  if (a && ATTENTION_STATES.has(a.state)) {
+  const handled = a !== undefined && input.handledAt !== undefined && input.handledAt >= a.at
+  if (session.restored && input.pending?.state === "restored") {
+    return { kind: "attention", reason: "restored", since: input.pending.at, ...session }
+  }
+  if (a && ATTENTION_STATES.has(a.state) && !handled) {
     return { kind: "attention", reason: a.state as RowStatusReason, since: a.at, state: a.state, ...session }
   }
   if (a?.state === "running") return { kind: "running", since: a.at, state: a.state, ...session }
-  if (a?.state === "permission_needed" && !(input.answeredAt !== undefined && input.answeredAt >= a.at)) {
+  if (a?.state === "permission_needed" && !handled) {
     return { kind: "needs-input", since: a.at, state: a.state, ...session }
   }
   // Unseen is the inbox's to say: an episode no client has opened, and nobody looking right now.

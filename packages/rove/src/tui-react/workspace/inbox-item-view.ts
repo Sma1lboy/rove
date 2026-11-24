@@ -43,6 +43,7 @@ export function itemStateKey(state: AttentionInboxItem["state"]): string {
   if (state === "turn_complete") return "workspace.inbox.state.done"
   if (state === "rate_limited") return "workspace.inbox.state.rateLimited"
   if (state === "dead") return "workspace.inbox.state.dead"
+  if (state === "restored") return "workspace.inbox.state.restored"
   if (state === "routine_failed") return "workspace.inbox.state.routineFailed"
   if (state === "report_missing") return "workspace.inbox.state.reportMissing"
   if (state === "decision_needed") return "workspace.inbox.state.decisionNeeded"

@@ -24,6 +24,8 @@ export function inboxBadge(state: string): InboxBadge {
       return { glyph: "◷", tone: "warning", stateKey: "inbox.state.rateLimited" }
     case "dead":
       return { glyph: "†", tone: "attention", stateKey: "inbox.state.dead" }
+    case "restored":
+      return { glyph: "!", tone: "attention", stateKey: "inbox.state.restored" }
     case "decision_needed":
       return { glyph: "?", tone: "warning", stateKey: "inbox.state.decision" }
     case "routine_failed":

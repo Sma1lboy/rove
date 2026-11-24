@@ -243,8 +243,10 @@ changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
 *where was I?*, with one section for each:
 
 - **ATTENTION.** Pending items, blocked ones first. An item appears when a turn
-  completes, a session asks for input, hits a rate limit, errors, or when the
-  engine process exits. Everything that is *stopped until you act* — a
+  completes, a session asks for input, hits a rate limit, errors, when the
+  engine process exits, or once per tab when a reboot or host crash restores
+  its session from disk (`restored after restart`; opening it relaunches the
+  command). Everything that is *stopped until you act* — a
   permission prompt, a rate limit, an error, a dead engine, a failing routine —
   sorts ahead of plain finished turns, and within each of those two groups the
   oldest is first. A completed turn is the only item nobody is waiting on, so
@@ -268,7 +270,9 @@ task-level episode leaves that task's current tab active. It also clears the
 item. `d` acks (clears) the one under the cursor without navigating (ATTENTION rows only;
 RECENT rows have nothing to drop), and `D` acks every ATTENTION row at once. You rarely need `d`: **visiting
 a target clears its item anyway**, since visiting any tab resolves a task-level episode, and stale items
-whose tab or task is gone get cleaned up in the background.
+whose tab or task is gone get cleaned up in the background. However an item
+leaves, the task list follows: its row stops showing that error, exit,
+question or restore until the engine reports something new.
 
 **Decisions.** A task that needs an answer only you can give (`rove api
 gate-raise`) shows here as `decision needed` with its question. It is not an

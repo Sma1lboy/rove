@@ -177,6 +177,7 @@ async function startOwnedServer(
     onSessions: (sessions) =>
       void stores.aliases.reconcile(sessions).catch((err) => logDaemonError("alias-reconcile", err)),
     readEpisode: (taskId, tabId, at) => inbox.markRead(taskId, tabId, at),
+    onRestored: (sessions) => void inbox.recordRestored(sessions).catch((err) => logDaemonError("inbox-restored", err)),
     anyGui: () => lifetime.guiCount() > 0,
     tabIdsOf: (taskId) => stores.tabs.get(taskId).state?.tabs.map((tab) => tab.id) ?? null,
   })

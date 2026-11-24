@@ -73,6 +73,8 @@ export const en = {
       running: "running",
       /** A dead engine PROCESS (pty exit record), not a failed turn. */
       dead: "engine exited",
+      /** The PTY host restarted; opening the tab relaunches its command. */
+      restored: "restored after restart",
       /** A routine whose latest firing needs a human. */
       routineFailed: "routine needs you",
       /** An armed prompt's turn ended without `rove api report`. */
@@ -137,6 +139,7 @@ export const zh: typeof en = {
       rateLimited: "限流",
       running: "进行中",
       dead: "引擎已退出",
+      restored: "重启后已恢复",
       routineFailed: "例行任务需要处理",
       reportMissing: "未回报",
       decisionNeeded: "等你决定",

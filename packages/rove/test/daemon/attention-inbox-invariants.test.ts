@@ -30,6 +30,25 @@ describe("attention inbox store invariants", () => {
   // shell inherits no ROVE_TAB_ID). An EMPTY string
   // is not a tab either: normalize it to null rather than keying an episode
   // on `""`.
+  // Once per thaw: an acked restore stays gone across a daemon restart; the next reboot's thaw raises it again.
+  it("raises a restored session once per thaw, across daemon restarts", async () => {
+    dir = await mkdtemp(join(tmpdir(), "rove-attention-inbox-invariants-"))
+    const path = join(dir, "attention-inbox.json")
+    const thaw = [{ taskId: "task-1", tabId: "tab-1", generation: "g1" }]
+    const store = new AttentionInboxStore(path, new DaemonEventBus(), () => 100)
+    await store.init()
+    await store.recordRestored(thaw)
+    expect(store.snapshot()).toEqual([expect.objectContaining({ taskId: "task-1", state: "restored" })])
+    await store.deleteEpisode("task-1", "tab-1")
+
+    const restarted = new AttentionInboxStore(path, new DaemonEventBus(), () => 200)
+    await restarted.init()
+    await restarted.recordRestored(thaw)
+    expect(restarted.snapshot()).toEqual([])
+    await restarted.recordRestored([{ ...thaw[0]!, generation: "g2" }])
+    expect(restarted.snapshot()).toEqual([expect.objectContaining({ state: "restored", at: 200 })])
+  })
+
   it("normalizes an empty tab identity to a task-level episode", async () => {
     dir = await mkdtemp(join(tmpdir(), "rove-attention-inbox-invariants-"))
     const store = new AttentionInboxStore(join(dir, "attention-inbox.json"), new DaemonEventBus())
