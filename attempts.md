@@ -545,3 +545,13 @@ Run 1 (patched) exited 0, nothing past tolerance: firstFrame 416.1, boot.ready 1
 **No regression.** One run, exit 0, nothing past tolerance. Counts: switch commit.root/workspace 6, sidebar 2, frame 2.7, overlay 3, stateNotify/stateListener 2, paintRow 1.4, spawns 0; typing 1/key (spawns 0.03). Timings: firstFrame 687, boot.ready 2105, switch.shown 185, typing.echo 160.4, cli-startup 35.6, vt-1mb 88.5. 3 commits since 7187449 (#2147 web canvas terminal close, #2148 docs, 0.9.300 release), none on the measured paths. No open `perf:` issues. Baseline unchanged.
 
 **No attempt:** same as 11-13 to 11-23. Owner calls still stand: a new nightly scenario, an idle phase that waits for quiet, and a wider tolerance for single-sample timing outliers.
+
+## 2026-11-25 — notes, no attempt, baseline not moved (main 88cb13b)
+
+**No regression.** Run 1 exited 1 on boot.firstFrame 1145.7 and idle commit.root/workspace 5, sidebar 3, frame 4, stateNotify 7, stateListener 18: the boot burst from 11-12 landing in the fixed 3 s idle window. Run 2 exited 0; its only past-tolerance change was typing.echo 130.3 → 44.8 ✓. Counts at floor: switch commit.root/workspace 6, sidebar 2, frame 2.4, overlay 3, stateNotify/stateListener 2, paintRow 1.5, spawns 0; typing 1/key. 4 commits since 505da12 (#2149 sort line/Files header chips dropped, #2150 ctrl+a previous task, #2151 pi trust, #2152 inbox ack). No open `perf:` issues. Tonight's history line is run 2.
+
+**typing.echo/switch.shown gain is the machine, not code:** 505da12 (parent of #2149) measured on tonight's sandbox reads typing.echo 45.9, switch.shown 100; 16165fb reads 47.2/117. Earlier nights read 130–165 / 170–185. So the baseline was **not** moved even though run 2 was all-✓; moving it to a faster sandbox would make normal-speed nights ✗ on typing.echo (45 × 1.5 = 67 ms limit).
+
+**No attempt:** same as 11-13 to 11-24. Owner calls still stand: a new nightly scenario, an idle phase that waits for quiet, a wider tolerance for timing outliers — and now: whether the routine should move the baseline on a timing-only ✓ when the parent commit reads the same.
+
+**Sandbox:** as 11-24 (bun 1.3.14 from npm, `ELECTRON_SKIP_BINARY_DOWNLOAD=1`, per-file symlinks of `/opt/pw-browsers/chromium_headless_shell-1243/chrome-headless-shell-linux64/*` into `/tmp/pwshim/chromium_headless_shell-{1228,1243}/...`).
