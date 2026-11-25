@@ -17,7 +17,7 @@
  */
 
 import { mkdirSync } from "node:fs"
-import { homedir } from "node:os"
+import { homedir, networkInterfaces } from "node:os"
 import { resolve } from "node:path"
 import { ensureDaemonReachable } from "@sma1lboy/rove-daemon/client/daemon-process"
 import { readRoveEnv, setRoveEnv } from "@sma1lboy/rove-daemon/compat-env"
@@ -36,6 +36,19 @@ if (homeDir) mkdirSync(homeDir, { recursive: true })
 if (homeDir) setRoveEnv("HOME_DIR", homeDir)
 setRoveEnv("WEB_PORT", WEB_PORT)
 setRoveEnv("PTY_PORT", PTY_PORT)
+// A bare `bun run dev[:sandbox]` shows the TUI from this checkout's source. The
+// TUI's own sandbox home is pinned to this session's, so page and TUI agree.
+if (!process.env.ROVE_PTY_DEV_COMMAND) {
+  process.env.ROVE_PTY_DEV_CWD = resolve(import.meta.dirname, "../rove")
+  // Blank the task ids: started from a terminal inside a Rove task, the TUI
+  // would otherwise take itself for that task's pane.
+  const env = `ROVE_TASK_ID= ROVE_TAB_ID=${homeDir ? ` ROVE_SANDBOX_HOME_DIR=${homeDir}` : ""}`
+  process.env.ROVE_PTY_DEV_COMMAND = `${env} bun run ${homeDir ? "dev:sandbox" : "dev"}`
+}
+// `--lan` serves the page to other devices. It hands a shell on this machine
+// to anyone on the network who opens it, so it is never the default.
+const lan = process.argv.includes("--lan")
+if (lan) process.env.ROVE_HARNESS_LAN = "1"
 const childEnv = { ...process.env }
 
 const sandboxed = homeDir !== null
@@ -43,6 +56,10 @@ console.log(
   `\x1b[1m[rove harness dev]\x1b[0m ${sandboxed ? "\x1b[33msandbox\x1b[0m" : "\x1b[31mPRODUCTION\x1b[0m"} · home: ${homeDir ?? `${homedir()}/.rove (production)`}`,
 )
 console.log(`  web :${WEB_PORT}  pty :${PTY_PORT}`)
+const lanHosts = lan
+  ? Object.values(networkInterfaces()).flatMap((list) => (list ?? []).filter((a) => a.family === "IPv4" && !a.internal).map((a) => a.address))
+  : []
+for (const host of ["localhost", ...lanHosts]) console.log(`  http://${host}:${WEB_PORT}/harness`)
 
 await ensureDaemonReachable()
 
@@ -58,7 +75,7 @@ const pty = Bun.spawn(["node", "pty-server.mjs"], {
 })
 
 // node (via vite): the capture page, proxying /pty to the sidecar above.
-const vite = Bun.spawn(["bun", "run", "vite", "dev", "--port", WEB_PORT, "--strictPort"], {
+const vite = Bun.spawn(["bun", "run", "vite", "dev", "--port", WEB_PORT, "--strictPort", ...(lan ? ["--host"] : [])], {
   stdio: ["inherit", "inherit", "inherit"],
   env: {
     ...childEnv,
