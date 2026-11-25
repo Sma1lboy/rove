@@ -16,8 +16,11 @@ export const CARD =
 export const CARD_ACTIONS = "flex flex-wrap items-center justify-end gap-1.5"
 export const PROMPT = "max-h-[40vh] min-h-[4.5em] w-full bg-transparent text-ink [border:0] [outline:0]"
 export const BAR = "flex items-center gap-1.5 px-1"
-/** Where the task runs, then how: one row, never wrapped. A phone drops each chip's word instead (`CHIP_WORD`). */
-export const BAR_GROUP = "flex min-w-0 items-center gap-1.5"
+/**
+ * Where the task runs, then how: one row, never wrapped. A phone drops each chip's word instead (`CHIP_WORD`), and
+ * lays every chip in the bar itself, so a full row is shared out between chips rather than between the two groups.
+ */
+export const BAR_GROUP = "flex min-w-0 items-center gap-1.5 narrow:contents"
 /** `group/end`: the right-hand chips, whose last popover opens leftward. */
 export const BAR_GROUP_END = `${BAR_GROUP} group/end ml-auto narrow:ml-0`
 export const GROW = "flex-1"
@@ -30,9 +33,12 @@ export const ICON =
 /** A chip's word on a phone: visually gone, still the button's name. The glyph and `title` carry it. */
 export const CHIP_WORD = "narrow:sr-only"
 
+/** A chip narrows to its glyph and no further: in a full bar the words shorten, an icon-only chip keeps its shape. */
+const CHIP_FLOOR = "min-w-8.5"
+
 /** A pill in the bar; `on` is the Worktree toggle while it is on. Hover applies on touch too, as the sheet's did. */
 export const chipClass = (on = false): string =>
-  `inline-flex max-w-[28ch] items-center gap-1.5 overflow-hidden rounded-full border-hairline px-2.5 py-0.75 text-ellipsis whitespace-nowrap touch:py-1.75 [&:hover]:bg-hover [&:hover]:text-ink aria-expanded:bg-hover aria-expanded:text-ink ${
+  `inline-flex max-w-[28ch] ${CHIP_FLOOR} items-center gap-1.5 overflow-hidden rounded-full border-hairline px-2.5 py-0.75 text-ellipsis whitespace-nowrap touch:py-1.75 [&:hover]:bg-hover [&:hover]:text-ink aria-expanded:bg-hover aria-expanded:text-ink ${
     on
       ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-accent-soft text-accent"
       : "border-line text-muted"
@@ -45,8 +51,13 @@ export const dictateChip = (recording: boolean): string =>
 /** Holding to talk: no scroll, text selection or iOS callout steals the press. */
 export const DICTATE_PRESS = "touch-none select-none [-webkit-touch-callout:none]"
 
-/** `group/chip`: the last popover of the right-hand group opens leftward from its chip's right edge; any other would run under the rail. */
-export const CHIP_WRAP = "group/chip relative inline-flex"
+/**
+ * `group/chip`: the last popover of the right-hand group opens leftward from its chip's right edge; any other would
+ * run under the rail. `yields` is the chip whose word shortens first in a full phone bar (the folder: the longest
+ * name). It takes the room the others leave, up to its own width, so no other chip gives up even a pixel before it.
+ */
+export const chipWrap = (yields = false): string =>
+  `group/chip relative inline-flex ${CHIP_FLOOR} ${yields ? "narrow:max-w-fit narrow:flex-[1_1_0]" : ""}`
 export const POP =
   "absolute bottom-[calc(100%+6px)] left-0 z-20 flex max-h-[min(50vh,420px)] max-w-[min(52ch,calc(100vw-16px))] min-w-[min(34ch,calc(100vw-16px))] flex-col overflow-hidden rounded-md border-hairline border-line-active bg-surface shadow-popover group-[&]/end:group-last-of-type/chip:right-0 group-[&]/end:group-last-of-type/chip:left-auto"
 

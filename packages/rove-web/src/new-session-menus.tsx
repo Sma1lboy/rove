@@ -6,7 +6,6 @@ import { type Choice, digitRow } from "./new-session.ts"
 import {
   BRANCHES,
   CHECK,
-  CHIP_WRAP,
   CLIP,
   CLIP_HEAD,
   DIM,
@@ -21,6 +20,7 @@ import {
   ROWS,
   RULE,
   chipClass,
+  chipWrap,
   rowClass,
 } from "./ui/composer.ts"
 import { PALETTE_INPUT } from "./ui/shell.ts"
@@ -32,6 +32,8 @@ export function ChipPopover(props: {
   title: string
   field: string
   disabled?: boolean
+  /** Its word shortens before any other chip's when the bar is full. */
+  yields?: boolean
   /** Runs whenever the popover shuts, however it shut. */
   onClose?: () => void
   children: (close: () => void) => ReactNode
@@ -70,7 +72,7 @@ export function ChipPopover(props: {
     // Escape is caught here from the popover's own fields.
     <span
       ref={root}
-      className={CHIP_WRAP}
+      className={chipWrap(props.yields)}
       onKeyDown={(e) => {
         if (e.key !== "Escape" || !open) return
         e.preventDefault()
@@ -89,7 +91,7 @@ export function ChipPopover(props: {
         disabled={props.disabled}
         onClick={() => setOpen((now) => !now)}
       >
-        {props.label}
+        {typeof props.label === "string" ? <span className={CLIP}>{props.label}</span> : props.label}
       </button>
       {open && (
         <div ref={pop} className={POP}>
