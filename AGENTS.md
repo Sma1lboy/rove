@@ -47,7 +47,6 @@ No Linear. Backlog: `TODO.md`; with the Kanban mod, `rove api issue-*` ([`docs/W
 
 ### Scope
 - Edit only files within the declared slice; surface cross-slice changes.
-- 3-strike rule: same root cause fails 3× → stop and surface. 3+ levels of sub-investigation → surface first.
 - Fixing one subcommand/file? Confirm whether every similar case needs it before calling it done.
 - A file over ~500 lines is a refactor prompt: growing one means you own splitting it along a named seam (dev-loop § File size).
 
