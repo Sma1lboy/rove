@@ -400,6 +400,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             )}
             <ChipPopover
               field="repo"
+              yields
               title={
                 !remote && repos.length > 1 ? t("newSession.repoCount", { count: repos.length }) : t("newSession.repo")
               }
