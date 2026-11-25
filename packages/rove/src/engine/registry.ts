@@ -160,6 +160,8 @@ export interface EngineRegistryEntry {
    * means "found no login" and marks the engine unusable.
    */
   readonly detectAccount?: (deps?: DetectDeps) => Promise<EngineAccountStatus<EngineAccount>>
+  /** Argv after the engine's own binary that prints its version. Absent = Rove never asks. */
+  readonly versionArgs?: readonly string[]
   /** Activity-hook adapter — a no-op adapter for engines without wired hooks. */
   readonly createHookAdapter: () => EngineHookAdapter
   /**

@@ -95,6 +95,7 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     foreignModel: isOpenAiFamilyModel,
     history: claudeHistoryReader,
     detectAccount: (deps) => detectClaudeAccount(deps),
+    versionArgs: ["--version"],
     createHookAdapter: () => new ClaudeHookAdapter(),
     // The enabled plugin ships its own skill; a second copy double-registers.
     skillsDir: () => (isRovePluginEnabled() ? null : skillsDirUnder(vendorConfigHome("claude"))),
@@ -165,6 +166,7 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     history: codexHistoryReader,
 
     detectAccount: (deps) => detectCodexAccount(deps),
+    versionArgs: ["--version"],
     createHookAdapter: () => new CodexHookAdapter(),
     skillsDir: () => skillsDirUnder(vendorConfigHome("codex")),
     createTurnDetector: () => new CodexTurnDetector(),
@@ -246,6 +248,7 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     firstMessageArgv: (argv, text) => [...argv, "-i", text],
     history: copilotHistoryReader,
     detectAccount: (deps) => detectCopilotAccount(deps),
+    versionArgs: ["--version"],
     createHookAdapter: () => new CopilotHookAdapter(),
     skillsDir: () => skillsDirUnder(vendorConfigHome("copilot")),
     // Copilot persists no turn-completion marker rove can read yet.

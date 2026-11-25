@@ -355,8 +355,9 @@ edits (`set-vendor`, `rename`,
   screen rules and identity Rove drives it with, so it is not `generic`. What
   it prints is what a launch runs, so an entry can be copied into `--command`
   verbatim or edited first. `--status` probes each engine on this machine and
-  adds `installed` (its CLI is there) and `ready` (installed, and signed in
-  where Rove can read the login); with `--machine` it answers for that
+  adds `installed` (its CLI is there), `ready` (installed, and signed in
+  where Rove can read the login) and `version` (the CLI's own `--version`
+  answer, for engines that declare one; absent when unreadable); with `--machine` it answers for that
   machine. Returns `{ engines }`.
 - `repo-match (--origin URL | --root SHA) [--allow-fork]`: this machine's
   checkout of a repo, matched by identity: `--origin` (any git remote form,

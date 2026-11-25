@@ -6,6 +6,7 @@
 
 import type { BinaryStatus } from "../engine/account-detect.ts"
 import { describeAccount, detectEngineStatuses, probeableEngineIds, summarizeEngines } from "../engine/engine-status.ts"
+import { withEngineVersions } from "../engine/engine-version.ts"
 
 export interface GitProbeResult {
   /** The doctor-formatted one-liner (`git: ✓ …` / `git: ✗ …`). */
@@ -46,13 +47,14 @@ function binaryLabel(binary: BinaryStatus): string {
  * installed contrib engines.
  */
 export async function probeEngines(): Promise<EngineProbeResult> {
-  const statuses = await detectEngineStatuses(await probeableEngineIds())
+  const statuses = await withEngineVersions(await detectEngineStatuses(await probeableEngineIds()))
   const lines = ["engines:"]
   for (const status of statuses) {
     const account = describeAccount(status.account)
     // padEnd(7)+space: an 8-char custom id must not butt against the ✓/✗.
     const name = `${status.vendor.padEnd(7)} `
-    lines.push(`  ${name}${binaryLabel(status.binary)}${status.binary.found ? ` — ${account}` : ""}`)
+    const version = status.version ? ` (${status.version})` : ""
+    lines.push(`  ${name}${binaryLabel(status.binary)}${version}${status.binary.found ? ` — ${account}` : ""}`)
     if (status.accountError) lines.push(`          ⚠ ${status.accountError}`)
   }
   // "Usable" = binary present AND some account. One usable engine is enough;
