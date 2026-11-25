@@ -158,7 +158,16 @@ export function useWorkspaceSelection(args: {
     worktreePathsRef.current = paths
   }, [tasks, kv])
 
+  // Last-intent-wins: a slow activation that resolves after a newer pick (another
+  // activation, or a direct select such as an Inbox jump) must not yank selection back.
+  const activationGenerationRef = useRef(0)
+
   function selectTask(id: string): void {
+    activationGenerationRef.current++
+    commitSelection(id)
+  }
+
+  function commitSelection(id: string): void {
     userPickedRef.current = true
     if (selectedId === id) {
       // Still publish it as active: a fresh home boots with a fallback-selected
@@ -178,9 +187,6 @@ export function useWorkspaceSelection(args: {
     orch.reportUiEvent("task.opened", id)
   }
 
-  // Last-intent-wins: a slow activation that resolves after a newer one must
-  // not yank selection/focus back to the older task.
-  const activationGenerationRef = useRef(0)
   async function activateTask(id: string): Promise<void> {
     const generation = ++activationGenerationRef.current
     // Revive before the worktree await, so the tab exists when selection
@@ -190,7 +196,7 @@ export function useWorkspaceSelection(args: {
       {
         getTask: (taskId) => tasks.find((task) => task.id === taskId),
         ensureWorktree: (taskId) => orch.ensureWorktree(taskId),
-        selectTask,
+        selectTask: commitSelection,
         focusWorkspace: args.focusWorkspace,
         reportError: (error) => {
           // Without the toast a refused Enter is a silent no-op, pressed forever.
