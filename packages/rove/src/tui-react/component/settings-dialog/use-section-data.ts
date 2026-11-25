@@ -10,6 +10,7 @@ import { BUNDLED_PLUGINS, isBundledPluginInstalled, setBundledPluginInstalled } 
 import { type PluginInstallPreview, preparePluginInstall } from "../../../cli/plugin-install"
 import { type MarketEntry, fetchMarketplace } from "../../../cli/plugin-search"
 import { type EngineStatus, detectEngineStatuses } from "../../../engine/engine-status"
+import { withEngineVersions } from "../../../engine/engine-version"
 import { type EngineIntegration, engineIntegrations } from "../../../engine/integration-status"
 import { reloadPluginEngines } from "../../../engine/plugin-engines"
 import type { SectionId } from "../../../tui/component/settings-dialog/model"
@@ -44,8 +45,13 @@ export function useAccountProbes(section: SectionId, vendors: readonly VendorId[
   useEffect(() => {
     if (section !== "engines" && section !== "autoRouting") return
     let cancelled = false
-    void detectEngineStatuses(key ? key.split(",") : []).then((s) => {
-      if (!cancelled) setStatuses(s)
+    void detectEngineStatuses(key ? key.split(",") : []).then(async (s) => {
+      if (cancelled) return
+      setStatuses(s)
+      // Versions spawn each CLI: show what detection found without waiting on them.
+      if (section !== "engines") return
+      const versioned = await withEngineVersions(s)
+      if (!cancelled) setStatuses(versioned)
     })
     return () => {
       cancelled = true

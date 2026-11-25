@@ -43,6 +43,8 @@ export interface EngineStatus {
   /** `null` = no account detector for this engine (contrib / plugin / custom). */
   readonly account: EngineAccount | null
   readonly accountError?: string
+  /** The installed CLI's version; set only by `withEngineVersions`. */
+  readonly version?: string
 }
 
 export interface EngineStatusDeps {

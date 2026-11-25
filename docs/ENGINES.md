@@ -237,6 +237,13 @@ update it with the installer you used (`npm i -g @openai/codex`, `brew upgrade
 codex`). If your launch-command override sets `check_for_update_on_startup`
 itself, Rove leaves it alone.
 
+To tell whether an update is due, check the version you are on: the TUI's
+Settings → Engines names it on the engine's **Program** line, and `rove doctor` and
+`rove api engine-list --status` print it too. Rove asks the CLI itself
+(`--version`) for Claude Code, Codex and Copilot, and only when the launch
+command runs that CLI directly; a wrapper of your own is never called with a
+flag it may not understand, so no version is shown for it.
+
 ### Custom launch commands
 
 Override any engine's launch command in Settings → Engines, or by hand in

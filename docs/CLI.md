@@ -356,7 +356,9 @@ plain C0 bytes and the two split chords cannot be encoded at all (see
 [Keybindings](./KEYBINDINGS.md)). Piped output skips the live probe rather
 than writing escape bytes into the pipe. Every registered engine gets a
 row — the built-ins plus any engine you added — so a login Rove can't read is
-reported as such rather than as a missing account. The plain run never changes
+reported as such rather than as a missing account. Claude Code, Codex and
+Copilot rows also name the installed CLI's version (`--version`), skipped when
+the launch command points at a wrapper of your own. The plain run never changes
 anything. `--report` also writes a bug bundle (diagnosis + recent logs + env)
 and prints its path; attach that to bug reports.
 

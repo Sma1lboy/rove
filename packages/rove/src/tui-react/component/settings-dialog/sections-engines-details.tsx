@@ -128,10 +128,14 @@ function programLine(
     return props.probing
       ? { text: t("settings.accounts.checking"), fg: theme.textMuted }
       : { text: t("settings.engines.detail.programUnknown", { binary }), fg: theme.textMuted }
-  if (s.binary.found)
+  if (s.binary.found) {
+    const path = tildify(s.binary.path)
     return {
-      text: t("settings.engines.detail.programFound", { binary, path: tildify((s.binary as { path: string }).path) }),
+      text: s.version
+        ? t("settings.engines.detail.programFoundVersion", { binary, version: s.version, path })
+        : t("settings.engines.detail.programFound", { binary, path }),
     }
+  }
   return { text: t("settings.engines.detail.programMissing", { binary }), fg: theme.warning }
 }
 
