@@ -276,6 +276,10 @@ export function createPtySessionManager({
     entry.sockets.add(ws)
     clearDetachTimer(entry)
     if (replay && ws.readyState === ws.OPEN) ws.send(replay)
+    // The replay ring holds recent bytes, not a screen: a full-screen app that
+    // only repaints changed cells leaves the rest blank. Going through another
+    // size makes it redraw everything.
+    if (replay) resizePty(tabId, entry, cols, Math.max(1, rows - 1))
     resizePty(tabId, entry, cols, rows)
 
     ws.on("message", (raw) => {

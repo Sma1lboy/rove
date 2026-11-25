@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { ChatTerminal, type WsStatus } from "../components/ChatTerminal.tsx"
 import { ReplayTerminal } from "../components/ReplayTerminal.tsx"
 import { resolveHarnessRenderer } from "../lib/harness-renderer.ts"
+import { withWebTokenQuery } from "../lib/web-token.ts"
 
 /**
  * `/harness` — the one fixed-viewport observation surface for the real
@@ -11,9 +12,13 @@ import { resolveHarnessRenderer } from "../lib/harness-renderer.ts"
  * — screenshots still capture xterm's rendered pixels.
  */
 function PtyHarness() {
-  const rawRun =
-    new URLSearchParams(window.location.search).get("run") ?? "manual"
-  const runId = rawRun.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 48) || "manual"
+  // No `?run=`: every page load is its own session, so a refresh starts the
+  // TUI again from current source. A named run stays attached across reloads.
+  const namedRun = new URLSearchParams(window.location.search)
+    .get("run")
+    ?.replace(/[^a-zA-Z0-9_-]/g, "")
+    .slice(0, 48)
+  const [runId] = useState(() => namedRun || `live-${Date.now().toString(36)}`)
   // Renderer policy belongs to the one capture boundary, not to every script
   // that opens it. Opaque captures use WebGL and transparent captures use
   // Canvas inside ChatTerminal; both draw custom block glyphs without gaps.
@@ -47,6 +52,18 @@ function PtyHarness() {
   )
   const [status, setStatus] = useState<WsStatus>("connecting")
   const [buffer, setBuffer] = useState("")
+  // An unnamed session can never be reattached, so end its TUI with the page
+  // rather than leaving it to the sidecar's detach grace.
+  useEffect(() => {
+    if (namedRun || replay) return
+    const close = () =>
+      navigator.sendBeacon(
+        withWebTokenQuery("/pty/close"),
+        JSON.stringify({ tab: sessionId }),
+      )
+    window.addEventListener("pagehide", close)
+    return () => window.removeEventListener("pagehide", close)
+  }, [namedRun, replay, sessionId])
 
   return (
     <div

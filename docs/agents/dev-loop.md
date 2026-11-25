@@ -22,6 +22,7 @@ Run scripts via `bun --filter @sma1lboy/rove <script>` or `cd packages/rove && b
 
 - `dev` — real engines, **production** Rove state.
 - `dev:sandbox` — real engines + your real `HOME`, throwaway Rove state under `packages/rove/.dev-sandbox/home`. Use this one. Its daemon, PTY host and engines keep running after the command exits. A sandbox under `.dev-sandbox/` or a temp directory that no `dev:sandbox` command has touched for 6 hours is stopped, engines included, by the next `dev:sandbox` command or by `dev:sandbox sweep`, which also deletes its `fixture-repo`; its other files stay. A running TUI or `--web` bridge counts as use. Stop yours right away with `reset`.
+- `cd packages/rove-harness && bun run dev:sandbox` — the same `dev:sandbox` TUI in a browser, at `http://localhost:5173/harness` (xterm.js over the PTY sidecar). Reloading the page starts the TUI again from the current source; `?run=<name>` keeps one session across reloads instead. `-- --lan` also serves it to other devices and prints their address: anyone on the network who opens it gets a shell on this machine, so it is off unless asked for.
 
 The retired npm package `@sma1lboy/kobe` is frozen at 0.9.64; `rove-docs/` is the public docs site (Fumadocs on Next.js, static export, content synced from `docs/`).
 

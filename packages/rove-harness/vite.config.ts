@@ -23,6 +23,9 @@ const config = defineConfig({
         target: `ws://localhost:${ptyPort}`,
         ws: true,
         changeOrigin: true,
+        // The sidecar only accepts loopback origins; `--lan` vouches for the
+        // pages this server hands out.
+        ...(process.env.ROVE_HARNESS_LAN === "1" ? { headers: { origin: "http://localhost" } } : {}),
       },
     },
   },
