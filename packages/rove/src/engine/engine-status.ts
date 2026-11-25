@@ -86,6 +86,9 @@ function whichInLoginShell(bin: string): Promise<string | null> {
       const quoted = `'${bin.replaceAll("'", `'\\''`)}'`
       child = spawn(resolveSessionShell(), ["-ilc", `printf '\\n${MARK}%s\\n' "$(command -v ${quoted})"`], {
         stdio: ["ignore", "pipe", "ignore"],
+        // Own session: an interactive shell that shares the TUI's terminal takes
+        // its foreground, and a stdin read in that window fails for good.
+        detached: true,
       })
     } catch {
       return resolve(null)
