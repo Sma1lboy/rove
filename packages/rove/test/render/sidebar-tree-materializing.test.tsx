@@ -16,7 +16,7 @@
  * "the spinner reaches the frame", and the failure mode is a signal that
  * arrives everywhere except the cells.
  */
-import { afterEach, expect, test } from "bun:test"
+import { afterAll, afterEach, beforeEach, expect, setSystemTime, test } from "bun:test"
 import { SidebarTree } from "../../src/tui-react/panes/sidebar/SidebarTree"
 import { resetRowStatusForTests } from "../../src/tui-react/workspace/row-status-sync"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
@@ -25,8 +25,11 @@ import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
 import { renderComponent } from "./harness"
 
-/** Every frame of a working row's 3×3 mark. */
-const WORKING = [0, 300, 600, 900].map((ms) => dotsGlyph(litDots("working", ms)))
+/** A working row's 3×3 mark at the pinned clock. */
+const WORKING = [dotsGlyph(litDots("working", 950))]
+// A working mark passes through the ring an idle row holds, so the clock sits where it is the centre dot alone.
+beforeEach(() => setSystemTime(new Date(1760000000150)))
+afterAll(() => setSystemTime())
 
 /** A sibling exactly as `addParallel` creates it: placeholder title, branch
  *  deliberately left empty until `ensureWorktree` names it. */

@@ -227,6 +227,14 @@ export function WorktreeTreeRow(props: {
   // A waiting mark dips on the same steps as the web's, so it needs the tick a working row already has.
   useSpinnerFrame(dots && look === "waiting")
   const now = Date.now()
+  // The web's ink for each look.
+  const dotInk = {
+    working: theme.info,
+    waiting: theme.warning,
+    error: theme.error,
+    done: theme.success,
+    idle: theme.textMuted,
+  }[look]
   const quiet = !dots && rowView.stateGlyph === glyphs.idle
   const stateText = dots ? dotsGlyph(litDots(look, now)) : rowView.stateGlyph
   // A task over several repos is listed once, under its primary, with how many more it spans.
@@ -338,7 +346,7 @@ export function WorktreeTreeRow(props: {
         {/* Last, at the rail's edge. */}
         {quiet ? null : (
           <text
-            fg={dots && look === "idle" && !pulsing ? theme.textMuted : fg}
+            fg={dots && !pulsing ? dotInk : fg}
             attributes={pulsing ? TextAttributes.BOLD : dots && dotsDip(look, now) ? TextAttributes.DIM : undefined}
             wrapMode="none"
             flexShrink={0}

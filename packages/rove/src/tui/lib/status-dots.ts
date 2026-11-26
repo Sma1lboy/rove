@@ -3,22 +3,22 @@
  * in two braille cells (both columns of the first, the left column of the second, top three rows),
  * where dots are half a cell apart across and a quarter down, so it reads as a square.
  *
- * Looks, shapes and the beat come from `lib/status-dots.ts`, shared with the web. A cell has one
+ * Looks, shapes and levels come from `lib/status-dots.ts`, shared with the web. A cell has one
  * ink, so where the web fades a dot this lights or drops it, and a waiting dip dims the whole mark.
  */
 
-import { DOT_SHAPE, type DotLook, RIPPLE_S, STEP_MS, waitingDips } from "@/lib/status-dots"
+import { DIM, type DotLook, STEP_MS, dotLevels, waitingDips } from "@/lib/status-dots"
 
-/** One ripple out from the centre: the centre, a plus, its arms, the corners. None is a settled shape. */
-const RIPPLE: readonly (readonly number[])[] = [[4], [1, 3, 4, 5, 7], [1, 3, 5, 7], [0, 2, 6, 8]]
-const ALL = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+/** A working dot lights once its level clears this: low enough that some dot is always lit. */
+const WORKING_LIT = DIM + (1 - DIM) * 0.25
+/** A settled dot lights when it is part of the shape. */
+const SETTLED_LIT = 0.3
 
-/** The dots `look` lights at wall-clock `now` (ms): work ripples once per {@link RIPPLE_S}, as the web's does. */
+/** The dots `look` lights at wall-clock `now` (ms): the web's levels at that step, thresholded. */
 export function litDots(look: DotLook, now: number): readonly number[] {
-  if (look === "waiting") return ALL
-  if (look !== "working") return DOT_SHAPE[look]
-  const frame = (RIPPLE_S * 1000) / RIPPLE.length
-  return RIPPLE[Math.floor(Math.abs(now) / frame) % RIPPLE.length] ?? []
+  if (look === "waiting") return [0, 1, 2, 3, 4, 5, 6, 7, 8]
+  const floor = look === "working" ? WORKING_LIT : SETTLED_LIT
+  return dotLevels(look, now / STEP_MS, Number.POSITIVE_INFINITY).flatMap((level, dot) => (level > floor ? [dot] : []))
 }
 
 /** Whether the mark is in a waiting dip at `now`, on the web's steps. */

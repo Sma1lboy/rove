@@ -32,7 +32,7 @@ import { act, renderComponent, waitForFrameText } from "./harness"
 
 /** The 3×3 mark a task row draws for `look`, and every frame of the working ripple. */
 const mark = (look: DotLook): string => dotsGlyph(litDots(look, 0))
-const WORKING = [0, 300, 600, 900].map((ms) => dotsGlyph(litDots("working", ms)))
+const WORKING = Array.from({ length: 12 }, (_, tick) => dotsGlyph(litDots("working", tick * 100)))
 
 const TASK: Task = {
   id: toTaskId("alpha"),
