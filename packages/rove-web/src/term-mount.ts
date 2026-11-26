@@ -15,6 +15,7 @@ import { terminalTheme } from "./prefs-theme.ts"
 import { prefsStore } from "./prefs.ts"
 import { markScrolling } from "./scroll-reveal.ts"
 import { type Notice, type TermHandle, streamKey } from "./term-contract.ts"
+import { createCopyHold } from "./term-copy.ts"
 import { createCover } from "./term-cover.ts"
 import { attachDictationGuard } from "./term-dictation.ts"
 import { OverlayFitAddon } from "./term-fit.ts"
@@ -320,8 +321,10 @@ export function mountTerminal(o: MountOpts): TermHandle {
     paintHost()
   })
 
+  const hold = createCopyHold((text) => void o.copyText(text))
   // Copy: ctrl+c with a selection copies and drops it, otherwise it stays the interrupt (TUI `copySelectionIfAny`).
   term.attachCustomKeyEventHandler((e) => {
+    if (e.type === "keydown") hold.key()
     // Its keypress is swallowed too, or xterm would still send the CR.
     if (isShiftEnter(e)) {
       e.preventDefault()
@@ -340,30 +343,21 @@ export function mountTerminal(o: MountOpts): TermHandle {
     if (!chord) return true
     // Ctrl+Shift+C is also the browser's "inspect element": in the terminal it only ever copies.
     if (chord === "copy" && e.ctrlKey) e.preventDefault()
-    const text = term.getSelection()
+    // Ctrl+C with only the engine's selection goes to the engine: it copies or interrupts by its own rule.
+    const text = term.getSelection() || (chord === "copy" ? hold.text() : "")
     if (text.trim().length === 0) return chord === "interrupt-or-copy"
     void o.copyText(text)
     term.clearSelection()
     return false
   })
 
-  // Copy-on-release: success is silent, a failure toasts (the caller's `copyText`). The selection stays lit.
-  let dragging = false
-  const onDown = (e: MouseEvent) => {
-    dragging = e.button === 0
-  }
-  const onUp = () => {
-    if (!dragging) return
-    dragging = false
-    const text = term.getSelection()
-    if (text.trim().length > 0) void o.copyText(text)
-  }
+  const onDown = (e: MouseEvent) => e.button === 0 && hold.press()
+  const onUp = (e: MouseEvent) => e.button === 0 && hold.release()
   el.addEventListener("mousedown", onDown)
   document.addEventListener("mouseup", onUp)
-  // An engine with mouse reporting on draws its own selection, so xterm has none to copy: its copy arrives as OSC 52.
   const osc52 = term.parser.registerOscHandler(52, (data) => {
     const text = osc52Text(data)
-    if (text) void o.copyText(text)
+    if (text) hold.osc52(text)
     return true
   })
 
