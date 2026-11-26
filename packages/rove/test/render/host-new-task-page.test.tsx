@@ -1,0 +1,86 @@
+/** @jsxImportSource @opentui/react */
+/** New task opened from a selected, running task, through the real host. */
+
+import { afterAll, afterEach, beforeAll, expect, test } from "bun:test"
+import { mkdtempSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
+import { createStateCell } from "../../src/lib/external-store"
+import { WorkspaceRoot } from "../../src/tui-react/workspace/host"
+import { setUiEventReporter } from "../../src/tui-react/workspace/terminal-tabs-shared"
+import { renderComponent, waitForFrameText } from "./harness"
+
+let previousHome: string | undefined
+beforeAll(() => {
+  previousHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-new-task-page-"))
+})
+afterAll(() => {
+  if (previousHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = previousHome
+})
+afterEach(() => setUiEventReporter(null))
+
+const NULL_CELL = createStateCell(null)
+const EMPTY_MAP = createStateCell(new Map())
+const EMPTY_ARR = createStateCell(Object.freeze([]))
+const TASK = Object.freeze({
+  id: "t1",
+  title: "Fix the flaky login",
+  repo: "/tmp/repo",
+  branch: "b",
+  worktreePath: "/tmp/repo",
+  kind: "dir",
+})
+const TASKS = createStateCell(Object.freeze([TASK]))
+const ACTIVE = createStateCell("t1")
+const RUNNING = createStateCell(new Map([["t1", Object.freeze({ state: "running" })]]))
+
+const orchestrator = {
+  connectionStateSignal: () => createStateCell("online"),
+  staleInstallSignal: () => NULL_CELL,
+  daemonStaleSignal: () => createStateCell(false),
+  daemonVersionSignal: () => NULL_CELL,
+  daemonRestartingSignal: () => createStateCell(false),
+  tasksSignal: () => TASKS,
+  activeTaskSignal: () => ACTIVE,
+  engineStateSignal: () => RUNNING,
+  engineLifecycleSignal: () => EMPTY_MAP,
+  engineTabStatesSignal: () => EMPTY_MAP,
+  attentionInboxSignal: () => EMPTY_ARR,
+  taskJobsSignal: () => EMPTY_MAP,
+  rowTokensSignal: () => EMPTY_MAP,
+  worktreeChangesSignal: () => NULL_CELL,
+  transcriptActivitySignal: () => NULL_CELL,
+  transcriptActivityStore: () => NULL_CELL,
+  usageSnapshotSignal: () => NULL_CELL,
+  contextUsageSignal: () => NULL_CELL,
+  uiPrefsSignal: () => NULL_CELL,
+  keybindingsRevSignal: () => NULL_CELL,
+  updateSignal: () => NULL_CELL,
+  tabOpenStore: () => NULL_CELL,
+  tabCloseStore: () => NULL_CELL,
+  tabRenameStore: () => NULL_CELL,
+  tabAddStore: () => NULL_CELL,
+  uiPromptStore: () => NULL_CELL,
+  noticeStore: () => NULL_CELL,
+  reportUiEvent: () => {},
+  reportEngineInterrupt: () => {},
+  listTasks: () => [TASK],
+} as unknown as RemoteOrchestrator
+
+test("clicking New task from a running task clears the task's title and takes the keys", async () => {
+  const { frame, mockMouse, mockInput } = await renderComponent(<WorkspaceRoot orchestrator={orchestrator} />, {
+    width: 120,
+    height: 40,
+    providers: { kv: true, focus: true, dialog: true, notifications: true },
+  })
+  const before = await waitForFrameText(frame, "Fix the flaky login · running")
+  const row = before.split("\n").findIndex((line) => line.includes("New task"))
+  await mockMouse.click(3, row)
+  const opened = await waitForFrameText(frame, "Describe a task")
+  expect(opened).not.toContain("· running")
+  await mockInput.typeText("hello there")
+  expect(await frame()).toContain("hello there")
+})

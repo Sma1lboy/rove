@@ -156,7 +156,6 @@ test("200x60: wrapped engines and inputs keep full borders above the footer", as
 })
 
 test.each([
-  { mode: "existing", toTab: [], landmark: "FROM BRANCH", inTab: [], shown: "FROM BRANCH" },
   {
     mode: "adopt",
     toTab: ["right", "right"],

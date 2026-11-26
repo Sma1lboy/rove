@@ -123,9 +123,10 @@ const TO_BASE_REF = stopsTo("baseRef")
 test("a resolved repo shows its NAME, not its path, and still submits the path", async () => {
   const dir = repo("quokka")
   const h = await mount(dir)
+  // The name is on screen (its chip) before the field is even focused.
+  expect(await h.frame()).toContain("quokka")
+  await pressTab(h, TO_REPO)
   const f = await h.frame()
-
-  // The name is on screen and the full path is NOT sitting in the field.
   expect(f).toContain("quokka")
   // The directory is still visible — demoted, not deleted. It may be clipped
   // at the card edge (it is the half designed to give way), so assert its
@@ -135,7 +136,7 @@ test("a resolved repo shows its NAME, not its path, and still submits the path",
 
   // …and the value that leaves the dialog is the whole path. Enter on the
   // branch field is the commit.
-  await pressTab(h, TO_BASE_REF)
+  await pressTab(h, TO_BASE_REF - TO_REPO)
   await commit(h)
   expect(h.submitted).toHaveLength(1)
   expect(h.submitted[0]?.repo).toBe(dir)
@@ -151,11 +152,12 @@ test("a basename shared by two saved repos keeps the PATH — it identifies noth
   // saved `app`s it doesn't, so the field falls back to the path rather than
   // displaying a label that matches both. (~100 flat repos under one parent
   // makes this the ordinary case, not a corner.)
+  await pressTab(h, TO_REPO)
   expect(await h.frame()).toContain(a.slice(0, 40))
 
   // And it still submits the repo it was opened on, not the other `app`.
   // The other `app` is offered as an extra, a stop before the branch field.
-  await pressTab(h, stopsTo("baseRef", true))
+  await pressTab(h, stopsTo("baseRef", true) - TO_REPO)
   await commit(h)
   expect(h.submitted[0]?.repo).toBe(a)
   expect(h.submitted[0]?.repo).not.toBe(b)
@@ -182,8 +184,8 @@ test("typing an ambiguous name refuses to guess, and says so", async () => {
   // path first, which is a different (and answered) question. The guard is
   // about text that reaches the commit still naming two repos, and this is
   // the route that still gets it there.
-  const label = locate(await h.frame(), "FROM BRANCH")
-  await h.mockMouse.click(label.x + 1, label.y)
+  const chip = locate(await h.frame(), "  main  ")
+  await h.mockMouse.click(chip.x + 3, chip.y)
   await settle()
   await commit(h)
 

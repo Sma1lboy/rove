@@ -82,8 +82,7 @@ test("24 rows: the Create button survives a full branch picker", async () => {
   expect(text).toContain("Create")
   // The picker is still there and still says how much it is hiding.
   expect(text).toContain("more")
-  // Both field labels survive too — they were the first rows to merge away.
-  expect(text).toContain("REPO")
+  // The focused field's label survives too — it was the first row to merge away.
   expect(text).toContain("FROM BRANCH")
   // …and they survive because the FRAMES gave way, not the button: below
   // `FRAMED_DIALOG_MIN_ROWS` every well and chip drops its border, which is

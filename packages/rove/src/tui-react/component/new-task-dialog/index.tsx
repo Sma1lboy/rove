@@ -29,8 +29,8 @@ export interface NewTaskPageProps {
 export function NewTaskPage(props: NewTaskPageProps) {
   const { options } = props
   return (
-    <box flexGrow={1} paddingTop={1} overflow="hidden">
-      <box width={FORM_WIDTH} maxWidth="100%" flexShrink={1} overflow="hidden">
+    <box flexGrow={1} paddingTop={1} alignItems="center" overflow="hidden">
+      <box width={FORM_WIDTH} maxWidth="100%" flexGrow={1} flexShrink={1} overflow="hidden">
         <NewTaskDialogView
           defaultRepo={props.defaultRepo}
           savedRepos={props.savedRepos}

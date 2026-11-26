@@ -223,7 +223,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
   useRowStatusSync(orch.rowStatus, orch.connectionStateSignal())
 
   const pages = useHostPagesState(focus, props)
-  const newTaskPage = useNewTaskPage(pages)
+  const newTaskPage = useNewTaskPage(pages, () => focus.setFocused("workspace"))
   // Modals, opened here because the dialog stack lives here.
   useWhatsNewDialog(pages.whatsNewFrom, pages.closeWhatsNew)
   useWelcomeDialog(pages.welcome, pages.closeWelcome)
@@ -400,12 +400,12 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
 
       {pageRender.showContent ? (
         <WorkspacePaneFrame
-          workingFlow={workingFlow}
-          taskInk={taskInk}
+          workingFlow={workingFlow && !pageRender.contentPage}
+          taskInk={pageRender.contentPage ? undefined : taskInk}
           focused={focus.focused === "workspace"}
           inactiveBorder={inactiveBorder}
           title={
-            workingFlow && selectedTask
+            workingFlow && selectedTask && !pageRender.contentPage
               ? runningPaneTitle(selectedTask.title, t("workspace.inbox.state.running"))
               : undefined
           }

@@ -11,6 +11,9 @@ export const en = {
   legend: "{enter} · tab complete/fields · ctrl+[ ] mode · ctrl+e engine · esc cancel",
   /** Enter's caption while the Create button holds focus */
   enterCreate: "enter create",
+  hero: "Pick a project and an engine, then describe the task. It starts with your first message.",
+  chipWorktree: "Worktree",
+  chipProject: "Project",
   /** Enter's caption at every other stop, where it advances the form */
   enterNext: "enter next field",
 
@@ -126,6 +129,9 @@ export const zh: typeof en = {
   title: "新建任务",
   legend: "{enter} · tab 补全/切字段 · ctrl+[ ] 切模式 · ctrl+e 引擎 · esc 取消",
   enterCreate: "enter 创建",
+  hero: "选好项目和引擎，再描述任务。任务从你的第一条消息开始。",
+  chipWorktree: "工作树",
+  chipProject: "项目",
   enterNext: "enter 下一个字段",
 
   tabs: {

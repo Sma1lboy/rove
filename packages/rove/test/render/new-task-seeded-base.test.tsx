@@ -43,11 +43,8 @@ async function baseRow(dir: string, initialBaseRef?: string): Promise<string> {
     providers: { kv: true, dialog: true },
   })
   await settle()
-  const lines = (await frame()).split("\n")
-  const at = lines.findIndex((line) => line.includes("FROM BRANCH"))
-  expect(at).toBeGreaterThanOrEqual(0)
-  // The label row, then the input row under it.
-  return lines.slice(at, at + 3).join("\n")
+  // The branch chip's row: the one that also carries the repo and engine chips.
+  return (await frame()).split("\n").find((line) => line.includes("claude")) ?? ""
 }
 
 test("a seeded base branch replaces the repo's checked-out one", async () => {

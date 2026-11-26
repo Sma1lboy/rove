@@ -140,8 +140,18 @@ export interface NewTaskPageState {
   readonly finish: (value: NewTaskInput | undefined) => void
 }
 
-export function useNewTaskPage(pages: Pick<HostPagesState, "nav" | "setNav" | "goToNav">): NewTaskPageState {
+export function useNewTaskPage(
+  pages: Pick<HostPagesState, "nav" | "setNav" | "goToNav">,
+  /** The page is a form: it takes the keys however it was opened. */
+  focusContent: () => void,
+): NewTaskPageState {
   const [request, setRequest] = useState<NewTaskRequest | null>(null)
+  const open = request !== null
+  // An effect, so it lands after the sidebar click that opened the page has claimed focus.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: focusContent is a fresh closure each render
+  useEffect(() => {
+    if (open) focusContent()
+  }, [open])
   // Every way off the page (a task picked, another page opened) is a cancel.
   useEffect(() => {
     if (!request || pages.nav === NEW_TASK_NAV) return

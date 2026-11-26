@@ -120,6 +120,9 @@ function stopsFromTo(
   throw new Error(`the focus chain never reaches ${target} from ${from}`)
 }
 
+/** The branch field while it is not focused: a chip under the composer. */
+const BRANCH_CHIP = /│ +main +│/
+
 /** Press Tab `times` times. */
 async function pressTabs(mockInput: { pressTab: () => void }, times: number): Promise<void> {
   for (let i = 0; i < times; i++) {
@@ -144,7 +147,7 @@ test("the intent row is reachable by keyboard, and choosing the project drops th
   // the DIALOG tab instead), and a click-driven test passed against that.
   const dir = repo()
   const { frame, mockInput } = await mount(dir, new Set([dir]))
-  expect(await frame()).toContain("FROM BRANCH")
+  expect(await frame()).toMatch(BRANCH_CHIP)
 
   await tabToIntent(mockInput)
   await act(async () => {
@@ -153,7 +156,7 @@ test("the intent row is reachable by keyboard, and choosing the project drops th
   await settle()
 
   const text = await frame()
-  expect(text).not.toContain("FROM BRANCH")
+  expect(text).not.toMatch(BRANCH_CHIP)
   // Still on the Existing tab — `right` must not have cycled the tab strip.
   expect(text).toContain("the project itself")
 })
@@ -198,7 +201,7 @@ test("picking a different repo resets the intent back to a task worktree", async
   // The intent chips carry selection in their border colour, which a frame
   // dump cannot see — so read the intent off its CONSEQUENCE instead: the
   // project intent forks from nothing, so it hides the branch field.
-  expect(await frame()).not.toContain("FROM BRANCH")
+  expect(await frame()).not.toMatch(BRANCH_CHIP)
 
   // Back around the cycle to the repo field. Counted from the chain, with the
   // project intent's skip applied: under that intent the branch field is
@@ -216,5 +219,5 @@ test("picking a different repo resets the intent back to a task worktree", async
   await settle()
 
   // Reset to the task worktree — the branch field is back.
-  expect(await frame()).toContain("FROM BRANCH")
+  expect(await frame()).toMatch(BRANCH_CHIP)
 })

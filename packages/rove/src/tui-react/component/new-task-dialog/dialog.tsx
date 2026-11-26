@@ -8,19 +8,32 @@
  * user-visible string resolves through `useT()`.
  */
 
-import type { DialogTab } from "../../../tui/component/new-task-dialog/state"
+import { TextAttributes } from "@opentui/core"
+import { type DialogTab, splitRepoRow } from "../../../tui/component/new-task-dialog/state"
 import { effortLabel } from "../../../tui/lib/effort-glyph"
+import { DEFAULT_BASE_REF } from "../../../tui/lib/git-snapshot"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
+import { useTerminalSize } from "../../lib/use-terminal-size"
 import { useDialogPaddingX } from "../../ui/dialog"
 import { DialogBody } from "../../ui/dialog-body"
-import { ChipRow, DialogActions, DialogFooter, DialogHeader, DialogSection } from "../../ui/dialog-parts"
+import {
+  ChipButton,
+  ChipRow,
+  DialogActions,
+  DialogField,
+  DialogFooter,
+  DialogHeader,
+  DialogSection,
+} from "../../ui/dialog-parts"
+import { INPUT_SCROLL } from "../../ui/input-scroll"
+import { CelestialPlate, PLATE_ROWS } from "../celestial-plate"
 import { EngineHookReadiness } from "../engine-hook-readiness"
 import { FailureHint } from "../failure-hint"
 import { ModelSection } from "../model-field"
 import { AdoptTab } from "./tab-adopt"
 import { CloneTab } from "./tab-clone"
-import { ExistingTab, PromptSection } from "./tab-existing"
+import { ExistingTab } from "./tab-existing"
 import { type NewTaskDialogProps, useNewTaskViewModel } from "./view-model"
 
 export type { NewTaskDialogProps } from "./view-model"
@@ -32,11 +45,173 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
   const t = useT()
   const padX = useDialogPaddingX()
   const vm = useNewTaskViewModel(props)
+  // The sky is decoration: it shows only where the composer and an open picker still fit under it.
+  const plateFits = useTerminalSize().height >= PLATE_ROWS + 26
 
   const tabLabel: Record<DialogTab, string> = {
     existing: t("newTask.tabs.existing"),
     clone: t("newTask.tabs.clone"),
     adopt: t("newTask.tabs.adopt"),
+  }
+
+  const composer = vm.tab === "existing"
+  /** In the composer layout a field is a chip until it has focus. */
+  const shown = (field: string) => !composer || vm.field === field
+
+  const modeSection = shown("tabs") ? (
+    <DialogSection
+      label={t("newTask.field.mode")}
+      focused={vm.field === "tabs"}
+      hint={t("newTask.hint.modeCycle")}
+      onPress={() => vm.setField("tabs")}
+    >
+      <ChipRow
+        choices={TAB_ORDER}
+        selected={vm.tab}
+        display={(tabId) => tabLabel[tabId]}
+        onPick={(tabId) => vm.switchToTab(tabId)}
+      />
+    </DialogSection>
+  ) : null
+  const engineSection = shown("engine") ? (
+    <DialogSection
+      label={t("newTask.field.engine")}
+      focused={vm.field === "engine"}
+      hint={t("newTask.hint.engineCycle")}
+      onPress={() => vm.setField("engine")}
+    >
+      <ChipRow
+        choices={vm.vendors}
+        selected={vm.vendor}
+        onPick={(vendor) => {
+          vm.setVendor(vendor)
+          vm.setField("engine")
+        }}
+      />
+    </DialogSection>
+  ) : null
+  // Model and effort come from the engine's registry entry and show only for engines that declare them.
+  const modelSection =
+    vm.modelVisible && shown("model") ? (
+      <ModelSection
+        field={vm.modelField}
+        focused={vm.field === "model"}
+        onFocus={() => vm.setField("model")}
+        onSubmit={() => vm.advanceFrom("model")}
+      />
+    ) : null
+  const effortText = (choice: string) =>
+    choice === "" ? t("tasks.changeEngine.noEffort") : effortLabel(vm.effortChoices.slice(1), choice)
+  const effortSection =
+    vm.effortChoices.length > 0 && shown("effort") ? (
+      <DialogSection
+        label={t("newTask.field.effort")}
+        focused={vm.field === "effort"}
+        hint="←/→"
+        onPress={() => vm.setField("effort")}
+      >
+        <ChipRow
+          choices={vm.effortChoices}
+          selected={vm.effort}
+          display={effortText}
+          onPick={(choice) => {
+            vm.setEffort(choice)
+            vm.setField("effort")
+          }}
+        />
+      </DialogSection>
+    ) : null
+  const error = vm.submitError ? (
+    <box>
+      <text fg={theme.error} wrapMode="word" flexShrink={0}>
+        ※ {vm.submitError}
+      </text>
+      <FailureHint hint={t("newTask.retryHint")} />
+    </box>
+  ) : null
+  // Enter's caption follows the focused stop: it commits on the first message
+  // and on Create, and walks the form everywhere else.
+  const legend = (
+    <DialogFooter paddingBottom={0}>
+      {t("newTask.legend", {
+        enter: t(vm.field === "confirm" || vm.field === "prompt" ? "newTask.enterCreate" : "newTask.enterNext"),
+      })}
+    </DialogFooter>
+  )
+  const create = (
+    <DialogActions
+      paddingTop={0}
+      label={vm.cloneInFlight ? t("newTask.button.cloning") : t("newTask.button.create")}
+      focused={vm.field === "confirm"}
+      onPress={() => vm.commit()}
+    />
+  )
+
+  if (composer) {
+    const project = vm.intent === "project" && vm.canOpenProject
+    const chip = (field: Parameters<typeof vm.setField>[0], label: string) => (
+      <ChipButton label={label} selected={vm.field === field} tone="text" onPress={() => vm.setField(field)} />
+    )
+    return (
+      <box paddingLeft={padX} paddingRight={padX} paddingBottom={1} gap={0} flexGrow={1} overflow="hidden">
+        {/* The pane's empty space sits above the composer; a focused chip's
+            picker opens into it, so the composer never moves. */}
+        <box flexGrow={1} flexShrink={1} minHeight={0} justifyContent="center" alignItems="center" overflow="hidden">
+          {plateFits ? <CelestialPlate /> : null}
+          <text fg={theme.primary} attributes={TextAttributes.BOLD} wrapMode="none">
+            {t("newTask.title")}
+          </text>
+          <text fg={theme.textMuted} wrapMode="word">
+            {t("newTask.hero")}
+          </text>
+        </box>
+        {modeSection}
+        {engineSection}
+        <EngineHookReadiness vendor={vm.vendor} />
+        {modelSection}
+        {effortSection}
+        <ExistingTab vm={vm} only />
+        {project ? null : (
+          <DialogField focused={vm.field === "prompt"}>
+            <input
+              {...INPUT_SCROLL}
+              value={vm.prompt}
+              placeholder={t("newTask.placeholder.prompt")}
+              focused={vm.field === "prompt"}
+              onMouseUp={() => vm.setField("prompt")}
+              onInput={(v: string) => vm.setPrompt(v)}
+              onSubmit={() => vm.commitExisting()}
+            />
+            <box height={1} flexShrink={0} />
+            {create}
+          </DialogField>
+        )}
+        {/* Wraps by whole groups: a long repo name pushes the engine chips to a second row rather than off the edge. */}
+        <box flexDirection="row" flexWrap="wrap" justifyContent="space-between" columnGap={1} flexShrink={0}>
+          <box flexDirection="row" columnGap={1} flexShrink={0}>
+            {chip("repo", splitRepoRow(vm.repo.trim() || vm.defaultRepo).base)}
+            {vm.extraCandidates.length > 0 && !project
+              ? chip("extras", vm.extraPicked.length > 0 ? `+${vm.extraPicked.length}` : "+")
+              : null}
+            {vm.canOpenProject ? chip("intent", t(project ? "newTask.chipProject" : "newTask.chipWorktree")) : null}
+            {project ? null : chip("baseRef", vm.baseRef.trim() || DEFAULT_BASE_REF)}
+          </box>
+          <box flexDirection="row" columnGap={1} flexShrink={0}>
+            {chip("engine", vm.vendor)}
+            {vm.modelVisible
+              ? chip("model", vm.modelField.value.trim() || t("tasks.engineModel.label").toLowerCase())
+              : null}
+            {vm.effortChoices.length > 0
+              ? chip("effort", vm.effort === "" ? t("newTask.field.effort").toLowerCase() : effortText(vm.effort))
+              : null}
+            {chip("tabs", "⋯")}
+          </box>
+        </box>
+        {project ? create : null}
+        {error}
+        {legend}
+      </box>
+    )
   }
 
   return (
@@ -45,97 +220,17 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
         <DialogHeader title={t("newTask.title")} onClose={() => props.onCancel()} />
       </box>
       <DialogBody>
-        {/* Mode selector — Tab reaches it; ←/→ switches while focused,
-            ctrl+[/] from anywhere, click picks. Same chip row as every
-            other choose-one in this dialog. */}
-        <DialogSection
-          label={t("newTask.field.mode")}
-          focused={vm.field === "tabs"}
-          hint={t("newTask.hint.modeCycle")}
-          onPress={() => vm.setField("tabs")}
-        >
-          <ChipRow
-            choices={TAB_ORDER}
-            selected={vm.tab}
-            display={(tabId) => tabLabel[tabId]}
-            onPick={(tabId) => vm.switchToTab(tabId)}
-          />
-        </DialogSection>
-        {vm.tab === "existing" ? <PromptSection vm={vm} /> : null}
-        {/* Engine selector — Tab reaches it; ←/→ cycles while focused,
-            ctrl+e from anywhere, click picks. Detected vendors only. */}
-        <DialogSection
-          label={t("newTask.field.engine")}
-          focused={vm.field === "engine"}
-          hint={t("newTask.hint.engineCycle")}
-          onPress={() => vm.setField("engine")}
-        >
-          <ChipRow
-            choices={vm.vendors}
-            selected={vm.vendor}
-            onPick={(vendor) => {
-              vm.setVendor(vendor)
-              vm.setField("engine")
-            }}
-          />
-        </DialogSection>
+        {modeSection}
+        {engineSection}
         <EngineHookReadiness vendor={vm.vendor} />
-        {/* Model and effort come from the engine's registry entry and show only for engines that declare them. */}
-        {vm.modelVisible ? (
-          <ModelSection
-            field={vm.modelField}
-            focused={vm.field === "model"}
-            onFocus={() => vm.setField("model")}
-            onSubmit={() => vm.advanceFrom("model")}
-          />
-        ) : null}
-        {vm.effortChoices.length > 0 ? (
-          <DialogSection
-            label={t("newTask.field.effort")}
-            focused={vm.field === "effort"}
-            hint="←/→"
-            onPress={() => vm.setField("effort")}
-          >
-            <ChipRow
-              choices={vm.effortChoices}
-              selected={vm.effort}
-              display={(choice) =>
-                choice === "" ? t("tasks.changeEngine.noEffort") : effortLabel(vm.effortChoices.slice(1), choice)
-              }
-              onPick={(choice) => {
-                vm.setEffort(choice)
-                vm.setField("effort")
-              }}
-            />
-          </DialogSection>
-        ) : null}
-        {vm.tab === "existing" ? <ExistingTab vm={vm} /> : null}
+        {modelSection}
+        {effortSection}
         {vm.tab === "clone" ? <CloneTab vm={vm} /> : null}
         {vm.tab === "adopt" ? <AdoptTab vm={vm} /> : null}
       </DialogBody>
-      {vm.submitError ? (
-        <box>
-          <text fg={theme.error} wrapMode="word" flexShrink={0}>
-            ※ {vm.submitError}
-          </text>
-          <FailureHint hint={t("newTask.retryHint")} />
-        </box>
-      ) : null}
-      {/* Enter's caption follows the focused stop: it commits on the first
-          message and on Create, and walks the form everywhere else. */}
-      <DialogFooter paddingBottom={0}>
-        {t("newTask.legend", {
-          enter: t(vm.field === "confirm" || vm.field === "prompt" ? "newTask.enterCreate" : "newTask.enterNext"),
-        })}
-      </DialogFooter>
-      {/* Create commits on click; also reachable by tabbing to the confirm
-          field (Enter), or Enter on the last input of the active tab. */}
-      <DialogActions
-        paddingTop={0}
-        label={vm.cloneInFlight ? t("newTask.button.cloning") : t("newTask.button.create")}
-        focused={vm.field === "confirm"}
-        onPress={() => vm.commit()}
-      />
+      {error}
+      {legend}
+      {create}
     </box>
   )
 }
