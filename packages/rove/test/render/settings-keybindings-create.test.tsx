@@ -24,10 +24,6 @@ afterAll(() => {
   else process.env.ROVE_HOME_DIR = savedHome
 })
 
-async function repeat(n: number, step: () => Promise<unknown>): Promise<void> {
-  for (let i = 0; i < n; i++) await step()
-}
-
 function Driver() {
   const kv = useKV()
   return <SettingsDialog kv={kv} onClose={NOOP} />
