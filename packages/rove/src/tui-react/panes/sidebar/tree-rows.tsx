@@ -19,6 +19,7 @@ import { useMemo, useState } from "react"
 import { charWidth, displayWidth } from "../../../lib/display-width"
 import { rowStatusGlyph } from "../../../lib/row-status-glyph"
 import { dotLook } from "../../../lib/status-dots"
+import type { TreeGuide } from "../../../lib/tree-guides"
 import { DEFAULT_RUNNING_TITLE, RUNNING_TITLE_KEY, normalizeRunningTitle } from "../../../state/running-title"
 import { breathColor, breathGlyph } from "../../../tui/lib/breathe"
 import { GLYPH_SETS } from "../../../tui/lib/glyphs"
@@ -171,6 +172,8 @@ export function WorktreeTreeRow(props: {
   readonly task: Task
   /** Tree depth — 1 at rest. */
   readonly depth?: number
+  /** The row's indent columns, from its place among its siblings (`treeGuides`). */
+  readonly guides?: readonly TreeGuide[]
   /** The real generation of a row past the indent cap (`TreeRow.level`). */
   readonly level?: number
   /** Set on a task with children. */
@@ -266,7 +269,7 @@ export function WorktreeTreeRow(props: {
     normalizeRunningTitle(kv?.get(RUNNING_TITLE_KEY, DEFAULT_RUNNING_TITLE)) === "shimmer"
   const clipped = truncateEndCells(label, budget - (remoteText ? displayWidth(remoteText) + 1 : 0), charWidth)
   return (
-    <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={props.depth ?? 1} shared={shared}>
+    <RowShell rowId={props.rowId} flatIndex={props.flatIndex} guides={props.guides} shared={shared}>
       {/* biome-ignore lint/a11y/useKeyWithMouseEvents: a terminal box takes no focus; where a task runs is a mouse-over detail */}
       <box
         flexDirection="row"
@@ -394,7 +397,7 @@ export function RecentJumpRow(props: {
   const { theme } = useTheme()
   const t = useT()
   return (
-    <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={1} shared={props.shared}>
+    <RowShell rowId={props.rowId} flatIndex={props.flatIndex} shared={props.shared}>
       <text fg={theme.accent} wrapMode="none" width={2} flexShrink={0}>
         {"↩ "}
       </text>

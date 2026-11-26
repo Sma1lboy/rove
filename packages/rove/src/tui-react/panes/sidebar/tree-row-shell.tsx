@@ -8,6 +8,7 @@ import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote
 import { type BoxRenderable, MouseButton } from "@opentui/core"
 import type { ReactNode } from "react"
 import { charWidth } from "../../../lib/display-width"
+import type { TreeGuide } from "../../../lib/tree-guides"
 import { SIDEBAR_WIDTH } from "../../../tui/panes/sidebar/view-core"
 import type { WorktreeChanges } from "../../../tui/panes/sidebar/worktree-changes"
 import { useTheme } from "../../context/theme"
@@ -15,8 +16,8 @@ import { useT } from "../../i18n"
 import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"
 import { useHoverFill } from "../../ui/use-hover-fill"
 
-/** Indent cells at `depth`: none for a top-level task (its title sits under the project header), then two per level, the last two an elbow to its parent. */
-const indentOf = (depth: number): string => (depth > 1 ? `${" ".repeat((depth - 2) * 2)}└ ` : "")
+/** Two cells per indent column, as the web draws them: a line passing by or on to the next sibling, a hook into the last child. */
+const GUIDE_CELLS: Readonly<Record<TreeGuide, string>> = { pipe: "│ ", blank: "  ", tee: "│ ", elbow: "╰ " }
 
 export type TreeRowShared = {
   /** Rail width in cells; the label budget derives from it. */
@@ -81,7 +82,8 @@ export function MoveChip(props: { readonly rowId: string; readonly shared: TreeR
 export function RowShell(props: {
   readonly rowId: string
   readonly flatIndex: number
-  readonly depth: number
+  /** The row's indent columns (`treeGuides`); none for a top-level row. */
+  readonly guides?: readonly TreeGuide[]
   readonly shared: TreeRowShared
   readonly children: ReactNode
 }) {
@@ -121,9 +123,9 @@ export function RowShell(props: {
       <text fg={selection.markerColor ?? theme.border} wrapMode="none">
         {selection.marker === " " && hover.hovered ? "▏" : selection.marker}
       </text>
-      {props.depth > 1 ? (
-        <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
-          {indentOf(props.depth)}
+      {props.guides?.length ? (
+        <text fg={theme.border} wrapMode="none" flexShrink={0}>
+          {props.guides.map((guide) => GUIDE_CELLS[guide]).join("")}
         </text>
       ) : null}
       {props.children}

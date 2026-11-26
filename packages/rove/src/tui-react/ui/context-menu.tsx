@@ -1,13 +1,18 @@
 /** @jsxImportSource @opentui/react */
 /**
- * A right-click menu: a bordered, screen-clamped list anchored to the click.
+ * A right-click menu, after the web's: a hairline-bordered, screen-clamped list anchored to the
+ * click, its sections parted by a rule, the row under the cursor on a quiet fill.
  * Presentational only; the owner holds open/cursor state and key bindings.
  * Placement reuses the hover tooltip's clamp.
  */
 
 import { TextAttributes } from "@opentui/core"
 import { approxCellWidth } from "../../lib/display-width"
-import { SIDEBAR_HOVER_TOOLTIP_Z_INDEX, resolveSidebarHoverTooltipLayout } from "../../tui/panes/sidebar/hover-layout"
+import {
+  SIDEBAR_HOVER_TOOLTIP_MAX_WIDTH,
+  SIDEBAR_HOVER_TOOLTIP_Z_INDEX,
+  resolveSidebarHoverTooltipLayout,
+} from "../../tui/panes/sidebar/hover-layout"
 import { truncateTitle } from "../../tui/panes/sidebar/labels"
 import { useTheme } from "../context/theme"
 import { FRAME } from "./frame"
@@ -19,6 +24,8 @@ export interface ContextMenuEntry {
   readonly id: string
   readonly label: string
   readonly danger?: boolean
+  /** Entries sharing a section sit together; a rule falls where it changes. */
+  readonly section?: string
   /** Formatted live chord cap, right-aligned; absent when unbound. */
   readonly cap?: string
 }
@@ -26,6 +33,15 @@ export interface ContextMenuEntry {
 /** Cells the cap column steals from a row's label (cap + one space gutter). */
 function capCells(entry: ContextMenuEntry): number {
   return entry.cap ? approxCellWidth(entry.cap) + 1 : 0
+}
+
+/** Extra cells between the longest label and its cap, the web's column gap. */
+const CAP_GAP = 2
+
+/** Whether entry `i` starts a section after another one. */
+function opensSection(entries: readonly ContextMenuEntry[], i: number): boolean {
+  const entry = entries[i]
+  return i > 0 && entry?.section !== undefined && entries[i - 1]?.section !== entry.section
 }
 
 export function ContextMenu(props: {
@@ -43,8 +59,14 @@ export function ContextMenu(props: {
     hoverY: props.y,
     screenWidth: props.dims.width,
     screenHeight: props.dims.height,
+    // Never wider than the surface it is clamped to: past the rail's edge it would sit under the workspace.
+    maxWidth: Math.min(SIDEBAR_HOVER_TOOLTIP_MAX_WIDTH, props.dims.width),
     // Measure label + cap together, or the border clips the cap.
-    lines: props.entries.map((entry) => ({ text: entry.label + " ".repeat(capCells(entry)) })),
+    lines: [
+      ...props.entries.map((entry) => ({ text: entry.label + " ".repeat(capCells(entry) + CAP_GAP) })),
+      // A rule is a row too: the clamp must count it or a tall menu runs off the screen.
+      ...props.entries.flatMap((entry, i) => (opensSection(props.entries, i) ? [{ text: "" }] : [])),
+    ],
   })
   return (
     <box
@@ -55,7 +77,7 @@ export function ContextMenu(props: {
       width={layout.boxWidth}
       flexDirection="column"
       {...FRAME}
-      borderColor={theme.focusAccent}
+      borderColor={theme.border}
       // `backgroundMenu`: its own lighter step separates the popup from the row it covers.
       backgroundColor={theme.backgroundMenu}
       paddingLeft={1}
@@ -65,35 +87,37 @@ export function ContextMenu(props: {
     >
       {props.entries.map((entry, i) => {
         const active = i === props.cursor
-        return (
+        // The web's row: a quiet fill under the cursor, the error fill on a destructive entry.
+        const fill = active ? (entry.danger ? theme.error : theme.backgroundElement) : undefined
+        const ink = active && entry.danger ? theme.selectedListItemText : entry.danger ? theme.error : theme.text
+        return [
+          opensSection(props.entries, i) ? (
+            <text key={`rule-${entry.id}`} fg={theme.border} wrapMode="none" flexShrink={0}>
+              {"─".repeat(layout.innerWidth)}
+            </text>
+          ) : null,
           <box
             key={entry.id}
             flexShrink={0}
             flexDirection="row"
-            backgroundColor={active ? theme.focusAccent : undefined}
+            backgroundColor={fill}
             onMouseUp={() => props.onPick(entry.id)}
           >
-            <text
-              // `background` is alpha-0 in transparent mode.
-              fg={active ? theme.selectedListItemText : entry.danger ? theme.error : theme.text}
-              attributes={active ? TextAttributes.BOLD : undefined}
-              wrapMode="none"
-              flexGrow={1}
-            >
+            <text fg={ink} wrapMode="none" flexGrow={1}>
               {truncateTitle(entry.label, layout.innerWidth - capCells(entry))}
             </text>
             {entry.cap ? (
               <text
-                fg={active ? theme.selectedListItemText : theme.textMuted}
-                attributes={active ? undefined : TextAttributes.DIM}
+                fg={active && entry.danger ? theme.selectedListItemText : theme.textMuted}
+                attributes={TextAttributes.DIM}
                 wrapMode="none"
                 flexShrink={0}
               >
                 {entry.cap}
               </text>
             ) : null}
-          </box>
-        )
+          </box>,
+        ]
       })}
     </box>
   )

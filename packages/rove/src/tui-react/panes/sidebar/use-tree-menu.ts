@@ -10,7 +10,12 @@ import { formatChord } from "../../../tui/lib/chord-glyphs"
 import { legendCap } from "../../../tui/lib/help-groups"
 import { pausedGitOperation } from "../../../tui/ops/conflict-prompt"
 import { SCRATCH_SECTION_ID, type TreeRow } from "../../../tui/panes/sidebar/tree-core"
-import { type TreeMenuAction, type TreeMenuContext, treeMenuItems } from "../../../tui/panes/sidebar/tree-menu"
+import {
+  type TreeMenuAction,
+  type TreeMenuContext,
+  treeMenuItems,
+  treeMenuSection,
+} from "../../../tui/panes/sidebar/tree-menu"
 import { useT } from "../../i18n"
 import { useGlobalMouseDown } from "../../lib/use-global-mouse-down"
 import type { ContextMenuEntry } from "../../ui/context-menu"
@@ -82,6 +87,7 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
           id: item.action,
           label: t(item.labelKey),
           danger: item.danger,
+          section: treeMenuSection(item.action),
           cap: menuCap(item.bindingId),
         })),
         x,

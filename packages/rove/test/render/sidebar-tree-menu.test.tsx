@@ -203,9 +203,9 @@ test("a press anywhere else dismisses the menu", async () => {
   await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT))
   expect(await frame()).toContain("Rename")
 
-  // Empty space below the menu's last entry — no row handler runs, so only the
-  // root-level dismiss can close it.
-  await step(frame, () => mockMouse.click(2, 32, 0))
+  // Empty space above the menu — no row handler runs, so only the root-level
+  // dismiss can close it.
+  await step(frame, () => mockMouse.click(30, 0, 0))
   expect(await frame()).not.toContain("Rename")
 })
 

@@ -7,6 +7,7 @@
  */
 
 import type { ScrollBoxRenderable } from "@opentui/core"
+import { treeGuides } from "../../../lib/tree-guides"
 import { SCRATCH_SECTION_ID, type TreeRow } from "../../../tui/panes/sidebar/tree-core"
 import { sidebarEmptyStateKey } from "../../../tui/panes/sidebar/view-core"
 import { useTheme } from "../../context/theme"
@@ -78,6 +79,7 @@ export function SidebarTreeBody(props: {
               flatIndex={props.flatIndexOf.get(row.id) ?? -1}
               task={row.task}
               depth={row.depth}
+              guides={treeGuides(props.rows.length, (index) => props.rows[index]?.depth ?? 0, i)}
               level={row.level}
               fold={row.fold}
               title={row.title}
