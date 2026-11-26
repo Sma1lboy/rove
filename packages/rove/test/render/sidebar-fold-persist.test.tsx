@@ -62,8 +62,8 @@ const readState = async () => (fs.existsSync(statePath()) ? fs.readFileSync(stat
 async function foldRow(view: Mounted, title: string, child: string): Promise<void> {
   const open = await waitForFrameText(view.frame, child)
   const lines = open.split("\n")
-  const line = lines.find((l) => l.includes(title) && l.includes("▾")) ?? ""
-  await view.mockMouse.click(line.indexOf("▾"), lines.indexOf(line), 0)
+  const line = lines.find((l) => l.includes(title) && l.includes("⌄")) ?? ""
+  await view.mockMouse.click(line.indexOf("⌄"), lines.indexOf(line), 0)
   expect(await view.frame()).not.toContain(child)
 }
 
@@ -71,7 +71,7 @@ test("a folded parent is still folded after a restart", async () => {
   const first = await mount()
   const open = await waitForFrameText(first.frame, "check types")
   const line = open.split("\n").find((l) => l.includes("parent")) ?? ""
-  await first.mockMouse.click(line.indexOf("▾"), open.split("\n").indexOf(line), 0)
+  await first.mockMouse.click(line.indexOf("⌄"), open.split("\n").indexOf(line), 0)
   expect(await first.frame()).not.toContain("check types")
   // The KV write is debounced: wait for it to reach state.json, as a quit's flush would.
   await waitForFrameText(readState, COLLAPSED_TASKS_KEY)

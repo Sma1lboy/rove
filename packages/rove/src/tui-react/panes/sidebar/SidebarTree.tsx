@@ -317,6 +317,7 @@ export function SidebarTree(props: SidebarTreeProps) {
         shared={shared}
         collapsedProjects={search.active ? undefined : tree.collapsedProjects}
         onToggleProject={search.active ? undefined : tree.toggleProject}
+        onAddTask={props.onAddTask}
         onProjectContextMenu={menu.openForProject}
         movingProjectId={moveMode ? cursorMove.projectId : null}
         setScrollRef={(r) => {

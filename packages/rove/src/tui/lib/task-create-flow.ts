@@ -82,7 +82,8 @@ function mainRoot(repo: string): string {
 /** Where a new task starts when the caller already knows: a task's repo and branch, to stack on it. */
 export interface CreateTaskSeed {
   readonly repo: string
-  readonly baseRef: string
+  /** Absent = the project's own default base. */
+  readonly baseRef?: string
 }
 
 /** Default repo → dialog → persist vendor + repo → create / adopt / open → select and enter. */
@@ -104,7 +105,7 @@ export async function createTaskFlow(ctx: CreateTaskContext, seed?: CreateTaskSe
     discoverAdoptable: orch ? (repo) => orch.discoverAdoptableWorktrees(repo) : undefined,
     // "Open the project" is offered only for these.
     mainRepos: projectSet(repos),
-    ...(seed ? { initialBaseRef: seed.baseRef } : {}),
+    ...(seed?.baseRef ? { initialBaseRef: seed.baseRef } : {}),
   })
   if (!result) return
   // Auto-save keeps `add` optional. Use the returned git toplevel so a

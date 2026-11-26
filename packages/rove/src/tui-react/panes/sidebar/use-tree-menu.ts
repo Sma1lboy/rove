@@ -48,7 +48,7 @@ export interface TreeMenuDeps {
   readonly tree: TreeState
   readonly activateRow: (rowId: string) => void
   readonly setCursorIndex: (index: number) => void
-  readonly onAddTask?: () => void
+  readonly onAddTask?: (repo?: string) => void
   /** `"chat"` opens the ctrl+e picker there, `"shell"` a bare shell tab, `"continue"` the picker preset to carry the conversation over. */
   readonly onNewTab?: (taskId: string, kind: "chat" | "shell" | "continue") => void
   readonly actions: SidebarTaskCallbacks
@@ -190,7 +190,7 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
         // The Scratch section: a Scratch task in $HOME, on the preferred engine or a bare shell.
         if (action === "newScratchChat") actions.onOpenScratch?.(resolvePreferredVendor())
         if (action === "newScratchShell") actions.onOpenScratch?.(undefined)
-        if (action === "newTask") deps.onAddTask?.()
+        if (action === "newTask") deps.onAddTask?.(row.repo)
         if (action === "fieldNotes") actions.onFieldNotesRequest?.(row.repo)
         if (action === "forgetProject") actions.onForgetProjectRequest?.(row.repo)
         const movable = movableProjects(deps.tree.rows)

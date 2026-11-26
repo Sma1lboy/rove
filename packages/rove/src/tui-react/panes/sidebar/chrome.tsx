@@ -2,6 +2,7 @@
 /** Shared sidebar chrome (brand header, create row, search, nav rail, section header, zen chip), so every sidebar surface renders the same thing. */
 
 import { MouseButton, TextAttributes } from "@opentui/core"
+import { useState } from "react"
 import type { SidebarNav } from "../../../tui/panes/sidebar/nav-core"
 import { ShortcutRevealBadge } from "../../component/shortcut-reveal"
 import { useTheme } from "../../context/theme"
@@ -10,19 +11,31 @@ import { usePageEntries } from "../../pages/registry"
 import { useHoverFill } from "../../ui/use-hover-fill"
 import { zenChipGlyph } from "./zen-glyph"
 
+/** The web's disclosure chevron: right on a folded project, down on an open one. */
+const CHEVRON_FOLDED = "›"
+const CHEVRON_OPEN = "⌄"
+
+/**
+ * A project's header, after the web's: its name, then a chevron (always on a folded project, under
+ * the pointer on an open one), and under the pointer a `+` at the row's end that starts a task in it.
+ */
 export function SectionHeader(props: {
   label: string
   suffix?: string
   topPad?: boolean
-  /** The tree's project twisty, drawn after the name as the web does. */
-  prefix?: string
+  /** Set on a header that folds: whether its rows are folded away. Absent = no chevron. */
+  collapsed?: boolean
   onPress?: () => void
+  /** The `+`: a new task in this project. Absent = no `+`. */
+  onAdd?: () => void
   /** Right-click, with the click's screen cell (the tree's project menu). */
   onContextMenu?: (x: number, y: number) => void
   /** Tree depth. Non-zero indents the header. */
   depth?: number
 }) {
   const { theme } = useTheme()
+  const [hovered, setHovered] = useState(false)
+  const chevron = props.collapsed === undefined ? null : props.collapsed ? CHEVRON_FOLDED : hovered ? CHEVRON_OPEN : " "
   return (
     <box flexDirection="column" flexShrink={0}>
       {props.topPad ? (
@@ -30,12 +43,15 @@ export function SectionHeader(props: {
           <text wrapMode="none"> </text>
         </box>
       ) : null}
+      {/* biome-ignore lint/a11y/useKeyWithMouseEvents: a terminal box takes no focus; the fold and New task have keys */}
       <box
         flexDirection="row"
         flexShrink={0}
         gap={1}
         paddingLeft={1 + (props.depth ?? 0) * 2}
         paddingRight={1}
+        onMouseOver={() => setHovered(true)}
+        onMouseOut={() => setHovered(false)}
         onMouseUp={
           props.onPress || props.onContextMenu
             ? (evt: { button: number; x: number; y: number }) => {
@@ -48,19 +64,33 @@ export function SectionHeader(props: {
             : undefined
         }
       >
-        {/* A terminal has one type size: the web's small project name is the muted ink, dimmed. */}
-        <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none" flexShrink={0}>
+        {/* A terminal has one type size: the web's small project name is the muted ink, dimmed until the pointer is on it. */}
+        <text fg={theme.textMuted} attributes={hovered ? undefined : TextAttributes.DIM} wrapMode="none" flexShrink={0}>
           {props.label}
         </text>
-        {props.prefix ? (
+        {chevron ? (
           <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
-            {props.prefix}
+            {chevron}
           </text>
         ) : null}
         <box flexGrow={1} />
         {props.suffix ? (
           <text fg={theme.info} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
             {props.suffix}
+          </text>
+        ) : null}
+        {props.onAdd && hovered ? (
+          <text
+            fg={theme.text}
+            wrapMode="none"
+            flexShrink={0}
+            onMouseUp={(evt: { button: number; stopPropagation(): void }) => {
+              // Its own press: the header's would fold the project.
+              evt.stopPropagation()
+              if (evt.button === MouseButton.LEFT) props.onAdd?.()
+            }}
+          >
+            +
           </text>
         ) : null}
       </box>

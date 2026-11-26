@@ -86,7 +86,8 @@ export type SidebarProps = SidebarTaskCallbacks & {
   /** "newer version on npm" brand-row chip; null hides it. */
   updateChip?: { label: string } | null
   onUpdateChipClick?: () => void
-  onAddTask?: () => void
+  /** Start a task; `repo` names the project it starts in (a header's `+` or menu), else the flow picks. */
+  onAddTask?: (repo?: string) => void
   zenActive?: boolean
   /** The rail's foot: each engine's quota, then the Settings row. Absent = neither is drawn. */
   usage?: ReadableState<UsageSnapshotMap | null>
