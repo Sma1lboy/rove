@@ -205,32 +205,6 @@ export function contextChip(
 }
 
 /**
- * Session token chip: `Σ 45k`, what the conversation has cost so far.
- *
- * `Σ` is prompt + completion. Cache reads/writes (`cacheReadTokens` /
- * `cacheCreationTokens`) are deliberately excluded: a cached prompt can be an
- * order of magnitude larger than the turn that used it.
- *
- * `null` when neither count was reported (a `0` would claim a free session);
- * one missing count is omitted, not treated as a gap. Always muted: a past
- * total has no threshold.
- */
-export function tokenTotalChip(
-  usage: { inputTokens?: number; outputTokens?: number } | null | undefined,
-): { label: string; text: string } | null {
-  if (!usage) return null
-  if (usage.inputTokens === undefined && usage.outputTokens === undefined) return null
-  return { label: "Σ", text: humanTokens((usage.inputTokens ?? 0) + (usage.outputTokens ?? 0)) }
-}
-
-/** Four cells. Truncate, never round up: `999_999` reads `999k`, not `1.0M`. */
-function humanTokens(total: number): string {
-  if (total < 1_000) return String(total)
-  if (total < 1_000_000) return `${Math.floor(total / 1_000)}k`
-  return `${(Math.floor(total / 100_000) / 10).toFixed(1)}M`
-}
-
-/**
  * One aligned meter row per window, in the vendor's order. With `show: "left"`
  * the bar drains as the window fills. Label column tracks
  * the longest label, capped so one long model name can't push meters off.

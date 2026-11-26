@@ -7,8 +7,6 @@ import type { SidebarNav } from "../../../tui/panes/sidebar/nav-core"
 import { ShortcutRevealBadge } from "../../component/shortcut-reveal"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
-import { dividerRule } from "../../lib/rule-divider"
-import { useTerminalSize } from "../../lib/use-terminal-size"
 import { usePageEntries } from "../../pages/registry"
 import { zenChipGlyph } from "./zen-glyph"
 
@@ -24,9 +22,7 @@ export function SectionHeader(props: {
   /** Tree depth. Non-zero indents the header. */
   depth?: number
 }) {
-  const { theme, transparentBackground } = useTheme()
-  const dividerColor = transparentBackground ? theme.border : theme.borderSubtle
-  const dims = useTerminalSize()
+  const { theme } = useTheme()
   return (
     <box flexDirection="column" flexShrink={0}>
       {props.topPad ? (
@@ -60,9 +56,7 @@ export function SectionHeader(props: {
         <text fg={theme.textMuted} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
           {props.label}
         </text>
-        <text fg={dividerColor} wrapMode="none" flexBasis={0} flexGrow={1} flexShrink={1}>
-          {dividerRule(dims.width)}
-        </text>
+        <box flexGrow={1} />
         {props.suffix ? (
           <text fg={theme.info} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
             {props.suffix}

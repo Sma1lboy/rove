@@ -17,7 +17,6 @@ import { TextAttributes } from "@opentui/core"
 import type { RowStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { useMemo } from "react"
 import { charWidth, displayWidth } from "../../../lib/display-width"
-import { relativeAge } from "../../../lib/relative-time"
 import { rowStatusGlyph } from "../../../lib/row-status-glyph"
 import { DEFAULT_RUNNING_TITLE, RUNNING_TITLE_KEY, normalizeRunningTitle } from "../../../state/running-title"
 import { breathColor, breathGlyph } from "../../../tui/lib/breathe"
@@ -34,7 +33,6 @@ import {
 import {
   type RemoteMark,
   type TreeFold,
-  childMarkerOf,
   rowLiveBranchPath,
   tabRowActivity,
   worktreeRowLabel,
@@ -58,18 +56,6 @@ export const SHARED_MARK = "⑂"
 export const WORKTREE_MARK = "⎇"
 const FOLD_OPEN = "▾"
 const FOLD_CLOSED = "▸"
-
-/**
- * Age in the current state (`12m`) for WORKING or STOPPED rows only; null
- * otherwise, or every idle tab would wear a number. A row showing one
- * re-renders on the poll clock (`useClockTick`).
- */
-function statusAgeLabel(status: RowStatus | undefined): string | null {
-  if (!status || status.since <= 0) return null
-  if (status.kind !== "running" && status.kind !== "attention" && status.kind !== "needs-input") return null
-  // `relativeAge` clamps a clock skewed ahead of the daemon to `0s`.
-  return relativeAge(status.since)
-}
 
 /**
  * The tab ledger entry for this task's conversation: a migrated child's
@@ -211,8 +197,6 @@ export function WorktreeTreeRow(props: {
   })
   const moving = shared.movingRowId === props.rowId
   const { status, rowView, fg, pulsing, frame } = useTaskStateCell(task, shared)
-  const age = statusAgeLabel(status)
-  useClockTick(age !== null)
   // The deletion WORD is a task fact; the glyph is the daemon's.
   const deletionPhase = task.deletion?.phase
   const deleting = deletionPhase === "queued" || deletionPhase === "running"
@@ -231,7 +215,6 @@ export function WorktreeTreeRow(props: {
   const remote = props.remote
   const remoteLive = remote ? remoteMarkLive(remote) : true
   const caption = remote && shared.cursorIndex === props.flatIndex ? remoteRowCaption(remote, t) : null
-  const marker = childMarkerOf(task)
   // A task over several repos is listed once, under its primary, with how many more it spans.
   const extraRepoText = task.extraRepos?.length ? `+${task.extraRepos.length}` : null
   const fold = props.fold
@@ -243,9 +226,7 @@ export function WorktreeTreeRow(props: {
     tokens.reduce((cells, token) => cells + clusterCells(token.text), 0) +
     (deletionWord ? clusterCells(deletionWord) : 0) +
     (checkoutText ? clusterCells(checkoutText) : 0) +
-    (age ? clusterCells(age) : 0) +
     (props.level !== undefined ? clusterCells(String(props.level)) : 0) +
-    (marker ? clusterCells(SHARED_MARK) : 0) +
     (extraRepoText ? clusterCells(extraRepoText) : 0) +
     (fold
       ? clusterCells(fold.collapsed ? FOLD_CLOSED : FOLD_OPEN) +
@@ -324,11 +305,6 @@ export function WorktreeTreeRow(props: {
             {checkoutText}
           </text>
         ) : null}
-        {age ? (
-          <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none" flexShrink={0}>
-            {age}
-          </text>
-        ) : null}
         {props.level !== undefined ? (
           <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
             {String(props.level)}
@@ -337,11 +313,6 @@ export function WorktreeTreeRow(props: {
         {extraRepoText ? (
           <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
             {extraRepoText}
-          </text>
-        ) : null}
-        {marker ? (
-          <text fg={marker === "shared" ? theme.info : theme.textMuted} wrapMode="none" flexShrink={0}>
-            {marker === "shared" ? SHARED_MARK : WORKTREE_MARK}
           </text>
         ) : null}
         {fold ? <FoldCluster task={task} fold={fold} shared={shared} /> : null}

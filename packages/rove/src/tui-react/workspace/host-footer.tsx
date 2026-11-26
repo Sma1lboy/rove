@@ -15,12 +15,7 @@ import { engineDisplayName } from "../../engine/interactive-command"
 import { displayWidth } from "../../lib/display-width"
 import { USAGE_SHOW_KEY, type UsageShow, normalizeUsageShow } from "../../state/usage-show"
 import { StatusKeyHintBar, useStatusKeyHintItems } from "../component/keyboard-hints"
-import {
-  buildFooterChips,
-  contextChip,
-  tokenTotalChip,
-  usageChipsBudget,
-} from "../component/settings-dialog/usage-core"
+import { buildFooterChips, contextChip, usageChipsBudget } from "../component/settings-dialog/usage-core"
 import { ShortcutRevealProvider } from "../component/shortcut-reveal"
 import { useOptionalKV } from "../context/kv"
 import { useTheme } from "../context/theme"
@@ -45,23 +40,6 @@ function ContextChip(props: { chip: ReturnType<typeof contextChip> }) {
       </text>
       <text fg={toneColor[chip.tone]} wrapMode="none">
         {chip.percentText}
-      </text>
-    </box>
-  )
-}
-
-/** Session token total. Muted: a record, not a budget. Null → nothing, never `0`. */
-function TokenChip(props: { chip: ReturnType<typeof tokenTotalChip> }) {
-  const { theme } = useTheme()
-  const chip = props.chip
-  if (!chip) return null
-  return (
-    <box flexDirection="row" gap={1} flexShrink={0}>
-      <text fg={theme.textMuted} wrapMode="none">
-        {chip.label}
-      </text>
-      <text fg={theme.textMuted} wrapMode="none">
-        {chip.text}
       </text>
     </box>
   )
@@ -155,25 +133,17 @@ export function WorkspaceFrame(props: {
     props.activeTaskId && props.activeTabId ? context?.get(`${props.activeTaskId}::${props.activeTabId}`) : undefined
   const usageShow = normalizeUsageShow(useOptionalKV()?.get(USAGE_SHOW_KEY, undefined))
   const ctxChip = contextChip(usageEntry, usageShow)
-  const tokChip = tokenTotalChip(usageEntry)
   // Same options as the rendered bar, so the budget measures what's on screen.
   const hintItems = useStatusKeyHintItems({
     onOpenSettings: narrow ? undefined : props.onOpenSettings,
     compact: narrow,
   })
-  const footerVisible =
-    (usage != null && usage.size > 0) || ctxChip !== null || tokChip !== null || hintItems.length > 0
+  const footerVisible = (usage != null && usage.size > 0) || ctxChip !== null || hintItems.length > 0
   const hintCells = hintItems.reduce((sum, item, index) => sum + displayWidth(item.text) + (index > 0 ? 3 : 0), 0)
   // Reserved from the quota budget at max width (`ctx 100%~` + gap = 11), so
   // quota chips don't reflow as the percentage changes.
   const contextCells = 11
-  // Max width (`Σ 999.9M` + gap), but only while shown: a standing 10 cells
-  // pushes a 46-column footer over.
-  const tokenCells = tokChip ? 10 : 0
-  const chipsBudget = Math.max(
-    0,
-    usageChipsBudget({ terminalWidth: dims.width, hintCells }) - contextCells - tokenCells,
-  )
+  const chipsBudget = Math.max(0, usageChipsBudget({ terminalWidth: dims.width, hintCells }) - contextCells)
   return (
     <ShortcutRevealProvider>
       <box flexDirection="column" flexGrow={1} backgroundColor={theme.background}>
@@ -187,7 +157,6 @@ export function WorkspaceFrame(props: {
                 the budget-truncated view model the graceful one. */}
             <box flexGrow={1} flexShrink={1} flexDirection="row" gap={2} overflow="hidden">
               <ContextChip chip={ctxChip} />
-              <TokenChip chip={tokChip} />
               <UsageChips orchestrator={props.orchestrator} narrow={narrow} budget={chipsBudget} show={usageShow} />
             </box>
             {/* Narrow drops the verbs and the [settings] chip: `⌃A · F1`. */}
