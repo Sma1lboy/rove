@@ -1,5 +1,5 @@
 /**
- * The daemon-side WeChat channel: long-polls iLink for messages from allowed
+ * The daemon-side WeChat connector: long-polls iLink for messages from allowed
  * senders and answers them through {@link handleCommand} or the WeChat agent.
  * The bridge itself never messages anyone unprompted: what appears in WeChat
  * is a reply to the owner or something the agent chose to send. A `--notify`

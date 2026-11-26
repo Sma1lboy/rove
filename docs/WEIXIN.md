@@ -48,6 +48,9 @@ seconds; no restart is needed.
 The WeChat account that scanned is the **owner** and is the only sender Rove
 answers by default.
 
+The web client shows whether WeChat is connected under Settings → Connectors →
+Chat. Connecting and disconnecting stay in the terminal.
+
 ## Your WeChat agent
 
 Plain text is a conversation with your own agent, not a command. The first
@@ -229,15 +232,15 @@ a WeChat id show only its first eight characters.
 
 ## Where the code lives
 
-The channel is its own workspace package, `packages/rove-weixin`: the iLink
+The connector is its own workspace package, `packages/rove-weixin`: the iLink
 client, QR login, the state files above, command handling, message formatting
 and the routine hand-off. It is bundled into the `rove` CLI at build time, so
 `npm i -g @sma1lboy/rove` includes it; it is not published on its own.
 
-Rove itself only defines a generic chat-channel contract
-(`packages/rove/src/channels/chat-channel.ts`) and a registry that names the
-channel package (`packages/rove/src/channels/registry.ts`). The daemon starts
-every registered channel after it is listening and stays up while one asks it
+Rove itself only defines a generic chat-connector contract
+(`packages/rove/src/connectors/chat-connector.ts`) and a registry that names the
+connector package (`packages/rove/src/connectors/registry.ts`). The daemon starts
+every registered connector after it is listening and stays up while one asks it
 to. Dependencies point one way: `rove-weixin` uses Rove's public pieces (the
 daemon client, `rove api` verbs, the `context` snapshot); Rove never imports
 its internals.

@@ -6,8 +6,8 @@ import { installDaemonCrashHandlers, logDaemonError, logDaemonInfo } from "@sma1
 import { rotateLogIfNeeded } from "@sma1lboy/rove-daemon/daemon/log-rotate"
 import { defaultDaemonLogPath, defaultDaemonPidPath, defaultDaemonSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import { readPidFile, startDaemonServer } from "@sma1lboy/rove-daemon/daemon/server"
-import type { ChatChannel } from "../channels/chat-channel.ts"
-import { startChatChannels } from "../channels/registry.ts"
+import type { ChatConnector } from "../connectors/chat-connector.ts"
+import { startChatConnectors } from "../connectors/registry.ts"
 import { daemonRuntime } from "../core/daemon-runtime.ts"
 import { type RoveCore, createRoveCore } from "../core/index.ts"
 import { cancelAllLogins } from "../github/login.ts"
@@ -151,7 +151,7 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
   logDaemonInfo("boot", `daemon starting — ${daemonSpawnReason()} (pid ${process.pid}, v${CURRENT_VERSION})`)
 
   let core: RoveCore | undefined
-  let channels: readonly ChatChannel[] = []
+  let connectors: readonly ChatConnector[] = []
   const server = await startDaemonServer(
     async () => {
       const migration = migrateRoveDaemonStateLayout()
@@ -174,12 +174,12 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
       // Plugin callbacks exec THIS Rove where that is expressible as one
       // absolute path, else the invoked name on PATH (see plugin-bin-path.ts).
       plugins: { binPath: resolvePluginBinPath() },
-      // A bound chat channel must keep answering after the TUI closes.
-      keepAlive: () => channels.some((channel) => channel.keepAlive()),
+      // A bound chat connector must keep answering after the TUI closes.
+      keepAlive: () => connectors.some((connector) => connector.keepAlive()),
       resident,
       onStop: async () => {
         cancelAllLogins()
-        for (const channel of channels) channel.stop()
+        for (const connector of connectors) connector.stop()
         await core?.close()
       },
     },
@@ -194,7 +194,7 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
   } catch (err) {
     logDaemonError("skill-refresh", err)
   }
-  channels = await startChatChannels({
+  connectors = await startChatConnectors({
     socketPath: server.socketPath,
     log: logDaemonInfo,
     keepAliveChanged: () => server.reevaluateIdle(),

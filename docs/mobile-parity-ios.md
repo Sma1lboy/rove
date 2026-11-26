@@ -65,7 +65,7 @@ Web 手机版（`packages/rove-web`，390 宽）是功能和布局的参照，�
 | 在别的机器上新建 / clone | `new-session-machine.tsx` | `task.spawn` 的 `machine`、`clone` | **缺**，依赖 Machines |
 | Mods 页 | `mods-view.tsx` | `mods` 推送、`mod.press`、`mod.submit` | **缺** |
 | 从 GitHub 账号选仓库 clone | `new-session-repo-menu.tsx` | `github.repos` | **缺** |
-| Settings → Connectors（GitHub 登录、同步） | `settings-connectors.tsx` | `github.status/login/logout/sync` | **缺** |
+| Settings → Connectors（GitHub 登录、同步；微信是否已连接） | `settings-connectors.tsx` | `github.status/login/logout/sync`、`connectors.chat` | **缺** |
 | Settings → Engines 安装 Rove skill | `settings-engines.tsx` | `skill.missing`、`skill.install` | **缺** |
 | Settings → Auto routing | `settings-routing.tsx` | `autoRouting.get`、`autoRouting.setClassifier`、`autoRouting.setTier` | **缺** |
 | 首次运行 Welcome、一键开始 | `welcome-view.tsx` | `welcome.env` | **缺**；iOS 有引擎面板（T25） |

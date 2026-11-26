@@ -133,7 +133,7 @@ worktree on the shared branch name. `taskRepos(task)` (in `rove-daemon`'s
 - `packages/rove-web/` — the browser client the bridge serves.
 - `packages/rove-desktop/` — the desktop app: rove-web in its own Electron
   window against the local Rove (see [docs/DESKTOP.md](./DESKTOP.md)).
-- `packages/rove-weixin/` — the WeChat chat channel, bundled into the CLI.
+- `packages/rove-weixin/` — the WeChat chat connector, bundled into the CLI.
 - `packages/rove-plugin-sdk/` — the typed plugin SDK, published as
   `@sma1lboy/rove-plugin-sdk`.
 - `packages/rove-android/`, `packages/rove-ios/` — the native phone apps.
