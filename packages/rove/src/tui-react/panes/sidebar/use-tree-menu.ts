@@ -32,6 +32,8 @@ export interface TreeMenu {
   readonly y: number
   readonly close: () => void
   readonly moveCursor: (delta: 1 | -1) => void
+  /** Put the highlight on an entry (the pointer is over it). */
+  readonly setCursor: (index: number) => void
   /** Fire the highlighted entry (enter). */
   readonly pickCurrent: () => void
   /** Fire an entry by action id (a click on a menu row). */
@@ -312,6 +314,7 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
     open: menu !== null,
     entries: visible,
     cursor,
+    setCursor,
     x: menu?.x ?? 0,
     y: menu?.y ?? 0,
     close,

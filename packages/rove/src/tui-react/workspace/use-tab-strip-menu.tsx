@@ -173,6 +173,7 @@ export function useTabStripMenu(deps: TabStripMenuDeps): TabStripMenu {
       // Clamp to the workspace: the menu is a child of it.
       dims={{ width: anchor.current?.width ?? 0, height: anchor.current?.height ?? 0 }}
       onPick={(id) => fire(menu.items.find((item) => item.action === id)?.action)}
+      onHover={setCursor}
     />
   ) : null
 
