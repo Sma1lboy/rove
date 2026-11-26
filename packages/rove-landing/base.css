@@ -156,6 +156,9 @@ select{
 
 /* centred hero: title, lede, agent marquee, install, then the film ------- */
 .hero-c{display:flex;flex-direction:column;align-items:center;gap:56px;padding:64px 0 8px;text-align:center}
+/* The hero's sky (celestial.js): the app's welcome plate, larger, above the headline. */
+.sky{display:block;width:640px;max-width:100%;height:auto;margin:-24px auto -36px;transition:opacity .6s var(--ease)}
+.sky.is-out{opacity:0}
 /* A field of dots behind the headline, fading out downward; a second field in the accent shows
    only near the pointer (dots.js sets --mx/--my), and drifts by itself where there is none. */
 .dotfield{position:relative;isolation:isolate}

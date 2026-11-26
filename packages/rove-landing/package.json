@@ -9,6 +9,7 @@
     "dev": "python3 -m http.server 4321",
     "deploy": "vercel deploy --prod",
     "deploy:preview": "vercel deploy",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "build:celestial": "bun build celestial-src.ts --outfile celestial.js --minify --target browser"
   }
 }

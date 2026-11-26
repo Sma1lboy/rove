@@ -160,6 +160,7 @@
 <script src="/copy.js" defer></script>
 <script src="/version.js" defer></script>
 <script src="/dots.js" defer></script>
+<script src="/celestial.js" defer></script>
 <script src="/demo-scenes.js" defer></script>
 <script src="/demo.js" defer></script>
 </head>
@@ -186,8 +187,9 @@
 
   <main id="main">
 
-  <section class="hero hero-c dotfield">
+  <section class="hero hero-c">
     <div class="hero-l">
+      <canvas class="sky" id="sky" width="640" height="400" aria-hidden="true"></canvas>
       <h1 data-i18n-html="hero.title">One workspace <span class="thin">for <span class="nb">every coding agent.</span></span></h1>
       <p class="lede" data-i18n-html="hero.sub">Better multi-agent orchestration, in your terminal. One agent splits a job and hands the parts to Claude Code, Codex, Gemini and others, each in its own git worktree. Switch agents when one hits its limit, and leave them working after you disconnect.</p>
       <div class="engines">
