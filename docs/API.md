@@ -248,7 +248,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `GATE_NOT_OPEN` | The gate is already answered or withdrawn. |
 | `BAD_OPTION` | `gate-answer --option` is not one of the gate's option keys (or the gate is free-text only). |
 | `NO_ENGINE_TAB` | The task has live tabs but none of them is an engine, so there is nothing to deliver to or interrupt. |
-| `NOT_A_REPO` | `--repo` does not point at a git repository. |
+| `NOT_A_REPO` | `add --repo` points at something that is neither a git repository nor a directory; or at a directory that is not a repository together with a flag that needs one (`--branch`, `--base-branch`, `--worktree-only`, `--count`, `--parent`, … — the message names it). A plain directory alone is fine: the session runs in it, with no worktree. |
 | `NOT_A_GIT_REPO` | One of several `--repo` values is not a git repository (the message names it); `add` (or `add --isolate-in`) under a `dir` task that is not inside a git repository; `update --project PATH` where PATH is not inside a git repository. |
 | `REPO_DUPLICATE` | `add` names the same repo root twice; a subdirectory counts as its root. |
 | `TOO_MANY_REPOS` | `add` names more than 8 repos for one task. |

@@ -13,10 +13,7 @@ import { createRemoteLink, removeRemoteLink } from "../../machines/remote-worksp
 import { machineSshArgs } from "../../machines/ssh-args.ts"
 import { isWindowsMachine } from "../../machines/windows-remote.ts"
 import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
-import type { VendorId } from "../../types/vendor.ts"
-import { applyPostCreateFlags, deliverArmed, persistPrompt } from "./add-delivery.ts"
-import { effortFor, engineChoice, launchedEngine, modelFor } from "./add-engine-fields.ts"
-import { withPeerProvenance } from "./dispatcher.ts"
+import { openDirSession, startDirSession } from "./add-dir-session.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, helpStep } from "./types.ts"
 
@@ -95,58 +92,12 @@ export async function addOnMachine(ctx: VerbContext, alias: string): Promise<unk
 
   let task: SerializedTask
   try {
-    const choice = await engineChoice(ctx, dir)
-    const engines = choice.vendor ? [choice.vendor] : []
-    const effort = effortFor(ctx, engines)
-    const model = modelFor(ctx, engines)
-    const opened = await daemon.request<{ task: SerializedTask }>("task.openDir", {
-      dir,
-      remote: true,
-      ...(choice.vendor ? { vendor: choice.vendor } : {}),
-      ...(title ? { title } : {}),
-      ...(model ? { model } : {}),
-      ...(effort ? { effort } : {}),
-    })
-    task = opened.task
-    if (choice.command) await daemon.request("task.setCommand", { taskId: task.id, command: choice.command })
+    task = await openDirSession(ctx, daemon, dir, title, true)
   } catch (err) {
     removeRemoteLink(dir)
     await undo()
     throw err
   }
-  const taskId = task.id
-  if (args.bool("activate")) await daemon.request("task.setActive", { taskId })
-  await applyPostCreateFlags(daemon, taskId, args)
-  const target = {
-    id: taskId,
-    worktreePath: dir,
-    kind: task.kind,
-    vendor: task.vendor as VendorId | undefined,
-    command: task.command,
-    modelEffort: task.modelEffort,
-    model: task.model,
-    repo: task.repo,
-  }
   const where = { machine: alias, remoteTaskId: there.taskId, remotePath: there.worktreePath, home: homeDir() }
-  if (!prompt) {
-    const opened = await ctx.runtime.openTab(daemon, target, "engine")
-    return { taskId, task, engine: launchedEngine(task), ...where, started: true, tabId: opened.tab.id }
-  }
-  const brief = args.bool("no-dispatcher") === true ? prompt : await withPeerProvenance(daemon, taskId, prompt)
-  const delivered = await deliverArmed(ctx, daemon, taskId, { ...target, newTask: true }, brief)
-  if (!delivered.delivered) {
-    throw new ApiError(`task ${taskId} created but the prompt was not delivered`, "NOT_DELIVERED", { taskId, ...where })
-  }
-  await persistPrompt(daemon, taskId, prompt)
-  task = (await daemon.request<{ task: SerializedTask }>("task.get", { taskId })).task
-  return {
-    taskId,
-    task,
-    engine: launchedEngine(task),
-    ...where,
-    started: delivered.started,
-    engineReady: delivered.engineReady,
-    session: delivered.session,
-    delivered: delivered.delivered,
-  }
+  return startDirSession(ctx, daemon, task, dir, where)
 }

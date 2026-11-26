@@ -2,6 +2,7 @@
  *  `./api-handlers-send.test.ts`; the parallel `add --count` round lives in
  *  `./api-add-parallel.test.ts`. */
 
+import { tmpdir } from "node:os"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { homeDir } from "../../src/env.ts"
@@ -56,20 +57,38 @@ describe("add handler", () => {
     })
   })
 
-  it("refuses a --repo that is not a git repository instead of succeeding emptily", async () => {
-    // A task IS a worktree + branch, so a non-repo has nothing to cut one
-    // from. This used to return `ok: true` with an empty branch and an empty
-    // worktreePath, and the row persisted — the failure surfaced much later,
-    // when someone opened it and landed on an empty path.
+  it("refuses a --repo that is neither a repository nor a folder, before anything is created", async () => {
     const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
-    await expect(
-      invokeVerb("add", ["--repo", "/plain/dir", "--start"], {
-        client,
-        runtime: stubRuntime({ openTab: openedTab, isUsableRepo: async () => false }),
-      }),
-    ).rejects.toThrow(/not a git repository/)
-    // Nothing was created.
+    await expectApiError(
+      () =>
+        invokeVerb("add", ["--repo", "/no/such/dir", "--start"], {
+          client,
+          runtime: stubRuntime({ openTab: openedTab, isUsableRepo: async () => false }),
+        }),
+      "NOT_A_REPO",
+    )
     expect(client.requestNames).toEqual([])
+  })
+
+  it("a folder that is not a git repository gets a session in the folder itself, with no worktree", async () => {
+    const dir = tmpdir()
+    const task = taskFixture({ kind: "dir", repo: dir, worktreePath: dir, branch: "" })
+    const client = new FakeClient({ "task.openDir": () => ({ taskId: "t1", task }) })
+    const runtime = stubRuntime({
+      openTab: openedTab,
+      isUsableRepo: async () => false,
+      resolveRepoRoot: async (p) => p,
+    })
+    const result = await invokeVerb("add", ["--repo", dir, "--start"], { client, runtime })
+    expect(client.requests).toEqual([{ name: "task.openDir", payload: { dir } }])
+    expect(result).toMatchObject({ taskId: "t1", started: true, tabId: "tab-1", worktree: false })
+
+    // What only a repository can give is refused, naming the flag.
+    await expectApiError(
+      () => invokeVerb("add", ["--repo", dir, "--branch", "feat/x", "--start"], { client, runtime }),
+      "NOT_A_REPO",
+    )
+    expect(client.requestNames).toEqual(["task.openDir"])
   })
 
   // `--branch` was only type-checked, so `add --branch "a b"` exited 0 with
