@@ -72,7 +72,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   useLocale()
   const selected = useStore(model.selection).taskId
   const fallback = model.tasks.get()?.tasks.find((task) => task.id === selected)?.repo
-  const choice = useEngineChoice(model, initialRepo ?? fallback, seed.engine)
+  const choice = useEngineChoice(model, seed.engine)
   // The starting project, known now when the opener or the selection names one; else the first saved, once read.
   const lastSaved = lastReply<{ repos: string[] }>(model, "repos.list")?.repos
   const startOf = (list?: readonly string[]) =>

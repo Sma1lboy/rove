@@ -97,11 +97,11 @@ function seedRouting(): void {
     "autoRouting.standard.engine": "claude",
     "autoRouting.standard.model": "haiku",
   })
-  // The engine picker opens on the repo's LAST-USED engine, which outranks
+  // The engine picker opens on the LAST-USED engine, which outranks
   // `defaultVendor` — and a take that ever lands on the wrong choice records
   // that wrong choice as the new starting point. Clearing it here puts the
   // highlight on `claude`, the first choice, every time.
-  for (const key of Object.keys(state)) if (key.startsWith("lastActiveVendor.")) delete state[key]
+  state.lastActiveVendor = undefined
   state.defaultVendor = "claude"
   const custom = new Set(Array.isArray(state.customEngineIds) ? state.customEngineIds : [])
   if (DRY_RUN) {

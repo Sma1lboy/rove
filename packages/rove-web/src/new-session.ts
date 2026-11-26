@@ -26,7 +26,7 @@ export function offeredEngines<E extends { readonly id: string; readonly enabled
 }
 
 /**
- * The engine a picker opens on: `preferred` (the project's last, else the Settings default) whenever it is
+ * The engine a picker opens on: `preferred` (the last one picked, else the Settings default) whenever it is
  * offered, since the readiness probe can miss what the login shell finds; else the first ready one, else
  * the first; "" when nothing is offered.
  */

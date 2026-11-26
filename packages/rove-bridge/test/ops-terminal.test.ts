@@ -168,13 +168,13 @@ describe("tab.forkTask", () => {
     await expect(run("tab.forkTask", base, {}, { add: {} })).rejects.toThrow("no task was created")
   })
 
-  test("a fork on a picked engine makes it the project's next New conversation default; a failed fork does not", async () => {
-    const remembered: Array<[string, string]> = []
-    taskOpDeps.rememberEngine = (repo, engine) => void remembered.push([repo, engine])
+  test("a fork on a picked engine makes it the next New conversation default; a failed fork does not", async () => {
+    const remembered: string[] = []
+    taskOpDeps.rememberEngine = (engine) => void remembered.push(engine)
     await run("tab.forkTask", { ...base, engine: "codex" }, {}, { add: { taskId: "T9" } })
     await run("tab.forkTask", base, {}, { add: { taskId: "T10" } })
     await expect(run("tab.forkTask", { ...base, engine: "claude" }, {}, { add: {} })).rejects.toThrow()
-    expect(remembered).toEqual([["/repos/api", "codex"]])
+    expect(remembered).toEqual(["codex"])
   })
 
   describe("with the source task", () => {

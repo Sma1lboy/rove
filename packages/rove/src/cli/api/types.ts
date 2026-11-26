@@ -383,8 +383,8 @@ export interface ApiRuntime {
   inspectRepo(absPath: string): Promise<{ readonly root: string; readonly usable: boolean }>
   /** `git check-ref-format` verdict, on the seam so handler tests don't spawn git. */
   isValidBranchName(branch: string): Promise<boolean>
-  /** Preferred engine for new tasks in `repo`; undefined delegates to daemon defaults. */
-  defaultVendor(repo?: string): Promise<VendorId | undefined>
+  /** Preferred engine for new tasks; undefined delegates to daemon defaults. */
+  defaultVendor(): Promise<VendorId | undefined>
   /** Uncommitted +/− counts; `null` when git could not be read at all. NOT
    *  `{0,0}`: a fabricated zero reads as "safe to land / safe to delete".
    *  Same all-null contract as `readBranchSignals`. */

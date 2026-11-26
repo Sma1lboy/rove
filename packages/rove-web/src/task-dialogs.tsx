@@ -39,24 +39,22 @@ function saveEngines(engines: readonly EngineRow[]): void {
   } catch {}
 }
 
-/** The engines Settings → Engines has on, preselecting the one `repo` was last started on (the TUI's picker default). */
-export function useEngineChoice(model: AppModel, repo?: string, wanted?: string): EngineChoice {
+/** The engines Settings → Engines has on, preselecting the one last started on anywhere (the TUI's picker default). */
+export function useEngineChoice(model: AppModel, wanted?: string): EngineChoice {
   type Reply = { engines: EngineRow[]; preferred?: string }
-  const params = repo ? { repo } : {}
   const [seed] = useState(() => {
-    // The list is the same for every project; only `preferred` is per repo. The rail read it at connect.
-    const last =
-      lastReply<Reply>(model, "engines.list", params) ?? lastReply<Reply>(model, "engines.list") ?? savedEngines()
+    // The rail read it at connect.
+    const last = lastReply<Reply>(model, "engines.list") ?? savedEngines()
     const offered = last ? offeredEngines(last.engines) : []
     return { offered, engine: last ? defaultEngineId(offered, wanted ?? last.preferred) : "" }
   })
   const [engines, setEngines] = useState<readonly EngineRow[]>(seed.offered)
   const [engine, setEngine] = useState(seed.engine)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: preselected once per dialog; a later repo change keeps the user's pick
+  // biome-ignore lint/correctness/useExhaustiveDependencies: preselected once per dialog
   useEffect(() => {
     // On every (re)connect: a view restored with the page mounts before the socket is up. A failed read keeps the list shown.
     return model.client.onOpen(() => {
-      void requestRemembered<Reply>(model, "engines.list", params)
+      void requestRemembered<Reply>(model, "engines.list")
         .then((res) => {
           saveEngines(res.engines)
           const offered = offeredEngines(res.engines)

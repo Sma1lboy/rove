@@ -303,10 +303,10 @@ export function taskOps(deps: TaskOpsDeps = realDeps): OpTable {
         const res = await ctx.api.rpc<{ taskId: string }>("task.openDir", {
           dir: home,
           scratch: true,
-          vendor: picked ?? taskOpDeps.preferredEngine(home),
+          vendor: picked ?? taskOpDeps.preferredEngine(),
           ...(mdl ? { model: mdl } : {}),
         })
-        if (picked) taskOpDeps.rememberEngine(home, picked)
+        if (picked) taskOpDeps.rememberEngine(picked)
         return { taskId: res.taskId }
       },
     },

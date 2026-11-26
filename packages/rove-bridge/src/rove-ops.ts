@@ -351,7 +351,7 @@ export function createRoveOps(
       // A picked engine becomes the project's next "New conversation" default, as a TUI pick does.
       if (tab.engine && api.machineOf?.(taskId) === undefined) {
         const task = await tryRead(() => getTask(taskId))
-        if (task) taskOpDeps.rememberEngine(task.repo, tab.engine)
+        if (task) taskOpDeps.rememberEngine(tab.engine)
       }
       return { tabId, ...(child ? { taskId: child } : {}) }
     },

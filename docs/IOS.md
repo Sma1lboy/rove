@@ -105,7 +105,7 @@ JSON text frames over one WebSocket. Request `{"id": 1, "op": "tasks.list", "arg
 | `api.invoke` | `verb`, `params?` (keyed by flag name, as `rove api schema --verb` lists them) | the verb's result; a refusal is the verb's full error object ([API.md](API.md#one-contract-three-transports)) |
 | `tasks.subscribe` | — | `{tasks, attention, gates}`, then `tasks` pushes on change, and `tabs` pushes (`{taskIds}`) when only those tasks' Terminal Tabs changed (re-read them with `task.tabs`; older apps ignore it) |
 | `tasks.list` | — | `{tasks, attention, gates}` (fresh read) |
-| `engines.list` | `repo?` (absolute) | `{engines: [{id, name, command, protocol, builtin}], preferred}`; `preferred` is the engine a picker opens on: the one `repo` was last started on, else Settings' default |
+| `engines.list` | — | `{engines: [{id, name, command, protocol, builtin}], preferred}`; `preferred` is the engine a picker opens on: the one last started on in any project, else Settings' default |
 | `repos.list` | — | `{repos}` (saved projects plus repos with tasks) |
 | `task.create` | `repo`, `engine?`, `prompt` (required: a task always has an agent, `EMPTY_SESSION` otherwise), `title?` | `{taskId}` |
 | `task.delete` | `taskId`, `force?`, `cascade?` (also delete every descendant; absent, the task's children are promoted) | `{status}` |

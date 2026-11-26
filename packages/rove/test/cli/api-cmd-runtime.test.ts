@@ -197,15 +197,10 @@ describe("defaultApiRuntime", () => {
     ])
   })
 
-  it("defaultVendor resolves repo last-active → global default, blank/unset → undefined", async () => {
+  it("defaultVendor resolves last-active → global default, blank/unset → undefined", async () => {
     mocks.getPersistedString.mockReturnValue("codex")
     await expect(defaultApiRuntime.defaultVendor()).resolves.toBe("codex")
-    expect(mocks.getPersistedString).toHaveBeenCalledWith("defaultVendor")
-
-    mocks.getPersistedString.mockClear()
-    mocks.getPersistedString.mockReturnValue("codex")
-    await expect(defaultApiRuntime.defaultVendor("/repo")).resolves.toBe("codex")
-    expect(mocks.getPersistedString).toHaveBeenCalledWith("lastActiveVendor./repo")
+    expect(mocks.getPersistedString).toHaveBeenCalledWith("lastActiveVendor")
 
     mocks.getPersistedString.mockReturnValue("   ")
     await expect(defaultApiRuntime.defaultVendor()).resolves.toBeUndefined()

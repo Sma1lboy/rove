@@ -77,12 +77,7 @@ describe("routine engine pins", () => {
       "automation.list": () => ({ automations: [{ id: "r1", repo: "/repo", vendor: "codex" }] }),
       "automation.update": created,
     })
-    const runtime = stubRuntime({
-      defaultVendor: async (repo) => {
-        expect(repo).toBe("/repo")
-        return vendor
-      },
-    })
+    const runtime = stubRuntime({ defaultVendor: async () => vendor })
     await expect(
       invokeVerb("routine-update", ["--id", "r1", "--vendor", "", ...flags], {
         client,

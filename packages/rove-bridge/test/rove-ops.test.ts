@@ -347,7 +347,7 @@ describe("tab.new verb choice", () => {
     expect(argvToParams(empty.verb, empty.argv)).toEqual({ "task-id": "T1", kind: "shell" })
   })
 
-  test("`latest` asks for the project's last engine; a named engine wins", () => {
+  test("`latest` asks for the last engine picked; a named engine wins", () => {
     expect(newTabInvocation("T1", { kind: "engine", latest: true }).argv).toContain("--latest")
     expect(newTabInvocation("T1", { kind: "engine", engine: "codex", latest: true }).argv).not.toContain("--latest")
   })
@@ -381,8 +381,8 @@ describe("tab.new verb choice", () => {
   })
 
   test("a picked engine becomes this machine's project default; another machine's task leaves it alone", async () => {
-    const remembered: Array<[string, string]> = []
-    taskOpDeps.rememberEngine = (repo, engine) => void remembered.push([repo, engine])
+    const remembered: string[] = []
+    taskOpDeps.rememberEngine = (engine) => void remembered.push(engine)
     const api = (remote: boolean): BridgeApi => ({
       verb: async <T>(name: string) =>
         (name === "get-task" ? { task: task({ id: "T1", repo: "/repos/app" }) } : { tabId: "tab-2" }) as T,
@@ -392,7 +392,7 @@ describe("tab.new verb choice", () => {
     await createRoveOps({} as RoveDaemonClient, undefined, api(false)).newTab("T1", { kind: "engine", engine: "codex" })
     await createRoveOps({} as RoveDaemonClient, undefined, api(false)).newTab("T1", { kind: "engine", latest: true })
     await createRoveOps({} as RoveDaemonClient, undefined, api(true)).newTab("T1", { kind: "engine", engine: "omp" })
-    expect(remembered).toEqual([["/repos/app", "codex"]])
+    expect(remembered).toEqual(["codex"])
   })
 })
 

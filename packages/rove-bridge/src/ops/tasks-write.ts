@@ -174,7 +174,7 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
       repo,
       create: { via: "add", params: argvToParams("add", argv) },
     })
-    if (engine) taskOpDeps.rememberEngine(repo, engine)
+    if (engine) taskOpDeps.rememberEngine(engine)
     return { taskIds: [], pendingStartId: pending.id }
   }
 
@@ -184,7 +184,7 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
     tasks?: ReadonlyArray<{ taskId?: string }>
   }>("add", argv, there)
   // The project's next "New conversation" follows the engine this one was started on.
-  if (engine && !machine) taskOpDeps.rememberEngine(repo, engine)
+  if (engine && !machine) taskOpDeps.rememberEngine(engine)
   if (Array.isArray(res.tasks)) {
     const taskIds = res.tasks.flatMap((t) => (typeof t.taskId === "string" ? [t.taskId] : []))
     return { taskIds, ...(res.groupId ? { groupId: res.groupId } : {}) }
@@ -399,7 +399,7 @@ export const TASK_WRITE_OPS: OpTable = {
     const saved = await c.api.rpc<{ repo: string }>("project.ensure", { repo })
     const res = await c.api.rpc<{ taskId: string }>("task.openDir", {
       dir: saved.repo,
-      vendor: taskOpDeps.preferredEngine(saved.repo),
+      vendor: taskOpDeps.preferredEngine(),
     })
     return { taskId: res.taskId }
   }),
@@ -416,7 +416,7 @@ export const TASK_WRITE_OPS: OpTable = {
     const later = scheduledStart(a)
     if (later) {
       // Nothing is created now: the daemon opens the session when the start is due.
-      const vendor = engine ?? taskOpDeps.preferredEngine(repo)
+      const vendor = engine ?? taskOpDeps.preferredEngine()
       const pending = await c.api.rpc<{ id: string }>("pendingStart.add", {
         ...later,
         title: title ?? deriveTitleFromPrompt(later.prompt),
@@ -429,17 +429,17 @@ export const TASK_WRITE_OPS: OpTable = {
           ...(mdl ? { model: mdl } : {}),
         },
       })
-      if (engine) taskOpDeps.rememberEngine(repo, engine)
+      if (engine) taskOpDeps.rememberEngine(engine)
       return { pendingStartId: pending.id }
     }
     const dir = problem ? repo : (await c.api.rpc<{ repo: string }>("project.ensure", { repo })).repo
     const res = await c.api.rpc<{ taskId: string }>("task.openDir", {
       dir,
-      vendor: engine ?? taskOpDeps.preferredEngine(dir),
+      vendor: engine ?? taskOpDeps.preferredEngine(),
       ...(title ? { title } : {}),
       ...(mdl ? { model: mdl } : {}),
     })
-    if (engine) taskOpDeps.rememberEngine(dir, engine)
+    if (engine) taskOpDeps.rememberEngine(engine)
     return { taskId: res.taskId }
   }),
   "worktree.adopt": write("rpc worktree.adopt", adopt),

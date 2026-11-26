@@ -25,7 +25,7 @@ suspend fun RoveRepository.archiveTask(taskId: String, archived: Boolean, force:
     bridge.request("task.archive", args("taskId" to taskId, "archived" to archived, *extra.toTypedArray()))
 }
 
-/** An engine on the project's last-used engine, the TUI's ctrl+t. In a task that already has a conversation it starts a child task, named by the reply. */
+/** An engine on the last-used engine, the TUI's ctrl+t. In a task that already has a conversation it starts a child task, named by the reply. */
 suspend fun RoveRepository.openConversation(taskId: String): OpenedTab = wireJson.decodeFromJsonElement(bridge.request("tab.new", args("taskId" to taskId, "kind" to "engine", "latest" to true)))
 suspend fun RoveRepository.openShell(taskId: String): OpenedTab = wireJson.decodeFromJsonElement(bridge.request("tab.new", args("taskId" to taskId, "kind" to "shell")))
 suspend fun RoveRepository.syncBase(taskId: String): SyncResult = wireJson.decodeFromJsonElement(bridge.request("task.syncBase", args("taskId" to taskId)))

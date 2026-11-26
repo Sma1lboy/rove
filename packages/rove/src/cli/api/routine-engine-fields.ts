@@ -18,13 +18,13 @@ type RoutineRow = Pick<Automation, "id" | "repo" | "vendor" | "model" | "modelEf
 
 const RECOVER = ["api", "engine-list"] as const
 
-/** The engine a routine run launches: explicit vendor → repo default (projectless: skipped) → `DEFAULT_TASK_VENDOR`. */
+/** The engine a routine run launches: explicit vendor → the default engine (projectless: skipped) → `DEFAULT_TASK_VENDOR`. */
 export async function routineRunEngine(
   ctx: VerbContext,
   repo: string | undefined,
   vendor: VendorId | undefined,
 ): Promise<VendorId> {
-  return vendor ?? (repo ? await ctx.runtime.defaultVendor(repo) : undefined) ?? DEFAULT_TASK_VENDOR
+  return vendor ?? (repo ? await ctx.runtime.defaultVendor() : undefined) ?? DEFAULT_TASK_VENDOR
 }
 
 async function pinnedEngine(

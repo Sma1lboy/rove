@@ -47,7 +47,7 @@ export function NewChatDialog(props: {
   useLocale()
   const { model, taskId } = props
   const task = model.tasks.get()?.tasks.find((row) => row.id === taskId)
-  const choice = useEngineChoice(model, task?.repo)
+  const choice = useEngineChoice(model)
   const [destination, setDestination] = useState<NewChatDestination>(props.destination ?? "tab")
   const [context, setContext] = useState<NewChatContext>(props.context ?? "fresh")
   const [prompt, setPrompt] = useState("")

@@ -19,7 +19,7 @@ import { roveApiInvocation } from "../../engine/interactive-command"
 import { taskCwd } from "../../orchestrator/task-tree"
 import { type IssueChatPlacement, issueChatTaskTitle, issueProjectPrompt } from "../../state/issue-chat"
 import { addSavedRepo } from "../../state/repos"
-import { setRepoLastActiveVendor } from "../../state/vendor-prefs"
+import { setLastActiveVendor } from "../../state/vendor-prefs"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { buildIssueChatBackgroundSpawn } from "../../tui/workspace/issue-chat-spawn"
 import type { Task, VendorId } from "../../types/task"
@@ -104,7 +104,7 @@ export function useIssueChat(
 
   async function startWorktreeTask(request: IssueChatStart, api: string): Promise<{ task: Task }> {
     const { repoRoot, issue, vendor } = request
-    setRepoLastActiveVendor(repoRoot, vendor)
+    setLastActiveVendor(vendor)
     addSavedRepo(repoRoot)
     const task = await orch.createTask({ repo: repoRoot, title: issueChatTaskTitle(issue), vendor })
     await orch.mutateIssue(repoRoot, { type: "link", id: issue.id, taskId: task.id }).catch((err: unknown) => {

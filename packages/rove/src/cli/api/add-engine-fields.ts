@@ -30,13 +30,13 @@ export interface EngineChoice {
  * Resolve `--command` into what a task record needs. A bare preset id stays
  * verbatim in `command` (so a later `engineCommand.<id>` edit in Settings
  * still reaches this task) with its declared protocol alongside; a full
- * command line records both too. No `--command` = the repo's default engine,
+ * command line records both too. No `--command` = the default engine,
  * which is a preset id, so it goes in the same two fields.
  */
-export async function engineChoice(ctx: VerbContext, repo: string): Promise<EngineChoice> {
+export async function engineChoice(ctx: VerbContext): Promise<EngineChoice> {
   const command = ctx.args.str("command")
   if (command) return { command, vendor: resolveCommandProtocol(command) }
-  const fallback = await ctx.runtime.defaultVendor(repo)
+  const fallback = await ctx.runtime.defaultVendor()
   return fallback ? { command: fallback, vendor: fallback } : {}
 }
 

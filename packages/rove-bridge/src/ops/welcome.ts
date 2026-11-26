@@ -54,7 +54,7 @@ export const welcomeDeps = {
     }
   },
   branchOf: (dir: string): string | null => getCurrentBranch(dir),
-  preferredEngine: (repo: string): VendorId => resolvePreferredVendor(repo),
+  preferredEngine: (): VendorId => resolvePreferredVendor(),
 }
 
 export const welcomeOps: OpTable = {
@@ -68,7 +68,7 @@ export const welcomeOps: OpTable = {
       const repo = dir === null ? null : welcomeDeps.repoOf(dir)
       let start: QuickStart | null = null
       if (repo !== null && git && usable.length > 0) {
-        const pref = welcomeDeps.preferredEngine(repo)
+        const pref = welcomeDeps.preferredEngine()
         start = {
           repo,
           label: basename(repo),

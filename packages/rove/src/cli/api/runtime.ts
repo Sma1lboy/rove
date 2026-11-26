@@ -377,9 +377,9 @@ export const defaultApiRuntime: ApiRuntime = {
   inspectRepo: (absPath) => inspectRepo(absPath),
   isUsableRepo: async (absPath) => isRemoteRepoKey(absPath) || isGitRepo(absPath),
   isValidBranchName: async (branch) => isValidBranchName(branch),
-  defaultVendor: async (repo) => {
-    const { getGlobalDefaultVendor, getRepoLastActiveVendor } = await import("../../state/vendor-prefs.ts")
-    return (repo ? getRepoLastActiveVendor(repo) : undefined) ?? getGlobalDefaultVendor()
+  defaultVendor: async () => {
+    const { getGlobalDefaultVendor, getLastActiveVendor } = await import("../../state/vendor-prefs.ts")
+    return getLastActiveVendor() ?? getGlobalDefaultVendor()
   },
   readWorktreeChanges: async (worktreePath) =>
     (await import("../../tui/panes/sidebar/worktree-changes.ts")).readWorktreeChanges(worktreePath),

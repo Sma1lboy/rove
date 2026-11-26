@@ -99,8 +99,8 @@ than guessing.
 ## Picking an engine
 
 Per task, at creation time, or with `v` in the sidebar. For new tasks the
-per-project last-used engine wins; Settings → Engines (`defaultVendor`) is
-the fallback, then `claude`. From a script it is
+engine you picked last wins, whichever project that was in; Settings →
+Engines (`defaultVendor`) is the fallback, then `claude`. From a script it is
 `rove api add --command <engine-or-command-line>`; see
 [engine presets and protocols](#engine-presets-and-protocols).
 

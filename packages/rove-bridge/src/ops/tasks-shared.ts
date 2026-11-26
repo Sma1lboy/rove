@@ -13,8 +13,8 @@ import { autoMachineFor, requireMachine } from "@sma1lboy/rove/src/machines/forw
 import { repoIdentity } from "@sma1lboy/rove/src/machines/repo-identity.ts"
 import { cloneDirFor, parseRepoRef } from "@sma1lboy/rove/src/machines/repo-ref.ts"
 import { sendFileToMachine } from "@sma1lboy/rove/src/machines/send-file.ts"
-import { getSavedRepos, resolveMainRepoRoot } from "@sma1lboy/rove/src/state/repos.ts"
-import { resolvePreferredVendor, setRepoLastActiveVendor } from "@sma1lboy/rove/src/state/vendor-prefs.ts"
+import { getSavedRepos } from "@sma1lboy/rove/src/state/repos.ts"
+import { resolvePreferredVendor, setLastActiveVendor } from "@sma1lboy/rove/src/state/vendor-prefs.ts"
 import {
   cloneRepo,
   deriveFolderName,
@@ -33,23 +33,12 @@ import type { Args, OpContext } from "./types.ts"
  * Everything the task ops touch outside `ctx.api`: sync git helpers, the saved-repo list and
  * the clone spawn. One object so tests replace them without a real git remote.
  */
-// Keyed by the main checkout, as the TUI's picks are; a path git cannot read keeps its given spelling.
-function projectKey(path: string): string {
-  try {
-    return resolveMainRepoRoot(path)
-  } catch {
-    return path
-  }
-}
-
 export const taskOpDeps = {
   savedRepos: (): readonly string[] => getSavedRepos(),
-  /** The engine a project was last started on, as the TUI's picks record it: "New conversation" there follows it. */
-  rememberEngine: (repo: string, engine: string): void => {
-    setRepoLastActiveVendor(projectKey(repo), engine as VendorId)
-  },
-  /** What a picker preselects: the project's last engine, else Settings' default, else the first enabled one. */
-  preferredEngine: (repo?: string): string => resolvePreferredVendor(repo === undefined ? undefined : projectKey(repo)),
+  /** The engine last started on, as the TUI's picks record it: "New conversation" there follows it. */
+  rememberEngine: (engine: string): void => setLastActiveVendor(engine as VendorId),
+  /** What a picker preselects: the last engine picked, else Settings' default, else the first enabled one. */
+  preferredEngine: (): string => resolvePreferredVendor(),
   // Async: a synchronous git here held every browser's frames for as long as it ran. A test may stub a plain value.
   listLocalBranches: listLocalBranches as (repo: string) => string[] | Promise<string[]>,
   getCurrentBranch: getCurrentBranch as (repo: string) => string | null | Promise<string | null>,

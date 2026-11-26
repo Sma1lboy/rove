@@ -336,7 +336,7 @@ export function NewTaskDialog({ model, repo: initialRepo }: { model: AppModel; r
   const { busy, error, setError, submit } = useSubmit()
   const selected = model.selection.get().taskId
   const fallback = model.tasks.get()?.tasks.find((task) => task.id === selected)?.repo
-  const choice = useEngineChoice(model, initialRepo ?? fallback)
+  const choice = useEngineChoice(model)
   const repo = useRepoField(model, initialRepo ?? fallback)
   const root = useRef<HTMLDivElement>(null)
   const first = useRef(true)

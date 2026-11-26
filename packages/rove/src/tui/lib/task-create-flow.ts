@@ -37,9 +37,9 @@ export interface CreateTaskContext extends TaskActionContext {
    * to `savedRepos[0]`, then `process.cwd()`.
    */
   readonly cursorRepo: () => string | undefined
-  /** Repo-scoped vendor preference — see state/vendor-prefs.ts. */
-  readonly lastVendor: (repo: string) => VendorId | undefined
-  readonly rememberVendor: (repo: string, vendor: VendorId) => void
+  /** Vendor preference — see state/vendor-prefs.ts. */
+  readonly lastVendor: () => VendorId | undefined
+  readonly rememberVendor: (vendor: VendorId) => void
   /**
    * DIVERGENCE — after `addSavedRepo`, the outer monitor mirrors the fresh
    * list into its kv store so the debounced whole-store flush doesn't
@@ -91,7 +91,7 @@ export async function createTaskFlow(ctx: CreateTaskContext, seed?: CreateTaskSe
   const repos = getSavedRepos()
   // With no saved repos, cwd lets the user pick a path in-TUI instead of a shell `add`.
   const defaultRepo = seed?.repo ?? ctx.cursorRepo() ?? repos[0] ?? process.cwd()
-  const defaultVendor = ctx.lastVendor(defaultRepo) ?? DEFAULT_TASK_VENDOR
+  const defaultVendor = ctx.lastVendor() ?? DEFAULT_TASK_VENDOR
   const availableVendors = await availableEngineIds()
   // No engine at all: otherwise the missing binary surfaces only as a raw shell
   // error in the pane. Warn but proceed; they may install it after picking.
@@ -113,7 +113,7 @@ export async function createTaskFlow(ctx: CreateTaskContext, seed?: CreateTaskSe
   const repo = addSavedRepo(result.repo).path
   // The extras are keyed by their main checkout like the primary, so a subdirectory or a linked worktree names its repo.
   const extraRepos = result.mode === "adopt" || result.mode === "open" ? [] : (result.extraRepos ?? []).map(mainRoot)
-  ctx.rememberVendor(repo, result.vendor)
+  ctx.rememberVendor(result.vendor)
   ctx.onRepoSaved?.()
   if (!orch) {
     // The dialog is already closed; without a toast this reads as silent success.

@@ -163,7 +163,7 @@ async function resolveFork(ctx: VerbContext): Promise<{ taskId: string; repo: st
 
 /** The typed-out engine fields: `--command` / `--effort` / `--model`, each gated. */
 async function typedEngineFields(ctx: VerbContext, repo: string): Promise<EngineFields> {
-  const choice = await engineChoice(ctx, repo)
+  const choice = await engineChoice(ctx)
   const engines = choice.vendor ? [choice.vendor] : []
   return { choice, effort: effortFor(ctx, engines), model: modelFor(ctx, engines) }
 }

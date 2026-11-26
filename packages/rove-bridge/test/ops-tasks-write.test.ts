@@ -1,24 +1,11 @@
 import { describe, expect, test } from "bun:test"
-import { execFileSync } from "node:child_process"
-import { mkdtempSync, realpathSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
-import { getRepoLastActiveVendor } from "@sma1lboy/rove/src/state/vendor-prefs.ts"
 import { createBridgeApi } from "../src/ops/api.ts"
 import { taskOpDeps } from "../src/ops/tasks-shared.ts"
 import { TASK_OPS } from "../src/ops/tasks.ts"
 import { type Call, REPO, T, isolateTaskOpDeps, refused, run } from "./task-ops-harness.ts"
 
-// Captured before isolation swaps the dep for a no-op.
-const realRememberEngine = taskOpDeps.rememberEngine
-
 isolateTaskOpDeps()
-
-function restoreEnv(key: string, prev: string | undefined): void {
-  if (prev === undefined) Reflect.deleteProperty(process.env, key)
-  else process.env[key] = prev
-}
 
 describe("task.spawn", () => {
   test("shell: the worktree is cut with no engine, listed, and its own first tab is a shell running the line", async () => {
@@ -174,33 +161,12 @@ describe("task.spawn", () => {
     expect(result).toEqual({ taskIds: ["N1"] })
   })
 
-  test("a start on an engine is remembered as the project's last, so its New conversation follows it", async () => {
-    const remembered: Array<[string, string]> = []
-    taskOpDeps.rememberEngine = (repo, engine) => void remembered.push([repo, engine])
+  test("a start on an engine is remembered as the last one, so New conversation follows it", async () => {
+    const remembered: string[] = []
+    taskOpDeps.rememberEngine = (engine) => void remembered.push(engine)
     await run("task.spawn", { repo: REPO, engine: "codex", prompt: "p" }, { add: { taskId: "N1", task: {} } })
     await run("task.spawn", { repo: REPO, prompt: "p" }, { add: { taskId: "N2", task: {} } })
-    expect(remembered).toEqual([[REPO, "codex"]])
-  })
-
-  test("the remembered engine is keyed by the repo's main checkout, even when given a linked worktree", () => {
-    const real = realRememberEngine
-    const dir = realpathSync(mkdtempSync(join(tmpdir(), "rv-remember-")))
-    const git = (cwd: string, ...args: string[]) =>
-      execFileSync("git", ["-c", "user.email=a@b", "-c", "user.name=a", ...args], { cwd, stdio: "ignore" })
-    const main = join(dir, "main")
-    const linked = join(dir, "linked")
-    git(dir, "init", "-q", "-b", "main", main)
-    git(main, "commit", "-q", "--allow-empty", "-m", "init")
-    git(main, "worktree", "add", "-q", "-b", "side", linked)
-    const prev = process.env.ROVE_HOME_DIR
-    process.env.ROVE_HOME_DIR = join(dir, "home")
-    try {
-      real(linked, "codex")
-      expect(getRepoLastActiveVendor(main)).toBe("codex")
-      expect(getRepoLastActiveVendor(linked)).toBeUndefined()
-    } finally {
-      restoreEnv("ROVE_HOME_DIR", prev)
-    }
+    expect(remembered).toEqual(["codex"])
   })
 
   test("extra repos ride as further --repo flags in pick order, each base as --base-for", async () => {

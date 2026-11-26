@@ -32,7 +32,7 @@ export function FirstTaskStart(props: { env: WelcomeEnv; onCreate: (repo: string
     try {
       const engines = props.env.engines
       const result = await QuickTaskComposer.show(dialog, {
-        ...quickForkComposerOptions(repo, engines, quickForkDefaultVendor(repo, engines), process.cwd()),
+        ...quickForkComposerOptions(repo, engines, quickForkDefaultVendor(engines), process.cwd()),
         intent: t("onboarding.quickIntent", { key: formatChord(legendCap("task.new") ?? "n") }),
       })
       if (result) props.onCreate(repo, result)

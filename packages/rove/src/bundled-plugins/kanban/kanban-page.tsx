@@ -189,7 +189,7 @@ export function KanbanPage(props: {
     void IssueDetailDialog.show(dialog, {
       issue,
       engines,
-      defaultVendor: quickForkDefaultVendor(board.repoRoot, engines),
+      defaultVendor: quickForkDefaultVendor(engines),
       engineLabel: engineDisplayName,
       orchestrator: props.orchestrator,
     }).then(async (outcome) => {
@@ -263,7 +263,7 @@ export function KanbanPage(props: {
       issue: blank,
       mode: "create",
       engines,
-      defaultVendor: quickForkDefaultVendor(board.repoRoot, engines),
+      defaultVendor: quickForkDefaultVendor(engines),
       engineLabel: engineDisplayName,
     }).then(async (outcome) => {
       if (!outcome || outcome.kind !== "create") return

@@ -1,7 +1,7 @@
 /**
  * Vendor preference layers, as flat keys in the shared `state.json`:
- * `lastActiveVendor.<repo>` (per-project, written by Ctrl+Shift+T and
- * dialog picks) → `defaultVendor` (global, Settings-only) →
+ * `lastActiveVendor` (the last engine picked anywhere, written by every
+ * pick and by Settings' default) → `defaultVendor` (Settings) →
  * `lastSelectedVendor` (legacy key, read-only) → first enabled engine.
  * Per-TASK vendor lives on the task record, not here.
  */
@@ -10,7 +10,7 @@ import { DEFAULT_TASK_VENDOR } from "../types/task.ts"
 import { BUILTIN_VENDORS, type VendorId, isBuiltinVendor } from "../types/vendor.ts"
 import { getCustomEngineIds, getDisabledEngineIds, getPersistedString, setPersistedString } from "./repos.ts"
 
-const REPO_KEY_PREFIX = "lastActiveVendor."
+const LAST_ACTIVE_KEY = "lastActiveVendor"
 
 /**
  * Validate one persisted value; undefined lets the chain fall through.
@@ -33,13 +33,13 @@ function firstEnabledVendor(): VendorId {
   return [...BUILTIN_VENDORS, ...getCustomEngineIds()].find((id) => !disabled.has(id)) ?? DEFAULT_TASK_VENDOR
 }
 
-/** The project's last actively-used engine (undefined = never recorded). */
-export function getRepoLastActiveVendor(repo: string): VendorId | undefined {
-  return validVendor(getPersistedString(REPO_KEY_PREFIX + repo), getCustomEngineIds())
+/** The last engine picked, in any project (undefined = never recorded). */
+export function getLastActiveVendor(): VendorId | undefined {
+  return validVendor(getPersistedString(LAST_ACTIVE_KEY), getCustomEngineIds())
 }
 
-export function setRepoLastActiveVendor(repo: string, vendor: VendorId): void {
-  setPersistedString(REPO_KEY_PREFIX + repo, vendor)
+export function setLastActiveVendor(vendor: VendorId): void {
+  setPersistedString(LAST_ACTIVE_KEY, vendor)
 }
 
 /** The Settings-owned global default (legacy key honored; undefined = unset). */
@@ -51,16 +51,17 @@ export function getGlobalDefaultVendor(): VendorId | undefined {
   )
 }
 
+/** Also the newest pick: a default that the last pick outranked would change nothing. */
 export function setGlobalDefaultVendor(vendor: VendorId): void {
   setPersistedString("defaultVendor", vendor)
+  setLastActiveVendor(vendor)
 }
 
 /**
  * Default vendor for a new task / relaunch. Each layer is validated
- * independently, so a corrupt or disabled repo entry falls through to the
+ * independently, so a corrupt or disabled last pick falls through to the
  * global default, not straight to the fallback.
  */
-export function resolvePreferredVendor(repo?: string): VendorId {
-  const repoPick = repo ? getRepoLastActiveVendor(repo) : undefined
-  return repoPick ?? getGlobalDefaultVendor() ?? firstEnabledVendor()
+export function resolvePreferredVendor(): VendorId {
+  return getLastActiveVendor() ?? getGlobalDefaultVendor() ?? firstEnabledVendor()
 }

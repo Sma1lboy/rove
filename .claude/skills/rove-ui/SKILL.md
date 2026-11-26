@@ -371,7 +371,7 @@ Machines, Usage). Overlays (dialogs, menus, toasts, the inbox) are recipes in `s
   mono, `--subtle`); task rows read first (14px); tab rows sit 6px in (#1375, #1377).
 - **Idle projects are hidden:** a project whose only row is its repo's main task, with no tab
   open and not selected, is not listed; New task still reaches it. Search shows everything.
-- **New conversation is one click** on the project's last engine; picking another engine is
+- **New conversation is one click** on the last engine picked; picking another engine is
   a separate entry (right-click `+`, ctrl+e, "New conversation with…") (#1370).
 - **Unknown is not empty:** nothing says "no sessions" before the first tab list arrives.
 - **Scrollbars are thin or hidden:** thin token-coloured pills everywhere, and none on the rail.

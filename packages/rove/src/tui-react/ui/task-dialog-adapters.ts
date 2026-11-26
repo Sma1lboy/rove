@@ -6,7 +6,7 @@
 
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { isDeleteBranchOnTaskDeleteEnabled } from "../../state/task-delete-branch.ts"
-import { resolvePreferredVendor, setRepoLastActiveVendor } from "../../state/vendor-prefs.ts"
+import { resolvePreferredVendor, setLastActiveVendor } from "../../state/vendor-prefs.ts"
 import { openTaskEngine } from "../../tui/lib/open-task-engine"
 import type { ChildrenPrompt, ConfirmPrompt, TextPromptOpts } from "../../tui/lib/task-actions"
 import type { CreateTaskContext } from "../../tui/lib/task-create-flow"
@@ -41,10 +41,10 @@ function taskDialogAdapters(dialog: DialogContext): {
   }
 }
 
-/** The repo-scoped vendor preference pair (state/vendor-prefs.ts). */
+/** The vendor preference pair (state/vendor-prefs.ts). */
 const vendorPrefAdapters = {
-  lastVendor: (repo: string): VendorId | undefined => resolvePreferredVendor(repo),
-  rememberVendor: (repo: string, vendor: VendorId): void => setRepoLastActiveVendor(repo, vendor),
+  lastVendor: (): VendorId | undefined => resolvePreferredVendor(),
+  rememberVendor: (vendor: VendorId): void => setLastActiveVendor(vendor),
 } as const
 
 /** Move the cursor off a deleted task: flow's next, else first remaining, else clear. */
