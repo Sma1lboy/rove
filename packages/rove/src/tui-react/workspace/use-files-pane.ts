@@ -1,6 +1,6 @@
 /** Whether the Files pane shows beside the workspace. Persisted, hidden until first opened. */
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { FILES_OPEN_KEY } from "../../state/files-pane.ts"
 import type { FocusContextValue } from "../context/focus"
 import type { KVContext } from "../context/kv"
@@ -28,5 +28,7 @@ export function useFilesPane(deps: { kv: KVContext; focus: FocusContextValue }):
     if (focus.focused === "files") setOpen(true)
   }, [focus.focused])
 
-  return { open, toggle }
+  // One identity per state, so the Files button re-renders only when it changes.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: toggle reads only these
+  return useMemo(() => ({ open, toggle }), [open, focus.focused])
 }
