@@ -219,7 +219,7 @@ export function WorktreeTreeRow(props: {
   const extraRepoText = task.extraRepos?.length ? `+${task.extraRepos.length}` : null
   const fold = props.fold
   const reserved =
-    // The state-glyph column, and the child indent (`indentOf` in tree-row-shell).
+    // The trailing state glyph, and the child indent (`indentOf` in tree-row-shell).
     2 +
     2 * ((props.depth ?? 1) - 1) +
     // A plugin can crowd the branch name but never overflow the row.
@@ -252,9 +252,6 @@ export function WorktreeTreeRow(props: {
   const clipped = truncateEndCells(label, budget - (remoteText ? displayWidth(remoteText) - 1 : 0), charWidth)
   return (
     <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={props.depth ?? 1} shared={shared}>
-      <text fg={fg} attributes={pulsing ? TextAttributes.BOLD : undefined} wrapMode="none" width={2} flexShrink={0}>
-        {`${rowView.stateGlyph} `}
-      </text>
       <box flexDirection="row" flexGrow={1} paddingRight={1} gap={1}>
         {/* A row from an unreachable machine is the LAST KNOWN state, not a
             live one — it keeps its place and drops to muted rather than
@@ -321,6 +318,10 @@ export function WorktreeTreeRow(props: {
             {remoteText}
           </text>
         ) : null}
+        {/* Last, so every row's state lines up in one column at the rail's edge, the cloud before it. */}
+        <text fg={fg} attributes={pulsing ? TextAttributes.BOLD : undefined} wrapMode="none" flexShrink={0}>
+          {rowView.stateGlyph}
+        </text>
       </box>
     </RowShell>
   )

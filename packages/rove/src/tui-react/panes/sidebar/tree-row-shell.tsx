@@ -14,7 +14,7 @@ import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"
 
-/** Indent cells at `depth`: none for a top-level task (its glyph sits under the project header), then two per level, so a child's glyph sits under its parent's title. */
+/** Indent cells at `depth`: none for a top-level task (its title sits under the project header), then two per level. */
 const indentOf = (depth: number): string => (depth > 1 ? " ".repeat((depth - 1) * 2) : "")
 
 export type TreeRowShared = {

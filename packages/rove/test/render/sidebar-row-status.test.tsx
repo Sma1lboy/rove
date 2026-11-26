@@ -59,7 +59,7 @@ function seed(task: RowStatus): void {
   resetRowStatusForTests({ alpha: { task, tabs: {} } })
 }
 
-/** The task row's glyph cell: its text (the cell before the label) and ink. */
+/** The task row's glyph cell: its text (the last cell of the row, after any cloud) and ink. */
 async function taskCell(task: Task = TASK): Promise<{ text: string; fg: number[] | undefined }> {
   const { spans } = await renderComponent(
     <WorktreeTreeRow rowId={task.id} flatIndex={0} task={task} shared={shared()} />,
@@ -73,7 +73,7 @@ async function taskCell(task: Task = TASK): Promise<{ text: string; fg: number[]
       .join("")
       .includes(label),
   )
-  const text = (line?.spans.map((s) => s.text).join("") ?? "").split(label)[0]?.replace("▎", "").trim() ?? ""
+  const text = (line?.spans.map((s) => s.text).join("") ?? "").split(label)[1]?.trim().split(/\s+/).pop() ?? ""
   // A quiet glyph shares the label's muted ink, so the two may come back as one span.
   const cell = line?.spans.find((s) => text.length > 0 && s.text.includes(text))
   return { text, fg: cell?.fg?.toInts() }

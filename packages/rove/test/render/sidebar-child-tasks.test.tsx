@@ -87,7 +87,7 @@ test("a child that has children of its own truncates its title before the fold g
   expect(line).toMatch(/…\s+▾/)
 })
 
-test("each generation's state glyph sits in its parent's title column", async () => {
+test("each generation's title is indented two cells past its parent's", async () => {
   tabsByTask.clear()
   resetRowStatusForTests()
   const tasks = [...TASKS, task("grand", { title: "grandchild", parentTaskId: toTaskId("own") })]
@@ -96,11 +96,9 @@ test("each generation's state glyph sits in its parent's title column", async ()
     { width: 40, height: 16 },
   )
   const open = await waitForFrameText(frame, "grandchild")
-  // The state glyph cell is two wide (`○ `), right before the title.
-  const glyphColumn = (title: string) => lineWith(open, title).indexOf(title) - 2
   const titleColumn = (title: string) => lineWith(open, title).indexOf(title)
-  expect(glyphColumn("port tree builder")).toBe(titleColumn("parent"))
-  expect(glyphColumn("check types")).toBe(titleColumn("parent"))
-  expect(glyphColumn("grandchild")).toBe(titleColumn("port tree builder"))
+  expect(titleColumn("port tree builder")).toBe(titleColumn("parent") + 2)
+  expect(titleColumn("check types")).toBe(titleColumn("parent") + 2)
+  expect(titleColumn("grandchild")).toBe(titleColumn("port tree builder") + 2)
   expect(open).not.toContain("▎")
 })
