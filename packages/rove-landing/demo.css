@@ -5,7 +5,7 @@
 
 .demo-wrap{container-type:inline-size;aspect-ratio:16/10;background:#141413;overflow:hidden}
 .demo{
-  --d-ink:#ECEAE4; --d-ink-2:#A3A19A; --d-ink-3:#6E6C66; --d-line:#2B2B28; --d-fill:#1D1D1B;
+  --d-ink:#ECEAE4; --d-ink-2:#A3A19A; --d-ink-3:#6E6C66; --d-line:#3A3835; --d-rule:#75706A; --d-fill:#1D1D1B;
   --d-accent:#E0835F; --d-ok:#7FC37E; --d-warn:#E3B341;
   display:flex;height:100%;font-size:1.1cqw;line-height:1.5;color:var(--d-ink);text-align:left;
   font-family:var(--font-prose);transition:opacity .3s var(--ease)
@@ -31,16 +31,20 @@
 .d-row{display:flex;align-items:center;gap:.6em;margin-top:.15em;padding:.32em .7em;border-radius:.45em;animation:d-in .35s var(--ease) both}
 .d-row.is-on{background:#2A2A27}
 .d-row.is-new{animation:d-in .35s var(--ease) both,d-flash 1.4s ease-out both}
-/* children hang off a rule that runs down from their parent, as in the web rail */
-.d-row.is-child{position:relative;margin-left:1.9em;color:var(--d-ink-2)}
-.d-row.is-child::before{content:"";position:absolute;left:-.75em;top:-.1em;bottom:-.1em;border-left:1px solid #4A4A45}
+/* Children hang off a hairline under the parent's icon, as in the web rail: it runs straight
+   past every child but the last, which it hooks into. The guide spans the row's full height
+   (and the gap above it), so the pieces join. */
+.d-row.is-child{color:var(--d-ink-2)}
+.d-guide{position:relative;flex:none;align-self:stretch;width:.92em;margin:-.32em -.15em -.32em 0}
+.d-guide::before{content:"";position:absolute;left:.3em;top:-.15em;bottom:0;border-left:1px solid var(--d-rule)}
+.d-row.is-child:not(:has(+ .d-row.is-child)) .d-guide::before{right:0;bottom:50%;border-bottom:1px solid var(--d-rule);border-bottom-left-radius:.46em}
 .d-title{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .d-tag{flex:none;font-family:var(--font-mono);font-size:.8em;color:var(--d-ink-3);border:1px solid var(--d-line);border-radius:.35em;padding:0 .4em}
 .d-dot{flex:none;width:.5em;height:.5em;border-radius:50%;background:var(--d-ink-3);transition:background .3s}
 .d-dot[data-s="work"]{background:var(--d-accent);animation:d-pulse 1.2s ease-in-out infinite}
 .d-dot[data-s="done"]{background:var(--d-ok)}
 .d-dot[data-s="wait"]{background:var(--d-warn)}
-.d-usage{padding:.7em .7em 0;border-top:1px solid var(--d-line);font-size:.88em;color:var(--d-ink-2)}
+.d-usage{margin:0 -.5em;padding:.5em 1.2em 0;border-top:1px solid var(--d-line);font-size:.88em;color:var(--d-ink-2)}
 .d-use{display:flex;align-items:center;gap:.7em;padding:.1em 0}
 .d-use span{width:3.6em}
 .d-use i{flex:1 1 auto;height:.22em;border-radius:1em;background:var(--d-line);overflow:hidden}

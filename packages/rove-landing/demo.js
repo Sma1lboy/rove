@@ -73,6 +73,7 @@
         if (dry) return;
         var s = o.status || 'idle';
         var r = el('div', 'd-row' + (o.child ? ' is-child' : '') + (o.child || o.flash ? ' is-new' : ''),
+          (o.child ? '<span class="d-guide"></span>' : '') +
           icon(o.icon || (NAMES[o.tag] ? o.tag : 'claude')) + '<span class="d-title">' + o.title + '</span>' +
           (o.tag && !NAMES[o.tag] ? '<span class="d-tag">' + o.tag + '</span>' : '') +
           '<span class="d-dot" data-s="' + s + '"></span>');
