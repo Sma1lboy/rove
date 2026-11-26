@@ -10,7 +10,7 @@ import { argvToParams } from "@sma1lboy/rove/src/cli/api/invoke.ts"
 import { AUTO_MACHINE } from "@sma1lboy/rove/src/machines/forward.ts"
 import { deriveTitleFromPrompt } from "@sma1lboy/rove/src/orchestrator/title.ts"
 import { BridgeError, optBool, optInt, optStr } from "../protocol.ts"
-import { absPath, bool, flag, oneOf, optOneOf, optShellLine, optText, taskId, text } from "./args.ts"
+import { absPath, bool, flag, isAbsPath, oneOf, optOneOf, optShellLine, optText, taskId, text } from "./args.ts"
 import { commandFromTask } from "./tasks-command-from.ts"
 import {
   checkAgentEngines,
@@ -95,7 +95,7 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
     extras.length > 0 || count !== undefined || agentsGiven || args.commandFrom || args.scheduleAt || args.start
   const machine = !auto ? asked : hereOnly ? undefined : await taskOpDeps.autoMachine(repo, baseBranch)
   if (clone && !machine) throw new BridgeError("BAD_ARGS", "clone needs a machine")
-  if (clone && repo.startsWith("/")) throw new BridgeError("BAD_ARGS", "clone needs a repo id, not a path")
+  if (clone && isAbsPath(repo, "win32")) throw new BridgeError("BAD_ARGS", "clone needs a repo id, not a path")
   if (extras.length > 0 && machine)
     throw new BridgeError("BAD_ARGS", "a multi-repo task must keep every repo on this machine")
 

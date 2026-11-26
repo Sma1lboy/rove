@@ -28,6 +28,10 @@ describe("New session composer on another machine", () => {
     expect(seedRemotePick("/tmp/rove", [rove, scratch])).toEqual({ ref: "github.com/sma1lboy/rove", clone: false })
     expect(seedRemotePick("/home/me/scratch", [rove, scratch])).toEqual({ ref: "/home/me/scratch", clone: false })
     expect(seedRemotePick("/srv/other", [rove])).toEqual({ ref: "/srv/other", clone: false })
+    expect(seedRemotePick("C:\\Users\\me\\Downloads\\site", [rove])).toEqual({
+      ref: "C:\\Users\\me\\Downloads\\site",
+      clone: false,
+    })
     expect(seedRemotePick("rove", [rove])).toBeNull()
     expect(seedRemotePick(undefined, [rove])).toBeNull()
   })

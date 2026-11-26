@@ -24,6 +24,11 @@ export function filterText(all: readonly string[], query: string): readonly stri
   return q ? all.filter((item) => item.toLowerCase().includes(q)) : all
 }
 
+/** Absolute on whichever machine it names: `/…`, a Windows drive or a UNC path. */
+export function isAbsolutePath(path: string): boolean {
+  return path.startsWith("/") || isWindowsPath(path)
+}
+
 /** A value that names a place rather than searches the saved list. */
 export function isPathInput(value: string): boolean {
   return value.startsWith("~") || value.includes("/") || isWindowsPath(value)

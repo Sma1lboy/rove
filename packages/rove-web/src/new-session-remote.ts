@@ -1,6 +1,6 @@
 /** Pure rules of starting a task from the New session composer on another registered machine: which repo value Start sends, and when that machine has to clone it first. */
 
-import { splitRepoRow } from "./new-task-paths.ts"
+import { isAbsolutePath, splitRepoRow } from "./new-task-paths.ts"
 
 /** One row of the bridge's `machines.repos`: a repo on that machine, by id. */
 export interface RemoteRepo {
@@ -43,7 +43,7 @@ export function seedRemotePick(seed: string | undefined, repos: readonly RemoteR
   if (!seed) return null
   const hit = repos.find((repo) => repo.id === seed || repo.checkouts.includes(seed))
   if (hit) return { ref: remoteRef(hit), clone: false }
-  return seed.startsWith("/") ? { ref: seed, clone: false } : null
+  return isAbsolutePath(seed) ? { ref: seed, clone: false } : null
 }
 
 /**
@@ -65,7 +65,7 @@ export function carriedPick(ref: string, from: readonly RemoteRepo[], to: readon
   const id = from.find((repo) => repo.id === ref || repo.checkouts.includes(ref))?.id ?? ref
   const hit = to.find((repo) => repo.id === id)
   if (hit) return { ref: remoteRef(hit), clone: false }
-  return id.startsWith("root:") || id.startsWith("/") ? null : { ref: id, clone: true }
+  return id.startsWith("root:") || isAbsolutePath(id) ? null : { ref: id, clone: true }
 }
 
 /** One row of the bridge's `machines.engines`. */
