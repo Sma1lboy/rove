@@ -93,6 +93,13 @@ export const DYNAMIC_COMMANDS = new Map<string, CommandHandler>([
     },
   ],
   [
+    "lark",
+    async (args) => {
+      const { runConnectorCli } = await import("../connectors/registry.ts")
+      await runConnectorCli("lark", args)
+    },
+  ],
+  [
     "doctor",
     async (args) => {
       const { runDoctorSubcommand } = await import("./doctor-cmd.ts")

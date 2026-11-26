@@ -119,6 +119,7 @@ Commands:
   daemon <verb>           Manage the daemon (start|stop|status|restart|autostart)
   machine <verb>          Other computers running Rove (add|doctor|remove|list)
   weixin <verb>           Talk to Rove from WeChat (login|logout|status|allow|deny|send|agent)
+  lark <verb>             Talk to Rove from Lark (connect|disconnect|status|allow|deny|tone)
   doctor [--report|--fix] Diagnose daemon/PTY/engines/git; --fix walks the remedies
   config [--path]         Open rove's config file (state.json) in your editor
   reset [--hard]          Stop runtimes; optionally wipe task/UI state
@@ -226,7 +227,7 @@ rove theme <TAB>    list add remove
 rove api routine-<TAB>   routine-list routine-create routine-update …
 ```
 
-`api`, `daemon`, `machine`, `plugin`, `repo`, `skill`, `theme` and `weixin`
+`api`, `daemon`, `machine`, `plugin`, `repo`, `skill`, `theme`, `weixin` and `lark`
 carry verbs;
 the rest take flags only, and get no second level rather than an invented one.
 Flags are never completed — each subcommand owns its own.
@@ -509,6 +510,20 @@ rove weixin agent           # the WeChat agent and its conversations; `agent <ta
 Lets you ask for task status, message a task's agent and start tasks from
 WeChat, and get a message when a task needs you. The running daemon does the
 messaging. See [WeChat](./WEIXIN.md).
+
+## lark
+
+```bash
+rove lark connect           # set up lark-cli's app if needed, check the bot, allow yourself
+rove lark status            # bot, allowed senders, tone, the agent's task
+rove lark allow <open_id>   # let another person talk to the agent
+rove lark deny <open_id>
+rove lark tone [text]       # how the agent sounds; no text resets it
+rove lark disconnect        # stop listening
+```
+
+DM the bot or @ it in a group to talk to your own agent; it answers in the
+thread and starts tasks. See [Lark](./LARK.md).
 
 ## feedback
 

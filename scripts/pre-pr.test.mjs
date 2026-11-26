@@ -13,11 +13,11 @@ const manifests = {
 
 test('touched packages with a test script join the always-run ones; dedicated suites are not doubled', () => {
   const files = ['packages/rove-web/src/app.ts', 'packages/rove/src/x.ts', 'packages/rove-harness/src/y.ts', 'packages/rove-daemon/src/z.ts', 'docs/README.md']
-  assert.deepEqual(packagesToTest(files, manifests), ['rove-bridge', 'rove-web', 'rove-weixin'])
+  assert.deepEqual(packagesToTest(files, manifests), ['rove-bridge', 'rove-lark', 'rove-web', 'rove-weixin'])
 })
 
 test('a docs-only diff runs only the always-run package tests', () => {
-  assert.deepEqual(packagesToTest(['docs/agents/dev-loop.md'], manifests), ['rove-bridge', 'rove-weixin'])
+  assert.deepEqual(packagesToTest(['docs/agents/dev-loop.md'], manifests), ['rove-bridge', 'rove-lark', 'rove-weixin'])
 })
 
 test('path-filtered suites follow their workflow paths', () => {

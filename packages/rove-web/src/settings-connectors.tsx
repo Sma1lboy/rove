@@ -320,9 +320,19 @@ interface ChatStatus {
 }
 
 /** A chat connector is drawn only when this build has words for it. */
-const CHAT_COPY: Readonly<Record<string, string>> = { weixin: "weixin" }
+const CHAT_COPY: Readonly<Record<string, string>> = { weixin: "weixin", lark: "lark" }
 
-function ChatMark() {
+function ChatMark({ id }: { id: string }) {
+  if (id === "lark") {
+    return (
+      <svg className="size-7 flex-none" viewBox="0 0 16 16" aria-hidden="true">
+        <path
+          fill="currentColor"
+          d="M14.6 1.6 1.5 7.2c-.5.2-.5.9 0 1.1l3.4 1.3 1.3 3.9c.2.5.8.6 1.1.2l1.9-2.1 3.3 2.4c.4.3 1 .1 1.1-.4l2-11.2c.1-.5-.5-1-1-.8ZM6 9.3l6.2-5.1-4.8 6-.4 2.1L6 9.3Z"
+        />
+      </svg>
+    )
+  }
   return (
     <svg className="size-7 flex-none" viewBox="0 0 16 16" aria-hidden="true">
       <path
@@ -358,7 +368,7 @@ function ChatConnectors({ model }: { model: AppModel }) {
           <div key={row.id} className={bentoCardClass(true)}>
             <div className={`${BENTO_HEAD} w-narrow:flex-wrap`}>
               <span className="flex min-w-0 flex-1 items-center gap-3 w-narrow:basis-full">
-                <ChatMark />
+                <ChatMark id={row.id} />
                 <span className="flex min-w-0 flex-col gap-0.5">
                   <span className={SETTINGS_NAME}>{c(`${CHAT_COPY[row.id]}Name`)}</span>
                   <span className={SETTINGS_NOTE}>{c(`${CHAT_COPY[row.id]}Description`)}</span>

@@ -31,6 +31,7 @@ export function topLevelUsage(cliName: ProductCliName = ROVE_PRODUCT_NAME): stri
     "  daemon <verb>           Manage the daemon (start|stop|status|restart|autostart)",
     "  machine <verb>          Other computers running Rove (add|doctor|remove|list)",
     "  weixin <verb>           Talk to Rove from WeChat (login|logout|status|allow|deny|send|agent)",
+    "  lark <verb>             Talk to Rove from Lark (connect|disconnect|status|allow|deny|tone)",
     "  doctor [--report|--fix] Diagnose daemon/PTY/engines/git; --fix walks the remedies",
     `  config [--path]         Open ${cliName}'s config file (state.json) in your editor`,
     "  reset [--hard]          Stop runtimes; optionally wipe task/UI state",

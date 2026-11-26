@@ -24,7 +24,7 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url))
 // Their suites have dedicated steps below rather than their `test` script.
 const DEDICATED = new Set(["@sma1lboy/rove", "rove-harness"])
 // CI ran these on every PR whatever the diff touched.
-const ALWAYS = ["rove-bridge", "rove-weixin"]
+const ALWAYS = ["rove-bridge", "rove-weixin", "rove-lark"]
 
 /** Mirrors the old changeset-cap job: published-package source needs an added changeset. */
 export function missingChangeset(changedFiles, addedFiles) {
@@ -215,6 +215,7 @@ function heavyJobs(touched) {
     harnessJob(harnessTests),
     job("visual ground truth", [bun(["x", "playwright", "install", "chromium"], HARNESS), bun(["run", "visual"], HARNESS)]),
     job("built CLI carries weixin", [bun(["packages/rove/dist/cli/rove.js", "weixin", "--help"])]),
+    job("built CLI carries lark", [bun(["packages/rove/dist/cli/rove.js", "lark", "--help"])]),
     ...packagesToTest(touched, readManifests()).map((name) => job(`${name} tests`, [bun(["--filter", name, "test"])])),
   ]
   if (areas.docs) jobs.push(job("docs site build", [bun(["run", "--filter", "@sma1lboy/rove-docs", "build"])]))

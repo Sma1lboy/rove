@@ -117,6 +117,12 @@ jobs:
         # artifact still answers `rove weixin`.
         run: bun packages/rove/dist/cli/rove.js weixin --help | grep -q "rove weixin <login"
 
+      - name: Lark channel tests (rove-lark)
+        run: bun --filter rove-lark test
+
+      - name: Built CLI carries the Lark channel
+        run: bun packages/rove/dist/cli/rove.js lark --help | grep -q "rove lark <connect"
+
   unit-tests:
     # What `typecheck-and-test` used to run inline as a single 91s step — the
     # long pole once the render track was sharded. vitest shards natively, and

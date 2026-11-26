@@ -8,6 +8,7 @@ import type { ChatConnector, ChatConnectorContext, ChatConnectorModule, ChatConn
 
 const CONNECTOR_LOADERS: Readonly<Record<string, () => Promise<ChatConnectorModule>>> = {
   weixin: async () => (await import("rove-weixin")).default,
+  lark: async () => (await import("rove-lark")).default,
 }
 
 /** `rove <id> …` for a registered connector. */
