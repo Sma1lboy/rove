@@ -29,6 +29,10 @@ describe("pathRejection", () => {
     expect(pathRejection(join(injectedHome(), ".rove/worktrees/rove-0aff/manatee/fixture"))).toBe("roveInternal")
   })
 
+  it("accepts a repo Rove cloned for the user into ~/.rove/repos", () => {
+    expect(pathRejection(join(injectedHome(), ".rove/repos/github.com/sma1lboy/focubili"), "explicit")).toBeNull()
+  })
+
   it("rejects a .scratch checkout wherever it sits", () => {
     expect(pathRejection("/Users/x/i/rove/.scratch/opentui-visual-5401/fixture-repo")).toBe("insideSandbox")
   })
