@@ -97,7 +97,7 @@ function inFrameRow(ui: React.ReactNode, height: number) {
 }
 
 describe("HostSidebar", () => {
-  it("flat mount shows the first-use hint; using j extinguishes it and moves the cursor", async () => {
+  it("flat mount carries no key hint line; j moves the cursor and enter opens the task", async () => {
     withTempKvHome()
     const selected: string[] = []
     const { frame, mockInput } = await renderComponent(
@@ -105,15 +105,10 @@ describe("HostSidebar", () => {
       { width: 28, height: 24, providers: { kv: true, notifications: true } },
     )
     await settle()
-    let text = await frame()
-    expect(text).toContain("j/k move")
-    expect(text).toContain("⏎ open")
+    expect(await frame()).not.toContain("j/k move")
 
     act(() => mockInput.pressKey("j"))
     await settle()
-    text = await frame()
-    // The pane's own key extinguished its hint — permanently.
-    expect(text).not.toContain("j/k move")
 
     act(() => mockInput.pressEnter())
     await settle()

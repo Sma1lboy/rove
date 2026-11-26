@@ -15,3 +15,4 @@
 - Settings is a row at the foot of the task list, in place of the `[settings]` chip in the bottom bar.
 - Settings groups its sections as the web does: Preferences (General, Keybindings), Agents (Engines, Auto routing, Plugins, Marketplace) and More (Feedback, Dev).
 - A folded project shows its arrow after the name (`rove ▸`), as the web does.
+- The task list no longer shows the first-use `j/k move · ⏎ open` line under it; `F1` lists the keys.
