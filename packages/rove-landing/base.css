@@ -123,7 +123,8 @@ select{
 .sub{grid-column:1/-1;font-size:var(--fs-m);font-weight:600;margin:32px 0 12px}
 .note>h2+.sub{margin-top:0}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
-.card{margin:0;padding:24px;border:var(--hair) solid var(--rule);border-radius:14px;background:var(--paper-2)}
+/* A card is the page's own paper inside a hairline; only what is inside it (a command, a button) is filled. */
+.card{margin:0;padding:24px;border:var(--hair) solid var(--rule);border-radius:14px;background:var(--paper)}
 .card p{margin:0}
 .card .t-note{margin-top:12px}
 .dl{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px!important}

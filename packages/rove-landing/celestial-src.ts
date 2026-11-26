@@ -16,6 +16,8 @@ const TILE = 15
 /** The picture's height in canvas heights, and where its centre sits on the canvas (fractions of its width and height). */
 const TALL = 1.12
 const AT_X = 0.8
+/** The flower's centre is never nearer the page's middle than this many px, so a narrow window pushes it off the edge, not over the text. */
+const CLEAR = 600
 const AT_Y = 0.5
 /** How much the flower swells, how far it sways in px, and the speed of each in radians per second. */
 const SWELL = 0.03
@@ -24,8 +26,8 @@ const BREATH = 0.45
 /** The size the picture is read at to colour the cells. */
 const READ = 512
 /** Where the line rests (a fraction of the width), how far it swings, and its speed in radians per second. */
-const REST = 0.76
-const SWING = 0.1
+const REST = 0.8
+const SWING = 0.07
 const PACE = 0.3
 
 const canvas = document.getElementById("sky") as HTMLCanvasElement | null
@@ -65,6 +67,10 @@ if (canvas && ctx) {
   let elapsed = 0
   let timer = 0
   let visible = false
+  /** The flower's centre across the canvas, in px. */
+  const centre = () => Math.max(w * AT_X, w / 2 + CLEAR)
+  /** Where the line is `t` seconds in, in px. */
+  const lineAt = (t: number) => w * (REST + SWING * Math.sin(t * PACE))
 
   /** Cut the pale, colourless background out of the picture. */
   const prepare = () => {
@@ -134,7 +140,7 @@ if (canvas && ctx) {
     if (!cut || !pixels || !realPen || !cellPen || !w) return
     const tall = h * TALL * (1 + SWELL * Math.sin(t * BREATH))
     const wide = tall * (cut.width / cut.height)
-    const left = w * AT_X - wide / 2 + SWAY * Math.sin(t * BREATH * 0.6 + 1)
+    const left = centre() - wide / 2 + SWAY * Math.sin(t * BREATH * 0.6 + 1)
     const top = h * AT_Y - tall / 2
     const scale = pixels.width / wide
 
@@ -216,7 +222,7 @@ if (canvas && ctx) {
     const dt = Math.min(0.1, (now - last) / 1000)
     last = now
     elapsed += dt
-    line += (w * (REST + SWING * Math.sin(elapsed * PACE)) - line) * Math.min(1, dt * 2.2)
+    line += (lineAt(elapsed) - line) * Math.min(1, dt * 2.2)
     paint(elapsed)
     draw()
   }
