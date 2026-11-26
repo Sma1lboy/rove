@@ -13,6 +13,7 @@ import { connectIfRunning } from "@sma1lboy/rove-daemon/client/daemon-process"
 import {
   type ApiEnvelope,
   type ApiParams,
+  type DaemonRequestName,
   ROVE_API_VERSION,
   type SerializedTask,
 } from "@sma1lboy/rove-daemon/daemon/protocol"
@@ -58,6 +59,24 @@ function forward(entry: MachineEntry, sockets: { readonly daemon: string; readon
     remoteDaemonSocket: sockets.daemon,
     remotePtySocket: sockets.pty,
   })
+}
+
+/** One request to `entry`'s own daemon; MACHINE_UNREACHABLE when it cannot be reached. */
+export async function machineRequest<T>(
+  entry: MachineEntry,
+  method: DaemonRequestName,
+  payload: Record<string, unknown>,
+): Promise<T> {
+  const socketPath = await machineDaemonSocket(entry)
+  if (!socketPath) {
+    throw new ApiError(`machine "${entry.alias}" cannot be reached`, "MACHINE_UNREACHABLE", { machine: entry.alias })
+  }
+  const client = new RoveDaemonClient(socketPath)
+  try {
+    return await client.request<T>(method, payload)
+  } finally {
+    client.close()
+  }
 }
 
 async function answers(socketPath: string): Promise<boolean> {
@@ -406,21 +425,13 @@ function failure(code: string, message: string, data: Record<string, unknown>): 
 }
 
 /** What `--workspace-on` cannot serve: these stay requests for the machine's own daemon. */
-const NEEDS_ENGINE_THERE = [
-  "count",
-  "agents",
-  "fork",
-  "tier",
-  "worktree-only",
-  "workspace",
-  "no-worktree",
-  "isolate-in",
-]
+const NEEDS_ENGINE_THERE = ["count", "agents", "fork", "tier", "worktree-only", "workspace", "isolate-in"]
 
 /**
  * `add --machine X` runs the agent HERE and keeps the work on X (`add --workspace-on X`), so X needs no
  * engine. It stays X's own `add` when `--engine-there` asks for that, when the request is one only that
- * daemon serves (a round of attempts, a fork, a bare checkout, several repos).
+ * daemon serves (a round of attempts, a fork, a bare checkout, several repos). `--no-worktree` stays here:
+ * the agent works in X's checkout itself.
  */
 export function addStaysHere(verb: string, params: ApiParams): boolean {
   if (verb !== "add" || flagOn(params["engine-there"])) return false

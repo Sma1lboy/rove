@@ -302,8 +302,12 @@ rove api add --machine deck --repo sma1lboy/rove --prompt "fix the flaky test"
 
 A request this cannot serve runs in that machine's daemon, engine and all, as
 with `--engine-there`: `--count`, `--agents`, `--fork`, `--tier`,
-`--worktree-only`, `--workspace`, `--no-worktree`, `--isolate-in`, and several
-`--repo`.
+`--worktree-only`, `--workspace`, `--isolate-in`, and several `--repo`.
+
+`--no-worktree` skips the worktree: the agent works in that machine's checkout
+itself, on its current branch (`--repo` is the checkout's absolute path there).
+Deleting the task leaves the checkout as it is. The web composer's Worktree
+toggle does the same for another machine.
 
 In the TUI and web sidebars the task sits under its project, grouped by
 repo id like any other task of that repo.

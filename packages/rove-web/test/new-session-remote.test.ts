@@ -5,6 +5,7 @@ import {
   cloneLabel,
   enginesThere,
   githubRepoHeld,
+  remoteCheckout,
   remoteRef,
   remoteSpawnArgs,
   seedRemotePick,
@@ -94,6 +95,25 @@ describe("New session composer on another machine", () => {
       engine: "claude",
       engineThere: true,
     })
+  })
+
+  test("Worktree off works in that machine's checkout itself: its path, no base ref; a clone has none to work in", () => {
+    expect(remoteCheckout({ ref: rove.id, clone: false }, [rove])).toBe("/home/me/rove")
+    expect(remoteCheckout({ ref: "C:\\w\\app", clone: false }, [])).toBe("C:\\w\\app")
+    expect(remoteCheckout({ ref: rove.id, clone: true }, [rove])).toBeNull()
+    const pick = { ref: rove.id, clone: false }
+    expect(
+      remoteSpawnArgs({
+        pick,
+        machine: "win",
+        engine: "",
+        prompt: "p",
+        baseRef: "dev",
+        engineThere: false,
+        model: "",
+        checkout: "/home/me/rove",
+      }),
+    ).toEqual({ repo: "/home/me/rove", machine: "win", noWorktree: true, prompt: "p" })
   })
 
   test("a GitHub repo already on that machine is not offered for cloning there, whatever its folder is called", () => {

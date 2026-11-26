@@ -918,9 +918,12 @@ edits (`set-vendor`, `rename`,
   (`.task.workspace` is `{"backend":"remote"}`). The reply adds `machine`,
   `remoteTaskId` and `remotePath`. See
   [Run the agent here, keep the work there](./MACHINES.md#run-the-agent-here-keep-the-work-there).
+  With `--no-worktree` it works in that machine's checkout itself: `--repo` is
+  its absolute path there, `--branch`, `--base-branch`, `--clone` and
+  `--allow-fork` are refused, and deleting the task leaves the checkout.
   It conflicts with `--count`, `--agents`, `--fork`, `--workspace`,
-  `--no-worktree`, `--isolate-in`, `--worktree-only`, `--tier` and a second
-  `--repo` (`CONFLICTING_FLAGS`).
+  `--isolate-in`, `--worktree-only`, `--tier` and a second `--repo`
+  (`CONFLICTING_FLAGS`).
 
   `--workspace layerfs` (experimental, Linux only) puts the task's files in a
   LayerFS Workspace inside a Docker sandbox of its own instead of a git
