@@ -109,24 +109,28 @@ export function SidebarBrandHeader(props: {
 }) {
   const { theme } = useTheme()
   return (
-    <box flexDirection="row" justifyContent="space-between" gap={1} flexShrink={0} paddingLeft={1} paddingRight={1}>
-      <box flexDirection="row" gap={1}>
-        <text fg={props.focused ? theme.focusAccent : theme.textMuted} attributes={TextAttributes.BOLD} wrapMode="none">
-          ROVE
-        </text>
-        {props.status ? (
-          <box position="relative" onMouseUp={() => props.onStatusClick?.()}>
-            <text
-              fg={props.status.emphasize ? theme.warningOnHost : theme.textMuted}
-              attributes={props.status.emphasize ? TextAttributes.BOLD : TextAttributes.DIM}
-              wrapMode="none"
-            >
-              {props.status.label}
-            </text>
-            {props.onStatusClick ? <ShortcutRevealBadge bindingId="inbox.show" /> : null}
-          </box>
-        ) : null}
-      </box>
+    <box flexDirection="row" gap={1} flexShrink={0} paddingLeft={1} paddingRight={1}>
+      {/* The web's wordmark. Focus still reads here: the brackets take the accent, the name full ink. */}
+      <text wrapMode="none" flexShrink={0}>
+        <span fg={props.focused ? theme.focusAccent : theme.textMuted}>[</span>
+        <span fg={props.focused ? theme.text : theme.textMuted} attributes={TextAttributes.BOLD}>
+          {" rove "}
+        </span>
+        <span fg={props.focused ? theme.focusAccent : theme.textMuted}>]</span>
+      </text>
+      <box flexGrow={1} />
+      {props.status ? (
+        <box position="relative" flexShrink={0} onMouseUp={() => props.onStatusClick?.()}>
+          <text
+            fg={props.status.emphasize ? theme.warningOnHost : theme.textMuted}
+            attributes={props.status.emphasize ? TextAttributes.BOLD : TextAttributes.DIM}
+            wrapMode="none"
+          >
+            {props.status.label}
+          </text>
+          {props.onStatusClick ? <ShortcutRevealBadge bindingId="inbox.show" /> : null}
+        </box>
+      ) : null}
       {props.update ? (
         <box position="relative" flexShrink={0} onMouseUp={() => props.onUpdateClick?.()}>
           <text fg={theme.warningOnHost} attributes={TextAttributes.BOLD} wrapMode="none">

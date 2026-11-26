@@ -3,7 +3,7 @@
 # 30x22, keys: / bravo
 # GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
-| ROVE                         |
+| [ rove ]                     |
 | New task                + n  |
 | /bravo█ 1/2                  |
 |                              |
@@ -11,8 +11,8 @@
 | Routines                     |
 | Issues                       |
 |                              |
-| rove ─────────────────────── |
-|▌○ bravo                      |
+| rove                         |
+|▌bravo                      ○ |
 |                              |
 |                              |
 |                              |

@@ -3,7 +3,7 @@
 # 30x22, keys: / types
 # GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
-| ROVE                         |
+| [ rove ]                     |
 | New task                + n  |
 | /types█ 2/3                  |
 |                              |
@@ -11,9 +11,9 @@
 | Routines                     |
 | Issues                       |
 |                              |
-| rove ─────────────────────── |
-|▌○ alpha                    ▾ |
-|   ○ check types            ⑂ |
+| rove                         |
+|▌alpha                    ▾ ○ |
+|   check types              ○ |
 |                              |
 |                              |
 |                              |

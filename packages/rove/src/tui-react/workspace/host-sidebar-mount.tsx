@@ -142,7 +142,7 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
       onSearchActiveChange={props.onSearchActiveChange}
       sortMode={props.sortMode}
       headerStatus={{
-        label: `${t("workspace.inbox.title")} ${inbox.counts.total}`,
+        label: t("workspace.inbox.chip", { count: inbox.counts.total }),
         emphasize: inbox.counts.total > 0,
       }}
       onHeaderStatusClick={inbox.show}

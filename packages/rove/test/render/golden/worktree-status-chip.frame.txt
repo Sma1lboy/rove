@@ -3,19 +3,19 @@
 # 30x22
 # GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
-| ROVE                         |
+| [ rove ]                     |
 | New task                + n  |
 | Kanban                       |
 | Routines                     |
 | Issues                       |
 |                              |
-| rove ─────────────────────── |
-|▌○ review                   ✓ |
-| ○ stuck                    ≠ |
-| ○ shipped                    |
-| ○ dropped                    |
-| ○ broke                      |
-| ○ quiet                      |
+| rove                         |
+|▌review                   ✓ ○ |
+| stuck                    ≠ ○ |
+| shipped                    ○ |
+| dropped                    ○ |
+| broke                      ○ |
+| quiet                      ○ |
 |                              |
 |                              |
 |                              |

@@ -149,7 +149,7 @@ test("search enters a folded directory task by its original name and restores th
     { width: 32, height: 22 },
   )
   const open = await waitForFrameText(frame, "Release checklist")
-  const header = open.split("\n").findIndex((line) => line.includes("rove"))
+  const header = open.split("\n").findIndex((line) => line.includes("rove") && !line.includes("[ rove ]"))
   await mockMouse.click(2, header, 0)
   expect(await frame()).not.toContain("Release checklist")
   await step(frame, () => mockInput.typeText("/"))
