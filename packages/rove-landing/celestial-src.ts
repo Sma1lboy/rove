@@ -19,7 +19,7 @@ const TILE = 15
 const TALL = 1.12
 const AT_X = 0.78
 const AT_Y = 0.5
-/** Where the open flower's centre is in the film's own frame. */
+/** Where the flower's centre is in the film's own frame until the first frame is read. */
 const FLOWER_X = 0.6
 const FLOWER_Y = 0.55
 /** The size the film is read at to find the flower and colour the cells. */
@@ -70,6 +70,10 @@ if (canvas && ctx) {
   /** Each cell's eased colour, by row * 512 + col, and whether it has one yet. */
   const held = new Float32Array(512 * 256 * 3)
   const seen = new Uint8Array(512 * 256)
+  /** The flower's centre in the film's frame, followed frame by frame: the bud starts far left of where it opens. */
+  let flowerX = FLOWER_X
+  let flowerY = FLOWER_Y
+  let found = false
   let line = -1
   let last = 0
   let elapsed = 0
@@ -124,12 +128,30 @@ if (canvas && ctx) {
     cutPen.drawImage(film, 0, 0, READ_W, readH)
     const frame = cutPen.getImageData(0, 0, READ_W, readH)
     const d = frame.data
+    let sumX = 0
+    let sumY = 0
+    let count = 0
     for (let i = 0; i < d.length; i += 4) {
       const warm = ((d[i] ?? 0) - (d[i + 1] ?? 0)) / 255
-      d[i + 3] = Math.round(255 * smooth(0.02, 0.14, warm))
+      const keep = smooth(0.02, 0.14, warm)
+      d[i + 3] = Math.round(255 * keep)
+      if (keep > 0.5) {
+        const p = i / 4
+        sumX += p % READ_W
+        sumY += Math.floor(p / READ_W)
+        count++
+      }
     }
     cutPen.putImageData(frame, 0, 0)
     pixels = frame
+    if (count > 40) {
+      const x = sumX / count / READ_W
+      const y = sumY / count / readH
+      // The first reading places the flower; later ones are followed gently so it never jumps.
+      flowerX = found ? flowerX + (x - flowerX) * 0.06 : x
+      flowerY = found ? flowerY + (y - flowerY) * 0.06 : y
+      found = true
+    }
   }
 
   /** Paint both halves from the frame just read. */
@@ -137,8 +159,8 @@ if (canvas && ctx) {
     if (!pixels || !realPen || !cellPen || !w) return
     const tall = h * TALL
     const wide = tall * (pixels.width / pixels.height)
-    const left = w * AT_X - wide * FLOWER_X
-    const top = h * AT_Y - tall * FLOWER_Y
+    const left = w * AT_X - wide * flowerX
+    const top = h * AT_Y - tall * flowerY
     const scale = pixels.width / wide
 
     realPen.setTransform(dpr, 0, 0, dpr, 0, 0)
