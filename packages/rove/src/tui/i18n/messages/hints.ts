@@ -1,6 +1,6 @@
 /**
  * `hints.*` messages — the keyboard-discoverability hints: the status-bar
- * micro-hint and the first-use pane hint lines. English is the source of
+ * micro-hint. English is the source of
  * truth; `zh: typeof en` keeps the shapes locked together.
  *
  * Every `{key}` placeholder is filled from the LIVE keymap at render time
@@ -18,12 +18,6 @@ export const en = {
     /** Label of the clickable footer settings button (brackets added in code) */
     settings: "settings",
   },
-  pane: {
-    move: "move",
-    open: "open",
-    collapse: "collapse",
-    diff: "diff",
-  },
 }
 
 export const zh: typeof en = {
@@ -32,11 +26,5 @@ export const zh: typeof en = {
     help: "{key} 帮助",
     sidebar: "{key} 侧栏",
     settings: "设置",
-  },
-  pane: {
-    move: "移动",
-    open: "打开",
-    collapse: "折叠",
-    diff: "差异",
   },
 }

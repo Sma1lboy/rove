@@ -1,25 +1,28 @@
 /** @jsxImportSource @opentui/react */
-/** The Files button at the end of the workspace's top row, as the web's panel launcher. */
+/** The window's top row: the Files button at its right end, as the web's panel launcher. */
 
 import { TextAttributes } from "@opentui/core"
-import { createContext, useContext } from "react"
 import { ShortcutRevealBadge } from "../component/shortcut-reveal"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 
 export type FilesToggle = { readonly open: boolean; readonly toggle: () => void }
 
-/** Null where there is no Files pane to show (a rail page, narrow mode). */
-export const FilesToggleContext = createContext<FilesToggle | null>(null)
-export const useFilesToggle = () => useContext(FilesToggleContext)
+/** `files` is null where there is no Files pane to show (a rail page); the row stays, so the panes do not jump. */
+export function TopBar(props: { readonly files: FilesToggle | null }) {
+  return (
+    <box flexDirection="row" flexShrink={0} height={1} paddingRight={1} justifyContent="flex-end">
+      {props.files ? <FilesButton files={props.files} /> : null}
+    </box>
+  )
+}
 
-export function FilesButton(props: { readonly files: FilesToggle }) {
+function FilesButton(props: { readonly files: FilesToggle }) {
   const { theme } = useTheme()
   const t = useT()
   return (
     <box
       flexShrink={0}
-      alignSelf="center"
       paddingLeft={1}
       paddingRight={1}
       backgroundColor={props.files.open ? theme.backgroundElement : undefined}

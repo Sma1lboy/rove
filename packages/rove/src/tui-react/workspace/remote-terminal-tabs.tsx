@@ -15,7 +15,6 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { Terminal } from "../panes/terminal/Terminal"
-import { FilesButton, useFilesToggle } from "./files-button"
 
 /** Tabs change on the other machine's clock; a couple of seconds is what the sidebar's host poll uses. */
 const POLL_MS = 2000
@@ -101,7 +100,6 @@ export function RemoteTerminalTabs(props: {
     }),
   }))
 
-  const files = useFilesToggle()
   return (
     <box flexDirection="column" flexGrow={1}>
       <box flexDirection="row" gap={2} paddingLeft={1} flexShrink={0}>
@@ -111,8 +109,6 @@ export function RemoteTerminalTabs(props: {
             {`${i + 1} ${tabLabel(tab)}${tab.alive === false ? " ✕" : ""}`}
           </text>
         ))}
-        <box flexGrow={1} />
-        {files ? <FilesButton files={files} /> : null}
       </box>
       {error ? (
         <text fg={theme.textMuted} paddingLeft={1}>

@@ -2,8 +2,7 @@
 /**
  * Real-render coverage for the keyboard-discoverability hints: the
  * status-bar micro-hint (prefix/help, including terminal passthrough), the
- * first-use pane hints and their extinguish/fallback behavior, the master
- * toggle, and the onboarding wizard's "Keyboard basics" page.
+ * master toggle, and the onboarding wizard's "Keyboard basics" page.
  */
 
 import { describe, expect, it } from "bun:test"
@@ -13,7 +12,7 @@ import { join } from "node:path"
 import { useEffect } from "react"
 import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 import { createStateCell } from "../../src/lib/external-store"
-import { PaneKeyHint, StatusKeyHintBar } from "../../src/tui-react/component/keyboard-hints"
+import { StatusKeyHintBar } from "../../src/tui-react/component/keyboard-hints"
 import { PrefixHud } from "../../src/tui-react/component/prefix-hud"
 import { useFocus } from "../../src/tui-react/context/focus"
 import { useKV } from "../../src/tui-react/context/kv"
@@ -23,7 +22,7 @@ import { useDialog } from "../../src/tui-react/ui/dialog"
 import { WorkspaceFrame } from "../../src/tui-react/workspace/host-footer"
 import { useWorkspaceKeybindings } from "../../src/tui-react/workspace/host-keybindings"
 import type { HostPagesState } from "../../src/tui-react/workspace/host-pages"
-import { KEY_HINTS_ENABLED_KEY, PANE_HINT_USED_KEYS } from "../../src/tui/lib/keyboard-hints"
+import { KEY_HINTS_ENABLED_KEY } from "../../src/tui/lib/keyboard-hints"
 import { resetPrefixState } from "../../src/tui/lib/keymap-dispatch"
 import { PREFIX_GUIDE_DELAY_MS } from "../../src/tui/lib/prefix-hud"
 import { PREFIX_TAP_PRESENTATION_KEY } from "../../src/tui/lib/prefix-tap-presentation"
@@ -300,20 +299,6 @@ describe("footer hint clicks", () => {
     await mockMouse.click(spot.x + 1, spot.y)
     expect(await waitForGuideText(clock, frame, "more Rove commands")).toContain("more Rove commands")
     act(() => resetPrefixState())
-  })
-})
-
-describe("PaneKeyHint", () => {
-  it("extinguishes the sidebar hint once its keys were used", async () => {
-    withTempKvHome()
-    const { frame } = await renderComponent(
-      <KvSeed entries={[[PANE_HINT_USED_KEYS.sidebar, true]]}>
-        <PaneKeyHint pane="sidebar" />
-      </KvSeed>,
-      { providers: { kv: true } },
-    )
-    await settle()
-    expect((await frame()).trim()).toBe("")
   })
 })
 

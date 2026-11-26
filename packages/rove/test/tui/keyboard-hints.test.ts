@@ -11,10 +11,7 @@ import { afterEach, describe, expect, test } from "vitest"
 import { findBinding, resetKeymapToDefaults } from "../../src/tui/context/keybindings.ts"
 import {
   KEY_HINTS_ENABLED_KEY,
-  PANE_HINT_USED_KEYS,
   keyHintsToggleOn,
-  paneHintTokens,
-  paneHintVisible,
   statusHintTokens,
   toggleKeyHints,
   wizardKeyLines,
@@ -91,42 +88,6 @@ describe("statusHintTokens", () => {
   })
 })
 
-describe("paneHintTokens", () => {
-  test("sidebar first-use hint teaches nav/select from live caps", () => {
-    expect(paneHintTokens("sidebar", "firstUse")).toEqual([
-      { cap: "j/k", msg: "move" },
-      { cap: "enter", msg: "open" },
-    ])
-  })
-
-  test("sidebar has no permanent hint line after first use", () => {
-    expect(paneHintTokens("sidebar", "always")).toEqual([])
-  })
-
-  test("files keeps its open/diff pair as the permanent short set", () => {
-    const caps = paneHintTokens("files", "always").map((t) => t.msg)
-    expect(caps).toEqual(["open", "diff"])
-    expect(paneHintTokens("files", "firstUse").map((t) => t.msg)).toEqual(["move", "collapse", "open", "diff"])
-  })
-
-  test("an unbound row drops out of the hint instead of advertising a dead chord", () => {
-    rebind("sidebar.select", [])
-    expect(paneHintTokens("sidebar", "firstUse").map((t) => t.msg)).toEqual(["move"])
-  })
-})
-
-describe("paneHintVisible", () => {
-  test("default state (nothing persisted) shows the hint", () => {
-    expect(paneHintVisible(undefined, undefined)).toBe(true)
-  })
-  test("using the pane's keys extinguishes it", () => {
-    expect(paneHintVisible(undefined, true)).toBe(false)
-  })
-  test("the master toggle silences everything", () => {
-    expect(paneHintVisible(false, false)).toBe(false)
-  })
-})
-
 describe("toggleKeyHints (Settings toggle)", () => {
   function fakeKv(): { store: Map<string, unknown> } & Parameters<typeof toggleKeyHints>[0] {
     const store = new Map<string, unknown>()
@@ -143,24 +104,6 @@ describe("toggleKeyHints (Settings toggle)", () => {
     toggleKeyHints(kv)
     expect(keyHintsToggleOn(kv)).toBe(false)
     expect(kv.store.get(KEY_HINTS_ENABLED_KEY)).toBe(false)
-  })
-
-  test("re-enabling relights extinguished pane hints", () => {
-    const kv = fakeKv()
-    kv.set(KEY_HINTS_ENABLED_KEY, false)
-    kv.set(PANE_HINT_USED_KEYS.sidebar, true)
-    kv.set(PANE_HINT_USED_KEYS.files, true)
-    toggleKeyHints(kv)
-    expect(keyHintsToggleOn(kv)).toBe(true)
-    expect(kv.store.get(PANE_HINT_USED_KEYS.sidebar)).toBe(false)
-    expect(kv.store.get(PANE_HINT_USED_KEYS.files)).toBe(false)
-  })
-
-  test("turning OFF leaves the used flags alone", () => {
-    const kv = fakeKv()
-    kv.set(PANE_HINT_USED_KEYS.sidebar, true)
-    toggleKeyHints(kv)
-    expect(kv.store.get(PANE_HINT_USED_KEYS.sidebar)).toBe(true)
   })
 })
 

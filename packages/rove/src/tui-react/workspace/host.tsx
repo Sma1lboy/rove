@@ -30,7 +30,7 @@ import { PageServicesProvider } from "../pages/services"
 import { useSidebarHostState } from "../panes/sidebar/use-sidebar-host-state.tsx"
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
-import { FilesToggleContext } from "./files-button"
+import { TopBar } from "./files-button"
 import { FullWindowPage, useHostBanner } from "./host-banner"
 import { HostFilesPane, useFilesPaneActions } from "./host-files-pane"
 import { WorkspaceFrame } from "./host-footer"
@@ -342,6 +342,11 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     <WorkspaceFrame
       orchestrator={orch}
       banner={banner.element}
+      topBar={
+        isNarrowWidth(dims.width) ? undefined : (
+          <TopBar files={pageRender.contentPage == null && pageRender.showContent ? filesPane : null} />
+        )
+      }
       activeTaskId={selectedId}
       activeTabId={selectedTabId}
       onPaneDrag={sidebarResize.onPaneDrag}
@@ -420,27 +425,25 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
               </PageServicesProvider>
             ) : (
               <RenderProfiler id="workspace">
-                <FilesToggleContext.Provider value={pageRender.showSidebar ? filesPane : null}>
-                  <ShowWorkspace
-                    task={selectedTask}
-                    worktree={worktree}
-                    orchestrator={orch}
-                    focused={activePane === "workspace"}
-                    onRequestFocus={() => focus.setFocused("workspace")}
-                    onEditorTabReady={editor.onEditorTabReady}
-                    onEngineSendReady={editor.onEngineSendReady}
-                    onEnginePasteReady={editor.onEnginePasteReady}
-                    onDiffTabReady={editor.onDiffTabReady}
-                    onSpawnChild={quickFork.onSpawnChild}
-                    onQuickFork={quickFork.onQuickFork}
-                    initialPrompt={quickFork.initialPromptFor(selectedTask?.id)}
-                    onTabVisited={inbox.resolveVisited}
-                    onScratchExit={scratch.onScratchExit}
-                    onOpenScratch={scratch.openScratchShell}
-                    onEngineChosen={taskActions.setVendor}
-                    onOpenSettings={pages.openSettings}
-                  />
-                </FilesToggleContext.Provider>
+                <ShowWorkspace
+                  task={selectedTask}
+                  worktree={worktree}
+                  orchestrator={orch}
+                  focused={activePane === "workspace"}
+                  onRequestFocus={() => focus.setFocused("workspace")}
+                  onEditorTabReady={editor.onEditorTabReady}
+                  onEngineSendReady={editor.onEngineSendReady}
+                  onEnginePasteReady={editor.onEnginePasteReady}
+                  onDiffTabReady={editor.onDiffTabReady}
+                  onSpawnChild={quickFork.onSpawnChild}
+                  onQuickFork={quickFork.onQuickFork}
+                  initialPrompt={quickFork.initialPromptFor(selectedTask?.id)}
+                  onTabVisited={inbox.resolveVisited}
+                  onScratchExit={scratch.onScratchExit}
+                  onOpenScratch={scratch.openScratchShell}
+                  onEngineChosen={taskActions.setVendor}
+                  onOpenSettings={pages.openSettings}
+                />
               </RenderProfiler>
             )}
           </PaneErrorBoundary>

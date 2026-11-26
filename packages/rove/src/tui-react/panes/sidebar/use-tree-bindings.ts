@@ -28,7 +28,6 @@ export interface TreeBindingsOpts
   readonly flatIdsRef: React.MutableRefObject<readonly string[]>
   readonly cursorRef: React.MutableRefObject<number>
   readonly moveCursorRow: (delta: -1 | 1) => void
-  readonly markKeysUsed: () => void
 }
 
 /** The task a cursor row names, or null ("↩ recent", empty tree). Shared with
@@ -53,7 +52,6 @@ export function useTreeBindings(opts: TreeBindingsOpts): void {
     onRenameRequest,
     onPinRequest,
     onLocalMergeRequest,
-    markKeysUsed,
   } = opts
 
   function withCursorTask(fn?: (taskId: string) => void): void {
@@ -66,7 +64,6 @@ export function useTreeBindings(opts: TreeBindingsOpts): void {
     enabled: focused && !search.active && !menu.open,
     bindings: bindByIds({
       "sidebar.nav": (_evt, slot) => {
-        markKeysUsed()
         const down = (slot ?? 0) % 2 === 0
         if (moveMode) {
           moveCursorRow(down ? 1 : -1)
@@ -76,7 +73,6 @@ export function useTreeBindings(opts: TreeBindingsOpts): void {
         else controller.moveUp()
       },
       "sidebar.select": () => {
-        markKeysUsed()
         if (moveMode) {
           onMoveModeExit?.()
           return
@@ -98,18 +94,15 @@ export function useTreeBindings(opts: TreeBindingsOpts): void {
       },
       "sidebar.delete": () => {
         if (moveMode) return
-        markKeysUsed()
         withCursorTask(onDeleteRequest)
       },
       "sidebar.rename": () => {
         if (moveMode) return
-        markKeysUsed()
         withCursorTask(onRenameRequest)
       },
       "sidebar.localMerge": () => withCursorTask(onLocalMergeRequest),
       "sidebar.pin": () => {
         if (moveMode) return
-        markKeysUsed()
         withCursorTask(onPinRequest)
       },
     }),

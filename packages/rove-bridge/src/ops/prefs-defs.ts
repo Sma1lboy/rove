@@ -99,7 +99,6 @@ export type Scalar = string | number | boolean
 
 /** Not exported by the TUI's state module (its own picker restates them too). */
 const KEY_HINTS_ENABLED_KEY = "hints.keyboard.enabled"
-const PANE_HINT_USED_KEYS = ["hints.sidebar.used", "hints.files.used"] as const
 /** The web rail's sort and grouping: one answer for every browser on this daemon. The TUI keeps its own sort. */
 const RAIL_SORTS = ["default", "recent", "attention", "name"] as const
 const RAIL_GROUPS = ["project", "state"] as const
@@ -119,10 +118,10 @@ export type PrefDef =
   | (Shared & { readonly kind: "int"; readonly min: number; readonly max: number })
   | (Shared & { readonly kind: "enum"; readonly choices: (themes: readonly string[]) => readonly Scalar[] })
 
-const bool = (key: string, fallback: boolean, extra?: (v: boolean) => StateSnapshot): PrefDef => ({
+const bool = (key: string, fallback: boolean): PrefDef => ({
   kind: "bool",
   read: (s) => (typeof s[key] === "boolean" ? (s[key] as boolean) : fallback),
-  write: ((v: boolean) => ({ [key]: v, ...extra?.(v) })) as Shared["write"],
+  write: ((v: boolean) => ({ [key]: v })) as Shared["write"],
 })
 
 const choice = (
@@ -200,10 +199,7 @@ export const PREF_DEFS: Readonly<Record<string, PrefDef>> = {
   soundVolume: choice(SOUND_VOLUME_KEY, SOUND_VOLUME_STEPS, (raw) => normalizeSoundVolume(raw ?? DEFAULT_SOUND_VOLUME)),
   crossTask: bool("notifications.crossTask.enabled", true),
   finishedAlerts: bool(FINISHED_ALERTS_KEY, true),
-  // Turning hints on re-arms the first-use pane hints, as the TUI's toggle does.
-  keyHints: bool(KEY_HINTS_ENABLED_KEY, true, (on) =>
-    on ? Object.fromEntries(PANE_HINT_USED_KEYS.map((k) => [k, false])) : {},
-  ),
+  keyHints: bool(KEY_HINTS_ENABLED_KEY, true),
   editorKind: choice(EDITOR_KIND_KEY, EDITOR_KINDS, (raw) => normalizeEditorKind(raw ?? DEFAULT_EDITOR_KIND)),
   worktreeBase: {
     kind: "enum",

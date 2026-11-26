@@ -561,14 +561,9 @@ an unbound/disabled one drops out:
   accepts a keyboard second stroke), clicking the help caption opens F1, and
   the `[settings]` button opens Settings even while the terminal owns
   keyboard input, since mouse clicks never pass through.
-- **First-use pane hints** — one muted line per vim-style pane (sidebar:
-  `j/k move · ⏎ open`; files: move/fold/open/diff). Using that pane's own
-  nav/select keys extinguishes its line permanently; the files pane then
-  falls back to its short permanent `⏎ open · d diff` footer.
 - **Onboarding wizard "Keyboard basics" page** — one informational screen
   after the first-run questions (skippable with the wizard).
-- **Settings** — General → "Keyboard hints" toggles all hint surfaces
-  (re-enabling relights extinguished pane hints); Keybindings keeps a
+- **Settings** — General → "Keyboard hints" toggles the status-bar hint; Keybindings keeps a
   one-paragraph grammar summary with the live prefix/timeout values.
 
 Hints are text-only on the ambient background (no opaque fill), so normal and

@@ -5,8 +5,6 @@
  *   - `StatusKeyHintBar` / `useStatusKeyHintItems`: the status-bar micro-hint
  *     (`⌃ A commands · F1 help · [settings]`). Every segment is clickable —
  *     clicks don't pass through to the PTY, so they work inside the terminal.
- *   - `PaneKeyHint`: one muted line per vim-style pane; the first-use variant
- *     goes away for good once the pane's keys are used (`usePaneHintMark`).
  *
  * No backgroundColor of their own, so they read over transparent themes too
  * (pinned by test/tui-react/keyboard-overlay-theme.test). Chords resolve
@@ -16,13 +14,9 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { formatChord } from "../../tui/lib/chord-glyphs"
 import {
-  type HintPane,
   KEY_HINTS_ENABLED_KEY,
-  PANE_HINT_USED_KEYS,
   type StatusHintToken,
   keyHintsEnabled,
-  paneHintTokens,
-  paneHintVisible,
   statusHintTokens,
 } from "../../tui/lib/keyboard-hints"
 import { currentPrefixConfiguration } from "../../tui/lib/keymap-dispatch"
@@ -170,38 +164,5 @@ export function StatusKeyHintBar(props: { onOpenSettings?: () => void; compact?:
         </box>,
       ])}
     </box>
-  )
-}
-
-/** Retire a pane's first-use hint; call from its key handlers. Writes once,
- *  safe per keypress. */
-export function usePaneHintMark(pane: HintPane): () => void {
-  const kv = useOptionalKV()
-  return useCallback(() => {
-    if (!kv) return
-    if (kv.get(PANE_HINT_USED_KEYS[pane], false) !== true) kv.set(PANE_HINT_USED_KEYS[pane], true)
-  }, [kv, pane])
-}
-
-/**
- * A pane's hint line: the fuller first-use variant until the pane's keys
- * have been used, then the pane's permanent short set (empty for the
- * sidebar — it renders nothing after first use). Null when hints are off
- * or every advertised binding is unbound.
- */
-export function PaneKeyHint(props: { pane: HintPane }) {
-  const t = useT()
-  const { theme } = useTheme()
-  const kv = useOptionalKV()
-  useKeymapVersion()
-  const enabledRaw = kv?.get(KEY_HINTS_ENABLED_KEY, true)
-  const usedRaw = kv?.get(PANE_HINT_USED_KEYS[props.pane], false)
-  if (!keyHintsEnabled(enabledRaw)) return null
-  const tokens = paneHintTokens(props.pane, paneHintVisible(enabledRaw, usedRaw) ? "firstUse" : "always")
-  if (tokens.length === 0) return null
-  return (
-    <text fg={theme.textMuted} wrapMode="none">
-      {tokens.map((tok) => `${formatChord(tok.cap)} ${t(`hints.pane.${tok.msg}`)}`).join(" · ")}
-    </text>
   )
 }
