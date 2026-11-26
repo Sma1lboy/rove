@@ -121,13 +121,45 @@
         box.appendChild(el('p', 'd-line ' + (cls || ''), html));
         box.scrollTop = box.scrollHeight;
       },
+      /* A line that arrives word by word, the way an agent's reply streams in. */
+      say: async function (paneId, text, cls) {
+        var words = text.split(' ');
+        var p = null;
+        if (!dry) {
+          var box = document.querySelector('#dPane-' + paneId + ' .d-lines');
+          p = el('p', 'd-line ' + (cls || 'is-say'), '');
+          box.appendChild(p);
+        }
+        for (var i = 1; i <= words.length; i++) {
+          if (p) { p.textContent = words.slice(0, i).join(' '); p.parentNode.scrollTop = p.parentNode.scrollHeight; }
+          await kit.w(38);
+        }
+      },
+      /* Several lines in quick succession: a tool's output landing. */
+      burst: async function (paneId, lines) {
+        for (var i = 0; i < lines.length; i++) {
+          kit.line(paneId, lines[i][0], lines[i][1]);
+          await kit.w(120);
+        }
+      },
+      /* The agent is busy: a spinner line holds the pause, then gives way to what comes next. */
+      think: async function (paneId, ms, label) {
+        var p = null;
+        if (!dry && !still) {
+          var box = document.querySelector('#dPane-' + paneId + ' .d-lines');
+          p = el('p', 'd-line is-think', '<i></i>' + (label || 'Working…'));
+          box.appendChild(p);
+          box.scrollTop = box.scrollHeight;
+        }
+        try { await kit.w(ms); } finally { if (p && p.parentNode) p.parentNode.removeChild(p); }
+      },
       type: async function (paneId, text) {
         var box = dry ? null : document.querySelector('#dPane-' + paneId + ' .d-input i');
         for (var i = 1; i <= text.length; i++) {
           if (box) box.textContent = text.slice(0, i);
-          await kit.w(22);
+          await kit.w(16);
         }
-        await kit.w(350);
+        await kit.w(420);
         if (box) box.textContent = '';
         kit.line(paneId, text, 'is-prompt');
       },
@@ -144,36 +176,38 @@
       k.row({ id: 'x', icon: 'codex', title: 'Flaky cart test', status: 'done' });
       k.select('a');
       k.pane({ id: 'a', icon: 'claude', label: 'Claude Code' });
-      await k.w(700);
+      await k.w(600);
       await k.type('a', 'Add EU tax to checkout. Hand the tax rules to Codex and the tests to Gemini.');
       k.status('a', 'work');
-      await k.w(700);
+      await k.think('a', 900, 'Reading the checkout code…');
       k.line('a', 'Read <u>src/checkout.ts</u>, <u>src/cart.ts</u>', 'is-dim');
-      await k.w(800);
-      k.line('a', "I'll keep the checkout change and hand out the other two parts.", 'is-say');
-      await k.w(900);
+      await k.w(250);
+      await k.say('a', "I'll keep the checkout change and hand out the other two parts.");
+      await k.w(500);
       k.line('a', '<b>rove api add</b> --title tax-rules --command codex', 'is-tool');
-      await k.w(350);
+      await k.w(260);
       k.row({ id: 'b', icon: 'codex', title: 'tax-rules', status: 'work', child: true, after: 'a' });
-      await k.w(700);
+      await k.w(520);
       k.line('a', '<b>rove api add</b> --title tax-tests --command gemini', 'is-tool');
-      await k.w(350);
+      await k.w(260);
       k.row({ id: 'c', icon: 'gemini', title: 'tax-tests', status: 'work', child: true, after: 'b' });
-      await k.w(900);
+      await k.w(1300);
       k.line('a', '<b>Update</b>(src/checkout.ts)', 'is-tool');
-      k.line('a', '-  return { total, currency }', 'is-del');
-      k.line('a', '+  const tax = regionalTax(sub, region)', 'is-add');
-      k.line('a', '+  return { subtotal: sub, tax, total: sub + tax, currency }', 'is-add');
-      await k.w(1700);
+      await k.burst('a', [
+        ['-  return { total, currency }', 'is-del'],
+        ['+  const tax = regionalTax(sub, region)', 'is-add'],
+        ['+  return { subtotal: sub, tax, total: sub + tax, currency }', 'is-add'],
+      ]);
+      await k.think('a', 1500, 'Waiting for two reports…');
       k.status('b', 'done'); k.inbox(1);
       k.line('a', icon('codex') + '<b>tax-rules</b> reported: VAT table for 27 countries, +48 −6', 'is-report');
-      await k.w(1500);
+      await k.think('a', 1100, 'Waiting for one report…');
       k.status('c', 'done'); k.inbox(2);
       k.line('a', icon('gemini') + '<b>tax-tests</b> reported: 12 tests, all pass', 'is-report');
-      await k.w(1100);
-      k.line('a', 'Both parts are back and merged into this branch. 12 tests pass.', 'is-say');
+      await k.w(700);
+      await k.say('a', 'Both parts are back and merged into this branch. 12 tests pass.');
       k.status('a', 'done');
-      await k.w(2600);
+      await k.w(2400);
     },
 
     /* The agent hits its usage limit; the task moves to another agent, which reads what was done. */
@@ -185,36 +219,39 @@
       k.select('a');
       k.pane({ id: 'a', icon: 'claude', label: 'Claude Code' });
       k.line('a', 'Add partial refunds: API route, ledger entry, email.', 'is-prompt');
+      await k.w(500);
       k.line('a', '<b>Update</b>(src/refund/route.ts)', 'is-tool');
-      k.line('a', '+  if (amount > order.paid) throw new RefundTooLarge()', 'is-add');
-      await k.w(1200);
-      k.line('a', 'Route is done. Next: the ledger entry.', 'is-say');
-      k.usage('Claude', 97);
-      await k.w(1300);
+      await k.burst('a', [['+  if (amount > order.paid) throw new RefundTooLarge()', 'is-add']]);
+      k.usage('Claude', 96);
+      await k.w(400);
+      await k.say('a', 'Route is done. Next: the ledger entry.');
+      k.usage('Claude', 99);
+      await k.think('a', 900);
       k.line('a', '<b>Update</b>(src/ledger.ts)', 'is-tool');
+      await k.w(450);
       k.usage('Claude', 100, 'limit');
-      await k.w(900);
       k.line('a', 'Usage limit reached. Resets at 14:00.', 'is-warn');
       k.status('a', 'wait'); k.inbox(1);
-      await k.w(1600);
+      await k.w(1900);
       k.line('a', 'Switch agent → <b>Codex</b>', 'is-menu');
-      await k.w(1100);
+      await k.w(900);
       k.rowIcon('a', 'codex'); k.paneHead('a', { icon: 'codex', label: 'Codex' });
       k.status('a', 'work'); k.inbox(0);
-      k.line('a', 'Read the earlier conversation: 38 messages, 2 of 3 steps done', 'is-dim');
-      await k.w(1300);
-      k.line('a', 'Picking up at the ledger entry, on the same branch.', 'is-say');
+      await k.think('a', 1100, 'Reading the earlier conversation…');
+      k.line('a', 'Read 38 messages: 2 of 3 steps are done', 'is-dim');
+      await k.w(250);
+      await k.say('a', 'Picking up at the ledger entry, on the same branch.');
       k.usage('Codex', 11);
-      await k.w(1000);
+      await k.w(350);
       k.line('a', '<b>Update</b>(src/ledger.ts)', 'is-tool');
-      k.line('a', '+  ledger.add({ kind: "refund", orderId, amount })', 'is-add');
-      await k.w(1300);
+      await k.burst('a', [['+  ledger.add({ kind: "refund", orderId, amount })', 'is-add']]);
+      await k.think('a', 700);
       k.line('a', '<b>Update</b>(src/email/refund.ts)', 'is-tool');
       k.usage('Codex', 14);
-      await k.w(1200);
-      k.line('a', 'Ledger entry and email are in. All three steps are done.', 'is-say');
+      await k.w(500);
+      await k.say('a', 'Ledger entry and email are in. All three steps are done.');
       k.status('a', 'done');
-      await k.w(2600);
+      await k.w(2400);
     },
 
     /* A task whose files and commands live on another computer, started from this one. */
@@ -227,26 +264,26 @@
       k.row({ id: 'z', icon: 'claude', title: 'Nightly eval', tag: 'gpu-box', status: 'work' });
       k.select('x');
       k.pane({ id: 'a', icon: 'claude', label: 'Claude Code', where: 'new task' });
-      await k.w(800);
+      await k.w(700);
       k.line('a', 'Run on: this Mac · mac-mini · <b>gpu-box</b>', 'is-menu');
       await k.w(900);
       await k.type('a', 'Train the ranking model on the new data and report the score.');
       k.row({ id: 'a', icon: 'claude', title: 'Ranking model', tag: 'gpu-box', status: 'work', after: 'z' });
       k.select('a');
       k.paneHead('a', { icon: 'claude', label: 'Claude Code', where: 'files and commands on gpu-box' });
-      await k.w(900);
+      await k.think('a', 800, 'Connecting to gpu-box…');
       k.line('a', '<b>Bash</b>(python train.py --data data/2026-11)', 'is-tool');
-      await k.w(800);
+      await k.w(500);
       k.line('a', 'epoch 1/3  loss 0.412', 'is-dim');
-      await k.w(800);
+      await k.w(650);
       k.line('a', 'epoch 2/3  loss 0.287', 'is-dim');
       k.status('y', 'done'); k.inbox(1);
-      await k.w(800);
+      await k.w(650);
       k.line('a', 'epoch 3/3  loss 0.231', 'is-dim');
-      await k.w(900);
-      k.line('a', 'Training ran on gpu-box. NDCG@10 went from 0.61 to 0.66.', 'is-say');
+      await k.think('a', 800, 'Scoring…');
+      await k.say('a', 'Training ran on gpu-box. NDCG@10 went from 0.61 to 0.66.');
       k.status('a', 'done'); k.inbox(2);
-      await k.w(2600);
+      await k.w(2400);
     },
 
     /* One task, two panes: one agent writes the change, another reviews it. */
@@ -258,30 +295,32 @@
       k.select('a');
       k.pane({ id: 'a', icon: 'claude', label: 'Claude Code' });
       k.line('a', 'A coupon above 100% makes the total negative. Clamp it.', 'is-prompt');
-      await k.w(700);
+      await k.think('a', 700);
       k.line('a', '<b>Update</b>(src/cart.ts)', 'is-tool');
-      k.line('a', '-  return total - total * (percent / 100)', 'is-del');
-      k.line('a', '+  const p = Math.min(100, Math.max(0, percent))', 'is-add');
-      k.line('a', '+  return total - total * (p / 100)', 'is-add');
-      await k.w(1300);
-      k.line('a', 'Clamped to 0..100. Not tested yet.', 'is-say');
-      await k.w(900);
+      await k.burst('a', [
+        ['-  return total - total * (percent / 100)', 'is-del'],
+        ['+  const p = Math.min(100, Math.max(0, percent))', 'is-add'],
+        ['+  return total - total * (p / 100)', 'is-add'],
+      ]);
+      await k.w(300);
+      await k.say('a', 'Clamped to 0..100. Not tested yet.');
+      await k.w(700);
       k.pane({ id: 'b', icon: 'codex', label: 'Codex' });
-      await k.w(700);
-      await k.type('b', 'Review the uncommitted change. Bugs only.');
       await k.w(600);
+      await k.type('b', 'Review the uncommitted change. Bugs only.');
+      await k.think('b', 600);
       k.line('b', '<b>Ran</b> git diff HEAD -- src/cart.ts', 'is-tool');
-      await k.w(1200);
-      k.line('b', 'A NaN percent still returns NaN: Math.max(0, NaN) is NaN.', 'is-say');
-      await k.w(1300);
-      k.line('b', 'Totals are not rounded to cents after the discount.', 'is-say');
-      await k.w(1400);
+      await k.think('b', 900, 'Reviewing…');
+      await k.say('b', 'A NaN percent still returns NaN: Math.max(0, NaN) is NaN.');
+      await k.w(500);
+      await k.say('b', 'Totals are not rounded to cents after the discount.');
+      await k.think('a', 1000);
       k.line('a', '<b>Update</b>(src/cart.ts)', 'is-tool');
-      k.line('a', '+  if (Number.isNaN(percent)) return total', 'is-add');
-      await k.w(1100);
-      k.line('a', 'Fixed the NaN case Codex found.', 'is-say');
+      await k.burst('a', [['+  if (Number.isNaN(percent)) return total', 'is-add']]);
+      await k.w(300);
+      await k.say('a', 'Fixed the NaN case Codex found.');
       k.status('a', 'done');
-      await k.w(2600);
+      await k.w(2400);
     },
   };
 
@@ -295,6 +334,7 @@
 
   function play(name) {
     var id = ++run;
+    root.classList.remove('is-out');
     build();
     var pressed;
     [].forEach.call(tabs.querySelectorAll('button'), function (b) {
@@ -313,7 +353,10 @@
     };
     scenes[name](k).then(function () {
       if (still || id !== run) return;
-      play(order[(order.indexOf(name) + 1) % order.length]);
+      root.classList.add('is-out');
+      setTimeout(function () {
+        if (id === run) play(order[(order.indexOf(name) + 1) % order.length]);
+      }, 320);
     }, function () {});
   }
 

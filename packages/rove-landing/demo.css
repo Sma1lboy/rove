@@ -9,6 +9,8 @@
   display:flex;height:100%;font-size:1.05cqw;line-height:1.5;color:var(--d-ink);text-align:left;
   font-family:var(--font-prose);
 }
+.demo{transition:opacity .3s var(--ease)}
+.demo.is-out{opacity:0}
 .d-ic{width:1.15em;height:1.15em;flex:none;fill:currentColor}
 .d-ic-claude{color:var(--d-accent)}
 
@@ -24,6 +26,7 @@
 .d-group{padding:.9em .7em .3em;color:var(--d-ink-3);font-family:var(--font-mono);font-size:.9em}
 .d-row{display:flex;align-items:center;gap:.6em;padding:.38em .7em;border-radius:.45em;animation:d-in .35s var(--ease) both}
 .d-row.is-on{background:#2A2A27}
+.d-row.is-child{animation:d-in .35s var(--ease) both,d-flash 1.4s ease-out both}
 .d-row.is-child{margin-left:1.3em;color:var(--d-ink-2)}
 .d-title{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .d-tag{flex:none;font-family:var(--font-mono);font-size:.8em;color:var(--d-ink-3);border:1px solid var(--d-line);border-radius:.35em;padding:0 .4em}
@@ -61,7 +64,10 @@
 .d-line.is-add{margin:0 1em 0 2.4em;padding-left:.6em;background:#0F2E12;color:#BFE6BD}
 .d-line.is-del{margin:0 1em 0 2.4em;padding-left:.6em;background:#3A0D0D;color:#F0B6B0}
 .d-line.is-report{margin:.4em 1em;padding:.5em .8em;border:1px solid var(--d-line);border-radius:.5em;background:var(--d-fill);font-family:var(--font-prose)}
-.d-line.is-warn{margin:.5em 1em;padding:.5em .8em;border:1px solid var(--d-accent);border-radius:.5em;color:var(--d-accent)}
+.d-line.is-think{color:var(--d-ink-3)}
+.d-line.is-think i{display:inline-block;width:.75em;height:.75em;margin-right:.6em;vertical-align:-.08em;border:.14em solid var(--d-accent);border-right-color:transparent;border-radius:50%;animation:d-spin .7s linear infinite}
+.d-line.is-report{animation:d-in .35s var(--ease) both,d-flash 1.4s ease-out both}
+.d-line.is-warn{animation:d-in .3s var(--ease) both,d-warn 1.6s ease-in-out 2;margin:.5em 1em;padding:.5em .8em;border:1px solid var(--d-accent);border-radius:.5em;color:var(--d-accent)}
 .d-line.is-menu{width:fit-content;margin:.4em 1em;padding:.5em .8em;border-radius:.5em;background:#30302D;font-family:var(--font-prose)}
 .d-line.is-menu b{color:var(--d-accent)}
 .d-input{flex:none;display:flex;gap:.6em;margin:0 .6em .6em;padding:.55em .8em;border-top:1px solid var(--d-line);font-family:var(--font-mono);font-size:.94em;min-height:2.6em}
@@ -73,6 +79,9 @@
 @keyframes d-pane{from{opacity:0;flex-grow:.001}to{opacity:1;flex-grow:1}}
 @keyframes d-pulse{0%,100%{opacity:1}50%{opacity:.35}}
 @keyframes d-blink{50%{opacity:0}}
+@keyframes d-spin{to{transform:rotate(1turn)}}
+@keyframes d-flash{0%{box-shadow:inset 0 0 0 1px var(--d-accent);background-color:rgb(224 131 95 / .18)}100%{box-shadow:inset 0 0 0 1px transparent}}
+@keyframes d-warn{50%{background:rgb(224 131 95 / .14)}}
 @media (prefers-reduced-motion:reduce){
   .d-row,.d-line,.d-pane,.d-dot[data-s="work"],.d-input i::after{animation:none}
   .d-use b{transition:none}
