@@ -5,8 +5,8 @@
 
 .demo-wrap{container-type:inline-size;aspect-ratio:16/10;background:#141413;overflow:hidden}
 .demo{
-  --d-ink:#ECEAE4; --d-ink-2:#A3A19A; --d-ink-3:#6E6C66; --d-line:#3A3835; --d-rule:#75706A; --d-fill:#1D1D1B;
-  --d-accent:#E0835F; --d-ok:#7FC37E; --d-warn:#E3B341;
+  --d-ink:#EAE7DF; --d-ink-2:#A9A39A; --d-ink-3:#6E6C66; --d-line:#3A3835; --d-rule:#75706A; --d-fill:#1D1D1B;
+  --d-accent:#CC785C; --d-ok:#9ACA86; --d-warn:#E8C96B;
   display:flex;height:100%;font-size:1.1cqw;line-height:1.5;color:var(--d-ink);text-align:left;
   font-family:var(--font-prose);transition:opacity .3s var(--ease)
 }
@@ -29,7 +29,7 @@
 .d-rows{flex:1 1 auto;min-height:0;overflow:hidden;padding-top:.4em}
 .d-group{padding:.9em .7em .3em;color:var(--d-ink-3);font-family:var(--font-mono);font-size:.9em}
 .d-row{display:flex;align-items:center;gap:.6em;margin-top:.15em;padding:.32em .7em;border-radius:.45em;animation:d-in .35s var(--ease) both}
-.d-row.is-on{background:#2A2A27}
+.d-row.is-on{background:#33312E}
 .d-row.is-new{animation:d-in .35s var(--ease) both,d-flash 1.4s ease-out both}
 /* Children hang off a hairline under the parent's icon, as in the web rail: it runs straight
    past every child but the last, which it hooks into. The guide spans the row's full height
@@ -40,10 +40,14 @@
 .d-row.is-child:not(:has(+ .d-row.is-child)) .d-guide::before{right:0;bottom:50%;border-bottom:1px solid var(--d-rule);border-bottom-left-radius:.46em}
 .d-title{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .d-tag{flex:none;font-family:var(--font-mono);font-size:.8em;color:var(--d-ink-3);border:1px solid var(--d-line);border-radius:.35em;padding:0 .4em}
-.d-dot{flex:none;width:.5em;height:.5em;border-radius:50%;background:var(--d-ink-3);transition:background .3s}
-.d-dot[data-s="work"]{background:var(--d-accent);animation:d-pulse 1.2s ease-in-out infinite}
-.d-dot[data-s="done"]{background:var(--d-ok)}
-.d-dot[data-s="wait"]{background:var(--d-warn)}
+/* the web client's status mark: nine dots in the status's tone; demo.js sets each dot's opacity */
+.d-dots{flex:none;display:inline-grid;grid-template-columns:repeat(3,.23em);grid-auto-rows:.23em;gap:.077em;align-self:center;color:#9D9A95}
+.d-dots i{border-radius:50%;background:currentColor;opacity:.12}
+.d-dots[data-s="work"]{color:#61AAF2}
+.d-dots[data-s="done"]{color:#9ACA86}
+.d-dots[data-s="wait"]{color:#E8C96B}
+/* a running task's title: a light band sweeps across it */
+.d-row:has(.d-dots[data-s="work"]) .d-title{background:linear-gradient(90deg,var(--d-ink) 0%,var(--d-ink) 35%,var(--d-accent) 50%,var(--d-ink) 65%,var(--d-ink) 100%) 0 0/300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:d-shimmer 2.4s linear infinite}
 .d-usage{margin:0 -.5em;padding:.5em 1.2em 0;border-top:1px solid var(--d-line);font-size:.88em;color:var(--d-ink-2)}
 .d-use{display:flex;align-items:center;gap:.7em;padding:.1em 0}
 .d-use span{width:3.6em}
@@ -144,12 +148,13 @@
 @keyframes d-in{from{opacity:0;transform:translateY(.5em)}to{opacity:1;transform:none}}
 @keyframes d-pane{from{opacity:0;flex-grow:.001}to{opacity:1;flex-grow:1}}
 @keyframes d-fade{from{opacity:0}to{opacity:1}}
+@keyframes d-shimmer{from{background-position:100% 0}to{background-position:-100% 0}}
 @keyframes d-pulse{0%,100%{opacity:1}50%{opacity:.35}}
 @keyframes d-blink{50%{opacity:0}}
 @keyframes d-spin{to{transform:rotate(1turn)}}
 @keyframes d-flash{0%{box-shadow:inset 0 0 0 1px var(--d-accent);background-color:rgb(224 131 95 / .18)}100%{box-shadow:inset 0 0 0 1px transparent}}
 @keyframes d-warn{50%{background:rgb(224 131 95 / .14)}}
 @media (prefers-reduced-motion:reduce){
-  .d-row,.d-line,.d-line i,.d-pane,.d-pane header,.d-dot[data-s="work"],.d-input i::after{animation:none}
+  .d-row,.d-line,.d-line i,.d-pane,.d-pane header,.d-title,.d-input i::after{animation:none}
   .d-use b{transition:none}
 }

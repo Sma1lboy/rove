@@ -31,6 +31,48 @@
   function icon(name) {
     return '<svg class="d-ic d-ic-' + name + '" aria-hidden="true"><use href="#ic-' + name + '"/></svg>';
   }
+  /* A row's status as the web client's 3×3 dot mark, ported from packages/rove/src/lib/status-dots.ts
+     (after ELYTerminal's session orb, MIT). Every mark steps on one 80 ms clock: work ripples out
+     from the centre, a wait dips twice a round, a settled state draws its shape dot by dot and holds. */
+  var STEP_MS = 80;
+  var SHAPE = { done: { dots: [3, 7, 5, 2], bright: 1 }, idle: { dots: [1, 2, 5, 8, 7, 6, 3, 0], bright: 0.6 } };
+  function dotLevels(look, step, held, slow) {
+    var levels = [], dot;
+    if (look === 'work') {
+      var t = step * STEP_MS / 1000 / slow;
+      for (dot = 0; dot < 9; dot++) {
+        var lag = Math.hypot(dot % 3 - 1, Math.floor(dot / 3) - 1) * 0.3;
+        levels.push(0.35 + 0.65 * (0.5 + 0.5 * Math.cos(2 * Math.PI * (t - lag) / 1.2)));
+      }
+      return levels;
+    }
+    if (look === 'wait') {
+      var dip = [0, 1, 4, 5].indexOf(Math.floor(step / slow) % 20) >= 0;
+      for (dot = 0; dot < 9; dot++) levels.push(dip ? 0.25 : 1);
+      return levels;
+    }
+    for (dot = 0; dot < 9; dot++) levels.push(0.12);
+    SHAPE[look].dots.forEach(function (d, rank) {
+      var lit = Math.min(Math.max(held - rank, 0), 2) / 2;
+      levels[d] = SHAPE[look].bright * lit + 0.12 * (1 - lit);
+    });
+    return levels;
+  }
+  function dots(look) {
+    return '<span class="d-dots" data-s="' + look + '" data-began="' + Math.floor(performance.now() / STEP_MS) +
+      '"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>';
+  }
+  setInterval(function () {
+    if (!visible) return;
+    var step = Math.floor(performance.now() / STEP_MS);
+    [].forEach.call(root.querySelectorAll('.d-dots'), function (m) {
+      var held = still ? Infinity : step - Number(m.getAttribute('data-began'));
+      dotLevels(m.getAttribute('data-s'), step, held, still ? 3 : 1).forEach(function (level, i) {
+        m.children[i].style.opacity = level.toFixed(3);
+      });
+    });
+  }, STEP_MS);
+
   function build() {
     root.innerHTML =
       '<aside class="d-side">' +
@@ -76,7 +118,7 @@
           (o.child ? '<span class="d-guide"></span>' : '') +
           icon(o.icon || (NAMES[o.tag] ? o.tag : 'claude')) + '<span class="d-title">' + o.title + '</span>' +
           (o.tag && !NAMES[o.tag] ? '<span class="d-tag">' + o.tag + '</span>' : '') +
-          '<span class="d-dot" data-s="' + s + '"></span>');
+          dots(s));
         r.id = 'dRow-' + o.id;
         var after = o.after && document.getElementById('dRow-' + o.after);
         var rows = document.getElementById('dRows');
@@ -84,7 +126,7 @@
       },
       status: function (rowId, s) {
         if (dry) return;
-        document.querySelector('#dRow-' + rowId + ' .d-dot').setAttribute('data-s', s);
+        document.querySelector('#dRow-' + rowId + ' .d-dots').outerHTML = dots(s);
       },
       select: function (rowId) {
         if (dry) return;
