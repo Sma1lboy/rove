@@ -36,11 +36,13 @@
 .notice.err{color:var(--accent-text)}
 .controls{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;margin:32px 0}
 .sort{display:flex;align-items:center;gap:8px}
-#q{width:min(100%,280px);padding:8px 10px;border:var(--hair) solid var(--ink-3);border-radius:0;background:var(--paper);-webkit-appearance:none;appearance:none}
+#q{width:min(100%,280px);padding:8px 12px;border:var(--hair) solid var(--rule);border-radius:var(--radius);background:var(--paper);-webkit-appearance:none;appearance:none}
 #q::placeholder{color:var(--ink-3)}
 .count{margin-left:auto;font-size:var(--fs-s);color:var(--ink-2);white-space:nowrap}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr));gap:40px 48px}
-.card{display:flex;flex-direction:column;gap:8px;min-width:0;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr));gap:20px}
+/* A plugin sits on the page's own paper inside a hairline; only its command is filled. */
+.card{display:flex;flex-direction:column;gap:8px;min-width:0;cursor:pointer;transition:border-color .15s var(--ease)}
+.card:hover{border-color:var(--accent-line)}
 .card-top{display:flex;align-items:baseline;gap:12px}
 .card-name{flex:1 1 auto;min-width:0;overflow-wrap:anywhere;font-family:var(--font-mono);font-weight:500;text-decoration:none}
 .card-name .owner{color:var(--ink-3);font-weight:400}
@@ -50,7 +52,7 @@
 .card-meta{display:flex;flex-wrap:wrap;gap:2px 16px;font-size:var(--fs-s);color:var(--ink-3)}
 .card-install{
   display:flex;align-items:flex-start;gap:8px;margin-top:4px;padding:8px 10px;
-  background:transparent;border:var(--hair) solid var(--ink-3);text-align:left;
+  background:var(--paper-2);border:var(--hair) solid var(--rule);border-radius:8px;text-align:left;
   font-family:var(--font-mono);font-size:var(--fs-s);line-height:1.5;color:var(--ink-2);
   transition:color .15s var(--ease),border-color .15s var(--ease);
 }
@@ -118,8 +120,9 @@
        live inside it and leave with it. -->
   <section id="top">
 
-  <section class="hero">
+  <section class="hero dotfield">
     <div class="hero-l">
+      <i class="glyph is-page" data-glyph="plug"></i>
       <h1 data-i18n-html="hero.h1">Plugins <span class="thin">built on the Rove CLI</span></h1>
       <p class="lede" data-i18n-html="hero.lede">A Rove plugin is <b>a directory with a <span class="mono">rove-plugin.toml</span> manifest</b>. That is the whole requirement. There is no required SDK, because the entire Rove CLI is the plugin API.</p>
 
@@ -518,6 +521,7 @@ command = [<span class="k">"lazygit"</span>]   <span class="c"># cwd = the task 
 </script>
 
 <!-- marketplace list + plugin detail view (needs ROVE_I18N above) -->
+<script src="/dots.js" defer></script>
 <script src="marketplace.js"></script>
 <script src="/copy.js" defer></script>
 <script src="/version.js" defer></script>

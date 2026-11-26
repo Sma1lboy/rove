@@ -123,7 +123,8 @@ select{
 .sub{grid-column:1/-1;font-size:var(--fs-m);font-weight:600;margin:32px 0 12px}
 .note>h2+.sub{margin-top:0}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
-.card{margin:0;padding:24px;border:var(--hair) solid var(--rule);border-radius:14px;background:var(--paper-2)}
+/* A card is the page's own paper inside a hairline; only what is inside it (a command, a button) is filled. */
+.card{margin:0;padding:24px;border:var(--hair) solid var(--rule);border-radius:14px;background:var(--paper)}
 .card p{margin:0}
 .card .t-note{margin-top:12px}
 .dl{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px!important}
@@ -156,6 +157,25 @@ select{
 
 /* centred hero: title, lede, agent marquee, install, then the film ------- */
 .hero-c{display:flex;flex-direction:column;align-items:center;gap:56px;padding:64px 0 8px;text-align:center}
+/* The hero's backdrop (celestial.js): a peony, half as it is and half in numbered cells,
+   larger than the page. The canvas is the full width of the window and as tall as the hero down to the demo. */
+.hero-c{position:relative;isolation:isolate}
+.sky{position:absolute;z-index:-1;top:-60px;left:50%;width:100vw;height:920px;translate:-50% 0;pointer-events:none;font-family:var(--font-mono)}
+/* Frosted glass over the backdrop, strongest behind the headline and the install box and gone toward the sides. */
+.sky-glass{position:absolute;z-index:-1;top:30px;left:50%;width:100vw;height:830px;translate:-50% 0;pointer-events:none;-webkit-backdrop-filter:blur(18px) saturate(1.15);backdrop-filter:blur(18px) saturate(1.15);background:color-mix(in srgb,var(--paper) 38%,transparent);-webkit-mask-image:radial-gradient(ellipse 46% 42% at 50% 24%,#000 45%,transparent 100%);mask-image:radial-gradient(ellipse 46% 42% at 50% 24%,#000 45%,transparent 100%)}
+/* A phone has no room beside the text for the flower. */
+@media (max-width:760px){.sky,.sky-glass{display:none}}
+/* A field of dots behind the headline, fading out downward; a second field in the accent shows
+   only near the pointer (dots.js sets --mx/--my), and drifts by itself where there is none. */
+.dotfield{position:relative;isolation:isolate}
+.dotfield::before,.dotfield::after{content:"";position:absolute;z-index:-1;inset:-24px -8vw auto;height:460px;pointer-events:none;background-size:16px 16px;background-position:50% 0}
+.dotfield::before{background-image:radial-gradient(var(--rule) 1.2px,transparent 1.6px);-webkit-mask-image:radial-gradient(ellipse 60% 100% at 50% 0,#000 20%,transparent 75%);mask-image:radial-gradient(ellipse 60% 100% at 50% 0,#000 20%,transparent 75%)}
+.dotfield::after{background-image:radial-gradient(var(--accent) 1.2px,transparent 1.6px);-webkit-mask-image:radial-gradient(circle 150px at var(--mx,50%) var(--my,-200px),#000,transparent);mask-image:radial-gradient(circle 150px at var(--mx,50%) var(--my,-200px),#000,transparent)}
+@media (hover:none){.dotfield::after{animation:dots-drift 14s ease-in-out infinite alternate}}
+@keyframes dots-drift{from{--mx:20%;--my:80px}to{--mx:80%;--my:220px}}
+@property --mx{syntax:"<length-percentage>";inherits:true;initial-value:50%}
+@property --my{syntax:"<length-percentage>";inherits:true;initial-value:-200px}
+@media (prefers-reduced-motion:reduce){.glyph b{transition:none;animation:none!important}.dotfield::after{animation:none}}
 .hero-c .hero-l,.hero-c .hero-r{width:100%}
 .hero-c .hero-r{max-width:1240px}
 .scenes{margin:0 auto 20px;max-width:100%;overflow-x:auto;white-space:nowrap}
@@ -163,7 +183,9 @@ select{
 .appwin-bar{display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;position:relative;border-bottom:1px solid #2A2A28}
 .appwin-bar i{width:11px;height:11px;border-radius:50%;background:#3A3A37}
 .appwin-bar span{position:absolute;left:0;right:0;text-align:center;font-size:var(--fs-s);color:#8A8A85;pointer-events:none}
+/* The tabs sit over the backdrop, so an unpressed one carries the page's paper. */
 .scenes button{position:relative}
+.scenes button[aria-pressed="false"]{background:var(--paper)}
 .scenes button[aria-pressed="true"]::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--accent);transform-origin:left;transform:scaleX(var(--p,0))}
 .get-req{margin:0 0 12px;max-width:80ch}
 .hero-c h1,.hero-c .lede,.hero-c .install-wrap{margin-left:auto;margin-right:auto}
@@ -193,7 +215,13 @@ section{position:relative}
 .can{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0 32px;margin:0;counter-reset:can}
 .can>div{counter-increment:can;border-top:var(--hair) solid var(--rule);padding:16px 0 24px}
 .can dt{font-weight:600;margin:0 0 4px}
-.can dt::before{content:counter(can,decimal-leading-zero);font-family:var(--font-mono);font-size:var(--fs-s);color:var(--accent-text);margin-right:10px}
+/* A feature's mark: 25 pixels, the lit ones drawn in order once the grid is on screen (dots.js). */
+.glyph{display:grid;grid-template-columns:repeat(5,5px);grid-auto-rows:5px;gap:2px;width:max-content;margin:0 0 14px}
+.glyph.is-page{grid-template-columns:repeat(5,7px);grid-auto-rows:7px;gap:3px;margin:0 0 20px}
+.glyph b{background:var(--rule);border-radius:1px;transition:background .18s var(--ease)}
+.can.is-in .glyph .on,.glyph.is-in .on{background:var(--accent);transition-delay:calc(var(--i) * 45ms + 120ms)}
+.can>div:hover .glyph b{animation:glyph-ripple 1.2s ease-in-out infinite;animation-delay:calc(var(--d) * 110ms)}
+@keyframes glyph-ripple{50%{opacity:.35}}
 .can dd{margin:0;color:var(--ink-2);max-width:40ch}
 .txt-col p{margin:0 0 16px;max-width:56ch}
 .txt-col p:last-child{margin-bottom:0}
