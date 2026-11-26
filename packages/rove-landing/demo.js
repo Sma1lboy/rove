@@ -1,5 +1,5 @@
-/* demo.js: the hero's app window. A drawn copy of the Rove web client that plays
- * four scripted scenes; nothing here talks to a real agent.
+/* demo.js: the hero's terminal window. A drawn copy of the Rove TUI that plays
+ * scripted scenes; nothing here talks to a real agent.
  *
  *   #scenes button[data-scene]   picks a scene; the pressed one shows progress in --p
  *   #demo                        the window body this file fills
@@ -26,20 +26,20 @@
     if (html != null) n.innerHTML = html;
     return n;
   }
-  function icon(name) {
-    return '<svg class="d-ic d-ic-' + name + '" aria-hidden="true"><use href="#ic-' + name + '"/></svg>';
-  }
-
   function build() {
     root.innerHTML =
       '<aside class="d-side">' +
-        '<div class="d-brand"><b>[ rove ]</b><span class="d-inbox">inbox <i id="dInbox">0</i></span></div>' +
-        '<div class="d-nav">New task<span>+</span></div><div class="d-nav">Routines</div>' +
+        '<div class="d-brand"><b>ROVE</b> <span>INBOX <i id="dInbox">0</i></span></div>' +
+        '<div class="d-nav is-strong">New task<span>n</span></div><div class="d-nav" id="dNavRoutines">Routines</div><div class="d-nav">Issues</div>' +
         '<div class="d-rows" id="dRows"></div>' +
         '<div class="d-usage" id="dUsage"></div>' +
+        '<div class="d-hint">j/k move · ⏎ open</div>' +
       '</aside>' +
-      '<div class="d-main" id="dMain"></div>';
+      '<div class="d-body"><div class="d-main" id="dMain"></div><div class="d-status">^A commands · F1 help · [settings]</div></div>';
   }
+
+  var GLYPH = { idle: '○', work: '●', done: '✓', wait: '?' };
+  function head(o) { return '<b>' + o.label + '</b>' + (o.where ? ' · ' + o.where : ''); }
 
   function makeKit(id, dry) {
     var total = 0;
@@ -64,14 +64,14 @@
       onTime: function () {},
       group: function (name) {
         if (dry) return;
-        document.getElementById('dRows').appendChild(el('div', 'd-group', name));
+        document.getElementById('dRows').appendChild(el('div', 'd-group', '<span>' + name + '</span>'));
       },
       row: function (o) {
         if (dry) return;
+        var s = o.status || 'idle';
         var r = el('div', 'd-row' + (o.child ? ' is-child' : '') + (o.child || o.flash ? ' is-new' : ''),
-          icon(o.icon) + '<span class="d-title">' + o.title + '</span>' +
-          (o.tag ? '<span class="d-tag">' + o.tag + '</span>' : '') +
-          '<span class="d-dot" data-s="' + (o.status || 'idle') + '"></span>');
+          '<span class="d-dot" data-s="' + s + '">' + GLYPH[s] + '</span><span class="d-title">' + o.title + '</span>' +
+          (o.tag ? '<span class="d-tag">' + o.tag + '</span>' : ''));
         r.id = 'dRow-' + o.id;
         var after = o.after && document.getElementById('dRow-' + o.after);
         var rows = document.getElementById('dRows');
@@ -79,11 +79,9 @@
       },
       status: function (rowId, s) {
         if (dry) return;
-        document.querySelector('#dRow-' + rowId + ' .d-dot').setAttribute('data-s', s);
-      },
-      rowIcon: function (rowId, name) {
-        if (dry) return;
-        document.querySelector('#dRow-' + rowId + ' .d-ic').outerHTML = icon(name);
+        var dot = document.querySelector('#dRow-' + rowId + ' .d-dot');
+        dot.setAttribute('data-s', s);
+        dot.textContent = GLYPH[s];
       },
       select: function (rowId) {
         if (dry) return;
@@ -94,12 +92,11 @@
       inbox: function (n) { if (!dry) document.getElementById('dInbox').textContent = n; },
       usage: function (name, pct, note) {
         if (dry) return;
-        var box = document.getElementById('dUsage');
         var u = document.getElementById('dUse-' + name);
         if (!u) {
-          u = el('div', 'd-use', '<span>' + name + '</span><i><b></b></i><em></em>');
+          u = el('div', 'd-use', '<span>' + name.toLowerCase() + '</span><i><b></b></i><em></em>');
           u.id = 'dUse-' + name;
-          box.appendChild(u);
+          document.getElementById('dUsage').appendChild(u);
         }
         u.querySelector('b').style.width = pct + '%';
         u.querySelector('em').textContent = note || pct + '%';
@@ -108,15 +105,32 @@
       pane: function (o) {
         if (dry) return;
         var p = el('section', 'd-pane',
-          '<header>' + icon(o.icon) + '<b>' + o.label + '</b>' + (o.where ? '<span>' + o.where + '</span>' : '') + '</header>' +
-          '<div class="d-lines"></div><div class="d-input"><span>›</span><i></i></div>');
+          '<header>' + head(o) + '</header><div class="d-lines"></div><div class="d-input"><span>❯</span><i></i></div>');
         p.id = 'dPane-' + o.id;
         document.getElementById('dMain').appendChild(p);
       },
       paneHead: function (paneId, o) {
         if (dry) return;
-        document.querySelector('#dPane-' + paneId + ' header').innerHTML =
-          icon(o.icon) + '<b>' + o.label + '</b>' + (o.where ? '<span>' + o.where + '</span>' : '');
+        var h = document.querySelector('#dPane-' + paneId + ' header');
+        h.innerHTML = head(o);
+        h.classList.remove('is-new');
+        void h.offsetWidth;
+        h.classList.add('is-new');
+      },
+      /* The plain shell before the TUI opens: a prompt, a typed command, then the screen clears. */
+      shell: async function (cmd) {
+        var s = null;
+        if (!dry && !still) {
+          s = el('div', 'd-shell', '<span>~/storefront</span> <b>$</b> <i></i>');
+          root.appendChild(s);
+        }
+        await kit.w(500);
+        for (var i = 1; i <= cmd.length; i++) {
+          if (s) s.querySelector('i').textContent = cmd.slice(0, i);
+          await kit.w(90);
+        }
+        await kit.w(500);
+        if (s) root.removeChild(s);
       },
       line: function (paneId, html, cls) {
         if (dry) return;
@@ -127,12 +141,13 @@
       /* The Routines page: a pane-sized list of schedules, each with a state cell on the right. */
       list: function (o) {
         if (dry) return;
-        var p = el('section', 'd-pane d-list', '<header><b>' + o.title + '</b><span id="dClock">' + o.clock + '</span></header>' +
+        var p = el('section', 'd-pane d-list', '<header><b>' + o.title + '</b> · <span id="dClock">' + o.clock + '</span></header>' +
           o.rows.map(function (r, i) {
-            return '<div class="d-item" id="dItem-' + i + '">' + icon(r.icon) + '<b>' + r.name + '</b><span>' + r.when +
-              '</span>' + (r.tag ? '<span class="d-tag">' + r.tag + '</span>' : '') + '<em>' + r.state + '</em></div>';
+            return '<div class="d-item" id="dItem-' + i + '"><b>' + r.name + '</b><span>' + r.when + '</span><span>' + r.on +
+              '</span><em>' + r.state + '</em></div>';
           }).join(''));
         document.getElementById('dMain').appendChild(p);
+        document.getElementById('dNavRoutines').classList.add('is-on');
       },
       item: function (i, state, cls) {
         if (dry) return;
@@ -190,12 +205,13 @@
   var scenes = {
     /* One agent splits a job, two others take a part each, and their reports come back. */
     dispatch: async function (k) {
+      await k.shell('rove');
       k.usage('Claude', 42); k.usage('Codex', 8);
       k.group('storefront');
-      k.row({ id: 'a', icon: 'claude', title: 'EU checkout tax', status: 'idle' });
-      k.row({ id: 'x', icon: 'codex', title: 'Flaky cart test', status: 'done' });
+      k.row({ id: 'a', title: 'EU checkout tax', status: 'idle' });
+      k.row({ id: 'x', title: 'Flaky cart test', status: 'done' });
       k.select('a');
-      k.pane({ id: 'a', icon: 'claude', label: 'Claude Code' });
+      k.pane({ id: 'a', label: 'claude' });
       await k.w(600);
       await k.type('a', 'Add EU tax to checkout. Hand the tax rules to Codex and the tests to Gemini.');
       k.status('a', 'work');
@@ -206,11 +222,11 @@
       await k.w(500);
       k.line('a', '<b>rove api add</b> --title tax-rules --command codex', 'is-tool');
       await k.w(260);
-      k.row({ id: 'b', icon: 'codex', title: 'tax-rules', status: 'work', child: true, after: 'a' });
+      k.row({ id: 'b', title: 'tax-rules', tag: 'codex', status: 'work', child: true, after: 'a' });
       await k.w(520);
       k.line('a', '<b>rove api add</b> --title tax-tests --command gemini', 'is-tool');
       await k.w(260);
-      k.row({ id: 'c', icon: 'gemini', title: 'tax-tests', status: 'work', child: true, after: 'b' });
+      k.row({ id: 'c', title: 'tax-tests', tag: 'gemini', status: 'work', child: true, after: 'b' });
       await k.w(1300);
       k.line('a', '<b>Update</b>(src/checkout.ts)', 'is-tool');
       await k.burst('a', [
@@ -220,10 +236,10 @@
       ]);
       await k.think('a', 1500, 'Waiting for two reports…');
       k.status('b', 'done'); k.inbox(1);
-      k.line('a', icon('codex') + '<b>tax-rules</b> reported: VAT table for 27 countries, +48 −6', 'is-report');
+      k.line('a', '<b>tax-rules</b> (codex) reported: VAT table for 27 countries, +48 −6', 'is-report');
       await k.think('a', 1100, 'Waiting for one report…');
       k.status('c', 'done'); k.inbox(2);
-      k.line('a', icon('gemini') + '<b>tax-tests</b> reported: 12 tests, all pass', 'is-report');
+      k.line('a', '<b>tax-tests</b> (gemini) reported: 12 tests, all pass', 'is-report');
       await k.w(700);
       await k.say('a', 'Both parts are back and merged into this branch. 12 tests pass.');
       k.status('a', 'done');
@@ -234,10 +250,10 @@
     swap: async function (k) {
       k.usage('Claude', 93); k.usage('Codex', 8);
       k.group('storefront');
-      k.row({ id: 'a', icon: 'claude', title: 'Refund flow', status: 'work' });
-      k.row({ id: 'x', icon: 'codex', title: 'Flaky cart test', status: 'done' });
+      k.row({ id: 'a', title: 'Refund flow', status: 'work' });
+      k.row({ id: 'x', title: 'Flaky cart test', status: 'done' });
       k.select('a');
-      k.pane({ id: 'a', icon: 'claude', label: 'Claude Code' });
+      k.pane({ id: 'a', label: 'claude' });
       k.line('a', 'Add partial refunds: API route, ledger entry, email.', 'is-prompt');
       await k.w(500);
       k.line('a', '<b>Update</b>(src/refund/route.ts)', 'is-tool');
@@ -255,7 +271,7 @@
       await k.w(1900);
       k.line('a', 'Switch agent → <b>Codex</b>', 'is-menu');
       await k.w(900);
-      k.rowIcon('a', 'codex'); k.paneHead('a', { icon: 'codex', label: 'Codex' });
+      k.paneHead('a', { label: 'codex' });
       k.status('a', 'work'); k.inbox(0);
       await k.think('a', 1100, 'Reading the earlier conversation…');
       k.line('a', 'Read 38 messages: 2 of 3 steps are done', 'is-dim');
@@ -278,19 +294,19 @@
     machines: async function (k) {
       k.usage('Claude', 42); k.usage('Codex', 8);
       k.group('storefront');
-      k.row({ id: 'x', icon: 'claude', title: 'Refund flow', status: 'done' });
-      k.row({ id: 'y', icon: 'codex', title: 'Flaky cart test', tag: 'mac-mini', status: 'work' });
+      k.row({ id: 'x', title: 'Refund flow', status: 'done' });
+      k.row({ id: 'y', title: 'Flaky cart test', tag: 'mac-mini', status: 'work' });
       k.group('ml-pipeline');
-      k.row({ id: 'z', icon: 'claude', title: 'Nightly eval', tag: 'gpu-box', status: 'work' });
+      k.row({ id: 'z', title: 'Nightly eval', tag: 'gpu-box', status: 'work' });
       k.select('x');
-      k.pane({ id: 'a', icon: 'claude', label: 'Claude Code', where: 'new task' });
+      k.pane({ id: 'a', label: 'claude', where: 'new task' });
       await k.w(700);
       k.line('a', 'Run on: this Mac · mac-mini · <b>gpu-box</b>', 'is-menu');
       await k.w(900);
       await k.type('a', 'Train the ranking model on the new data and report the score.');
-      k.row({ id: 'a', icon: 'claude', title: 'Ranking model', tag: 'gpu-box', status: 'work', flash: true, after: 'z' });
+      k.row({ id: 'a', title: 'Ranking model', tag: 'gpu-box', status: 'work', flash: true, after: 'z' });
       k.select('a');
-      k.paneHead('a', { icon: 'claude', label: 'Claude Code', where: 'files and commands on gpu-box' });
+      k.paneHead('a', { label: 'claude', where: 'files and commands on gpu-box' });
       await k.think('a', 800, 'Connecting to gpu-box…');
       k.line('a', '<b>Bash</b>(python train.py --data data/2026-11)', 'is-tool');
       await k.w(500);
@@ -310,22 +326,22 @@
     routine: async function (k) {
       k.usage('Claude', 42); k.usage('Codex', 8);
       k.group('storefront');
-      k.row({ id: 'x', icon: 'claude', title: 'Refund flow', status: 'done' });
+      k.row({ id: 'x', title: 'Refund flow', status: 'done' });
       k.group('ml-pipeline');
-      k.row({ id: 'z', icon: 'codex', title: 'Nightly eval', tag: 'gpu-box', status: 'done' });
+      k.row({ id: 'z', title: 'Nightly eval', tag: 'gpu-box', status: 'done' });
       k.list({ title: 'Routines', clock: '08:59', rows: [
-        { icon: 'claude', name: 'Dependency check', when: 'every day 09:00', state: 'in 1 min' },
-        { icon: 'codex', name: 'Nightly eval', when: 'every day 02:00', tag: 'gpu-box', state: 'ran 02:00' },
-        { icon: 'gemini', name: 'Weekly changelog', when: 'Mondays 10:00', state: 'in 3 days' },
+        { name: 'Dependency check', when: 'every day 09:00', on: 'claude', state: 'in 1 min' },
+        { name: 'Nightly eval', when: 'every day 02:00', on: 'codex · gpu-box', state: 'ran 02:00' },
+        { name: 'Weekly changelog', when: 'Mondays 10:00', on: 'gemini', state: 'in 3 days' },
       ] });
       await k.w(1600);
       k.clock('09:00');
       k.item(0, 'running', 'is-run');
       await k.w(500);
-      k.row({ id: 'a', icon: 'claude', title: 'Dependency check', status: 'work', flash: true, after: 'x' });
+      k.row({ id: 'a', title: 'Dependency check', status: 'work', flash: true, after: 'x' });
       k.select('a');
       await k.w(600);
-      k.pane({ id: 'a', icon: 'claude', label: 'Claude Code', where: 'started by a routine' });
+      k.pane({ id: 'a', label: 'claude', where: 'started by a routine' });
       k.line('a', 'Check for outdated dependencies and open a pull request for the safe ones.', 'is-prompt');
       await k.think('a', 900);
       k.line('a', '<b>Bash</b>(bun outdated)', 'is-tool');
@@ -347,10 +363,10 @@
     split: async function (k) {
       k.usage('Claude', 42); k.usage('Codex', 8);
       k.group('storefront');
-      k.row({ id: 'a', icon: 'claude', title: 'Coupon limits', status: 'work' });
-      k.row({ id: 'x', icon: 'codex', title: 'Flaky cart test', status: 'done' });
+      k.row({ id: 'a', title: 'Coupon limits', status: 'work' });
+      k.row({ id: 'x', title: 'Flaky cart test', status: 'done' });
       k.select('a');
-      k.pane({ id: 'a', icon: 'claude', label: 'Claude Code' });
+      k.pane({ id: 'a', label: 'claude' });
       k.line('a', 'A coupon above 100% makes the total negative. Clamp it.', 'is-prompt');
       await k.think('a', 700);
       k.line('a', '<b>Update</b>(src/cart.ts)', 'is-tool');
@@ -362,7 +378,7 @@
       await k.w(300);
       await k.say('a', 'Clamped to 0..100. Not tested yet.');
       await k.w(700);
-      k.pane({ id: 'b', icon: 'codex', label: 'Codex' });
+      k.pane({ id: 'b', label: 'codex' });
       await k.w(600);
       await k.type('b', 'Review the uncommitted change. Bugs only.');
       await k.think('b', 600);
