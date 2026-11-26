@@ -14,7 +14,7 @@ const SRC = "/assets/hero-peony.webp"
 const PITCH = 16
 const TILE = 15
 /** The picture's height in canvas heights, and where its centre sits on the canvas (fractions of its width and height). */
-const TALL = 0.98
+const TALL = 1.12
 const AT_X = 0.8
 const AT_Y = 0.5
 /** How much the flower swells, how far it sways in px, and the speed of each in radians per second. */
