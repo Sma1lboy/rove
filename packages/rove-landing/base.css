@@ -156,10 +156,10 @@ select{
 
 /* centred hero: title, lede, agent marquee, install, then the film ------- */
 .hero-c{display:flex;flex-direction:column;align-items:center;gap:56px;padding:64px 0 8px;text-align:center}
-/* The hero's backdrop (celestial.js): a contour map in characters, larger than the page. The canvas
-   is the full width of the window and as tall as the hero down to the demo, and clips what runs past it. */
+/* The hero's backdrop (celestial.js): a picture rebuilt from numbered cells, larger than the page. The
+   canvas is the full width of the window and as tall as the hero down to the demo, and clips what runs past it. */
 .hero-c{position:relative;isolation:isolate}
-.sky{position:absolute;z-index:-1;top:-60px;left:50%;width:100vw;height:820px;translate:-50% 0;pointer-events:none;font-family:var(--font-mono)}
+.sky{position:absolute;z-index:-1;top:-60px;left:50%;width:100vw;height:920px;translate:-50% 0;pointer-events:none;font-family:var(--font-mono)}
 /* A field of dots behind the headline, fading out downward; a second field in the accent shows
    only near the pointer (dots.js sets --mx/--my), and drifts by itself where there is none. */
 .dotfield{position:relative;isolation:isolate}
@@ -178,7 +178,9 @@ select{
 .appwin-bar{display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;position:relative;border-bottom:1px solid #2A2A28}
 .appwin-bar i{width:11px;height:11px;border-radius:50%;background:#3A3A37}
 .appwin-bar span{position:absolute;left:0;right:0;text-align:center;font-size:var(--fs-s);color:#8A8A85;pointer-events:none}
+/* The tabs sit over the backdrop, so an unpressed one carries the page's paper. */
 .scenes button{position:relative}
+.scenes button[aria-pressed="false"]{background:var(--paper)}
 .scenes button[aria-pressed="true"]::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--accent);transform-origin:left;transform:scaleX(var(--p,0))}
 .get-req{margin:0 0 12px;max-width:80ch}
 .hero-c h1,.hero-c .lede,.hero-c .install-wrap{margin-left:auto;margin-right:auto}
