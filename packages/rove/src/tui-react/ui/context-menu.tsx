@@ -105,6 +105,7 @@ export function ContextMenu(props: {
               {"─".repeat(layout.innerWidth)}
             </text>
           ) : null,
+          // biome-ignore lint/a11y/useKeyWithMouseEvents: a terminal box takes no focus; j/k move the same cursor
           <box
             key={entry.id}
             flexShrink={0}
