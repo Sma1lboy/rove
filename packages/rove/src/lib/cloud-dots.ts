@@ -1,8 +1,11 @@
 /**
- * The cloud that marks a task on another machine, as dots. One shape for both clients: four rows
- * is all a line of braille cells can hold, so the web's mark keeps to the same 6×4 grid.
+ * The cloud that marks a task on another machine, as dots. Two drawings on purpose: a terminal's
+ * braille dots sit about twice as far apart as the web's and leave a gap between cells, so the
+ * web's 6×4 outline falls apart there. The terminal gets a smaller one that holds together.
  */
 export const CLOUD_DOT_ROWS = ["..##..", "##..#.", "#....#", ".####."] as const
+/** Two braille cells. */
+export const TERMINAL_CLOUD_DOT_ROWS = [".##.", "#..#", "####"] as const
 
 /** Braille's bit per dot of a 2×4 cell, row by row. */
 const BRAILLE_BITS = [
