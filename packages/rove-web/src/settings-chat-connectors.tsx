@@ -12,7 +12,8 @@ import { closeDialog, toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import {
   BENTO,
-  BENTO_HEAD,
+  CARD_HEAD,
+  CARD_HEAD_TITLE,
   CONFIRM_INLINE,
   ENG_FACTS,
   ENG_FACT_TERM,
@@ -139,8 +140,8 @@ function ChatCard({ model, row, reload }: { model: AppModel; row: ChatStatus; re
 
   return (
     <div className={bentoCardClass(true)}>
-      <div className={`${BENTO_HEAD} w-narrow:flex-wrap`}>
-        <span className="flex min-w-0 flex-1 items-center gap-3 w-narrow:basis-full">
+      <div className={CARD_HEAD}>
+        <span className={CARD_HEAD_TITLE}>
           <ChatMark id={row.id} />
           <span className="flex min-w-0 flex-col gap-0.5">
             <span className={SETTINGS_NAME}>{c(`${meta.copy}Name`)}</span>

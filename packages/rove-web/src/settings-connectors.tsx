@@ -25,6 +25,8 @@ import {
   BENTO,
   BENTO_HEAD,
   BENTO_TITLE,
+  CARD_HEAD,
+  CARD_HEAD_TITLE,
   CONFIRM_INLINE,
   SETTINGS_ACTIONS,
   SETTINGS_GROUP_HINT,
@@ -232,9 +234,8 @@ function GithubCard({ model }: { model: AppModel }) {
   return (
     <div className={BENTO}>
       <div className={bentoCardClass(true)}>
-        <div className={`${BENTO_HEAD} w-narrow:flex-wrap`}>
-          {/* On a phone the account and its button drop under the name, so the description keeps its width. */}
-          <span className="flex min-w-0 flex-1 items-center gap-3 w-narrow:basis-full">
+        <div className={CARD_HEAD}>
+          <span className={CARD_HEAD_TITLE}>
             <GithubMark />
             <span className="flex min-w-0 flex-col gap-0.5">
               <span className={SETTINGS_NAME}>GitHub</span>
