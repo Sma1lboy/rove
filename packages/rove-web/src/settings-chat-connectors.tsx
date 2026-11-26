@@ -148,19 +148,9 @@ function ChatCard({ model, row, reload }: { model: AppModel; row: ChatStatus; re
           </span>
         </span>
         {row.connected ? (
-          <>
-            {row.account && (
-              <span
-                className="min-w-0 truncate text-meta text-muted"
-                title={row.since ? c("chatSince", { date: row.since.slice(0, 10) }) : undefined}
-              >
-                {row.account}
-              </span>
-            )}
-            <Button variant="action" disabled={busy} onClick={() => setConfirming(true)}>
-              {c("disconnect")}
-            </Button>
-          </>
+          <Button variant="action" disabled={busy} onClick={() => setConfirming(true)}>
+            {c("disconnect")}
+          </Button>
         ) : (
           row.connectable && (
             <Button variant="filled" disabled={busy} onClick={() => void connect()}>
@@ -176,6 +166,13 @@ function ChatCard({ model, row, reload }: { model: AppModel; row: ChatStatus; re
       )}
       {row.connected && (
         <dl className={`${ENG_FACTS} pl-10 w-narrow:pl-0`}>
+          {row.account && (
+            <Fact term={c("chatBot")}>
+              <span title={row.since ? c("chatSince", { date: row.since.slice(0, 10) }) : undefined}>
+                {row.account}
+              </span>
+            </Fact>
+          )}
           <Fact term={c("chatAgent")}>
             {row.agentTaskId ? (
               <Button onClick={() => openAgent(row.agentTaskId as string)}>{c("chatOpen")}</Button>
