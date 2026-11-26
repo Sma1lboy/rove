@@ -84,10 +84,18 @@ export interface EngineModel {
 /** Any built-in engine's account shape (each union already has a `none` arm). */
 type EngineAccount = BobAccount | ClaudeAccount | CodexAccount | CopilotAccount | KimiAccount
 
-/** A brand mark as filled paths. `fill` is a brand colour; a path without one takes the client's ink. */
+/**
+ * A brand mark as filled paths. `fill` is a brand colour; a path without one takes the client's ink.
+ * `fade` is a line `[x1, y1, x2, y2]` in viewBox units along which `fill` runs out to transparent.
+ */
 export interface EngineIcon {
   readonly viewBox: string
-  readonly paths: readonly { readonly d: string; readonly evenodd?: true; readonly fill?: string }[]
+  readonly paths: readonly {
+    readonly d: string
+    readonly evenodd?: true
+    readonly fill?: string
+    readonly fade?: readonly [number, number, number, number]
+  }[]
 }
 
 export interface EngineRegistryEntry {

@@ -2,7 +2,7 @@
  * Brand marks for the engines that have one, as path data. A path with no `fill` is the part the
  * brand draws in black or white: a client fills it with its own ink.
  * Sources: packages/branding/public/agent-logos/; OMP redrawn from can1357/oh-my-pi assets/icon.svg (MIT);
- * Antigravity's silhouette from lobehub/lobe-icons (MIT), in one blue since its gradient is not path data.
+ * Antigravity wears Google's four-pointed spark, from lobehub/lobe-icons (MIT).
  */
 
 import type { EngineIcon } from "./registry.ts"
@@ -65,12 +65,15 @@ export const OMP_ICON: EngineIcon = {
   ],
 }
 
+const SPARK =
+  "M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z"
+
 export const ANTIGRAVITY_ICON: EngineIcon = {
   viewBox: "0 0 24 24",
   paths: [
-    {
-      d: "M21.751 22.607c1.34 1.005 3.35.335 1.508-1.508C17.73 15.74 18.904 1 12.037 1 5.17 1 6.342 15.74.815 21.1c-2.01 2.009.167 2.511 1.507 1.506 5.192-3.517 4.857-9.714 9.715-9.714 4.857 0 4.522 6.197 9.714 9.715z",
-      fill: "#4285F4",
-    },
+    { d: SPARK, fill: "#3186FF" },
+    { d: SPARK, fill: "#08B962", fade: [7, 15.5, 11, 12] },
+    { d: SPARK, fill: "#F94543", fade: [8, 5.5, 11.5, 11] },
+    { d: SPARK, fill: "#FABC12", fade: [3.5, 13.5, 9.94, 12.81] },
   ],
 }
