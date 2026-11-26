@@ -281,7 +281,8 @@ export async function replyTabOf(runtime: ApiRuntime, daemon: DaemonRpc, taskId:
  * Both delivery verbs wear it, `add --prompt` included: otherwise the sender
  * is only the task ROW's `dispatcher`, which a receiver has no reason to go
  * read, so a dispatched task finishes and then sits waiting. A
- * `from "<label>" (task <id>)` header plus the reply command. Sender is the VERIFIED $ROVE_TASK_ID/$ROVE_TAB_ID pair — an
+ * `from task <id>` header plus the reply command — the id only: a title is
+ * the session's opening line, stale by the time anyone reads it. Sender is the VERIFIED $ROVE_TASK_ID/$ROVE_TAB_ID pair — an
  * unverified one would bake a stranger's tab into the reply command. A send
  * from a plain shell, an unverified process, or to yourself stays untouched.
  */
@@ -289,13 +290,6 @@ export async function withPeerProvenance(daemon: DaemonRpc, targetTaskId: string
   const self = await ownSession(daemon)
   const senderId = self?.taskId
   if (!self || !senderId || senderId === targetTaskId) return prompt
-  let label = senderId
-  try {
-    const res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId: senderId })
-    label = res.task.title || res.task.branch || senderId
-  } catch {
-    /* stale env id — keep id-only provenance rather than dropping it */
-  }
   const api = roveApiInvocation()
   // The sender's TAB, not just its task: task-granular replies go through
   // canonical-tab resolution, the link that breaks. $ROVE_TAB_ID is exported
@@ -311,5 +305,5 @@ export async function withPeerProvenance(daemon: DaemonRpc, targetTaskId: string
   // The sender's text goes LAST, whole, after a blank line: a model replies
   // in the language of the tokens nearest its turn, so wrapping a Chinese
   // prompt in an English clause pulls replies into English.
-  return `[ROVE PEER] from "${label}" (task ${senderId} — Rove agent skill /rove, read it once per session; reply only if it changes what I do next: \`${api} send ${replyTarget} --prompt "<text>"\`)\n\n${prompt}`
+  return `[ROVE PEER] from task ${senderId} (Rove agent skill /rove, read it once per session; reply only if it changes what I do next: \`${api} send ${replyTarget} --prompt "<text>"\`)\n\n${prompt}`
 }
