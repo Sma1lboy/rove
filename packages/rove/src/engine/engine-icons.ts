@@ -1,7 +1,8 @@
 /**
- * Brand marks for the built-in engines, as path data. A path with no `fill` is the part the
+ * Brand marks for the engines that have one, as path data. A path with no `fill` is the part the
  * brand draws in black or white: a client fills it with its own ink.
- * Sources: packages/branding/public/agent-logos/; OMP redrawn from can1357/oh-my-pi assets/icon.svg (MIT).
+ * Sources: packages/branding/public/agent-logos/; OMP redrawn from can1357/oh-my-pi assets/icon.svg (MIT);
+ * Antigravity's silhouette from lobehub/lobe-icons (MIT), in one blue since its gradient is not path data.
  */
 
 import type { EngineIcon } from "./registry.ts"
@@ -61,5 +62,15 @@ export const OMP_ICON: EngineIcon = {
   paths: [
     { d: "M10 8h100v12H10zM25 20h12v62H25zM75 20h12v45H75z" },
     { d: "M71 55h20v16H71zM76 59h3v8h-3zM82 59h3v8h-3z", evenodd: true, fill: "#f97316" },
+  ],
+}
+
+export const ANTIGRAVITY_ICON: EngineIcon = {
+  viewBox: "0 0 24 24",
+  paths: [
+    {
+      d: "M21.751 22.607c1.34 1.005 3.35.335 1.508-1.508C17.73 15.74 18.904 1 12.037 1 5.17 1 6.342 15.74.815 21.1c-2.01 2.009.167 2.511 1.507 1.506 5.192-3.517 4.857-9.714 9.715-9.714 4.857 0 4.522 6.197 9.714 9.715z",
+      fill: "#4285F4",
+    },
   ],
 }

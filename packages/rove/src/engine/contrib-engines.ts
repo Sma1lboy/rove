@@ -33,18 +33,21 @@ import {
 import { CursorHookAdapter } from "./cursor-local/hook-adapter.ts"
 import { DevinHookAdapter } from "./devin-local/hook-adapter.ts"
 import { DroidHookAdapter } from "./droid-local/hook-adapter.ts"
+import { ANTIGRAVITY_ICON } from "./engine-icons.ts"
 import { GrokHookAdapter, grokConfigDir } from "./grok-local/hook-adapter.ts"
 import { HermesHookAdapter, hermesConfigDir } from "./hermes-local/hook-adapter.ts"
 import type { EngineHookAdapter } from "./hook-adapter.ts"
 import { MastracodeHookAdapter } from "./mastracode-local/hook-adapter.ts"
 import { OpencodeFamilyHookAdapter } from "./opencode-local/hook-adapter.ts"
 import { QodercliHookAdapter } from "./qodercli-local/hook-adapter.ts"
-import type { EngineRegistryEntry } from "./registry.ts"
+import type { EngineIcon, EngineRegistryEntry } from "./registry.ts"
 import type { EngineScreenManifest } from "./screen-state.ts"
 import { skillsDirUnder, xdgConfigHome } from "./vendor-home.ts"
 
 export interface ContribEngineSpec {
   readonly displayName: string
+  /** See `EngineRegistryEntry.icon`. */
+  readonly icon?: EngineIcon
   readonly defaultCommand: readonly string[]
   readonly processNames?: readonly string[]
   readonly screenManifest: EngineScreenManifest
@@ -56,6 +59,8 @@ export interface ContribEngineSpec {
    * positional means something else, or the launch dies on the prompt text.
    */
   readonly firstMessageDelivery?: "argv" | "paste"
+  /** See `EngineRegistryEntry.firstMessageArgv`. */
+  readonly firstMessageArgv?: EngineRegistryEntry["firstMessageArgv"]
   /**
    * Optional activity-hook installer. Without it the entry keeps the base's
    * `NoopHookAdapter`: screen-only, no install, no warning, no file written.
@@ -161,11 +166,14 @@ export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
     skillsDir: () => skillsDirUnder(join(homedir(), ".kiro")),
   },
   maki: { displayName: "Maki", defaultCommand: ["maki"], screenManifest: MAKI },
+  // A positional exits `unexpected argument` (agy 1.5.17); `-i` runs the prompt and stays interactive.
   antigravity: {
     displayName: "Antigravity",
+    icon: ANTIGRAVITY_ICON,
     defaultCommand: ["agy"],
     processNames: ["antigravity", "antigravity-cli"],
     screenManifest: ANTIGRAVITY,
+    firstMessageArgv: (argv, text) => [...argv, "-i", text],
     skillsDir: () => skillsDirUnder(join(homedir(), ".gemini", "antigravity")),
   },
   // Hook schemas and screen strings below are documentation-derived, not captured.
@@ -212,11 +220,13 @@ export function contribEngineEntry(id: string, base: EngineRegistryEntry): Engin
   return {
     ...base,
     displayName: spec.displayName,
+    ...(spec.icon ? { icon: spec.icon } : {}),
     defaultCommand: spec.defaultCommand,
     ...(spec.processNames ? { processNames: spec.processNames } : {}),
     screenManifest: spec.screenManifest,
     ...(spec.identity ? { identity: spec.identity } : {}),
     ...(spec.firstMessageDelivery ? { firstMessageDelivery: spec.firstMessageDelivery } : {}),
+    ...(spec.firstMessageArgv ? { firstMessageArgv: spec.firstMessageArgv } : {}),
     ...(spec.createHookAdapter ? { createHookAdapter: spec.createHookAdapter } : {}),
     ...(spec.skillsDir ? { skillsDir: spec.skillsDir } : {}),
   }

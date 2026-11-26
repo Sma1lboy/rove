@@ -129,6 +129,7 @@ export const MAKI: EngineScreenManifest = {
 // Antigravity's manifest id is "agy", not its command name.
 export const ANTIGRAVITY: EngineScreenManifest = {
   rules: [
+    { state: "blocked", all: ["do you trust the contents of this project?", "yes, i trust this folder"] },
     { state: "blocked", all: ["requesting permission for:", "do you want to proceed?"] },
     { state: "blocked", all: ["requesting permission for:", "tab amend", "edit command"] },
     { state: "working", lineRegex: ["^\\s*[\\u2800-\\u28FF]+\\s+[A-Za-z]+\\w*ing\\b"] },

@@ -32,6 +32,11 @@ describe("contrib engine catalog", () => {
     expect(PASTE_DELIVERY.map((id) => engineEntry(id).firstMessageDelivery)).toEqual(["paste", "paste"])
   })
 
+  // agy 1.5.17 exits `unexpected argument` on a positional prompt.
+  it("antigravity's first message rides -i", () => {
+    expect(engineEntry("antigravity").firstMessageArgv?.(["agy"], "hi")).toEqual(["agy", "-i", "hi"])
+  })
+
   // First match wins, so a blocked rule after a working one could never fire.
   it.each(Object.entries(CONTRIB_ENGINES))("%s's manifest declares blocked rules before working rules", (_id, spec) => {
     expect(spec.screenManifest.rules.map((r) => r.state).join(" ")).not.toMatch(/working.*blocked/)
