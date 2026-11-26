@@ -223,7 +223,6 @@ export function SettingsDialog(props: SettingsDialogProps) {
     finishedAlerts: () => prefs.toggleFinishedAlerts(),
     keyHints: () => toggleKeyHints(props.kv),
     prefixTapPresentation: (row) => prefs.selectPrefixTapPresentation(row.presentation),
-    zenDefaultOn: () => prefs.toggleZenDefaultOn(),
     updateChannel: () => prefs.cycleUpdateChannel(),
     updateNotify: () => prefs.toggleUpdateNotify(),
     updateCheck: () => updateCheck.press(),

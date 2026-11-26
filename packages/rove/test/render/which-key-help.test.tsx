@@ -78,7 +78,7 @@ function WorkspaceHelpDriver(props: { showDialogTarget?: boolean; showFocusTarge
     createTask: NOOP,
     renameBranch: NOOP,
     cycleVendor: NOOP,
-    toggleZen: NOOP,
+    toggleFiles: NOOP,
     jumpToNextAttention: NOOP,
     backToPreviousTask: NOOP,
     openInbox: NOOP,

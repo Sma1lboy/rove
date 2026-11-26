@@ -5,10 +5,12 @@
  * must re-render this box alone, not the whole workspace host.
  */
 
-import type { RGBA } from "@opentui/core"
+import { type RGBA, TextAttributes } from "@opentui/core"
 import type { ReactNode } from "react"
 import { TASK_PARTNER_HUE_DEG } from "../../tui/lib/border-flow"
+import { ShortcutRevealBadge } from "../component/shortcut-reveal"
 import { useTheme } from "../context/theme"
+import { useT } from "../i18n"
 import { useSpinnerFrame } from "../panes/sidebar/row-cards"
 import { runningPaneFlow } from "./running-pane-chrome"
 
@@ -22,9 +24,12 @@ export function WorkspacePaneFrame(props: {
   /** The task title + "running" hint, or undefined when not running. */
   readonly title: string | undefined
   readonly onActivate: () => void
+  /** The Files button on the top edge; absent where there is no Files pane to show. */
+  readonly files?: { readonly open: boolean; readonly onToggle: () => void }
   readonly children?: ReactNode
 }) {
   const { theme } = useTheme()
+  const t = useT()
   const breath = useSpinnerFrame(props.workingFlow)
   return (
     <box
@@ -47,6 +52,28 @@ export function WorkspacePaneFrame(props: {
       onMouseUp={props.onActivate}
     >
       {props.children}
+      {props.files ? (
+        // On the frame's top edge, so it spends no row of the pane.
+        <box
+          position="absolute"
+          top={-1}
+          right={1}
+          zIndex={10}
+          onMouseUp={(evt: { stopPropagation(): void }) => {
+            evt.stopPropagation()
+            props.files?.onToggle()
+          }}
+        >
+          <text
+            fg={props.files.open ? theme.text : theme.textMuted}
+            attributes={props.files.open ? TextAttributes.BOLD : undefined}
+            wrapMode="none"
+          >
+            {` ${t("keys.category.Files")} `}
+          </text>
+          <ShortcutRevealBadge bindingId="workspace.filesToggle" />
+        </box>
+      ) : null}
     </box>
   )
 }

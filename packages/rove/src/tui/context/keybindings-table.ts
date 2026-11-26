@@ -264,15 +264,15 @@ export const RoveKeymap: readonly RoveBinding[] = [
     description: "Back to the previous task",
   },
   {
-    // Keyboard counterpart of the sidebar's ☯ ZEN chip. Prefix-only (f6 passes
+    // Keyboard counterpart of the workspace's Files button. Prefix-only (f6 passes
     // through to the shell); reachable from the terminal because the prefix's
     // first stroke never passes through.
-    id: "workspace.zenToggle",
+    id: "workspace.filesToggle",
     scope: "global",
     keys: [],
     prefixKeys: ["z"],
     category: "Navigation",
-    description: "Toggle zen mode (hide the files column)",
+    description: "Show or hide the Files pane",
   },
   {
     // PROPOSED, awaiting owner sign-off. Erase + full repaint for corruption

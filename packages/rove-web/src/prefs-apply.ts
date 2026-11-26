@@ -1,19 +1,17 @@
 /**
  * Mounts the Settings knobs onto the page: reads the TUI's prefs when the bridge connects (and
  * again when the window regains focus or comes back into view, so a change made in the TUI shows up), paints the theme
- * into the `:root` tokens, mirrors the flags the stylesheet reacts to as `data-*` attributes,
- * and keeps zen in step with the TUI's `zen.active`.
+ * into the `:root` tokens, mirrors the flags the stylesheet reacts to as `data-*` attributes.
  */
 
 import { useEffect } from "react"
 import type { AppModel } from "./model.ts"
 import { useCrossTaskNotices } from "./notify.ts"
 import { cssVars, paletteFor, terminalTheme, themePreview, xtermTheme } from "./prefs-theme.ts"
-import { loadPrefs, prefsStore, setPref, usePrefs } from "./prefs.ts"
+import { loadPrefs, usePrefs } from "./prefs.ts"
 import { loadSnippets } from "./snippets.ts"
 import { useStore } from "./store.ts"
 import { useMode, useTaskColorFeed } from "./task-colors.ts"
-import { zen } from "./ui.ts"
 
 const ATTRS = ["workingBorder", "runningTitle", "taskColors", "colorblind"] as const
 
@@ -59,16 +57,4 @@ export function usePrefsApply(model: AppModel): void {
     }
     meta.content = getComputedStyle(document.body).backgroundColor
   }, [state, mode, preview])
-
-  // Zen is the TUI's `zen.active`: it opens in the stored state and toggling it writes it back.
-  useEffect(() => {
-    if (state.loaded && zen.get() !== state.prefs.zen) zen.set(state.prefs.zen)
-  }, [state.loaded, state.prefs.zen])
-  useEffect(
-    () =>
-      zen.subscribe(() => {
-        if (zen.get() !== prefsStore.get().prefs.zen) void setPref(client, "zen", zen.get())
-      }),
-    [client],
-  )
 }

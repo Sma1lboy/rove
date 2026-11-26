@@ -36,20 +36,19 @@ export const FLOWS_WORK: readonly Flow[] = [
         },
       },
       {
-        name: "zen",
-        subject: "zen mode: chrome collapses to the single engine pane",
+        name: "files-toggle",
+        subject: "the Files pane shows or hides; the workspace takes the freed width",
         drive: async (page) => {
           await press(page, "ctrl+a", "z")
           await page.waitForTimeout(1_200)
         },
       },
       {
-        name: "zen-off",
-        subject: "and back — the three panes return with focus where it was",
+        name: "files-toggle-back",
+        subject: "and back, with focus where it was",
         drive: async (page) => {
-          // Leave zen INSIDE the flow that turned it on. `shoot.ts` clears it
-          // between flows as a backstop, but a flow that hands the next one a
-          // toggled TUI is a bug in the flow, not in the runner.
+          // Toggle back INSIDE the flow: the pane's state persists, and a flow
+          // that hands the next one a toggled TUI is a bug in the flow.
           await press(page, "ctrl+a", "z")
           await page.waitForTimeout(1_200)
         },

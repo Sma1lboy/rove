@@ -101,8 +101,8 @@ const STILLS: readonly Still[] = [
       // Three panes IS the default layout — it just needs a task whose engine
       // has something in it, so the middle pane holds a transcript rather than
       // the empty-state line. `HARNESS.md` documented `ctrl+a l` for this,
-      // which now focuses a pane rather than arranging one: it lands in zen
-      // mode and photographs a SINGLE column, contradicting the caption.
+      // which now focuses a pane rather than arranging one: it photographs
+      // a SINGLE column, contradicting the caption.
       // Clicking a seeded task is what the reader would do anyway.
       await clickText(page, SEEDED_TASK, 0, { below: 1 })
       await look(page, "Worked for")

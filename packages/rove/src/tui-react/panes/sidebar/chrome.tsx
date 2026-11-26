@@ -1,5 +1,5 @@
 /** @jsxImportSource @opentui/react */
-/** Shared sidebar chrome (brand header, create row, search, nav rail, section header, zen chip), so every sidebar surface renders the same thing. */
+/** Shared sidebar chrome (brand header, create row, search, nav rail, section header), so every sidebar surface renders the same thing. */
 
 import { MouseButton, TextAttributes } from "@opentui/core"
 import { useState } from "react"
@@ -271,27 +271,6 @@ function NavRow(props: { item: ReturnType<typeof usePageEntries>[number]; active
         {item.title()}
       </text>
       {item.action ? <ShortcutRevealBadge bindingId={item.action} /> : null}
-    </box>
-  )
-}
-
-export function SidebarZenChip(props: { onZenClick?: () => void }) {
-  const { theme } = useTheme()
-  return (
-    <box position="relative" flexShrink={0}>
-      <text
-        // A quiet word in the accent, in the header's lowercase: the state, and the way out of it.
-        fg={theme.accent}
-        wrapMode="none"
-        onMouseUp={(e: { stopPropagation(): void }) => {
-          // A bubbled sidebar focus-grab would exit zen via the focus guard.
-          e.stopPropagation()
-          props.onZenClick?.()
-        }}
-      >
-        zen
-      </text>
-      <ShortcutRevealBadge bindingId="workspace.zenToggle" />
     </box>
   )
 }

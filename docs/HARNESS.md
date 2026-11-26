@@ -297,8 +297,8 @@ the Claude tasks through an Anthropic-compatible proxy.
 - **`renderScale` sharpens the render, not the layout.** The replay page draws
   the take's own cell grid at n× the font (`/harness?replay&scale=n`) on an
   n× viewport, so clips come out n× sharper with the layout the take filmed.
-- **The take turns Zen off and never revisits a working tab.** Zen now starts
-  on and hides the Files pane the diff beat clicks; and a turn that ends while
+- **The take opens Files and never revisits a working tab.** The Files pane
+  the diff beat clicks starts hidden; and a turn that ends while
   its tab is in view is consumed there, so it never reaches the Inbox the
   reopen films.
 

@@ -65,8 +65,9 @@ and the number is the key that reaches it: `ctrl+1`…`ctrl+9` switch to tab N
 of the current task, with a `·` past the ninth. The `hairline` fold has no room
 for a digit and keeps one cell per task.
 
-Zen mode (`ctrl+a` `z`) hides Files and lets the workspace use the freed width.
-The Tasks rail remains visible. Below 70 columns, the separate
+The Files pane is hidden until you open it: click `Files` at the workspace's
+top right, or press `ctrl+a` `z`. The same button or chord hides it again.
+Below 70 columns, the separate
 [narrow-terminal layout](#narrow-terminals-phone-ssh) takes over instead.
 
 With no tasks at all (a first launch, or all tasks deleted), the workspace
@@ -509,7 +510,7 @@ Use `j`/`k` to choose a section, `l` or right arrow to enter its rows, `h` or
 left arrow to return to the section list, and `enter` to activate a row.
 
 - **General** controls theme, light/dark mode, language, transparency, focus
-  and split styles, notifications, keyboard hints, zen startup, editor
+  and split styles, notifications, keyboard hints, editor
   choice, worktree location, terminal scrollback and the optional horizontal
   tab strip. It also shows available engine quota snapshots.
 - **Engines** lists every engine Rove can launch: built-ins, the contrib
@@ -551,9 +552,6 @@ left arrow to return to the section list, and `enter` to activate a row.
   engine history on disk. The current **Restart backend** action exits only this
   TUI window; other attached windows and hosted sessions remain connected. Use
   `rove daemon restart` from a shell when you need to restart the daemon itself.
-
-Zen mode always keeps the Tasks rail visible — it carries the affordance for
-leaving zen. There is no setting for this.
 
 ## Starting sessions: the new-session dialog
 

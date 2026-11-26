@@ -38,7 +38,7 @@
 | T23 | Remove project（忘掉项目） | 已有 | 项目标题 `···` → remove project，二次确认（`project.forget`） |
 | T24 | 在编辑器里打开任务目录（`o`） | 不适用 | 编辑器开在 Mac 的屏幕上，拿着手机的人看不到；手机改为文件浏览（F1） |
 | T25 | 没有任务时的欢迎面板：可用引擎（已装且已登录） | 已有 | 空列表显示欢迎面板和 `engines.list` 的引擎；`ready:false`（未装或未登录）置灰 |
-| T26 | 侧栏宽度拖拽、折叠栏（fold）、zen 模式 | 不适用 | 终端里分配列宽的手段；手机一次只显示一屏 |
+| T26 | 侧栏宽度拖拽、折叠栏（fold）、显示或收起文件栏 | 不适用 | 终端里分配列宽的手段；手机一次只显示一屏 |
 
 ## Inbox / 通知
 
@@ -141,7 +141,7 @@
 | G8 | Marketplace：浏览并安装插件 | 不适用 | 安装会跑仓库自带的 build 命令（TUI 要先 clone、列出所有命令、再让人确认）；手机上没有安全的办法替人确认这些命令，留在 Mac |
 | G9 | Feedback：发 GitHub Discussion | 已有 | 设置 → feedback：二次确认后，用 Mac 上的 gh 登录发（公开、不可撤回） |
 | G10 | 配对、断开、重连、忘掉配对 | 已有 | 设置 → bridge（复用配对页） |
-| G11 | 透明度、焦点/分屏样式、键盘提示、zen 启动、编辑器选择、scrollback 长度 | 不适用 | 只影响 TUI 自己怎么画 |
+| G11 | 透明度、焦点/分屏样式、键盘提示、编辑器选择、scrollback 长度 | 不适用 | 只影响 TUI 自己怎么画 |
 | G12 | Keybindings 设置、F1 键位表、按住 ctrl 的提示 | 不适用 | 手机没有组合键 |
 | G13 | Dev：重置 UI 状态、重启 backend | 不适用 | reset 会清空 UI 和任务索引，不可恢复；TUI 里“重启 backend”只是退出这个 TUI 窗口，真正重启 daemon 要在 Mac 的 shell 里跑 `rove daemon restart`，手机经 bridge 连着 daemon，重启会断掉它自己唯一的路 |
 | G14 | What's New、Update 页、自更新 | 不适用 | 更新的是 Mac 上的 rove，命令在 Mac 的 shell 里跑；App 自己走 TestFlight |

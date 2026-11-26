@@ -21,7 +21,7 @@ import {
 } from "./panel-model.ts"
 import { loadPanels, remember } from "./panel-storage.ts"
 import { createStore, useStore } from "./store.ts"
-import { type Preview, newSession, page, zen } from "./ui.ts"
+import { type Preview, newSession, page } from "./ui.ts"
 
 const KEY = "rove.web.panels"
 // What the panel kept before it had tabs: the view per task and the Browser's address per task.
@@ -86,23 +86,20 @@ export function showPanel(taskId: string, kind: PanelKind): void {
   if (isNarrow()) narrowView.set(kind)
 }
 
-/** A launcher button in the workspace's top bar toggles its column. Zen hides the panel, so from zen it opens rather than closes (and leaves zen). */
+/** A launcher button in the workspace's top bar toggles its column. */
 export function launchPanel(taskId: string, kind: PanelKind): void {
   const open = panelOpen.get()
-  const next = launch(panels.get()[taskId] ?? FRESH, open && !zen.get(), kind, !open)
+  const next = launch(panels.get()[taskId] ?? FRESH, open, kind)
   editPanel(taskId, () => next.panel)
   // Closing this task's last column closes its panel only: the flag stays, so another task keeps its own.
   if (next.open) panelOpen.set(true)
   else panelExpanded.set(false)
-  if (next.open && zen.get()) zen.set(false)
 }
 
 /** A file's diff (`.` = the whole worktree) opens in the Diff column beside the terminal, not over it. */
 export function openDiff(view: Preview): void {
   editPanel(view.taskId, (panel) => showDiff(panel, view.path, view.scope))
   panelOpen.set(true)
-  // Zen hides the panel, and showing the diff is what was asked for (as `launchPanel` and a panel push do).
-  if (zen.get()) zen.set(false)
   if (isNarrow()) narrowView.set("diff")
 }
 
@@ -110,7 +107,6 @@ export function openDiff(view: Preview): void {
 export function openFile(taskId: string, path: string): void {
   editPanel(taskId, (panel) => showFile(panel, path))
   panelOpen.set(true)
-  if (zen.get()) zen.set(false)
   if (isNarrow()) narrowView.set("file")
 }
 
@@ -118,7 +114,6 @@ export function openFile(taskId: string, path: string): void {
 export function openBrowser(taskId: string, url: string): void {
   editPanel(taskId, (panel) => showBrowser(panel, url))
   panelOpen.set(true)
-  if (zen.get()) zen.set(false)
   if (isNarrow()) narrowView.set("browser")
 }
 
@@ -154,9 +149,5 @@ export function closeBrowserTab(taskId: string, id: string): void {
 export function applyPanelPush(push: PanelPush, hereTaskId: string | null): void {
   const plan = planPanelPush(push, { taskId: hereTaskId, narrow: isNarrow() })
   editPanel(push.taskId, (panel) => applyPlan(panel, plan, push.at))
-  if (plan.show) {
-    panelOpen.set(true)
-    // Zen hides the panel, and showing it is what was asked for: leave zen, as the panel's own button does.
-    if (zen.get()) zen.set(false)
-  }
+  if (plan.show) panelOpen.set(true)
 }

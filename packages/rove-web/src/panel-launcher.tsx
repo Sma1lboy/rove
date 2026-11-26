@@ -5,15 +5,12 @@ import { LAUNCHED_KINDS } from "./panel-layout.ts"
 import { columnOf } from "./panel-model.ts"
 import { launchPanel, usePanelShown, useTaskPanel } from "./panel-state.ts"
 import { ICONS, Icon } from "./panel-tabs.tsx"
-import { useStore } from "./store.ts"
-import { zen } from "./ui.ts"
 import { PANEL_LAUNCH, iconButton } from "./ui/panel.ts"
 
 export function PanelLauncher({ taskId }: { taskId: string }) {
   useLocale()
   const panel = useTaskPanel(taskId)
-  const zenOn = useStore(zen)
-  const shown = usePanelShown(taskId) && !zenOn
+  const shown = usePanelShown(taskId)
   return (
     <div className={PANEL_LAUNCH}>
       {LAUNCHED_KINDS.map((kind) => {

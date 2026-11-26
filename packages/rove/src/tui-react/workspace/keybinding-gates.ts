@@ -28,7 +28,7 @@ const PANE_CYCLE = ["sidebar", "workspace", "files"] as const
 export type CyclePaneId = (typeof PANE_CYCLE)[number]
 
 /**
- * Next focused pane. Files drops out of the cycle when unmounted (zen, any rail
+ * Next focused pane. Files drops out of the cycle when unmounted (hidden, any rail
  * page) — focusing it would strand the cursor. Clamps at both ends, no wrap, so
  * "previous" from the sidebar never jumps to files. Null = don't move.
  */

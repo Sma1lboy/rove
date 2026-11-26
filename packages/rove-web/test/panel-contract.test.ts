@@ -4,18 +4,17 @@ import { type PanelPush, isPanelPush, panelFields, planPanelPush } from "../src/
 const push = (extra: Partial<PanelPush> = {}): PanelPush => ({ taskId: "T1", view: "browser", at: 1, ...extra })
 
 describe("what the page reports about its panel", () => {
-  test("a desktop page has a panel, which zen hides", () => {
-    expect(panelFields({ narrow: false, panelOpen: true, zen: false })).toEqual({
+  test("a desktop page has a panel, open or shut", () => {
+    expect(panelFields({ narrow: false, panelOpen: true })).toEqual({
       panel: true,
       panelOpen: true,
       narrow: false,
     })
-    expect(panelFields({ narrow: false, panelOpen: true, zen: true }).panelOpen).toBe(false)
-    expect(panelFields({ narrow: false, panelOpen: false, zen: false }).panelOpen).toBe(false)
+    expect(panelFields({ narrow: false, panelOpen: false }).panelOpen).toBe(false)
   })
 
   test("a narrow page has no panel to open, whatever the desktop layout was left at", () => {
-    expect(panelFields({ narrow: true, panelOpen: true, zen: false })).toEqual({
+    expect(panelFields({ narrow: true, panelOpen: true })).toEqual({
       panel: false,
       panelOpen: false,
       narrow: true,

@@ -27,7 +27,7 @@ export type WorkspaceKeybindingDeps = {
   focus: FocusContextValue
   dialog: DialogContext
   pages: HostPagesState
-  /** False while the files pane is unmounted (zen, or a rail page). */
+  /** False while the files pane is unmounted (hidden, or a rail page). */
   filesPaneVisible?: boolean
   searchActive: boolean
   /** The ACTIVE task — what the workspace shows. Global-scope verbs act on it. */
@@ -39,7 +39,7 @@ export type WorkspaceKeybindingDeps = {
   createTask: () => void
   renameBranch: (id: string) => void
   cycleVendor: (id: string) => void
-  toggleZen: () => void
+  toggleFiles: () => void
   jumpToNextAttention: () => void
   /** PROPOSED prefix+tab — re-enter the task open before this one. */
   backToPreviousTask: () => void
@@ -124,7 +124,7 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
         "focus.previous": prefixAction(() => cyclePane(-1)),
         // f4: reserved from terminal passthrough.
         "focus.next": prefixAction(() => cyclePane(1)),
-        "workspace.zenToggle": prefixAction(() => deps.toggleZen()),
+        "workspace.filesToggle": prefixAction(() => deps.toggleFiles()),
         // f7: reserved from terminal passthrough too.
         "attention.next": prefixAction(() => deps.jumpToNextAttention()),
         "inbox.show": prefixAction(() => deps.openInbox()),

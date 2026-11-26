@@ -229,7 +229,7 @@ Each existing control names the stable binding id for the action it already
 performs, then resolves the displayed direct or prefix sequence through the
 live keymap and current binding stack. Rebindings therefore update the badge,
 while unbound or modal-blocked actions disappear instead of showing stale
-help. The current anchors are New task, Inbox, Kanban, Automations, Zen, Create
+help. The current anchors are New task, Inbox, Kanban, Automations, Files, Create
 PR, and Settings.
 
 The full-width guide is derived from the dispatcher's armed options, not a
@@ -524,6 +524,9 @@ engine a doomed `gh pr create`.
   documentation-only rows (`diff.review.*`) so F1 and the legend list them.
 - **2026-07-22 — splits are direct again**: `ctrl+\` (right) and `ctrl+=`
   (down). Their prefix strokes are dropped, same reasoning as the tab rows.
+- **2026-11-26 — zen mode is gone; `prefix+z` shows or hides Files.** The
+  binding id is now `workspace.filesToggle`; the chord and what it does are
+  unchanged. The workspace's `Files` button is its mouse counterpart.
 - **2026-07-17 — zen is prefix-only** (`prefix+z`); the old F6 direct chord
   is released to the shell.
 - **2026-07-16 — move mode is `prefix+m`.**

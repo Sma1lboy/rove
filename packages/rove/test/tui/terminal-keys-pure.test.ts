@@ -239,7 +239,7 @@ describe("key routing tables", () => {
     // splits + reset, plus f4 (focus.next pane cycle — the one cross-pane
     // chord besides ctrl+q reachable from inside the terminal). Anything
     // beyond this list steals a chord from the engine CLI. f6 is NOT here —
-    // zen is prefix-only (prefix+z), so f6 belongs to the shell;
+    // the Files toggle is prefix-only (prefix+z), so f6 belongs to the shell;
     // f7 (attention.next — jump to the next waiting
     // task) same rationale as f4.
     // NOT ctrl+g for attention.next: that's the engine's readline abort, so

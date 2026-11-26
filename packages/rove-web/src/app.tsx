@@ -26,7 +26,7 @@ import { SidePanel } from "./side-panel.tsx"
 import { useSkillStatus } from "./skill-status.ts"
 import { StatusBar } from "./status-bar.tsx"
 import { useStore } from "./store.ts"
-import { layoutMoving, newSession, openNewSessionFromLink, page, zen } from "./ui.ts"
+import { layoutMoving, newSession, openNewSessionFromLink, page } from "./ui.ts"
 import { APP_SHELL, RAIL_PEEK_EDGE, appClass } from "./ui/shell.ts"
 import { maybeAskToUpdate } from "./update-prompt.tsx"
 import { checkForUpdate, maybeShowWhatsNew } from "./update-view.tsx"
@@ -89,7 +89,6 @@ function Shell({ model }: { model: AppModel }) {
   }, [model])
   // A push notification's click: `?task=` on a fresh page, a worker message on an open one.
   useEffect(() => followTaskLinks(model), [model])
-  const zenOn = useStore(zen)
   const selection = useStore(model.selection)
   const payload = useStore(model.tasks)
   const remote = useStore(model.remote)
@@ -137,8 +136,8 @@ function Shell({ model }: { model: AppModel }) {
     <div className={APP_SHELL}>
       <div
         className={appClass({
-          zen: zenOn || !panelShown || (!task && !remoteTask) || narrow,
-          expanded: panelWide && panelShown && !zenOn && !narrow,
+          panel: panelShown && (!!task || !!remoteTask) && !narrow,
+          expanded: panelWide && panelShown && !narrow,
           surface: surface && backing ? "back" : surface,
           folded: folded && !narrow,
           peek: folded && peek && !narrow,

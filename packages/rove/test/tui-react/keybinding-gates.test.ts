@@ -51,7 +51,7 @@ describe("nextFocusedPane", () => {
   })
 
   test("skips the files pane when it is not mounted", () => {
-    // Zen, or any rail page — focusing an unmounted pane would strand the
+    // Hidden, or any rail page — focusing an unmounted pane would strand the
     // cursor on nothing.
     expect(nextFocusedPane("workspace", 1, noFiles)).toBeNull()
     expect(nextFocusedPane("sidebar", 1, noFiles)).toBe("workspace")

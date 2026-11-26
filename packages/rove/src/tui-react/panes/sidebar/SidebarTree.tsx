@@ -25,7 +25,6 @@ import {
   SidebarNavRail,
   SidebarSearchInput,
   SidebarSettingsRow,
-  SidebarZenChip,
 } from "./chrome"
 import { CollapseButton } from "./collapse-button"
 import { SidebarTreeBody } from "./tree-panel"
@@ -325,13 +324,13 @@ export function SidebarTree(props: SidebarTreeProps) {
         }}
       />
       {/* The foot, as the web's rail: each engine's quota, then one row holding
-          Settings, the zen chip and the fold chevron. */}
+          Settings and the fold chevron. */}
       {props.usage ? (
         <box flexShrink={0} paddingTop={1}>
           <SidebarUsageLines usage={props.usage} width={innerWidth} />
         </box>
       ) : null}
-      {props.onOpenSettings || props.zenActive || props.onToggleCollapsed ? (
+      {props.onOpenSettings || props.onToggleCollapsed ? (
         <box
           flexShrink={0}
           flexDirection="row"
@@ -342,7 +341,6 @@ export function SidebarTree(props: SidebarTreeProps) {
         >
           {props.onOpenSettings ? <SidebarSettingsRow onOpenSettings={props.onOpenSettings} /> : null}
           <box flexGrow={1} />
-          {props.zenActive ? <SidebarZenChip onZenClick={props.onZenClick} /> : null}
           {props.onToggleCollapsed ? (
             <CollapseButton collapsed={false} inline onToggle={props.onToggleCollapsed} />
           ) : null}

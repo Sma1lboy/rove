@@ -136,7 +136,7 @@ describe("workspace open-worktree bindings", () => {
       createTask: vi.fn(),
       renameBranch: vi.fn(),
       cycleVendor: vi.fn(),
-      toggleZen: vi.fn(),
+      toggleFiles: vi.fn(),
       jumpToNextAttention: vi.fn(),
       backToPreviousTask: vi.fn(),
       openInbox: vi.fn(),

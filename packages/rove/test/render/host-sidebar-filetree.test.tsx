@@ -73,8 +73,6 @@ function sidebarProps(over: Partial<HostSidebarProps> = {}): HostSidebarProps {
     onSearchActiveChange: NOOP,
     headerStatus: { label: "", emphasize: false },
     onHeaderStatusClick: NOOP,
-    zenActive: false,
-    onZenClick: NOOP,
     onFocusRequest: NOOP,
     ...over,
   }

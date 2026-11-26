@@ -297,12 +297,6 @@ export const SCENES: readonly Scene[] = [
     element: tree({ recentTask: BRAVO }),
   },
   {
-    name: "zen-chip",
-    about: "the zen affordance sits below the tree body, not inside it",
-    setup: resetScene,
-    element: tree({ zenActive: true }),
-  },
-  {
     name: "scratch-flat",
     about: "a scratch task is one row under Ungrouped, whatever tabs it has (issue #41)",
     setup: resetScene,
