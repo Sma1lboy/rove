@@ -74,7 +74,7 @@ function FoldedRail(props: { tasks: readonly Task[] }) {
 }
 
 /** The section dividers the fold actually painted, top to bottom. A divider is
- *  the only rule character in the strip; the expand control is `››`. */
+ *  the only rule character in the strip; the expand control is `›`. */
 function dividersOf(frame: string): string[] {
   return frame
     .split("\n")
@@ -146,6 +146,6 @@ test("the fold draws no cell for a routine session", async () => {
   const text = await frame()
   // One project, one drawn row: the divider plus a single status glyph.
   expect(dividersOf(text)).toEqual(["a"])
-  const rows = text.split("\n").filter((line) => line.trim().length > 0 && !line.includes("─") && !line.includes("››"))
+  const rows = text.split("\n").filter((line) => line.trim().length > 0 && !line.includes("─") && !line.includes("›"))
   expect(rows).toHaveLength(1)
 })

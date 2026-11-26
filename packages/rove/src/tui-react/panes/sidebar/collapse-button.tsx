@@ -5,7 +5,6 @@
  * Mouse only: a chord is the owner's placement call (docs/KEYBINDINGS.md).
  */
 
-import { TextAttributes } from "@opentui/core"
 import { useTheme } from "../../context/theme"
 
 export interface CollapseButtonProps {
@@ -17,7 +16,7 @@ export interface CollapseButtonProps {
   readonly inline?: boolean
 }
 
-/** Chevrons point the way the rail will move; doubled because a lone chevron reads as a scroll hint. */
+/** A chevron pointing the way the rail will move: the fold chevron of the project headers, turned. */
 export function CollapseButton(props: CollapseButtonProps) {
   const { theme } = useTheme()
   // Stop the pane shell's focus-grab: folding must not focus the sidebar.
@@ -26,8 +25,8 @@ export function CollapseButton(props: CollapseButtonProps) {
     props.onToggle()
   }
   const glyph = (
-    <text fg={theme.textMuted} attributes={TextAttributes.BOLD} wrapMode="none">
-      {props.collapsed ? "››" : "‹‹"}
+    <text fg={theme.textMuted} wrapMode="none">
+      {props.collapsed ? "›" : "‹"}
     </text>
   )
   if (props.inline) {

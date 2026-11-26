@@ -168,7 +168,7 @@ for (const u of unchanged) console.error(`  UNCHANGED ${u.flow}/${u.step} — id
  *
  * - **Zen mode is sticky.** The `workspace` flow ends on `ctrl+a z`, and the
  *   TUI restores it for every later flow — a whole run photographed a single
- *   column with `ZEN` in the corner, so every layout after that was wrong.
+ *   column with the zen chip in the corner, so every layout after that was wrong.
  * - **The seeded engine parks on a permission prompt.** A real Claude Code turn
  *   can stop at `Do you want to proceed? 1. Yes / 2. No`, and that modal eats
  *   every keystroke that follows. Seven frames across `review` and `splits`
@@ -185,7 +185,8 @@ async function clearInheritedState(page: Page): Promise<void> {
   const zenActive = await page
     .getByTestId("opentui-buffer")
     .textContent()
-    .then((text) => text?.includes("ZEN") ?? false)
+    // The rail's foot reads `zen ‹` while zen is on.
+    .then((text) => /\bzen\s+‹/.test(text ?? ""))
     .catch(() => false)
   if (zenActive) {
     await page.keyboard.press("Control+a")
