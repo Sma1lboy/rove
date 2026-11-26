@@ -1,6 +1,8 @@
 /** Sidebar prop types. Values are plain `T`, never accessors: the host re-renders on change. */
 
 import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
+import type { UsageSnapshotMap } from "@/client/remote-orchestrator-payloads"
+import type { ReadableState } from "@/lib/external-store"
 import type { Task } from "@/types/task"
 import type { VendorId } from "@/types/vendor"
 import type { TaskCopyField } from "../../../tui/lib/task-actions"
@@ -86,6 +88,9 @@ export type SidebarProps = SidebarTaskCallbacks & {
   onUpdateChipClick?: () => void
   onAddTask?: () => void
   zenActive?: boolean
+  /** The rail's foot: each engine's quota, then the Settings row. Absent = neither is drawn. */
+  usage?: ReadableState<UsageSnapshotMap | null>
+  onOpenSettings?: () => void
   onZenClick?: () => void
   engineState?: ReadonlyMap<string, TaskEngineState>
   /** Per-tab activity (taskId → tabId → state); the tree's tab rows use it. */

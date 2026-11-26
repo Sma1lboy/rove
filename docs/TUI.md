@@ -792,8 +792,7 @@ panel at a time).
 - The files pane is hidden; the pane-cycle keys skip it.
 - The tab strip always shows, compressed to the active tab plus a `2/3`
   counter. The usual tab chords still switch.
-- The footer keeps one quota chip per engine (`CLAUDE 42%`) and shrinks the
-  hints to bare keycaps.
+- The footer shrinks the hints to bare keycaps.
 - Dialogs center themselves with tighter padding, and Settings drops the
   inline hint beside each switch so the switch's own label fits. The
   paragraph above each group still explains what it does.
@@ -821,12 +820,13 @@ bracketed paste, so a multi-line block arrives framed and is handed to the
 engine as a paste rather than as typing that submits on the first newline,
 the engine shows it as a pasted block and you decide when to send.
 
-## Quota in the footer
+## Quota in the task list's foot
 
-For engines with a quota probe (Claude Code and Codex today), the footer
-shows each usage window the vendor reports, e.g. `CLAUDE 5h 42% → 14:00 ·
-7d 12%`, with the percentage colored green below 75%, yellow from 75%, red
-from 95%. The same numbers, same thresholds, appear in Settings → General.
+For engines with a quota probe (Claude Code and Codex today), the foot of
+the task list shows one line per engine: its name, a fill line and its
+tightest window, e.g. `Claude ━━━━━━━━ 5h 42%`, colored green below 75%,
+yellow from 75%, red from 95%. Every window and its reset time appear in
+Settings → General. The Settings row sits under these lines.
 
 The daemon refreshes quota roughly every 15 minutes, so treat the figure as
 approximate, not live. When Claude hits its subscription window, Rove

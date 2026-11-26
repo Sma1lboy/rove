@@ -16,7 +16,7 @@ import { useOptionalKV } from "../context/kv"
 import { useTheme } from "../context/theme"
 import { SidebarTree } from "../panes/sidebar/SidebarTree"
 import { CollapsedRail, type CollapsedRailStyle, DEFAULT_COLLAPSED_RAIL_STYLE } from "../panes/sidebar/collapsed-rail"
-import type { SidebarTaskCallbacks } from "../panes/sidebar/types"
+import type { SidebarProps, SidebarTaskCallbacks } from "../panes/sidebar/types"
 import { useSidebarGroups } from "../panes/sidebar/use-sidebar-groups"
 import { requestNewTab } from "./terminal-tabs-shared"
 
@@ -52,6 +52,8 @@ export interface HostSidebarProps
   readonly onUpdateChipClick?: () => void
   readonly zenActive: boolean
   readonly onZenClick: () => void
+  readonly usage?: SidebarProps["usage"]
+  readonly onOpenSettings?: () => void
   readonly onFocusRequest: () => void
   /** Narrow mode's "↩ recent" jump row target. */
   readonly recentTask?: Task | null

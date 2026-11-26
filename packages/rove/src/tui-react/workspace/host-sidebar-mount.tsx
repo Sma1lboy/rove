@@ -20,7 +20,7 @@ import {
   DEFAULT_COLLAPSED_RAIL_STYLE,
 } from "../panes/sidebar/collapsed-rail"
 import type { HostPagesState } from "./host-pages"
-import { HostSidebar } from "./host-sidebar"
+import { HostSidebar, type HostSidebarProps } from "./host-sidebar"
 import type { WorkspaceTaskActions } from "./host-task-actions"
 import type { UseDaemonStateResult } from "./use-daemon-state"
 import { useSidebarCollapsed, useSidebarWidth } from "./use-sidebar-layout"
@@ -39,7 +39,7 @@ export interface HostSidebarMountProps {
     "engineState" | "engineTabState" | "engineLifecycle" | "taskJobs" | "rowTokens" | "worktreeChanges"
   >
   readonly actions: WorkspaceTaskActions
-  readonly pages: Pick<HostPagesState, "nav" | "setNav" | "goToNav" | "openUpdate">
+  readonly pages: Pick<HostPagesState, "nav" | "setNav" | "goToNav" | "openUpdate" | "openSettings">
   readonly focus: FocusContextValue
   readonly inbox: { readonly counts: { readonly total: number }; readonly show: () => void }
   readonly update: { readonly hasUpdate: boolean; readonly latest: string } | null | undefined
@@ -50,6 +50,7 @@ export interface HostSidebarMountProps {
   /** The Scratch section's menu: a Scratch task on an engine, or a bare shell. */
   readonly openScratch: (vendor: VendorId | undefined) => void
   readonly activePane: string | null
+  readonly usage: HostSidebarProps["usage"]
   readonly zen: boolean
   readonly toggleZen: () => void
   readonly sortMode: TaskSortMode
@@ -148,6 +149,8 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
       onHeaderStatusClick={inbox.show}
       updateChip={props.update?.hasUpdate ? { label: t("update.chip", { version: props.update.latest }) } : null}
       onUpdateChipClick={pages.openUpdate}
+      usage={props.usage}
+      onOpenSettings={pages.openSettings}
       zenActive={props.zen}
       onZenClick={props.toggleZen}
       onFocusRequest={() => focus.setFocused("sidebar")}

@@ -171,6 +171,27 @@ export function SidebarCreateAction(props: { onAddTask?: () => void }) {
   )
 }
 
+/** The rail's Settings row, at its foot as on the web. */
+export function SidebarSettingsRow(props: { onOpenSettings: () => void }) {
+  const { theme } = useTheme()
+  const t = useT()
+  return (
+    <box
+      position="relative"
+      flexShrink={0}
+      onMouseUp={(e: { stopPropagation(): void }) => {
+        e.stopPropagation()
+        props.onOpenSettings()
+      }}
+    >
+      <text fg={theme.textMuted} wrapMode="none">
+        {t("settings.title")}
+      </text>
+      <ShortcutRevealBadge bindingId="settings.open" />
+    </box>
+  )
+}
+
 /** One destination per registered page, one per line: the 24-cell rail can't fit chips side by side. */
 export function SidebarNavRail(props: { nav: SidebarNav; setNav: (nav: SidebarNav) => void }) {
   const { theme } = useTheme()
