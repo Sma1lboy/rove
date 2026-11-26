@@ -19,6 +19,7 @@ import { mkdir, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { Terminal } from "@xterm/headless"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
+import { dotsGlyph, litDots } from "../../src/tui/lib/status-dots"
 import { SIDEBAR_WIDTH } from "../../src/tui/panes/sidebar/view-core.ts"
 import {
   type BehaviorEnv,
@@ -34,9 +35,9 @@ const nodePty = await loadNodePty()
 
 const COLS = 140
 const ROWS = 40
-/** ● an unread completion, ○ one already looked at (· = no signal at all). */
-const UNREAD = "●"
-const SEEN = "○"
+/** The row's 3×3 mark: the tick of an unread completion, the ring of one already looked at. */
+const UNREAD = dotsGlyph(litDots("done", 0))
+const SEEN = dotsGlyph(litDots("idle", 0))
 
 /** Is that pid still a live process? (signal 0 = existence probe.) */
 function alive(pid: number): boolean {
@@ -157,7 +158,7 @@ describe.skipIf(!nodePty)("Pure TUI unread lamp across a restart (behavior)", ()
         "the rail never hydrated",
       ).toBe(true)
       // The daemon's receipt of that read: viewing the task cleared its inbox
-      // episode, and the row status it publishes back rests at ○. Polled, not
+      // episode, and the row status it publishes back rests at the idle ring. Polled, not
       // raced: launch #2 must not start before the daemon has it.
       await poll(() => taskRow(screen()).includes(SEEN), 30_000)
       expect(taskRow(screen()), "launch #1 never saw its read reach the daemon").toContain(SEEN)
@@ -175,7 +176,7 @@ describe.skipIf(!nodePty)("Pure TUI unread lamp across a restart (behavior)", ()
     // forgot, to a process that has viewed nothing yet.
     await withTui(async (screen) => {
       // Wait for that activity to reach the rail (the row leaves the "no
-      // signal" glyph). Whether it lands on ● or ○ is the question below.
+      // signal" state). Whether it lands on the tick or the ring is the question below.
       await poll(() => {
         const row = taskRow(screen())
         return row.includes(SEEN) || row.includes(UNREAD)

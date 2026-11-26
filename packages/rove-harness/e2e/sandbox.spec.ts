@@ -161,27 +161,17 @@ test("Kanban new issue intake renders in the real OpenTUI", async ({ page }) => 
   })
 })
 
-// LAST on purpose: pressing the sidebar's own keys below persists the pane
-// hint's "used" flag into the shared fixture HOME, so any journey after this
-// one would see the extinguished state instead of the fresh-HOME hints.
-test("keyboard hints render and extinguish in the real OpenTUI", async ({ page }) => {
+test("the key hints and the Settings row render in the real OpenTUI", async ({ page }) => {
   test.skip(process.env.ROVE_VISUAL !== "1", "visual ground-truth only")
 
-  await withVisualTui(page, async (terminal, buffer) => {
-    // Fresh HOME: the status-bar micro-hint and the sidebar's first-use
-    // hint are both up, resolved from the live keymap.
+  await withVisualTui(page, async (_terminal, buffer) => {
+    // The status-bar micro-hint, resolved from the live keymap.
     await expect(buffer).toContainText("F1 help")
     await expect(buffer).toContainText("commands")
-    await expect(buffer).toContainText("j/k move")
-
-    // Using the sidebar's own keys extinguishes the pane hint…
-    await clickSidebar(terminal)
-    await pressTerminal(terminal, "j")
+    // Settings is a row at the task list's foot, not a chip in the status bar; the list carries no hint line.
+    await expect(buffer).toContainText("Settings")
+    await expect(buffer).not.toContainText("[settings]")
     await expect(buffer).not.toContainText("j/k move")
-
-    // …while the status-bar hint is permanent, [settings] button included.
-    await expect(buffer).toContainText("F1 help")
-    await expect(buffer).toContainText("[settings]")
 
     // NOT asserted here: the terminal-passthrough variant (`⌃Q sidebar`).
     // The fixture task has no started engine session, so the workspace
