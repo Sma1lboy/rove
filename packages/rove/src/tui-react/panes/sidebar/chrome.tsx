@@ -9,7 +9,6 @@ import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { usePageEntries } from "../../pages/registry"
 import { useHoverFill } from "../../ui/use-hover-fill"
-import { zenChipGlyph } from "./zen-glyph"
 
 /**
  * The web's disclosure chevron: right on a folded project, down on an open one. Both are in every
@@ -281,8 +280,8 @@ export function SidebarZenChip(props: { onZenClick?: () => void }) {
   return (
     <box position="relative" flexShrink={0}>
       <text
+        // A quiet word in the accent, in the header's lowercase: the state, and the way out of it.
         fg={theme.accent}
-        attributes={TextAttributes.BOLD}
         wrapMode="none"
         onMouseUp={(e: { stopPropagation(): void }) => {
           // A bubbled sidebar focus-grab would exit zen via the focus guard.
@@ -290,7 +289,7 @@ export function SidebarZenChip(props: { onZenClick?: () => void }) {
           props.onZenClick?.()
         }}
       >
-        {`${zenChipGlyph()} ZEN`}
+        zen
       </text>
       <ShortcutRevealBadge bindingId="workspace.zenToggle" />
     </box>
