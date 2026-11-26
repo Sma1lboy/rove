@@ -1,18 +1,20 @@
 /**
- * The side panel's Browser: an address bar over an iframe. A frame only shows what the browser can
- * reach and the site lets a page embed, and a refusal is silent, so the open-in-a-new-tab button
- * beside the address always works. Back and forward walk the addresses typed here; moves inside the
- * frame are the frame's own (a cross-origin page's history cannot be read).
+ * The side panel's Browser: an address bar over an iframe, or over a file of the task read through the
+ * bridge (its path is the address). A frame only shows what the browser can reach and the site lets a
+ * page embed, and a refusal is silent, so the open-in-a-new-tab button beside a web address always
+ * works. Back and forward walk the addresses opened here; moves inside the frame are the frame's own
+ * (a cross-origin page's history cannot be read).
  */
 
 import { useEffect, useRef, useState } from "react"
 import { BrowserAnnotate } from "./browser-annotate.tsx"
 import { canCapture } from "./browser-capture.ts"
 import { type BrowserTab, browserUrl } from "./browser-tabs.ts"
-import { canFrame, frameNote, isLoopbackHost, normalizeUrl } from "./browser-url.ts"
+import { canFrame, filePath, fileShown, frameNote, isLoopbackHost, normalizePath, normalizeUrl } from "./browser-url.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { usePagePorts } from "./ports-strip.tsx"
+import { PreviewHost } from "./preview-host.tsx"
 import { useStore } from "./store.ts"
 import { Button } from "./ui/button.tsx"
 import {
@@ -68,53 +70,73 @@ export function BrowserView({
   model,
   taskId,
   tab,
+  root,
+  shown,
+  restored,
+  onClose,
   onNavigate,
   onStep,
 }: {
   model: AppModel
   taskId: string
   tab: BrowserTab
+  /** The task's directory on its machine: what a file's address is shown under. */
+  root: string | undefined
+  /** This tab is the one on screen. */
+  shown: boolean
+  restored: boolean
+  onClose: () => void
   onNavigate: (url: string) => void
   onStep: (at: number) => void
 }) {
   useLocale()
   const url = browserUrl(tab)
-  const [draft, setDraft] = useState(url)
-  const [invalid, setInvalid] = useState(false)
+  const path = filePath(url)
+  const address = path === null ? url : fileShown(path, root)
+  const [draft, setDraft] = useState(address)
+  const [problem, setProblem] = useState<"invalid" | "outside" | null>(null)
   const [reloads, setReloads] = useState(0)
   const [annotating, setAnnotating] = useState(false)
   const stage = useRef<HTMLDivElement>(null)
+  const bar = useRef<HTMLInputElement>(null)
   const peerLocal = useStore(model.client.conn).hello?.peer?.local
-  const verdict = url ? canFrame(url, window.location, peerLocal) : null
+  const verdict = url && path === null ? canFrame(url, window.location, peerLocal) : null
 
-  // An address set from outside (`rove api panel-show`, back / forward) loads like a typed one.
+  // An address set from outside (`rove api panel-show`, Files, back / forward) loads like a typed one.
   useEffect(() => {
-    setDraft(url)
-    setInvalid(false)
-  }, [url])
+    setDraft(address)
+    setProblem(null)
+  }, [address])
+
+  // A path's end is the file: a bar too narrow for the whole of it shows that end.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: draft is what the bar holds.
+  useEffect(() => {
+    const el = bar.current
+    if (el && path !== null && document.activeElement !== el) el.scrollLeft = el.scrollWidth
+  }, [draft, path, shown])
 
   const load = (input: string) => {
-    const next = normalizeUrl(input)
+    const file = normalizePath(input, root)
+    const next = file === "outside" ? null : (file ?? normalizeUrl(input))
     // An empty field is nothing to load, not a mistake.
-    setInvalid(next === null && input.trim() !== "")
+    setProblem(file === "outside" ? "outside" : next === null && input.trim() !== "" ? "invalid" : null)
     if (next === null) return
-    setDraft(next)
-    if (next === url) setReloads(reloads + 1)
-    else onNavigate(next)
+    if (next === url) {
+      setDraft(address)
+      setReloads(reloads + 1)
+    } else onNavigate(next)
   }
 
   // An https page is asked first (`browser.probe`): a site that forbids framing never gets an iframe.
-  const host = url ? new URL(url).hostname : ""
+  const host = verdict ? new URL(url).hostname : ""
   const needsProbe = verdict === "yes" && url.startsWith("https:") && !isLoopbackHost(host)
   const { pending, probe } = useFrameProbe(model.client, url, needsProbe)
   const note = url && verdict ? frameNote(url, verdict, probe) : null
   const framed = verdict === "yes" && !note && !pending
   const message = note
     ? t(`browser.${note.key}`, { host: note.host })
-    : verdict === null
-      ? invalid
-        ? t("browser.invalid")
-        : t("browser.empty")
+    : verdict === null && path === null
+      ? t(`browser.${problem ?? "empty"}`)
       : null
 
   return (
@@ -149,7 +171,7 @@ export function BrowserView({
         <button
           type="button"
           className={iconButton({ small: true })}
-          disabled={!framed}
+          disabled={!framed && path === null}
           title={t("browser.reload")}
           aria-label={t("browser.reload")}
           onClick={() => setReloads(reloads + 1)}
@@ -157,11 +179,12 @@ export function BrowserView({
           <Glyph d="M12.5 8a4.5 4.5 0 1 1-1.4-3.3M12.5 2.5v2.7H9.8" />
         </button>
         <input
+          ref={bar}
           className={`browser-url mono ${BROWSER_URL}`}
           value={draft}
           placeholder={t("browser.placeholder")}
           aria-label={t("browser.address")}
-          aria-invalid={invalid}
+          aria-invalid={problem !== null}
           spellCheck={false}
           autoCapitalize="off"
           autoCorrect="off"
@@ -181,7 +204,7 @@ export function BrowserView({
           </Button>
         )}
         {/* The way out when a page refuses to be framed, or cannot be: it works for every address. */}
-        {url ? (
+        {url && path === null ? (
           <a
             className={iconButton({ small: true })}
             href={url}
@@ -198,7 +221,16 @@ export function BrowserView({
           </button>
         )}
       </form>
-      {framed ? (
+      {path !== null ? (
+        <PreviewHost
+          key={`${path}#${reloads}#${tab.read ?? ""}`}
+          model={model}
+          view={{ taskId, path, scope: "working", file: true }}
+          active={shown}
+          restored={restored}
+          onClose={onClose}
+        />
+      ) : framed ? (
         <div ref={stage} className={BROWSER_STAGE}>
           <iframe
             key={`${url}#${reloads}`}
@@ -220,7 +252,7 @@ export function BrowserView({
             />
           )}
         </div>
-      ) : verdict === null && !invalid ? (
+      ) : verdict === null && problem === null ? (
         <BlankTab model={model} taskId={taskId} onOpen={onNavigate} />
       ) : message ? (
         <p className={SIDE_EMPTY}>{message}</p>

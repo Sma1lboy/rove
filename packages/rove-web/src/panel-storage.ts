@@ -6,7 +6,7 @@
 
 import { blankBrowser, openUrl, parseBrowser } from "./browser-tabs.ts"
 import type { PanelKind } from "./panel-model.ts"
-import { type Column, type DiffScope, type TaskPanel, inKindOrder, newPanel } from "./panel-model.ts"
+import { type Column, type DiffScope, type TaskPanel, inKindOrder, newPanel, showFile } from "./panel-model.ts"
 
 export const REMEMBERED_TASKS = 50
 
@@ -18,8 +18,6 @@ function parseColumn(raw: unknown): Column | null {
   if (!raw || typeof raw !== "object") return null
   const r = raw as Record<string, unknown>
   if (r.kind === "files" || r.kind === "chat" || r.kind === "quota") return { kind: r.kind }
-  if (r.kind === "file" && typeof r.path === "string" && r.path !== "" && r.path !== ".")
-    return { kind: "file", path: r.path }
   if (r.kind === "diff" && typeof r.path === "string" && r.path !== "") {
     return { kind: "diff", path: r.path, scope: scopeOf(r.scope) }
   }
@@ -89,7 +87,10 @@ export function parsePanel(raw: unknown): TaskPanel | null {
     const col = parseColumn(entry)
     if (col && !columns.some((c) => c.kind === col.kind)) columns.push(col)
   }
-  return { columns: inKindOrder(columns), weights: parseWeights(r.weights, columns) }
+  const panel = { columns: inKindOrder(columns), weights: parseWeights(r.weights, columns) }
+  // The File column a panel once had: its file is a Browser tab now.
+  const file = r.columns.find((c) => c?.kind === "file" && typeof c.path === "string" && c.path !== "")
+  return file ? showFile(panel, file.path) : panel
 }
 
 /** What the panel kept before it had tabs: the view it was on (a diff's file was never kept) and the Browser's last address. */

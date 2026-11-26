@@ -3,11 +3,15 @@
  * the next column (or null when the last tab closed) and leaves the one it was given alone.
  */
 
+import { filePath } from "./browser-url.ts"
+
 export interface BrowserTab {
   readonly id: string
   readonly urls: readonly string[]
   /** Index into `urls` of the address shown; -1 while blank. */
   readonly at: number
+  /** When a panel push last asked for this tab's file; a new time reads the file again. Not stored. */
+  readonly read?: number
 }
 
 export interface BrowserColumn {
@@ -25,12 +29,14 @@ export const MAX_TABS = 12
 export const MAX_FRAMES = 3
 export const BROWSER_HISTORY = 30
 
-/** The address a tab is on ("" = none yet). */
+/** The address a tab is on ("" = none yet): a web address, or a file's (`browser-url.ts`). */
 export function browserUrl(tab: BrowserTab): string {
   return tab.urls[tab.at] ?? ""
 }
 
 export function browserHost(url: string): string {
+  const path = filePath(url)
+  if (path !== null) return path.slice(path.lastIndexOf("/") + 1)
   try {
     return new URL(url).host.replace(/^www\./, "")
   } catch {
@@ -99,6 +105,19 @@ export function openUrl(col: BrowserColumn, url: string): BrowserColumn {
   const blank = col.tabs.find((tab) => browserUrl(tab) === "")
   if (blank) return navigate(activateTab(col, blank.id), blank.id, url)
   return addTab(col, [url])
+}
+
+/**
+ * A file: the tab already on it, else the shown tab when it holds a file or nothing (so walking the
+ * Files tree stays in one tab, with its history), else a new tab. `read`: a panel push's time.
+ */
+export function openFileTab(col: BrowserColumn, url: string, read?: number): BrowserColumn {
+  const same = col.tabs.find((tab) => browserUrl(tab) === url)
+  const shown = col.tabs.find((tab) => tab.id === col.active)
+  const reuse = shown && (browserUrl(shown) === "" || filePath(browserUrl(shown)) !== null)
+  const next = same ? activateTab(col, same.id) : reuse ? navigate(col, shown.id, url) : openUrl(col, url)
+  const tab = next.tabs.find((t) => t.id === next.active)
+  return read === undefined || !tab || tab.read === read ? next : replaceTab(next, { ...tab, read })
 }
 
 function dropTab(col: BrowserColumn, id: string): BrowserColumn | null {

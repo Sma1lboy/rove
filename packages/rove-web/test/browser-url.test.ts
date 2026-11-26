@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { canFrame, frameNote, isLoopbackHost, normalizeUrl } from "../src/browser-url.ts"
+import { canFrame, frameNote, isLoopbackHost, normalizePath, normalizeUrl } from "../src/browser-url.ts"
 
 const local = { origin: "http://127.0.0.1:7961", hostname: "127.0.0.1" }
 const remote = { origin: "https://rove.example.com", hostname: "rove.example.com" }
@@ -24,6 +24,24 @@ describe("normalizeUrl", () => {
     "http://",
   ])("other schemes, blanks and junk are refused: %p", (bad) => {
     expect(normalizeUrl(bad)).toBeNull()
+  })
+})
+
+describe("normalizePath", () => {
+  const root = "/work/app"
+  test("a path under the task's directory is that file, however it is written", () => {
+    expect(normalizePath("/work/app/docs/a b.md", root)).toBe("file:docs/a b.md")
+    expect(normalizePath("file:///work/app/src/a.ts", `${root}/`)).toBe("file:src/a.ts")
+    expect(normalizePath("./src/a.ts", undefined)).toBe("file:src/a.ts")
+  })
+
+  test("a path the bridge would not read is refused; a web address is not a path", () => {
+    expect(normalizePath("/etc/passwd", root)).toBe("outside")
+    expect(normalizePath("/work/application/a.ts", root)).toBe("outside")
+    expect(normalizePath("/work/app/../secret", root)).toBe("outside")
+    expect(normalizePath("/work/app/a.ts", undefined)).toBe("outside")
+    expect(normalizePath("localhost:3000", root)).toBeNull()
+    expect(normalizePath("example.com/docs", root)).toBeNull()
   })
 })
 

@@ -46,11 +46,11 @@ export function panelFields(layout: { narrow: boolean; panelOpen: boolean }) {
 
 /** What to do with a `panel` push on this page. */
 export interface PanelPlan {
-  /** The kind of view this task's panel will show: a path is the File column with `--view files`, else the Diff column. */
+  /** The column this task's panel will show: a path is a Browser tab on the file with `--view files`, else the Diff column. */
   readonly tab: PanelKind
   /** The Browser's address for the task. */
   readonly url?: string
-  /** The file the File or Diff column opens. */
+  /** The file to open, or to diff. */
   readonly path?: string
   /** Open the panel now: this page is on the task and has a side panel. */
   readonly show: boolean
@@ -62,7 +62,7 @@ export interface PanelPlan {
  */
 export function planPanelPush(push: PanelPush, here: { taskId: string | null; narrow: boolean }): PanelPlan {
   // A path with `--view files` is the file itself; otherwise its diff.
-  const tab: PanelKind = push.path ? (push.view === "files" ? "file" : "diff") : push.view
+  const tab: PanelKind = push.path ? (push.view === "files" ? "browser" : "diff") : push.view
   return {
     tab,
     ...(push.view === "browser" && push.url ? { url: push.url } : {}),
@@ -71,9 +71,10 @@ export function planPanelPush(push: PanelPush, here: { taskId: string | null; na
   }
 }
 
-/** The panel after a push (sent `at`): an address finds or opens its Browser tab, a path retargets the File or Diff column (read again if already on it), a kind alone opens its column. */
+/** The panel after a push (sent `at`): an address finds or opens its Browser tab, a path opens its file in a Browser tab or retargets the Diff column (read again if already on it), a kind alone opens its column. */
 export function applyPlan(panel: TaskPanel, plan: PanelPlan, at: number): TaskPanel {
   if (plan.url) return showBrowser(panel, plan.url)
-  if (plan.path) return plan.tab === "file" ? showFile(panel, plan.path, at) : showDiff(panel, plan.path, "working", at)
+  if (plan.path)
+    return plan.tab === "browser" ? showFile(panel, plan.path, at) : showDiff(panel, plan.path, "working", at)
   return showKind(panel, plan.tab)
 }

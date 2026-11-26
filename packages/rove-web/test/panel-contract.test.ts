@@ -58,7 +58,7 @@ describe("a panel push", () => {
   test("a path with Files opens the file itself, with Diff its diff", () => {
     const here = { taskId: "T1", narrow: false }
     expect(planPanelPush(push({ view: "files", path: "src/a.ts" }), here)).toEqual({
-      tab: "file",
+      tab: "browser",
       path: "src/a.ts",
       show: true,
     })

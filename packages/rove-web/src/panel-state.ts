@@ -103,11 +103,11 @@ export function openDiff(view: Preview): void {
   if (isNarrow()) narrowView.set("diff")
 }
 
-/** A file from the Files tree opens as itself in the File column, beside Files. */
+/** A file from the Files tree opens as itself in a Browser tab, its path as the address. */
 export function openFile(taskId: string, path: string): void {
   editPanel(taskId, (panel) => showFile(panel, path))
   panelOpen.set(true)
-  if (isNarrow()) narrowView.set("file")
+  if (isNarrow()) narrowView.set("browser")
 }
 
 /** An address opens in a Browser tab beside the terminal (the one already on it, else a blank one, else a new one). */

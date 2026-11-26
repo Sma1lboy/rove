@@ -14,6 +14,35 @@ export type Frameable =
   /** A loopback address while this page is not on the machine Rove runs on: that server is out of reach. */
   | "remote"
 
+const FILE = "file:"
+
+/** A file in the task's directory as a tab's address: `file:` and its path relative to that directory. */
+export const fileAddress = (path: string): string => `${FILE}${path}`
+
+/** The path of a file address, or null for a web address. */
+export const filePath = (url: string): string | null => (url.startsWith(FILE) ? url.slice(FILE.length) : null)
+
+/** What the address bar shows for a file: its path on the machine. `root`: the task's directory, when known. */
+export function fileShown(path: string, root: string | undefined): string {
+  return root ? `${root.replace(/\/$/, "")}/${path}` : path
+}
+
+/**
+ * A typed local path (`/abs/x`, `./x`, `file:///abs/x`) as a file address; "outside" when it is not
+ * under `root`, the only directory the bridge reads; null when it is not a path.
+ */
+export function normalizePath(input: string, root: string | undefined): string | "outside" | null {
+  const text = input.trim().replace(/^file:\/\//i, "")
+  let rel: string
+  if (text.startsWith("./")) rel = text.slice(2)
+  else if (text.startsWith("/")) {
+    const base = root?.replace(/\/$/, "")
+    if (!base || !text.startsWith(`${base}/`)) return "outside"
+    rel = text.slice(base.length + 1)
+  } else return null
+  return rel && !rel.split("/").includes("..") ? fileAddress(rel) : "outside"
+}
+
 /** `localhost`, `127.0.0.0/8` and `[::1]`: the machine the browser runs on. */
 export function isLoopbackHost(hostname: string): boolean {
   return (

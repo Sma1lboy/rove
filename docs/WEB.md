@@ -103,8 +103,8 @@ the two share one token.
   `rove api viewers` tells an agent what you can see (and whether the page is
   on the daemon's machine or behind a tunnel). `rove api panel-show` makes
   every page remember a view for a task: an address focuses the Browser tab
-  already on it or opens a new one, `--path` opens or focuses that file's Diff
-  tab, and it opens the panel on a page that is on
+  already on it or opens a new one, `--path` opens that file in a Browser tab
+  (`--view files`) or its diff in the Diff column, and it opens the panel on a page that is on
   that task with a panel, without taking focus or switching task. The Browser
   asks the bridge (`browser.probe`) whether a page forbids framing before it
   loads it. When a task's own processes serve a page on a port (the dev server an agent

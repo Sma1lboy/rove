@@ -26,17 +26,21 @@ describe("opening columns", () => {
   test("a task never opened has Files alone", () => {
     expect(kinds(newPanel())).toEqual(["files"])
   })
-  // A file clicked in Files opened in the Diff column, so reading a file and reading its diff were one view.
-  test("a file opens in its own column beside Files, apart from the Diff column, and survives a reload", () => {
-    let panel = showFile(showKind(newPanel(), "browser"), "src/a.ts")
-    expect(kinds(panel)).toEqual(["files", "file", "browser"])
-    panel = showDiff(panel, "src/a.ts", "working")
-    expect(kinds(panel)).toEqual(["files", "file", "diff", "browser"])
+  // A file had a column of its own: one file at a time, in a third column between Files and the Browser.
+  test("a file opens as a Browser tab on its path; the next file takes that tab, a page keeps its own", () => {
+    let panel = showFile(newPanel(), "src/a.ts")
+    expect(kinds(panel)).toEqual(["files", "browser"])
     panel = showFile(panel, "src/b.ts")
-    expect(columnOf(panel, "file")).toEqual({ kind: "file", path: "src/b.ts" })
-    expect(columnOf(panel, "diff")).toMatchObject({ path: "src/a.ts" })
+    expect(browser(panel).tabs.map(browserUrl)).toEqual(["file:src/b.ts"])
+    panel = showFile(showBrowser(panel, "https://a.test/"), "src/a.ts")
+    expect(browser(panel).tabs.map(browserUrl)).toEqual(["file:src/b.ts", "https://a.test/", "file:src/a.ts"])
+    expect(showFile(panel, "src/b.ts")).toMatchObject({ columns: [{}, { active: "t1" }] })
     expect(parsePanel(JSON.parse(JSON.stringify(panel)))).toEqual(panel)
-    expect(showKind(newPanel(), "file")).toEqual(newPanel())
+  })
+
+  test("a File column stored before files were Browser tabs comes back as a tab", () => {
+    const stored = { columns: [{ kind: "files" }, { kind: "file", path: "src/a.ts" }], weights: {} }
+    expect(parsePanel(stored)).toEqual(showFile(newPanel(), "src/a.ts"))
   })
 
   // A file opened from Files landed right of the Browser, far from the tree it came from.
@@ -177,9 +181,9 @@ describe("rove api panel-show", () => {
     expect(browser(apply(again, { url: "https://b.test/" })).tabs).toHaveLength(2)
   })
 
-  test("a path opens the File column with Files asked for, the Diff column with Diff; another path retargets it", () => {
+  test("a path opens the file in a Browser tab with Files asked for, the Diff column with Diff; another path retargets it", () => {
     const opened = apply(newPanel(), { view: "files", path: "src/a.ts" })
-    expect(columnOf(opened, "file")).toMatchObject({ kind: "file", path: "src/a.ts" })
+    expect(browser(opened).tabs.map(browserUrl)).toEqual(["file:src/a.ts"])
     expect(columnOf(opened, "diff")).toBeUndefined()
     const next = apply(apply(opened, { view: "diff", path: "src/a.ts" }), { view: "diff", path: "src/b.ts" })
     expect(next.columns.filter((col) => col.kind === "diff")).toHaveLength(1)
@@ -188,7 +192,7 @@ describe("rove api panel-show", () => {
 
   // A second push of the same path left the agent's first version of the file on screen.
   test.each([
-    ["files", "file"],
+    ["files", "browser"],
     ["diff", "diff"],
   ] as const)(
     "pushing the path already open in %s again reads it again; a replay of the same push does not",
