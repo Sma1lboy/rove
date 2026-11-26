@@ -1,67 +1,90 @@
 # Concepts
 
-Six nouns explain Rove: **Task**, **Worktree**, **Terminal Tab**, **Engine**,
-**Daemon**, and **PTY host**. Learn those and the rest reads itself.
+Seven nouns explain Rove: **Workspace**, **Session**, **Worktree**,
+**Terminal Tab**, **Engine**, **Daemon**, and **PTY host**. Learn those and the
+rest reads itself.
 
-## Task
+## Workspace
 
-A Task is one workspace record you're tracking. Rove has two Task kinds:
+A Workspace is the thing your agents are working on, and the group its Sessions
+are listed under in the sidebar. Most of the time a Workspace is one git
+repository. It does not have to be: a plain folder that is not a repository is a
+Workspace too, a Session can span several repositories, and a Session moved to
+another Workspace keeps doing its git work in the repository it was cut from.
+
+A Workspace has no conversation of its own. Everything that runs in it is a
+Session.
+
+## Session
+
+A Session is one agent conversation in a Workspace: an engine, the terminal
+tabs beside it, and the directory they all run in. It is the row you see under
+a Workspace in the sidebar.
+
+A Session and a worktree are separate things. A Session either has a worktree
+bound to it, or it has none and runs in a directory you already own:
 
 | Kind | Directory | Git isolation |
 |---|---|---|
-| Managed task | A Rove-created worktree | Own branch and worktree |
-| Directory task | An existing directory opened with `rove .`, or a saved project's own checkout | Uses the directory as-is; it need not be a git repository |
+| Worktree session | A worktree Rove creates for it | Own branch and worktree |
+| Directory session | An existing directory opened with `rove .`, or the Workspace's own checkout | Uses the directory as-is; it need not be a git repository |
 
-For a managed task, the product unit is:
+A second conversation is a **child session**, listed under its parent. It
+either shares the parent's directory or gets a worktree of its own
+([below](#terminal-tabs-and-engine-conversations)).
 
-```text
-Managed task = git worktree + branch + terminal tabs
-```
+### Names you will still see
 
-A Task is a **workspace, not a conversation**. Its Terminal Tabs all run in
-the same directory. Only managed tasks get Rove-created branch/worktree
-isolation; directory tasks (a session in a project's own checkout included)
-deliberately reuse directories you already own.
+The app, the CLI and the files on disk were named before these two words were
+settled, and have not been renamed yet:
 
-A **New shell** from a Task row is not a Scratch shell: it is a child Task sharing the row's directory, listed under it, whose `tab-1` is the login shell. When that shell exits the row stays, empty, and is never deleted for it.
+| Concept | Still appears as |
+|---|---|
+| Session | `task` in `rove api` (`--task-id`, `get-task`), `$ROVE_TASK_ID`, `~/.rove/tasks.json`, and "task" in the app (**New task**) |
+| Workspace | `--repo` in `rove api`, and "project" in the app (**Remove project**) |
+| A Session's directory | `workspace` in `rove api` (`--workspace-on`, `.task.workspace`) |
 
-**Scratch shells** are directory Tasks with an unsettled home: press `tab` in
+Where this page quotes a command, a file or a label in the app, it uses the
+name you will actually type or see.
+
+A **New shell** from a Session row is not a Scratch shell: it is a child Session sharing the row's directory, listed under it, whose `tab-1` is the login shell. When that shell exits the row stays, empty, and is never deleted for it.
+
+**Scratch shells** are directory Sessions with an unsettled home: press `tab` in
 the `ctrl+e` new-conversation dialog until the destination reads "new scratch
 task", pick an engine (or `shell` for a bare shell), and `enter` opens one in
 `$HOME` with that engine already running. It
-lives in the sidebar's **Ungrouped** group above every project, and follows a
+lives in the sidebar's **Ungrouped** group above every Workspace, and follows a
 zero-ceremony lifecycle: its last tab exiting removes the row (no archive, no
 confirm; nothing on disk is touched). Routines created with **Ungrouped**
-run in their own directory under `.rove/routines/` and their sessions open from
+run in their own directory under `.rove/routines/` and their Sessions open from
 the Routines page, not the sidebar; they are not scratch shells and are never
 auto-removed. A scratch row earns a permanent place
 two ways: rename it (naming is the keep gesture), or start a coding harness
 inside a git repository. Rove detects the live harness plus the shell's
-settled directory and quietly migrates the row into that repository's project
-group. If the settled directory already belongs to a Task (a directory
-Task's directory, or inside a managed Task's
-worktree), the shell folds into that Task as a new terminal tab, running
-session and all, instead of becoming a duplicate row.
+settled directory and quietly migrates the row into that repository's
+Workspace. If the settled directory already belongs to a Session (a directory
+Session's directory, or inside a worktree Session's worktree), the shell folds into that Session as a new terminal tab, running
+engine and all, instead of becoming a duplicate row.
 
-Each Task has a `status` you set yourself (`backlog`, `in_progress`,
+Each Session has a `status` you set yourself (`backlog`, `in_progress`,
 `in_review`, `done`, `canceled`, `error`) — from the sidebar row's right-click
 menu (**Set status**) or with `rove api update --status`. It is a label and nothing
-more: `canceled` does not stop a session or remove a worktree, and `done` does
-not close anything. Rove moves a Task from `backlog` to `in_progress` by itself
+more: `canceled` does not stop an engine or remove a worktree, and `done` does
+not close anything. Rove moves a Session from `backlog` to `in_progress` by itself
 when its engine starts a turn, and the system prompt asks the agent to set
-`in_review` when it finishes, unless another Rove session handed it the work
+`in_review` when it finishes, unless another Session handed it the work
 (then its `report` or outcome message is the signal); everything past that is
 yours. The sidebar row
 does not draw it: the one mark in that cell is the PR's, and the status is
 something you already know because you set it
 (see [TUI](./TUI.md#status-glyphs-in-the-sidebar)).
 
-**Delete is explicit and kind-aware.** Deleting a directory Task removes only
-its Rove record, never the directory. Forgetting a project (**Remove project**
-on its header's menu) un-saves the repository and keeps every Task, branch and
+**Delete is explicit and kind-aware.** Deleting a directory Session removes only
+its Rove record, never the directory. Forgetting a Workspace (**Remove project**
+on its header's menu) un-saves the repository and keeps every Session, branch and
 worktree.
-Deleting a managed Task removes its worktree after the dirty-worktree safety
-check. **The task branch stays.** Git is the durable record of the work;
+Deleting a worktree Session removes its worktree after the dirty-worktree safety
+check. **The Session's branch stays.** Git is the durable record of the work;
 pass `--delete-branch` on `rove api delete` to drop it too. That runs
 `git branch -d`, which refuses a branch whose commits neither the repo's HEAD
 nor the branch's own upstream already contains — so work that was never pushed
@@ -75,7 +98,7 @@ it closes an open PR, so one flag never implies the other.
 
 The separate
 [Worktrees page](WORKTREES.md) is an audit/cleanup tool: removing a directory
-there keeps its Task record and branch so the worktree can be materialized
+there keeps its Session record and branch so the worktree can be materialized
 again later. `rove api remove-worktree --task-id ID` is the same operation
 from a shell — the inverse of `ensure-worktree`, and what a script reclaiming
 idle checkouts wants instead of `delete`.
@@ -88,59 +111,59 @@ the result carries `branch` — `{ branch, deleted, keptReason?, remote? }` — 
 
 ## Worktree and branch
 
-Every managed Task gets its own git worktree at
-`~/.rove/worktrees/<repo-key>/<task-slug>/`, checked out to the task's
-branch. The slug is drawn from a pool of animal names, so parallel Tasks in
+Every worktree Session gets its own git worktree at
+`~/.rove/worktrees/<repo-key>/<task-slug>/`, checked out to the session's
+branch. The slug is drawn from a pool of animal names, so parallel Sessions in
 one repo get distinguishable directories without anyone choosing them;
 `rove api add --worktree-name NAME` overrides that when a script needs to
 predict the path instead of reading it back, and refuses a name already in
-use rather than suffixing it. That's what makes running many tasks at once safe: N tasks means N
+use rather than suffixing it. That's what makes running many sessions at once safe: N sessions means N
 working trees that can't overwrite each other or your main checkout. Edits
 cross over only when you merge.
 
-Directory Tasks are the exception: they point at an existing
-checkout or directory. Use a managed Task when you want isolation.
+Directory Sessions are the exception: they point at an existing
+checkout or directory. Use a worktree Session when you want isolation.
 
-The worktree outlives everything else. Killing a session, quitting the TUI,
+The worktree outlives everything else. Killing an engine, quitting the TUI,
 dropping SSH, restarting the daemon: none of them touch it.
 
 > **One thing to watch:** a child that shares its parent's directory shares its
 > worktree, and Rove does not coordinate their writes. Two conversations editing
 > the same file at once will conflict. If you need real isolation, open a new
-> task or `add --parent <this task>` a child with its own worktree.
+> session or `add --parent <this task>` a child with its own worktree.
 
-## Terminal Tabs and engine sessions
+## Terminal Tabs and engine conversations
 
-A Task is one engine conversation: its `tab-1`. A second conversation is a
-**child task**, shown under its parent in the sidebar. A child either shares
+A Session is one engine conversation: its `tab-1`. A second conversation is a
+**child session**, shown under its parent in the sidebar. A child either shares
 the parent's directory (`ctrl+t`, `ctrl+e`,
 `add --no-worktree`) or gets its own worktree cut from the parent's branch tip
-(`add` from a task's own session). Deleting a parent promotes its children; `delete --cascade` removes
+(`add` run from inside the Session). Deleting a parent promotes its children; `delete --cascade` removes
 the subtree.
 
-A Task owns its Terminal Tabs. The engine tab runs an engine inside an
+A Session owns its Terminal Tabs. The engine tab runs an engine inside an
 interactive shell and can resume an engine-owned conversation. Other tabs can be
 shells, fixed commands/editors, or read-only file/diff content; those are not
 engine conversations. Splits add more shell leaves inside a tab.
 
 Tabs let you ask a side question or open a shell without changing directories.
-Close a tab when you're done; the Task's directory stays. Exiting the engine
-CLI itself returns an engine tab to its shell prompt. The hosted session ends
+Close a tab when you're done; the Session's directory stays. Exiting the engine
+CLI itself returns an engine tab to its shell prompt. The hosted terminal ends
 only when that wrapping shell exits or Rove explicitly closes it.
 
 **Closing the last tab is "done for now", not "forget".** Close every tab of a
-managed Task and its row stays in the sidebar; entering it again opens a fresh
-tab in the same worktree. A project whose only row is a directory Task with no
+worktree Session and its row stays in the sidebar; entering it again opens a fresh
+tab in the same worktree. A Workspace whose only row is a directory Session with no
 tab open leaves the sidebar, header and row together. Nothing is deleted: the
-Task record and the saved repository both stay on disk. A project has no
+Session record and the saved repository both stay on disk. A Workspace has no
 standing conversation: to start one in its own checkout, open New task (`n`),
 pick the same repository, and choose "the project itself" instead of a new task
 worktree (see [TUI](./TUI.md#creating-a-task)), or `rove api send --repo PATH`.
-Forgetting a project (**Remove project** on its header's menu) is the separate,
+Forgetting a Workspace (**Remove project** on its header's menu) is the separate,
 un-saving gesture.
 
-A Task-level reasoning-effort choice is forwarded when the engine supports it.
-A child task runs the engine it was started with, so conversations in one
+A Session-level reasoning-effort choice is forwarded when the engine supports it.
+A child session runs the engine it was started with, so conversations in one
 directory can use different vendors. The embedded engine CLI owns its own model
 and permission controls.
 
@@ -150,9 +173,9 @@ terminal output has separate persistence rules; see [Sessions](SESSIONS.md).
 
 ## Engines
 
-An engine is the execution backend a task runs on. Rove embeds the **real
+An engine is the execution backend a session runs on. Rove embeds the **real
 interactive CLI** (`claude`, `codex`, `copilot`, `kimi`, `pi`, `omp`, or one
-yourself) inside a hosted terminal session. No API wrappers, no re-rendered
+yourself) inside a hosted terminal. No API wrappers, no re-rendered
 output: what you see is the actual engine running next to your dependencies
 and credentials.
 
@@ -169,13 +192,13 @@ flowchart LR
   API["rove api"] --> D
   TUI --> P["PTY Host"]
   API --> P
-  D --> IDX["Task index + worktrees"]
+  D --> IDX["Session index + worktrees"]
   P --> E["TUI/API engine + shell sessions"]
 ```
 
-- **Daemon.** Owns your task list, worktrees, and the issue store. Starts on
+- **Daemon.** Owns your session list, worktrees, and the issue store. Starts on
   its own, then stops after the last attached GUI disconnects unless an
-  enabled routine, or any live tab session in the PTY host, holds it alive
+  enabled routine, or any live tab in the PTY host, holds it alive
   (it must stay up to collect engine activity, or the status dots go stale).
 - **PTY host.** Owns the running engine and shell processes. Survives both
   the TUI *and* a daemon restart.
@@ -204,7 +227,7 @@ Issues track *what to do*; the changelog records *what shipped*.
 
 | What | Where |
 |---|---|
-| Task index | `~/.rove/tasks.json` |
+| Session index | `~/.rove/tasks.json` |
 | Worktrees | `~/.rove/worktrees/<repo-key>/<task-slug>/` |
 | Issue store | `~/.rove/issues.json` |
 | Daemon socket / log | `~/.rove/daemon.sock`, `~/.rove/daemon.log` |
@@ -214,7 +237,7 @@ Issues track *what to do*; the changelog records *what shipped*.
 Setting `ROVE_HOME_DIR` moves Rove's home-rooted product data and compatibility
 runtime; `ROVE_HOME_DIR` remains a fallback. It does not relocate platform
 settings or engine-owned conversation stores. That's how the dev sandbox
-avoids touching your real `~/.rove` task data or runtime.
+avoids touching your real `~/.rove` session data or runtime.
 
 ## Three ways people use it
 
@@ -226,27 +249,30 @@ rove api add --repo "$PWD" \
   --prompt "Try independent approaches to simplify the auth flow."
 ```
 
-Each attempt is its own Task with its own worktree. Workers message their
+Each attempt is its own Session with its own worktree. Workers message their
 outcome back to the spawning agent's engine tab (`rove api send`); compare
 with `rove api collect`, merge with `rove api land`.
 
 **Over SSH, on the machine your code lives on.** The daemon and PTY host run
-on that machine, so dropping SSH does not end hosted sessions. SSH back in and
+on that machine, so dropping SSH does not end hosted terminals. SSH back in and
 run `rove` to reattach. Clipboard and terminal notifications depend on the
 attached terminal connection; attention that happens while disconnected stays
 available in Rove's Inbox when you return.
 
 ## Glossary
 
-- **Task.** A tracked workspace record: managed worktree, or existing
-  directory (a project's own checkout included).
-- **Worktree.** A git working tree on disk. Rove creates one for each managed
-  Task; directory Tasks reuse existing directories.
+- **Workspace.** What your agents work on and the sidebar group its Sessions
+  sit under; usually one git repository.
+- **Session.** One agent conversation in a Workspace, with its terminal tabs
+  and the directory they run in: a worktree of its own, or an existing
+  directory (the Workspace's own checkout included).
+- **Worktree.** A git working tree on disk. Rove creates one for each worktree
+  Session; directory Sessions reuse existing directories.
 - **Terminal Tab.** An engine, shell, command/editor, or read-only content
-  surface inside a Task. N per Task.
-- **Engine.** The coding-agent CLI a task runs on.
-- **Daemon.** The background process holding your task list and issues.
-- **PTY host.** The standalone process holding TUI/API live sessions; survives
+  surface inside a Session. N per Session.
+- **Engine.** The coding-agent CLI a session runs on.
+- **Daemon.** The background process holding your session list and issues.
+- **PTY host.** The standalone process holding the live engine and shell processes; survives
   daemon restarts.
 - **`rove api`.** The headless surface for scripts and agents.
 - **Fan out / fan in.** Run N attempts of one prompt, then merge the winner.

@@ -242,7 +242,7 @@ action shows an error without sending a prompt. If delivery fails, it asks you
 to open an engine tab in the Task and retry.
 
 The confirmation dialogs state the exact deletion boundary before anything is
-changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
+changed. See [Concepts → Session](CONCEPTS.md#session) for the Session kinds and
 [Sessions](SESSIONS.md#what-actually-ends-a-session) for session teardown.
 
 ## Inbox
