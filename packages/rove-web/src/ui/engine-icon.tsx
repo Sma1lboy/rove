@@ -5,12 +5,19 @@
  * it works), and it gives way to `?` / `!` when the row needs a person.
  */
 
+import { useId } from "react"
 import type { StatusMark } from "../rail-glyphs.ts"
 import { TONE_CLASS } from "./tone.ts"
 
 export interface EngineIconData {
   readonly viewBox: string
-  readonly paths: readonly { readonly d: string; readonly evenodd?: true; readonly fill?: string }[]
+  readonly paths: readonly {
+    readonly d: string
+    readonly evenodd?: true
+    readonly fill?: string
+    /** `[x1, y1, x2, y2]`: the fill runs out to transparent along this line. */
+    readonly fade?: readonly [number, number, number, number]
+  }[]
 }
 
 // 1px below the box centre: the title's lowercase sits 1.5px under it, its capitals 0.3px.
@@ -25,6 +32,7 @@ export function EngineIcon(props: {
   /** The row's status, when the mark stands in for the dots. */
   readonly status?: StatusMark | undefined
 }) {
+  const id = useId()
   const look = props.status?.look
   if (look === "waiting" || look === "error") {
     return (
@@ -47,14 +55,34 @@ export function EngineIcon(props: {
       aria-hidden={props.name ? undefined : true}
     >
       {props.icon ? (
-        props.icon.paths.map((path) => (
-          <path
-            key={path.d}
-            d={path.d}
-            fill={tone ? "currentColor" : (path.fill ?? "currentColor")}
-            fillRule={path.evenodd ? "evenodd" : undefined}
-          />
-        ))
+        // A mark carrying the status is one flat colour, so its fading layers add nothing.
+        props.icon.paths.map((path, i) =>
+          path.fade && !tone ? (
+            // biome-ignore lint/suspicious/noArrayIndexKey: layers share one outline and never reorder
+            <g key={i}>
+              <linearGradient
+                id={`${id}-${i}`}
+                gradientUnits="userSpaceOnUse"
+                x1={path.fade[0]}
+                y1={path.fade[1]}
+                x2={path.fade[2]}
+                y2={path.fade[3]}
+              >
+                <stop stopColor={path.fill ?? "currentColor"} />
+                <stop offset="1" stopColor={path.fill ?? "currentColor"} stopOpacity="0" />
+              </linearGradient>
+              <path d={path.d} fill={`url(#${id}-${i})`} fillRule={path.evenodd ? "evenodd" : undefined} />
+            </g>
+          ) : path.fade ? null : (
+            <path
+              // biome-ignore lint/suspicious/noArrayIndexKey: layers share one outline and never reorder
+              key={i}
+              d={path.d}
+              fill={tone ? "currentColor" : (path.fill ?? "currentColor")}
+              fillRule={path.evenodd ? "evenodd" : undefined}
+            />
+          ),
+        )
       ) : (
         <circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" strokeWidth="1.2" />
       )}
