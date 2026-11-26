@@ -204,6 +204,15 @@ describe("split tree (content-agnostic)", () => {
     expect(auto.get("leaf-1")).toBe("claude")
     expect(auto.get("leaf-2")).toBe("shell")
     expect(auto.get("leaf-3")).toBe("shell 2")
+    // A shell pane the process walk found an engine in is named for it, over its OSC title.
+    const walked = splitLeafNames(
+      leaves(s.root),
+      ["claude"],
+      null,
+      new Map([["leaf-2", "repo"]]),
+      new Map([["leaf-2", "codex"]]),
+    )
+    expect(walked.get("leaf-2")).toBe("codex")
     const renamed = splitLeafNames(leaves(renameLeaf(s, "leaf-2", "logs").root), ["claude"])
     expect(renamed.get("leaf-2")).toBe("logs")
     // A manual title never joins the dedupe pool — the remaining shell stays bare.

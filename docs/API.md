@@ -1573,7 +1573,8 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   command line is taken: panes are always the login shell. Returns
   `{ok, taskId, tabId, leaf, changed, split, clients}`; `split` is
   `{activeLeafId, root}` (null once back to one pane) and `get-task .tabs[].split`
-  carries the same.
+  carries the same, plus `liveVendor` on each split shell pane: the engine a
+  process walk found running in it now (null = walked, none).
 - `tab-revive --task-id ID --tab TAB [--restart-exited]`: reopen one Terminal Tab's own session when
   no PTY runs in it: a dead or freeze-restored tab, or one whose key the PTY
   host lost (a host restart that dropped its freeze records). A running tab is

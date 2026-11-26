@@ -132,6 +132,44 @@ describe("joinTaskTabs", () => {
     expect(rows.map((r) => r.liveVendor)).toEqual(["claude", null, "codex"])
   })
 
+  it("a split shell pane carries its own walk verdict, so an engine typed into it is named", () => {
+    const splitTree = {
+      root: {
+        kind: "group",
+        orientation: "row",
+        children: [
+          { kind: "leaf", id: "leaf-1", content: null },
+          { kind: "leaf", id: "leaf-2", content: ["/bin/zsh", "-l"] },
+          { kind: "leaf", id: "leaf-3", content: ["/bin/zsh", "-l"] },
+        ],
+      },
+      activeLeafId: "leaf-2",
+      nextOrdinal: 4,
+    }
+    const [row] = joinTaskTabs(
+      vendorSnap([{ kind: "engine", id: "tab-1", title: null, ordinal: 1, vendor: "claude", splitTree }]),
+      "t1",
+      [
+        { key: "t1::tab-1", alive: true },
+        { key: "t1::tab-1::leaf-2", alive: true },
+        { key: "t1::tab-1::leaf-3", alive: true },
+      ],
+      {},
+      new Map([
+        ["t1::tab-1", "claude"],
+        ["t1::tab-1::leaf-2", "codex"],
+        ["t1::tab-1::leaf-3", null],
+      ]),
+    )
+    const root = row?.split?.root
+    const leaves = root?.kind === "group" ? root.children : []
+    expect(leaves.map((l) => (l.kind === "leaf" ? [l.id, l.liveVendor] : null))).toEqual([
+      ["leaf-1", undefined],
+      ["leaf-2", "codex"],
+      ["leaf-3", null],
+    ])
+  })
+
   // An unreachable pty host answers nothing. Rendering that as `alive: false`
   // asserts a death nobody observed, and a cleanup loop deletes worktrees on
   // it — so every liveness field on every row goes to `null` instead.

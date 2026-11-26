@@ -98,6 +98,9 @@ registerCommands(() => [
   },
 ])
 
+/** How often a split tab on screen asks which engine each shell pane runs. */
+const PANE_ENGINE_READ_MS = 4000
+
 const WHOLE: readonly LeafBox[] = [{ id: "leaf-1", x: 0, y: 0, w: 1, h: 1, left: false, top: false }]
 
 /** A tab is always laid out as panes: an unsplit one is the single `leaf-1`, so splitting never remounts its terminal. */
@@ -116,6 +119,14 @@ export function SplitPane({ model, taskId, tab }: { model: AppModel; taskId: str
   useEffect(() => {
     if (deadSince !== null) void model.refreshTabsNow(taskId)
   }, [deadSince, model, taskId])
+  // ponytail: no push says what a shell pane is running, so a split tab on screen rereads its rows on a timer; push it from the daemon if the walk gets costly.
+  useEffect(() => {
+    if (!several) return
+    const timer = window.setInterval(() => {
+      if (!document.hidden) void model.refreshTabsNow(taskId)
+    }, PANE_ENGINE_READ_MS)
+    return () => window.clearInterval(timer)
+  }, [several, model, taskId])
   const engineExit: EngineExit | null =
     deadSince !== null && tab.alive !== false ? { code: tab.exit?.code ?? null, since: deadSince } : null
   // The engine's own activity state, not a vendor string: `rate_limited` shows the usage-limit strip.
