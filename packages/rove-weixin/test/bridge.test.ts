@@ -51,6 +51,7 @@ const status = mock(async () => current)
 const send = mock(async () => ({ tab: "tab-1" }))
 const add = mock(async () => ({ taskId: "01NEW" }))
 const openAgentTask = mock(async () => ({ taskId: TASK }))
+const markConnector = mock(async (_taskId: string) => {})
 let nextTab = 1
 let agentRunning = false
 const newConversation = mock(async () => ({ tab: `tab-${nextTab++}` }))
@@ -66,6 +67,7 @@ const ops: RoveOps = {
   clearReport: async () => {},
   notifyingRoutineRuns: routineRuns,
   openAgentTask,
+  markConnector,
   newConversation,
   taskRunning: async () => agentRunning,
 }
@@ -100,7 +102,7 @@ beforeEach(async () => {
   clock = Date.now()
   logs.length = 0
   bridge = null
-  for (const fn of [status, send, add, openAgentTask, newConversation, routineRuns]) fn.mockClear()
+  for (const fn of [status, send, add, openAgentTask, markConnector, newConversation, routineRuns]) fn.mockClear()
   nextTab = 1
   agentRunning = false
 })
@@ -188,6 +190,8 @@ describe("inbound", () => {
       "Nothing needs you. 1 running",
     ])
     expect(openAgentTask).toHaveBeenCalledTimes(1)
+    // The sidebar sorts the connector's project last; one mark per process is enough.
+    expect(markConnector.mock.calls).toEqual([[TASK]])
     expect(store.readState(FAKE_BOT_ID).agent).toMatchObject({
       taskId: TASK,
       tab: "tab-2",

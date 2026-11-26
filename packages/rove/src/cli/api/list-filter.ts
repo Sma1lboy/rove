@@ -94,6 +94,7 @@ const TASK_FIELDS = {
   kind: true,
   scratch: true,
   noProject: true,
+  connector: true,
   routine: true,
   status: true,
   pinned: true,

@@ -334,6 +334,7 @@ export function deserializeTask(s: SerializedTask): Task {
     kind: (s.kind as string) === "main" ? "dir" : s.kind,
     ...(s.scratch ? { scratch: true } : {}),
     ...(s.noProject ? { noProject: true } : {}),
+    ...(s.connector ? { connector: s.connector } : {}),
     ...(s.routine ? { routine: s.routine } : {}),
     status: s.status,
     pinned: s.pinned,

@@ -247,6 +247,7 @@ export function taskRows(
         ...(task.routine ? { routine: true } : {}),
         ...(task.scratch ? { scratch: true } : {}),
         ...(task.noProject ? { noProject: true } : {}),
+        ...(task.connector ? { connector: task.connector } : {}),
         order: orderOf.get(task.id) ?? 0,
         createdAt: task.createdAt,
         updatedAt: task.updatedAt,

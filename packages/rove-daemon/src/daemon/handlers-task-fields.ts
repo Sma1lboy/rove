@@ -1,5 +1,5 @@
 /**
- * `task.pin` / `task.keep` / `task.autoFixCi` / `task.notes` / `task.worktreeOnly`: the small per-task settings
+ * `task.pin` / `task.keep` / `task.connector` / `task.autoFixCi` / `task.notes` / `task.worktreeOnly`: the small per-task settings
  * flipped on a row: pin it, mark the kept attempt, opt in to auto-fix CI, keep notes and a checklist, mark a bare checkout.
  */
 
@@ -29,6 +29,17 @@ export const FIELD_HANDLERS: readonly DaemonRequestHandler[] = [
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       await ctx.orch.setKept(taskId, optionalBoolean(payload, "kept") ?? true)
+      return {}
+    },
+  },
+  {
+    name: "task.connector",
+    async handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      const connector = payload.connector
+      if (connector !== null && (typeof connector !== "string" || connector.trim() === ""))
+        throw new Error("connector must be a non-empty string or null")
+      await ctx.orch.setConnector(taskId, connector === null ? null : connector.trim())
       return {}
     },
   },

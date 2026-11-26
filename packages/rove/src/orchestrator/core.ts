@@ -326,6 +326,8 @@ export class Orchestrator {
     this.editor.setCommand(id, command, vendor)
   setPinned = (id: TaskId | string, pinned?: boolean): Promise<void> => this.editor.setPinned(id, pinned)
   setKept = (id: TaskId | string, kept: boolean): Promise<void> => this.editor.setKept(id, kept)
+  setConnector = (id: TaskId | string, connector: string | null): Promise<void> =>
+    this.editor.setConnector(id, connector)
   updateNotes = (id: TaskId | string, edit: Parameters<TaskEditor["updateNotes"]>[1]) =>
     this.editor.updateNotes(id, edit)
   setParent = (id: TaskId | string, parentId: string | null, replyTab?: string): Promise<ReparentResult> =>

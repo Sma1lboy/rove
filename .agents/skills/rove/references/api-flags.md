@@ -261,7 +261,7 @@ add             --repo(REQ) --clone --fork --workspace{layerfs} --workspace-on
                 --require-report --expect-report --activate(false) --worktree-only --start
                 --prompt|--prompt-file
 update          --task-id --title --tab --branch --parent --project --group --command
-                --model --effort --pinned --kept --require-report{on|off}
+                --model --effort --pinned --kept --connector --require-report{on|off}
                 --auto-fix-ci{on|off}
                 --status{backlog|in_progress|in_review|done|canceled|error}
                 --report-branch --report-pr --report-summary

@@ -115,6 +115,8 @@ export interface Task {
   readonly scratch?: boolean
   /** A `dir` task the daemon made for a projectless routine; sorts into the Ungrouped group. */
   readonly noProject?: boolean
+  /** The chat connector (`weixin`, a plugin's id) this session answers for; its project sorts below every other. */
+  readonly connector?: string
   /**
    * The routine (`Automation`) whose firing made this task: its standing
    * session, or one fresh run's task. The sidebar folds these behind a

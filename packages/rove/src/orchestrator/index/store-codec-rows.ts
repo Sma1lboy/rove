@@ -92,6 +92,7 @@ export function coerceTask(value: unknown): Task | null {
     ...(fromProjectRow ? { fromProjectRow: true } : {}),
     ...(scratch ? { scratch: true } : {}),
     ...(noProject ? { noProject: true } : {}),
+    ...(typeof v.connector === "string" && v.connector.length > 0 ? { connector: v.connector } : {}),
     ...(routine ? { routine } : {}),
     vendor: coerceVendorId(typeof v.vendor === "string" ? v.vendor : undefined),
     // Raw launch command; lost, the task falls back to its protocol's preset.

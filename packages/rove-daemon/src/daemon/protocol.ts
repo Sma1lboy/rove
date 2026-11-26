@@ -103,6 +103,7 @@ export type DaemonRequestName =
   | "task.pin"
   // Mark the attempt kept from a parallel round (`groupId` siblings); a flag only, nothing else of the task moves.
   | "task.keep"
+  | "task.connector"
   // The owner's notes and checklist: replace notes, apply todo ops (add/check/edit/remove) atomically.
   | "task.notes"
   // Opt in or out of auto-fixing failing CI for a task; the daemon keeps the attempt count.
@@ -416,6 +417,8 @@ export interface SerializedTask {
   readonly scratch?: boolean
   /** Projectless routine session — sorts into the Ungrouped group. */
   readonly noProject?: boolean
+  /** The chat connector this session answers for; its project sorts last. */
+  readonly connector?: string
   /** A routine's standing session — folded behind the sidebar's routine count row. */
   readonly routine?: DaemonTask["routine"]
   readonly status: DaemonTask["status"]

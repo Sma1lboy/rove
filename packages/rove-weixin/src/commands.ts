@@ -50,6 +50,8 @@ export interface RoveOps {
   notifyingRoutineRuns(): Promise<readonly NotifyingRoutine[]>
   /** Open `dir` as a pinned directory task named `title` (the WeChat agent's project). */
   openAgentTask(dir: string, title: string): Promise<{ readonly taskId: string }>
+  /** Mark `taskId` as the WeChat connector's session (the sidebar sorts its project last). */
+  markConnector(taskId: string): Promise<void>
   /** A new engine tab in `taskId` whose first message is `prompt`. */
   newConversation(taskId: string, prompt: string): Promise<{ readonly tab: string }>
   /** The daemon shows `taskId`'s engine mid-turn. */

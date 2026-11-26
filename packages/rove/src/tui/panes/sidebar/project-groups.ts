@@ -173,6 +173,9 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
     tasks: entry.tasks.sort(pinnedFirst),
   }))
   if (sortMode === "name") groups.sort((a, b) => nameCollator.compare(a.label, b.label))
+  // A chat connector's session (WeChat, Lark) sinks below every project, whatever the sort (the web rail's rule).
+  const connector = (group: SidebarGroup): number => Number(group.tasks.some((task) => task.connector !== undefined))
+  groups.sort((a, b) => connector(a) - connector(b))
   if (scratchTasks.length > 0) {
     groups.unshift({
       key: SCRATCH_SECTION_ID,

@@ -81,6 +81,12 @@ describe("grouping", () => {
     expect(result[0]?.tasks.map((t) => t.id)).toEqual(["s1"])
   })
 
+  test("a chat connector's project sinks below every project added after it", () => {
+    const wechat = checkout("w1", "/home/.rove/weixin/agent")
+    const result = groups([{ ...wechat, connector: "weixin" }, task("a1", { repo: "/work/api" })])
+    expect(result.map((g) => g.key)).toEqual(["/work/api", "/home/.rove/weixin/agent"])
+  })
+
   test("a projectless routine's dir task joins the Ungrouped bench, not a project of its own", () => {
     const home = "/home/.rove/routines/a1"
     const dir = task("d1", { kind: "dir", repo: home, worktreePath: home, noProject: true })

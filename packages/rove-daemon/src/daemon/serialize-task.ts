@@ -25,6 +25,7 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     kind: task.kind ?? "task",
     ...(task.scratch ? { scratch: true } : {}),
     ...(task.noProject ? { noProject: true } : {}),
+    ...(task.connector ? { connector: task.connector } : {}),
     ...(task.routine ? { routine: task.routine } : {}),
     status: task.status,
     pinned: task.pinned ?? false,

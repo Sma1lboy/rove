@@ -173,6 +173,8 @@ export interface TaskRow {
   readonly scratch?: boolean
   /** A dir task a projectless routine made; groups with scratch rows under "Ungrouped". */
   readonly noProject?: boolean
+  /** The chat connector this session answers for; its project sorts below every other. */
+  readonly connector?: string
   /** Index in the daemon's own task list: the manual ("default") order. */
   readonly order?: number
   readonly createdAt?: string
