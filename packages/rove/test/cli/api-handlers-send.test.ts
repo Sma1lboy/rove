@@ -284,7 +284,7 @@ describe("send handler", () => {
         client: peerClient(),
         runtime: stubRuntime({ deliverPrompt: deliver }),
       })
-      expect(calls[0].prompt).toContain('[ROVE PEER] from "Auth attempt" (task sender-1')
+      expect(calls[0].prompt).toContain("[ROVE PEER] from task sender-1 (")
       // Both skill ids, so a receiver on either install finds it.
       expect(calls[0].prompt).toContain("/rove")
       expect(calls[0].prompt).toContain("send --task-id sender-1")
@@ -324,7 +324,7 @@ describe("send handler", () => {
         }),
         runtime: stubRuntime({ deliverPrompt: deliver }),
       })
-      expect(calls[0].prompt).toContain('[ROVE PEER] from "Auth attempt" (task sender-1')
+      expect(calls[0].prompt).toContain("[ROVE PEER] from task sender-1 (")
       expect(calls[0].prompt).toContain("send --task-id sender-1 --tab tab-1")
       // Same shape as `send`: the brief is last and whole.
       expect(calls[0].prompt.endsWith("研究一下 X")).toBe(true)
@@ -391,22 +391,6 @@ describe("send handler", () => {
         runtime: stubRuntime({ deliverPrompt: deliver }),
       })
       expect(calls[0].prompt).toBe("hi")
-    })
-
-    it("a stale sender id degrades to id-only provenance, never a failed send", async () => {
-      const client = new FakeClient({
-        "task.get": (payload) => {
-          const id = (payload as { taskId: string }).taskId
-          if (id === "sender-1") throw new ApiError("task not found", "RPC_ERROR")
-          return { task: taskFixture({ id }) }
-        },
-      })
-      const { calls, deliver } = recordingDelivery()
-      await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi"], {
-        client,
-        runtime: stubRuntime({ deliverPrompt: deliver }),
-      })
-      expect(calls[0].prompt).toContain('from "sender-1" (task sender-1')
     })
   })
 })

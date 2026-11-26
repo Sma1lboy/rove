@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 133 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 134 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -44,7 +44,7 @@ lifecycle tracking, and an explicit outcome contract.
   channel: it reaches a process, not a task, so nothing it delivers is
   attributable, watchable, or replyable). Sent from
   inside a Rove task, the prompt arrives prefixed `[ROVE PEER] from
-  "<title>" (task <id> — Rove agent skill /rove, read it once per session …)`,
+  task <id> (Rove agent skill /rove, read it once per session …)`,
   so the receiver knows who is talking, that this skill is required reading,
   and how to answer — the baked-in reply command is tab-precise
   (`--task-id <sender> --tab <sender's tab>`), so peer conversations need
