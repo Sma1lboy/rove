@@ -175,7 +175,8 @@ test("the host mounts the stale-install banner and drives it from the orchestrat
   const text = await waitForFrameText(frame, "ROVE INSTALL IS GONE")
   // The remedy, not just the diagnosis — waiting is what the user was
   // already doing, so the banner has to name the thing that actually works.
-  expect(text).toContain("npm install -g @sma1lboy/rove")
+  // The banner wraps wherever the pane ends, so read it as one line.
+  expect(text.replace(/\s+/g, " ")).toContain("npm install -g @sma1lboy/rove")
 })
 
 test("a gone install outranks a stale daemon build — only one banner shows", async () => {
