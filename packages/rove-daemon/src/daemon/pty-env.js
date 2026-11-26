@@ -32,6 +32,22 @@ const IDENTITY_VARS = new Set([
   "WINDOW",
 ])
 
+/**
+ * The agent session Rove itself was started from (a daemon restarted inside a
+ * Claude Code session). Inherited, they make every engine Rove launches a child
+ * of that session: Claude stops saving transcripts, so `--resume` finds nothing.
+ */
+const PARENT_AGENT_VARS = new Set([
+  "CLAUDECODE",
+  "CLAUDE_CODE_CHILD_SESSION",
+  "CLAUDE_CODE_SESSION_ID",
+  "CLAUDE_CODE_SESSION_ATTENDED",
+  "CLAUDE_CODE_ENTRYPOINT",
+  "CLAUDE_CODE_EXECPATH",
+  "CLAUDE_PID",
+  "CLAUDE_EFFORT",
+])
+
 /** Emulator-owned variable families, matched by prefix. */
 const IDENTITY_PREFIXES = ["ITERM_", "KITTY_", "GHOSTTY_", "WEZTERM_", "ALACRITTY_", "KONSOLE_", "ZELLIJ_"]
 
@@ -44,7 +60,7 @@ export function embeddedTerminalEnv(base, overrides = {}) {
   /** @type {Record<string, string | undefined>} */
   const env = {}
   for (const [key, value] of Object.entries(base)) {
-    if (IDENTITY_VARS.has(key)) continue
+    if (IDENTITY_VARS.has(key) || PARENT_AGENT_VARS.has(key)) continue
     if (IDENTITY_PREFIXES.some((prefix) => key.startsWith(prefix))) continue
     env[key] = value
   }
