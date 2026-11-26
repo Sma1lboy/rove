@@ -11,8 +11,8 @@
 |                              |
 | rove ─────────────────────── |
 | ○ alpha                      |
-| ○ charlie                ⣔⣉⣢ |
-|▌○ de…   ⣔⣉⣢ on vps · offline |
+| ○ charlie                ⢖⣉⡢ |
+|▌○ de…   ⢖⣉⡢ on vps · offline |
 |                              |
 | api ──────────────────────── |
 | ○ echo                       |
