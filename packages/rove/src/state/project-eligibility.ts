@@ -76,8 +76,11 @@ export function pathRejection(absPath: string, intent: ProjectIntent = "derived"
   )
     return "insideSandbox"
   // Before `temporary`: a test with `ROVE_HOME_DIR` in a tmpdir would otherwise hide the specific reason.
-  for (const root of roveInternalRoots()) {
-    if (isInside(raw, root)) return "roveInternal"
+  // `~/.rove/repos` is where `--clone` and the web's New session put the user's own repos.
+  if (!isInside(raw, join(roveStateDir(), "repos"))) {
+    for (const root of roveInternalRoots()) {
+      if (isInside(raw, root)) return "roveInternal"
+    }
   }
   if (intent === "derived" && (isInside(raw, tmpdir()) || isInside(raw, "/tmp") || isInside(raw, "/private/tmp"))) {
     return "temporary"
