@@ -75,9 +75,8 @@ describe("treeMenuItems", () => {
     expect(actions(worktreeRow({ parentTaskId: "p1" as never }))).not.toContain("moveToProject")
   })
 
-  test("a worktree row opens, adds a session, then the task verbs", () => {
+  test("a worktree row adds a session, then the task verbs", () => {
     expect(actions(worktreeRow())).toEqual([
-      "open",
       "newChat",
       "newShell",
       "continueEngine",

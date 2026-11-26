@@ -93,6 +93,8 @@ export function HostSidebar(props: HostSidebarProps) {
       flexShrink={0}
       flexDirection="column"
       backgroundColor={theme.backgroundPanel}
+      // Above the workspace: a row's menu opens at the pointer and may reach past the rail's edge.
+      zIndex={1}
       onMouseUp={props.onFocusRequest}
     >
       {/* HostSidebarProps is SidebarTreeProps plus the rail's own two props,

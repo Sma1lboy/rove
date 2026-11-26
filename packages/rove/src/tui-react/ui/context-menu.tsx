@@ -8,6 +8,7 @@
 
 import { TextAttributes } from "@opentui/core"
 import { approxCellWidth } from "../../lib/display-width"
+import { mixInk } from "../../tui/lib/breathe"
 import {
   SIDEBAR_HOVER_TOOLTIP_MAX_WIDTH,
   SIDEBAR_HOVER_TOOLTIP_Z_INDEX,
@@ -51,8 +52,16 @@ export function ContextMenu(props: {
   readonly y: number
   readonly dims: { width: number; height: number }
   readonly onPick: (id: string) => void
+  /** The pointer came to rest on entry `index`: the owner moves its cursor there, as the web's menu does. */
+  readonly onHover?: (index: number) => void
 }) {
   const { theme } = useTheme()
+  // A step toward the ink from the menu's own surface, so the row under the cursor reads on it; a
+  // palette theme has no inks to mix and keeps the element surface.
+  const hoverFill =
+    theme.text.intent === "rgb" && theme.backgroundMenu.intent === "rgb"
+      ? mixInk(theme.text, theme.backgroundMenu, 0.14)
+      : theme.backgroundElement
   if (props.entries.length === 0) return null
   const layout = resolveSidebarHoverTooltipLayout({
     hoverX: props.x,
@@ -88,7 +97,7 @@ export function ContextMenu(props: {
       {props.entries.map((entry, i) => {
         const active = i === props.cursor
         // The web's row: a quiet fill under the cursor, the error fill on a destructive entry.
-        const fill = active ? (entry.danger ? theme.error : theme.backgroundElement) : undefined
+        const fill = active ? (entry.danger ? theme.error : hoverFill) : undefined
         const ink = active && entry.danger ? theme.selectedListItemText : entry.danger ? theme.error : theme.text
         return [
           opensSection(props.entries, i) ? (
@@ -96,12 +105,14 @@ export function ContextMenu(props: {
               {"─".repeat(layout.innerWidth)}
             </text>
           ) : null,
+          // biome-ignore lint/a11y/useKeyWithMouseEvents: a terminal box takes no focus; j/k move the same cursor
           <box
             key={entry.id}
             flexShrink={0}
             flexDirection="row"
             backgroundColor={fill}
             onMouseUp={() => props.onPick(entry.id)}
+            onMouseOver={() => props.onHover?.(i)}
           >
             <text fg={ink} wrapMode="none" flexGrow={1}>
               {truncateTitle(entry.label, layout.innerWidth - capCells(entry))}

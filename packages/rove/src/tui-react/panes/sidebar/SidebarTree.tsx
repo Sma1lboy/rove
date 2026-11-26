@@ -353,9 +353,10 @@ export function SidebarTree(props: SidebarTreeProps) {
           cursor={menu.cursor}
           x={menu.x}
           y={menu.y}
-          // Clamp to the RAIL: past its right edge the menu clips under the workspace.
-          dims={{ width: effectiveWidth, height: dims.height }}
+          // Clamped to the screen, so it opens down and right of the pointer; the rail paints over the workspace.
+          dims={dims}
           onPick={menu.pick}
+          onHover={menu.setCursor}
         />
       ) : null}
       {/* Terminal dimensions are read so the body re-measures on resize. */}

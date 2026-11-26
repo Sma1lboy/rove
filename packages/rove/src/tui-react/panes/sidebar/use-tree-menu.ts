@@ -4,15 +4,17 @@
  * `t()` pass, and the dispatch between them.
  */
 
-import { useCallback, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { resolvePreferredVendor } from "../../../state/vendor-prefs"
 import { formatChord } from "../../../tui/lib/chord-glyphs"
 import { legendCap } from "../../../tui/lib/help-groups"
 import { pausedGitOperation } from "../../../tui/ops/conflict-prompt"
 import { SCRATCH_SECTION_ID, type TreeRow } from "../../../tui/panes/sidebar/tree-core"
 import {
+  TREE_MENU_SECTIONS,
   type TreeMenuAction,
   type TreeMenuContext,
+  type TreeMenuSection,
   treeMenuItems,
   treeMenuSection,
 } from "../../../tui/panes/sidebar/tree-menu"
@@ -30,6 +32,8 @@ export interface TreeMenu {
   readonly y: number
   readonly close: () => void
   readonly moveCursor: (delta: 1 | -1) => void
+  /** Put the highlight on an entry (the pointer is over it). */
+  readonly setCursor: (index: number) => void
   /** Fire the highlighted entry (enter). */
   readonly pickCurrent: () => void
   /** Fire an entry by action id (a click on a menu row). */
@@ -57,12 +61,37 @@ function menuCap(bindingId: string | undefined): string | undefined {
   return cap ? formatChord(cap) : undefined
 }
 
+/** The two entries that open a list one level down, as the web's `Copy ›` and `More ›` do. */
+type Submenu = "copy" | "more"
+const SUBMENU_ID = (sub: Submenu): string => `submenu:${sub}`
+const BACK_ID = "submenu:back"
+
 interface OpenMenu {
   readonly row: TreeRow
-  readonly actions: readonly TreeMenuAction[]
-  readonly entries: readonly ContextMenuEntry[]
+  /** Every entry the row offers, each with its section. */
+  readonly entries: readonly (ContextMenuEntry & { readonly section: TreeMenuSection })[]
+  /** The list showing in place of the top level, when one is open. */
+  readonly sub: Submenu | null
   readonly x: number
   readonly y: number
+}
+
+/** What the menu shows: the top level with `Copy ›` and `More ›` standing in for their entries, or one of those lists. */
+function visibleEntries(menu: OpenMenu, t: (key: string) => string): readonly ContextMenuEntry[] {
+  if (menu.sub) {
+    const back: ContextMenuEntry = { id: BACK_ID, label: `‹ ${t("tasks.menu.back")}`, section: "back" }
+    return [
+      back,
+      ...menu.entries.filter((entry) => entry.section === menu.sub).map((entry) => ({ ...entry, section: "list" })),
+    ]
+  }
+  return TREE_MENU_SECTIONS.flatMap((section): ContextMenuEntry[] => {
+    const inSection = menu.entries.filter((entry) => entry.section === section)
+    if (inSection.length === 0) return []
+    if (section === "copy" || section === "more")
+      return [{ id: SUBMENU_ID(section), label: `${t(`tasks.menu.${section}`)} ›`, section }]
+    return [...inSection]
+  })
 }
 
 /** This daemon's projects, in sidebar order: another machine's is read-only here, and Ungrouped is no project. */
@@ -81,7 +110,7 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
       const items = treeMenuItems(row, ctx)
       setMenu({
         row,
-        actions: items.map((item) => item.action),
+        sub: null,
         // Caps resolve at OPEN time from the live keymap; unbound ids get none.
         entries: items.map((item) => ({
           id: item.action,
@@ -137,14 +166,16 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
   // (`ContextMenu` stops the down phase), so picking still gets its mouse-up.
   useGlobalMouseDown(menu !== null, close)
 
+  const visible = useMemo(() => (menu ? visibleEntries(menu, t) : []), [menu, t])
+
   const moveCursor = useCallback(
     (delta: 1 | -1): void => {
-      const count = menu?.entries.length ?? 0
+      const count = visible.length
       if (count === 0) return
       // Wraps.
       setCursor((prev) => (prev + delta + count) % count)
     },
-    [menu],
+    [visible],
   )
 
   /** Run an entry. The menu adds a route, not a capability (see `tree-menu.ts`). */
@@ -260,16 +291,30 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
     [menu, activateRow, actions, deps.onAddTask, deps.onNewTab, deps.tree.rows, tree.toggleTaskFold],
   )
 
-  const pickCurrent = useCallback((): void => fire(menu?.actions[cursor]), [fire, menu, cursor])
   const pick = useCallback(
-    (action: string): void => fire(menu?.actions.find((candidate) => candidate === action)),
+    (id: string): void => {
+      if (!menu) return
+      // A list entry swaps what the menu shows; it runs nothing.
+      const sub = (["copy", "more"] as const).find((candidate) => SUBMENU_ID(candidate) === id)
+      if (sub || id === BACK_ID) {
+        setMenu({ ...menu, sub: sub ?? null })
+        setCursor(0)
+        return
+      }
+      fire(menu.entries.find((entry) => entry.id === id)?.id as TreeMenuAction | undefined)
+    },
     [fire, menu],
   )
+  const pickCurrent = useCallback((): void => {
+    const id = visible[cursor]?.id
+    if (id !== undefined) pick(id)
+  }, [pick, visible, cursor])
 
   return {
     open: menu !== null,
-    entries: menu?.entries ?? [],
+    entries: visible,
     cursor,
+    setCursor,
     x: menu?.x ?? 0,
     y: menu?.y ?? 0,
     close,
