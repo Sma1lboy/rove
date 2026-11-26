@@ -125,5 +125,16 @@ async function openCheckoutThere(entry: MachineEntry, repo: string, title: strin
     ...(title ? { title } : {}),
   })
   await machineRequest(entry, "task.worktreeOnly", { taskId: task.id, on: true })
-  return { taskId: task.id, task, worktreePath: task.worktreePath || repo }
+  const repoId = task.repoId ?? (await repoIdThere(entry, repo))
+  return { taskId: task.id, task: { ...task, ...(repoId ? { repoId } : {}) }, worktreePath: task.worktreePath || repo }
+}
+
+/** The checkout's repo id as that machine's `repo-list` names it: a daemon there may hold a stale "none". */
+async function repoIdThere(entry: MachineEntry, path: string): Promise<string | undefined> {
+  const listed = await forwardVerb(entry, "repo-list", {})
+  if (!listed.ok) return undefined
+  // Windows paths compare without case or slash style.
+  const key = (p: string) => (isWindowsPath(p) ? p.replaceAll("\\", "/").toLowerCase() : p).replace(/\/+$/, "")
+  const repos = (listed.result as { repos?: { id: string; checkouts: string[] }[] }).repos ?? []
+  return repos.find((r) => r.checkouts.some((c) => key(c) === key(path)))?.id
 }

@@ -78,9 +78,9 @@ describe("a workspace on another machine", () => {
       },
       home,
     )
-    expect(dir).toBe(join(home, ".rove", "remote-workspaces", "deck", "T1", "app"))
+    expect(dir).toBe(join(home, ".rove", "remote-workspaces", "T1", "deck", "app"))
     expect(remoteWorkspaceDir("win", "T2", "C:\\Users\\me\\app", home)).toBe(
-      join(home, ".rove", "remote-workspaces", "win", "T2", "app"),
+      join(home, ".rove", "remote-workspaces", "T2", "win", "app"),
     )
     expect(readRemoteWorkspace(dir)).toEqual(ws)
     expect(readFileSync(join(dir, "AGENTS.md"), "utf8")).toMatch(/rx '<command>'[\s\S]*Use tabs\./)
@@ -96,7 +96,7 @@ describe("a workspace on another machine", () => {
     removeRemoteLink(worktree, home)
     expect(existsSync(worktree)).toBe(true)
     removeRemoteLink(dir, home)
-    expect(existsSync(join(home, ".rove", "remote-workspaces", "deck", "T1"))).toBe(false)
+    expect(existsSync(join(home, ".rove", "remote-workspaces", "T1"))).toBe(false)
   })
 
   test("a machine that does not answer leaves no link behind", async () => {

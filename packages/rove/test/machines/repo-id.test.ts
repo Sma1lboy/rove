@@ -46,4 +46,13 @@ describe("repo id", () => {
     expect(repoIdOf(dir)).toBe(first)
     expect(computeRepoId(dir)).toBe("github.com/me/later")
   })
+
+  test("a folder that becomes a repo gets its id without a restart", () => {
+    const dir = join(scratch, "init-later")
+    mkdirSync(dir)
+    expect(repoIdOf(dir, 0)).toBeUndefined()
+    git(dir, "init", "-q")
+    git(dir, "commit", "-q", "--allow-empty", "-m", "root")
+    expect(repoIdOf(dir, 60_000)).toBe(computeRepoId(dir))
+  })
 })

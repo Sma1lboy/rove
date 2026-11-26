@@ -314,7 +314,7 @@ repo id like any other task of that repo.
 
 `--repo`, `--clone`, `--allow-fork`, `--branch` and `--base-branch` mean what
 they mean with `--machine`. The task is a row on this machine; its directory is
-a small link under `~/.rove/remote-workspaces/<alias>/`, not a checkout.
+a small link under `~/.rove/remote-workspaces/`, not a checkout.
 
 Every engine reaches the worktree with `rx '<command>'`, which is on the
 session's PATH and runs the command in the worktree through that machine's

@@ -52,9 +52,12 @@ export function remoteWorkspacesRoot(home = homeDir()): string {
   return join(home, ".rove", "remote-workspaces")
 }
 
-/** The link directory. It ends in the repo's own folder name, which is what a sidebar shows for a directory. */
+/**
+ * The link directory. It ends in `<machine>/<repo folder>`: a sidebar names a directory by its folder,
+ * and by its last two segments when another project shares that folder name.
+ */
 export function remoteWorkspaceDir(machine: string, taskId: string, name: string, home = homeDir()): string {
-  return join(remoteWorkspacesRoot(home), machine, taskId, basename(name.replaceAll("\\", "/")) || "workspace")
+  return join(remoteWorkspacesRoot(home), taskId, machine, basename(name.replaceAll("\\", "/")) || "workspace")
 }
 
 export function readRemoteWorkspace(dir: string): RemoteWorkspace | null {
@@ -199,8 +202,10 @@ export async function createRemoteLink(input: LinkInput, home = homeDir()): Prom
 export function removeRemoteLink(dir: string, home = homeDir()): void {
   if (!pathWithin(remoteWorkspacesRoot(home), dir) || !isRemoteWorkspace(dir)) return
   rmSync(dir, { recursive: true, force: true })
-  // The per-task directory that held it; left alone when anything else is in it.
-  try {
-    rmdirSync(dirname(dir))
-  } catch {}
+  // The per-task directories that held it; each left alone when anything else is in it.
+  for (const parent of [dirname(dir), dirname(dirname(dir))]) {
+    try {
+      rmdirSync(parent)
+    } catch {}
+  }
 }
