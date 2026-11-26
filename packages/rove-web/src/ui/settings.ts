@@ -153,3 +153,11 @@ export const THEME_SWATCH_BAR = "h-0.75 rounded-xs"
 export const THEME_SWATCH_DOTS = "mt-auto flex gap-0.75"
 export const THEME_SWATCH_DOT = "size-1 rounded-xs"
 export const THEME_CARD_NAME = "flex min-w-0 items-baseline gap-1.5 font-sans text-meta"
+
+/** Connectors: one card per account and per machine, two across; a card's state sits in its top-right corner. */
+export const BENTO = "grid grid-cols-2 gap-2.5 w-narrow:grid-cols-1"
+export const bentoCardClass = (wide = false): string =>
+  `flex min-w-0 flex-col gap-2.5 rounded-md border-hairline border-line bg-surface p-3.5 ${wide ? "col-span-2 w-narrow:col-span-1" : ""}`
+export const BENTO_HEAD = "flex min-w-0 items-center gap-3"
+/** The group label with its one action at the right end of the same line. */
+export const BENTO_TITLE = "flex items-center justify-between gap-3 pb-1.5 [&>h2]:pb-0"
