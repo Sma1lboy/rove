@@ -34,9 +34,6 @@ export interface GlyphSet {
   readonly routineFailed: string
   /** Prefix of the running-subagent count (`◇2 main`). */
   readonly subagent: string
-  readonly conflict: string
-  readonly checksFailing: string
-  readonly checksPassing: string
 }
 
 export const GLYPH_SETS: Readonly<Record<GlyphSetName, GlyphSet>> = {
@@ -52,9 +49,6 @@ export const GLYPH_SETS: Readonly<Record<GlyphSetName, GlyphSet>> = {
     dead: "†",
     routineFailed: "↻",
     subagent: "◇",
-    conflict: "pr",
-    checksFailing: "pr",
-    checksPassing: "pr",
   },
   starburst: {
     spinner: ["✻", "✼", "❉", "❊", "✺", "✹", "✸", "✶"],
@@ -68,9 +62,6 @@ export const GLYPH_SETS: Readonly<Record<GlyphSetName, GlyphSet>> = {
     dead: "✞",
     routineFailed: "↻",
     subagent: "❖",
-    conflict: "pr",
-    checksFailing: "pr",
-    checksPassing: "pr",
   },
   ascii: {
     spinner: ["|", "/", "-", "\\"],
@@ -84,9 +75,6 @@ export const GLYPH_SETS: Readonly<Record<GlyphSetName, GlyphSet>> = {
     dead: "x",
     routineFailed: "@",
     subagent: "&",
-    conflict: "#",
-    checksFailing: "x",
-    checksPassing: "+",
   },
 }
 

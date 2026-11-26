@@ -127,20 +127,14 @@ test("every rendered glyph is in the font-verified vocabulary", () => {
     ["?", "ASCII — blocked on your answer"],
     ["◇", "U+25C7 — subagent count prefix"],
     ["▴", "U+25B4 — pinned marker"],
-    ["p", "ASCII — the PR chip is the word `pr`, coloured by state"],
-    ["r", "ASCII — see `p`"],
     ...DEFAULT_SPINNER_FRAMES.map((frame) => [frame, "braille — uniform AppleBraille fallback"] as const),
   ])
   // Glyph cells the matrix emits, plus the constants the tab rows render
-  // directly (they never reach `buildSidebarRowView`). The CHIP block is
-  // scanned too: it renders into the same row at the same one cell, so a chip
-  // glyph that falls back oversized overruns the label exactly like a state
-  // glyph would.
+  // directly (they never reach `buildSidebarRowView`).
   const rendered = new Set<string>([
     NO_STATE_GLYPH,
     ATTENTION_GLYPH,
     ...statusCrossProduct().flatMap((line) => [...(/ glyph=(\S+)/.exec(line)?.[1] ?? "")]),
-    ...prChipBlock().flatMap((line) => [...(/chip=(\S+) \(/.exec(line)?.[1] ?? "")]),
   ])
   expect([...rendered].filter((glyph) => !VERIFIED.has(glyph))).toEqual([])
 })

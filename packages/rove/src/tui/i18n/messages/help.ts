@@ -43,7 +43,6 @@ export const en = {
   marks: {
     rows: "MARKS — task and tab rows",
     inbox: "MARKS — tab strip and Inbox",
-    pr: "MARKS — pull request chip",
   },
   mark: {
     spinner: "working: an engine turn or a task job is running",
@@ -56,9 +55,6 @@ export const en = {
     rateLimited: "rate limited; it resumes on its own",
     dead: "the engine process exited",
     routineFailed: "a routine run failed",
-    conflict: "merge conflicts",
-    checksFailing: "checks failing",
-    checksPassing: "checks passing",
   },
 }
 
@@ -92,7 +88,6 @@ export const zh: typeof en = {
   marks: {
     rows: "标记 — 任务行和标签行",
     inbox: "标记 — 标签栏和收件箱",
-    pr: "标记 — PR 标记",
   },
   mark: {
     spinner: "运行中：引擎正在执行一轮，或任务作业正在运行",
@@ -105,8 +100,5 @@ export const zh: typeof en = {
     rateLimited: "被限流，会自动恢复",
     dead: "引擎进程已退出",
     routineFailed: "例行任务运行失败",
-    conflict: "存在合并冲突",
-    checksFailing: "检查未通过",
-    checksPassing: "检查已通过",
   },
 }

@@ -23,7 +23,6 @@ import { breathColor, breathGlyph } from "../../../tui/lib/breathe"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
 import { machineStateKey, remoteMarkLive, remoteRowCaption } from "../../../tui/panes/sidebar/machine-layer"
-import { sidebarPrChip } from "../../../tui/panes/sidebar/row-chips"
 import {
   type SidebarRowView,
   buildSidebarRowView,
@@ -154,7 +153,7 @@ function FoldCluster(props: { readonly task: Task; readonly fold: TreeFold; read
 }
 
 /**
- * A task row: `[state] label`, then its facts (pin, PR chip, ±stats, a
+ * A task row: `[state] label`, then its facts (pin, ±stats, a
  * deletion or checkout in flight) and, on a child, the marker for where it
  * runs plus a level number once the indent stops growing.
  *
@@ -185,7 +184,6 @@ export function WorktreeTreeRow(props: {
   const kv = useOptionalKV()
   const shared = props.shared
   const task = props.task
-  const chip = sidebarPrChip(task, glyphs)
   // Named by its conversation (`worktreeRowLabel`). Main checkouts and directory/scratch
   // tasks store no branch and move freely, so they poll their own HEAD.
   const livePath = rowLiveBranchPath(task)
@@ -236,7 +234,6 @@ export function WorktreeTreeRow(props: {
         (fold.collapsed ? clusterCells(String(fold.count)) + clusterCells(glyphs.idle) : 0)
       : 0) +
     (task.pinned === true ? 2 : 0) +
-    (chip ? clusterCells(chip.glyph) : 0) +
     (moving ? clusterCells(t("tasks.moveChip").trim()) : 0)
   // The remote note takes what the title leaves (the title keeps up to
   // REMOTE_TITLE_CELLS), clipped with `…`, so a narrow rail never loses the branch.
@@ -280,11 +277,6 @@ export function WorktreeTreeRow(props: {
         {task.pinned === true ? (
           <text fg={theme.warning} wrapMode="none" flexShrink={0}>
             ▴
-          </text>
-        ) : null}
-        {chip ? (
-          <text fg={toneColor(theme, chip.tone)} wrapMode="none" flexShrink={0}>
-            {chip.glyph}
           </text>
         ) : null}
         {tokens.map((token) => (

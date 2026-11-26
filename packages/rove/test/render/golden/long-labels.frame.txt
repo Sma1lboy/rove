@@ -11,7 +11,7 @@
 | Issues                       |
 |                              |
 | rove                         |
-| Restart the tab strip … ▴ pr |
+| Restart the tab strip wit… ▴ |
 |▌alpha                        |
 |                              |
 |                              |
