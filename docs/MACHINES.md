@@ -310,7 +310,10 @@ Deleting the task leaves the checkout as it is. The web composer's Worktree
 toggle does the same for another machine.
 
 In the TUI and web sidebars the task sits under its project, grouped by
-repo id like any other task of that repo.
+repo id like any other task of that repo, and wears the same cloud mark as a
+task on that machine; hovering it names the machine. `rove api list` and
+`get-task` say where it is: `workspace` is
+`{ "backend": "remote", "machine": "win", "path": "C:\\Users\\me\\app" }`.
 
 `--repo`, `--clone`, `--allow-fork`, `--branch` and `--base-branch` mean what
 they mean with `--machine`. The task is a row on this machine; its directory is
@@ -333,6 +336,29 @@ each command), and it reads and changes files with `read`, `write` and `edit`
 tools that work on that machine. Its own file tools stay on for files on this
 machine (your notes, skills, attachments); pointed at the project, they answer
 with where to go instead.
+
+A command that starts with `rove` is the one exception: it runs on this
+machine, since the task and the Rove that knows it are here. `rove api send
+--prompt-file - <<'EOF'` and `--repo /Users/…` work as in any session.
+
+The agent's other tools, its MCP servers among them, run on this machine, so
+their `localhost` is this machine. To let it open pages served on the other
+machine in that machine's own browser, forward that machine's MCP servers:
+
+```sh
+rove machine mcp win chrome http://127.0.0.1:12306/mcp   # forward it into new sessions on win
+rove machine mcp win                                     # list what win forwards
+rove machine mcp win chrome --clear                      # stop
+```
+
+The URL is the server as that machine reaches it. A Claude Code session whose
+workspace is on `win` then gets it as an MCP server named `chrome-win`, beside
+any `chrome` of this machine's: Rove forwards the port over the ssh connection
+it already keeps to `win` (`ssh -O forward -L`, onto one port here that every
+session on `win` shares), and brings the forward back before each call if the
+idle connection dropped it. The session's `CLAUDE.md` says which server is
+which machine's, and that a page served on `win` opens in `chrome-win` at
+`win`'s own `localhost`. The setting is kept per machine in `state.json` (`machines.<alias>.mcp`).
 
 Deleting the task deletes the worktree's task on that machine with the same
 `--force`; the branch stays there, as with any task. If that machine cannot be
@@ -502,7 +528,7 @@ forwarding.
 
 | Path | What |
 | --- | --- |
-| `state.json` → `machines` | The registry: host, user, port, auth, learned identity |
+| `state.json` → `machines` | The registry: host, user, port, auth, learned identity, forwarded MCP servers (`mcp`) |
 | `state.json` → `repoPrimary` | Repo id → this machine's primary checkout (`rove machine primary`) |
 | `<home>/.rove/repos/<host>/<owner>/<name>` | Where `--clone` puts a repo it fetches |
 | `<home>/.rove/machines/<alias>/daemon.sock` | Local end of the forwarded daemon socket |

@@ -124,6 +124,23 @@ describe("applyMachineLayer", () => {
     expect(rows).toHaveLength(0)
   })
 
+  it("marks a task here whose workspace is on the mac, and keeps it when that machine is gone", () => {
+    const tasks = [
+      task({ id: "plain", repo: "/i/rove" }),
+      task({ id: "linked", repo: "/i/rove", workspace: { backend: "remote", machine: "mac", path: "/Users/n/rove" } }),
+    ]
+    const rows = buildTreeRows({ tasks, tabsByTask: NO_TABS })
+    expect(worktrees(applyMachineLayer(rows, [MAC_ONLINE]))).toEqual([
+      { id: "plain", remote: undefined },
+      { id: "linked", remote: { host: "mac-mini", state: "online", version: "0.9.259" } },
+    ])
+    // The row is this machine's: an unregistered workspace machine costs it the mark, never the row.
+    expect(worktrees(applyMachineLayer(rows, [{ ...MAC_ONLINE, alias: "deck" }])).map((row) => row.id)).toEqual([
+      "plain",
+      "linked",
+    ])
+  })
+
   it("search keeps a matching mac task under the merged header", () => {
     const rows = buildTreeRows({ tasks: mergedTasks(), tabsByTask: NO_TABS })
     const hit = applyMachineLayer(filterTreeRows(rows, "feat/the"), [MAC_ONLINE])

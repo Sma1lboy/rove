@@ -30,14 +30,26 @@ function git(cwd: string, args: readonly string[]): string | null {
 /** In the link directory of a workspace on another machine (`add --workspace-on`): which worktree it stands for. */
 export const REMOTE_WORKSPACE_FILE = ".rove-remote.json"
 
-/** The repo a link directory's worktree belongs to, as that machine named it; undefined for any other directory. */
-function linkedRepoId(path: string): string | undefined {
+function readLink(path: string): Record<string, unknown> | undefined {
   try {
-    const id = (JSON.parse(readFileSync(join(path, REMOTE_WORKSPACE_FILE), "utf8")) as { repoId?: unknown }).repoId
-    return typeof id === "string" && id ? id : undefined
+    return JSON.parse(readFileSync(join(path, REMOTE_WORKSPACE_FILE), "utf8")) as Record<string, unknown>
   } catch {
     return undefined
   }
+}
+
+/** The repo a link directory's worktree belongs to, as that machine named it; undefined for any other directory. */
+function linkedRepoId(path: string): string | undefined {
+  const id = readLink(path)?.repoId
+  return typeof id === "string" && id ? id : undefined
+}
+
+/** Where a link directory's worktree is: the machine's alias and the path there. */
+export function linkedWorkspace(path: string): { machine: string; path: string } | undefined {
+  const link = readLink(path)
+  return typeof link?.machine === "string" && typeof link.path === "string"
+    ? { machine: link.machine, path: link.path }
+    : undefined
 }
 
 /** Uncached: a link directory's repo, else the normalized origin, else `root:<lowest root sha>`, else undefined (not a repo, or no commits). */

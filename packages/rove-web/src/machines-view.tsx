@@ -60,14 +60,15 @@ export function remoteLabel(
   return `${on}${full.slice((row.hostLabel || row.alias).length)}`
 }
 
-/** A task row from another machine gets a cloud mark with this text; this machine's rows, headers and tab rows get none. */
+/** A task row from another machine, or working in a workspace on one, gets a cloud mark with this text; other rows, headers and tab rows get none. */
 export function rowCloud(
   row: NavRow,
   machines: readonly MachineRow[],
   words: (typeof tasksEn)["machine"],
 ): string | null {
-  if (row.kind !== "task" || row.machine === undefined) return null
-  const alias = row.machine
+  if (row.kind !== "task") return null
+  const alias = row.machine ?? row.task.workspaceOn
+  if (alias === undefined) return null
   return remoteLabel(
     alias,
     machines.find((m) => m.alias === alias),

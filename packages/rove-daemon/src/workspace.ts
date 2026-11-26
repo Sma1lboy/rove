@@ -25,6 +25,14 @@ export interface TaskWorkspace {
   readonly ref?: string
 }
 
+/** On the wire, a `remote` workspace also says where it is, read from its link directory: never stored. */
+export interface WireWorkspace extends TaskWorkspace {
+  /** The machine's alias. */
+  readonly machine?: string
+  /** The worktree's path there. */
+  readonly path?: string
+}
+
 export interface WorkspaceCapabilities {
   /** Does a fork carry the parent's uncommitted state? */
   readonly fork: "committed" | "with-uncommitted"

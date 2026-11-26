@@ -65,6 +65,13 @@ describe.skipIf(!POSIX)("machineSocketDir", () => {
     expect(Buffer.byteLength(`${dir}/daemon.sock`)).toBeLessThanOrEqual(100)
   })
 
+  it("leaves room for the name ssh binds the master under before renaming it to `cm`", () => {
+    // `daemon.sock` fits here; `cm.` plus 16 random characters does not.
+    const home = "/Users/someone/i/rove/packages/rove/.dev-sandbox/named/rwmcp/home"
+    const dir = machineSocketDir("win", home)
+    expect(Buffer.byteLength(`${dir}/cm.0123456789abcdef`)).toBeLessThanOrEqual(100)
+  })
+
   it("gives the same fallback every time — a client must find the same socket", () => {
     const deep = "/Users/someone/.rove/worktrees/rove-0aff3858ab76/ocelot/.scratch/opentui-visual-5473/home"
     expect(machineSocketDir("narwhal", deep)).toBe(machineSocketDir("narwhal", deep))

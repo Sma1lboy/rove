@@ -66,6 +66,19 @@ describe("the rail names no machine; a remote task carries a cloud", () => {
     ])
   })
 
+  test("a task here whose workspace is on mac wears the same cloud, and still acts on this machine", () => {
+    const rows = railRows({
+      tasks: [task("linked", "/w/rove", { ...rove, workspaceOn: "mac" })],
+      remote: [],
+      machines: [mac("online")],
+      sort: "default",
+      query: "",
+    }).rows
+    const linked = rows.find((row) => row.id === "linked") as (typeof rows)[number]
+    expect(rowCloud(linked, [mac("online")], words)).toBe("on mac (studio.local)")
+    expect("machine" in linked).toBe(false)
+  })
+
   test("a machine that is not online adds its state to the cloud's text", () => {
     const there = rail([mac("offline")]).find((row) => row.id === "there") as ReturnType<typeof rail>[number]
     expect(rowCloud(there, [mac("offline")], words)).toBe("on mac (studio.local) · offline")

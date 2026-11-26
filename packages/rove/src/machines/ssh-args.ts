@@ -31,8 +31,8 @@ const CONTROL_PERSIST_SECONDS = 300
  */
 export function machineSocketDir(alias: string, home = homeDir()): string {
   const natural = join(home, ".rove", "machines", alias)
-  // Measure the longest socket inside, not the directory itself.
-  if (Buffer.byteLength(join(natural, "daemon.sock"), "utf8") <= SOCKET_PATH_LIMIT) return natural
+  // Measure the longest socket inside: ssh first binds the master as `cm.` plus 16 random characters.
+  if (Buffer.byteLength(join(natural, `cm.${"x".repeat(16)}`), "utf8") <= SOCKET_PATH_LIMIT) return natural
   return join(tmpdir(), `rove-m-${shortHomeTag(home)}-${shortHomeTag(alias)}`)
 }
 

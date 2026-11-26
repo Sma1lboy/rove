@@ -39,6 +39,8 @@ export interface RemoteWorkspace {
 export interface RemoteWorkspaceNote extends RemoteWorkspace {
   /** `uname -sm` there; "" when it did not say. */
   readonly system: string
+  /** That machine's MCP servers forwarded into the session (`remote-mcp.ts`), by their session name. */
+  readonly mcp?: readonly string[]
 }
 
 /** An engine's own instruction file for a link directory (the registry's `remoteWorkspace.notes`). */
@@ -141,8 +143,27 @@ export function remoteNotes(ws: RemoteWorkspaceNote): string {
     "- Each `rx` call starts in the project root; a `cd` does not carry over to the next call.",
     "- Read, search and edit the project's files through commands there. File tools that work on local paths only see this directory.",
     "- git, tests and builds all run there. Nothing of the project is on this machine.",
+    ...whereThingsRun(
+      ws,
+      "- Run `rove` without `rx`: Rove and your task are on this machine, so `rove api …` reaches this Rove and takes this machine's paths.",
+    ),
     "",
   ].join("\n")
+}
+
+/** What runs on which machine beyond the project's commands and files; `roveLine` is how that engine runs `rove` here. */
+export function whereThingsRun(ws: RemoteWorkspaceNote, roveLine: string): string[] {
+  const forwarded = ws.mcp ?? []
+  return [
+    "",
+    "## Which machine runs what",
+    "",
+    roveLine,
+    `- Your MCP tools${forwarded.length > 0 ? " not listed below" : ""}, a browser among them, run on this machine, so \`localhost\` in them is this machine, not the project's.`,
+    forwarded.length > 0
+      ? `- These MCP servers are ${ws.machine}'s, forwarded here: ${forwarded.map((s) => `\`${s}\``).join(", ")}. A page served on ${ws.machine} (a dev server you started there) opens in its browser at ${ws.machine}'s own \`localhost\` address; use them for that.`
+      : `- A page served on ${ws.machine} is not at this machine's \`localhost\`. To open it in ${ws.machine}'s own browser, the owner can forward that machine's browser MCP server: \`rove machine mcp ${ws.machine} <name> <url>\`; it shows up in new sessions as \`<name>-${ws.machine}\`.`,
+  ]
 }
 
 /** The project's own instructions there, so they load as they would from its checkout. */
@@ -158,6 +179,8 @@ export interface LinkInput {
   readonly engineNotes: readonly RemoteNotesFile[]
   /** The repo's folder on that machine: the link directory is named after it. */
   readonly repo: string
+  /** Session names of that machine's forwarded MCP servers, for the notes. */
+  readonly mcp?: readonly string[]
 }
 
 /** Splits the probe's output: the system line, then the project's instructions. */
@@ -191,7 +214,7 @@ export async function createRemoteLink(input: LinkInput, home = homeDir()): Prom
     throw new Error(`${ws.machine} did not answer at ${ws.path}: ${(probe.stderr || "ssh failed").trim()}`)
   }
   const [system = "", ...rest] = probe.stdout.split(`\n${MARK}\n`)
-  const note: RemoteWorkspaceNote = { ...ws, system: system.trim() }
+  const note: RemoteWorkspaceNote = { ...ws, system: system.trim(), ...(input.mcp?.length ? { mcp: input.mcp } : {}) }
   const project = projectInstructions(rest.join(`\n${MARK}\n`))
   writeFileSync(join(dir, "AGENTS.md"), remoteNotes(note) + project)
   for (const notes of input.engineNotes) writeFileSync(join(dir, notes.file), notes.text(note) + project)

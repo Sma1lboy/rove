@@ -2,17 +2,20 @@ import { spawnSync } from "node:child_process"
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { serializeTask } from "@sma1lboy/rove-daemon/daemon/serialize-task"
 import { computeRepoId } from "@sma1lboy/rove-daemon/repo-id"
 import { describe, expect, test } from "vitest"
 import { bashHookReply, callWorkspaceTool, fileHookReply, mcpReply } from "../../src/cli/remote-workspace-cmd.ts"
-import { claudeRemoteWorkspaceArgv } from "../../src/engine/claude-code-local/remote-workspace.ts"
+import { claudeRemoteNotes, claudeRemoteWorkspaceArgv } from "../../src/engine/claude-code-local/remote-workspace.ts"
 import { buildEngineSessionLaunch } from "../../src/engine/session-launch.ts"
 import { addStaysHere } from "../../src/machines/forward.ts"
+import { forwardPort, forwardedMcp } from "../../src/machines/remote-mcp.ts"
 import {
   REMOTE_WORKSPACE_FILE,
   createRemoteLink,
   linkedWorktree,
   readRemoteWorkspace,
+  remoteNotes,
   remoteShellInput,
   remoteWorkspaceDir,
   removeRemoteLink,
@@ -121,6 +124,15 @@ describe("a workspace on another machine", () => {
     expect(bashHookReply("not json", "/l/bin/rx")).toBe("")
   })
 
+  test("Rove's own CLI stays on this machine, where the task, its daemon and the paths it names are", () => {
+    const hook = (command: string) => bashHookReply(JSON.stringify({ tool_input: { command } }), "/l/bin/rx")
+    expect(hook("rove api send --prompt-file - <<'EOF'\nhi\nEOF")).toBe("")
+    expect(hook("MSYS_NO_PATHCONV=1 rove api send --repo /Users/me/app --prompt hi")).toBe("")
+    expect(hook("/usr/local/bin/rove api list")).toBe("")
+    expect(hook("rover --help")).not.toBe("")
+    expect(hook("grep rove package.json")).not.toBe("")
+  })
+
   test("a local file tool keeps this machine's files and is turned back from the project's", () => {
     const dir = mkdtempSync(join(tmpdir(), "rove-file-hook-"))
     writeFileSync(join(dir, REMOTE_WORKSPACE_FILE), JSON.stringify({ machine: "deck", taskId: "T3", path: "/srv/app" }))
@@ -172,7 +184,42 @@ describe("a workspace on another machine", () => {
       hooks: [{ type: "command", command: "'/bin/rove dev' 'remote-workspace' 'bash-hook' '--dir' '/links/my task'" }],
     })
     expect(settings.hooks.PreToolUse[1].matcher).toBe("Read|Edit|Write|Glob|Grep|NotebookEdit")
+    expect(settings.hooks.PreToolUse).toHaveLength(2)
     expect(argv.join(" ")).not.toContain("--disallowedTools")
+  })
+
+  test("that machine's MCP servers come in under its name, over a forward their own hook keeps up", () => {
+    const forwards = forwardedMcp("win", [
+      { name: "chrome", url: "http://127.0.0.1:12306/mcp" },
+      { name: "bad", url: "not a url" },
+    ])
+    const port = forwardPort("win", "127.0.0.1", 12306)
+    expect(forwards).toEqual([
+      { server: "chrome-win", url: `http://127.0.0.1:${port}/mcp`, target: { host: "127.0.0.1", port: 12306 }, port },
+    ])
+    // Every session on that machine shares the forward; another machine gets its own port.
+    expect(forwardPort("deck", "127.0.0.1", 12306)).not.toBe(port)
+
+    const argv = claudeRemoteWorkspaceArgv(
+      ["claude"],
+      "/links/t",
+      (sub) => ["rove", ...sub],
+      () => forwards,
+    )
+    const settings = JSON.parse(argv[1]?.slice("--settings=".length) ?? "")
+    expect(settings.hooks.PreToolUse[2]).toEqual({
+      matcher: "mcp__chrome-win__.*",
+      hooks: [{ type: "command", command: "'rove' 'remote-workspace' 'mcp-hook' '--dir' '/links/t'" }],
+    })
+    const mcp = JSON.parse(argv[2]?.slice("--mcp-config=".length) ?? "")
+    expect(mcp.mcpServers["chrome-win"]).toEqual({ type: "http", url: `http://127.0.0.1:${port}/mcp` })
+    expect(Object.keys(mcp.mcpServers)).toEqual(["rove-files", "chrome-win"])
+
+    // The notes say whose browser is whose.
+    const note = { machine: "win", taskId: "T", path: "C:\\w", system: "", mcp: ["chrome-win"] }
+    expect(claudeRemoteNotes(note)).toMatch(/`chrome-win`[^\n]*win's own `localhost`/)
+    expect(claudeRemoteNotes({ ...note, mcp: [] })).toContain("rove machine mcp win <name> <url>")
+    expect(remoteNotes(note)).toContain("Run `rove` without `rx`")
   })
 
   test("a session in a link directory gets rx on its PATH; a wired engine also gets its flags, ahead of the prompt", () => {
@@ -214,5 +261,23 @@ describe("a workspace on another machine", () => {
     )
     expect(computeRepoId(dir)).toBe("github.com/me/app")
     expect(computeRepoId(scratch())).toBeUndefined()
+  })
+
+  test("a remote task on the wire says which machine its workspace is on, and where there", () => {
+    const dir = scratch()
+    writeFileSync(join(dir, REMOTE_WORKSPACE_FILE), JSON.stringify({ machine: "win", taskId: "T", path: "C:\\w\\app" }))
+    const wire = serializeTask({
+      id: "T1",
+      title: "t",
+      repo: dir,
+      branch: "",
+      worktreePath: dir,
+      kind: "dir",
+      status: "backlog",
+      workspace: { backend: "remote" },
+      createdAt: "",
+      updatedAt: "",
+    } as unknown as Parameters<typeof serializeTask>[0])
+    expect(wire.workspace).toEqual({ backend: "remote", machine: "win", path: "C:\\w\\app" })
   })
 })
