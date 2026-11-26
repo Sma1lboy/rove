@@ -151,7 +151,8 @@ test("search enters a folded directory task by its original name and restores th
   const open = await waitForFrameText(frame, "Release checklist")
   const header = open.split("\n").findIndex((line) => line.includes("rove") && !line.includes("[ rove ]"))
   await mockMouse.click(2, header, 0)
-  expect(await frame()).not.toContain("Release checklist")
+  // Waited for, not read at once: the fold lands a render after the click.
+  expect(await waitForFrameText(frame, "rove ›")).not.toContain("Release checklist")
   await step(frame, () => mockInput.typeText("/"))
   await step(frame, () => mockInput.typeText("Publish build"))
   expect(await frame()).toContain("Release checklist")
