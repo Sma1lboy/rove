@@ -1,13 +1,18 @@
-/** Public entry: the WeChat chat channel module Rove's channel registry loads. */
+/** Public entry: the WeChat chat connector module Rove's connector registry loads. */
 
-import type { ChatChannelModule } from "@sma1lboy/rove/src/channels/chat-channel.ts"
-import { createWeixinChannel } from "./channel.ts"
+import type { ChatConnectorModule } from "@sma1lboy/rove/src/connectors/chat-connector.ts"
 import { runWeixinCli } from "./cli.ts"
+import { createWeixinConnector } from "./connector.ts"
+import { WeixinStore } from "./store.ts"
 
-const weixin: ChatChannelModule = {
+const weixin: ChatConnectorModule = {
   id: "weixin",
-  createChannel: createWeixinChannel,
+  createConnector: createWeixinConnector,
   runCli: runWeixinCli,
+  status() {
+    const account = new WeixinStore().readAccount()
+    return account ? { connected: true, ...(account.savedAt ? { since: account.savedAt } : {}) } : { connected: false }
+  },
 }
 
 export default weixin

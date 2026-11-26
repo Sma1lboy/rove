@@ -83,7 +83,7 @@ An op exists in `packages/rove-bridge/src/ops` for each unless the row says othe
 | Retry with an edited prompt | `task.prompt`, `task.spawn` | M |
 | Continue in another engine | `tab.handoff`, `tab.forkTask` | M |
 | Review notes and base picker on a diff | `review.add`, `review.list`, `review.send`, `diff.refs` | M |
-| Connectors | `github.*` | M |
+| Connectors | `github.*`, `connectors.chat` | M |
 | Auto routing | `autoRouting.get`, `autoRouting.setTier`, `autoRouting.setClassifier` | M |
 | Mods page | `mod.press`, `mod.submit` | M |
 | Voice dictation | `voice.*` | L |
