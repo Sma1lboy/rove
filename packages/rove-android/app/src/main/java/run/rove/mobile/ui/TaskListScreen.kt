@@ -24,7 +24,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import run.rove.mobile.R
 import run.rove.mobile.data.Connection
-import run.rove.mobile.data.moveTask
+import run.rove.mobile.data.moveProject
 import run.rove.mobile.data.tabTitles
 import run.rove.mobile.domain.*
 import java.util.Locale
@@ -43,7 +43,7 @@ internal data class ListActions(
     val onInbox: () -> Unit = {},
     val onPage: (Route) -> Unit = {},
     val onRepair: () -> Unit = {},
-    val onMove: (taskId: String, direction: String) -> Unit = { _, _ -> },
+    val onMove: (repo: String, target: String, side: String) -> Unit = { _, _, _ -> },
     val onProject: (ProjectRequest) -> Unit = {},
     val onRowMenu: (TaskRow, RowMenuItem) -> Unit = { _, _ -> },
 )
@@ -63,7 +63,7 @@ internal data class ListActions(
     var request by remember { mutableStateOf<ProjectRequest?>(null) }
     var rowRequest by remember { mutableStateOf<RowRequest?>(null) }
     val actions = ListActions(onSelect, model::refresh, onCreate, { open(Route.Inbox) }, open, model::unpair,
-        { id, direction -> model.action { model.repository.moveTask(id, direction); model.refresh() } }, { request = it },
+        { repo, target, side -> model.action { model.repository.moveProject(repo, target, side); model.refresh() } }, { request = it },
         { row, item -> runRowMenuItem(model, row, item, open) { rowRequest = it } })
     TaskListContent(tasks, host, connection, engines, controls, tabTitles, actions, mods)
     ProjectSheets(model, request) { request = it }
@@ -112,8 +112,7 @@ internal data class ListActions(
             }) {
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 16.dp)) {
                 sections.forEach { section ->
-                    val mainTaskId = tasks.tasks.firstOrNull { it.repo == section.repo && it.kind == "main" }?.id
-                    item(key = "repo:${section.repo}") { SectionHeader(section, mainTaskId, actions) }
+                    item(key = "repo:${section.repo}") { SectionHeader(section, ProjectMoves.of(section.repo, sections), actions) }
                     items(section.rows, key = { it.id }) { row ->
                         MenuRow(row, receipts.getValue(row.id), now, actions)
                     }
@@ -171,11 +170,11 @@ internal data class ListActions(
     }
 }
 
-@Composable private fun SectionHeader(section: TaskSection, mainTaskId: String?, actions: ListActions) {
+@Composable private fun SectionHeader(section: TaskSection, moves: ProjectMoves, actions: ListActions) {
     Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 18.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
         Kicker(section.name, Modifier.weight(1f))
         Text(two(section.rows.size), color = Rove.c.muted, maxLines = 1, style = Rove.mono(11))
-        ProjectMenu(mainTaskId, actions.onMove, actions.onProject, section.repo)
+        ProjectMenu(moves, actions.onMove, actions.onProject, section.repo)
     }
 }
 

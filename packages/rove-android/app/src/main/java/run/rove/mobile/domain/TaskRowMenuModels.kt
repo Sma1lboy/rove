@@ -6,6 +6,17 @@ import kotlinx.serialization.Serializable
 
 enum class RowMenuItem { NewConversation, NewShell, Rename, Pin, Unpin, SetStatus, FixChecks, Land, Copy, MoveToProject, ChangeEngine, SyncBase, RenameBranch, Archive, Unarchive, Remove }
 
+/** The projects a header's `project.move` lands it beside: this machine's, in list order; null where that move is dead. */
+data class ProjectMoves(val top: String?, val above: String?, val below: String?) {
+    companion object {
+        fun of(repo: String, sections: List<TaskSection>): ProjectMoves {
+            val movable = sections.filter { s -> s.repo.startsWith("/") && s.rows.all { it.machine == null } }.map { it.repo }
+            val at = movable.indexOf(repo)
+            return ProjectMoves(movable.firstOrNull().takeIf { at > 0 }, movable.getOrNull(at - 1).takeIf { at > 0 }, movable.getOrNull(at + 1).takeIf { at >= 0 })
+        }
+    }
+}
+
 /** A saved project a task can regroup into; the label is the full path only when two projects share a name. */
 data class MoveTarget(val repo: String, val label: String)
 
@@ -43,9 +54,9 @@ object TaskRowMenuLogic {
     /** Folded under More, as on the web's phone menu. */
     val RARE = setOf(RowMenuItem.MoveToProject, RowMenuItem.ChangeEngine, RowMenuItem.SyncBase, RowMenuItem.RenameBranch)
 
-    /** This machine's projects other than the task's own; moving only regroups, so the checkout stays. */
-    fun moveTargets(row: TaskRow, tasks: List<TaskRow>): List<MoveTarget> {
-        val repos = tasks.filter { it.kind == "main" && it.machine == null && it.repo != row.repo }.map { it.repo }
+    /** This machine's saved projects (`repos.list`) other than the task's own; moving only regroups, so the checkout stays. */
+    fun moveTargets(row: TaskRow, saved: List<String>): List<MoveTarget> {
+        val repos = saved.filter { !it.startsWith("ssh://") && it != row.repo }
         return repos.map { repo ->
             val name = repo.substringAfterLast('/')
             MoveTarget(repo, if (repos.count { it.endsWith("/$name") } > 1) repo else name)

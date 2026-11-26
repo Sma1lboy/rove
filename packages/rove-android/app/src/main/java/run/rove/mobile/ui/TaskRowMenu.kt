@@ -27,7 +27,8 @@ internal sealed interface RowRequest {
     data class Rename(val row: TaskRow) : RowRequest
     data class RenameBranch(val row: TaskRow) : RowRequest
     data class Status(val row: TaskRow) : RowRequest
-    data class ArchiveBusy(val row: TaskRow) : RowRequest
+    data class ArchiveBusy(val row: TaskRow, val promote: Boolean) : RowRequest
+    data class ArchiveChildren(val row: TaskRow, val count: Int) : RowRequest
     data class Copy(val row: TaskRow) : RowRequest
     data class Engine(val row: TaskRow) : RowRequest
     data class Move(val row: TaskRow, val targets: List<MoveTarget>) : RowRequest
@@ -79,17 +80,22 @@ internal fun runRowMenuItem(model: AppModel, row: TaskRow, item: RowMenuItem, on
         RowMenuItem.Remove -> onRequest(RowRequest.Confirm(row, "delete"))
         RowMenuItem.Land -> model.action { checkLand(model, row.id, row.machine != null)?.let { onRequest(RowRequest.Confirm(row, "land", it.preflight)) } }
         RowMenuItem.MoveToProject -> {
-            val targets = TaskRowMenuLogic.moveTargets(row, model.tasks.value.tasks)
+            val targets = TaskRowMenuLogic.moveTargets(row, model.repos.value)
             if (targets.isEmpty()) model.error.value = model.getApplication<Application>().getString(R.string.rowmenu_move_empty)
             else onRequest(RowRequest.Move(row, targets))
         }
         RowMenuItem.Pin, RowMenuItem.Unpin -> model.action { model.repository.pinTask(row.id, item == RowMenuItem.Pin); model.refresh() }
         RowMenuItem.Unarchive -> model.action { model.repository.archiveTask(row.id, archived = false); model.refresh() }
-        RowMenuItem.Archive -> model.action {
-            try { model.repository.archiveTask(row.id, archived = true); model.refresh() }
-            catch (e: BridgeFailure) { if (e.code == "TASK_BUSY") onRequest(RowRequest.ArchiveBusy(row)) else throw e }
+        RowMenuItem.Archive -> model.tasks.value.tasks.count { it.parentTaskId == row.id }.let { children ->
+            if (children > 0) onRequest(RowRequest.ArchiveChildren(row, children)) else archive(model, row, promote = false, onRequest)
         }
     }
+}
+
+/** A busy refusal asks once and keeps the children choice for the forced retry. */
+private fun archive(model: AppModel, row: TaskRow, promote: Boolean, onRequest: (RowRequest) -> Unit) = model.action {
+    try { model.repository.archiveTask(row.id, archived = true, promote = promote); model.refresh() }
+    catch (e: BridgeFailure) { if (e.code == "TASK_BUSY") onRequest(RowRequest.ArchiveBusy(row, promote)) else throw e }
 }
 
 /** No confirm: a merge from base is additive, and `git merge --abort` undoes it. */
@@ -208,10 +214,24 @@ private fun copy(model: AppModel, text: String?) {
             confirmButton = {
                 TileLabel(stringResource(R.string.rowmenu_archive_busy_confirm), tint = Rove.c.accent, onClick = {
                     close()
-                    model.action { model.repository.archiveTask(request.row.id, archived = true, force = true); model.refresh() }
+                    model.action { model.repository.archiveTask(request.row.id, archived = true, force = true, promote = request.promote); model.refresh() }
                 })
             },
             dismissButton = { TileLabel(stringResource(R.string.rowmenu_cancel), onClick = close) })
+        is RowRequest.ArchiveChildren -> AlertDialog(onDismissRequest = close, containerColor = Rove.c.paper,
+            title = { Text(stringResource(R.string.rowmenu_archive_children_title, request.row.displayTitle, request.count), color = Rove.c.ink, style = Rove.face(17, FontWeight.SemiBold)) },
+            text = { Text(stringResource(R.string.rowmenu_archive_children_body), color = Rove.c.muted, style = Rove.mono(13)) },
+            confirmButton = {
+                TileLabel(stringResource(R.string.rowmenu_archive_children_promote), tint = Rove.c.accent, onClick = {
+                    close(); archive(model, request.row, promote = true, onRequest)
+                })
+            },
+            dismissButton = {
+                Row {
+                    TileLabel(stringResource(R.string.rowmenu_cancel), onClick = close)
+                    TileLabel(stringResource(R.string.rowmenu_archive_children_all), onClick = { close(); archive(model, request.row, promote = false, onRequest) })
+                }
+            })
     }
 }
 

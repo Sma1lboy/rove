@@ -30,6 +30,10 @@
     <string name="rowmenu_archive_busy_title">它还在工作，仍要归档？</string>
     <string name="rowmenu_archive_busy_body">%1$s 里有引擎仍在工作或在等你。归档会把它停掉。</string>
     <string name="rowmenu_archive_busy_confirm">仍要归档</string>
+    <string name="rowmenu_archive_children_title">「%1$s」有 %2$d 个子任务</string>
+    <string name="rowmenu_archive_children_body">提升会把它们上移一级，并让它们继续运行。连同子任务归档会把它们一并隐藏，并结束它们的会话。</string>
+    <string name="rowmenu_archive_children_promote">提升子任务</string>
+    <string name="rowmenu_archive_children_all">连同子任务归档</string>
     <string name="rowmenu_archived_fold">已归档 · %1$d</string>
     <string name="rowmenu_more">更多</string>
     <string name="rowmenu_land">合入基础分支</string>
