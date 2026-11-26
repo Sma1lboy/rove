@@ -25,6 +25,8 @@ export function SidebarTreeBody(props: {
   readonly shared: TreeRowShared
   readonly collapsedProjects?: ReadonlySet<string>
   readonly onToggleProject?: (id: string) => void
+  /** A project header's `+`: a new task in that project. */
+  readonly onAddTask?: (repo: string) => void
   readonly onProjectContextMenu?: (projectId: string, x: number, y: number) => void
   /** Project being dragged in move mode — wears the move chip. */
   readonly movingProjectId?: string | null
@@ -51,8 +53,14 @@ export function SidebarTreeBody(props: {
                 key={row.id}
                 label={isScratch ? t("tasks.header.scratch") : row.label}
                 suffix={props.movingProjectId === row.id ? t("tasks.moveChip") : undefined}
-                prefix={props.collapsedProjects?.has(row.id) ? "▸" : undefined}
+                collapsed={props.onToggleProject ? props.collapsedProjects?.has(row.id) === true : undefined}
                 onPress={() => props.onToggleProject?.(row.id)}
+                // Scratch is no repo to start a task in; another machine's project has no checkout here.
+                onAdd={
+                  props.onAddTask && !isScratch && row.machineId === "local"
+                    ? () => props.onAddTask?.(row.repo)
+                    : undefined
+                }
                 topPad={i > 0}
                 depth={row.depth}
                 onContextMenu={

@@ -110,7 +110,7 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
       worktreeChanges={props.daemon.worktreeChanges}
       focused={props.activePane === "sidebar"}
       // Task lifecycle: the Sidebar's d/r/p/m keys fire these.
-      onAddTask={() => void actions.createTask()}
+      onAddTask={(repo) => void actions.createTask(repo)}
       onNewTaskFromBranchRequest={(id) => void actions.createTaskFromBranch(id)}
       onOpenScratch={props.openScratch}
       onDeleteRequest={(id) => void actions.deleteTask(id)}

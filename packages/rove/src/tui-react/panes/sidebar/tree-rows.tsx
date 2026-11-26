@@ -57,8 +57,8 @@ const REMOTE_TITLE_CELLS = 12
 /** Fixed terminal glyphs, the routines twisty's exception: a child's directory is shared (`⑂`) or its own (`⎇`). */
 export const SHARED_MARK = "⑂"
 export const WORKTREE_MARK = "⎇"
-const FOLD_OPEN = "▾"
-const FOLD_CLOSED = "▸"
+const FOLD_OPEN = "⌄"
+const FOLD_CLOSED = "›"
 
 /**
  * The tab ledger entry for this task's conversation: a migrated child's

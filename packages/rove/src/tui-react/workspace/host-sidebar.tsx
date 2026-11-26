@@ -42,7 +42,7 @@ export interface HostSidebarProps
   readonly taskJobs?: ReadonlyMap<string, TaskJobState>
   readonly rowTokens?: RowTokenMap
   readonly worktreeChanges?: ReadonlyMap<string, WorktreeChanges | null> | null
-  readonly onAddTask: () => void
+  readonly onAddTask: (repo?: string) => void
   readonly onSearchActiveChange: (active: boolean) => void
   readonly headerStatus: { label: string; emphasize: boolean }
   readonly onHeaderStatusClick: () => void

@@ -61,7 +61,8 @@ export type WorkspaceTaskActionDeps = {
 }
 
 export type WorkspaceTaskActions = {
-  createTask: () => Promise<void>
+  /** The new-task page; `repo` starts it in that project, else on the cursor's. */
+  createTask: (repo?: string) => Promise<void>
   /** The new-task dialog seeded with a task's repo and branch as the base. */
   createTaskFromBranch: (id: string) => Promise<void>
   deleteTask: (id: string) => Promise<void>
@@ -255,7 +256,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
   return {
     syncBase,
     rerunChecks,
-    createTask: () => createTaskFlow(taskActions),
+    createTask: (repo) => createTaskFlow(taskActions, repo ? { repo } : undefined),
     createTaskFromBranch: async (id) => {
       const task = taskActions.tasks().find((candidate) => candidate.id === id)
       if (task?.branch) await createTaskFlow(taskActions, { repo: task.repo, baseRef: task.branch })
