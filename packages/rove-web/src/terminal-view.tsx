@@ -52,13 +52,13 @@ export interface TerminalViewProps {
   readonly composer?: boolean
 }
 
-/** A dropped file is stored on the Mac (`attachment.put`) and its path typed into the terminal, as a terminal emulator pastes a dropped file's path. */
+/** A dropped file is stored where the terminal's task runs (`attachment.put`) and its path typed into the terminal, as a terminal emulator pastes a dropped file's path. */
 export async function dropFiles(client: BridgeClient, handle: TermHandle, files: File[]): Promise<void> {
   for (const file of files) {
     // A file sent in parts takes a while, and the terminal shows nothing until its path lands.
     if (file.size > PART_BYTES) toast(t("layout.dropUploading", { name: file.name }))
     try {
-      handle.term.paste(`${await putAttachment(client, file)} `)
+      handle.term.paste(`${await putAttachment(client, file, handle.stream.split("::")[0])} `)
     } catch (err) {
       toast(err instanceof Error ? err.message : String(err), "error")
     }

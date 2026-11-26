@@ -26,6 +26,9 @@ import {
   planWorktreeHandoff,
 } from "@sma1lboy/rove/src/engine/session-handoff-plan.ts"
 import { promptAttachmentsDir } from "@sma1lboy/rove/src/env.ts"
+import { errorMessage } from "@sma1lboy/rove/src/lib/error-message.ts"
+import { requireMachine } from "@sma1lboy/rove/src/machines/forward.ts"
+import { sendFileToMachine } from "@sma1lboy/rove/src/machines/send-file.ts"
 import { deriveTitleFromPrompt } from "@sma1lboy/rove/src/orchestrator/title.ts"
 import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { terminalTabsKey } from "@sma1lboy/rove/src/tui-react/workspace/terminal-tabs-persist.ts"
@@ -69,6 +72,8 @@ export interface TerminalOpDeps {
   now(): Date
   nonce(): string
   writeFile(path: string, bytes: Uint8Array): void
+  /** Copies a stored file to a registered machine; resolves to its path there. */
+  sendToMachine(alias: string, path: string): Promise<string>
   /** The persisted tab (carries `sessionId`), if the snapshot has it. */
   readTab(taskId: string, tabId: string): TerminalTab | undefined
   planHandoff(active: TerminalTab, source: VendorId, worktree: string, taskTitle?: string): Promise<ChatForkPlan>
@@ -83,6 +88,7 @@ const realDeps: TerminalOpDeps = {
     mkdirSync(join(path, ".."), { recursive: true, mode: 0o700 })
     writeFileSync(path, bytes, { mode: 0o600 })
   },
+  sendToMachine: (alias, path) => sendFileToMachine(requireMachine(alias), path),
   readTab(task, tab) {
     const snapshot = loadStateFile()[terminalTabsKey(task)] as { tabs?: TerminalTab[] } | undefined
     return snapshot?.tabs?.find((t) => t.id === tab)
@@ -170,6 +176,26 @@ function attachmentTarget(a: Args, deps: TerminalOpDeps) {
   const stamp = deps.now().toISOString().slice(0, 10).replaceAll("-", "")
   const path = join(deps.attachmentsDir(), `attach-${stamp}-${deps.nonce()}${stem ? `-${stem}` : ""}.${type.ext}`)
   return { claimed, type, path }
+}
+
+/**
+ * The path the agent reads the stored file at: on the machine `task` lives on or `machine` names
+ * when that is another one, where the file is copied first.
+ */
+async function pathForAgent(
+  a: Args,
+  api: { machineOf?(taskId: string): string | undefined },
+  deps: TerminalOpDeps,
+  path: string,
+): Promise<string> {
+  const task = optStr(a, "task")
+  const alias = task !== undefined ? api.machineOf?.(task) : optStr(a, "machine")
+  if (alias === undefined) return path
+  try {
+    return await deps.sendToMachine(alias, path)
+  } catch (err) {
+    throw new BridgeError("MACHINE_UNREACHABLE", `could not copy the file to ${alias}: ${errorMessage(err)}`)
+  }
 }
 
 /** The bytes of one frame's `data`. */
@@ -390,15 +416,17 @@ export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
     "attachment.put": {
       kind: "write",
       destructive: false,
-      wraps: "writes ~/.rove/attachments/<generated name>-<the file's own name> (tui/lib/attachments.ts layout)",
-      async run(a) {
+      wraps:
+        "writes ~/.rove/attachments/<generated name>-<the file's own name> (tui/lib/attachments.ts layout); with `task` on another machine, copies it into that machine's attachments and answers with the path there",
+      async run(a, { api }) {
         const target = attachmentTarget(a, deps)
         const bytes = attachmentBytes(a)
         if (target.claimed && !matchesMagic(target.claimed, bytes)) {
           throw new BridgeError("BAD_ARGS", `data is not a ${target.type.ext} file`)
         }
         deps.writeFile(target.path, bytes)
-        return { path: target.path, kind: target.type.kind, bytes: bytes.length }
+        const path = await pathForAgent(a, api, deps, target.path)
+        return { path, kind: target.type.kind, bytes: bytes.length }
       },
     },
 
@@ -406,7 +434,7 @@ export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
       kind: "write",
       destructive: false,
       wraps: "appends to ~/.rove/attachments/upload-<id>.part; the last part renames it as attachment.put names a file",
-      async run(a) {
+      async run(a, { api }) {
         const dir = deps.attachmentsDir()
         const offset = optInt(a, "offset", 0, MAX_UPLOAD_BYTES) ?? 0
         const given = optStr(a, "upload")
@@ -437,7 +465,8 @@ export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
           throw new BridgeError("BAD_ARGS", `data is not a ${target.type.ext} file`)
         }
         renameSync(part, target.path)
-        return { path: target.path, kind: target.type.kind, bytes: total }
+        const path = await pathForAgent(a, api, deps, target.path)
+        return { path, kind: target.type.kind, bytes: total }
       },
     },
   }

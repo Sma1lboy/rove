@@ -1,11 +1,12 @@
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import type { DaemonServer } from "@sma1lboy/rove-daemon/daemon/server"
 import { startDaemonServer } from "@sma1lboy/rove-daemon/daemon/server"
 import { afterEach, describe, expect, it } from "vitest"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
-import { addMachine } from "../../src/machines/registry.ts"
+import { addMachine, listMachines } from "../../src/machines/registry.ts"
+import { sendFileToMachine } from "../../src/machines/send-file.ts"
 import { localDaemonSocketPath } from "../../src/machines/ssh-args.ts"
 import type { Task } from "../../src/types/task.ts"
 import { type DaemonHarness, bootDaemonHarness, fakeOrchestrator } from "./harness.ts"
@@ -69,6 +70,17 @@ describe("api.invoke across machines", () => {
       },
     )
   }
+
+  it("a file sent to another machine lands whole under that machine's attachments", async () => {
+    await bootHubAndMachine()
+    const bytes = Buffer.alloc(2_500_000, "rove")
+    const local = join(hub.dir, "attach-20261005-deadbeef-shot.png")
+    writeFileSync(local, bytes)
+    const narwhal = listMachines().find((m) => m.alias === "narwhal")
+    const there = await sendFileToMachine(narwhal as NonNullable<typeof narwhal>, local)
+    expect(there).toBe(join(machineHome as string, ".rove", "attachments", "attach-20261005-deadbeef-shot.png"))
+    expect(readFileSync(there).equals(bytes)).toBe(true)
+  })
 
   it("runs a verb aimed at another machine's task on that machine", async () => {
     await bootHubAndMachine()

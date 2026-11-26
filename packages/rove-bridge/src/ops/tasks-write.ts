@@ -24,6 +24,7 @@ import {
   optGitRef,
   optModel,
   parseAgents,
+  promptOn,
   remoteRepoRef,
   taskOpDeps,
 } from "./tasks-shared.ts"
@@ -148,7 +149,8 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
   if (plan) argv.push(flag("agents", plan.map((p) => `${p.id}:${p.n}`).join(",")))
   if (status) argv.push(flag("status", status))
   if (pin) argv.push(flag("pin", "true"))
-  if (prompt) argv.push(flag("prompt", prompt))
+  // An engine on that machine reads the attached files there.
+  if (prompt) argv.push(flag("prompt", there ? await promptOn(there, prompt) : prompt))
   if (start) argv.push(flag("start", "true"))
   if (shell) {
     const cut = await ctx.api.verb<{ taskId?: string }>("add", [...argv, flag("worktree-only", "true")])

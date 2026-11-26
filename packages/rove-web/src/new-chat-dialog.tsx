@@ -54,7 +54,7 @@ export function NewChatDialog(props: {
   const [attempts, setAttempts] = useState("1")
   const [baseRef, setBaseRef] = useState(task?.branch ?? "main")
   const { busy, error, setError, submit } = useSubmit()
-  const { attachments, attach, remove, ready } = useAttachments(model, setError)
+  const { attachments, attach, remove, ready } = useAttachments(model, setError, undefined, taskId)
 
   // Shell rows exist for fresh tabs here and Scratch; a fork or a continued chat is an engine's.
   const shellOk = context === "fresh" && destination !== "fork"
