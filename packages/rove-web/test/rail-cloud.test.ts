@@ -91,9 +91,8 @@ describe("the rail names no machine; a remote task carries a cloud", () => {
     expect(remoteLabel("mac", mac("offline"), tasksZh.machine)).toBe("在 mac (studio.local) 上 · 离线")
   })
 
-  test("the cloud mark carries its text as tooltip and aria-label", () => {
+  test("the cloud mark carries its text as aria-label", () => {
     const html = renderToStaticMarkup(createElement(CloudMark, { label: "on studio.local · offline" }))
-    expect(html).toContain('title="on studio.local · offline"')
     expect(html).toContain('aria-label="on studio.local · offline"')
     expect(html).toContain('role="img"')
     expect(html).toContain("<svg")

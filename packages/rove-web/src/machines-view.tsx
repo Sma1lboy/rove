@@ -12,6 +12,7 @@ import type { AppModel } from "./model.ts"
 import type { NavRow } from "./rail.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
+import { hideTip, showTip } from "./tooltip.ts"
 import { tc } from "./tui-copy.ts"
 import { Button } from "./ui/button.tsx"
 import { CLOUD_ICON, CLOUD_MARK } from "./ui/rail.ts"
@@ -78,11 +79,22 @@ export function rowCloud(
 
 /**
  * The small cloud on a remote task's row, the only place the rail says a task lives elsewhere
- * (the bottom status line names this machine once). `label` is {@link remoteLabel}.
+ * (the bottom status line names this machine once). `label` is {@link remoteLabel}; it shows at once
+ * beside the mark, where the row's PR list and title tip open. `onOpen` drops the row's title tip.
  */
-export function CloudMark({ label }: { label: string }) {
+export function CloudMark({ label, onOpen }: { label: string; onOpen?: () => void }) {
   return (
-    <span className={CLOUD_MARK} title={label} role="img" aria-label={label}>
+    <span
+      className={CLOUD_MARK}
+      role="img"
+      aria-label={label}
+      onPointerEnter={(e) => {
+        if (e.pointerType === "touch") return
+        onOpen?.()
+        showTip(e.currentTarget, label, "right")
+      }}
+      onPointerLeave={hideTip}
+    >
       {/* Three arcs, mirrored: a big bump between two small ones. */}
       <svg className={CLOUD_ICON} viewBox="0 0 24 24" aria-hidden="true">
         <path d="M6.25 18.5A3.75 3.75 0 0 1 7.34 11.16A4.75 4.75 0 0 1 16.66 11.16A3.75 3.75 0 0 1 17.75 18.5Z" />
