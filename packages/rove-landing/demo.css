@@ -67,9 +67,16 @@
 .d-line b{font-weight:600}
 .d-line u{text-decoration:none;color:#A9B4F5}
 .d-line.is-prompt{margin:.5em 0;padding:.4em 1em;background:#30302D}
-.d-line.is-prompt::before{content:"❯ ";color:var(--d-ink-3)}
+.d-line.is-prompt::before,.d-input::before{content:"❯ ";color:var(--d-ink-3)}
+.is-codex .d-line.is-prompt::before,.is-codex .d-input::before{content:"› "}
 .d-line.is-say{padding-top:.4em;padding-bottom:.4em}
 .d-line.is-say::before{content:"● ";color:var(--d-ink)}
+.is-codex .d-line.is-say::before,.is-codex .d-line.is-tool::before{content:"• ";color:var(--d-ink-3)}
+/* a tool's output hangs off an elbow; only the first line of a run draws it */
+.d-line.is-out{padding-left:2.2em;color:var(--d-ink-3)}
+.d-line.is-out::before{content:"⎿  "}
+.is-codex .d-line.is-out::before{content:"└  "}
+.d-line.is-out+.d-line.is-out::before{visibility:hidden}
 .d-line.is-dim{color:var(--d-ink-3)}
 .d-line.is-tool{padding-top:.4em}
 .d-line.is-tool::before{content:"● ";color:var(--d-ok)}
@@ -79,11 +86,18 @@
 .d-line.is-think{color:var(--d-ink-3)}
 .d-line.is-think i{display:inline-block;margin-right:.6em;font-style:normal;color:var(--d-accent);animation:d-spin 1.6s linear infinite}
 .d-line.is-think i::before{content:"✻"}
+.d-line.is-think::after{content:" (esc to interrupt)"}
+.is-codex .d-line.is-think i{animation:d-pulse 1.2s ease-in-out infinite}
+.is-codex .d-line.is-think i::before{content:"•"}
 .d-line.is-warn{margin:.5em 1em;padding:.4em .8em;border:1px solid var(--d-accent);border-radius:.45em;color:var(--d-accent);animation:d-in .3s var(--ease) both,d-warn 1.6s ease-in-out 2}
 .d-line.is-menu{width:fit-content;margin:.4em 1em;padding:.4em .8em;border-radius:.45em;background:#30302D}
 .d-line.is-menu b{color:var(--d-accent)}
-.d-input{flex:none;display:flex;gap:.6em;margin:0 1em;padding:.4em 0 .5em;border-top:1px solid var(--d-line);min-height:2.5em}
-.d-input span{color:var(--d-ink-3)}
+/* Claude Code's prompt sits between two rules; Codex's is a filled block. Each has its own hint line below. */
+.d-input{flex:none;display:flex;margin:0 1em;padding:.3em 0;border:solid var(--d-ink-3);border-width:1px 0;white-space:pre}
+.is-codex .d-input{margin:0;padding:.6em 1em;border:0;background:#262623}
+.d-foot{flex:none;padding:.2em 1em .4em;color:var(--d-ink-3);white-space:nowrap;overflow:hidden}
+.d-foot::before{content:"  ? for shortcuts"}
+.is-codex .d-foot::before{content:"  100% context left · ? for shortcuts"}
 
 .d-item>*{white-space:nowrap}
 

@@ -145,7 +145,9 @@ var ROVE_I18N = (function () {
     toggleBtn.addEventListener('click', function () {
       lang = lang === 'zh' ? 'en' : 'zh';
       try { localStorage.setItem('rove_lang', lang); } catch (e) {}
-      apply();
+      // The browser cross-fades the two languages; without the API, or with reduced motion, it just swaps.
+      if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.startViewTransition(apply);
+      else apply();
     });
   }
   apply(); // first paint: honors ?lang= / stored pref / browser language

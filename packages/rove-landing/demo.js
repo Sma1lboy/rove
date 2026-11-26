@@ -104,8 +104,9 @@
       },
       pane: function (o) {
         if (dry) return;
-        var p = el('section', 'd-pane',
-          '<header>' + head(o) + '</header><div class="d-lines"></div><div class="d-input"><span>❯</span><i></i></div>');
+        // `is-<engine>` picks that engine's own TUI look: its prompt, bullets, spinner and footer.
+        var p = el('section', 'd-pane is-' + o.label,
+          '<header>' + head(o) + '</header><div class="d-lines"></div><div class="d-input"><i></i></div><div class="d-foot"></div>');
         p.id = 'dPane-' + o.id;
         document.getElementById('dMain').appendChild(p);
       },
@@ -113,6 +114,7 @@
         if (dry) return;
         var h = document.querySelector('#dPane-' + paneId + ' header');
         h.innerHTML = head(o);
+        h.parentNode.className = 'd-pane is-' + o.label;
         h.classList.remove('is-new');
         void h.offsetWidth;
         h.classList.add('is-new');
@@ -217,7 +219,8 @@
       await k.type('a', 'Add EU tax to checkout. Hand the tax rules to Codex and the tests to Gemini.');
       k.status('a', 'work');
       await k.think('a', 900, 'Reading checkout…');
-      k.line('a', 'Read <u>src/checkout.ts</u>, <u>src/cart.ts</u>', 'is-dim');
+      k.line('a', '<b>Read</b>(src/checkout.ts)', 'is-tool');
+      k.line('a', 'Read 96 lines', 'is-out');
       await k.w(250);
       await k.say('a', "I'll wire up checkout and hand the VAT table and tests to Codex and Gemini.");
       await k.w(500);
@@ -311,12 +314,12 @@
       await k.think('a', 800, 'Connecting to gpu-box…');
       k.line('a', '<b>Bash</b>(python train.py --data data/2026-11)', 'is-tool');
       await k.w(500);
-      k.line('a', 'epoch 1/3  loss 0.412', 'is-dim');
+      k.line('a', 'epoch 1/3  loss 0.412', 'is-out');
       await k.w(650);
-      k.line('a', 'epoch 2/3  loss 0.287', 'is-dim');
+      k.line('a', 'epoch 2/3  loss 0.287', 'is-out');
       k.status('y', 'done'); k.inbox(1);
       await k.w(650);
-      k.line('a', 'epoch 3/3  loss 0.231', 'is-dim');
+      k.line('a', 'epoch 3/3  loss 0.231', 'is-out');
       await k.think('a', 800, 'Scoring…');
       await k.say('a', 'Done on gpu-box. NDCG@10 improved from 0.61 to 0.66.');
       k.status('a', 'done'); k.inbox(2);
@@ -347,12 +350,13 @@
       await k.think('a', 900);
       k.line('a', '<b>Bash</b>(bun outdated)', 'is-tool');
       await k.burst('a', [
-        ['zod        3.23.8 → 3.24.1', 'is-dim'],
-        ['hono       4.6.3  → 4.6.12', 'is-dim'],
-        ['vitest     2.1.2  → 2.1.8', 'is-dim'],
+        ['zod        3.23.8 → 3.24.1', 'is-out'],
+        ['hono       4.6.3  → 4.6.12', 'is-out'],
+        ['vitest     2.1.2  → 2.1.8', 'is-out'],
       ]);
       await k.think('a', 1100, 'Running the tests…');
-      k.line('a', '<b>Bash</b>(bun test) 212 pass', 'is-tool');
+      k.line('a', '<b>Bash</b>(bun test)', 'is-tool');
+      k.line('a', '212 pass, 0 fail', 'is-out');
       await k.w(400);
       await k.say('a', 'Opened PR #412 (bump 3 dependencies). 212 tests pass.');
       k.status('a', 'done'); k.inbox(1);
@@ -384,6 +388,7 @@
       await k.type('b', 'Review the uncommitted change. Bugs only.');
       await k.think('b', 600);
       k.line('b', '<b>Ran</b> git diff HEAD -- src/cart.ts', 'is-tool');
+      k.line('b', '1 file changed, 2 insertions(+), 1 deletion(-)', 'is-out');
       await k.think('b', 900, 'Reviewing…');
       await k.say('b', 'NaN slips through: Math.max(0, NaN) is NaN.');
       await k.w(500);
