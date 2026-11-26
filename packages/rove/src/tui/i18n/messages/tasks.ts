@@ -70,6 +70,9 @@ export const en = {
     /** Regroup the task under another project; nothing on disk moves. Menu-only. */
     moveToProject: "Move to project…",
     /** Also chord-less: put the row's task id / branch / worktree path on the clipboard. */
+    copy: "Copy",
+    more: "More",
+    back: "Back",
     copyId: "Copy task ID",
     copyBranch: "Copy branch name",
     copyPath: "Copy path",
@@ -341,6 +344,9 @@ export const zh: typeof en = {
     runAgain: "重新运行",
     setStatus: "设置状态",
     moveToProject: "移到其他项目…",
+    copy: "复制",
+    more: "更多",
+    back: "返回",
     copyId: "复制任务 ID",
     copyBranch: "复制分支名",
     copyPath: "复制路径",

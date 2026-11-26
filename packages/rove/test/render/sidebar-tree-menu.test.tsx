@@ -154,17 +154,26 @@ test("left-click still activates the row it lands on", async () => {
   expect(chosen).toEqual(["b"])
 })
 
+/** Left-click the menu row reading `label`. */
+async function clickEntry(
+  frame: () => Promise<string>,
+  mockMouse: { click(x: number, y: number, button?: number): Promise<void> },
+  label: string,
+): Promise<void> {
+  const lines = (await frame()).split("\n")
+  const y = lines.findIndex((line) => line.includes(label))
+  await step(frame, () => mockMouse.click((lines[y] ?? "").indexOf(label) + 1, y, 0))
+}
+
 test("a parent's menu folds its children away", async () => {
   tabsByTask.clear()
   const tasks = [task("a"), task("kid", { parentTaskId: toTaskId("a") })]
-  const { frame, mockMouse, mockInput } = await renderComponent(tree({ tasks }), { width: 40, height: 24 })
+  const { frame, mockMouse } = await renderComponent(tree({ tasks }), { width: 40, height: 24 })
   expect(await frame()).toContain("kid")
   await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT))
-  expect(await frame()).toContain("Collapse children")
-
-  // Highlight starts on "Open"; j steps to the fold entry.
-  await step(frame, () => mockInput.typeText("j"))
-  await step(frame, () => mockInput.pressEnter())
+  // Seldom used, so it sits one level down, as on the web.
+  await clickEntry(frame, mockMouse, "More ›")
+  await clickEntry(frame, mockMouse, "Collapse children")
 
   expect(await frame()).not.toContain("kid")
 })
@@ -181,8 +190,7 @@ test("a worktree row's menu opens a new conversation in that task", async () => 
   await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT))
   expect(await frame()).toContain("New conversation")
 
-  // Open → New conversation.
-  await step(frame, () => mockInput.typeText("j"))
+  // The highlight starts on it.
   await step(frame, () => mockInput.pressEnter())
 
   expect(asked).toEqual([["a", "chat"]])
@@ -244,9 +252,8 @@ test("Set status fires the row's callback with that row's task", async () => {
   await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "row-b"), RIGHT))
   expect(await frame()).toContain("Set status")
 
-  // open, newChat, newShell, continueElsewhere, newTaskFromBranch, rename, pin, reorder,
-  // setStatus — eight steps from the highlight's start on "Open".
-  await step(frame, () => mockInput.typeText("jjjjjjjj"))
+  // newChat, newShell, openEditor, rename, pin, setStatus: five steps from the highlight's start.
+  await step(frame, () => mockInput.typeText("jjjjj"))
   await step(frame, () => mockInput.pressEnter())
 
   expect(asked).toEqual(["b"])

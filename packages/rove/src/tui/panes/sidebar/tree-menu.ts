@@ -57,41 +57,43 @@ export type TreeMenuAction =
   | "archive"
   | "delete"
 
-/** The web menu's sections: entries of one sit together, a rule falls where the section changes. */
-export type TreeMenuSection = "open" | "tab" | "edit" | "copy" | "tools" | "git" | "danger"
+/** The web menu's sections, in the order they sit: entries of one stay together, a rule falls where the section changes. */
+export const TREE_MENU_SECTIONS = ["open", "edit", "git", "copy", "more", "danger"] as const
+export type TreeMenuSection = (typeof TREE_MENU_SECTIONS)[number]
 
 const SECTION_OF: Readonly<Record<TreeMenuAction, TreeMenuSection>> = {
   open: "open",
-  toggleFold: "open",
   newTask: "open",
   newScratchChat: "open",
   newScratchShell: "open",
-  newChat: "tab",
-  newShell: "tab",
-  continueEngine: "tab",
-  newTaskFromBranch: "tab",
+  newChat: "open",
+  newShell: "open",
+  runAgain: "open",
+  openEditor: "open",
   rename: "edit",
   pin: "edit",
-  reorder: "edit",
+  setStatus: "edit",
   moveToTop: "edit",
   moveProjectUp: "edit",
   moveProjectDown: "edit",
-  runAgain: "edit",
-  setStatus: "edit",
-  muteNotifications: "edit",
-  moveToProject: "edit",
-  copyId: "copy",
-  copyBranch: "copy",
-  copyPath: "copy",
-  openEditor: "tools",
-  renameBranch: "tools",
-  changeEngine: "tools",
-  fieldNotes: "tools",
+  fieldNotes: "edit",
   fixChecks: "git",
-  rerunChecks: "git",
   syncBase: "git",
   resolveConflicts: "git",
   land: "git",
+  copyId: "copy",
+  copyBranch: "copy",
+  copyPath: "copy",
+  // Seldom used: the web tucks these into `More ›` rather than the top level.
+  toggleFold: "more",
+  continueEngine: "more",
+  newTaskFromBranch: "more",
+  reorder: "more",
+  muteNotifications: "more",
+  moveToProject: "more",
+  renameBranch: "more",
+  changeEngine: "more",
+  rerunChecks: "more",
   archive: "danger",
   delete: "danger",
   forgetProject: "danger",
@@ -262,7 +264,8 @@ export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenu
     return items
   }
   if (row.kind === "worktree") {
-    const items: TreeMenuItem[] = [{ action: "open", labelKey: "tasks.menu.open", bindingId: "sidebar.select" }]
+    // No "Open": a click on the row already does that.
+    const items: TreeMenuItem[] = []
     if (row.fold) {
       items.push({
         action: "toggleFold",
