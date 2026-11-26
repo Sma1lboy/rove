@@ -49,6 +49,7 @@ export const en = {
     keys: "j/k pick · enter record a key · backspace default · x unbind · esc close",
     feedback: "tab next field · enter sends on Send · esc close",
   },
+  groups: { preferences: "Preferences", agents: "Agents", more: "More" },
   sections: {
     general: "General",
     engines: "Engines",
@@ -303,6 +304,7 @@ export const zh: typeof en = {
     keys: "j/k 选择 · enter 录入按键 · backspace 恢复默认 · x 解绑 · esc 关闭",
     feedback: "tab 下一项 · enter 在发送项发送 · esc 关闭",
   },
+  groups: { preferences: "偏好", agents: "智能体", more: "更多" },
   sections: {
     general: "通用",
     autoRouting: "自动路由",

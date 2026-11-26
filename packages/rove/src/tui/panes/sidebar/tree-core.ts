@@ -49,7 +49,7 @@ export interface TreeTab {
 
 /**
  * Where a row from ANOTHER machine lives, stamped by the machine layer
- * (`machine-layer.ts`): the row wears a cloud mark, toned by `state`.
+ * (`machine-layer.ts`): the row says where it runs, toned by `state`.
  */
 export interface RemoteMark {
   /** Remote hostname when known, else the alias. */

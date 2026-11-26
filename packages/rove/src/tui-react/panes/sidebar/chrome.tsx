@@ -2,13 +2,10 @@
 /** Shared sidebar chrome (brand header, create row, search, nav rail, section header, zen chip), so every sidebar surface renders the same thing. */
 
 import { MouseButton, TextAttributes } from "@opentui/core"
-import { legendCap } from "../../../tui/lib/help-groups"
 import type { SidebarNav } from "../../../tui/panes/sidebar/nav-core"
 import { ShortcutRevealBadge } from "../../component/shortcut-reveal"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
-import { dividerRule } from "../../lib/rule-divider"
-import { useTerminalSize } from "../../lib/use-terminal-size"
 import { usePageEntries } from "../../pages/registry"
 import { useHoverFill } from "../../ui/use-hover-fill"
 import { zenChipGlyph } from "./zen-glyph"
@@ -17,7 +14,7 @@ export function SectionHeader(props: {
   label: string
   suffix?: string
   topPad?: boolean
-  /** Leading glyph cell (the tree's project twisty). */
+  /** The tree's project twisty, drawn after the name as the web does. */
   prefix?: string
   onPress?: () => void
   /** Right-click, with the click's screen cell (the tree's project menu). */
@@ -25,9 +22,7 @@ export function SectionHeader(props: {
   /** Tree depth. Non-zero indents the header. */
   depth?: number
 }) {
-  const { theme, transparentBackground } = useTheme()
-  const dividerColor = transparentBackground ? theme.border : theme.borderSubtle
-  const dims = useTerminalSize()
+  const { theme } = useTheme()
   return (
     <box flexDirection="column" flexShrink={0}>
       {props.topPad ? (
@@ -53,17 +48,15 @@ export function SectionHeader(props: {
             : undefined
         }
       >
+        <text fg={theme.textMuted} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
+          {props.label}
+        </text>
         {props.prefix ? (
           <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
             {props.prefix}
           </text>
         ) : null}
-        <text fg={theme.textMuted} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
-          {props.label}
-        </text>
-        <text fg={dividerColor} wrapMode="none" flexBasis={0} flexGrow={1} flexShrink={1}>
-          {dividerRule(dims.width)}
-        </text>
+        <box flexGrow={1} />
         {props.suffix ? (
           <text fg={theme.info} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
             {props.suffix}
@@ -116,24 +109,24 @@ export function SidebarBrandHeader(props: {
 }) {
   const { theme } = useTheme()
   return (
-    <box flexDirection="row" justifyContent="space-between" gap={1} flexShrink={0} paddingLeft={1} paddingRight={1}>
-      <box flexDirection="row" gap={1}>
-        <text fg={props.focused ? theme.focusAccent : theme.textMuted} attributes={TextAttributes.BOLD} wrapMode="none">
-          ROVE
-        </text>
-        {props.status ? (
-          <box position="relative" onMouseUp={() => props.onStatusClick?.()}>
-            <text
-              fg={props.status.emphasize ? theme.warningOnHost : theme.textMuted}
-              attributes={props.status.emphasize ? TextAttributes.BOLD : TextAttributes.DIM}
-              wrapMode="none"
-            >
-              {props.status.label}
-            </text>
-            {props.onStatusClick ? <ShortcutRevealBadge bindingId="inbox.show" /> : null}
-          </box>
-        ) : null}
-      </box>
+    <box flexDirection="row" gap={1} flexShrink={0} paddingLeft={1} paddingRight={1} marginBottom={1}>
+      {/* The web's wordmark. Brackets keep the accent; focus reads in the name going full ink. */}
+      <text wrapMode="none" flexShrink={0}>
+        <span fg={theme.primary}>[</span>
+        <span fg={props.focused ? theme.text : theme.textMuted} attributes={TextAttributes.BOLD}>
+          {" rove "}
+        </span>
+        <span fg={theme.primary}>]</span>
+      </text>
+      <box flexGrow={1} />
+      {props.status ? (
+        <box position="relative" flexShrink={0} onMouseUp={() => props.onStatusClick?.()}>
+          <text fg={props.status.emphasize ? theme.primary : theme.textMuted} wrapMode="none">
+            {props.status.label}
+          </text>
+          {props.onStatusClick ? <ShortcutRevealBadge bindingId="inbox.show" /> : null}
+        </box>
+      ) : null}
       {props.update ? (
         <box position="relative" flexShrink={0} onMouseUp={() => props.onUpdateClick?.()}>
           <text fg={theme.warningOnHost} attributes={TextAttributes.BOLD} wrapMode="none">
@@ -146,13 +139,10 @@ export function SidebarBrandHeader(props: {
   )
 }
 
-/** New-task row. The keycap comes from the live keymap, so a rebound or
- *  disabled `task.new` never shows stale instructions; the gap keeps `+ n`
- *  from reading as a literal `+n` chord. */
+/** New-task row, ending in the web's `+`. Its key shows with the other shortcut badges. */
 export function SidebarCreateAction(props: { onAddTask?: () => void }) {
   const { theme, transparentBackground } = useTheme()
   const t = useT()
-  const keycap = legendCap("task.new")
   if (!props.onAddTask) return null
 
   return (
@@ -176,13 +166,29 @@ export function SidebarCreateAction(props: { onAddTask?: () => void }) {
         <text fg={theme.primary} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
           +
         </text>
-        {keycap ? (
-          <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none" flexShrink={0}>
-            {keycap}
-          </text>
-        ) : null}
         <ShortcutRevealBadge bindingId="task.new" />
       </box>
+    </box>
+  )
+}
+
+/** The rail's Settings row, at its foot as on the web. */
+export function SidebarSettingsRow(props: { onOpenSettings: () => void }) {
+  const { theme } = useTheme()
+  const t = useT()
+  return (
+    <box
+      position="relative"
+      flexShrink={0}
+      onMouseUp={(e: { stopPropagation(): void }) => {
+        e.stopPropagation()
+        props.onOpenSettings()
+      }}
+    >
+      <text fg={theme.textMuted} wrapMode="none">
+        {t("settings.title")}
+      </text>
+      <ShortcutRevealBadge bindingId="settings.open" />
     </box>
   )
 }

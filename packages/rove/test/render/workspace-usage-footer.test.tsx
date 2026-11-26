@@ -34,38 +34,22 @@ const IN_AN_HOUR = Date.now() + 60 * 60 * 1000
 
 isolateHome()
 
-test("renders one chip per window per vendor", async () => {
+test("quota stays out of the bottom bar: it lives in the rail's foot", async () => {
   const orch = orchestratorWith(
     new Map<string, EngineQuotaUsage>([
       [
         "claude",
-        {
-          capturedAt: Date.now(),
-          windows: [
-            { kind: "session", label: "5h", percent: 42, resetsAt: IN_AN_HOUR },
-            { kind: "weekly_all", label: "7d", percent: 12, resetsAt: null },
-          ],
-        },
+        { capturedAt: Date.now(), windows: [{ kind: "session", label: "5h", percent: 42, resetsAt: IN_AN_HOUR }] },
       ],
-      ["codex", { capturedAt: Date.now(), windows: [{ kind: "primary", label: "7d", percent: 47, resetsAt: null }] }],
     ]),
   )
-  // 100 columns, not 80: the full form needs 44 cells, and at 80 the real
-  // `⌃ A commands · F1 help` bar leaves 43. That bar lands in a post-commit
-  // effect, so an 80-column frame only showed the full form when it was
-  // captured before the bar arrived, and any extra render flipped it compact.
   const { frame } = await renderComponent(
     <WorkspaceFrame orchestrator={orch}>
       <box />
     </WorkspaceFrame>,
     { width: 100, height: 6 },
   )
-  const out = await frame()
-  expect(out).toContain("5h 42%")
-  expect(out).toContain("7d 12%")
-  expect(out).toContain("7d 47%")
-  // The footer is the LAST line — children keep the rest of the column.
-  expect(out.trimEnd().split("\n").at(-1)).toContain("5h 42%")
+  expect(await frame()).not.toContain("42%")
 })
 
 test("renders nothing when no vendor has a snapshot", async () => {
@@ -78,39 +62,6 @@ test("renders nothing when no vendor has a snapshot", async () => {
   const out = await frame()
   expect(out).toContain("body")
   expect(out).not.toContain("%")
-})
-
-test("narrow footer collapses each vendor to its session-window percent", async () => {
-  const orch = orchestratorWith(
-    new Map<string, EngineQuotaUsage>([
-      [
-        "claude",
-        {
-          capturedAt: Date.now(),
-          windows: [
-            { kind: "session", label: "5h", percent: 42, resetsAt: IN_AN_HOUR },
-            { kind: "weekly_all", label: "7d", percent: 12, resetsAt: null },
-          ],
-        },
-      ],
-      ["codex", { capturedAt: Date.now(), windows: [{ kind: "primary", label: "7d", percent: 96, resetsAt: null }] }],
-    ]),
-  )
-  const { frame } = await renderComponent(
-    <WorkspaceFrame orchestrator={orch}>
-      <box />
-    </WorkspaceFrame>,
-    { width: 46, height: 6 },
-  )
-  const out = await frame()
-  const footer = out.trimEnd().split("\n").at(-1) ?? ""
-  // One chip per vendor: tone-colored percent only — no window label, no
-  // reset time, and no second window.
-  expect(footer).toContain("CLAUDE 42%")
-  expect(footer).toContain("CODEX 96%")
-  expect(footer).not.toContain("5h")
-  expect(footer).not.toContain("12%")
-  expect(footer).not.toContain("→")
 })
 
 test("the context meter renders the active tab's occupancy, and only that tab's", async () => {
@@ -133,7 +84,7 @@ test("the context meter renders the active tab's occupancy, and only that tab's"
   expect(out).not.toContain("4%")
 })
 
-test("with usage set to read what is left, quota and context chips count down", async () => {
+test("with usage set to read what is left, the context chip counts down", async () => {
   patchStateFile({ "usage.show": "left" })
   const orch = orchestratorWith(
     new Map<string, EngineQuotaUsage>([
@@ -148,6 +99,5 @@ test("with usage set to read what is left, quota and context chips count down", 
     { width: 100, height: 6, providers: { kv: true } },
   )
   const footer = (await frame()).trimEnd().split("\n").at(-1) ?? ""
-  expect(footer).toContain("5h 58%")
   expect(footer).toContain("ctx 38%")
 })

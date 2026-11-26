@@ -1,4 +1,3 @@
-import { DEFAULT_GLYPHS } from "@/tui/lib/glyphs"
 import { prChip, sidebarPrChip } from "@/tui/panes/sidebar/row-chips"
 import type { Task } from "@/types/task"
 import { describe, expect, test } from "vitest"
@@ -15,7 +14,7 @@ describe("sidebarPrChip", () => {
       sessionPrs: [session("https://github.com/o/r/pull/1", status("failing"))],
     } as unknown as Task
     expect(prChip(main)).toBeNull()
-    expect(sidebarPrChip(main)?.glyph).toBe(DEFAULT_GLYPHS.checksFailing)
+    expect(sidebarPrChip(main)?.kind).toBe("failing")
   })
 
   test("a failing attached PR beats the task's own passing one", () => {
@@ -23,7 +22,7 @@ describe("sidebarPrChip", () => {
       prStatus: status("passing"),
       sessionPrs: [session("https://github.com/o/r/pull/2", status("failing"))],
     } as unknown as Task
-    expect(sidebarPrChip(task)?.glyph).toBe(DEFAULT_GLYPHS.checksFailing)
+    expect(sidebarPrChip(task)?.kind).toBe("failing")
   })
 
   test("an attached PR not polled yet draws nothing", () => {

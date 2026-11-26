@@ -57,7 +57,8 @@ test("space switches the focused engine off and back on", async () => {
     return await frame()
   }
 
-  await press("j") // sidebar: General → Engines
+  await press("j")
+  await press("j") // sidebar: General → Keybindings → Engines
   await press("l") // into the engine list
   const enabled = await press("j") // second engine (leave the default alone)
   expect(markOf(enabled, "Codex")).toBe("available")
@@ -83,6 +84,7 @@ test("switching an engine off keeps the one another client switched off a moment
     act(() => mockInput.pressKey(key))
     return await frame()
   }
+  await press("j")
   await press("j") // → Engines
   await press("l")
   await press("j") // Codex
@@ -104,6 +106,7 @@ test("clicking the available mark toggles it instead of opening the command edit
     height: 40,
     providers: { kv: true, dialog: true },
   })
+  act(() => mockInput.pressKey("j"))
   act(() => mockInput.pressKey("j")) // → Engines
 
   // Locate the real mark on screen rather than hard-coding a cell.
@@ -146,6 +149,7 @@ test("one line per engine; a renamed engine keeps its registry name as a subtitl
     act(() => mockInput.pressKey(key))
     return await frame()
   }
+  await press("j")
   await press("j") // → Engines
   await press("l") // into the list (Claude)
   await press("j") // Work Codex

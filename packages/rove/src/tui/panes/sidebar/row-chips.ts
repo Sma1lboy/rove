@@ -1,48 +1,39 @@
 /**
- * The sidebar row's ONE chip: can this PR land? Pinned by
- * `test/golden/sidebar-row-state.golden.txt`. Priority:
+ * Can this PR land? The web's rail draws it; the terminal's task list stays bare. Priority:
+ * conflicts with its base, then checks failing, then checks passing.
  *
- *   `≠`  conflicts with its base
- *   `✗`  checks failing
- *   `✓`  checks passing
- *
- * Pending checks, review, merged/closed and board status draw nothing. An
+ * Pending checks, review, merged/closed and board status give nothing. An
  * unreachable provider (`prStatus.lastError`) keeps the last good value but
  * drains its colour.
- *
- * Glyph coverage (`fc-list :charset=…` over Fira Code, JetBrainsMono Nerd
- * Font, Menlo, Monaco): U+2260, U+2713, U+2717 are one cell in all of them.
  */
 
 import { rollupPr } from "@/orchestrator/task-tree"
-import { DEFAULT_GLYPHS, type GlyphSet } from "@/tui/lib/glyphs"
 import type { Task, TaskPRStatus } from "@/types/task"
 import type { SidebarTone } from "./row-view.ts"
 
-function chipOf(pr: TaskPRStatus | undefined, glyphs: GlyphSet): { glyph: string; tone: SidebarTone } | null {
+export type PrChip = { kind: "conflict" | "failing" | "passing"; tone: SidebarTone }
+
+function chipOf(pr: TaskPRStatus | undefined): PrChip | null {
   if (!pr) return null
   const stale = pr.lastError !== undefined
   if ((pr.mergeable ?? "").toUpperCase() === "CONFLICTING")
     // Amber: a wait the task can clear (rebase), where red is checks that failed.
-    return { glyph: glyphs.conflict, tone: stale ? "textMuted" : "warning" }
-  if (pr.checkState === "failing") return { glyph: glyphs.checksFailing, tone: stale ? "textMuted" : "error" }
-  if (pr.checkState === "passing") return { glyph: glyphs.checksPassing, tone: stale ? "textMuted" : "success" }
+    return { kind: "conflict", tone: stale ? "textMuted" : "warning" }
+  if (pr.checkState === "failing") return { kind: "failing", tone: stale ? "textMuted" : "error" }
+  if (pr.checkState === "passing") return { kind: "passing", tone: stale ? "textMuted" : "success" }
   return null
 }
 
 /** The task's own PR (all its repos rolled up). */
-export function prChip(task: Task, glyphs: GlyphSet = DEFAULT_GLYPHS): { glyph: string; tone: SidebarTone } | null {
-  return chipOf(rollupPr(task), glyphs)
+export function prChip(task: Task): PrChip | null {
+  return chipOf(rollupPr(task))
 }
 
 /**
- * What the sidebar draws: {@link prChip} over the task's own PRs plus the polled PRs its session
+ * {@link prChip} over the task's own PRs plus the polled PRs its session
  * attached (`rove api pr-attach`), so a `dir` task with no branch of its own still shows one.
  */
-export function sidebarPrChip(
-  task: Task,
-  glyphs: GlyphSet = DEFAULT_GLYPHS,
-): { glyph: string; tone: SidebarTone } | null {
+export function sidebarPrChip(task: Task): PrChip | null {
   const attached = (task.sessionPrs ?? []).flatMap((entry) => (entry.status ? [{ prStatus: entry.status }] : []))
-  return chipOf(rollupPr({ prStatus: task.prStatus, extraRepos: [...(task.extraRepos ?? []), ...attached] }), glyphs)
+  return chipOf(rollupPr({ prStatus: task.prStatus, extraRepos: [...(task.extraRepos ?? []), ...attached] }))
 }

@@ -2,7 +2,7 @@
  * The MACHINE layer of the sidebar tree. Machines are not sections: projects
  * from every machine already share one list (`buildSidebarGroups` merges a
  * repo's checkouts by `repoId`). This layer only says, per row, where a task
- * from ANOTHER machine lives — the renderer draws that as a cloud mark.
+ * from ANOTHER machine lives — the renderer says so under the mouse, or on its own while the machine is unreachable.
  *
  *  1. Zero machines → returns the SAME array (identity included), so
  *     machine-free sidebar goldens match byte for byte.

@@ -10,7 +10,6 @@
  */
 
 import { daemonRuntime } from "@/core/daemon-runtime"
-import { tokenTotalChip } from "@/tui-react/component/settings-dialog/usage-core"
 import type { EngineUsageSnapshot } from "@/types/engine"
 import { describe, expect, test, vi } from "vitest"
 
@@ -67,34 +66,5 @@ describe("readEngineContextUsage", () => {
   test("no context reading still returns null — the meter's gate is unchanged", async () => {
     expect(await narrow({ input_tokens: 10, output_tokens: 20 })).toBeNull()
     expect(await narrow(undefined)).toBeNull()
-  })
-})
-
-describe("tokenTotalChip", () => {
-  test("absent data renders nothing rather than a free-looking zero", () => {
-    expect(tokenTotalChip(undefined)).toBeNull()
-    expect(tokenTotalChip(null)).toBeNull()
-    expect(tokenTotalChip({})).toBeNull()
-  })
-
-  test("prompt plus completion, humanised — and cache is deliberately not in it", () => {
-    expect(tokenTotalChip({ inputTokens: 41_000, outputTokens: 3_600 })).toEqual({ label: "Σ", text: "44k" })
-    // Same call with a huge cache read attached must produce the SAME figure:
-    // a cached prompt is reuse, not effort, and folding it in would read as
-    // an order of magnitude more work than the session did.
-    expect(tokenTotalChip({ inputTokens: 41_000, outputTokens: 3_600, cacheReadTokens: 8_000_000 } as never)).toEqual({
-      label: "Σ",
-      text: "44k",
-    })
-  })
-
-  test("one count present and the other missing renders the one that exists", () => {
-    expect(tokenTotalChip({ outputTokens: 500 })).toEqual({ label: "Σ", text: "500" })
-  })
-
-  test("truncates rather than rounds up, so it never claims a milestone early", () => {
-    expect(tokenTotalChip({ inputTokens: 999_999, outputTokens: 0 })?.text).toBe("999k")
-    expect(tokenTotalChip({ inputTokens: 1_000_000, outputTokens: 0 })?.text).toBe("1.0M")
-    expect(tokenTotalChip({ inputTokens: 1_990_000, outputTokens: 0 })?.text).toBe("1.9M")
   })
 })

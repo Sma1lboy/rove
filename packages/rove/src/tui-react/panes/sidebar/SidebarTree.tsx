@@ -19,11 +19,19 @@ import { useTheme } from "../../context/theme"
 import { useLatest } from "../../lib/use-latest"
 import { useTerminalSize } from "../../lib/use-terminal-size"
 import { ContextMenu } from "../../ui/context-menu"
-import { SidebarBrandHeader, SidebarCreateAction, SidebarNavRail, SidebarSearchInput, SidebarZenChip } from "./chrome"
+import {
+  SidebarBrandHeader,
+  SidebarCreateAction,
+  SidebarNavRail,
+  SidebarSearchInput,
+  SidebarSettingsRow,
+  SidebarZenChip,
+} from "./chrome"
 import { CollapseButton } from "./collapse-button"
 import { SidebarTreeBody } from "./tree-panel"
 import type { TreeRowShared } from "./tree-row-shell"
 import type { SidebarProps } from "./types"
+import { SidebarUsageLines } from "./usage-lines"
 import { cursorTaskIdOf, useTreeBindings } from "./use-tree-bindings"
 import { useTreeMenu } from "./use-tree-menu"
 import { useTreeSearch } from "./use-tree-search"
@@ -309,19 +317,25 @@ export function SidebarTree(props: SidebarTreeProps) {
           scrollRef.current = r
         }}
       />
-      {/* Zen chip and fold chevron share the rail's last row: two controls
-          over one line of a panel whose vertical space is the scarce thing.
-          The empty left slot keeps the chevron on the right when zen is off. */}
-      {props.zenActive || props.onToggleCollapsed ? (
+      {/* The foot, as the web's rail: each engine's quota, then one row holding
+          Settings, the zen chip and the fold chevron. */}
+      {props.usage ? (
+        <box flexShrink={0} paddingTop={1}>
+          <SidebarUsageLines usage={props.usage} width={effectiveWidth} />
+        </box>
+      ) : null}
+      {props.onOpenSettings || props.zenActive || props.onToggleCollapsed ? (
         <box
           flexShrink={0}
           flexDirection="row"
-          justifyContent="space-between"
+          gap={1}
           paddingLeft={1}
           paddingRight={1}
-          paddingTop={1}
+          paddingTop={props.usage ? 0 : 1}
         >
-          {props.zenActive ? <SidebarZenChip onZenClick={props.onZenClick} /> : <box flexShrink={0} />}
+          {props.onOpenSettings ? <SidebarSettingsRow onOpenSettings={props.onOpenSettings} /> : null}
+          <box flexGrow={1} />
+          {props.zenActive ? <SidebarZenChip onZenClick={props.onZenClick} /> : null}
           {props.onToggleCollapsed ? (
             <CollapseButton collapsed={false} inline onToggle={props.onToggleCollapsed} />
           ) : null}

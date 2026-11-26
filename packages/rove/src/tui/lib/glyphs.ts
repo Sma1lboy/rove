@@ -35,9 +35,6 @@ export interface GlyphSet {
   readonly routineFailed: string
   /** Prefix of the running-subagent count (`◇2 main`). */
   readonly subagent: string
-  readonly conflict: string
-  readonly checksFailing: string
-  readonly checksPassing: string
   /**
    * On a row whose task lives on ANOTHER machine: a cloud in braille dots, two cells
    * (`cloud-dots.ts`). Callers measure it with `clusterCells`, never assume a width. ascii keeps `@`.
@@ -60,9 +57,6 @@ export const GLYPH_SETS: Readonly<Record<GlyphSetName, GlyphSet>> = {
     dead: "†",
     routineFailed: "↻",
     subagent: "◇",
-    conflict: "≠",
-    checksFailing: "✗",
-    checksPassing: "✓",
     remote: CLOUD,
   },
   starburst: {
@@ -77,9 +71,6 @@ export const GLYPH_SETS: Readonly<Record<GlyphSetName, GlyphSet>> = {
     dead: "✞",
     routineFailed: "↻",
     subagent: "❖",
-    conflict: "≠",
-    checksFailing: "✘",
-    checksPassing: "✔",
     remote: CLOUD,
   },
   ascii: {
@@ -94,9 +85,6 @@ export const GLYPH_SETS: Readonly<Record<GlyphSetName, GlyphSet>> = {
     dead: "x",
     routineFailed: "@",
     subagent: "&",
-    conflict: "#",
-    checksFailing: "x",
-    checksPassing: "+",
     remote: "@",
   },
 }

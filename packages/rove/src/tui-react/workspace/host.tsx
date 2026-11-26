@@ -341,7 +341,6 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
   return (
     <WorkspaceFrame
       orchestrator={orch}
-      onOpenSettings={() => pages.openSettings()}
       banner={banner.element}
       activeTaskId={selectedId}
       activeTabId={selectedTabId}
@@ -383,6 +382,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
               runAgain={quickFork.runAgain}
               openScratch={scratch.openScratchShell}
               activePane={activePane}
+              usage={orch.usageSnapshotSignal()}
               zen={zen}
               toggleZen={toggleZen}
               sortMode={sortMode}

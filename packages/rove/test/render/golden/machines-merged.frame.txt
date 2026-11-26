@@ -1,22 +1,22 @@
 # sidebar frame: machines-merged
-# one repo on three machines is ONE project; no machine headers, remote rows wear a cloud (offline: warning)
+# one repo on three machines is ONE project; no machine headers, a remote row is unmarked while online and says offline otherwise
 # 30x22
 # GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
-| ROVE                         |
-| New task                + n  |
+| [ rove ]                     |
+|                              |
+| New task                  +  |
 | Kanban                       |
 | Routines                     |
 | Issues                       |
 |                              |
-| rove ─────────────────────── |
-|▌○ alpha                      |
-| ○ charlie                 ⠮⠵ |
-| ○ delta                   ⠮⠵ |
+| rove                         |
+|▌alpha                     ⠯⠇ |
+| charlie                ⠮⠵ ⠯⠇ |
+| delta                  ⠮⠵ ⠯⠇ |
 |                              |
-| api ──────────────────────── |
-| ○ echo                       |
-|                              |
+| api                          |
+| echo                      ⠯⠇ |
 |                              |
 |                              |
 |                              |

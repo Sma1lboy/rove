@@ -55,6 +55,7 @@ export const en = {
   },
   inbox: {
     title: "INBOX",
+    chip: "inbox {count}",
     empty: "No pending attention",
     openHint: "enter open",
     clearHint: "d ack",
@@ -123,6 +124,7 @@ export const zh: typeof en = {
   },
   inbox: {
     title: "收件箱",
+    chip: "收件箱 {count}",
     empty: "暂无待处理",
     openHint: "enter 打开",
     clearHint: "d 已阅",

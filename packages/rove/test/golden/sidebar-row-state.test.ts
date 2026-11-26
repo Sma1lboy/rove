@@ -127,25 +127,14 @@ test("every rendered glyph is in the font-verified vocabulary", () => {
     ["?", "ASCII — blocked on your answer"],
     ["◇", "U+25C7 — subagent count prefix"],
     ["▴", "U+25B4 — pinned marker"],
-    ["✓", "U+2713 — PR checks passing; the one dingbat-adjacent glyph both fonts carry"],
-    ["✗", "U+2717 — PR checks failing; the sibling of ✓ both fonts carry"],
-    // U+2260 Mathematical Operators — the PR cannot merge. `fc-list
-    // :charset=2260`: Fira Code, FiraCode/JetBrainsMono Nerd Font, Menlo AND
-    // Monaco — the widest coverage of any glyph in this table. The intuitive
-    // `⑂` (U+2442 OCR FORK) is in NONE of them and was rejected here.
-    ["≠", "U+2260 — PR merge conflict; in Fira Code / JetBrainsMono / Menlo / Monaco"],
     ...DEFAULT_SPINNER_FRAMES.map((frame) => [frame, "braille — uniform AppleBraille fallback"] as const),
   ])
   // Glyph cells the matrix emits, plus the constants the tab rows render
-  // directly (they never reach `buildSidebarRowView`). The CHIP block is
-  // scanned too: it renders into the same row at the same one cell, so a chip
-  // glyph that falls back oversized overruns the label exactly like a state
-  // glyph would.
+  // directly (they never reach `buildSidebarRowView`).
   const rendered = new Set<string>([
     NO_STATE_GLYPH,
     ATTENTION_GLYPH,
     ...statusCrossProduct().flatMap((line) => [...(/ glyph=(\S+)/.exec(line)?.[1] ?? "")]),
-    ...prChipBlock().flatMap((line) => [...(/chip=(\S+) \(/.exec(line)?.[1] ?? "")]),
   ])
   expect([...rendered].filter((glyph) => !VERIFIED.has(glyph))).toEqual([])
 })

@@ -89,6 +89,8 @@ export interface Scene {
    * mask would otherwise swallow it too.
    */
   readonly animated?: boolean
+  /** Cell the mouse rests on before capture. */
+  readonly hover?: readonly [x: number, y: number]
   /** Registered machines the sidebar reads during this scene; absent = none. */
   readonly machines?: readonly MachineLayerEntry[]
 }
@@ -112,7 +114,7 @@ function tree(over: Partial<Parameters<typeof SidebarTree>[0]> = {}) {
 
 /**
  * One repo checked out here, on a mac and on an offline vps (same `repoId`):
- * ONE project, every machine's task under it, the remote ones wearing a cloud.
+ * ONE project, every machine's task under it, the remote ones unmarked while their machine is online.
  */
 const REPO_ID = "github.com/sma1lboy/rove"
 const MACHINES: readonly MachineLayerEntry[] = [
@@ -157,17 +159,19 @@ const seedChildStatus = (): void => {
 export const SCENES: readonly Scene[] = [
   {
     name: "machines-merged",
-    about: "one repo on three machines is ONE project; no machine headers, remote rows wear a cloud (offline: warning)",
+    about:
+      "one repo on three machines is ONE project; no machine headers, a remote row is unmarked while online and says offline otherwise",
     setup: resetScene,
     machines: MACHINES,
     element: tree({ tasks: MERGED_TASKS }),
   },
   {
     name: "machines-remote-cursor",
-    about: "the cursor on a remote row spells out where it lives: on <host> · <version or state>",
+    about: "the mouse over a remote row spells out where it lives: on <host> · <version or state>",
     setup: resetScene,
     machines: MACHINES,
     element: tree({ tasks: MERGED_TASKS, selectedId: "delta" }),
+    hover: [5, 10],
   },
   {
     name: "tree-unknown",

@@ -48,7 +48,7 @@ export interface TreeStateOpts {
   readonly engineState?: ReadonlyMap<string, TaskEngineState>
   /** Bumps when a git poll lands a changed value; re-runs search over fresh HEADs. */
   readonly branchTick?: number
-  /** Registered machines: stamps each remote row with its machine's state (the cloud mark).
+  /** Registered machines: stamps each remote row with its machine's state.
    *  Absent/empty: rows come back untouched. */
   readonly machines?: readonly MachineLayerEntry[]
 }

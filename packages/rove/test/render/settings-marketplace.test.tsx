@@ -85,7 +85,7 @@ test("Marketplace marks installed plugins and reports an install it refused", as
     }
 
     // General → Engines → Auto routing → Plugins → Marketplace
-    await repeat(4, () => press("j"))
+    await repeat(5, () => press("j"))
     const listing = await waitForFrameText(frame, "you/rove-thing")
     // Joined against the registry: the tag replaces the star count.
     expect(listing).toContain("installed")

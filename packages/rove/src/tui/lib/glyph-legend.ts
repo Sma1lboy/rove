@@ -6,7 +6,7 @@
 
 import type { GlyphSet } from "./glyphs"
 
-export type GlyphLegendGroup = "rows" | "inbox" | "pr"
+export type GlyphLegendGroup = "rows" | "inbox"
 
 export type GlyphLegendMark = keyof GlyphSet
 
@@ -27,14 +27,11 @@ const PLACEMENT: Readonly<Record<GlyphLegendMark, Placement | null>> = {
   rateLimited: ["inbox", "warning"],
   dead: ["inbox", "error"],
   routineFailed: ["inbox", "error"],
-  conflict: ["pr", "error"],
-  checksFailing: ["pr", "error"],
-  checksPassing: ["pr", "success"],
   // Only ever drawn beside a word that names it.
   running: null,
 }
 
-const GROUP_ORDER: readonly GlyphLegendGroup[] = ["rows", "inbox", "pr"]
+const GROUP_ORDER: readonly GlyphLegendGroup[] = ["rows", "inbox"]
 
 export interface GlyphLegendRow {
   readonly mark: GlyphLegendMark

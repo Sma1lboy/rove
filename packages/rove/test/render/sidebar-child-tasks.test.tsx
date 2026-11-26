@@ -9,6 +9,7 @@ import { SidebarTree } from "../../src/tui-react/panes/sidebar/SidebarTree"
 import { resetRowStatusForTests } from "../../src/tui-react/workspace/row-status-sync"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import { DEFAULT_GLYPHS } from "../../src/tui/lib/glyphs"
+import { dotsGlyph, litDots } from "../../src/tui/lib/status-dots"
 import { type Task, toTaskId } from "../../src/types/task"
 import { renderComponent, waitForFrameText } from "./harness"
 
@@ -44,7 +45,7 @@ function lineWith(frame: string, needle: string): string {
   return frame.split("\n").find((line) => line.includes(needle)) ?? ""
 }
 
-test("a collapsed parent shows its child count and the most urgent child's state; children wear their marker", async () => {
+test("a collapsed parent shows its child count and the most urgent child's state", async () => {
   tabsByTask.clear()
   resetRowStatusForTests({
     shared: { task: { kind: "needs-input", since: NOW, state: "permission_needed" }, tabs: {} },
@@ -55,9 +56,7 @@ test("a collapsed parent shows its child count and the most urgent child's state
     { width: 40, height: 16 },
   )
   const open = await waitForFrameText(frame, "check types")
-  expect(lineWith(open, "check types")).toContain("⑂")
-  expect(lineWith(open, "check types")).toContain(DEFAULT_GLYPHS.needsInput)
-  expect(lineWith(open, "port tree builder")).toContain("⎇")
+  expect(lineWith(open, "check types")).toContain(dotsGlyph(litDots("waiting", 0)))
   expect(lineWith(open, "parent")).toContain("▾")
 
   // Folding is a click on the parent's fold glyph.
@@ -72,7 +71,7 @@ test("a collapsed parent shows its child count and the most urgent child's state
   expect(DEFAULT_GLYPHS.spinner.some((glyph) => summary.includes(glyph))).toBe(true)
 })
 
-test("a child that has children of its own keeps its marker and fold glyph in separate cells and truncates the title before them", async () => {
+test("a child that has children of its own truncates its title before the fold glyph", async () => {
   tabsByTask.clear()
   resetRowStatusForTests()
   const OWN = toTaskId("own")
@@ -86,11 +85,10 @@ test("a child that has children of its own keeps its marker and fold glyph in se
     { width: 30, height: 16 },
   )
   const line = lineWith(await waitForFrameText(frame, "A very long"), "A very long")
-  // The marker is not glued to the fold glyph: a wide-drawn ⎇ would smear into it.
-  expect(line).toMatch(/…\s+⎇ ▾/)
+  expect(line).toMatch(/…\s+▾/)
 })
 
-test("each generation's state glyph sits in its parent's title column", async () => {
+test("each generation's title is indented two cells past its parent's", async () => {
   tabsByTask.clear()
   resetRowStatusForTests()
   const tasks = [...TASKS, task("grand", { title: "grandchild", parentTaskId: toTaskId("own") })]
@@ -99,11 +97,9 @@ test("each generation's state glyph sits in its parent's title column", async ()
     { width: 40, height: 16 },
   )
   const open = await waitForFrameText(frame, "grandchild")
-  // The state glyph cell is two wide (`○ `), right before the title.
-  const glyphColumn = (title: string) => lineWith(open, title).indexOf(title) - 2
   const titleColumn = (title: string) => lineWith(open, title).indexOf(title)
-  expect(glyphColumn("port tree builder")).toBe(titleColumn("parent"))
-  expect(glyphColumn("check types")).toBe(titleColumn("parent"))
-  expect(glyphColumn("grandchild")).toBe(titleColumn("port tree builder"))
+  expect(titleColumn("port tree builder")).toBe(titleColumn("parent") + 2)
+  expect(titleColumn("check types")).toBe(titleColumn("parent") + 2)
+  expect(titleColumn("grandchild")).toBe(titleColumn("port tree builder") + 2)
   expect(open).not.toContain("▎")
 })

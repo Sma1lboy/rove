@@ -88,7 +88,8 @@ test("an engine config written by an older Rove reads outdated, and the install 
     return await frame()
   }
 
-  await press("j") // sidebar: General → Engines
+  await press("j")
+  await press("j") // sidebar: General → Keybindings → Engines
   await press("l") // into the engine list
   await waitForFrameText(frame, "from an older version")
 
@@ -120,6 +121,7 @@ test("an engine with no hook adapter says so instead of reading as broken", asyn
     height: 44,
     providers: { kv: true, dialog: true },
   })
+  act(() => mockInput.pressKey("j"))
   act(() => mockInput.pressKey("j"))
   await frame()
   act(() => mockInput.pressKey("l"))

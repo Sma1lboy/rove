@@ -16,7 +16,6 @@ import {
   type WorktreeChangesMap,
   liveRowTokens,
 } from "@sma1lboy/rove/src/client/remote-orchestrator.ts"
-import { DEFAULT_GLYPHS } from "@sma1lboy/rove/src/tui/lib/glyphs.ts"
 import { prChip } from "@sma1lboy/rove/src/tui/panes/sidebar/row-chips.ts"
 import type { AttentionRow, MachineTag, PrChipKind, RowChanges, RowTokenChip, TaskRow, TaskRowPr } from "./protocol.ts"
 import type { EngineRow } from "./rove-ops.ts"
@@ -73,16 +72,10 @@ function rowTokenChips(map: RowTokenMap | undefined, taskId: string, now: number
   }))
 }
 
-const PR_CHIP_BY_GLYPH: Record<string, PrChipKind> = {
-  [DEFAULT_GLYPHS.conflict]: "conflict",
-  [DEFAULT_GLYPHS.checksFailing]: "failing",
-  [DEFAULT_GLYPHS.checksPassing]: "passing",
-}
-
 /** The sidebar's one PR chip, straight from `row-chips.ts` (conflict > failing > passing), named instead of drawn. */
 function prChipKind(task: SerializedTask): PrChipKind | null {
   const chip = prChip(task as unknown as Parameters<typeof prChip>[0])
-  return chip ? (PR_CHIP_BY_GLYPH[chip.glyph] ?? null) : null
+  return chip?.kind ?? null
 }
 
 /** A polled PR status as the wire carries it. */

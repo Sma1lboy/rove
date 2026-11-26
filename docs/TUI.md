@@ -91,7 +91,6 @@ Task rows carry worktree-level facts:
 | `▴` | Pinned Task |
 | `+N` / `−N` | Changed and deleted files in the worktree |
 | `↑N` / `↓N` | Commits this worktree has that its base does not, and the ones the base has that it does not |
-| `≠` / `✗` / `✓` | The pull request conflicts with its base, has failing checks, or has passing checks. One mark: a conflict outranks a check result |
 
 `↑N` is the one mark that outlives a commit: committing empties `+N` / `−N`, so
 without it a worker that committed its work and one that reported success and
@@ -161,13 +160,21 @@ anything of you:
 | `●` | Turn finished, and you haven't looked yet |
 | `○` | Quiet: idle, not yet observed, a finished turn you've already seen, a shell tab, or a custom engine without activity tracking |
 
+In the task list the default glyph preset draws these as a 3×3 grid of dots at
+the end of the row, the same mark the web client uses: a ripple out from the
+centre while the engine works, the full grid when it waits on you or on a rate
+limit, a cross for an error, a tick for a finished turn you haven't seen, and a
+muted ring at rest. A task on another machine also wears a dotted cloud before
+its state, amber while that machine is unreachable. The other presets keep one
+glyph per state, leave a quiet row bare and draw no cloud.
+
 A tab labelled `⚠ <name>` is a live hosted session that was missing from the
 saved tab list. Rove exposes it instead of hiding a running process and adopts
 it back into the Task's tab state when possible.
 
 **Seen means consumed.** A `●` clears the moment you actually open that tab,
 select the task, with that tab active. Moving the sidebar cursor over the row
-doesn't count. Once seen, the badge drops back to `○`; there is no lingering
+doesn't count. Once seen, the badge drops back to quiet; there is no lingering
 checkmark. Rove saves the completion timestamp per task and tab, so restarting
 or reattaching does not relight a completion you already read. A later
 completion has a later timestamp and appears unread as usual.
@@ -219,7 +226,7 @@ While a Task's pull request has failing checks, the menu also offers **Fix
 failing checks**, which pastes the failing jobs' log tails into the Task's
 engine, and **Re-run failed checks**, which restarts only the failed CI jobs
 (through `gh run rerun --failed`) for a failure that looks flaky rather than
-caused by the change. The `✗` mark turns pending on the next PR refresh.
+caused by the change.
 Checks that did not run on GitHub Actions cannot be restarted from Rove; the
 toast says so. Reruns wait for every `gh run rerun` command to finish; a slow batch
 does not trigger the client's 20-second daemon-disconnect deadline.
@@ -787,8 +794,7 @@ panel at a time).
 - The files pane is hidden; the pane-cycle keys skip it.
 - The tab strip always shows, compressed to the active tab plus a `2/3`
   counter. The usual tab chords still switch.
-- The footer keeps one quota chip per engine (`CLAUDE 42%`) and shrinks the
-  hints to bare keycaps.
+- The footer shrinks the hints to bare keycaps.
 - Dialogs center themselves with tighter padding, and Settings drops the
   inline hint beside each switch so the switch's own label fits. The
   paragraph above each group still explains what it does.
@@ -816,12 +822,13 @@ bracketed paste, so a multi-line block arrives framed and is handed to the
 engine as a paste rather than as typing that submits on the first newline,
 the engine shows it as a pasted block and you decide when to send.
 
-## Quota in the footer
+## Quota in the task list's foot
 
-For engines with a quota probe (Claude Code and Codex today), the footer
-shows each usage window the vendor reports, e.g. `CLAUDE 5h 42% → 14:00 ·
-7d 12%`, with the percentage colored green below 75%, yellow from 75%, red
-from 95%. The same numbers, same thresholds, appear in Settings → General.
+For engines with a quota probe (Claude Code and Codex today), the foot of
+the task list shows one line per engine: its name, a fill line and its
+tightest window, e.g. `Claude ━━━━━━━━ 5h 42%`, colored green below 75%,
+yellow from 75%, red from 95%. Every window and its reset time appear in
+Settings → General. The Settings row sits under these lines.
 
 The daemon refreshes quota roughly every 15 minutes, so treat the figure as
 approximate, not live. When Claude hits its subscription window, Rove

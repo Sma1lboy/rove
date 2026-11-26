@@ -15,12 +15,12 @@ import type { TabStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import type { TreeRowShared } from "../../src/tui-react/panes/sidebar/tree-row-shell"
 import { WorktreeTreeRow } from "../../src/tui-react/panes/sidebar/tree-rows"
 import { resetRowStatusForTests } from "../../src/tui-react/workspace/row-status-sync"
-import { DEFAULT_GLYPHS } from "../../src/tui/lib/glyphs"
+import { dotsGlyph, litDots } from "../../src/tui/lib/status-dots"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
 import { renderComponent } from "./harness"
 
-const { idle: NO_STATE_GLYPH, attention: ATTENTION_GLYPH } = DEFAULT_GLYPHS
+const ATTENTION_GLYPH = dotsGlyph(litDots("error", 0))
 
 const TASK: Task = {
   id: toTaskId("alpha"),
@@ -70,8 +70,6 @@ test("a restored tab wears the attention glyph, a quiet one does not", async () 
     tracked: false,
   })
 
-  expect(quiet).toContain(NO_STATE_GLYPH)
   expect(quiet).not.toContain(ATTENTION_GLYPH)
   expect(restored).toContain(ATTENTION_GLYPH)
-  expect(restored).not.toContain(NO_STATE_GLYPH)
 })

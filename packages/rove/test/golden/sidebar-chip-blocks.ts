@@ -38,7 +38,7 @@ export function prChipBlock(): string[] {
         })
         const chip = prChip(subject)
         lines.push(
-          `${pad(`checkState=${checkState ?? "<no prStatus>"}`, 24)} ${pad(`mergeable=${mergeable ?? "<absent>"}`, 24)} ${pad(`stale=${lastError ? "1" : "0"}`, 8)} chip=${chip ? `${chip.glyph} (${chip.tone})` : "<none>"}`,
+          `${pad(`checkState=${checkState ?? "<no prStatus>"}`, 24)} ${pad(`mergeable=${mergeable ?? "<absent>"}`, 24)} ${pad(`stale=${lastError ? "1" : "0"}`, 8)} chip=${chip ? `${chip.kind} (${chip.tone})` : "<none>"}`,
         )
       }
     }
@@ -54,6 +54,6 @@ export function prChipBlock(): string[] {
 export function statusChipBlock(): string[] {
   return TASK_STATUSES.map((status) => {
     const chip = prChip(task({ status, prStatus: { checkState: "passing" } as Task["prStatus"] }))
-    return `${pad(`status=${status}`, 28)} chip=${chip ? `${chip.glyph} (${chip.tone})` : "<none>"}`
+    return `${pad(`status=${status}`, 28)} chip=${chip ? `${chip.kind} (${chip.tone})` : "<none>"}`
   })
 }

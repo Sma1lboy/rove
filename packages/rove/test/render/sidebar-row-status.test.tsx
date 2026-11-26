@@ -16,6 +16,7 @@ import type { RowStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import type { RowStatusPayload } from "@sma1lboy/rove-daemon/daemon/row-status-store"
 import type { RowStatusTransport } from "../../src/client/remote-orchestrator-row-status"
 import { createStateCell } from "../../src/lib/external-store"
+import type { DotLook } from "../../src/lib/status-dots"
 import { useAccessor } from "../../src/tui-react/lib/use-accessor"
 import type { TreeRowShared } from "../../src/tui-react/panes/sidebar/tree-row-shell"
 import { WorktreeTreeRow } from "../../src/tui-react/panes/sidebar/tree-rows"
@@ -25,9 +26,13 @@ import {
   resetRowStatusForTests,
   useViewingReport,
 } from "../../src/tui-react/workspace/row-status-sync"
-import { DEFAULT_GLYPHS } from "../../src/tui/lib/glyphs"
+import { dotsGlyph, litDots } from "../../src/tui/lib/status-dots"
 import { type Task, toTaskId } from "../../src/types/task"
 import { act, renderComponent, waitForFrameText } from "./harness"
+
+/** The 3×3 mark a task row draws for `look`, and every frame of the working ripple. */
+const mark = (look: DotLook): string => dotsGlyph(litDots(look, 0))
+const WORKING = Array.from({ length: 12 }, (_, tick) => dotsGlyph(litDots("working", tick * 100)))
 
 const TASK: Task = {
   id: toTaskId("alpha"),
@@ -59,7 +64,7 @@ function seed(task: RowStatus): void {
   resetRowStatusForTests({ alpha: { task, tabs: {} } })
 }
 
-/** The task row's glyph cell: its text (the cell before the label) and ink. */
+/** The task row's glyph cell: its text (the last cell of the row, after any cloud) and ink. */
 async function taskCell(task: Task = TASK): Promise<{ text: string; fg: number[] | undefined }> {
   const { spans } = await renderComponent(
     <WorktreeTreeRow rowId={task.id} flatIndex={0} task={task} shared={shared()} />,
@@ -73,7 +78,7 @@ async function taskCell(task: Task = TASK): Promise<{ text: string; fg: number[]
       .join("")
       .includes(label),
   )
-  const text = (line?.spans.map((s) => s.text).join("") ?? "").split(label)[0]?.replace("▎", "").trim() ?? ""
+  const text = (line?.spans.map((s) => s.text).join("") ?? "").split(label)[1]?.trim().split(/\s+/).pop() ?? ""
   // A quiet glyph shares the label's muted ink, so the two may come back as one span.
   const cell = line?.spans.find((s) => text.length > 0 && s.text.includes(text))
   return { text, fg: cell?.fg?.toInts() }
@@ -88,25 +93,24 @@ afterEach(() => resetRowStatusForTests())
 
 test("a task row draws the daemon's status for its conversation", async () => {
   const running = await statusCell({ kind: "running", since: NOW, state: "running" })
-  expect(DEFAULT_GLYPHS.spinner).toContain(running.text)
+  expect(WORKING).toContain(running.text)
 
   const asks = await statusCell({ kind: "needs-input", since: NOW, state: "permission_needed" })
-  expect(asks.text).toBe(DEFAULT_GLYPHS.needsInput)
+  expect(asks.text).toBe(mark("waiting"))
 
   const limited = await statusCell({ kind: "attention", reason: "rate_limited", since: NOW })
   const errored = await statusCell({ kind: "attention", reason: "error", since: NOW })
-  expect(limited.text).toBe(DEFAULT_GLYPHS.attention)
-  expect(errored.text).toBe(DEFAULT_GLYPHS.attention)
-  // Same `!`, two tones: a wait you can clear is amber like a question, a
-  // failure is red.
+  expect(limited.text).toBe(mark("waiting"))
+  expect(errored.text).toBe(mark("error"))
+  // A wait you can clear is amber like a question, a failure is red.
   expect(limited.fg).toEqual(asks.fg)
   expect(limited.fg).not.toEqual(errored.fg)
 
   const unseen = await statusCell({ kind: "unseen", since: NOW, state: "turn_complete" })
-  expect(unseen.text).toBe(DEFAULT_GLYPHS.unseen)
+  expect(unseen.text).toBe(mark("done"))
 
   const idle = await statusCell({ kind: "idle", since: NOW, state: "turn_complete" })
-  expect(idle.text).toBe(DEFAULT_GLYPHS.idle)
+  expect(idle.text).toBe(mark("idle"))
 })
 
 test("a migrated child draws the status of the parent's tab its conversation lives in", async () => {
@@ -128,7 +132,7 @@ test("a migrated child draws the status of the parent's tab its conversation liv
     parentTaskId: TASK.id,
     ptyAlias: { taskId: "alpha", tabId: "tab-2" },
   }
-  expect((await taskCell(child)).text).toBe(DEFAULT_GLYPHS.needsInput)
+  expect((await taskCell(child)).text).toBe(mark("waiting"))
 })
 
 test("another machine's task row shows the status built from the hub's relayed tab readings", async () => {
@@ -145,7 +149,7 @@ test("another machine's task row shows the status built from the hub's relayed t
       ],
     ]),
   )
-  expect(DEFAULT_GLYPHS.spinner).toContain((await taskCell()).text)
+  expect(WORKING).toContain((await taskCell()).text)
 })
 
 test("a task-level job spins the task row", async () => {
@@ -158,7 +162,7 @@ test("a task-level job spins the task row", async () => {
     },
   )
   const row = (await frame()).split("\n").find((line) => line.includes("alpha")) ?? ""
-  expect(DEFAULT_GLYPHS.spinner.some((frame) => row.includes(frame))).toBe(true)
+  expect(WORKING.some((frame) => row.includes(frame))).toBe(true)
 })
 
 /** The shown tab, as a module store the way the workspace reads the daemon's tabs (`tabs-sync.ts`). */

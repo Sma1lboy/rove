@@ -1,22 +1,22 @@
 # sidebar frame: machines-remote-cursor
-# the cursor on a remote row spells out where it lives: on <host> · <version or state>
+# the mouse over a remote row spells out where it lives: on <host> · <version or state>
 # 30x22
 # GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
-| ROVE                         |
-| New task                + n  |
+| [ rove ]                     |
+|                              |
+| New task                  +  |
 | Kanban                       |
 | Routines                     |
 | Issues                       |
 |                              |
-| rove ─────────────────────── |
-| ○ alpha                      |
-| ○ charlie                 ⠮⠵ |
-|▌○ delta  ⠮⠵ on vps · offline |
+| rove                         |
+| alpha                     ⠯⠇ |
+|▏charlie on mac-mini ·… ⠮⠵ ⠯⠇ |
+|▌delta                  ⠮⠵ ⠯⠇ |
 |                              |
-| api ──────────────────────── |
-| ○ echo                       |
-|                              |
+| api                          |
+| echo                      ⠯⠇ |
 |                              |
 |                              |
 |                              |

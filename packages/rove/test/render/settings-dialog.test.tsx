@@ -79,6 +79,12 @@ describe("SettingsDialog", () => {
       return await frame()
     }
 
+    text = await press("j") // → Keybindings
+    expect(text).toContain("Command layer (ctrl+a)")
+    expect(text).toContain("5000ms second-stroke window")
+    expect(text).toContain("On-screen entries + complete guide (default)")
+    expect(text).toContain("Complete guide only")
+    expect(text).toContain("Prefix key")
     // Engines now carries what was the Accounts section: each engine's row is
     // followed by what detection found for it.
     text = await press("j") // → Engines
@@ -96,12 +102,6 @@ describe("SettingsDialog", () => {
     await press("j") // → Marketplace
     text = await waitForFrameText(frame, "you/rove-demo")
     expect(text).toContain("★7")
-    text = await press("j") // → Keybindings
-    expect(text).toContain("Command layer (ctrl+a)")
-    expect(text).toContain("5000ms second-stroke window")
-    expect(text).toContain("On-screen entries + complete guide (default)")
-    expect(text).toContain("Complete guide only")
-    expect(text).toContain("Prefix key")
     text = await press("j") // → Feedback
     expect(text).toContain("GitHub issue")
     text = await press("j") // → Dev
@@ -119,8 +119,8 @@ describe("SettingsDialog", () => {
     })
     const { frame, mockInput } = h
 
-    // General → Engines → Auto routing → Plugins → Marketplace → Keybindings.
-    await pressTimes(h, "j", 5)
+    // General → Keybindings.
+    await pressTimes(h, "j", 1)
     expect(await frame()).toContain("(●) On-screen entries + complete guide (default)")
 
     await pressTimes(h, "l", 1)

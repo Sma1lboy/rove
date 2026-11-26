@@ -56,7 +56,8 @@ function tree(over: Partial<Parameters<typeof SidebarTree>[0]> = {}) {
 
 /** Screen row of the first line containing `needle`. */
 function lineOf(text: string, needle: string): number {
-  const at = text.split("\n").findIndex((line) => line.includes(needle))
+  // Not the wordmark: `[ rove ]` also contains a project named rove.
+  const at = text.split("\n").findIndex((line) => line.includes(needle) && !line.includes("[ rove ]"))
   expect(at).toBeGreaterThan(-1)
   return at
 }

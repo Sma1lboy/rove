@@ -44,25 +44,32 @@ export function SettingsSectionSidebar(props: {
   const { theme } = useTheme()
   const t = useT()
   return (
-    <box flexDirection="column" flexShrink={0} width={SECTIONS_SIDEBAR_WIDTH} gap={1}>
+    <box flexDirection="column" flexShrink={0} width={SECTIONS_SIDEBAR_WIDTH}>
       {SECTIONS.map((s, i) => {
         const isSection = i === props.cursor
         const isSidebarFocused = isSection && props.level === "sidebar"
+        const opensGroup = SECTIONS[i - 1]?.group !== s.group
         return (
-          <box
-            key={s.id}
-            paddingLeft={1}
-            paddingRight={1}
-            backgroundColor={isSidebarFocused ? theme.primary : undefined}
-            onMouseUp={() => props.switchSection(s.id)}
-          >
-            <text
-              fg={isSidebarFocused ? theme.selectedListItemText : isSection ? theme.accent : theme.textMuted}
-              attributes={isSection ? TextAttributes.BOLD : undefined}
-              wrapMode="none"
+          <box key={s.id} flexDirection="column" paddingTop={opensGroup && i > 0 ? 1 : 0}>
+            {opensGroup ? (
+              <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none">
+                {` ${t(`settings.groups.${s.group}`)}`}
+              </text>
+            ) : null}
+            <box
+              paddingLeft={1}
+              paddingRight={1}
+              backgroundColor={isSidebarFocused ? theme.primary : undefined}
+              onMouseUp={() => props.switchSection(s.id)}
             >
-              {t(`settings.sections.${s.id}`)}
-            </text>
+              <text
+                fg={isSidebarFocused ? theme.selectedListItemText : isSection ? theme.accent : theme.textMuted}
+                attributes={isSection ? TextAttributes.BOLD : undefined}
+                wrapMode="none"
+              >
+                {t(`settings.sections.${s.id}`)}
+              </text>
+            </box>
           </box>
         )
       })}

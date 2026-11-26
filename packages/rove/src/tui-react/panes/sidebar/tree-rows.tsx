@@ -15,16 +15,17 @@ import { type TaskEngineState, liveRowTokens } from "@/client/remote-orchestrato
 import type { Task } from "@/types/task"
 import { TextAttributes } from "@opentui/core"
 import type { RowStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { charWidth, displayWidth } from "../../../lib/display-width"
-import { relativeAge } from "../../../lib/relative-time"
 import { rowStatusGlyph } from "../../../lib/row-status-glyph"
+import { dotLook } from "../../../lib/status-dots"
 import { DEFAULT_RUNNING_TITLE, RUNNING_TITLE_KEY, normalizeRunningTitle } from "../../../state/running-title"
 import { breathColor, breathGlyph } from "../../../tui/lib/breathe"
+import { GLYPH_SETS } from "../../../tui/lib/glyphs"
+import { dotsDip, dotsGlyph, litDots } from "../../../tui/lib/status-dots"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
 import { remoteMarkLive, remoteRowCaption } from "../../../tui/panes/sidebar/machine-layer"
-import { sidebarPrChip } from "../../../tui/panes/sidebar/row-chips"
 import {
   type SidebarRowView,
   buildSidebarRowView,
@@ -34,7 +35,6 @@ import {
 import {
   type RemoteMark,
   type TreeFold,
-  childMarkerOf,
   rowLiveBranchPath,
   tabRowActivity,
   worktreeRowLabel,
@@ -58,18 +58,6 @@ export const SHARED_MARK = "⑂"
 export const WORKTREE_MARK = "⎇"
 const FOLD_OPEN = "▾"
 const FOLD_CLOSED = "▸"
-
-/**
- * Age in the current state (`12m`) for WORKING or STOPPED rows only; null
- * otherwise, or every idle tab would wear a number. A row showing one
- * re-renders on the poll clock (`useClockTick`).
- */
-function statusAgeLabel(status: RowStatus | undefined): string | null {
-  if (!status || status.since <= 0) return null
-  if (status.kind !== "running" && status.kind !== "attention" && status.kind !== "needs-input") return null
-  // `relativeAge` clamps a clock skewed ahead of the daemon to `0s`.
-  return relativeAge(status.since)
-}
 
 /**
  * The tab ledger entry for this task's conversation: a migrated child's
@@ -158,7 +146,7 @@ function FoldCluster(props: { readonly task: Task; readonly fold: TreeFold; read
           {String(fold.count)}
         </text>
       ) : null}
-      {fold.collapsed && urgent ? (
+      {fold.collapsed && urgent && (mark.spinning || mark.glyph !== glyphs.idle) ? (
         <text fg={toneColor(theme, sidebarTone(mark.tone))} wrapMode="none">
           {mark.spinning ? breathGlyph(glyphs.spinner, frame) : mark.glyph}
         </text>
@@ -168,15 +156,14 @@ function FoldCluster(props: { readonly task: Task; readonly fold: TreeFold; read
 }
 
 /**
- * A task row: `[state] label`, then its facts (pin, PR chip, ±stats, a
+ * A task row: `[state] label`, then its facts (pin, ±stats, a
  * deletion or checkout in flight) and, on a child, the marker for where it
  * runs plus a level number once the indent stops growing.
  *
- * A task on ANOTHER machine (`remote`) wears a cloud at the row's right edge — muted
- * while that machine is online, warning-toned (and the title greyed) while it
- * is offline, connecting or mismatched. Under the cursor the cloud also says
- * where: `on <host> · <state>`. Machines are not sections; this mark is the
- * only place a row says it lives elsewhere.
+ * A task on ANOTHER machine (`remote`) wears a cloud before its state, muted while that
+ * machine is online and warning-toned (the title greyed) while it is offline, connecting
+ * or mismatched. Under the mouse the row says where: `on <host> · <state>`.
+ * Machines are not sections; this is the only place a row says it lives elsewhere.
  */
 export function WorktreeTreeRow(props: {
   readonly rowId: string
@@ -200,7 +187,6 @@ export function WorktreeTreeRow(props: {
   const kv = useOptionalKV()
   const shared = props.shared
   const task = props.task
-  const chip = sidebarPrChip(task, glyphs)
   // Named by its conversation (`worktreeRowLabel`). Main checkouts and directory/scratch
   // tasks store no branch and move freely, so they poll their own HEAD.
   const livePath = rowLiveBranchPath(task)
@@ -211,8 +197,6 @@ export function WorktreeTreeRow(props: {
   })
   const moving = shared.movingRowId === props.rowId
   const { status, rowView, fg, pulsing, frame } = useTaskStateCell(task, shared)
-  const age = statusAgeLabel(status)
-  useClockTick(age !== null)
   // The deletion WORD is a task fact; the glyph is the daemon's.
   const deletionPhase = task.deletion?.phase
   const deleting = deletionPhase === "queued" || deletionPhase === "running"
@@ -230,51 +214,68 @@ export function WorktreeTreeRow(props: {
   const tokens = liveRowTokens(shared.rowTokens, task.id, Date.now())
   const remote = props.remote
   const remoteLive = remote ? remoteMarkLive(remote) : true
-  const caption = remote && shared.cursorIndex === props.flatIndex ? remoteRowCaption(remote, t) : null
-  const marker = childMarkerOf(task)
+  const [hovered, setHovered] = useState(false)
+  // The default preset draws the web's 3×3 dots on every row, a muted ring at rest. The other
+  // presets exist for fonts without braille: they keep their one glyph, and a quiet row draws nothing.
+  const dots = glyphs === GLYPH_SETS.braille
+  // A task on another machine wears the preset's cloud; where it runs shows under the mouse.
+  const cloud = remote ? glyphs.remote : null
+  const remoteNote = remote && hovered ? remoteRowCaption(remote, t) : null
+  const look = dotLook(status)
+  // A waiting mark dips on the same steps as the web's, so it needs the tick a working row already has.
+  useSpinnerFrame(dots && look === "waiting")
+  const now = Date.now()
+  // The web's ink for each look.
+  const dotInk = {
+    working: theme.info,
+    waiting: theme.warning,
+    error: theme.error,
+    done: theme.success,
+    idle: theme.textMuted,
+  }[look]
+  const quiet = !dots && rowView.stateGlyph === glyphs.idle
+  const stateText = dots ? dotsGlyph(litDots(look, now)) : rowView.stateGlyph
   // A task over several repos is listed once, under its primary, with how many more it spans.
   const extraRepoText = task.extraRepos?.length ? `+${task.extraRepos.length}` : null
   const fold = props.fold
   const reserved =
-    // The state-glyph column, and the child indent (`indentOf` in tree-row-shell).
-    2 +
+    // The trailing state glyph, and the child indent (`indentOf` in tree-row-shell).
+    (quiet ? 0 : clusterCells(stateText)) +
     2 * ((props.depth ?? 1) - 1) +
     // A plugin can crowd the branch name but never overflow the row.
     tokens.reduce((cells, token) => cells + clusterCells(token.text), 0) +
     (deletionWord ? clusterCells(deletionWord) : 0) +
     (checkoutText ? clusterCells(checkoutText) : 0) +
-    (age ? clusterCells(age) : 0) +
     (props.level !== undefined ? clusterCells(String(props.level)) : 0) +
-    (marker ? clusterCells(SHARED_MARK) : 0) +
     (extraRepoText ? clusterCells(extraRepoText) : 0) +
     (fold
       ? clusterCells(fold.collapsed ? FOLD_CLOSED : FOLD_OPEN) +
         (fold.collapsed ? clusterCells(String(fold.count)) + clusterCells(glyphs.idle) : 0)
       : 0) +
-    (remote ? clusterCells(glyphs.remote) : 0) +
+    (cloud ? clusterCells(cloud) : 0) +
     (task.pinned === true ? 2 : 0) +
-    (chip ? 2 : 0) +
     (moving ? clusterCells(t("tasks.moveChip").trim()) : 0)
-  // The cursor's caption takes what the title leaves (the title keeps up to
+  // The remote note takes what the title leaves (the title keeps up to
   // REMOTE_TITLE_CELLS), clipped with `…`, so a narrow rail never loses the branch.
   const budget = treeLabelBudget(shared, reserved)
-  const captionCells = caption ? Math.max(0, budget - Math.min(displayWidth(label), REMOTE_TITLE_CELLS) - 1) : 0
-  const remoteText = remote
-    ? captionCells > 2
-      ? `${glyphs.remote} ${truncateEndCells(caption ?? "", captionCells, charWidth)}`
-      : glyphs.remote
-    : null
+  const noteCells = remoteNote ? Math.max(0, budget - Math.min(displayWidth(label), REMOTE_TITLE_CELLS) - 1) : 0
+  const remoteText = remoteNote && noteCells > 2 ? truncateEndCells(remoteNote, noteCells, charWidth) : null
   const shimmer =
     rowView.loading &&
     !pulsing &&
     normalizeRunningTitle(kv?.get(RUNNING_TITLE_KEY, DEFAULT_RUNNING_TITLE)) === "shimmer"
-  const clipped = truncateEndCells(label, budget - (remoteText ? displayWidth(remoteText) - 1 : 0), charWidth)
+  const clipped = truncateEndCells(label, budget - (remoteText ? displayWidth(remoteText) + 1 : 0), charWidth)
   return (
     <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={props.depth ?? 1} shared={shared}>
-      <text fg={fg} attributes={pulsing ? TextAttributes.BOLD : undefined} wrapMode="none" width={2} flexShrink={0}>
-        {`${rowView.stateGlyph} `}
-      </text>
-      <box flexDirection="row" flexGrow={1} paddingRight={1} gap={1}>
+      {/* biome-ignore lint/a11y/useKeyWithMouseEvents: a terminal box takes no focus; where a task runs is a mouse-over detail */}
+      <box
+        flexDirection="row"
+        flexGrow={1}
+        paddingRight={1}
+        gap={1}
+        onMouseOver={() => setHovered(true)}
+        onMouseOut={() => setHovered(false)}
+      >
         {/* A row from an unreachable machine is the LAST KNOWN state, not a
             live one — it keeps its place and drops to muted rather than
             disappearing, which would erase the only record of where the work
@@ -298,11 +299,6 @@ export function WorktreeTreeRow(props: {
             ▴
           </text>
         ) : null}
-        {chip ? (
-          <text fg={toneColor(theme, chip.tone)} wrapMode="none" flexShrink={0}>
-            {chip.glyph}
-          </text>
-        ) : null}
         {tokens.map((token) => (
           <text
             key={`${token.source}\u0000${token.key}`}
@@ -324,32 +320,38 @@ export function WorktreeTreeRow(props: {
             {checkoutText}
           </text>
         ) : null}
-        {age ? (
-          <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none" flexShrink={0}>
-            {age}
-          </text>
-        ) : null}
-        {props.level !== undefined ? (
-          <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
-            {String(props.level)}
-          </text>
-        ) : null}
         {extraRepoText ? (
           <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
             {extraRepoText}
           </text>
         ) : null}
-        {marker ? (
-          <text fg={marker === "shared" ? theme.info : theme.textMuted} wrapMode="none" flexShrink={0}>
-            {marker === "shared" ? SHARED_MARK : WORKTREE_MARK}
+        {fold ? <FoldCluster task={task} fold={fold} shared={shared} /> : null}
+        {props.level !== undefined ? (
+          <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
+            {String(props.level)}
           </text>
         ) : null}
-        {fold ? <FoldCluster task={task} fold={fold} shared={shared} /> : null}
         {remoteText ? (
           <text fg={remoteLive ? theme.textMuted : theme.warning} wrapMode="none" flexShrink={0}>
             {remoteText}
           </text>
         ) : null}
+        {cloud ? (
+          <text fg={remoteLive ? theme.textMuted : theme.warning} wrapMode="none" flexShrink={0}>
+            {cloud}
+          </text>
+        ) : null}
+        {/* Last, at the rail's edge. */}
+        {quiet ? null : (
+          <text
+            fg={dots && !pulsing ? dotInk : fg}
+            attributes={pulsing ? TextAttributes.BOLD : dots && dotsDip(look, now) ? TextAttributes.DIM : undefined}
+            wrapMode="none"
+            flexShrink={0}
+          >
+            {stateText}
+          </text>
+        )}
       </box>
     </RowShell>
   )

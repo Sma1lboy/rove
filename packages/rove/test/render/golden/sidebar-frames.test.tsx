@@ -40,7 +40,7 @@ const SPINNER_GLYPHS = new Set(DEFAULT_SPINNER_FRAMES)
 
 function maskSpinner(frame: string): string {
   let out = ""
-  for (const ch of frame) out += SPINNER_GLYPHS.has(ch) ? "~" : ch
+  for (const ch of frame) out += SPINNER_GLYPHS.has(ch) || /[\u2800-\u28ff]/.test(ch) ? "~" : ch
   return out
 }
 
@@ -116,12 +116,19 @@ for (const scene of SCENES) {
   test(`sidebar frame golden: ${scene.name}`, async () => {
     scene.setup()
     setMachineHub(sceneHub(scene.machines))
-    const { frame, mockInput } = await renderComponent(scene.element, {
+    const { frame, mockInput, mockMouse } = await renderComponent(scene.element, {
       width: SCENE_WIDTH,
       height: SCENE_HEIGHT,
     })
     await settle(SETTLE_MS)
     await typeKeys(mockInput, scene.keys ?? [])
+    if (scene.hover) {
+      const [x, y] = scene.hover
+      await act(async () => {
+        await mockMouse.moveTo(x, y)
+      })
+      await settle(SETTLE_MS)
+    }
     const captured = scene.animated ? maskSpinner(await frame()) : await frame()
     const document = frameDocument(scene, captured)
     expect(matchGolden(goldenPath(import.meta.url, `${scene.name}.frame.txt`), document)).toBeNull()

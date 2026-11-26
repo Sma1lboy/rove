@@ -111,8 +111,9 @@ narwhal:rove                  ← narwhal's checkout of a repo you also have
 ```
 
 There is no row for the machine itself: projects from every machine share one
-list, and a task from another machine carries a cloud mark (`on narwhal ·
-v0.9.185` on the row the cursor is on).
+list, and a task from another machine wears a small dotted cloud at the end of its row, amber while that machine is
+unreachable; the row says where it runs while the mouse is over it (`on narwhal ·
+v0.9.185`).
 
 - **Two machines, one repo name.** A repo called `rove` on both machines shows
   as `rove` here and `narwhal:rove` there. The local one keeps the bare name —
