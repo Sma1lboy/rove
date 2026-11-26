@@ -68,7 +68,7 @@
       },
       row: function (o) {
         if (dry) return;
-        var r = el('div', 'd-row' + (o.child ? ' is-child' : ''),
+        var r = el('div', 'd-row' + (o.child ? ' is-child' : '') + (o.child || o.flash ? ' is-new' : ''),
           icon(o.icon) + '<span class="d-title">' + o.title + '</span>' +
           (o.tag ? '<span class="d-tag">' + o.tag + '</span>' : '') +
           '<span class="d-dot" data-s="' + (o.status || 'idle') + '"></span>');
@@ -124,6 +124,23 @@
         box.appendChild(el('p', 'd-line ' + (cls || ''), html));
         box.scrollTop = box.scrollHeight;
       },
+      /* The Routines page: a pane-sized list of schedules, each with a state cell on the right. */
+      list: function (o) {
+        if (dry) return;
+        var p = el('section', 'd-pane d-list', '<header><b>' + o.title + '</b><span id="dClock">' + o.clock + '</span></header>' +
+          o.rows.map(function (r, i) {
+            return '<div class="d-item" id="dItem-' + i + '">' + icon(r.icon) + '<b>' + r.name + '</b><span>' + r.when +
+              '</span>' + (r.tag ? '<span class="d-tag">' + r.tag + '</span>' : '') + '<em>' + r.state + '</em></div>';
+          }).join(''));
+        document.getElementById('dMain').appendChild(p);
+      },
+      item: function (i, state, cls) {
+        if (dry) return;
+        var it = document.getElementById('dItem-' + i);
+        it.className = 'd-item ' + (cls || '');
+        it.querySelector('em').textContent = state;
+      },
+      clock: function (text) { if (!dry) document.getElementById('dClock').textContent = text; },
       /* A line that arrives word by word, the way an agent's reply streams in. */
       say: async function (paneId, text, cls) {
         var words = text.split(' ');
@@ -271,7 +288,7 @@
       k.line('a', 'Run on: this Mac · mac-mini · <b>gpu-box</b>', 'is-menu');
       await k.w(900);
       await k.type('a', 'Train the ranking model on the new data and report the score.');
-      k.row({ id: 'a', icon: 'claude', title: 'Ranking model', tag: 'gpu-box', status: 'work', after: 'z' });
+      k.row({ id: 'a', icon: 'claude', title: 'Ranking model', tag: 'gpu-box', status: 'work', flash: true, after: 'z' });
       k.select('a');
       k.paneHead('a', { icon: 'claude', label: 'Claude Code', where: 'files and commands on gpu-box' });
       await k.think('a', 800, 'Connecting to gpu-box…');
@@ -286,6 +303,43 @@
       await k.think('a', 800, 'Scoring…');
       await k.say('a', 'Training ran on gpu-box. NDCG@10 went from 0.61 to 0.66.');
       k.status('a', 'done'); k.inbox(2);
+      await k.w(2400);
+    },
+
+    /* A prompt on a schedule: the clock reaches it, Rove starts the task, and the result lands in the inbox. */
+    routine: async function (k) {
+      k.usage('Claude', 42); k.usage('Codex', 8);
+      k.group('storefront');
+      k.row({ id: 'x', icon: 'claude', title: 'Refund flow', status: 'done' });
+      k.group('ml-pipeline');
+      k.row({ id: 'z', icon: 'codex', title: 'Nightly eval', tag: 'gpu-box', status: 'done' });
+      k.list({ title: 'Routines', clock: '08:59', rows: [
+        { icon: 'claude', name: 'Dependency check', when: 'every day 09:00', state: 'in 1 min' },
+        { icon: 'codex', name: 'Nightly eval', when: 'every day 02:00', tag: 'gpu-box', state: 'ran 02:00' },
+        { icon: 'gemini', name: 'Weekly changelog', when: 'Mondays 10:00', state: 'in 3 days' },
+      ] });
+      await k.w(1600);
+      k.clock('09:00');
+      k.item(0, 'running', 'is-run');
+      await k.w(500);
+      k.row({ id: 'a', icon: 'claude', title: 'Dependency check', status: 'work', flash: true, after: 'x' });
+      k.select('a');
+      await k.w(600);
+      k.pane({ id: 'a', icon: 'claude', label: 'Claude Code', where: 'started by a routine' });
+      k.line('a', 'Check for outdated dependencies and open a pull request for the safe ones.', 'is-prompt');
+      await k.think('a', 900);
+      k.line('a', '<b>Bash</b>(bun outdated)', 'is-tool');
+      await k.burst('a', [
+        ['zod        3.23.8 → 3.24.1', 'is-dim'],
+        ['hono       4.6.3  → 4.6.12', 'is-dim'],
+        ['vitest     2.1.2  → 2.1.8', 'is-dim'],
+      ]);
+      await k.think('a', 1100, 'Running the tests…');
+      k.line('a', '<b>Bash</b>(bun test) 212 pass', 'is-tool');
+      await k.w(400);
+      await k.say('a', 'Opened pull request #412: bump 3 dependencies. All tests pass.');
+      k.status('a', 'done'); k.inbox(1);
+      k.item(0, 'ran 09:00', 'is-ok');
       await k.w(2400);
     },
 
@@ -327,7 +381,7 @@
     },
   };
 
-  var order = ['dispatch', 'swap', 'machines', 'split'];
+  var order = ['dispatch', 'swap', 'machines', 'routine', 'split'];
   var lengths = {};
   order.forEach(function (name) {
     var k = makeKit(-1, true);
