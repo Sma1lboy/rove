@@ -14,3 +14,4 @@
 - Each engine's quota moves from the bottom bar to the foot of the task list, one line apiece as on the web: its name, a fill line and its tightest window (`Claude ━━━━━━━━ 5h 42%`). The bottom bar no longer shows quota or the session's token total.
 - Settings is a row at the foot of the task list, in place of the `[settings]` chip in the bottom bar.
 - Settings groups its sections as the web does: Preferences (General, Keybindings), Agents (Engines, Auto routing, Plugins, Marketplace) and More (Feedback, Dev).
+- A folded project shows its arrow after the name (`rove ▸`), as the web does.

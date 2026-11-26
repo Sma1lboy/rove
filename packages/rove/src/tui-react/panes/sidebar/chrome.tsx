@@ -13,7 +13,7 @@ export function SectionHeader(props: {
   label: string
   suffix?: string
   topPad?: boolean
-  /** Leading glyph cell (the tree's project twisty). */
+  /** The tree's project twisty, drawn after the name as the web does. */
   prefix?: string
   onPress?: () => void
   /** Right-click, with the click's screen cell (the tree's project menu). */
@@ -47,14 +47,14 @@ export function SectionHeader(props: {
             : undefined
         }
       >
+        <text fg={theme.textMuted} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
+          {props.label}
+        </text>
         {props.prefix ? (
           <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
             {props.prefix}
           </text>
         ) : null}
-        <text fg={theme.textMuted} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
-          {props.label}
-        </text>
         <box flexGrow={1} />
         {props.suffix ? (
           <text fg={theme.info} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
