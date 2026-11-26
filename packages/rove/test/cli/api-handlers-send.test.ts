@@ -284,7 +284,7 @@ describe("send handler", () => {
         client: peerClient(),
         runtime: stubRuntime({ deliverPrompt: deliver }),
       })
-      expect(calls[0].prompt).toContain('[ROVE PEER] from task sender-1 (')
+      expect(calls[0].prompt).toContain("[ROVE PEER] from task sender-1 (")
       // Both skill ids, so a receiver on either install finds it.
       expect(calls[0].prompt).toContain("/rove")
       expect(calls[0].prompt).toContain("send --task-id sender-1")
@@ -324,7 +324,7 @@ describe("send handler", () => {
         }),
         runtime: stubRuntime({ deliverPrompt: deliver }),
       })
-      expect(calls[0].prompt).toContain('[ROVE PEER] from task sender-1 (')
+      expect(calls[0].prompt).toContain("[ROVE PEER] from task sender-1 (")
       expect(calls[0].prompt).toContain("send --task-id sender-1 --tab tab-1")
       // Same shape as `send`: the brief is last and whole.
       expect(calls[0].prompt.endsWith("研究一下 X")).toBe(true)

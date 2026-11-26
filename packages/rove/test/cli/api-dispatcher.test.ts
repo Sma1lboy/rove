@@ -380,7 +380,7 @@ describe("a migrated child's PTY env names its parent", () => {
       client,
       runtime: stubRuntime({ deliverPrompt: deliver }),
     })
-    expect(calls[0].prompt).toContain('[ROVE PEER] from task child (')
+    expect(calls[0].prompt).toContain("[ROVE PEER] from task child (")
     expect(calls[0].prompt).toContain("send --task-id child --tab tab-3")
   })
 
