@@ -48,7 +48,7 @@ test("recording a chord on a binding saves it, and backspace restores the defaul
     return await frame()
   }
 
-  await repeat(5, () => press("j")) // → Keybindings
+  await press("j") // → Keybindings
   await press("l")
   // Two prefix-tap rows, the create row, then the bindings: the fourth is "New task".
   await repeat(5, () => press("j"))

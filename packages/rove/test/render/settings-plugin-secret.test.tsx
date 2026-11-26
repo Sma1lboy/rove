@@ -96,7 +96,7 @@ function seedHome(id: string): string {
 
 /** Walk UP to Plugins (general → dev → feedback → keys → marketplace → plugins), then into its body. */
 async function openPlugins(mockInput: { pressKey: (k: string) => void }, frame: () => Promise<string>): Promise<void> {
-  for (const key of ["k", "k", "k", "k", "k", "l"]) {
+  for (const key of ["k", "k", "k", "k", "l"]) {
     act(() => mockInput.pressKey(key))
     await frame()
   }

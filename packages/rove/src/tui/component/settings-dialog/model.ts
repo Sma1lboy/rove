@@ -30,15 +30,19 @@ export type NavLevel = "sidebar" | "body"
 
 export type SectionId = "general" | "engines" | "autoRouting" | "plugins" | "marketplace" | "keys" | "feedback" | "dev"
 
-export const SECTIONS: ReadonlyArray<{ id: SectionId; label: string }> = [
-  { id: "general", label: "General" },
-  { id: "engines", label: "Engines" },
-  { id: "autoRouting", label: "Auto routing" },
-  { id: "plugins", label: "Plugins" },
-  { id: "marketplace", label: "Marketplace" },
-  { id: "keys", label: "Keybindings" },
-  { id: "feedback", label: "Feedback" },
-  { id: "dev", label: "Dev" },
+/** The web's three groups: everyday preferences, agents and what they use, then the quiet rest. */
+export type SectionGroup = "preferences" | "agents" | "more"
+
+/** In nav order, a group's sections together. */
+export const SECTIONS: ReadonlyArray<{ id: SectionId; label: string; group: SectionGroup }> = [
+  { id: "general", label: "General", group: "preferences" },
+  { id: "keys", label: "Keybindings", group: "preferences" },
+  { id: "engines", label: "Engines", group: "agents" },
+  { id: "autoRouting", label: "Auto routing", group: "agents" },
+  { id: "plugins", label: "Plugins", group: "agents" },
+  { id: "marketplace", label: "Marketplace", group: "agents" },
+  { id: "feedback", label: "Feedback", group: "more" },
+  { id: "dev", label: "Dev", group: "more" },
 ]
 
 /**

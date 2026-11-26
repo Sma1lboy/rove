@@ -52,7 +52,7 @@ test("the first saved binding creates keybindings.yaml from the starter", async 
     return await frame()
   }
 
-  await repeat(5, () => press("j")) // → Keybindings
+  await press("j") // → Keybindings
   expect(await frame()).toContain("not created yet")
   await press("l")
   await press("j")
