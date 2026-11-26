@@ -93,7 +93,11 @@
       '</aside>' +
       '<div class="d-main" id="dMain"></div>';
   }
-  function head(o) { return icon(o.label) + '<b>' + NAMES[o.label] + '</b>' + (o.where ? '<span>' + o.where + '</span>' : ''); }
+  /* `machine` adds the chip that says where the task's files and commands are; a machine other than this one is `remote`. */
+  function head(o) {
+    return icon(o.label) + '<b>' + NAMES[o.label] + '</b>' + (o.where ? '<span>' + o.where + '</span>' : '') +
+      (o.machine ? '<em class="d-chip' + (o.remote ? ' is-remote' : '') + '">' + cloud(o.machine) + o.machine + '</em>' : '');
+  }
 
   function makeKit(id, dry) {
     var total = 0;
@@ -209,6 +213,22 @@
         h.classList.remove('is-new');
         void h.offsetWidth;
         h.classList.add('is-new');
+      },
+      /* The machine menu under the pane's chip: the highlight walks down to `chosen`, then the menu closes. */
+      pick: async function (paneId, items, chosen) {
+        var m = null;
+        if (!dry && !still) {
+          m = el('div', 'd-menu', items.map(function (it) {
+            return '<p>' + cloud(it[0]) + '<b>' + it[0] + '</b><span>' + it[1] + '</span></p>';
+          }).join(''));
+          document.getElementById('dPane-' + paneId).appendChild(m);
+        }
+        await kit.w(500);
+        for (var i = 0; i <= chosen; i++) {
+          if (m) [].forEach.call(m.children, function (p, n) { p.classList.toggle('is-on', n === i); });
+          await kit.w(i === chosen ? 550 : 260);
+        }
+        if (m) m.parentNode.removeChild(m);
       },
       line: function (paneId, html, cls) {
         if (dry) return;
@@ -415,6 +435,7 @@
 
     /* A task whose files and commands live on another computer, started from this one. */
     machines: async function (k) {
+      var MACHINES = [['This Mac', 'here'], ['mac-mini', 'online'], ['gpu-box', 'online'], ['E2B sandbox', 'new sandbox']];
       k.usage('Claude', 42); k.usage('Codex', 8);
       k.group('storefront');
       k.row({ id: 'x', title: 'Refund flow', status: 'done' });
@@ -422,26 +443,51 @@
       k.group('ml-pipeline');
       k.row({ id: 'z', title: 'Nightly eval', icon: 'codex', tag: 'gpu-box', status: 'work' });
       k.select('x');
-      k.pane({ id: 'a', label: 'claude', where: 'new task · this Mac' });
-      await k.w(900);
-      k.paneHead('a', { label: 'claude', where: 'new task · gpu-box' });
-      await k.w(900);
+      k.pane({ id: 'a', label: 'claude', where: 'new task', machine: 'This Mac' });
+      await k.w(500);
+      await k.pick('a', MACHINES, 2);
+      k.paneHead('a', { label: 'claude', where: 'new task', machine: 'gpu-box', remote: true });
+      await k.w(500);
       await k.type('a', 'Train the ranking model on the new data and report the score.');
       k.row({ id: 'a', title: 'Ranking model', tag: 'gpu-box', status: 'work', flash: true, after: 'z' });
       k.select('a');
-      k.paneHead('a', { label: 'claude', where: 'ssh · gpu-box' });
+      k.paneHead('a', { label: 'claude', where: 'ssh', machine: 'gpu-box', remote: true });
       await k.think('a', 800, 'Connecting to gpu-box…');
       k.line('a', '<b>Bash</b>(python train.py --data data/2026-11)', 'is-tool');
-      await k.w(500);
+      await k.w(400);
       k.line('a', 'epoch 1/3  loss 0.412', 'is-out');
-      await k.w(650);
+      await k.w(450);
       k.line('a', 'epoch 2/3  loss 0.287', 'is-out');
       k.status('y', 'done'); k.inbox(1);
-      await k.w(650);
+      await k.w(450);
       k.line('a', 'epoch 3/3  loss 0.231', 'is-out');
-      await k.think('a', 800, 'Scoring…');
+      await k.think('a', 600, 'Scoring…');
       await k.say('a', 'Done on gpu-box. NDCG@10 improved from 0.61 to 0.66.');
       k.status('a', 'done'); k.inbox(2);
+      await k.w(1400);
+
+      // A second task, this time in a sandbox that exists only for the run.
+      k.pane({ id: 'b', label: 'claude', where: 'new task', machine: 'This Mac' });
+      k.show(['b']);
+      await k.w(500);
+      await k.pick('b', MACHINES, 3);
+      k.paneHead('b', { label: 'claude', where: 'new task', machine: 'E2B sandbox', remote: true });
+      await k.w(500);
+      await k.type('b', 'Run the whole end-to-end suite somewhere clean and tell me what fails.');
+      k.row({ id: 'b', title: 'E2E suite', tag: 'E2B sandbox', status: 'work', flash: true, after: 'y' });
+      k.show(['b']);
+      k.paneHead('b', { label: 'claude', where: 'sandbox', machine: 'E2B sandbox', remote: true });
+      await k.think('b', 900, 'Starting a sandbox…');
+      k.line('b', 'Sandbox ready: Ubuntu 24.04, repo cloned at this branch', 'is-dim');
+      await k.w(300);
+      k.line('b', '<b>Bash</b>(bun install &amp;&amp; bunx playwright test)', 'is-tool');
+      await k.w(400);
+      k.line('b', 'Running 48 tests using 4 workers', 'is-out');
+      await k.w(600);
+      k.line('b', '47 passed, 1 failed (1.2m)', 'is-out');
+      await k.think('b', 700);
+      await k.say('b', 'One failure: checkout.spec.ts times out on the tax step. Nothing ran on this Mac.');
+      k.status('b', 'done'); k.inbox(3);
       await k.w(2400);
     },
 

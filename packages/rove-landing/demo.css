@@ -61,6 +61,18 @@
 .d-main{flex:1 1 auto;min-width:0;display:flex;gap:.5em;padding:.6em .6em .6em 0}
 .d-pane{flex:1 1 0;min-width:0;display:flex;flex-direction:column;font-family:var(--font-mono);border:1px solid var(--d-line);border-radius:.6em;overflow:hidden;animation:d-pane .45s var(--ease) both}
 .d-pane[hidden]{display:none}
+/* where a task runs: the chip in the pane head, and the menu it opens */
+.d-pane{position:relative}
+.d-chip{flex:none;display:inline-flex;align-items:center;gap:.45em;margin-left:.7em;padding:.1em .6em;border:1px solid var(--d-line);border-radius:1em;font-style:normal;font-size:.92em;color:var(--d-ink-2)}
+.d-chip.is-remote{border-color:var(--d-accent);color:var(--d-accent);background:rgb(204 120 92 / .12)}
+.d-chip .d-cloud{fill:currentColor}
+.d-chip:not(.is-remote) .d-cloud{display:none}
+.d-menu p:first-child .d-cloud{visibility:hidden}
+.d-menu{position:absolute;z-index:1;top:2.7em;right:.6em;min-width:17em;padding:.35em;border:1px solid var(--d-line);border-radius:.6em;background:#262422;box-shadow:0 .15em .6em rgb(0 0 0 / .25);font-family:var(--font-prose);animation:d-in .2s var(--ease) both}
+.d-menu p{display:flex;align-items:center;gap:.6em;margin:0;padding:.35em .6em;border-radius:.4em;color:var(--d-ink-2);transition:background .15s}
+.d-menu p.is-on{background:#33312E;color:var(--d-ink)}
+.d-menu b{font-weight:400}
+.d-menu span{margin-left:auto;font-family:var(--font-mono);font-size:.85em;color:var(--d-ink-3)}
 .d-pane header{flex:none;display:flex;align-items:center;gap:.55em;padding:.5em .9em;border-bottom:1px solid var(--d-line);font-family:var(--font-prose);font-size:.95em;white-space:nowrap;overflow:hidden}
 .d-pane header b{font-weight:500}
 .d-pane header span{margin-left:auto;color:var(--d-ink-3);font-family:var(--font-mono);font-size:.9em}
