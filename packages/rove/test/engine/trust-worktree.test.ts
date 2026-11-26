@@ -11,6 +11,7 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { trustAntigravityWorktree } from "../../src/engine/antigravity-local/trust.ts"
 import { trustClaudeWorktree } from "../../src/engine/claude-code-local/trust.ts"
 import { trustCodexWorktree } from "../../src/engine/codex-local/trust.ts"
 import { trustCopilotWorktree } from "../../src/engine/copilot-local/trust.ts"
@@ -209,6 +210,30 @@ describe("trustCodexWorktree", () => {
     expect(text.split(`[projects.${JSON.stringify(WORKTREE)}]`)).toHaveLength(2)
     expect(fs.existsSync(path.join(home, ".codex", "config.toml.rove.lock"))).toBe(false)
   }, 30_000)
+})
+
+describe("trustAntigravityWorktree", () => {
+  const settingsOf = (home: string) => path.join(home, ".gemini", "antigravity-cli", "settings.json")
+
+  it("appends to trustedWorkspaces once, preserving the user's settings", () => {
+    const home = tempHome()
+    fs.mkdirSync(path.dirname(settingsOf(home)), { recursive: true })
+    fs.writeFileSync(settingsOf(home), JSON.stringify({ model: "m", trustedWorkspaces: ["/repo"] }))
+    trustAntigravityWorktree(WORKTREE, home)
+    trustAntigravityWorktree(WORKTREE, home)
+    expect(JSON.parse(fs.readFileSync(settingsOf(home), "utf8"))).toEqual({
+      model: "m",
+      trustedWorkspaces: ["/repo", WORKTREE],
+    })
+  })
+
+  it("leaves a settings file it cannot parse untouched", () => {
+    const home = tempHome()
+    fs.mkdirSync(path.dirname(settingsOf(home)), { recursive: true })
+    fs.writeFileSync(settingsOf(home), "{ not json")
+    trustAntigravityWorktree(WORKTREE, home)
+    expect(fs.readFileSync(settingsOf(home), "utf8")).toBe("{ not json")
+  })
 })
 
 describe("trustCopilotWorktree", () => {
