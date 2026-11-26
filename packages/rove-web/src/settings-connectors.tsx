@@ -230,11 +230,14 @@ function GithubCard({ model }: { model: AppModel }) {
   return (
     <div className={BENTO}>
       <div className={bentoCardClass(true)}>
-        <div className={BENTO_HEAD}>
-          <GithubMark />
-          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span className={SETTINGS_NAME}>GitHub</span>
-            <span className={SETTINGS_NOTE}>{c("githubDescription")}</span>
+        <div className={`${BENTO_HEAD} w-narrow:flex-wrap`}>
+          {/* On a phone the account and its button drop under the name, so the description keeps its width. */}
+          <span className="flex min-w-0 flex-1 items-center gap-3 w-narrow:basis-full">
+            <GithubMark />
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className={SETTINGS_NAME}>GitHub</span>
+              <span className={SETTINGS_NOTE}>{c("githubDescription")}</span>
+            </span>
           </span>
           {rove ? (
             <>
