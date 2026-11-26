@@ -1,26 +1,33 @@
 /**
- * The hero's backdrop: one picture of a rover, larger than the page, shown half as it is and half
- * rebuilt from square cells printed with their brightness (00–99). A line divides the two; it
- * sweeps slowly by itself and follows the pointer over the hero. The pale studio background is
- * cut away, so the rover stands on the page's own paper and the cells end in a ragged edge with
- * a few loose ones. Both halves clear behind the headline so the text reads over them.
+ * The hero's backdrop: a time-lapse of a flower opening, larger than the page, converted as it
+ * plays. Left of a slowly sweeping line it is the film itself; right of the line, every frame is
+ * rebuilt from square cells printed with their brightness (00–99). The green behind the flower is
+ * cut away frame by frame, so the flower stands on the page's own paper and the cells end in a
+ * ragged edge with a few loose ones. Both halves clear behind the headline so the text reads
+ * over them.
  *
- * Both halves are painted once per size into layers; a frame only copies each layer up to the
- * line, so it runs at the display's own rate. Built to celestial.js by `bun run build:celestial`;
- * edit here, not there.
+ * The film is "Time-lapse of a flower blooming" by Ajith Samuel, CC BY 3.0 (credited in the page
+ * footer), played forward then backward so the loop has no jump. Built to celestial.js by
+ * `bun run build:celestial`; edit here, not there.
  */
 
-const SRC = "/assets/hero-rover.webp"
+const SRC = "/assets/hero-bloom.mp4"
 /** A cell's pitch and its filled side, in px. */
-const PITCH = 22
-const TILE = 20
-/** How much wider than the canvas the picture is drawn, and where its top edge sits (in canvas heights). */
-const ZOOM = 1.18
-const TOP = 0.02
+const PITCH = 16
+const TILE = 15
+/** The film's height in canvas heights, and where the open flower's centre sits on the canvas (fractions of its width and height). */
+const TALL = 1.12
+const AT_X = 0.78
+const AT_Y = 0.5
+/** Where the open flower's centre is in the film's own frame. */
+const FLOWER_X = 0.6
+const FLOWER_Y = 0.55
+/** The size the film is read at to find the flower and colour the cells. */
+const READ_W = 420
 /** Where the line rests (a fraction of the width), how far it swings, and its speed in radians per second. */
-const REST = 0.5
-const SWING = 0.2
-const PACE = 0.32
+const REST = 0.78
+const SWING = 0.1
+const PACE = 0.3
 
 const canvas = document.getElementById("sky") as HTMLCanvasElement | null
 const ctx = canvas?.getContext("2d")
@@ -34,133 +41,60 @@ const hash = (col: number, row: number) => {
   const n = Math.sin(col * 127.1 + row * 311.7) * 43758.5453
   return n - Math.floor(n)
 }
+const board = (width: number, height: number, read = false) => {
+  const el = document.createElement("canvas")
+  el.width = Math.max(1, Math.round(width))
+  el.height = Math.max(1, Math.round(height))
+  return [el, el.getContext("2d", read ? { willReadFrequently: true } : undefined)] as const
+}
 
 if (canvas && ctx) {
   const motion = matchMedia("(prefers-reduced-motion: reduce)")
-  const picture = new Image()
-  /** The picture with its background cut away, at its own size. */
-  let cut: HTMLCanvasElement | null = null
-  let pixels: ImageData | null = null
-  /** The two halves at the canvas's size, already cleared behind the text. */
-  let real: HTMLCanvasElement | null = null
-  let cells: HTMLCanvasElement | null = null
+  const film = document.createElement("video")
+  film.muted = true
+  film.loop = true
+  film.playsInline = true
+  film.preload = "auto"
+  film.src = SRC
+
   let w = 0
   let h = 0
   let dpr = 1
+  /** The film at a small size, with everything but the flower made transparent. */
+  let [cut, cutPen] = board(1, 1, true)
+  let pixels: ImageData | null = null
+  /** The two halves at the canvas's size, and what is erased from both (behind the text, toward the edges). */
+  let [real, realPen] = board(1, 1)
+  let [cells, cellPen] = board(1, 1)
+  let [hole, holePen] = board(1, 1)
   let line = -1
-  let pointer: number | null = null
   let last = 0
   let elapsed = 0
   let timer = 0
   let visible = false
+  let ready = false
 
-  /** Cut the pale, colourless background out of the picture. */
-  const prepare = () => {
-    const board = document.createElement("canvas")
-    board.width = picture.naturalWidth
-    board.height = picture.naturalHeight
-    const pen = board.getContext("2d", { willReadFrequently: true })
-    if (!pen) return
-    pen.drawImage(picture, 0, 0)
-    const data = pen.getImageData(0, 0, board.width, board.height)
-    for (let i = 0; i < data.data.length; i += 4) {
-      const r = data.data[i] ?? 0
-      const g = data.data[i + 1] ?? 0
-      const b = data.data[i + 2] ?? 0
-      const light = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
-      const colour = (Math.max(r, g, b) - Math.min(r, g, b)) / 255
-      // Background is both bright and nearly grey; dust and highlights keep some colour.
-      data.data[i + 3] = Math.round(255 * (1 - smooth(0.8, 0.9, light) * (1 - smooth(0.1, 0.22, colour))))
-    }
-    pen.putImageData(data, 0, 0)
-    cut = board
-    pixels = data
-  }
-
-  /** Erase a layer behind the headline and the install box, and toward its top and bottom edges. */
-  const clear = (pen: CanvasRenderingContext2D) => {
-    pen.globalCompositeOperation = "destination-out"
-    pen.save()
-    pen.translate(w * 0.5, h * 0.3)
-    pen.scale(w * 0.36, h * 0.3)
-    const hole = pen.createRadialGradient(0, 0, 0.55, 0, 0, 1.1)
-    hole.addColorStop(0, "rgb(0 0 0 / 0.96)")
-    hole.addColorStop(1, "rgb(0 0 0 / 0)")
-    pen.fillStyle = hole
-    pen.fillRect(-2, -2, 4, 4)
-    pen.restore()
-    const edges = pen.createLinearGradient(0, 0, 0, h)
+  /** What is erased from both halves: behind the headline and the install box, and toward the top and bottom edges. */
+  const punch = () => {
+    ;[hole, holePen] = board(w * dpr, h * dpr)
+    if (!holePen) return
+    holePen.setTransform(dpr, 0, 0, dpr, 0, 0)
+    holePen.save()
+    holePen.translate(w * 0.5, h * 0.3)
+    holePen.scale(w * 0.3, h * 0.3)
+    const middle = holePen.createRadialGradient(0, 0, 0.55, 0, 0, 1.1)
+    middle.addColorStop(0, "rgb(0 0 0 / 0.97)")
+    middle.addColorStop(1, "rgb(0 0 0 / 0)")
+    holePen.fillStyle = middle
+    holePen.fillRect(-2, -2, 4, 4)
+    holePen.restore()
+    const edges = holePen.createLinearGradient(0, 0, 0, h)
     edges.addColorStop(0, "#000")
     edges.addColorStop(0.1, "rgb(0 0 0 / 0)")
     edges.addColorStop(0.8, "rgb(0 0 0 / 0)")
     edges.addColorStop(1, "#000")
-    pen.fillStyle = edges
-    pen.fillRect(0, 0, w, h)
-    pen.globalCompositeOperation = "source-over"
-  }
-
-  const layer = () => {
-    const board = document.createElement("canvas")
-    board.width = Math.round(w * dpr)
-    board.height = Math.round(h * dpr)
-    const pen = board.getContext("2d")
-    pen?.setTransform(dpr, 0, 0, dpr, 0, 0)
-    return [board, pen] as const
-  }
-
-  /** Paint both halves for the canvas's current size. */
-  const build = () => {
-    if (!cut || !pixels || !w || !h) return
-    const drawn = w * ZOOM
-    const tall = drawn * (cut.height / cut.width)
-    const left = (w - drawn) / 2
-    const top = h * TOP
-    const scale = cut.width / drawn
-
-    const [realBoard, realPen] = layer()
-    if (realPen) {
-      realPen.drawImage(cut, left, top, drawn, tall)
-      clear(realPen)
-    }
-    real = realBoard
-
-    const [cellBoard, cellPen] = layer()
-    if (cellPen) {
-      cellPen.font = `700 9px ${getComputedStyle(canvas).fontFamily}`
-      cellPen.textAlign = "center"
-      cellPen.textBaseline = "middle"
-      for (let y = 0, row = 0; y < h; y += PITCH, row++) {
-        for (let x = 0, col = 0; x < w; x += PITCH, col++) {
-          const px = Math.floor((x + TILE / 2 - left) * scale)
-          const py = Math.floor((y + TILE / 2 - top) * scale)
-          if (px < 0 || py < 0 || px >= pixels.width || py >= pixels.height) continue
-          const i = (py * pixels.width + px) * 4
-          const solid = (pixels.data[i + 3] ?? 0) / 255
-          if (solid < 0.12) continue
-          const r = pixels.data[i] ?? 0
-          const g = pixels.data[i + 1] ?? 0
-          const b = pixels.data[i + 2] ?? 0
-          const light = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
-          cellPen.fillStyle = `rgb(${r} ${g} ${b})`
-          if (solid < 0.6) {
-            // The edge: some cells are missing, the rest are small, pale and blank.
-            if (hash(col, row) > 0.55) continue
-            const side = TILE * (0.45 + 0.4 * hash(row, col))
-            cellPen.globalAlpha = 0.35 + solid * 0.5
-            cellPen.fillRect(x + (TILE - side) / 2, y + (TILE - side) / 2, side, side)
-            continue
-          }
-          cellPen.globalAlpha = 1
-          cellPen.fillRect(x, y, TILE, TILE)
-          cellPen.globalAlpha = 0.78
-          cellPen.fillStyle = light > 0.52 ? "#2a1a12" : "#fff"
-          cellPen.fillText(String(Math.min(99, Math.floor(light * 100))).padStart(2, "0"), x + TILE / 2, y + TILE / 2 + 0.5)
-        }
-      }
-      cellPen.globalAlpha = 1
-      clear(cellPen)
-    }
-    cells = cellBoard
+    holePen.fillStyle = edges
+    holePen.fillRect(0, 0, w, h)
   }
 
   const measure = () => {
@@ -172,91 +106,169 @@ if (canvas && ctx) {
     dpr = nextDpr
     canvas.width = Math.round(w * dpr)
     canvas.height = Math.round(h * dpr)
-    build()
+    ;[real, realPen] = board(w * dpr, h * dpr)
+    ;[cells, cellPen] = board(w * dpr, h * dpr)
+    punch()
+  }
+
+  /** Read the film's current frame and keep only the flower: warm pixels stay, the green behind them goes. */
+  const read = () => {
+    if (!film.videoWidth) return
+    const readH = Math.round((READ_W * film.videoHeight) / film.videoWidth)
+    if (cut.width !== READ_W || cut.height !== readH) [cut, cutPen] = board(READ_W, readH, true)
+    if (!cutPen) return
+    cutPen.globalCompositeOperation = "copy"
+    cutPen.drawImage(film, 0, 0, READ_W, readH)
+    const frame = cutPen.getImageData(0, 0, READ_W, readH)
+    const d = frame.data
+    for (let i = 0; i < d.length; i += 4) {
+      const warm = ((d[i] ?? 0) - (d[i + 1] ?? 0)) / 255
+      d[i + 3] = Math.round(255 * smooth(0.02, 0.14, warm))
+    }
+    cutPen.putImageData(frame, 0, 0)
+    pixels = frame
+  }
+
+  /** Paint both halves from the frame just read. */
+  const paint = () => {
+    if (!pixels || !realPen || !cellPen || !w) return
+    const tall = h * TALL
+    const wide = tall * (pixels.width / pixels.height)
+    const left = w * AT_X - wide * FLOWER_X
+    const top = h * AT_Y - tall * FLOWER_Y
+    const scale = pixels.width / wide
+
+    realPen.setTransform(dpr, 0, 0, dpr, 0, 0)
+    realPen.globalCompositeOperation = "copy"
+    realPen.drawImage(film, left, top, wide, tall)
+    // Keep the film only where the small cut-out says the flower is.
+    realPen.globalCompositeOperation = "destination-in"
+    realPen.drawImage(cut, left, top, wide, tall)
+    realPen.setTransform(1, 0, 0, 1, 0, 0)
+    realPen.globalCompositeOperation = "destination-out"
+    realPen.drawImage(hole, 0, 0)
+
+    cellPen.setTransform(dpr, 0, 0, dpr, 0, 0)
+    cellPen.globalCompositeOperation = "source-over"
+    cellPen.clearRect(0, 0, w, h)
+    cellPen.font = `700 7.5px ${getComputedStyle(canvas).fontFamily}`
+    cellPen.textAlign = "center"
+    cellPen.textBaseline = "middle"
+    // Only the cells right of where the line can reach are ever shown.
+    const from = Math.floor((w * (REST - SWING) - PITCH) / PITCH) * PITCH
+    for (let y = 0, row = 0; y < h; y += PITCH, row++) {
+      for (let x = Math.max(0, from), col = Math.round(x / PITCH); x < w; x += PITCH, col++) {
+        const px = Math.floor((x + TILE / 2 - left) * scale)
+        const py = Math.floor((y + TILE / 2 - top) * scale)
+        if (px < 0 || py < 0 || px >= pixels.width || py >= pixels.height) continue
+        const i = (py * pixels.width + px) * 4
+        const solid = (pixels.data[i + 3] ?? 0) / 255
+        if (solid < 0.15) continue
+        const r = pixels.data[i] ?? 0
+        const g = pixels.data[i + 1] ?? 0
+        const b = pixels.data[i + 2] ?? 0
+        cellPen.fillStyle = `rgb(${r} ${g} ${b})`
+        if (solid < 0.7) {
+          // The edge: some cells are missing, the rest are small, pale and blank.
+          if (hash(col, row) > 0.5) continue
+          const side = TILE * (0.4 + 0.45 * hash(row, col))
+          cellPen.globalAlpha = 0.3 + solid * 0.5
+          cellPen.fillRect(x + (TILE - side) / 2, y + (TILE - side) / 2, side, side)
+          continue
+        }
+        const light = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
+        cellPen.globalAlpha = 1
+        cellPen.fillRect(x, y, TILE, TILE)
+        cellPen.globalAlpha = 0.8
+        cellPen.fillStyle = light > 0.55 ? "#3a1c12" : "#fff"
+        cellPen.fillText(String(Math.min(99, Math.floor(light * 100))).padStart(2, "0"), x + TILE / 2, y + TILE / 2 + 0.5)
+      }
+    }
+    cellPen.globalAlpha = 1
+    cellPen.setTransform(1, 0, 0, 1, 0, 0)
+    cellPen.globalCompositeOperation = "destination-out"
+    cellPen.drawImage(hole, 0, 0)
   }
 
   const draw = () => {
-    if (!real || !cells || !w) return
+    if (!w) return
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     const at = Math.max(0, Math.min(canvas.width, Math.round(line * dpr)))
     if (at > 0) ctx.drawImage(real, 0, 0, at, canvas.height, 0, 0, at, canvas.height)
     if (at < canvas.width) ctx.drawImage(cells, at, 0, canvas.width - at, canvas.height, at, 0, canvas.width - at, canvas.height)
-    // The line, fading out toward the text above it, and its handle under the install box.
+    // The line itself, fading out toward both ends.
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     const style = getComputedStyle(canvas)
     const ink = style.getPropertyValue("--ink-3") || style.color
-    const stroke = ctx.createLinearGradient(0, h * 0.5, 0, h)
-    stroke.addColorStop(0, "transparent")
-    stroke.addColorStop(0.25, ink)
-    stroke.addColorStop(0.75, ink)
-    stroke.addColorStop(1, "transparent")
+    const stroke = ctx.createLinearGradient(0, 0, 0, h)
+    stroke.addColorStop(0.08, "transparent")
+    stroke.addColorStop(0.3, ink)
+    stroke.addColorStop(0.7, ink)
+    stroke.addColorStop(0.95, "transparent")
     ctx.fillStyle = stroke
-    ctx.globalAlpha = 0.7
-    ctx.fillRect(line - 0.5, h * 0.5, 1, h * 0.5)
+    ctx.globalAlpha = 0.6
+    ctx.fillRect(line - 0.5, 0, 1, h)
     ctx.globalAlpha = 1
-    const knobY = h * 0.69
-    ctx.beginPath()
-    ctx.arc(line, knobY, 13, 0, Math.PI * 2)
-    ctx.fillStyle = style.getPropertyValue("--paper") || "#fff"
-    ctx.fill()
-    ctx.lineWidth = 1
-    ctx.strokeStyle = style.getPropertyValue("--rule") || ink
-    ctx.stroke()
-    ctx.fillStyle = style.getPropertyValue("--ink-2") || ink
-    ctx.font = `600 11px ${style.fontFamily}`
-    ctx.textAlign = "center"
-    ctx.textBaseline = "middle"
-    ctx.fillText("‹ ›", line, knobY)
   }
 
+  /** The film's frame, last read, so a frame the film has not advanced on only moves the line. */
+  let shown = -1
   const tick = (now: number) => {
     timer = requestAnimationFrame(tick)
     const dt = Math.min(0.1, (now - last) / 1000)
     last = now
     elapsed += dt
-    const target = pointer ?? w * (REST + SWING * Math.sin(elapsed * PACE))
-    line += (target - line) * Math.min(1, dt * (pointer === null ? 2.2 : 9))
+    line += (w * (REST + SWING * Math.sin(elapsed * PACE)) - line) * Math.min(1, dt * 2.2)
+    if (film.currentTime !== shown) {
+      shown = film.currentTime
+      read()
+      paint()
+    }
     draw()
   }
   const sync = () => {
     cancelAnimationFrame(timer)
-    if (!visible || document.hidden || !cut) return
+    if (!visible || document.hidden || !ready) {
+      film.pause()
+      return
+    }
     measure()
     if (line < 0) line = w
     if (motion.matches) {
+      // A still: the open flower, the line at rest.
+      film.pause()
       line = w * REST
+      read()
+      paint()
       draw()
       return
     }
+    void film.play().catch(() => {})
     last = performance.now()
     timer = requestAnimationFrame(tick)
   }
 
-  picture.onload = () => {
-    prepare()
+  film.addEventListener("loadeddata", () => {
+    ready = true
+    // Reduced motion shows the flower open: the film's midpoint, where forward meets backward.
+    if (motion.matches) film.currentTime = film.duration / 2
     sync()
-  }
-  picture.src = SRC
+  })
+  film.addEventListener("seeked", () => {
+    if (motion.matches) sync()
+  })
   new IntersectionObserver(([entry]) => {
     visible = !!entry?.isIntersecting
     sync()
   }).observe(canvas)
   new ResizeObserver(() => {
-    if (!visible || document.hidden || !cut) return
+    if (!visible || document.hidden || !ready) return
     measure()
+    read()
+    paint()
     draw()
   }).observe(canvas)
   motion.addEventListener("change", sync)
   document.addEventListener("visibilitychange", sync)
-  // The canvas takes no pointer events (it sits under the page), so the hero reports the pointer.
-  const hero = canvas.closest("section")
-  if (hero && matchMedia("(hover: hover)").matches) {
-    hero.addEventListener("pointermove", (e) => {
-      pointer = e.clientX - canvas.getBoundingClientRect().left
-    })
-    hero.addEventListener("pointerleave", () => {
-      pointer = null
-    })
-  }
 }
