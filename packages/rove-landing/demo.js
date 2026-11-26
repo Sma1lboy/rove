@@ -1,5 +1,6 @@
-/* demo.js: the hero's terminal window. A drawn copy of the Rove TUI that plays
- * scripted scenes; nothing here talks to a real agent.
+/* demo.js: the hero's app window. A drawn copy of the Rove web client, whose panes are
+ * terminals running each agent's own TUI. It plays scripted scenes; nothing here talks
+ * to a real agent.
  *
  *   #scenes button[data-scene]   picks a scene; the pressed one shows progress in --p
  *   #demo                        the window body this file fills
@@ -26,20 +27,21 @@
     if (html != null) n.innerHTML = html;
     return n;
   }
+  var NAMES = { claude: 'Claude Code', codex: 'Codex', gemini: 'Gemini' };
+  function icon(name) {
+    return '<svg class="d-ic d-ic-' + name + '" aria-hidden="true"><use href="#ic-' + name + '"/></svg>';
+  }
   function build() {
     root.innerHTML =
       '<aside class="d-side">' +
-        '<div class="d-brand"><b>ROVE</b> <span>INBOX <i id="dInbox">0</i></span></div>' +
-        '<div class="d-nav is-strong">New task<span>n</span></div><div class="d-nav" id="dNavRoutines">Routines</div><div class="d-nav">Issues</div>' +
+        '<div class="d-brand"><b><em>[</em> rove <em>]</em></b><span>inbox <i id="dInbox">0</i></span></div>' +
+        '<div class="d-nav">New task<span>+</span></div><div class="d-nav" id="dNavRoutines">Routines</div>' +
         '<div class="d-rows" id="dRows"></div>' +
         '<div class="d-usage" id="dUsage"></div>' +
-        '<div class="d-hint">j/k move · ⏎ open</div>' +
       '</aside>' +
-      '<div class="d-body"><div class="d-main" id="dMain"></div><div class="d-status">^A commands · F1 help · [settings]</div></div>';
+      '<div class="d-main" id="dMain"></div>';
   }
-
-  var GLYPH = { idle: '○', work: '●', done: '✓', wait: '?' };
-  function head(o) { return '<b>' + o.label + '</b>' + (o.where ? ' · ' + o.where : ''); }
+  function head(o) { return icon(o.label) + '<b>' + NAMES[o.label] + '</b>' + (o.where ? '<span>' + o.where + '</span>' : ''); }
 
   function makeKit(id, dry) {
     var total = 0;
@@ -65,14 +67,15 @@
       onTime: function () {},
       group: function (name) {
         if (dry) return;
-        document.getElementById('dRows').appendChild(el('div', 'd-group', '<span>' + name + '</span>'));
+        document.getElementById('dRows').appendChild(el('div', 'd-group', name));
       },
       row: function (o) {
         if (dry) return;
         var s = o.status || 'idle';
         var r = el('div', 'd-row' + (o.child ? ' is-child' : '') + (o.child || o.flash ? ' is-new' : ''),
-          '<span class="d-dot" data-s="' + s + '">' + GLYPH[s] + '</span><span class="d-title">' + o.title + '</span>' +
-          (o.tag ? '<span class="d-tag">' + o.tag + '</span>' : ''));
+          icon(o.icon || (NAMES[o.tag] ? o.tag : 'claude')) + '<span class="d-title">' + o.title + '</span>' +
+          (o.tag && !NAMES[o.tag] ? '<span class="d-tag">' + o.tag + '</span>' : '') +
+          '<span class="d-dot" data-s="' + s + '"></span>');
         r.id = 'dRow-' + o.id;
         var after = o.after && document.getElementById('dRow-' + o.after);
         var rows = document.getElementById('dRows');
@@ -80,9 +83,7 @@
       },
       status: function (rowId, s) {
         if (dry) return;
-        var dot = document.querySelector('#dRow-' + rowId + ' .d-dot');
-        dot.setAttribute('data-s', s);
-        dot.textContent = GLYPH[s];
+        document.querySelector('#dRow-' + rowId + ' .d-dot').setAttribute('data-s', s);
       },
       select: function (rowId) {
         if (dry) return;
@@ -95,7 +96,7 @@
         if (dry) return;
         var u = document.getElementById('dUse-' + name);
         if (!u) {
-          u = el('div', 'd-use', '<span>' + name.toLowerCase() + '</span><i><b></b></i><em></em>');
+          u = el('div', 'd-use', '<span>' + name + '</span><i><b></b></i><em></em>');
           u.id = 'dUse-' + name;
           document.getElementById('dUsage').appendChild(u);
         }
@@ -114,7 +115,7 @@
       /* The Browser panel of the web and desktop clients, showing the page a task's dev server serves. */
       web: function (url) {
         if (dry) return;
-        var p = el('section', 'd-pane d-web', '<header><b>Browser</b> · ' + url + '</header><div class="d-page" id="dPage"></div>');
+        var p = el('section', 'd-pane d-web', '<header><b>Browser</b><span>' + url + '</span></header><div class="d-page" id="dPage"></div>');
         document.getElementById('dMain').appendChild(p);
       },
       page: function (html, cls) {
@@ -150,24 +151,11 @@
         var h = document.querySelector('#dPane-' + paneId + ' header');
         h.innerHTML = head(o);
         h.parentNode.className = 'd-pane is-' + o.label;
+        var ic = document.querySelector('#dRow-' + paneId + ' .d-ic');
+        if (ic) ic.outerHTML = icon(o.label);
         h.classList.remove('is-new');
         void h.offsetWidth;
         h.classList.add('is-new');
-      },
-      /* The plain shell before the TUI opens: a prompt, a typed command, then the screen clears. */
-      shell: async function (cmd) {
-        var s = null;
-        if (!dry && !still) {
-          s = el('div', 'd-shell', '<span>~/storefront</span> <b>$</b> <i></i>');
-          root.appendChild(s);
-        }
-        await kit.w(500);
-        for (var i = 1; i <= cmd.length; i++) {
-          if (s) s.querySelector('i').textContent = cmd.slice(0, i);
-          await kit.w(90);
-        }
-        await kit.w(500);
-        if (s) root.removeChild(s);
       },
       line: function (paneId, html, cls) {
         if (dry) return;
@@ -178,7 +166,7 @@
       /* The Routines page: a pane-sized list of schedules, each with a state cell on the right. */
       list: function (o) {
         if (dry) return;
-        var p = el('section', 'd-pane d-list', '<header><b>' + o.title + '</b> · <span id="dClock">' + o.clock + '</span></header>' +
+        var p = el('section', 'd-pane d-list', '<header><b>' + o.title + '</b><span id="dClock">' + o.clock + '</span></header>' +
           o.rows.map(function (r, i) {
             return '<div class="d-item" id="dItem-' + i + '"><b>' + r.name + '</b><span>' + r.when + '</span><span>' + r.on +
               '</span><em>' + r.state + '</em></div>';
@@ -244,7 +232,6 @@
     /* One agent splits a feature into a backend and a frontend part, two others build them,
        and the two children run side by side before the reports come back. */
     dispatch: async function (k) {
-      await k.shell('rove');
       k.usage('Claude', 42); k.usage('Codex', 8);
       k.group('storefront');
       k.row({ id: 'a', title: 'Wishlist', status: 'idle' });
@@ -380,7 +367,7 @@
       k.row({ id: 'x', title: 'Refund flow', status: 'done' });
       k.row({ id: 'y', title: 'Flaky cart test', tag: 'mac-mini', status: 'work' });
       k.group('ml-pipeline');
-      k.row({ id: 'z', title: 'Nightly eval', tag: 'gpu-box', status: 'work' });
+      k.row({ id: 'z', title: 'Nightly eval', icon: 'codex', tag: 'gpu-box', status: 'work' });
       k.select('x');
       k.pane({ id: 'a', label: 'claude', where: 'new task' });
       await k.w(700);
@@ -411,7 +398,7 @@
       k.group('storefront');
       k.row({ id: 'x', title: 'Refund flow', status: 'done' });
       k.group('ml-pipeline');
-      k.row({ id: 'z', title: 'Nightly eval', tag: 'gpu-box', status: 'done' });
+      k.row({ id: 'z', title: 'Nightly eval', icon: 'codex', tag: 'gpu-box', status: 'done' });
       k.list({ title: 'Routines', clock: '08:59', rows: [
         { name: 'Dependency check', when: 'every day 09:00', on: 'claude', state: 'in 1 min' },
         { name: 'Nightly eval', when: 'every day 02:00', on: 'codex · gpu-box', state: 'ran 02:00' },
@@ -552,9 +539,6 @@
       if (on) pressed = b;
     });
     root.setAttribute('data-scene', name);
-    // The Browser panel belongs to the desktop and web clients, so that scene's window says so.
-    var bar = document.querySelector('.appwin-bar span');
-    if (bar) bar.textContent = name === 'preview' ? 'Rove (desktop app)' : 'rove — ~/storefront';
     document.dispatchEvent(new CustomEvent('rove:scene', { detail: name }));
     var k = makeKit(id, false);
     var spent = 0;
