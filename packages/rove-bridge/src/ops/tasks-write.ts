@@ -71,7 +71,7 @@ async function done(call: Promise<unknown>): Promise<Record<string, never>> {
 
 async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
   // Another registered machine: its repo, its worktree. The agent is this machine's unless `engineThere`
-  // (or a round of attempts, or a Windows machine, which only that machine's `add` serves) puts the engine there too.
+  // (or a round of attempts, which only that machine's `add` serves) puts the engine there too.
   const asked = optText(args, "machine", 64)
   const auto = asked === AUTO_MACHINE
   const repo = asked && !auto ? remoteRepoRef(args, "repo") : absPath(args, "repo")
@@ -101,10 +101,7 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
     throw new BridgeError("BAD_ARGS", "a multi-repo task must keep every repo on this machine")
 
   const parallel = count !== undefined || agentsGiven
-  const there =
-    machine !== undefined && (optBool(args, "engineThere") === true || parallel || taskOpDeps.isWindowsMachine(machine))
-      ? machine
-      : undefined
+  const there = machine !== undefined && (optBool(args, "engineThere") === true || parallel) ? machine : undefined
   if (count !== undefined && agentsGiven) throw new BridgeError("BAD_ARGS", "count and agents are exclusive")
   if (parallel && !prompt) throw new BridgeError("BAD_ARGS", "count/agents need a prompt")
   // "Later": the daemon records what to create and creates it, engine and prompt, when the time comes.

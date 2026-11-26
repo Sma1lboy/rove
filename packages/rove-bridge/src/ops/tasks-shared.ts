@@ -10,11 +10,9 @@ import { dirname } from "node:path"
 import { repoIdOf } from "@sma1lboy/rove-daemon/repo-id"
 import { promptAttachmentsDir } from "@sma1lboy/rove/src/env.ts"
 import { autoMachineFor, requireMachine } from "@sma1lboy/rove/src/machines/forward.ts"
-import { listMachines } from "@sma1lboy/rove/src/machines/registry.ts"
 import { repoIdentity } from "@sma1lboy/rove/src/machines/repo-identity.ts"
 import { cloneDirFor, parseRepoRef } from "@sma1lboy/rove/src/machines/repo-ref.ts"
 import { sendFileToMachine } from "@sma1lboy/rove/src/machines/send-file.ts"
-import { isWindowsMachine } from "@sma1lboy/rove/src/machines/windows-remote.ts"
 import { getSavedRepos, resolveMainRepoRoot } from "@sma1lboy/rove/src/state/repos.ts"
 import { resolvePreferredVendor, setRepoLastActiveVendor } from "@sma1lboy/rove/src/state/vendor-prefs.ts"
 import {
@@ -90,11 +88,6 @@ export const taskOpDeps = {
   attachmentsDir: promptAttachmentsDir,
   /** Copies a stored attachment to a registered machine; resolves to its path there. */
   sendToMachine: (alias: string, path: string): Promise<string> => sendFileToMachine(requireMachine(alias), path),
-  /** A registered machine running native Windows, which `--workspace-on` cannot reach: its tasks run in its own daemon. */
-  isWindowsMachine: (alias: string): boolean => {
-    const entry = listMachines().find((m) => m.alias === alias)
-    return entry !== undefined && isWindowsMachine(entry)
-  },
 }
 
 /** `prompt` for an agent on `alias`: each stored attachment its `images[N]: /path` lines name is copied there and named by its path there. */
