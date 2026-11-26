@@ -114,8 +114,8 @@ test("a project header's move verbs name the neighbour it lands beside", async (
   expect(await frame()).toContain("Move up")
   expect(await frame()).not.toContain("Move down")
 
-  // New task → Move to top.
-  await step(frame, () => mockInput.typeText("j"))
+  // Nothing lit → New task → Move to top.
+  await step(frame, () => mockInput.typeText("jj"))
   await step(frame, () => mockInput.pressEnter())
   expect(moves).toEqual([["/repos/foxy", "/repos/rove", "before"]])
 
@@ -171,7 +171,7 @@ test("a parent's menu folds its children away", async () => {
   const { frame, mockMouse } = await renderComponent(tree({ tasks }), { width: 40, height: 24 })
   expect(await frame()).toContain("kid")
   await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT))
-  // Seldom used, so it sits one level down, as on the web.
+  // Seldom used, so it sits in the list that opens beside `More`, as on the web.
   await clickEntry(frame, mockMouse, "More")
   await clickEntry(frame, mockMouse, "Collapse children")
 
@@ -190,7 +190,8 @@ test("a worktree row's menu opens a new conversation in that task", async () => 
   await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT))
   expect(await frame()).toContain("New conversation")
 
-  // The highlight starts on it.
+  // A pointer-opened menu lights nothing until a key or the pointer picks: j lands on the first entry.
+  await step(frame, () => mockInput.typeText("j"))
   await step(frame, () => mockInput.pressEnter())
 
   expect(asked).toEqual([["a", "chat"]])
@@ -252,8 +253,8 @@ test("Set status fires the row's callback with that row's task", async () => {
   await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "row-b"), RIGHT))
   expect(await frame()).toContain("Set status")
 
-  // newChat, newShell, openEditor, rename, pin, setStatus: five steps from the highlight's start.
-  await step(frame, () => mockInput.typeText("jjjjj"))
+  // newChat, newShell, openEditor, rename, pin, setStatus: the sixth step from nothing lit.
+  await step(frame, () => mockInput.typeText("jjjjjj"))
   await step(frame, () => mockInput.pressEnter())
 
   expect(asked).toEqual(["b"])

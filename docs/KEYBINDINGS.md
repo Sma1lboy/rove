@@ -239,8 +239,8 @@ opens folded projects and task trees. It matches the conversation name, task
 title, repo or branch and keeps matching rows’ parents visible. Enter opens
 the highlighted task. Escape leaves search. Both restore the saved folds.
 
-Right-click any row for its context menu; `j`/`k` and `⏎` drive it, `⏎` on **Copy ›** or **More ›** opens that list (its first row goes back), and a press
-anywhere else, or `esc`, dismisses it. Common row actions also have direct
+Right-click any row for its context menu; `j`/`k` and `⏎` drive it, `⏎` on **Copy** or **More** opens its list beside the menu (the pointer resting there does too), `esc` closes that list first, and a press
+anywhere else, or `esc` again, dismisses the menu. Common row actions also have direct
 chords. A Task or tab row also offers **New conversation** (what `ctrl+t`
 does: a child task sharing the worktree) and **New shell** (a child task sharing the worktree whose `tab-1` is a login shell) for that worktree,
 both enter the Task first, exactly as pressing the chord there would.
