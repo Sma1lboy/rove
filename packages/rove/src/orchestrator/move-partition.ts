@@ -23,7 +23,12 @@ export async function holdProjectPlace(
   const later = tasks
     .slice(tasks.findIndex((t) => t.id === task.id) + 1)
     .filter((t) => projectOf(t) !== null && samePath(t.repo, task.repo))
-  if (later.length > 0) await store.moveBlock(later.map((t) => String(t.id)), String(task.id), "after")
+  if (later.length > 0)
+    await store.moveBlock(
+      later.map((t) => String(t.id)),
+      String(task.id),
+      "after",
+    )
 }
 
 /** The ids `task` reorders among: its repo's tasks with the same pin. */
