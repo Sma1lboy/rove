@@ -104,6 +104,39 @@ export const FILES_BINDINGS: readonly RoveBinding[] = [
     hint: { keys: "a" },
   },
   {
+    // PROPOSED, awaiting owner sign-off (docs/design/keybinding-decisions.md).
+    // One query over file names and file text. While active the bare-letter
+    // files chords de-register so they type into the query (same as sidebar `/`).
+    id: "files.search.enter",
+    scope: "files",
+    keys: ["/"],
+    category: "Files",
+    description: "Search file names and text",
+    hint: { keys: "/" },
+  },
+  {
+    // Only while searching; j/k reach the query. POSITIONAL: [down, up] pairs.
+    id: "files.search.nav",
+    scope: "files",
+    keys: ["down", "up"],
+    category: "Files",
+    description: "Move highlight in file search results",
+  },
+  {
+    id: "files.search.submit",
+    scope: "files",
+    keys: ["return"],
+    category: "Files",
+    description: "Open the highlighted search result",
+  },
+  {
+    id: "files.search.cancel",
+    scope: "files",
+    keys: ["escape"],
+    category: "Files",
+    description: "Close file search",
+  },
+  {
     // Sends the PR prompt into the engine pane. Prefix-only: a files-scoped
     // ctrl+p is unreachable from the sidebar (project filter) and the terminal
     // (passthrough). shift+p because "PR" reads uppercase. Registered by the

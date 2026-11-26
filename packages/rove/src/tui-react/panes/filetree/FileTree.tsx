@@ -23,7 +23,7 @@ import {
   statusFiles,
   statusFilesBranch,
 } from "../../../tui/panes/filetree/git"
-import { type FileTreeTab, fileTreeBindings } from "../../../tui/panes/filetree/keys-core"
+import { type FileTreeTab, fileSearchBindings, fileTreeBindings } from "../../../tui/panes/filetree/keys-core"
 import { openExternally } from "../../../tui/panes/filetree/open-external"
 import {
   type NavAction,
@@ -48,6 +48,7 @@ import { useLatest } from "../../lib/use-latest"
 import { useTerminalSize } from "../../lib/use-terminal-size"
 import { FileTreeBodyView } from "./body-view"
 import { FileTreeHeaderView } from "./header-view"
+import { useFileSearch } from "./use-file-search"
 
 export type FileTreeProps = {
   /** Active task's worktree path; `null` renders the "No worktree" placeholder. */
@@ -103,6 +104,13 @@ export function FileTree(props: FileTreeProps) {
   const onOpenFileRef = useLatest(props.onOpenFile)
   const fetchSeq = useRef(0)
   const remoteRef = useLatest(props.remote)
+  const search = useFileSearch({
+    focused: props.focused ?? true,
+    worktreePath: props.worktreePath,
+    remote: props.remote != null,
+    files: allFiles,
+  })
+  const searchExitRef = useLatest(search.exit)
 
   /** Fetch a tab's data. The other tab's cache is wiped only on worktree
    *  change, so tab switches are cache-first. */
@@ -161,6 +169,7 @@ export function FileTree(props: FileTreeProps) {
     setExpandedDirs(new Set<string>())
     setScope("working")
     setScopeManual(false)
+    searchExitRef.current()
     const controller = new AbortController()
     void refetch(tabRef.current, props.worktreePath, controller.signal)
     return () => controller.abort()
@@ -247,7 +256,9 @@ export function FileTree(props: FileTreeProps) {
   const prevRows = useRef<readonly Row[]>([])
   const rows = useMemo<readonly Row[]>(() => {
     const next: Row[] = []
-    if (tab === "all") {
+    if (search.filtering) {
+      next.push(...search.rows)
+    } else if (tab === "all") {
       if (tree != null) flattenTree(tree, expandedDirs, 0, next)
     } else if (tab === "changes") {
       // `expandedDirs` doubles as the Changes-tab untracked-dir expansion set —
@@ -258,7 +269,14 @@ export function FileTree(props: FileTreeProps) {
     const reconciled = reconcileRows(prevRows.current, next)
     prevRows.current = reconciled
     return reconciled
-  }, [tab, tree, expandedDirs, changes])
+  }, [tab, tree, expandedDirs, changes, search.filtering, search.rows])
+
+  // Every query edit puts the cursor on the best match.
+  useEffect(() => {
+    void search.query
+    void search.active
+    setCursorIndex(0)
+  }, [search.query, search.active])
 
   // Clamp a preserved cursor when a refresh shrinks the list.
   useEffect(() => {
@@ -296,7 +314,7 @@ export function FileTree(props: FileTreeProps) {
   )
 
   useBindings(() => ({
-    enabled: props.focused ?? true,
+    enabled: (props.focused ?? true) && !search.active,
     bindings: fileTreeBindings({
       moveDown: () => {
         if (rows.length === 0) return
@@ -347,18 +365,52 @@ export function FileTree(props: FileTreeProps) {
       openDiffAll: () => {
         props.onOpenDiff?.(".", scope === "branch" && base != null ? base : undefined)
       },
+      openSearch: () => {
+        // Names match the All listing; the Changes tab may not have read it yet.
+        const path = props.worktreePath
+        const remote = props.remote
+        if (allFiles == null && path != null) {
+          void (remote ? remoteFiles(remote.machine, remote.taskId) : listFiles(path))
+            .then((files) => {
+              if (pathRef.current === path) setAllFiles((prev) => prev ?? files)
+            })
+            .catch(() => {})
+        }
+        search.enter()
+      },
       expandOrDescend: () => applyNav(expandOrDescendAction(rows, cursorIndex)),
       collapseOrParent: () => applyNav(collapseOrParentAction(rows, cursorIndex)),
     }),
   }))
 
-  const loaded = (tab === "all" && allFiles != null) || (tab === "changes" && changes != null)
+  useBindings(() => ({
+    enabled: (props.focused ?? true) && search.active,
+    bindings: fileSearchBindings({
+      moveDown: () => {
+        if (rows.length === 0) return
+        setCursorIndex((i) => Math.min(i + 1, rows.length - 1))
+      },
+      moveUp: () => setCursorIndex((i) => Math.max(i - 1, 0)),
+      openCurrent: () => {
+        const row = rows[cursorIndex]
+        search.exit()
+        if (row) activateRow(row)
+      },
+      cancel: () => search.exit(),
+    }),
+  }))
+
+  const loaded = search.filtering
+    ? !search.textPending
+    : (tab === "all" && allFiles != null) || (tab === "changes" && changes != null)
   return (
     <box flexDirection="column" flexGrow={1} paddingLeft={0} paddingRight={0}>
       <FileTreeHeaderView
         tab={tab}
         scope={scope}
         base={base}
+        search={search.active ? search : undefined}
+        resultCount={rows.length}
         onSelectTab={setTab}
         onDiffAll={
           props.onOpenDiff
@@ -377,6 +429,7 @@ export function FileTree(props: FileTreeProps) {
         error={error}
         loaded={loaded}
         tab={tab}
+        searching={search.filtering}
       />
     </box>
   )

@@ -46,6 +46,8 @@ export type FileTreeController = {
   openDiff?: () => void
   /** PROPOSED `D` — the same, for the whole worktree (pathspec `.`). */
   openDiffAll?: () => void
+  /** PROPOSED `/` — open the file name + text search row. */
+  openSearch?: () => void
 }
 
 /**
@@ -81,5 +83,25 @@ export function fileTreeBindings(opts: FileTreeController): Binding[] {
     "files.scope": () => opts.toggleScope?.(),
     "files.diff": () => opts.openDiff?.(),
     "files.diffAll": () => opts.openDiffAll?.(),
+    "files.search.enter": () => opts.openSearch?.(),
+  })
+}
+
+/** Search-mode thunks; registered only while the `/` query row is open. */
+export type FileSearchController = {
+  moveDown: () => void
+  moveUp: () => void
+  openCurrent: () => void
+  cancel: () => void
+}
+
+export function fileSearchBindings(opts: FileSearchController): Binding[] {
+  return bindByIds({
+    "files.search.nav": (_evt, slot) => {
+      if ((slot ?? 0) % 2 === 0) opts.moveDown()
+      else opts.moveUp()
+    },
+    "files.search.submit": () => opts.openCurrent(),
+    "files.search.cancel": () => opts.cancel(),
   })
 }

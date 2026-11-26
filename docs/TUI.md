@@ -378,6 +378,14 @@ everything under it — `a` pastes an `@path` mention into the active
 engine without submitting it, and `o` sends audio, video, or PDF files to the
 system application. Remote files cannot use a local system viewer.
 
+**Search.** Press `/` in the Files pane and type. One query lists the files
+whose name contains it (a hit in the file's own name first), then the files
+whose text contains it, marked `≡`. Matching ignores case; text search reads
+the same tracked and untracked-but-not-ignored files the All tab lists and
+skips binaries. A task on another machine matches names only. `↑`/`↓` move,
+`enter` opens the highlighted file as it would from the tree, and `esc`
+closes the search and brings the tree back.
+
 The pane watches local worktrees for changes and also supports `r` for an
 explicit refresh. Set `ROVE_FILETREE_WATCH=0` to turn the watcher off and leave
 `r` as the only way to repopulate the list. See

@@ -8,6 +8,18 @@ reasoning is recorded so the next agent has the context.
 The user-facing vocabulary lives in [`../KEYBINDINGS.md`](../KEYBINDINGS.md).
 `F1` renders the live keymap and is authoritative over both.
 
+## PROPOSED: `/` searches file names and text in the Files pane
+
+**2026-11-26 — PROPOSED, owner sign-off pending.** With the Files pane
+focused, `/` opens a query row. One query lists the files whose name contains
+it, then the files whose text does (marked `≡`). `↑`/`↓` move, `enter` opens
+the highlighted file, `esc` closes the row and brings the tree back.
+
+**Why `/`.** It already means "search this list" in the sidebar and in `F1`
+help, and it was free in the Files scope. Files-scoped only: nothing global is
+added or moved. While the row is open the bare-letter Files keys stand down so
+they type into the query, as in the sidebar.
+
 ## PROPOSED: `ctrl+a` `tab` goes back to the previous task
 
 **2026-11-24 — PROPOSED, owner sign-off pending.** `ctrl+a` `tab` re-enters

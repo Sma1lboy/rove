@@ -17,7 +17,14 @@ import type { TreeNode } from "./tree"
 
 /** All tab: file/dir tree rows with `depth`. Changes tab: flat status rows with +/- stats. */
 export type Row =
-  | { kind: "file"; path: string; name: string; depth: number }
+  | {
+      kind: "file"
+      path: string
+      name: string
+      depth: number
+      /** Search results only: the file matched by its text, not its name. */
+      textMatch?: boolean
+    }
   | { kind: "dir"; path: string; name: string; depth: number; expanded: boolean; hasChildren: boolean }
   | {
       kind: "status"
@@ -106,7 +113,7 @@ function rowEquals(a: Row, b: Row): boolean {
   switch (a.kind) {
     case "file": {
       const o = b as Extract<Row, { kind: "file" }>
-      return a.name === o.name && a.depth === o.depth
+      return a.name === o.name && a.depth === o.depth && a.textMatch === o.textMatch
     }
     case "dir": {
       const o = b as Extract<Row, { kind: "dir" }>

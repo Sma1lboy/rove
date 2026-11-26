@@ -101,7 +101,14 @@ export function SectionHeader(props: {
 }
 
 /** The `/` query row for every list surface; suffix reads `matches/total`. */
-export function SidebarSearchInput(props: { query: string; matchCount: number; totalCount: number }) {
+export function SidebarSearchInput(props: {
+  query: string
+  matchCount: number
+  totalCount: number
+  placeholder?: string
+  /** Replaces the `matches/total` suffix. */
+  status?: string
+}) {
   const { theme } = useTheme()
   const t = useT()
   return (
@@ -118,12 +125,12 @@ export function SidebarSearchInput(props: { query: string; matchCount: number; t
       {props.query.length === 0 ? (
         <text fg={theme.textMuted} wrapMode="none">
           {" "}
-          {t("tasks.search.placeholder")}
+          {props.placeholder ?? t("tasks.search.placeholder")}
         </text>
       ) : (
         <text fg={theme.textMuted} wrapMode="none">
           {" "}
-          {props.matchCount}/{props.totalCount}
+          {props.status ?? `${props.matchCount}/${props.totalCount}`}
         </text>
       )}
     </box>
