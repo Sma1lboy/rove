@@ -86,7 +86,7 @@ function InlineEdit(props: {
     <input
       // biome-ignore lint/a11y/noAutofocus: opened by the click that asked for it
       autoFocus
-      className={`${SETTINGS_INPUT} min-w-0 flex-1 py-0.5 text-meta`}
+      className={`${SETTINGS_INPUT} min-w-0 flex-1 py-0 text-meta`}
       placeholder={props.placeholder}
       value={value}
       spellCheck={false}
