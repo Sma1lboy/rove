@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.9.304
+
+### Patch Changes
+
+- [#2191](https://github.com/Sma1lboy/rove/pull/2191) [`7eaff99`](https://github.com/Sma1lboy/rove/commit/7eaff997ffad48b23966a953b913d20633fe6e82) Zen mode is gone. The TUI has a `Files` button at the workspace's top right that shows or hides the Files pane, and `ctrl+a` `z` does the same; the pane is hidden until you open it and stays as you left it. The `ZEN` chip at the foot of the task list and the "Start in zen mode" setting are removed, in the TUI and on the web. On the web, `ctrl+a` `z` now toggles the side panel's Files column, as its top-right button does. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2203](https://github.com/Sma1lboy/rove/pull/2203) [`e67be33`](https://github.com/Sma1lboy/rove/commit/e67be33b397e98cb1f54c3d40469d6c4653537dc) A folder that became a git repository after Rove first saw it now joins its project in the sidebar within half a minute, instead of staying a separate group until the daemon restarted. A task whose agent runs here on another machine's files groups under that repo too, and when its project name repeats the header reads `win/FactoryWeb` rather than an id. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2202](https://github.com/Sma1lboy/rove/pull/2202) [`b6e51af`](https://github.com/Sma1lboy/rove/commit/b6e51af529b3362c7bb2a162b27b4984122f7d6a) A new session on another machine has a Worktree toggle too. Off, the agent still runs on this machine and works in that machine's checkout itself, on its current branch, so there is no Branch to pick; `add --machine X --no-worktree --repo <path there>` does the same from the CLI. Deleting such a task leaves the checkout as it is. A Windows checkout path also names its link directory after the folder now, not the whole path. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2197](https://github.com/Sma1lboy/rove/pull/2197) [`72af499`](https://github.com/Sma1lboy/rove/commit/72af4992838f94d2ad8df0bb9468c835ea54fe0a) A split pane where you started an engine by hand (say `codex` in the shell `tab-split` opened) is now named for that engine, on the web and in the TUI, instead of `shell`. The name comes from the same process check that names a tab's engine, and `rove api get-task` reports it as `liveVendor` on each split shell pane in `.tabs[].split`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2192](https://github.com/Sma1lboy/rove/pull/2192) [`35d82bc`](https://github.com/Sma1lboy/rove/commit/35d82bc2b85fa647ba801a377163a759136eade4) The TUI's `Files` button has its own row at the top of the workspace, at the right end, as on the web; with the tab strip on, it sits at the end of the tabs. It is no longer drawn on the pane's border. The top banners (Rove skill not installed, daemon on an older build, install gone) take one row instead of four: the label and what to do about it sit on the same line, without the full-width rule above them. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2194](https://github.com/Sma1lboy/rove/pull/2194) [`4a09a15`](https://github.com/Sma1lboy/rove/commit/4a09a150b80558164ecff94293fa4254f5c9cab0) The TUI's `Files` button sits in a row of its own across the top of the window, above the task list and the workspace, at the right end. The Files pane no longer ends in a line of key hints (`j/k move · h/l collapse · ⏎ open`); F1 lists those keys. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2198](https://github.com/Sma1lboy/rove/pull/2198) [`061a39f`](https://github.com/Sma1lboy/rove/commit/061a39f4b1982c6f3a725ad8725b1718f5d8480d) In the TUI's Files pane, the `All` and `Changes` tabs and the file rows respond to the pointer: an inactive tab brightens, and a row that is not under the cursor takes the same quiet wash as the task list's rows. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2195](https://github.com/Sma1lboy/rove/pull/2195) [`a7ef507`](https://github.com/Sma1lboy/rove/commit/a7ef50700cab1e66404560fed8b4e422af31c0ba) In the TUI, `Files`, `Settings` and the task list's fold chevron respond to the pointer like the rows above them: the label brightens and the control takes the same quiet wash. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2190](https://github.com/Sma1lboy/rove/pull/2190) [`7d20185`](https://github.com/Sma1lboy/rove/commit/7d20185ae11cfd54c0f27f588e7a877366d51c1c) - The two controls at the foot of the terminal UI's task list are quieter: zen reads as a lowercase `zen` in the accent, without the symbol or bold capitals, and the fold control is a single `‹` (`›` on the folded list). — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2199](https://github.com/Sma1lboy/rove/pull/2199) [`d3deac2`](https://github.com/Sma1lboy/rove/commit/d3deac2f7e5dd4db736610e22a05a87e56ba2f3c) On the web, Compare attempts shows the prompt the round was given and, in each attempt's column, the diff that attempt wrote, so two engines' code can be read side by side without leaving the page. Each column carries its engine's icon as the rail does, Keep this one is the column's main button, and the kept attempt is ringed in the accent. Columns stack on a phone. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2196](https://github.com/Sma1lboy/rove/pull/2196) [`45a403e`](https://github.com/Sma1lboy/rove/commit/45a403e8c6d687ae14f5993ddb4eaf4c0584a5f4) On the web, a file opened from Files is a tab in the side panel's Browser, with its path in the address bar, where it used to take a column of its own. Opening another file reuses the tab and Back returns to the previous one; press `+` first to keep two files open in separate tabs. Typing a path inside the task's directory (`/…` or `./…`) into the address bar opens that file. `rove api panel-show --view files --path FILE` opens the file the same way. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2200](https://github.com/Sma1lboy/rove/pull/2200) [`6104953`](https://github.com/Sma1lboy/rove/commit/6104953dcd1cf478871e9dc7eb5b00b9a3da89a4) `add --machine` to a Windows machine now runs the agent on this machine and works on the files there, as it does for any other machine. Commands run in Git for Windows' bash in the worktree; the ssh shell's PowerShell profile banner is dropped and exit codes come through. Before, the engine silently started on the Windows machine instead, where a local launcher such as `claudecpa` does not exist. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2201](https://github.com/Sma1lboy/rove/pull/2201) [`589f54b`](https://github.com/Sma1lboy/rove/commit/589f54b7cdfce21c5718a961cce21075bf309ec6) Starting a session on a Windows machine from the web now also keeps the agent on this machine, as `add --machine` does: the web bridge no longer sends every Windows start to that machine's own engine. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.303
 
 ### Patch Changes
