@@ -30,6 +30,7 @@ const TASK_FIELDS = [
   "effort",
   "pinned",
   "kept",
+  "connector",
   "require-report",
   "auto-fix-ci",
   "status",
@@ -175,6 +176,7 @@ async function updateTask(ctx: VerbContext): Promise<unknown> {
   const effort = ctx.args.str("effort")?.trim()
   const pinned = ctx.args.bool("pinned")
   const kept = ctx.args.bool("kept")
+  const connector = ctx.args.str("connector")?.trim()
   const requireReport = ctx.args.enumOf<"on" | "off">("require-report")
   const autoFixCi = ctx.args.enumOf<"on" | "off">("auto-fix-ci")
   const status = ctx.args.enumOf<TaskStatus>("status")
@@ -259,6 +261,11 @@ async function updateTask(ctx: VerbContext): Promise<unknown> {
   if (title !== undefined) await step(["title"], "task.rename", { title })
   if (pinned !== undefined) await step(["pinned"], "task.pin", { pinned })
   if (kept !== undefined) await step(["kept"], "task.keep", { kept })
+  if (connector !== undefined) {
+    await step(["connector"], "task.connector", {
+      connector: connector === "" || connector === "none" ? null : connector,
+    })
+  }
   if (requireReport !== undefined) {
     await step(["require-report"], "task.requireReport", { required: requireReport === "on" })
   }
@@ -363,6 +370,13 @@ export const EDIT_VERBS: readonly VerbSpec[] = [
         placeholder: "BOOL",
         description:
           "true marks the task as the attempt kept from a parallel round (`add --count` / `--agents`); false clears the mark. A flag only: it archives nothing, and other attempts of the round are untouched.",
+      },
+      {
+        name: "connector",
+        type: "string",
+        placeholder: "ID",
+        description:
+          "Marks the task as the session a chat connector answers through (`weixin`, a plugin's id such as `lark`): its project sorts below every other in the sidebar. `none` clears it.",
       },
       {
         name: "require-report",

@@ -1697,7 +1697,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 ## edit
 
 - `update [--task-id ID] [--title T] [--branch B] [--parent ID|none] [--project PATH] [--command CMD]
-  [--model M] [--effort LEVEL] [--pinned true|false] [--kept true|false] [--require-report on|off] [--auto-fix-ci on|off]
+  [--model M] [--effort LEVEL] [--pinned true|false] [--kept true|false] [--connector ID|none] [--require-report on|off] [--auto-fix-ci on|off]
   [--status S] [--report-branch B] [--report-pr N] [--report-summary TEXT]`: change any combination of a task's
   fields in one call. The flags are checked before anything is written,
   then applied in a fixed order: parent → project → branch → command → model/effort →
@@ -1771,6 +1771,10 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
     (`add --count` / `--agents`, same `groupId`), or clear the mark. A flag only:
     it archives nothing and leaves the round's other attempts alone. `list` and
     `get-task` report it as `kept`.
+  - `--connector ID|none`: mark the task as the session a chat connector answers
+    through (`weixin`, or a plugin's own id such as `lark`). Its project sorts
+    below every other project in the TUI sidebar and the web rail, whatever the
+    sort; `none` clears it. The WeChat connector marks its own session.
   - `--require-report on|off`: `on` makes every later `send` to the task arm
     a delivery, as `add --require-report` does; `off` restores plain sends.
   - `--auto-fix-ci on|off`: `on` lets the daemon fix failing CI unattended. When

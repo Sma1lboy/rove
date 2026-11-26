@@ -203,6 +203,13 @@ export class TaskEditor {
     await this.store.update(task.id, { pinned: next })
   }
 
+  /** Mark (or unmark) the chat connector a session answers for; `null` clears it. */
+  async setConnector(id: TaskId | string, connector: string | null): Promise<void> {
+    const task = this.requireTask(id)
+    if ((task.connector ?? null) === connector) return
+    await this.store.update(task.id, { connector: connector ?? undefined })
+  }
+
   /** Mark (or unmark) the attempt kept from a parallel round; an unmark stores no flag. */
   async setKept(id: TaskId | string, kept: boolean): Promise<void> {
     const task = this.requireTask(id)

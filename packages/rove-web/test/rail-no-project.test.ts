@@ -35,3 +35,22 @@ describe("the Ungrouped group", () => {
     expect(nav[0]).toMatchObject({ kind: "project", noProject: true })
   })
 })
+
+const connectorRows = [
+  task("wechat", { kind: "dir", repo: "/home/.rove/weixin/agent", connector: "weixin", rank: 0 }),
+  task("old", { repo: "/r/old", rank: 1 }),
+  task("shell", { kind: "dir", repo: "/Users/me", scratch: true, rank: 2 }),
+  task("new", { repo: "/r/new", rank: 3 }),
+]
+
+test.each([
+  ["default", ["project:/r/old", "project:/r/new"]],
+  ["name", ["project:/r/new", "project:/r/old"]],
+] as const)("a chat connector's project sinks below every other project (%s sort)", (sort, projects) => {
+  const { rows: nav } = railRows({ tasks: connectorRows, remote: [], machines: [], sort, query: "" })
+  expect(nav.filter((r) => r.kind === "project").map((r) => r.id)).toEqual([
+    "project:~scratch",
+    ...projects,
+    "project:/home/.rove/weixin/agent",
+  ])
+})

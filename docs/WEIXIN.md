@@ -55,7 +55,8 @@ Chat. Connecting and disconnecting stay in the terminal.
 
 Plain text is a conversation with your own agent, not a command. The first
 plain message creates it: a directory task in `~/.rove/weixin/agent`, pinned
-and shown as its own **WeChat** project in the sidebar, running your preferred
+and shown as its own project at the bottom of the sidebar, below every other
+project (it is marked `connector: weixin`), running your preferred
 engine (the one `rove .` would start). Its first message tells it who it is,
 that it has the rove skill and `rove api`, and to reply with `rove weixin send`
 (the bridge does not read its screen). Your words arrive prefixed `[WeChat]`.

@@ -421,7 +421,9 @@ export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGro
   const labelled = projects.map((project) => ({ ...project, label: labels.get(project) ?? project.label }))
   if (input.sort === "recent") labelled.sort((a, b) => newest(b) - newest(a))
   if (input.sort === "name") labelled.sort((a, b) => collator.compare(a.label, b.label))
-  // Ungrouped stays above every project, whatever the sort.
+  // A chat connector's session (WeChat, Lark) sinks below every project, whatever the sort; Ungrouped stays above them all.
+  const connector = (project: Project): number => Number(project.tasks.some((task) => task.connector !== undefined))
+  labelled.sort((a, b) => connector(a) - connector(b))
   labelled.sort((a, b) => Number(b.noProject === true) - Number(a.noProject === true))
   const rows = navRows(labelled, input.query, input.fold)
   const groups = parts

@@ -50,6 +50,7 @@ const FULL: DeepRequired<Omit<SerializedTask, "origin" | "repoId">> = {
   kind: "task",
   scratch: true,
   noProject: true,
+  connector: "weixin",
   routine: { automationId: "auto-1" },
   status: "in_review",
   pinned: true,

@@ -208,6 +208,8 @@ export interface DaemonTask {
   readonly scratch?: boolean
   /** Dir task a projectless routine made; sorts into the Ungrouped group with Scratch. */
   readonly noProject?: boolean
+  /** The chat connector this session answers for; its project sorts last. */
+  readonly connector?: string
   /** The one task a `persistentSession` automation re-delivers into; folded
    *  behind a count row in the sidebar. */
   readonly routine?: TaskRoutineLink
@@ -346,6 +348,7 @@ export interface DaemonOrchestrator extends CheckpointOrchestrator {
   setCommand(id: string, command: string, vendor?: VendorId): Promise<void>
   setPinned(id: string, pinned?: boolean): Promise<void>
   setKept(id: string, kept: boolean): Promise<void>
+  setConnector(id: string, connector: string | null): Promise<void>
   /** Notes (replace) and checklist ops, applied together; returns the task's notes and todos after. */
   updateNotes(
     id: string,

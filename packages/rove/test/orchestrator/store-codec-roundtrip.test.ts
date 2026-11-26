@@ -63,6 +63,7 @@ const FULL_TASK: DeepRequired<Omit<Task, "origin" | "repoId" | "workspace">> & {
   fromProjectRow: true,
   scratch: true,
   noProject: true,
+  connector: "weixin",
   routine: { automationId: "auto-1" },
   status: "in_review",
   pinned: true,

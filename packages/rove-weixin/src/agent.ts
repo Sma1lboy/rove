@@ -63,7 +63,20 @@ export function createAgentControl(deps: AgentControlDeps): AgentControl {
     return agent
   }
 
+  let marked: string | null = null
+
+  /** Once per task per process: also marks a task bound before the mark existed, or rebound by `rove weixin agent`. */
   async function resolveTask(): Promise<{ taskId: string; existing?: WeixinAgentState }> {
+    const resolved = await findTask()
+    if (marked !== resolved.taskId) {
+      // An older daemon has no `task.connector`: the agent still answers, its project just keeps its place.
+      await deps.ops.markConnector(resolved.taskId).catch(() => {})
+      marked = resolved.taskId
+    }
+    return resolved
+  }
+
+  async function findTask(): Promise<{ taskId: string; existing?: WeixinAgentState }> {
     const override = deps.override()
     const stored = deps.read()
     if (override) {

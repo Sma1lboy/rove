@@ -94,6 +94,10 @@ export function createRoveOps(client: DaemonRpc): RoveOps {
       return { taskId }
     },
 
+    markConnector: async (taskId) => {
+      await client.request("task.connector", { taskId, connector: "weixin" })
+    },
+
     newConversation: async (taskId, prompt) => {
       const result = await invokeVerb("add", ["--parent", taskId, "--no-worktree", "--prompt", prompt], { client })
       const tab = stringField(result, "session")?.split("::")[1]
