@@ -5,7 +5,7 @@
 |                              |
 | [ rove ]                     |
 |                              |
-| New task                + n  |
+| New task                  +  |
 | /bravo█ 1/2                  |
 |                              |
 | Kanban                       |

@@ -5,7 +5,7 @@
 |                              |
 | [ rove ]                     |
 |                              |
-| New task                + n  |
+| New task                  +  |
 | Kanban                       |
 | Routines                     |
 | Issues                       |

@@ -5,7 +5,7 @@
 |                              |
 | [ rove ]                     |
 |                              |
-| New task                + n  |
+| New task                  +  |
 | /types█ 2/3                  |
 |                              |
 | Kanban                       |

@@ -2,7 +2,6 @@
 /** Shared sidebar chrome (brand header, create row, search, nav rail, section header, zen chip), so every sidebar surface renders the same thing. */
 
 import { MouseButton, TextAttributes } from "@opentui/core"
-import { legendCap } from "../../../tui/lib/help-groups"
 import type { SidebarNav } from "../../../tui/panes/sidebar/nav-core"
 import { ShortcutRevealBadge } from "../../component/shortcut-reveal"
 import { useTheme } from "../../context/theme"
@@ -139,13 +138,10 @@ export function SidebarBrandHeader(props: {
   )
 }
 
-/** New-task row. The keycap comes from the live keymap, so a rebound or
- *  disabled `task.new` never shows stale instructions; the gap keeps `+ n`
- *  from reading as a literal `+n` chord. */
+/** New-task row, ending in the web's `+`. Its key shows with the other shortcut badges. */
 export function SidebarCreateAction(props: { onAddTask?: () => void }) {
   const { theme, transparentBackground } = useTheme()
   const t = useT()
-  const keycap = legendCap("task.new")
   if (!props.onAddTask) return null
 
   return (
@@ -169,11 +165,6 @@ export function SidebarCreateAction(props: { onAddTask?: () => void }) {
         <text fg={theme.primary} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
           +
         </text>
-        {keycap ? (
-          <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none" flexShrink={0}>
-            {keycap}
-          </text>
-        ) : null}
         <ShortcutRevealBadge bindingId="task.new" />
       </box>
     </box>

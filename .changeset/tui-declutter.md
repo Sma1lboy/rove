@@ -10,3 +10,4 @@
 - A task on another machine no longer wears a cloud, which most terminal fonts lack and drew off the row's line. Where it runs (`on win · v0.9.301`) shows while the mouse is over the row, and a machine that is offline says so on the row.
 - A pull request shows in the task list as the word `pr`, amber for a conflict, red for failing checks, green for passing, in place of `≠` / `✗` / `✓`.
 - A quiet task draws no mark, so only tasks that are working or waiting on you stand out; a row's state sits at the very end of the row. The header has a blank line under it.
+- The New task row ends in a plain `+`; its key no longer sits beside it.
