@@ -156,6 +156,17 @@ select{
 
 /* centred hero: title, lede, agent marquee, install, then the film ------- */
 .hero-c{display:flex;flex-direction:column;align-items:center;gap:56px;padding:64px 0 8px;text-align:center}
+/* A field of dots behind the headline, fading out downward; a second field in the accent shows
+   only near the pointer (dots.js sets --mx/--my), and drifts by itself where there is none. */
+.dotfield{position:relative;isolation:isolate}
+.dotfield::before,.dotfield::after{content:"";position:absolute;z-index:-1;inset:-24px -8vw auto;height:460px;pointer-events:none;background-size:16px 16px;background-position:50% 0}
+.dotfield::before{background-image:radial-gradient(var(--rule) 1.2px,transparent 1.6px);-webkit-mask-image:radial-gradient(ellipse 60% 100% at 50% 0,#000 20%,transparent 75%);mask-image:radial-gradient(ellipse 60% 100% at 50% 0,#000 20%,transparent 75%)}
+.dotfield::after{background-image:radial-gradient(var(--accent) 1.2px,transparent 1.6px);-webkit-mask-image:radial-gradient(circle 150px at var(--mx,50%) var(--my,-200px),#000,transparent);mask-image:radial-gradient(circle 150px at var(--mx,50%) var(--my,-200px),#000,transparent)}
+@media (hover:none){.dotfield::after{animation:dots-drift 14s ease-in-out infinite alternate}}
+@keyframes dots-drift{from{--mx:20%;--my:80px}to{--mx:80%;--my:220px}}
+@property --mx{syntax:"<length-percentage>";inherits:true;initial-value:50%}
+@property --my{syntax:"<length-percentage>";inherits:true;initial-value:-200px}
+@media (prefers-reduced-motion:reduce){.glyph b{transition:none;animation:none!important}.dotfield::after{animation:none}}
 .hero-c .hero-l,.hero-c .hero-r{width:100%}
 .hero-c .hero-r{max-width:1240px}
 .scenes{margin:0 auto 20px;max-width:100%;overflow-x:auto;white-space:nowrap}
@@ -193,7 +204,13 @@ section{position:relative}
 .can{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0 32px;margin:0;counter-reset:can}
 .can>div{counter-increment:can;border-top:var(--hair) solid var(--rule);padding:16px 0 24px}
 .can dt{font-weight:600;margin:0 0 4px}
-.can dt::before{content:counter(can,decimal-leading-zero);font-family:var(--font-mono);font-size:var(--fs-s);color:var(--accent-text);margin-right:10px}
+/* A feature's mark: 25 pixels, the lit ones drawn in order once the grid is on screen (dots.js). */
+.glyph{display:grid;grid-template-columns:repeat(5,5px);grid-auto-rows:5px;gap:2px;width:max-content;margin:0 0 14px}
+.glyph.is-page{grid-template-columns:repeat(5,7px);grid-auto-rows:7px;gap:3px;margin:0 0 20px}
+.glyph b{background:var(--rule);border-radius:1px;transition:background .18s var(--ease)}
+.can.is-in .glyph .on,.glyph.is-in .on{background:var(--accent);transition-delay:calc(var(--i) * 45ms + 120ms)}
+.can>div:hover .glyph b{animation:glyph-ripple 1.2s ease-in-out infinite;animation-delay:calc(var(--d) * 110ms)}
+@keyframes glyph-ripple{50%{opacity:.35}}
 .can dd{margin:0;color:var(--ink-2);max-width:40ch}
 .txt-col p{margin:0 0 16px;max-width:56ch}
 .txt-col p:last-child{margin-bottom:0}
