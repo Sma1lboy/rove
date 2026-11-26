@@ -66,7 +66,10 @@ export function remotePathKey(path: string): string {
  * names a directory by its folder, and by its last two segments when another project shares that folder name.
  */
 export function remoteWorkspaceDir(machine: string, path: string, name: string, home = homeDir()): string {
-  const id = createHash("sha256").update(`${machine}\0${remotePathKey(path)}`).digest("hex").slice(0, 12)
+  const id = createHash("sha256")
+    .update(`${machine}\0${remotePathKey(path)}`)
+    .digest("hex")
+    .slice(0, 12)
   return join(remoteWorkspacesRoot(home), id, machine, basename(name.replaceAll("\\", "/")) || "workspace")
 }
 

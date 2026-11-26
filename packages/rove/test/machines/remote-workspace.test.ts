@@ -119,7 +119,9 @@ describe("a workspace on another machine", () => {
     const worktree = scratch()
     const live = { ...ws, path: worktree }
     const shared = await createRemoteLink({ ws: live, repo: "/x", sshArgv: LOCAL_SSH, engineNotes: [] }, home)
-    await expect(createRemoteLink({ ws: live, repo: "/x", sshArgv: ["false"], engineNotes: [] }, home)).rejects.toThrow()
+    await expect(
+      createRemoteLink({ ws: live, repo: "/x", sshArgv: ["false"], engineNotes: [] }, home),
+    ).rejects.toThrow()
     expect(readRemoteWorkspace(shared)).toEqual(live)
   })
 
