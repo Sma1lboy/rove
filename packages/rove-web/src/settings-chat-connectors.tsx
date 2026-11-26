@@ -1,6 +1,7 @@
 /**
  * Settings → Connectors → Chat: the apps Rove can be messaged from. Each card says what the app talks as, opens
  * its agent's session, edits who may message it (and the Lark agent's tone), and connects or disconnects it.
+ * The details are a quiet term/value table with text links, as an engine's details are; a field shows only while edited.
  */
 
 import { useEffect, useState } from "react"
@@ -11,16 +12,19 @@ import { closeDialog, toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import {
   BENTO,
-  BENTO_HEAD,
+  CARD_HEAD,
+  CARD_HEAD_TITLE,
   CONFIRM_INLINE,
+  ENG_FACTS,
+  ENG_FACT_TERM,
   SETTINGS_ACTIONS,
   SETTINGS_GROUP_HINT,
   SETTINGS_GROUP_LABEL,
   SETTINGS_INPUT,
   SETTINGS_NAME,
   SETTINGS_NOTE,
-  SETTINGS_VALUE,
   bentoCardClass,
+  engFactClass,
 } from "./ui/settings.ts"
 
 const c = (key: string, params?: Record<string, string | number>): string => t(`settings.connectors.${key}`, params)
@@ -61,13 +65,45 @@ function ChatMark({ id }: { id: string }) {
   )
 }
 
-/** One labelled line under a card's head: the label in the name column, the control after it. */
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+/** A fact in a card's table: the term in the subtle column, its value and any links after it. */
+function Fact({ term, children }: { term: string; children: React.ReactNode }) {
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 pl-10 w-narrow:pl-0">
-      <span className="w-28 flex-none whitespace-nowrap text-meta text-muted">{label}</span>
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">{children}</div>
-    </div>
+    <>
+      <dt className={ENG_FACT_TERM}>{term}</dt>
+      <dd className={`${engFactClass(false)} flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1`}>{children}</dd>
+    </>
+  )
+}
+
+/** A one-line field that replaces a value while it is edited: Enter commits, Esc or leaving it drops the edit. */
+function InlineEdit(props: {
+  initial: string
+  placeholder?: string
+  onCommit: (value: string) => void
+  onDone: () => void
+}) {
+  const [value, setValue] = useState(props.initial)
+  return (
+    <input
+      // biome-ignore lint/a11y/noAutofocus: opened by the click that asked for it
+      autoFocus
+      className={`${SETTINGS_INPUT} min-w-0 flex-1 py-0 text-meta`}
+      placeholder={props.placeholder}
+      value={value}
+      spellCheck={false}
+      onChange={(e) => setValue(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.nativeEvent.isComposing) return
+        if (e.key === "Enter") {
+          props.onCommit(value)
+          props.onDone()
+        } else if (e.key === "Escape") {
+          e.stopPropagation()
+          props.onDone()
+        }
+      }}
+      onBlur={props.onDone}
+    />
   )
 }
 
@@ -77,9 +113,7 @@ function ChatCard({ model, row, reload }: { model: AppModel; row: ChatStatus; re
   const [busy, setBusy] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [next, setNext] = useState<string | null>(null)
-  const [adding, setAdding] = useState("")
-  const [tone, setTone] = useState(row.tone ?? "")
-  useEffect(() => setTone(row.tone ?? ""), [row.tone])
+  const [editing, setEditing] = useState<"allow" | "tone" | null>(null)
 
   const run = async (op: string, args: Record<string, unknown> = {}) => {
     setBusy(true)
@@ -99,15 +133,6 @@ function ChatCard({ model, row, reload }: { model: AppModel; row: ChatStatus; re
   }
   const allow = row.allow ?? []
   const setAllow = (ids: readonly string[]) => void run("connectors.chatUpdate", { allow: ids })
-  const add = () => {
-    const id = adding.trim()
-    if (!id) return
-    setAdding("")
-    setAllow([...allow, id])
-  }
-  const saveTone = () => {
-    if (tone.trim() !== (row.tone ?? "")) void run("connectors.chatUpdate", { tone })
-  }
   const openAgent = (taskId: string) => {
     closeDialog()
     model.select(taskId)
@@ -115,8 +140,8 @@ function ChatCard({ model, row, reload }: { model: AppModel; row: ChatStatus; re
 
   return (
     <div className={bentoCardClass(true)}>
-      <div className={`${BENTO_HEAD} w-narrow:flex-wrap`}>
-        <span className="flex min-w-0 flex-1 items-center gap-3 w-narrow:basis-full">
+      <div className={CARD_HEAD}>
+        <span className={CARD_HEAD_TITLE}>
           <ChatMark id={row.id} />
           <span className="flex min-w-0 flex-col gap-0.5">
             <span className={SETTINGS_NAME}>{c(`${meta.copy}Name`)}</span>
@@ -124,30 +149,15 @@ function ChatCard({ model, row, reload }: { model: AppModel; row: ChatStatus; re
           </span>
         </span>
         {row.connected ? (
-          <>
-            {row.account && (
-              <span
-                className={SETTINGS_VALUE}
-                title={row.since ? c("chatSince", { date: row.since.slice(0, 10) }) : undefined}
-              >
-                {row.account}
-              </span>
-            )}
-            {row.agentTaskId && (
-              <Button variant="action" onClick={() => openAgent(row.agentTaskId as string)}>
-                {c("chatOpen")}
-              </Button>
-            )}
-            <Button variant="action" disabled={busy} onClick={() => setConfirming(true)}>
-              {c("disconnect")}
-            </Button>
-          </>
-        ) : row.connectable ? (
-          <Button variant="filled" disabled={busy} onClick={() => void connect()}>
-            {busy ? c("chatConnecting") : c("connect")}
+          <Button variant="action" disabled={busy} onClick={() => setConfirming(true)}>
+            {c("disconnect")}
           </Button>
         ) : (
-          <span className={SETTINGS_VALUE}>{c("chatNotConnected")}</span>
+          row.connectable && (
+            <Button variant="filled" disabled={busy} onClick={() => void connect()}>
+              {busy ? c("chatConnecting") : c("connect")}
+            </Button>
+          )
         )}
       </div>
       {!row.connected && (next ?? !row.connectable) && (
@@ -156,13 +166,25 @@ function ChatCard({ model, row, reload }: { model: AppModel; row: ChatStatus; re
         </p>
       )}
       {row.connected && (
-        <>
-          <Field label={c("chatAllowed")}>
-            <span className="text-meta text-ink">
-              {row.owner ? c("chatYouNamed", { name: row.owner }) : c("chatYou")}
-            </span>
+        <dl className={`${ENG_FACTS} pl-10 w-narrow:pl-0`}>
+          {row.account && (
+            <Fact term={c("chatBot")}>
+              <span title={row.since ? c("chatSince", { date: row.since.slice(0, 10) }) : undefined}>
+                {row.account}
+              </span>
+            </Fact>
+          )}
+          <Fact term={c("chatAgent")}>
+            {row.agentTaskId ? (
+              <Button onClick={() => openAgent(row.agentTaskId as string)}>{c("chatOpen")}</Button>
+            ) : (
+              <span className="text-muted">{c("chatAgentNotYet")}</span>
+            )}
+          </Fact>
+          <Fact term={c("chatAllowed")}>
+            <span>{row.owner ? c("chatYouNamed", { name: row.owner }) : c("chatYou")}</span>
             {allow.map((id) => (
-              <span key={id} className="inline-flex min-w-0 items-center gap-1 font-mono text-meta text-muted">
+              <span key={id} className="inline-flex min-w-0 items-baseline gap-1 text-muted">
                 <span className="max-w-40 truncate" title={id}>
                   {id}
                 </span>
@@ -177,32 +199,38 @@ function ChatCard({ model, row, reload }: { model: AppModel; row: ChatStatus; re
                 </Button>
               </span>
             ))}
-            <input
-              className={`${SETTINGS_INPUT} w-44 py-0.5 text-meta`}
-              placeholder={c("chatAllowAdd")}
-              value={adding}
-              spellCheck={false}
-              onChange={(e) => setAdding(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.nativeEvent.isComposing) add()
-              }}
-              onBlur={add}
-            />
-          </Field>
-          {row.tone !== undefined && (
-            <Field label={c("chatTone")}>
-              <input
-                className={`${SETTINGS_INPUT} min-w-0 flex-1 py-0.5 text-meta`}
-                value={tone}
-                onChange={(e) => setTone(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.nativeEvent.isComposing) e.currentTarget.blur()
-                }}
-                onBlur={saveTone}
+            {editing === "allow" ? (
+              <InlineEdit
+                initial=""
+                placeholder={c("chatAllowAdd")}
+                onCommit={(id) => id.trim() && setAllow([...allow, id.trim()])}
+                onDone={() => setEditing(null)}
               />
-            </Field>
+            ) : (
+              <Button disabled={busy} onClick={() => setEditing("allow")}>
+                {c("chatAdd")}
+              </Button>
+            )}
+          </Fact>
+          {row.tone !== undefined && (
+            <Fact term={c("chatTone")}>
+              {editing === "tone" ? (
+                <InlineEdit
+                  initial={row.tone}
+                  onCommit={(tone) => tone.trim() !== row.tone && void run("connectors.chatUpdate", { tone })}
+                  onDone={() => setEditing(null)}
+                />
+              ) : (
+                <>
+                  <span className="min-w-0">{row.tone}</span>
+                  <Button disabled={busy} onClick={() => setEditing("tone")}>
+                    {c("chatEdit")}
+                  </Button>
+                </>
+              )}
+            </Fact>
           )}
-        </>
+        </dl>
       )}
       {confirming && (
         <div className={CONFIRM_INLINE}>
