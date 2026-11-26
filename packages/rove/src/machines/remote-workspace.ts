@@ -13,6 +13,13 @@ import { REMOTE_WORKSPACE_FILE } from "@sma1lboy/rove-daemon/repo-id"
 import { homeDir } from "../env.ts"
 import { runAsync } from "../lib/run-async.ts"
 import { quoteShellArg, quoteShellArgv } from "../lib/shell-command.ts"
+import {
+  SSH_SHELL_IS_CMD,
+  SSH_SHELL_PROBE,
+  isWindowsPath,
+  windowsRshScript,
+  windowsRxScript,
+} from "./windows-remote.ts"
 
 export { REMOTE_WORKSPACE_FILE }
 
@@ -79,8 +86,7 @@ const SED_QUOTE = `sed "s/'/'\\\\\\\\''/g"`
 /**
  * `rx '<command>'`: the command runs in the worktree through that machine's login shell (its PATH), with
  * stdin, output and the exit code passed through.
- * ponytail: POSIX machines only, and a PATH set only in an interactive rc is not seen; a Windows machine
- * needs its own transport.
+ * ponytail: a PATH set only in an interactive rc is not seen. A Windows machine has its own (`windowsRxScript`).
  */
 export function rxScript(sshArgv: readonly string[], path: string): string {
   return [
@@ -160,9 +166,17 @@ export async function createRemoteLink(input: LinkInput, home = homeDir()): Prom
   const dir = remoteWorkspaceDir(ws.machine, ws.taskId, input.repo, home)
   mkdirSync(remoteBinDir(dir), { recursive: true })
   writeFileSync(join(dir, REMOTE_WORKSPACE_FILE), `${JSON.stringify(ws, null, 2)}\n`)
-  writeFileSync(rxPath(dir), rxScript(input.sshArgv, ws.path))
+  if (isWindowsPath(ws.path)) {
+    const shell = await runAsync(input.sshArgv[0] ?? "ssh", [...input.sshArgv.slice(1), SSH_SHELL_PROBE], {
+      timeoutMs: 30_000,
+    })
+    writeFileSync(rxPath(dir), windowsRxScript(input.sshArgv, ws.path, SSH_SHELL_IS_CMD.test(shell.stdout)))
+    writeFileSync(rshPath(dir), windowsRshScript(input.sshArgv, ws.path))
+  } else {
+    writeFileSync(rxPath(dir), rxScript(input.sshArgv, ws.path))
+    writeFileSync(rshPath(dir), rshScript(input.sshArgv, ws.path))
+  }
   chmodSync(rxPath(dir), 0o755)
-  writeFileSync(rshPath(dir), rshScript(input.sshArgv, ws.path))
   chmodSync(rshPath(dir), 0o755)
   const probe = await runAsync(
     rxPath(dir),

@@ -302,8 +302,8 @@ rove api add --machine deck --repo sma1lboy/rove --prompt "fix the flaky test"
 
 A request this cannot serve runs in that machine's daemon, engine and all, as
 with `--engine-there`: `--count`, `--agents`, `--fork`, `--tier`,
-`--worktree-only`, `--workspace`, `--no-worktree`, `--isolate-in`, several
-`--repo`, and any `add` to a Windows machine.
+`--worktree-only`, `--workspace`, `--no-worktree`, `--isolate-in`, and several
+`--repo`.
 
 In the TUI and web sidebars the task sits under its project, grouped by
 repo id like any other task of that repo.
@@ -317,6 +317,12 @@ session's PATH and runs the command in the worktree through that machine's
 login shell, over the same ssh connection Rove keeps to it. `AGENTS.md` in the
 link directory tells the agent so, and carries the project's own `AGENTS.md`
 or `CLAUDE.md` from the worktree, read once when the task is created.
+
+On a Windows machine `rx` runs the command in Git for Windows' bash, the shell
+Rove already runs there, so the agent writes the same POSIX commands. Each call
+pays for the ssh session's PowerShell profile; whatever it prints is dropped.
+A command longer than about 8 KB is refused: send large content on stdin, as
+the workspace tools do.
 
 Claude Code needs no `rx`: its Bash tool runs there as it is (a hook rewrites
 each command), and it reads and changes files with `read`, `write` and `edit`
@@ -334,7 +340,7 @@ they do for a task that lives there (`worktree-files`, `worktree-diff` and the
 other `worktree-*` verbs take this task's id and run there). A new shell tab
 opens a login shell in the worktree on that machine.
 
-Not there yet: a Windows machine, and a machine without Rove.
+Not there yet: a machine without Rove.
 
 ## Working on a remote task
 
