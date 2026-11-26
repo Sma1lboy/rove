@@ -79,7 +79,7 @@ internal fun runRowMenuItem(model: AppModel, row: TaskRow, item: RowMenuItem, on
         RowMenuItem.Remove -> onRequest(RowRequest.Confirm(row, "delete"))
         RowMenuItem.Land -> model.action { checkLand(model, row.id, row.machine != null)?.let { onRequest(RowRequest.Confirm(row, "land", it.preflight)) } }
         RowMenuItem.MoveToProject -> {
-            val targets = TaskRowMenuLogic.moveTargets(row, model.tasks.value.tasks)
+            val targets = TaskRowMenuLogic.moveTargets(row, model.repos.value)
             if (targets.isEmpty()) model.error.value = model.getApplication<Application>().getString(R.string.rowmenu_move_empty)
             else onRequest(RowRequest.Move(row, targets))
         }

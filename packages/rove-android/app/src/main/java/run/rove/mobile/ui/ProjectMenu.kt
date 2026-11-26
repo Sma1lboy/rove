@@ -15,6 +15,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import run.rove.mobile.R
 import run.rove.mobile.data.forgetProject
+import run.rove.mobile.domain.ProjectMoves
 
 // iOS `ProjectActionItems` (Detail/TaskActionHost.swift) and the forget-project flow of TaskActionsDeleteSheets.swift.
 
@@ -26,11 +27,8 @@ internal sealed interface ProjectRequest {
     data class ConfirmForget(override val repo: String) : ProjectRequest
 }
 
-/**
- * Projects order by their `main` task's stored order, so moving that task moves the project; a project without
- * a main row ([mainTaskId] null) has nothing to move.
- */
-@Composable internal fun ProjectMenu(mainTaskId: String?, onMove: (taskId: String, direction: String) -> Unit,
+/** The order items move the whole project with `project.move`; a move with no project to land beside is left out. */
+@Composable internal fun ProjectMenu(moves: ProjectMoves, onMove: (repo: String, target: String, side: String) -> Unit,
                                      onRequest: (ProjectRequest) -> Unit, repo: String) {
     var open by remember { mutableStateOf(false) }
     val label = stringResource(R.string.listheader_project_actions)
@@ -39,11 +37,11 @@ internal sealed interface ProjectRequest {
             Text("···", color = Rove.c.muted, style = Rove.mono(14, FontWeight.Bold))
         }
         RoveMenu(open, { open = false }) {
-            if (mainTaskId != null) {
+            if (moves.above != null || moves.below != null) {
                 Kicker(stringResource(R.string.listheader_order_section), Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
-                RoveMenuItem(stringResource(R.string.listheader_move_up)) { open = false; onMove(mainTaskId, "up") }
-                RoveMenuItem(stringResource(R.string.listheader_move_down)) { open = false; onMove(mainTaskId, "down") }
-                RoveMenuItem(stringResource(R.string.listheader_move_top)) { open = false; onMove(mainTaskId, "top") }
+                moves.above?.let { RoveMenuItem(stringResource(R.string.listheader_move_up)) { open = false; onMove(repo, it, "before") } }
+                moves.below?.let { RoveMenuItem(stringResource(R.string.listheader_move_down)) { open = false; onMove(repo, it, "after") } }
+                moves.top?.let { RoveMenuItem(stringResource(R.string.listheader_move_top)) { open = false; onMove(repo, it, "before") } }
             }
             RoveMenuItem(stringResource(R.string.listheader_field_notes_item)) { open = false; onRequest(ProjectRequest.Notes(repo)) }
             RoveMenuItem(stringResource(R.string.listheader_remove_project), tint = Rove.c.error) {

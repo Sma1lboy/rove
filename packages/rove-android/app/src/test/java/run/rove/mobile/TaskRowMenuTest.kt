@@ -50,8 +50,15 @@ class TaskRowMenuTest {
         assertEquals(false, MoveToProject in TaskRowMenuLogic.items(TaskRow("t", extraRepoCount = 1)))
     }
     @Test fun moveTargetsLeaveOutTheTasksOwnProjectAndSpellOutSharedNames() {
-        val mains = listOf("/a/one", "/a/app", "/b/app").map { TaskRow(it, kind = "main", repo = it) } + TaskRow("x", kind = "main", repo = "/c/far", machine = TaskMachine("mini"))
-        assertEquals(listOf(MoveTarget("/a/app", "/a/app"), MoveTarget("/b/app", "/b/app")), TaskRowMenuLogic.moveTargets(TaskRow("t", repo = "/a/one"), mains))
-        assertEquals(listOf(MoveTarget("/a/one", "one"), MoveTarget("/b/app", "app")), TaskRowMenuLogic.moveTargets(TaskRow("t", repo = "/a/app"), mains))
+        val saved = listOf("/a/one", "/a/app", "/b/app", "ssh://mini/c/far")
+        assertEquals(listOf(MoveTarget("/a/app", "/a/app"), MoveTarget("/b/app", "/b/app")), TaskRowMenuLogic.moveTargets(TaskRow("t", repo = "/a/one"), saved))
+        assertEquals(listOf(MoveTarget("/a/one", "one"), MoveTarget("/b/app", "app")), TaskRowMenuLogic.moveTargets(TaskRow("t", repo = "/a/app"), saved))
+    }
+    @Test fun aProjectMovesBesideThisMachinesProjectsInListOrder() {
+        val sections = listOf(TaskSection("/a", listOf(TaskRow("1", repo = "/a"))), TaskSection("ssh://mini/far", listOf(TaskRow("2", machine = TaskMachine("mini")))),
+            TaskSection("/b", listOf(TaskRow("3", repo = "/b"))), TaskSection("/c", listOf(TaskRow("4", repo = "/c"))))
+        assertEquals(ProjectMoves(null, null, "/b"), ProjectMoves.of("/a", sections))
+        assertEquals(ProjectMoves("/a", "/b", null), ProjectMoves.of("/c", sections))
+        assertEquals(ProjectMoves(null, null, null), ProjectMoves.of("ssh://mini/far", sections))
     }
 }

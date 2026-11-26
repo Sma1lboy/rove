@@ -8,9 +8,9 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import run.rove.mobile.domain.FieldNote
 import run.rove.mobile.domain.NotesResult
 
-/** `direction`: `up`, `down` or `top` (a project moves by moving its `main` task). */
-suspend fun RoveRepository.moveTask(taskId: String, direction: String) {
-    bridge.request("task.move", args("taskId" to taskId, "direction" to direction))
+/** The whole project lands before or after [target], another of this machine's projects. */
+suspend fun RoveRepository.moveProject(repo: String, target: String, side: String) {
+    bridge.request("project.move", args("repo" to repo, "target" to target, "side" to side))
 }
 
 suspend fun RoveRepository.forgetProject(repo: String) { bridge.request("project.forget", args("repo" to repo)) }
