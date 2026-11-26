@@ -156,8 +156,8 @@ select{
 
 /* centred hero: title, lede, agent marquee, install, then the film ------- */
 .hero-c{display:flex;flex-direction:column;align-items:center;gap:56px;padding:64px 0 8px;text-align:center}
-/* The hero's backdrop (celestial.js): a picture rebuilt from numbered cells, larger than the page. The
-   canvas is the full width of the window and as tall as the hero down to the demo, and clips what runs past it. */
+/* The hero's backdrop (celestial.js): one picture, half as it is and half in numbered cells, larger than
+   the page. The canvas is the full width of the window and as tall as the hero down to the demo, and clips what runs past it. */
 .hero-c{position:relative;isolation:isolate}
 .sky{position:absolute;z-index:-1;top:-60px;left:50%;width:100vw;height:920px;translate:-50% 0;pointer-events:none;font-family:var(--font-mono)}
 /* A field of dots behind the headline, fading out downward; a second field in the accent shows
