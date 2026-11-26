@@ -328,6 +328,12 @@ export class TaskDeletionCoordinator {
     }
   }
 
+  /** The same move for a task that stays (archived on its own). */
+  async promoteChildrenOf(id: TaskId | string): Promise<void> {
+    const task = this.store.get(id)
+    if (task) await this.promoteChildren(task)
+  }
+
   /** Children of a deleted task keep running as children of its own parent (or top level). A child of
    *  an Ungrouped (scratch / no-project) parent stays Ungrouped instead of surfacing as a project. */
   private async promoteChildren(deleted: Task): Promise<void> {

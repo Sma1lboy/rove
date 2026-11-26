@@ -189,6 +189,7 @@ async function setArchived(ctx: VerbContext, archived: boolean): Promise<unknown
     taskId,
     archived,
     force: archived && (ctx.args.bool("force") ?? false),
+    ...(archived && ctx.args.bool("promote-children") ? { promote: true } : {}),
   })
   return { taskId, archived, ids: res.archived }
 }

@@ -85,6 +85,17 @@ test("an archived row leaves when clicked, stays gone through a push read before
   expect(ids()).toEqual(["C", "D"])
 })
 
+test("archiving a row alone leaves its children listed, one level up", async () => {
+  const { archiveEdit } = await import("../src/optimistic.ts")
+  const edited = archiveEdit(
+    "A",
+    true,
+    true,
+  )({ tasks: [{ id: "A" }, { id: "B", parentTaskId: "A" }], attention: [] } as never)
+  expect(edited.tasks.map((task) => [task.id, task.parentTaskId])).toEqual([["B", undefined]])
+  expect(edited.archived?.map((task) => task.id)).toEqual(["A"])
+})
+
 test("a closed tab leaves the strip on the click, and comes back if the close was refused", async () => {
   const { model, calls, timers } = modelHarness()
   calls[0].resolve({ tasks: [{ id: "A" }], attention: [] })

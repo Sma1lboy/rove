@@ -2131,7 +2131,7 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   every removed id as `deleted`. A directory goes only once no remaining task
   points at it, so deleting a shared child never touches its parent's files,
   and every removed worktree still passes the dirty gate.
-- `archive --task-id ID [--force]` / `unarchive --task-id ID`: hide a task
+- `archive --task-id ID [--force] [--promote-children]` / `unarchive --task-id ID`: hide a task
   from the sidebar, the web rail and the default `list`, or bring it back.
   Archiving also ends the task's sessions: every engine and shell process
   of the task is stopped. The worktree, branch, transcript and each tab's
@@ -2145,6 +2145,10 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   recursively) together, and return `{ taskId, archived, ids }`, where `ids`
   is every task they changed. A child unarchived on its own while its parent
   stays archived shows as a top-level row until the parent comes back.
+  `archive --promote-children` archives the task alone: its children are
+  re-parented to its own parent (or top level) and keep running. The
+  sidebar and the web rail ask which of the two you want when the task has
+  children.
   `archive` is refused with `TASK_BUSY` while an engine in the subtree is
   `running` or `permission_needed`; `--force` stops it and archives anyway. The sidebar and the rail do not list
   archived tasks. To bring one back from the interface, open the command

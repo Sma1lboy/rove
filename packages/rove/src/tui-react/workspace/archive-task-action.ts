@@ -1,8 +1,8 @@
 /**
- * Row menu "Archive" / "Unarchive". Archive hides the row and its children
- * and ends their idle sessions, so it needs no confirm, except when the daemon refuses with
- * TASK_BUSY (an engine in the subtree is working or waiting on you): then the
- * user is asked once and "Archive anyway" retries with `force`. React-free for
+ * Row menu "Archive" / "Unarchive". Archive hides the row and ends its idle
+ * sessions, so it asks only two things: what happens to its children (move up
+ * or go with it), and, when the daemon refuses with TASK_BUSY (an engine is
+ * working or waiting on you), whether to retry with `force`. React-free for
  * unit tests, like `sync-base-action.ts`.
  */
 
@@ -16,6 +16,9 @@ export interface ArchiveTaskDeps {
   readonly orchestrator: Pick<RemoteOrchestrator, "archiveTask">
   /** The "archive anyway" question; resolves true to retry with force. */
   readonly confirmBusy: (title: string) => Promise<boolean>
+  /** Asked when the task has listed children; `undefined` aborts. Absent → they are archived with it. */
+  readonly pickChildren?: (title: string, count: number) => Promise<"promote" | "cascade" | undefined>
+  readonly tasks?: () => readonly Pick<Task, "parentTaskId" | "archived" | "worktreeOnly">[]
   readonly notifyInfo: (message: string) => void
   readonly notifyError: (message: string) => void
   readonly t: (key: string, params?: Record<string, string | number>) => string
@@ -29,8 +32,19 @@ export async function archiveTaskAction(
   const { t } = deps
   const archive = task.archived !== true
   const title = task.title
+  const children = archive
+    ? (deps.tasks?.() ?? []).filter(
+        (row) => row.parentTaskId === task.id && row.archived !== true && row.worktreeOnly !== true,
+      )
+    : []
+  let promote = false
+  if (children.length > 0 && deps.pickChildren) {
+    const choice = await deps.pickChildren(title, children.length)
+    if (choice === undefined) return false
+    promote = choice === "promote"
+  }
   const run = async (force: boolean): Promise<boolean> => {
-    await deps.orchestrator.archiveTask(task.id, archive, force)
+    await deps.orchestrator.archiveTask(task.id, archive, force, promote)
     deps.notifyInfo(archive ? t("tasks.archive.done", { title }) : t("tasks.archive.restored", { title }))
     return true
   }

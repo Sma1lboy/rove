@@ -266,6 +266,7 @@ async function archive(args: Args, ctx: OpContext): Promise<unknown> {
   const archived = bool(args, "archived")
   const argv = [flag("task-id", id)]
   if (archived && optBool(args, "force")) argv.push(flag("force", "true"))
+  if (archived && optBool(args, "promote")) argv.push(flag("promote-children", "true"))
   const res = await ctx.api.verb<{ ids?: string[] }>(archived ? "archive" : "unarchive", argv)
   return { ids: res.ids ?? [] }
 }
@@ -345,7 +346,7 @@ export const TASK_WRITE_OPS: OpTable = {
   "task.resumeQuota": write("rpc task.resumeQuota", (a, c) =>
     done(c.api.rpc("task.resumeQuota", { taskId: taskId(a) })),
   ),
-  "task.archive": write("verb archive|unarchive --task-id [--force]", archive),
+  "task.archive": write("verb archive|unarchive --task-id [--force] [--promote-children]", archive),
   "task.move": write("rpc task.move", (a, c) =>
     done(c.api.rpc("task.move", { taskId: taskId(a), direction: oneOf(a, "direction", DIRECTIONS) })),
   ),

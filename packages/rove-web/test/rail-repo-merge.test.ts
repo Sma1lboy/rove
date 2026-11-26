@@ -115,3 +115,8 @@ describe("one project per repo across machines", () => {
     ])
   })
 })
+
+test("a Windows machine's project is headed by its folder name", async () => {
+  const { projectLabel } = await import("../src/rail-labels.ts")
+  expect(projectLabel("C:\\Users\\me\\Downloads\\FactoryWeb", [])).toBe("FactoryWeb")
+})

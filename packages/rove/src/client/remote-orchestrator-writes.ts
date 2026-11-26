@@ -142,14 +142,14 @@ export async function setPinnedOp(client: RoveDaemonClient, id: TaskId | string,
   await client.request("task.pin", { taskId: String(id), pinned })
 }
 
-/** Hides or restores the task and its descendants; refused while an engine is busy unless `force`. */
+/** Hides or restores the task and its descendants (`promote`: the task alone, its children move up); refused while an engine is busy unless `force`. */
 export async function archiveTaskOp(
   client: RoveDaemonClient,
   id: TaskId | string,
   archived: boolean,
-  force = false,
+  flags: { force?: boolean | undefined; promote?: boolean | undefined } = {},
 ): Promise<void> {
-  await client.request("task.archive", { taskId: String(id), archived, force })
+  await client.request("task.archive", { taskId: String(id), archived, ...flags })
 }
 
 export async function moveTaskOp(client: RoveDaemonClient, id: TaskId | string, delta: -1 | 1): Promise<void> {
