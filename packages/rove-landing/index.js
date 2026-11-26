@@ -2,29 +2,33 @@
 // (commands, branch names, TUI chrome) deliberately stays English.
 var ROVE_I18N = (function () {
   var zh = {
-    'meta.title': 'Rove：各种编程 agent 都能用的 agent workspace',
-    'meta.desc': 'Rove 是终端里的 agent workspace，Claude Code、Codex、Copilot、Gemini CLI、OpenCode 等编程 agent 都能放进来一起跑。Claude Code 额度用完了，可以把任务换给 Codex 或别的 agent 接着干；agent 之间直接派活，关掉终端它们也继续干活。',
-    'hero.title': 'Agent workspace<span class="thin">，<span class="nb">各种编程 agent 都能用。</span></span>',
-    'hero.sub': 'Rove 把你已经在用的编程 agent 放进同一个终端一起跑。一个额度用完了，把任务换给另一个接着干；它们之间直接对话，不用你来回传话。',
-    'why.h': '为什么要不止一个 agent？',
-    'why.p2': '<b>额度用完了？换一个 agent。</b>Claude Code 干到一半额度没了，把任务换给 Codex 或者别的 agent。它读一遍前一个做了什么，从那里接着干。',
-    'why.p3': '<b>agent 之间直接对话。</b>没有 Rove 时，每个 agent 各占一个窗口，你在中间复制粘贴。在这里，一个 agent 把活交给另一个，回报自己送回来。',
-    'hero.engines': '支持', 'hero.enginesMore': '还有十几个 →',
-    'hero.allInstall': '全部安装方式：next 和 nightly 版本、桌面和手机应用 ↓',
+    'meta.title': 'Rove：一个终端工作区，跑所有编程 agent',
+    'meta.desc': '终端里的编程 agent 工作区。在同一个窗口并行运行 Claude Code、Codex、Gemini CLI、Copilot 等工具，每个任务独立占用一个 git worktree。支持限额换手、agent 互派任务、远程机器与定时运行，断开终端任务不中断。',
+    'hero.title': '一个终端工作区<span class="thin">，<span class="nb">跑所有编程 agent。</span></span>',
+    'hero.sub': '在 Rove 里把多个 agent 编排得更好。一个 agent 把活拆开，分给 Claude Code、Codex、Gemini 等，各自在独立的 git worktree 里干。谁的额度用完就换一个接着做，断开终端它们也继续跑。',
+    'hero.engines': '直接调用你本机已装的 CLI',
+    'scene.dispatch': 'agent 互派任务', 'scene.preview': '边写边预览',
+    'scene.previewAlt': 'Rove 桌面端动画演示：Claude Code 起了开发服务器，一段一段写出夏季促销页；旁边的 Browser 面板里，标题、三件商品、邮箱订阅框依次出现，最后样式写完，整页换成成品的样子。',
+    'scene.swap': '限额换 agent', 'scene.machines': '远程机器', 'scene.routine': '定时任务', 'scene.split': '分屏评审',
+    'scene.routineAlt': 'Rove 终端动画演示：定时任务页列出三条计划任务；早上 9 点「Dependency check」自动触发，查出三个过期依赖、跑过 212 项测试、提交 PR #412，结果进入收件箱。',
+    'scene.dispatchAlt': 'Rove 终端动画演示：Claude Code 把「收藏夹」功能拆成两个子任务，接口交给另一个 Claude Code，页面交给 Codex。两个子任务并排同时干活，各用各的终端界面；然后回到最初的 agent，两边回报结果，它把前后端接起来。',
+    'scene.swapAlt': 'Rove 终端动画演示：Claude Code 干到一半触及用量上限，任务切给 Codex；Codex 读取此前的对话记录，在同一分支上完成剩余步骤。',
+    'scene.machinesAlt': 'Rove 动画演示：新建任务时的机器菜单里有本机、两台已登记的机器和 E2B 沙箱。第一个任务派到 gpu-box，训练命令在那边跑，结果回报到这里。第二个任务选了 E2B 沙箱：沙箱启动，跑完端到端测试，回报有一个用例失败。',
+    'scene.splitAlt': 'Rove 终端动画演示：同一任务左右分屏，左侧 Claude Code 修改优惠券上限逻辑，右侧 Codex 审查 diff 并指出 NaN 和分位舍入两个问题，左侧随即一并修复。',
     'get.h': '获取 Rove',
     'get.tui': '终端版',
     'get.stable': '稳定版',
-    'get.stableD': '测试过的正式版本。第一次用就装这个。',
+    'get.stableD': '完整测试通过的正式版，推荐首选。',
     'get.next': 'Next',
-    'get.nextD': '每个改动合并后几分钟你就能装到，测试跑得少一些。',
+    'get.nextD': '每次合并到 main 后几分钟发布，仅跑快速检查。',
     'get.nightly': 'Nightly',
-    'get.nightlyD': '每天早上出一版，全部测试通过后才发。',
-    'get.switch': '已经装了？用 <span class="mono">rove update --next</span>、<span class="mono">--nightly</span> 或 <span class="mono">--stable</span> 切换。Windows 上在 PowerShell 里用 npm 那条命令。',
+    'get.nightlyD': '每日构建，全部测试通过后发布。',
+    'get.switch': '已安装可通过 <span class="mono">rove update --next</span>、<span class="mono">--nightly</span> 或 <span class="mono">--stable</span> 切换渠道；Windows 请在 PowerShell 中运行 npm 命令。',
     'get.apps': '应用',
-    'get.desktop': '<b>桌面版。</b>Rove 有自己的窗口，不用一直开着终端。先装上面的终端版，桌面版要靠它运行。',
-    'get.desktopNote': 'Windows 安装包还没有签名，第一次运行时系统会拦一下：点「更多信息」，再点「仍要运行」。',
+    'get.desktop': '<b>桌面应用。</b>独立窗口加原生通知，直连同一个本地 daemon。请先安装上面的终端版。',
+    'get.desktopNote': 'Windows 安装包暂未签名，首次运行请点击「更多信息」→「仍要运行」。',
     'get.dlMac': 'macOS（Apple 芯片）', 'get.dlIntel': 'macOS（Intel）',
-    'get.phone': '<b>手机：iOS 和 Android。</b>在手机上看输出、回答问题、开任务。还没上架应用商店：<a href="https://docs.rove.run/rove/ios">从源码构建</a>，或者现在就在手机浏览器里打开 <span class="mono">rove --web</span>。',
+    'get.phone': '<b>iOS 与 Android。</b>在手机上查看输出、回复确认、新建任务。暂未上架应用商店，可<a href="https://docs.rove.run/rove/ios">从源码构建</a>，或直接在手机浏览器打开 <span class="mono">rove --web</span>。',
     'hero.alts': '或者用',
     'copy.short': '复制',
     'copy.hint': '点击复制', 'copy.done': '✓ 已复制',
@@ -33,50 +37,47 @@ var ROVE_I18N = (function () {
     'sheet.nav.docs': '文档', 'sheet.nav.plugins': '插件',
     'sheet.nav.themes': '主题', 'sheet.nav.changelog': '更新日志', 'sheet.nav.github': 'GitHub',
 
-    's1.h': '装上以后长这样',
-    's1.bar': 'Rove：3 个仓库，4 个任务，后台运行',
-    's1.tasks': '任务',
-    's1.p1': '左边是你的任务。点一个，中间是它的 agent 在干活，旁边是 shell 和改过的文件。',
-    's1.p2': '侧栏里的每个状态标记，<a href="https://docs.rove.run">文档</a>里都有说明。',
-
-    'can.h': '装上以后能做什么',
-    'can.1': '新建任务', 'can.1d': '打一句话。Rove 给这个 agent 单独一份代码去改，不会碰到别的任务。',
-    'can.2': '任选 agent', 'can.2d': 'Claude Code、Codex、Copilot、Gemini CLI，还有十几个。每个任务挑一个。',
-    'can.3': '互相派活', 'can.3d': '一个 agent 可以把一部分活交给另一个，做完把结果拿回来。',
-    'can.4': '关了也在跑', 'can.4d': '关掉终端或者断网，只要电脑没休眠，agent 就继续干活；回来时一切都还在。',
-    'can.5': '收件箱', 'can.5d': '谁做完了、谁在等你回话，都在一个列表里。',
-    'can.6': '开 PR', 'can.6d': '任务做完，不用离开 Rove 就能提 PR。',
-    'can.7': '例行任务', 'can.7d': '给一句话定个时间，比如每天早上 9 点，Rove 到点自己开任务。',
-    'can.8': '网页和手机', 'can.8d': '同一批会话，在浏览器和手机上都能打开。',
-    'can.more': 'Rove 用的是你已经装好的 agent，所以先装一个并登录，比如 Claude Code 或 Codex。每项功能怎么用，见<a href="https://docs.rove.run">文档</a>。',
+    'can.h': '为并行开发而设计',
+    'can.1': '独立 worktree', 'can.1d': '每个任务自带独立的 git worktree 和分支。重构、修 bug、做评审同时跑，互不覆盖。',
+    'can.2': '限额换手', 'can.2d': '任务做到一半额度见底，直接切给另一个 agent。它会读完此前的对话，在同一分支上继续干。',
+    'can.3': 'agent 互派任务', 'can.3d': '一个 agent 可以直接拆分子任务交给其他 agent，完成后回报自动回到它的标签页。',
+    'can.4': '后台持久会话', 'can.4d': '关掉终端、断掉 SSH，托管 PTY 会话依然在宿主机运行；随时重连，现场都在。',
+    'can.5': '远程机器', 'can.5d': '通过 SSH 接入另一台开发机或 GPU 服务器。任务统一显示在侧栏，文件和命令留在远端执行。',
+    'can.6': '定时任务', 'can.6d': '给提示词配好 cron 计划。到点自动拉起真实任务，醒来就能看 diff、接着追问。',
+    'can.7': '收件箱与 PR', 'can.7d': '跑完的和等你确认的汇总在一个列表里，直接看 diff 批注，满意就地开 PR。',
+    'can.8': '桌面、网页与手机', 'can.8d': '同一批运行中的会话，在桌面窗口、浏览器（rove --web）或手机上都能随时接入。',
 
     'footer.plugins': '插件', 'footer.themesLink': '主题', 'footer.changelog': '更新日志', 'footer.docs': '文档', 'footer.keybindings': '快捷键',
     'ga.copyright': '© 2026 Sma1lboy。MIT 许可。',
   };
   var en = {
-    'meta.title': 'Rove: the agent workspace for every coding agent',
-    'meta.desc': 'Rove is an agent workspace for your terminal. It runs Claude Code, Codex, Copilot, Gemini CLI, OpenCode and other coding agents side by side. When one runs out of quota, you switch the task to another and it continues. Agents hand work to each other directly, and they keep working after you close the terminal.',
-    'hero.title': 'The agent workspace <span class="thin">for <span class="nb">every coding agent.</span></span>',
-    'hero.sub': 'Rove runs the coding agents you already have, side by side in one terminal. When one runs out of quota, switch the task to another and it continues. They also talk to each other directly, so you stop passing messages between them.',
-    'why.h': 'Why more than one agent?',
-    'why.p2': '<b>Out of quota? Switch to another agent.</b> When Claude Code hits its usage limit halfway through a task, switch the task to Codex or any other agent. It reads what the first one did and continues from there.',
-    'why.p3': '<b>Agents talk to each other directly.</b> Without Rove, each agent sits in its own window and you copy text between them. Here one agent hands a task to another and gets the report back by itself.',
-    'hero.engines': 'Works with', 'hero.enginesMore': 'and a dozen more →',
-    'hero.allInstall': 'All install options: next and nightly builds, desktop and phone apps ↓',
+    'meta.title': 'Rove: One workspace for every coding agent',
+    'meta.desc': 'An agent workspace for your terminal. Run Claude Code, Codex, Gemini CLI, Copilot, and more side by side, each task in its own git worktree. Switch agents on quota limits, delegate across agents, schedule routines, and disconnect without stopping work.',
+    'hero.title': 'One workspace <span class="thin">for <span class="nb">every coding agent.</span></span>',
+    'hero.sub': 'Better multi-agent orchestration, in your terminal. One agent splits a job and hands the parts to Claude Code, Codex, Gemini and others, each in its own git worktree. Switch agents when one hits its limit, and leave them working after you disconnect.',
+    'hero.engines': 'Runs the CLIs already on your PATH',
+    'scene.dispatch': 'Delegate to agents', 'scene.preview': 'Live preview',
+    'scene.previewAlt': 'Animated Rove desktop demo: Claude Code starts a dev server and writes a summer sale page piece by piece. In the Browser panel beside it the headline, three products and an email signup appear one after another, and when the stylesheet lands the page takes its finished look.',
+    'scene.swap': 'Switch on quota', 'scene.machines': 'Remote machines', 'scene.routine': 'Scheduled runs', 'scene.split': 'Side-by-side review',
+    'scene.routineAlt': 'Animated Rove terminal demo: the Routines view lists three scheduled prompts; at 09:00 the dependency check fires automatically, updates three outdated packages, runs 212 tests, opens PR #412, and notifies the inbox.',
+    'scene.dispatchAlt': 'Animated Rove terminal demo: Claude Code splits a wishlist feature into two child tasks, the API on another Claude Code and the page on Codex. The two children run side by side, each in its own terminal, then the view returns to the first agent as both report back and it wires the two together.',
+    'scene.swapAlt': 'Animated Rove terminal demo: Claude Code hits its usage limit mid-task; the task switches to Codex, which reads the prior transcript and finishes the remaining steps on the same branch.',
+    'scene.machinesAlt': 'Animated Rove demo: the machine menu of a new task lists this Mac, two registered machines and an E2B sandbox. The first task is sent to gpu-box, where the training commands run and the score comes back. A second task picks the E2B sandbox, which starts, runs the end-to-end suite and reports one failing test.',
+    'scene.splitAlt': 'Animated Rove terminal demo: one task split into two panes; Claude Code clamps coupon percentages on the left, Codex reviews the diff on the right and flags NaN input and cent rounding, and Claude Code fixes both.',
     'get.h': 'Get Rove',
     'get.tui': 'Terminal app',
     'get.stable': 'Stable',
-    'get.stableD': 'The tested release. Install this one if you are new.',
+    'get.stableD': 'Full test suite passed. Start here.',
     'get.next': 'Next',
-    'get.nextD': 'You get every change a few minutes after it is merged. It has had fewer tests.',
+    'get.nextD': 'Published minutes after each merge to main; fast checks only.',
     'get.nightly': 'Nightly',
-    'get.nightlyD': 'You get one new build each morning, after all the tests have passed.',
-    'get.switch': 'Already installed? Switch with <span class="mono">rove update --next</span>, <span class="mono">--nightly</span> or <span class="mono">--stable</span>. On Windows use the npm command in PowerShell.',
+    'get.nightlyD': 'Daily build after the full suite goes green.',
+    'get.switch': 'Already installed? Switch channels with <span class="mono">rove update --next</span>, <span class="mono">--nightly</span>, or <span class="mono">--stable</span>. On Windows, run the npm command in PowerShell.',
     'get.apps': 'Apps',
-    'get.desktop': '<b>Desktop app.</b> Rove in its own window, so you don\'t need to keep a terminal open. Install the terminal app above first, because the desktop app runs it for you.',
-    'get.desktopNote': 'The Windows installer is not signed yet, so Windows asks once: choose More info, then Run anyway.',
+    'get.desktop': '<b>Desktop app.</b> Dedicated window with native notifications, backed by the same local daemon. Install the CLI above first.',
+    'get.desktopNote': 'Windows builds are unsigned for now: click More info → Run anyway on first launch.',
     'get.dlMac': 'macOS, Apple silicon', 'get.dlIntel': 'macOS, Intel',
-    'get.phone': '<b>Phone: iOS and Android.</b> Read output, answer questions and start tasks from your phone. Not in the app stores yet: <a href="https://docs.rove.run/rove/ios">build it from source</a>, or open <span class="mono">rove --web</span> in your phone browser today.',
+    'get.phone': '<b>iOS &amp; Android.</b> Check output, unblock agents, and start tasks from your phone. Not in app stores yet: <a href="https://docs.rove.run/rove/ios">build from source</a>, or open <span class="mono">rove --web</span> in your mobile browser.',
     'hero.alts': 'or with',
     'copy.short': 'copy',
     'copy.hint': 'click to copy', 'copy.done': '✓ copied',
@@ -85,22 +86,15 @@ var ROVE_I18N = (function () {
     'sheet.nav.docs': 'Docs', 'sheet.nav.plugins': 'Plugins',
     'sheet.nav.themes': 'Themes', 'sheet.nav.changelog': 'Changelog', 'sheet.nav.github': 'GitHub',
 
-    's1.h': 'What it looks like',
-    's1.bar': 'Rove: 3 repos, 4 tasks, running in the background',
-    's1.tasks': 'Tasks',
-    's1.p1': 'Your tasks are on the left. Pick one to see its agent working in the middle, with a shell and the changed files beside it.',
-    's1.p2': 'Every status mark in the sidebar is listed in the <a href="https://docs.rove.run">docs</a>.',
-
-    'can.h': 'What you can do',
-    'can.1': 'New task', 'can.1d': 'Type one sentence. Rove gives the agent its own copy of your code to work on, so nothing else gets touched.',
-    'can.2': 'Any agent', 'can.2d': 'Claude Code, Codex, Copilot, Gemini CLI and a dozen more. Pick one per task.',
-    'can.3': 'Hand off', 'can.3d': 'An agent can pass part of the job to another agent and get the result back.',
-    'can.4': 'Keeps running', 'can.4d': 'Close the terminal or lose your connection. The agents keep working while the computer is awake, and everything is there when you come back.',
-    'can.5': 'Inbox', 'can.5d': 'One list of the agents that finished and the ones waiting for your answer.',
-    'can.6': 'Pull request', 'can.6d': 'Turn a finished task into a pull request without leaving Rove.',
-    'can.7': 'Routines', 'can.7d': 'Give a prompt a schedule, like every morning at 9, and Rove starts the task for you.',
-    'can.8': 'Web and phone', 'can.8d': 'Open the same sessions in a browser or on your phone.',
-    'can.more': 'Rove runs agents you already have, so install and sign in to one first, such as Claude Code or Codex. How each feature works is in the <a href="https://docs.rove.run">docs</a>.',
+    'can.h': 'Built for parallel work',
+    'can.1': 'Isolated worktrees', 'can.1d': 'Every task gets its own git worktree and branch. Run a refactor, a fix, and a review in parallel without colliding.',
+    'can.2': 'Quota handoff', 'can.2d': 'Hit a usage limit mid-task? Switch the task to another agent. It reads the transcript and picks up on the same branch.',
+    'can.3': 'Agent dispatch', 'can.3d': 'One agent spawns child tasks on other agents, delegates pieces of the job, and gets reports back in its own tab.',
+    'can.4': 'Detached sessions', 'can.4d': 'Close the terminal or drop SSH. Hosted PTY sessions stay alive on the host until you reattach.',
+    'can.5': 'Remote machines', 'can.5d': 'Add a workstation or GPU box over SSH. Its tasks live in the same sidebar while files and commands stay there.',
+    'can.6': 'Routines', 'can.6d': 'Put a prompt on a cron schedule. Rove starts a real task on time so you can inspect the diff and follow up.',
+    'can.7': 'Inbox & PRs', 'can.7d': 'See finished runs and blocked agents in one queue, review diffs inline, and open a PR from the task.',
+    'can.8': 'Web, desktop & phone', 'can.8d': 'Attach to the same live sessions from a desktop window, any browser (rove --web), or your phone.',
 
     'footer.plugins': 'Plugins', 'footer.themesLink': 'Themes', 'footer.changelog': 'Changelog', 'footer.docs': 'Docs', 'footer.keybindings': 'Keybindings',
     'ga.copyright': '© 2026 Sma1lboy. MIT license.',
@@ -116,6 +110,15 @@ var ROVE_I18N = (function () {
 
   function t(key) { return dicts[lang][key] || dicts.en[key] || ''; }
 
+  // demo.js announces the scene it plays; its description is the window's accessible name.
+  var scene = 'dispatch';
+  function showScene(name) {
+    scene = name;
+    var wrap = document.getElementById('demoWrap');
+    if (wrap) wrap.setAttribute('aria-label', t('scene.' + name + 'Alt'));
+  }
+  document.addEventListener('rove:scene', function (e) { showScene(e.detail); });
+
   function apply() {
     document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
     document.title = t('meta.title');
@@ -129,12 +132,7 @@ var ROVE_I18N = (function () {
       var v = t(el.getAttribute('data-i18n-html'));
       if (v) el.innerHTML = v;
     });
-    var hero = document.getElementById('heroVideo');
-    var heroSrc = '/assets/hero-typed-' + lang + '.mp4';
-    if (hero && hero.getAttribute('src') !== heroSrc) {
-      hero.poster = '/assets/hero-typed-' + lang + '-poster.webp';
-      hero.src = heroSrc;
-    }
+    showScene(scene);
     document.dispatchEvent(new Event('rove:language'));
     var label = document.getElementById('copyLabel');
     if (label) label.textContent = t('copy.hint');
@@ -151,10 +149,21 @@ var ROVE_I18N = (function () {
     toggleBtn.addEventListener('click', function () {
       lang = lang === 'zh' ? 'en' : 'zh';
       try { localStorage.setItem('rove_lang', lang); } catch (e) {}
-      apply();
+      // The browser cross-fades the two languages; without the API, or with reduced motion, it just swaps.
+      if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.startViewTransition(apply);
+      else apply();
     });
   }
   apply(); // first paint: honors ?lang= / stored pref / browser language
+
+  // The marquee loops over two copies of the list; with reduced motion it stays one wrapped row.
+  var mq = document.getElementById('engineMarquee');
+  if (mq && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    var copy = mq.firstElementChild.cloneNode(true);
+    copy.setAttribute('aria-hidden', 'true');
+    mq.appendChild(copy);
+    mq.classList.add('is-on');
+  }
 
   return { t: t };
 })();

@@ -1,0 +1,172 @@
+/* The hero's drawn app window (demo.js fills it): the Rove web client. The sidebar is the
+   web UI; each pane is a terminal showing its agent's own TUI, so only panes are monospace.
+   It keeps the app's dark colours on either page theme, because it stands for the app, not
+   the page. Every size is in em off one container-relative font size, so it scales as a picture. */
+
+.demo-wrap{container-type:inline-size;aspect-ratio:16/10;background:#141413;overflow:hidden}
+.demo{
+  --d-ink:#EAE7DF; --d-ink-2:#A9A39A; --d-ink-3:#6E6C66; --d-line:#3A3835; --d-rule:#75706A; --d-fill:#1D1D1B;
+  --d-accent:#CC785C; --d-ok:#9ACA86; --d-warn:#E8C96B;
+  display:flex;height:100%;font-size:1.1cqw;line-height:1.5;color:var(--d-ink);text-align:left;
+  font-family:var(--font-prose);transition:opacity .3s var(--ease)
+}
+.demo.is-out{opacity:0}
+.d-ic{width:1.15em;height:1.15em;flex:none;fill:currentColor}
+.d-ic-claude{color:var(--d-accent)}
+.d-input i{font-style:normal}
+.d-input i::after{content:"";display:inline-block;width:.55em;height:1.05em;margin-left:.1em;vertical-align:-.18em;background:var(--d-accent);animation:d-blink 1s steps(1) infinite}
+
+/* sidebar */
+.d-side{flex:none;width:17em;display:flex;flex-direction:column;padding:1em .5em .8em}
+.d-brand{display:flex;justify-content:space-between;align-items:baseline;padding:0 .7em .9em;font-family:var(--font-mono)}
+.d-brand b{font-weight:600}
+.d-brand em{font-style:normal;color:var(--d-accent)}
+.d-brand span{color:var(--d-accent);font-size:.9em}
+.d-brand i{font-style:normal}
+.d-nav{display:flex;justify-content:space-between;padding:.2em .7em;color:var(--d-ink-2)}
+.d-nav span{color:var(--d-accent)}
+.d-nav.is-on{color:var(--d-ink)}
+.d-rows{flex:1 1 auto;min-height:0;overflow:hidden;padding-top:.4em}
+.d-group{padding:.9em .7em .3em;color:var(--d-ink-3);font-family:var(--font-mono);font-size:.9em}
+.d-row{display:flex;align-items:center;gap:.6em;margin-top:.15em;padding:.32em .7em;border-radius:.45em;animation:d-in .35s var(--ease) both}
+.d-row.is-on{background:#33312E}
+.d-row.is-new{animation:d-in .35s var(--ease) both,d-flash 1.4s ease-out both}
+/* Children hang off a hairline under the parent's icon, as in the web rail: it runs straight
+   past every child but the last, which it hooks into. The guide spans the row's full height
+   (and the gap above it), so the pieces join. */
+.d-row.is-child{color:var(--d-ink-2)}
+.d-guide{position:relative;flex:none;align-self:stretch;width:.92em;margin:-.32em -.15em -.32em 0}
+.d-guide::before{content:"";position:absolute;left:.3em;top:-.15em;bottom:0;border-left:1px solid var(--d-rule)}
+.d-row.is-child:not(:has(+ .d-row.is-child)) .d-guide::before{right:0;bottom:50%;border-bottom:1px solid var(--d-rule);border-bottom-left-radius:.46em}
+.d-title{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.d-cloud{flex:none;width:.88em;height:.58em;fill:#9D9A95}
+/* the web client's status mark: nine dots in the status's tone; demo.js sets each dot's opacity */
+.d-dots{flex:none;display:inline-grid;grid-template-columns:repeat(3,.23em);grid-auto-rows:.23em;gap:.077em;align-self:center;color:#9D9A95}
+.d-dots i{border-radius:50%;background:currentColor;opacity:.12}
+.d-dots[data-s="work"]{color:#61AAF2}
+.d-dots[data-s="done"]{color:#9ACA86}
+.d-dots[data-s="wait"]{color:#E8C96B}
+/* a running task's title: a light band sweeps across it */
+.d-row:has(.d-dots[data-s="work"]) .d-title{background:linear-gradient(90deg,var(--d-ink) 0%,var(--d-ink) 35%,var(--d-accent) 50%,var(--d-ink) 65%,var(--d-ink) 100%) 0 0/300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:d-shimmer 2.4s linear infinite}
+.d-usage{margin:0 -.5em;padding:.5em 1.2em 0;border-top:1px solid var(--d-line);font-size:.88em;color:var(--d-ink-2)}
+.d-use{display:flex;align-items:center;gap:.7em;padding:.1em 0}
+.d-use span{width:3.6em}
+.d-use i{flex:1 1 auto;height:.22em;border-radius:1em;background:var(--d-line);overflow:hidden}
+.d-use b{display:block;height:100%;background:var(--d-ok);transition:width .6s var(--ease),background .3s}
+.d-use em{width:2.8em;text-align:right;font-style:normal;font-family:var(--font-mono)}
+.d-use.is-full b{background:var(--d-accent)}
+.d-use.is-full em{color:var(--d-accent)}
+
+/* panes */
+.d-main{flex:1 1 auto;min-width:0;display:flex;gap:.5em;padding:.6em .6em .6em 0}
+.d-pane{flex:1 1 0;min-width:0;display:flex;flex-direction:column;font-family:var(--font-mono);border:1px solid var(--d-line);border-radius:.6em;overflow:hidden;animation:d-pane .45s var(--ease) both}
+.d-pane[hidden]{display:none}
+/* where a task runs: the chip in the pane head, and the menu it opens */
+.d-pane{position:relative}
+.d-chip{flex:none;display:inline-flex;align-items:center;gap:.45em;margin-left:.7em;padding:.1em .6em;border:1px solid var(--d-line);border-radius:1em;font-style:normal;font-size:.92em;color:var(--d-ink-2)}
+.d-chip.is-remote{border-color:var(--d-accent);color:var(--d-accent);background:rgb(204 120 92 / .12)}
+.d-chip .d-cloud{fill:currentColor}
+.d-chip:not(.is-remote) .d-cloud{display:none}
+.d-menu p:first-child .d-cloud{visibility:hidden}
+.d-menu{position:absolute;z-index:1;top:2.7em;right:.6em;min-width:17em;padding:.35em;border:1px solid var(--d-line);border-radius:.6em;background:#262422;box-shadow:0 .15em .6em rgb(0 0 0 / .25);font-family:var(--font-prose);animation:d-in .2s var(--ease) both}
+.d-menu p{display:flex;align-items:center;gap:.6em;margin:0;padding:.35em .6em;border-radius:.4em;color:var(--d-ink-2);transition:background .15s}
+.d-menu p.is-on{background:#33312E;color:var(--d-ink)}
+.d-menu b{font-weight:400}
+.d-menu span{margin-left:auto;font-family:var(--font-mono);font-size:.85em;color:var(--d-ink-3)}
+.d-pane header{flex:none;display:flex;align-items:center;gap:.55em;padding:.5em .9em;border-bottom:1px solid var(--d-line);font-family:var(--font-prose);font-size:.95em;white-space:nowrap;overflow:hidden}
+.d-pane header b{font-weight:500}
+.d-pane header span{margin-left:auto;color:var(--d-ink-3);font-family:var(--font-mono);font-size:.9em}
+.d-pane header.is-new{animation:d-flash 1.4s ease-out both}
+.d-lines{flex:1 1 auto;min-height:0;overflow:hidden;padding:.3em 0}
+.d-line{margin:0;padding:0 1em;white-space:pre-wrap;overflow-wrap:anywhere;animation:d-in .3s var(--ease) both}
+.d-line b{font-weight:600}
+.d-line u{text-decoration:none;color:#A9B4F5}
+.d-line.is-prompt{margin:.5em 0;padding:.4em 1em;background:#30302D}
+.d-line.is-prompt::before,.d-input::before{content:"❯ ";color:var(--d-ink-3)}
+.is-codex .d-line.is-prompt::before,.is-codex .d-input::before{content:"› "}
+.d-line.is-say{padding-top:.4em;padding-bottom:.4em}
+.d-line.is-say::before{content:"● ";color:var(--d-ink)}
+.is-codex .d-line.is-say::before,.is-codex .d-line.is-tool::before{content:"• ";color:var(--d-ink-3)}
+/* a tool's output hangs off an elbow; only the first line of a run draws it */
+.d-line.is-out{padding-left:2.2em;color:var(--d-ink-3)}
+.d-line.is-out::before{content:"⎿  "}
+.is-codex .d-line.is-out::before{content:"└  "}
+.d-line.is-out+.d-line.is-out::before{visibility:hidden}
+.d-line.is-dim{color:var(--d-ink-3)}
+.d-line.is-tool{padding-top:.4em}
+.d-line.is-tool::before{content:"● ";color:var(--d-ok)}
+.d-line.is-add{margin:0 0 0 2.2em;padding-left:.6em;background:#0F2E12;color:#BFE6BD}
+.d-line.is-del{margin:0 0 0 2.2em;padding-left:.6em;background:#3A0D0D;color:#F0B6B0}
+.d-line.is-report{margin:.4em 1em;padding:.4em .8em;border:1px solid var(--d-line);border-radius:.45em;background:var(--d-fill);animation:d-in .35s var(--ease) both,d-flash 1.4s ease-out both}
+.d-line.is-think{color:var(--d-ink-3)}
+.d-line.is-think i{display:inline-block;margin-right:.6em;font-style:normal;color:var(--d-accent);animation:d-spin 1.6s linear infinite}
+.d-line.is-think i::before{content:"✻"}
+.d-line.is-think::after{content:" (esc to interrupt)"}
+.is-codex .d-line.is-think i{animation:d-pulse 1.2s ease-in-out infinite}
+.is-codex .d-line.is-think i::before{content:"•"}
+.d-line.is-warn{margin:.5em 1em;padding:.4em .8em;border:1px solid var(--d-accent);border-radius:.45em;color:var(--d-accent);animation:d-in .3s var(--ease) both,d-warn 1.6s ease-in-out 2}
+.d-line.is-menu{width:fit-content;margin:.4em 1em;padding:.4em .8em;border-radius:.45em;background:#30302D}
+.d-line.is-menu b{color:var(--d-accent)}
+.is-gemini .d-line.is-say::before{content:"✦ ";color:#A9B4F5}
+.is-gemini .d-line.is-tool::before{content:"✓ "}
+.is-gemini .d-line.is-prompt::before,.is-gemini .d-input::before{content:"> "}
+.is-gemini .d-input{margin:0 1em;border-width:1px;border-radius:.45em}
+/* Claude Code's prompt sits between two rules; Codex's is a filled block. Each has its own hint line below. */
+.d-input{flex:none;display:flex;padding:.3em 1em;border:solid var(--d-ink-3);border-width:1px 0;white-space:pre}
+.is-codex .d-input{padding:.6em 1em;border:0;background:#262623}
+.d-foot{flex:none;padding:.2em 1em .4em;color:var(--d-ink-3);white-space:nowrap;overflow:hidden}
+.d-foot::before{content:"  ? for shortcuts"}
+.is-codex .d-foot::before{content:"  100% context left · ? for shortcuts"}
+
+/* the Browser panel and the page inside it; the page is light and unstyled until .is-styled lands */
+.d-web{flex:1.1 1 0}
+.d-page{flex:1 1 auto;min-height:0;overflow:hidden;margin:0 .6em .6em;padding:1.4em 1.6em;border-radius:.4em;background:#FFF;color:#111;font-family:Times,serif;transition:background .6s var(--ease),color .6s var(--ease)}
+.d-pg{animation:d-in .45s var(--ease) both}
+.d-pg,.d-pg *{transition:all .6s var(--ease)}
+.d-pg h4{margin:0;font-size:1.6em;font-weight:700}
+.d-pg p{margin:.2em 0 1em}
+.d-pg.is-cards{display:flex;flex-direction:column;gap:.3em;margin-bottom:1em}
+.d-card{display:flex;gap:.6em;align-items:center;animation:d-in .45s var(--ease) both}
+.d-card i{width:1em;height:1em;background:#CCC}
+.d-card span{margin-left:auto}
+.d-pg.is-form{display:flex;gap:.5em;align-items:center}
+.d-pg.is-form i{font-style:normal;padding:.1em .4em;border:1px solid #777;color:#777}
+.d-pg.is-form b{padding:.1em .5em;border:1px solid #777;background:#EEE;font-weight:400}
+.d-page.is-styled{background:#FBF6EE;color:#2A211B;font-family:var(--font-prose)}
+.is-styled .d-pg.is-hero{padding:1.2em 0 .4em;text-align:center}
+.is-styled .d-pg h4{font-size:2.4em;letter-spacing:-.02em;color:#B4532F}
+.is-styled .d-pg.is-cards{flex-direction:row;gap:.8em}
+.is-styled .d-card{flex:1 1 0;flex-direction:column;align-items:flex-start;gap:.3em;padding:.7em;border-radius:.7em;background:#FFF;box-shadow:0 .1em .5em rgb(0 0 0 / .08)}
+.is-styled .d-card i{width:100%;height:5.5em;border-radius:.45em;background:linear-gradient(135deg,#F3C9A8,#E0835F)}
+.is-styled .d-card:nth-child(2) i{background:linear-gradient(135deg,#CFE3C4,#7FAE7A)}
+.is-styled .d-card:nth-child(3) i{background:linear-gradient(135deg,#F5E3A6,#E3B341)}
+.is-styled .d-card span{margin:0;color:#B4532F;font-weight:600}
+.is-styled .d-pg.is-form{justify-content:center}
+.is-styled .d-pg.is-form i{flex:0 1 16em;padding:.5em .9em;border-color:#D8CDBF;border-radius:2em;background:#FFF}
+.is-styled .d-pg.is-form b{padding:.5em 1.1em;border:0;border-radius:2em;background:#B4532F;color:#FFF;font-weight:600}
+
+.d-item>*{white-space:nowrap}
+
+.d-list{flex:0 0 39em;animation:d-in .35s var(--ease) both}
+.d-item{display:flex;gap:1.2em;padding:.5em 1em;border-top:1px solid var(--d-line);transition:background .3s}
+.d-item b{font-weight:600}
+.d-list{font-family:var(--font-prose)}
+.d-item span,.d-item em{font-family:var(--font-mono);font-size:.9em}
+.d-item span{color:var(--d-ink-3)}
+.d-item em{margin-left:auto;font-style:normal;color:var(--d-ink-2)}
+.d-item.is-run{background:rgb(224 131 95 / .12)}
+.d-item.is-run em{color:var(--d-accent)}
+.d-item.is-ok em{color:var(--d-ok)}
+@keyframes d-in{from{opacity:0;transform:translateY(.5em)}to{opacity:1;transform:none}}
+@keyframes d-pane{from{opacity:0;flex-grow:.001}to{opacity:1;flex-grow:1}}
+@keyframes d-fade{from{opacity:0}to{opacity:1}}
+@keyframes d-shimmer{from{background-position:100% 0}to{background-position:-100% 0}}
+@keyframes d-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes d-blink{50%{opacity:0}}
+@keyframes d-spin{to{transform:rotate(1turn)}}
+@keyframes d-flash{0%{box-shadow:inset 0 0 0 1px var(--d-accent);background-color:rgb(224 131 95 / .18)}100%{box-shadow:inset 0 0 0 1px transparent}}
+@keyframes d-warn{50%{background:rgb(224 131 95 / .14)}}
+@media (prefers-reduced-motion:reduce){
+  .d-row,.d-line,.d-line i,.d-pane,.d-pane header,.d-title,.d-input i::after{animation:none}
+  .d-use b{transition:none}
+}
