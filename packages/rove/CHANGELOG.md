@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.303
+
+### Patch Changes
+
+- [#2189](https://github.com/Sma1lboy/rove/pull/2189) [`a04c0ba`](https://github.com/Sma1lboy/rove/commit/a04c0ba41f82cfdcbb2c2b0c083b4760c73616c4) - No change to Rove itself. 0.9.302 was tagged but never published, because two tests were unreliable on the release runner; this release carries everything listed under 0.9.302. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.302
 
 ### Patch Changes
