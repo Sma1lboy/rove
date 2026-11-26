@@ -47,6 +47,7 @@ import { useT } from "../../i18n"
 import { ShimmerLabel } from "../../lib/shimmer-label"
 import { useGlyphs } from "../../lib/use-glyphs"
 import { useTabRowStatus, useTaskRowStatus } from "../../workspace/row-status-sync"
+import { CHEVRON_FOLDED, CHEVRON_OPEN } from "./chrome"
 import { useMostUrgentStatus } from "./fold-summary"
 import { completionStampOf, useClockTick, useDonePulse, usePollOnClock, useSpinnerFrame } from "./row-cards"
 import { MoveChip, RowShell, type TreeRowShared, clusterCells, treeLabelBudget } from "./tree-row-shell"
@@ -57,8 +58,8 @@ const REMOTE_TITLE_CELLS = 12
 /** Fixed terminal glyphs, the routines twisty's exception: a child's directory is shared (`⑂`) or its own (`⎇`). */
 export const SHARED_MARK = "⑂"
 export const WORKTREE_MARK = "⎇"
-const FOLD_OPEN = "⌄"
-const FOLD_CLOSED = "›"
+const FOLD_OPEN = CHEVRON_OPEN
+const FOLD_CLOSED = CHEVRON_FOLDED
 
 /**
  * The tab ledger entry for this task's conversation: a migrated child's

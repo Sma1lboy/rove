@@ -57,11 +57,11 @@ test("a collapsed parent shows its child count and the most urgent child's state
   )
   const open = await waitForFrameText(frame, "check types")
   expect(lineWith(open, "check types")).toContain(dotsGlyph(litDots("waiting", 0)))
-  expect(lineWith(open, "parent")).toContain("⌄")
+  expect(lineWith(open, "parent")).toContain("v")
 
   // Folding is a click on the parent's fold glyph.
   const parentLine = lineWith(open, "parent")
-  await mockMouse.click(parentLine.indexOf("⌄"), open.split("\n").indexOf(parentLine), 0)
+  await mockMouse.click(parentLine.indexOf("v"), open.split("\n").indexOf(parentLine), 0)
 
   const folded = await waitForFrameText(frame, "› 2")
   expect(folded).not.toContain("check types")
@@ -85,7 +85,7 @@ test("a child that has children of its own truncates its title before the fold g
     { width: 30, height: 16 },
   )
   const line = lineWith(await waitForFrameText(frame, "A very long"), "A very long")
-  expect(line).toMatch(/…\s+⌄/)
+  expect(line).toMatch(/…\s+v/)
 })
 
 test("each generation's title is indented two cells past its parent's", async () => {

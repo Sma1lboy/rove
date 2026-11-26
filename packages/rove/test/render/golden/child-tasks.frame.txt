@@ -11,11 +11,11 @@
 |  Issues                      |
 |                              |
 |  rove                        |
-| ▌alpha                 ⌄ ~~  |
+| ▌alpha                 v ~~  |
 |  │ check types           ~~  |
-|  ╰ port tree builder   ⌄ ~~  |
-|    │ wire fold glyph   ⌄ ~~  |
-|    │ cover depth cap ⌄ 4 ~~  |
+|  ╰ port tree builder   v ~~  |
+|    │ wire fold glyph   v ~~  |
+|    │ cover depth cap v 4 ~~  |
 |    ╰ fifth generation  5 ~~  |
 |  bravo                   ~~  |
 |                              |

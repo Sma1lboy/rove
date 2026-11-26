@@ -11,9 +11,12 @@ import { usePageEntries } from "../../pages/registry"
 import { useHoverFill } from "../../ui/use-hover-fill"
 import { zenChipGlyph } from "./zen-glyph"
 
-/** The web's disclosure chevron: right on a folded project, down on an open one. */
-const CHEVRON_FOLDED = "›"
-const CHEVRON_OPEN = "⌄"
+/**
+ * The web's disclosure chevron: right on a folded project, down on an open one. Both are in every
+ * Latin font: U+2304 `⌄` is not, and a fallback face draws it small and off the line.
+ */
+export const CHEVRON_FOLDED = "›"
+export const CHEVRON_OPEN = "v"
 
 /**
  * A project's header, after the web's: its name, then a chevron (always on a folded project, under
