@@ -110,13 +110,13 @@ export function SidebarBrandHeader(props: {
   const { theme } = useTheme()
   return (
     <box flexDirection="row" gap={1} flexShrink={0} paddingLeft={1} paddingRight={1}>
-      {/* The web's wordmark. Focus still reads here: the brackets take the accent, the name full ink. */}
+      {/* The web's wordmark. Brackets keep the accent; focus reads in the name going full ink. */}
       <text wrapMode="none" flexShrink={0}>
-        <span fg={props.focused ? theme.focusAccent : theme.textMuted}>[</span>
+        <span fg={theme.primary}>[</span>
         <span fg={props.focused ? theme.text : theme.textMuted} attributes={TextAttributes.BOLD}>
           {" rove "}
         </span>
-        <span fg={props.focused ? theme.focusAccent : theme.textMuted}>]</span>
+        <span fg={theme.primary}>]</span>
       </text>
       <box flexGrow={1} />
       {props.status ? (
