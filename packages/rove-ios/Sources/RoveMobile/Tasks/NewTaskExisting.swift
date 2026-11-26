@@ -41,7 +41,14 @@ struct NewTaskExistingForm: View {
         if let notice = draft.notice { Hint(text: notice) }
         RepoTiles(repos: draft.repos, loading: !draft.loadedLists, selection: $draft.spawn.repo)
         FormSection(label: String(localized: "engine")) {
-            if !draft.engines.isEmpty { EnginePicker(engines: draft.engines, selection: $draft.spawn.engine) }
+            if !draft.engines.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    ChoiceTiles(options: draft.engines.map(\.id) + [SpawnDraft.shellPick], selection: $draft.spawn.enginePick, label: { id in
+                        id == SpawnDraft.shellPick ? String(localized: "shell") : draft.engines.first { $0.id == id }?.name.lowercased() ?? id
+                    }, fill: false)
+                }
+                .accessibilityIdentifier("enginePicker")
+            }
         }
         if !draft.branches.isEmpty {
             FormSection(label: String(localized: "base"), trailing: String(localized: "branch off")) {
@@ -50,13 +57,24 @@ struct NewTaskExistingForm: View {
         }
         FormSection(label: String(localized: "title")) {
             FieldBox {
-                TextField("", text: $draft.spawn.title, prompt: Text("optional — derived from the prompt").foregroundStyle(Theme.muted))
+                TextField("", text: $draft.spawn.title, prompt: Text(draft.spawn.shell ? "optional — derived from the command" : "optional — derived from the prompt").foregroundStyle(Theme.muted))
                     .accessibilityIdentifier("titleField")
             }
         }
-        FormSection(label: String(localized: "first prompt")) {
-            PromptEditor(text: $draft.spawn.prompt, placeholder: String(localized: "what should this task work on"))
-                .accessibilityIdentifier("promptEditor")
+        if draft.spawn.shell {
+            FormSection(label: String(localized: "first command")) {
+                FieldBox {
+                    TextField("", text: $draft.spawn.command, prompt: Text("optional — runs when the shell opens").foregroundStyle(Theme.muted))
+                        .font(Theme.mono(14))
+                        .textInputAutocapitalization(.never).autocorrectionDisabled()
+                        .accessibilityIdentifier("commandField")
+                }
+            }
+        } else {
+            FormSection(label: String(localized: "first prompt")) {
+                PromptEditor(text: $draft.spawn.prompt, placeholder: String(localized: "what should this task work on"))
+                    .accessibilityIdentifier("promptEditor")
+            }
         }
         NewTaskOptions(draft: draft)
         if let blocker = draft.spawn.blocker, !draft.spawn.repo.isEmpty { Hint(text: blocker) }

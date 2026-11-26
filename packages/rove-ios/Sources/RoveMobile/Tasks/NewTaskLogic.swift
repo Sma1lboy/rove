@@ -68,19 +68,37 @@ struct SpawnDraft: Equatable {
     var agents: [String: Int] = [:]
     /// Engine order for the agents string.
     var engineOrder: [String] = []
+    /// A terminal in the new worktree instead of an engine; `command`, when set, is its first line.
+    var shell = false
+    var command = ""
+    /// Later: the first prompt waits until then, and the task is created then (`scheduleAt`).
+    var startAt: Date?
+
+    /// The engine tile that stands for `shell`; never an engine id, those carry no colon.
+    static let shellPick = ":shell"
 
     static func clampCount(_ n: Int) -> Int { min(max(n, 1), AgentsPlan.maxCount) }
 
     var promptText: String { prompt.trimmingCharacters(in: .whitespacesAndNewlines) }
     var agentsString: String { AgentsPlan.string(agents, order: engineOrder) }
-    var usesAgents: Bool { AgentsPlan.total(agents) > 0 }
+    var usesAgents: Bool { !shell && AgentsPlan.total(agents) > 0 }
     /// More than one task comes out of this draft.
-    var isFanOut: Bool { usesAgents || SpawnDraft.clampCount(count) > 1 }
+    var isFanOut: Bool { !shell && (usesAgents || SpawnDraft.clampCount(count) > 1) }
+    var commandText: String { command.trimmingCharacters(in: .whitespaces) }
+    /// The engine tiles' selection: an engine, or `shellPick`.
+    var enginePick: String {
+        get { shell ? SpawnDraft.shellPick : engine }
+        set { shell = newValue == SpawnDraft.shellPick; if !shell { engine = newValue } }
+    }
     var fanOutTotal: Int { usesAgents ? AgentsPlan.total(agents) : SpawnDraft.clampCount(count) }
 
     /// Why create is blocked, or nil.
     var blocker: String? {
         if repo.isEmpty { return String(localized: "pick a repository") }
+        if shell {
+            return commandText.contains(where: \.isNewline) ? String(localized: "a shell command is one line") : nil
+        }
+        if startAt != nil && isFanOut { return String(localized: "a later start is a single task") }
         if usesAgents && !AgentsPlan.isValid(agents) { return String(localized: "agents: at most \(AgentsPlan.maxTotal) in total") }
         // A task is an agent sent to do something: it never opens without its first message.
         if promptText.isEmpty { return String(localized: "a task needs a first prompt") }
@@ -97,9 +115,22 @@ struct SpawnDraft: Equatable {
             let v = value.trimmingCharacters(in: .whitespacesAndNewlines)
             if !v.isEmpty { a[key] = v }
         }
+        if shell {
+            // The bridge's shell start takes no engine, prompt, model, effort, fan-out or later.
+            a["shell"] = true
+            put("type", commandText)
+            put("title", title)
+            if a["title"] == nil { a["title"] = commandText.isEmpty ? String(localized: "shell") : String(commandText.prefix(60)) }
+            put("baseBranch", baseBranch)
+            put("branch", branch)
+            return a
+        }
         put("engine", engine)
         put("title", title)
-        if !promptText.isEmpty { a["prompt"] = prompt }
+        if let startAt, !isFanOut {
+            a["scheduleAt"] = ISO8601DateFormatter().string(from: startAt)
+            a["schedulePrompt"] = prompt
+        } else if !promptText.isEmpty { a["prompt"] = prompt }
         put("baseBranch", baseBranch)
         put("model", model)
         put("effort", effort)

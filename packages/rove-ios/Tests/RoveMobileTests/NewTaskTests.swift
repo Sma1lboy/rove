@@ -30,6 +30,35 @@ final class NewTaskTests: XCTestCase {
         XCTAssertNil(a["count"]); XCTAssertNil(a["agents"])
     }
 
+    func testShellSendsNoEngineOrPromptAndTitlesFromItsCommand() {
+        let a = draft {
+            $0.engine = "claude"; $0.prompt = "go"; $0.model = "m"; $0.count = 3; $0.shell = true; $0.command = " npm run dev "
+        }.spawnArgs()
+        XCTAssertEqual(a["shell"] as? Bool, true)
+        XCTAssertEqual(a["type"] as? String, "npm run dev")
+        XCTAssertEqual(a["title"] as? String, "npm run dev")
+        for key in ["engine", "prompt", "model", "count", "agents"] { XCTAssertNil(a[key], key) }
+        XCTAssertNil(draft { $0.shell = true }.blocker, "a shell needs no first prompt")
+        XCTAssertNotNil(draft { $0.shell = true; $0.command = "a\nb" }.blocker)
+    }
+
+    func testEnginePickTogglesShellAndKeepsTheEngine() {
+        var d = draft { $0.engine = "codex" }
+        d.enginePick = SpawnDraft.shellPick
+        XCTAssertTrue(d.shell); XCTAssertEqual(d.engine, "codex")
+        d.enginePick = "claude"
+        XCTAssertFalse(d.shell); XCTAssertEqual(d.engine, "claude")
+    }
+
+    func testLaterHoldsThePromptAsTheScheduledMessage() {
+        let at = Date(timeIntervalSince1970: 1_800_000_000)
+        let a = draft { $0.prompt = "fix it"; $0.startAt = at }.spawnArgs()
+        XCTAssertEqual(a["scheduleAt"] as? String, "2027-01-15T08:00:00Z")
+        XCTAssertEqual(a["schedulePrompt"] as? String, "fix it")
+        XCTAssertNil(a["prompt"])
+        XCTAssertNotNil(draft { $0.prompt = "p"; $0.startAt = at; $0.count = 2 }.blocker, "a later start is one task")
+    }
+
     func testCountOneIsOmittedAndCountClamps() {
         XCTAssertNil(draft { $0.count = 1 }.spawnArgs()["count"])
         XCTAssertEqual(draft { $0.count = 3; $0.prompt = "p" }.spawnArgs()["count"] as? Int, 3)

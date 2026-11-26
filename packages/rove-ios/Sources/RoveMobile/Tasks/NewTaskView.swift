@@ -54,7 +54,10 @@ struct NewTaskView: View {
 
     private var primaryLabel: String {
         switch draft.mode {
-        case .existing: draft.spawn.isFanOut ? String(localized: "create \(draft.spawn.fanOutTotal) tasks") : String(localized: "create task")
+        case .existing:
+            if draft.spawn.shell { String(localized: "open shell") }
+            else if draft.spawn.startAt != nil { String(localized: "schedule task") }
+            else if draft.spawn.isFanOut { String(localized: "create \(draft.spawn.fanOutTotal) tasks") } else { String(localized: "create task") }
         case .openProject: String(localized: "open project")
         case .clone: draft.busy ? String(localized: "cloning…") : String(localized: "clone")
         case .adopt:

@@ -29,6 +29,7 @@ struct RoutinesView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @State private var payload: RoutinesPayload?
+    @State private var starts: [PendingStart] = []
     @State private var error: String?
     @State private var sheet: RoutinesSheet?
     /// A task picked inside the detail sheet; pushed once that sheet is gone.
@@ -91,6 +92,11 @@ struct RoutinesView: View {
             ForEach(payload.automations) { routine in
                 row(routine, status: payload.lastRunStatus[routine.id])
             }
+            if !starts.isEmpty {
+                Theme.kicker(String(localized: "later \(starts.count)"))
+                    .padding(.horizontal, 4).padding(.top, 12)
+                ForEach(starts) { pendingRow($0) }
+            }
             if payload.keepsDaemonAlive {
                 Text("enabled routines keep the mac daemon alive")
                     .font(Theme.mono(12)).foregroundStyle(Theme.muted)
@@ -134,6 +140,39 @@ struct RoutinesView: View {
         .accessibilityIdentifier("routineRow-\(routine.id)")
     }
 
+    private func pendingRow(_ start: PendingStart) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 8) {
+                    Text(start.title).font(Theme.mono(14, .semibold)).foregroundStyle(Theme.ink).lineLimit(1)
+                    Spacer(minLength: 8)
+                    if let when = TaskRowMarks.startsAt(start.at) {
+                        Text(when).font(Theme.mono(12)).foregroundStyle(Theme.muted).fixedSize()
+                    }
+                }
+                Text(URL(fileURLWithPath: start.repo).lastPathComponent)
+                    .font(Theme.mono(12)).foregroundStyle(Theme.muted).lineLimit(1)
+                if let failed = start.error {
+                    Text("didn't start: \(failed)").font(Theme.mono(12)).foregroundStyle(Theme.warning).lineLimit(2)
+                }
+            }
+            Button { Task { await cancel(start) } } label: { TileLabel(text: String(localized: "cancel")) }
+                .buttonStyle(.pressable)
+                .accessibilityIdentifier("pendingCancel-\(start.id)")
+        }
+        .padding(.horizontal, 14).padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .tile()
+        .accessibilityIdentifier("pendingRow-\(start.id)")
+    }
+
+    private func cancel(_ start: PendingStart) async {
+        do {
+            _ = try await model.client.request("pendingStart.cancel", ["id": start.id])
+            starts.removeAll { $0.id == start.id }
+        } catch { self.error = error.localizedDescription }
+    }
+
     /// `repoName · 0 9 * * * · next in 3d`; a paused routine has no next run.
     private func subtitle(_ routine: Routine) -> String {
         let next = routine.enabled ? RoutineLogic.until(routine.nextRunAt, now: Date()) : "—"
@@ -144,6 +183,8 @@ struct RoutinesView: View {
         do {
             payload = try await model.client.request("routine.list", as: RoutinesPayload.self)
             error = nil
+            // An older bridge has no Later; the routines still show.
+            starts = (try? await model.client.request("pendingStart.list", as: PendingStartsPayload.self))?.starts ?? []
         } catch { self.error = error.localizedDescription }
     }
 

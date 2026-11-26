@@ -234,6 +234,17 @@ struct RoutinesPayload: Codable {
 
 struct RoutineCreateResult: Codable { var automation: Routine }
 
+/// A one-shot Later start the daemon holds (`pendingStart.list`); nothing exists for it until `at`.
+struct PendingStart: Codable, Hashable, Identifiable {
+    var id: String
+    var at: String
+    var title: String
+    var repo: String
+    /// Why the start failed when its time came; it stays listed until cancelled.
+    var error: String?
+}
+struct PendingStartsPayload: Codable { var starts: [PendingStart] }
+
 struct RoutineRun: Codable, Hashable, Identifiable {
     var id: String
     var runNumber: Int

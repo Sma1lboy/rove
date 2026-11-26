@@ -508,6 +508,26 @@
         }
       }
     },
+    "a later start is a single task" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "稍后启动只能建一个任务"
+          }
+        }
+      }
+    },
+    "a shell command is one line" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "shell 命令只能是一行"
+          }
+        }
+      }
+    },
     "A worktree with uncommitted changes is refused until you confirm again." : {
       "localizations" : {
         "zh-Hans" : {
@@ -1018,6 +1038,16 @@
         }
       }
     },
+    "didn't start: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有启动：%@"
+          }
+        }
+      }
+    },
     "Direct" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1144,6 +1174,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在所有任务的对话里找"
+          }
+        }
+      }
+    },
+    "first command" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "首条命令"
           }
         }
       }
@@ -1404,6 +1444,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已合入 %@（%@）"
+          }
+        }
+      }
+    },
+    "later" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "稍后"
+          }
+        }
+      }
+    },
+    "later %lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "稍后 %lld"
           }
         }
       }
@@ -1728,6 +1788,16 @@
         }
       }
     },
+    "now" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "现在"
+          }
+        }
+      }
+    },
     "OK" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1768,12 +1838,42 @@
         }
       }
     },
+    "open shell" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开 shell"
+          }
+        }
+      }
+    },
     "Option %lld" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "选项 %lld"
+          }
+        }
+      }
+    },
+    "optional — derived from the command" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可选，默认从命令推导"
+          }
+        }
+      }
+    },
+    "optional — runs when the shell opens" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可选，shell 打开时执行"
           }
         }
       }
@@ -2318,6 +2418,16 @@
         }
       }
     },
+    "schedule task" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "定时创建"
+          }
+        }
+      }
+    },
     "scheduled start cancelled" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2438,6 +2548,16 @@
         }
       }
     },
+    "shell" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "shell"
+          }
+        }
+      }
+    },
     "Shell tabs and plugin panes need a desktop terminal, so the phone starts engines only." : {
       "localizations" : {
         "zh-Hans" : {
@@ -2538,6 +2658,16 @@
         }
       }
     },
+    "start" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启动"
+          }
+        }
+      }
+    },
     "Start now" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2574,6 +2704,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ 启动"
+          }
+        }
+      }
+    },
+    "starts at" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启动时间"
           }
         }
       }
