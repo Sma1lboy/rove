@@ -38,4 +38,18 @@ describe("embeddedTerminalEnv", () => {
 
     expect(result).toEqual({ HOME: "/home/test" })
   })
+
+  it("drops the agent session Rove was started from, so its engines save their own transcripts", () => {
+    const result = embeddedTerminalEnv({
+      CLAUDE_CODE_CHILD_SESSION: "1",
+      CLAUDE_CODE_SESSION_ID: "286d3bec-8bcd-496b-8b09-c3b5b31f6949",
+      CLAUDE_CODE_SESSION_ATTENDED: "1",
+      CLAUDECODE: "1",
+      CLAUDE_PID: "26296",
+      CLAUDE_CONFIG_DIR: "/home/test/.claude-cpa",
+      HOME: "/home/test",
+    })
+
+    expect(result).toEqual({ CLAUDE_CONFIG_DIR: "/home/test/.claude-cpa", HOME: "/home/test" })
+  })
 })
