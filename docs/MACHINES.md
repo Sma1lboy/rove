@@ -319,6 +319,14 @@ task on that machine; hovering it names the machine. `rove api list` and
 they mean with `--machine`. The task is a row on this machine; its directory is
 a small link under `~/.rove/remote-workspaces/`, not a checkout.
 
+There is one link per machine and path there, so every `--no-worktree`
+session on the same checkout shares it, and they share one engineless row on
+that machine, removed with the last of them. An engine that keeps its history
+by working directory (Claude Code's `--resume`) lists every earlier session on
+that checkout. A session that ran natively on that machine (`--engine-there`,
+or started there) is stored there and can't be resumed from here: continue it
+with `--engine-there` or on that machine.
+
 Every engine reaches the worktree with `rx '<command>'`, which is on the
 session's PATH and runs the command in the worktree through that machine's
 login shell, over the same ssh connection Rove keeps to it. `AGENTS.md` in the

@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process"
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { serializeTask } from "@sma1lboy/rove-daemon/daemon/serialize-task"
@@ -81,10 +81,14 @@ describe("a workspace on another machine", () => {
       },
       home,
     )
-    expect(dir).toBe(join(home, ".rove", "remote-workspaces", "T1", "deck", "app"))
-    expect(remoteWorkspaceDir("win", "T2", "C:\\Users\\me\\app", home)).toBe(
-      join(home, ".rove", "remote-workspaces", "T2", "win", "app"),
-    )
+    expect(dir).toBe(remoteWorkspaceDir("deck", worktree, "/srv/code/app", home))
+    expect(dir.endsWith(join("deck", "app"))).toBe(true)
+    // One link per machine and path there: Windows paths compare without case or slash style.
+    const win = remoteWorkspaceDir("win", "C:\\Users\\me\\app", "C:\\Users\\me\\app", home)
+    expect(win.endsWith(join("win", "app"))).toBe(true)
+    expect(remoteWorkspaceDir("win", "c:/users/me/app/", "app", home)).toBe(win)
+    expect(remoteWorkspaceDir("deck", "C:\\Users\\me\\app", "app", home)).not.toBe(win)
+    expect(remoteWorkspaceDir("win", "C:\\Users\\me\\other\\app", "app", home)).not.toBe(win)
     expect(readRemoteWorkspace(dir)).toEqual(ws)
     expect(readFileSync(join(dir, "AGENTS.md"), "utf8")).toMatch(/rx '<command>'[\s\S]*Use tabs\./)
     expect(readFileSync(join(dir, "CLAUDE.md"), "utf8")).toMatch(/^wired on deck\n[\s\S]*Use tabs\./)
@@ -99,16 +103,26 @@ describe("a workspace on another machine", () => {
     removeRemoteLink(worktree, home)
     expect(existsSync(worktree)).toBe(true)
     removeRemoteLink(dir, home)
-    expect(existsSync(join(home, ".rove", "remote-workspaces", "T1"))).toBe(false)
+    expect(readdirSync(join(home, ".rove", "remote-workspaces"))).toEqual([])
   })
 
-  test("a machine that does not answer leaves no link behind", async () => {
+  test("a machine that does not answer leaves no new link behind, and an existing one in place", async () => {
     const home = scratch()
     const ws = { machine: "gone", taskId: "T2", path: "/nowhere" }
     await expect(createRemoteLink({ ws, repo: "/x", sshArgv: ["false"], engineNotes: [] }, home)).rejects.toThrow(
       /gone did not answer/,
     )
-    expect(existsSync(join(remoteWorkspaceDir("gone", "T2", "/x", home), REMOTE_WORKSPACE_FILE))).toBe(false)
+    const dir = remoteWorkspaceDir("gone", "/nowhere", "/x", home)
+    expect(existsSync(join(dir, REMOTE_WORKSPACE_FILE))).toBe(false)
+
+    // Another session already works from this link: a failed refresh must not take it away.
+    const worktree = scratch()
+    const live = { ...ws, path: worktree }
+    const shared = await createRemoteLink({ ws: live, repo: "/x", sshArgv: LOCAL_SSH, engineNotes: [] }, home)
+    await expect(
+      createRemoteLink({ ws: live, repo: "/x", sshArgv: ["false"], engineNotes: [] }, home),
+    ).rejects.toThrow()
+    expect(readRemoteWorkspace(shared)).toEqual(live)
   })
 
   test("the shell hook sends a command through rx once, keeps the call's other fields, and decides no permission", () => {
