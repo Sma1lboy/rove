@@ -15,6 +15,7 @@ import { type Row, truncatePathTail } from "../../../tui/panes/filetree/rows"
 import { useDiffInks } from "../../context/diff-inks"
 import { useTheme } from "../../context/theme"
 import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"
+import { useHoverFill } from "../../ui/use-hover-fill"
 
 export type FileTreeRowProps = {
   row: Row
@@ -38,7 +39,9 @@ export const FileTreeRowView = memo(function FileTreeRowView(props: FileTreeRowP
       {selection.marker}
     </text>
   )
-  const rowBg = selection.backgroundColor
+  const hover = useHoverFill()
+  // The cursor row keeps its own tint; any other row takes the pointer's wash.
+  const rowBg = !props.cursor && hover.fill ? hover.fill : selection.backgroundColor
   const row = props.row
   if (row.kind === "dir") {
     // Indent: 2 cells per depth level. Marker: ▾ open, ▸ closed.
@@ -48,6 +51,7 @@ export const FileTreeRowView = memo(function FileTreeRowView(props: FileTreeRowP
         flexDirection="row"
         gap={0}
         backgroundColor={rowBg}
+        {...hover.handlers}
         onMouseUp={() => props.onActivate(props.row, props.index)}
       >
         {bar}
@@ -67,6 +71,7 @@ export const FileTreeRowView = memo(function FileTreeRowView(props: FileTreeRowP
         flexDirection="row"
         gap={0}
         backgroundColor={rowBg}
+        {...hover.handlers}
         onMouseUp={() => props.onActivate(props.row, props.index)}
       >
         {bar}
@@ -99,7 +104,13 @@ export const FileTreeRowView = memo(function FileTreeRowView(props: FileTreeRowP
             ? theme.info
             : theme.textMuted
   return (
-    <box flexDirection="row" gap={0} backgroundColor={rowBg} onMouseUp={() => props.onActivate(props.row, props.index)}>
+    <box
+      flexDirection="row"
+      gap={0}
+      backgroundColor={rowBg}
+      {...hover.handlers}
+      onMouseUp={() => props.onActivate(props.row, props.index)}
+    >
       {bar}
       <box flexDirection="row" flexGrow={1} gap={1} paddingRight={1}>
         <text fg={statusColor} wrapMode="none">
