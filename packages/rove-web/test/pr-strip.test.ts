@@ -47,3 +47,8 @@ describe("prActions", () => {
     expect(prActions(task({ changes: dirty, machine: { id: "m", label: "m" } }))).toEqual([])
   })
 })
+
+test("a merged PR keeps its colour when the last poll failed", async () => {
+  const { prMarkOf } = await import("../src/rail-glyphs.ts")
+  expect(prMarkOf({ lifecycle: "merged" } as never, undefined, true)?.tone).toBe("text-merged")
+})
