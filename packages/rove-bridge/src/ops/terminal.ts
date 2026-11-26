@@ -301,7 +301,7 @@ export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
               ...tail,
             ])
             if (res.taskId) {
-              if (engine) taskOpDeps.rememberEngine(repo, engine)
+              if (engine) taskOpDeps.rememberEngine(engine)
               return { taskIds: [res.taskId], forked: true }
             }
           } catch (err) {
@@ -315,7 +315,7 @@ export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
         const res = await api.verb<Added>("add", argv)
         const taskIds = res.tasks ? res.tasks.map((t) => t.taskId) : res.taskId ? [res.taskId] : []
         if (taskIds.length === 0) throw new BridgeError("ADD_FAILED", "no task was created")
-        if (engine) taskOpDeps.rememberEngine(repo, engine)
+        if (engine) taskOpDeps.rememberEngine(engine)
         // Attempts share the round's id, so the page can open its Compare view.
         return {
           taskIds,

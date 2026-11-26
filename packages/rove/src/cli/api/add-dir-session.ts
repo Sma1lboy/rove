@@ -51,7 +51,7 @@ export async function openDirSession(
   title: string,
   remote = false,
 ): Promise<SerializedTask> {
-  const choice = await engineChoice(ctx, dir)
+  const choice = await engineChoice(ctx)
   const engines = choice.vendor ? [choice.vendor] : []
   const effort = effortFor(ctx, engines)
   const model = modelFor(ctx, engines)

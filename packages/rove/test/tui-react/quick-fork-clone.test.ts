@@ -8,7 +8,7 @@ import type { Task } from "@/types/task"
 import { describe, expect, it, vi } from "vitest"
 
 vi.mock("@/state/repos", () => ({ addSavedRepo: () => {} }))
-vi.mock("@/state/vendor-prefs", () => ({ setRepoLastActiveVendor: () => {} }))
+vi.mock("@/state/vendor-prefs", () => ({ setLastActiveVendor: () => {} }))
 
 function harness(createTask: (input: Record<string, unknown>) => Promise<Task>) {
   const created: Array<Record<string, unknown>> = []

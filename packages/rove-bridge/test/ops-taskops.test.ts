@@ -289,9 +289,11 @@ describe("task.openScratch", () => {
   })
 
   test("a picked engine is remembered for Scratch; the one-click + opens on the remembered one", async () => {
-    const memory = new Map<string, string>()
-    taskOpDeps.rememberEngine = (repo, engine) => void memory.set(repo, engine)
-    taskOpDeps.preferredEngine = (repo) => (repo ? memory.get(repo) : undefined) ?? "claude"
+    let last = "claude"
+    taskOpDeps.rememberEngine = (engine) => {
+      last = engine
+    }
+    taskOpDeps.preferredEngine = () => last
     const first = await run("task.openScratch", {}, { "task.openDir": { taskId: "S1" } })
     expect(first.calls.at(-1)).toEqual({
       rpc: "task.openDir",

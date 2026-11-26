@@ -14,7 +14,7 @@ import type { Task } from "@/types/task"
 import { describe, expect, it, vi } from "vitest"
 
 vi.mock("@/state/repos", () => ({ addSavedRepo: () => {} }))
-vi.mock("@/state/vendor-prefs", () => ({ setRepoLastActiveVendor: () => {} }))
+vi.mock("@/state/vendor-prefs", () => ({ setLastActiveVendor: () => {} }))
 
 describe("planRound", () => {
   it("a single attempt is not a round", () => {

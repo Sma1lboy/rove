@@ -336,8 +336,8 @@ export const TAB_NEW_VERB: VerbSpec = {
       )
     }
     const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
-    // The project's last engine; the task's own when it is the same, so its model and effort carry over.
-    const preferred = latest ? resolvePreferredVendor(task.repo) : undefined
+    // The last engine picked; the task's own when it is the same, so its model and effort carry over.
+    const preferred = latest ? resolvePreferredVendor() : undefined
     const command = ctx.args.str("command") || (preferred && preferred !== task.vendor ? preferred : undefined)
     if (kind === "editor" || kind === "pane" || kind === "viewport") return launchKind(ctx, daemon, task, kind)
     // The first conversation lives in the task's own `tab-1`; a later one is a shared child.

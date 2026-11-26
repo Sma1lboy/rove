@@ -44,7 +44,7 @@ client. "Before" is how a running client saw another process's change.
 | Registered machines + live remote tasks | `machines` key; `MachineHub` in each TUI and bridge | read once at client start | daemon hub, `machines` channel | a |
 | Saved repos (projects) | `savedRepos` | rail from daemon tasks; picker and bridge read per call | unchanged, already live | a |
 | Repo settings, remote repos | `repoConfigs`, `remoteRepos`, `repoPrimary` | read per call | unchanged | a |
-| A repo's last engine, default engine | `lastActiveVendor.*`, `defaultVendor` | read per call; Settings dialog seeded once | `state` push | a |
+| The last engine picked, default engine | `lastActiveVendor`, `defaultVendor` | read per call; Settings dialog seeded once | `state` push | a |
 | Engine settings | `customEngineIds`, `disabledEngineIds`, `engineCommand/Name/Protocol.*`, `autoRouting.*` | TUI kv snapshot, whole-key writes from it | `state` push; the two id lists change one id at a time against the file | a |
 | Diff review notes | `diffComments.<taskId>` | TUI kv snapshot; TUI write erased notes the phone added | `state` push | a |
 | Visual and notification prefs | `appearance.*`, `notifications.*`, `chat.tabStrip.*` | theme/mode/accent/locale live (`ui-prefs`), the rest kv snapshot | `state` push | a |

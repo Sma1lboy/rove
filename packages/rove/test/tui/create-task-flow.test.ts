@@ -214,7 +214,7 @@ describe("createTaskFlow — create mode + guards", () => {
     await createTaskFlow(ctx)
 
     expect(createTask).toHaveBeenCalledWith({ repo: "/repo", baseRef: "main", vendor: "claude" })
-    expect(rememberVendor).toHaveBeenCalledWith("/repo", "claude")
+    expect(rememberVendor).toHaveBeenCalledWith("claude")
     expect(reload).toHaveBeenCalledTimes(1)
     expect(selectTask).toHaveBeenCalledWith("new-id")
     expect(enterTask).toHaveBeenCalledWith("new-id")
@@ -369,7 +369,7 @@ describe("createTaskFlow — create mode + guards", () => {
     await createTaskFlow(ctx)
 
     expect(createTask).toHaveBeenCalledWith(expect.objectContaining({ repo: "/repo" }))
-    expect(rememberVendor).toHaveBeenCalledWith("/repo", "claude")
+    expect(rememberVendor).toHaveBeenCalledWith("claude")
   })
 
   test("no daemon (orch null): saves the repo/vendor choice but logs instead of creating", async () => {
@@ -383,7 +383,7 @@ describe("createTaskFlow — create mode + guards", () => {
 
     await createTaskFlow(ctx)
 
-    expect(rememberVendor).toHaveBeenCalledWith("/repo", "claude")
+    expect(rememberVendor).toHaveBeenCalledWith("claude")
     expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("no daemon"))
     // Never reaches the "Creating task…" toast — that's gated on `orch`.
     expect(notifyInfo).not.toHaveBeenCalledWith(expect.stringContaining("Creating task"))

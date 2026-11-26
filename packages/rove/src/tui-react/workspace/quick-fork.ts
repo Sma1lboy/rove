@@ -1,6 +1,6 @@
 /**
  * Quick-fork: seed the composer from the active task and create with the same
- * side effects as `createTaskFlow` (`addSavedRepo` + `setRepoLastActiveVendor`
+ * side effects as `createTaskFlow` (`addSavedRepo` + `setLastActiveVendor`
  * before, select/enter after). Holds the pending first prompt: the composer
  * resolves on the SOURCE task's mount, the prompt must reach the NEW one's.
  * Shared by `TerminalTabs.tsx` and `host.tsx` so they can't diverge.
@@ -13,7 +13,7 @@ import { FORK_UNSUPPORTED_CODE } from "../../orchestrator/errors"
 import type { SpawnChildInput } from "../../orchestrator/spawn-child"
 import { deriveTitleFromPrompt } from "../../orchestrator/title"
 import { addSavedRepo } from "../../state/repos"
-import { resolvePreferredVendor, setRepoLastActiveVendor } from "../../state/vendor-prefs"
+import { resolvePreferredVendor, setLastActiveVendor } from "../../state/vendor-prefs"
 import { t } from "../../tui/i18n"
 import { appendAttachmentRefs } from "../../tui/lib/attachments"
 import { DEFAULT_BASE_REF, getCurrentBranch } from "../../tui/lib/git-snapshot"
@@ -45,9 +45,9 @@ export function quickForkComposerOptions(
   }
 }
 
-/** Vendor to preselect: the repo's last-active engine, clamped to a detected one. */
-export function quickForkDefaultVendor(repo: string, detected: readonly VendorId[]): VendorId {
-  const pref = resolvePreferredVendor(repo)
+/** Vendor to preselect: the last-active engine, clamped to a detected one. */
+export function quickForkDefaultVendor(detected: readonly VendorId[]): VendorId {
+  const pref = resolvePreferredVendor()
   if (detected.length === 0 || detected.includes(pref)) return pref
   return detected[0] ?? pref
 }
@@ -93,7 +93,7 @@ async function createQuickForkTask(
   fields: EngineFields = {},
   onForkRefused?: (reason: string) => void,
 ): Promise<Task> {
-  setRepoLastActiveVendor(repo, vendor)
+  setLastActiveVendor(vendor)
   addSavedRepo(repo)
   const input = {
     repo,

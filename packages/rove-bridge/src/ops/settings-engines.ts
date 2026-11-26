@@ -219,7 +219,12 @@ export function createEngineOps(deps: EngineDeps): OpTable {
         // A switched-off default would never be offered, so choosing it switches it back on.
         deps.update((fresh) => {
           const off = strings(fresh, "disabledEngineIds")
-          return { defaultVendor: id, ...(off.includes(id) ? { disabledEngineIds: without(off, id) } : {}) }
+          // Also the newest pick (`setGlobalDefaultVendor`): a default the last pick outranked would change nothing.
+          return {
+            defaultVendor: id,
+            lastActiveVendor: id,
+            ...(off.includes(id) ? { disabledEngineIds: without(off, id) } : {}),
+          }
         })
         return { id }
       },

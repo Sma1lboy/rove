@@ -16,7 +16,7 @@ import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
 import { startTaskSessionWithPromptAdapter } from "../../core/daemon-session-adapter"
 import { planRound } from "../../core/round"
 import { addSavedRepo } from "../../state/repos"
-import { setRepoLastActiveVendor } from "../../state/vendor-prefs"
+import { setLastActiveVendor } from "../../state/vendor-prefs"
 import type { Task, VendorId } from "../../types/task"
 
 export interface RoundOrchestrator {
@@ -55,7 +55,7 @@ export async function runQuickForkRound(
   input: { readonly baseRef: string; readonly vendor: VendorId; readonly prompt: string; readonly attempts: number },
   deliver: RoundDeliver = realDeliver,
 ): Promise<RoundOutcome> {
-  setRepoLastActiveVendor(repo, input.vendor)
+  setLastActiveVendor(input.vendor)
   addSavedRepo(repo)
 
   const plan = planRound(input.attempts)

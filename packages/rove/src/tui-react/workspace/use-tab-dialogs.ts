@@ -27,7 +27,7 @@ import {
   planWorktreeHandoff,
 } from "@/engine/session-handoff-plan"
 import { resolveMainRepoRoot } from "@/state/repos"
-import { setRepoLastActiveVendor } from "@/state/vendor-prefs"
+import { setLastActiveVendor } from "@/state/vendor-prefs"
 import type { VendorId } from "@/types/vendor"
 import { defaultDaemonSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import { type PaneLaunch, listPaneLaunches } from "@sma1lboy/rove-daemon/plugins/pane-command"
@@ -187,11 +187,7 @@ export function useTabDialogs(deps: {
     }
     // The task's own default engine changes only when the pick runs in its own tab, never for a child.
     if (!newConversation(vendor)) deps.onChooseEngine?.(vendor)
-    try {
-      setRepoLastActiveVendor(resolveMainRepoRoot(deps.worktree), vendor)
-    } catch {
-      /* best-effort: a stale worktree path must not block the new tab */
-    }
+    setLastActiveVendor(vendor)
   }
 
   /** Child task seeded from THIS task's repo/branch and the picked engine;

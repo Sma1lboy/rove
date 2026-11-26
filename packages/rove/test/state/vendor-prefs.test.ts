@@ -14,10 +14,10 @@ import { setPersistedString } from "../../src/state/repos.ts"
 import { patchStateFile } from "../../src/state/store.ts"
 import {
   getGlobalDefaultVendor,
-  getRepoLastActiveVendor,
+  getLastActiveVendor,
   resolvePreferredVendor,
   setGlobalDefaultVendor,
-  setRepoLastActiveVendor,
+  setLastActiveVendor,
 } from "../../src/state/vendor-prefs.ts"
 
 let tmpHome: string
@@ -36,27 +36,31 @@ afterEach(() => {
 })
 
 describe("vendor preference layers", () => {
-  test("repo last-active wins over the global default", () => {
+  test("the last pick wins over the global default, in every project", () => {
     setGlobalDefaultVendor("claude")
-    setRepoLastActiveVendor("/repo", "codex")
-    expect(resolvePreferredVendor("/repo")).toBe("codex")
-    expect(resolvePreferredVendor("/other")).toBe("claude")
-    expect(resolvePreferredVendor()).toBe("claude")
+    setLastActiveVendor("codex")
+    expect(resolvePreferredVendor()).toBe("codex")
+  })
+
+  test("setting the default in Settings is the newest pick", () => {
+    setLastActiveVendor("codex")
+    setGlobalDefaultVendor("copilot")
+    expect(resolvePreferredVendor()).toBe("copilot")
   })
 
   test("legacy lastSelectedVendor backs the global default until defaultVendor is set", () => {
     setPersistedString("lastSelectedVendor", "codex")
     expect(getGlobalDefaultVendor()).toBe("codex")
-    expect(resolvePreferredVendor("/repo")).toBe("codex")
+    expect(resolvePreferredVendor()).toBe("codex")
     setGlobalDefaultVendor("copilot")
     expect(getGlobalDefaultVendor()).toBe("copilot")
   })
 
-  test("a corrupt repo entry falls through to the global default", () => {
-    setPersistedString("lastActiveVendor./repo", "gpt9-typo")
+  test("a corrupt last pick falls through to the global default", () => {
     setGlobalDefaultVendor("codex")
-    expect(getRepoLastActiveVendor("/repo")).toBeUndefined()
-    expect(resolvePreferredVendor("/repo")).toBe("codex")
+    setPersistedString("lastActiveVendor", "gpt9-typo")
+    expect(getLastActiveVendor()).toBeUndefined()
+    expect(resolvePreferredVendor()).toBe("codex")
   })
 })
 
@@ -75,13 +79,13 @@ describe("a disabled engine is not offered by any layer", () => {
     patchStateFile({ disabledEngineIds: [...ids] })
   }
 
-  test("the repo's last-active entry falls through when that engine is off", () => {
-    setRepoLastActiveVendor("/repo", "codex")
+  test("the last-active entry falls through when that engine is off", () => {
     setGlobalDefaultVendor("copilot")
+    setLastActiveVendor("codex")
     setDisabled(["codex"])
 
-    expect(getRepoLastActiveVendor("/repo")).toBeUndefined()
-    expect(resolvePreferredVendor("/repo")).toBe("copilot")
+    expect(getLastActiveVendor()).toBeUndefined()
+    expect(resolvePreferredVendor()).toBe("copilot")
   })
 
   test("the global default falls through too, down to the first engine left on", () => {
@@ -92,14 +96,14 @@ describe("a disabled engine is not offered by any layer", () => {
     // claude is the built-in fallback and is itself off, so the resolution
     // continues to the next enabled built-in rather than handing back a
     // default nobody is allowed to pick.
-    expect(resolvePreferredVendor("/repo")).toBe("copilot")
+    expect(resolvePreferredVendor()).toBe("copilot")
   })
 
   test("switching it back on restores the stored preference untouched", () => {
-    setRepoLastActiveVendor("/repo", "codex")
+    setLastActiveVendor("codex")
     setDisabled(["codex"])
-    expect(resolvePreferredVendor("/repo")).not.toBe("codex")
+    expect(resolvePreferredVendor()).not.toBe("codex")
     setDisabled([])
-    expect(resolvePreferredVendor("/repo")).toBe("codex")
+    expect(resolvePreferredVendor()).toBe("codex")
   })
 })

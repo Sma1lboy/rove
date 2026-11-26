@@ -19,7 +19,6 @@ import { engineLaunchArgv, withPinnedSessionId } from "@/engine/engine-presets"
 import { remoteTaskOf } from "../../machines/hub-singleton.ts"
 
 import { getCapabilities } from "@/engine/registry"
-import { resolveMainRepoRoot } from "@/state/repos"
 import { resolvePreferredVendor } from "@/state/vendor-prefs"
 import type { VendorId } from "@/types/vendor"
 import type { TaskRepoView } from "@sma1lboy/rove-daemon/task-tree"
@@ -359,13 +358,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
   /** What ctrl+t and the sidebar's "New conversation" run. Always CONCRETE: an
    *  "inherit" mode would let a later task-vendor switch re-target every earlier conversation. */
   const openNewConversation = (): boolean => {
-    let vendor = props.vendor
-    try {
-      vendor = resolvePreferredVendor(resolveMainRepoRoot(props.worktree))
-    } catch {
-      /* keep the task's own engine */
-    }
-    return newConversation(vendor)
+    return newConversation(resolvePreferredVendor())
   }
   const openNewConversationRef = useLatest(openNewConversation)
   const openNewShellRef = useLatest(newShell)

@@ -93,7 +93,7 @@ export async function addParallel(
   // tier's; the plan carries only its protocol.
   const picked = await tierFields(ctx, prompt)
   const tier = picked.fields
-  const choice = tier?.choice ?? (await engineChoice(ctx, repo))
+  const choice = tier?.choice ?? (await engineChoice(ctx))
   const plan: VendorId[] = agentsSpec
     ? parseAgentsSpec(agentsSpec)
     : buildCountPlan(count ?? 1, choice.vendor ?? DEFAULT_VENDOR)
