@@ -12,7 +12,13 @@ import { errorMessage } from "../../lib/error-message.ts"
 import { forwardVerb, machineRequest, requireMachine } from "../../machines/forward.ts"
 import type { MachineEntry } from "../../machines/registry.ts"
 import { forwardedMcp } from "../../machines/remote-mcp.ts"
-import { createRemoteLink, removeRemoteLink } from "../../machines/remote-workspace.ts"
+import {
+  createRemoteLink,
+  readRemoteWorkspace,
+  remotePathKey,
+  remoteWorkspaceDir,
+  removeRemoteLink,
+} from "../../machines/remote-workspace.ts"
 import { machineSshArgs } from "../../machines/ssh-args.ts"
 import { isWindowsPath } from "../../machines/windows-remote.ts"
 import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
@@ -52,17 +58,21 @@ export async function addOnMachine(ctx: VerbContext, alias: string): Promise<unk
     const value = args.str(flag)
     return value === undefined ? {} : { [flag]: value }
   }
-  const there = inPlace
-    ? await openCheckoutThere(entry, repos[0] ?? "", title)
-    : await cutWorktreeThere(entry, {
-        repo: repos[0] ?? "",
-        "worktree-only": true,
-        ...(title ? { title } : {}),
-        ...NEW_WORKTREE_FLAGS.reduce<ApiParams>((acc, flag) => Object.assign(acc, pass(flag)), {}),
-      })
-  // Past this point a failure takes the row it just made back down (a checkout's own files are never touched).
+  // A checkout already linked keeps its one row there: every session on it shares the link directory.
+  const linked = inPlace ? await linkedCheckout(entry, repos[0] ?? "") : undefined
+  const there =
+    linked ??
+    (inPlace
+      ? await openCheckoutThere(entry, repos[0] ?? "", title)
+      : await cutWorktreeThere(entry, {
+          repo: repos[0] ?? "",
+          "worktree-only": true,
+          ...(title ? { title } : {}),
+          ...NEW_WORKTREE_FLAGS.reduce<ApiParams>((acc, flag) => Object.assign(acc, pass(flag)), {}),
+        }))
+  // Past this point a failure takes back down what this call made (a checkout's own files are never touched).
   const undo = async () => {
-    await forwardVerb(entry, "delete", { "task-id": there.taskId, wait: true, force: true })
+    if (!linked) await forwardVerb(entry, "delete", { "task-id": there.taskId, wait: true, force: true })
   }
 
   let dir: string
@@ -89,7 +99,7 @@ export async function addOnMachine(ctx: VerbContext, alias: string): Promise<unk
   try {
     task = await openDirSession(ctx, daemon, dir, title, true)
   } catch (err) {
-    removeRemoteLink(dir)
+    if (!linked) removeRemoteLink(dir)
     await undo()
     throw err
   }
@@ -131,12 +141,23 @@ async function openCheckoutThere(entry: MachineEntry, repo: string, title: strin
   return { taskId: task.id, task: { ...task, ...(repoId ? { repoId } : {}) }, worktreePath: task.worktreePath || repo }
 }
 
+/** The row there behind an existing link to this checkout, while that machine still has it. */
+async function linkedCheckout(entry: MachineEntry, repo: string): Promise<There | undefined> {
+  const ws = readRemoteWorkspace(remoteWorkspaceDir(entry.alias, repo, repo))
+  if (!ws || ws.machine !== entry.alias || remotePathKey(ws.path) !== remotePathKey(repo)) return undefined
+  const got = await forwardVerb(entry, "get-task", { "task-id": ws.taskId })
+  if (!got.ok) {
+    if (got.error.code === "TASK_NOT_FOUND") return undefined
+    throw new ApiError(got.error.message, got.error.code, got.error.data as Record<string, unknown> | undefined)
+  }
+  const { task } = got.result as { task: SerializedTask }
+  return { taskId: ws.taskId, task: { ...task, ...(ws.repoId ? { repoId: ws.repoId } : {}) }, worktreePath: ws.path }
+}
+
 /** The checkout's repo id as that machine's `repo-list` names it: a daemon there may hold a stale "none". */
 async function repoIdThere(entry: MachineEntry, path: string): Promise<string | undefined> {
   const listed = await forwardVerb(entry, "repo-list", {})
   if (!listed.ok) return undefined
-  // Windows paths compare without case or slash style.
-  const key = (p: string) => (isWindowsPath(p) ? p.replaceAll("\\", "/").toLowerCase() : p).replace(/\/+$/, "")
   const repos = (listed.result as { repos?: { id: string; checkouts: string[] }[] }).repos ?? []
-  return repos.find((r) => r.checkouts.some((c) => key(c) === key(path)))?.id
+  return repos.find((r) => r.checkouts.some((c) => remotePathKey(c) === remotePathKey(path)))?.id
 }

@@ -6,7 +6,8 @@
  * its cwd. That machine needs Rove and git, never an engine or its login.
  */
 
-import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, rmdirSync, writeFileSync } from "node:fs"
+import { createHash } from "node:crypto"
+import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, rmdirSync, writeFileSync } from "node:fs"
 import { basename, dirname, join } from "node:path"
 import { pathWithin } from "@sma1lboy/rove-daemon/path-identity"
 import { REMOTE_WORKSPACE_FILE } from "@sma1lboy/rove-daemon/repo-id"
@@ -54,12 +55,19 @@ export function remoteWorkspacesRoot(home = homeDir()): string {
   return join(home, ".rove", "remote-workspaces")
 }
 
+/** A path there as that machine compares it: Windows paths without case or slash style. */
+export function remotePathKey(path: string): string {
+  return (isWindowsPath(path) ? path.replaceAll("\\", "/").toLowerCase() : path).replace(/(?<=.)\/+$/, "")
+}
+
 /**
- * The link directory. It ends in `<machine>/<repo folder>`: a sidebar names a directory by its folder,
- * and by its last two segments when another project shares that folder name.
+ * The link directory: one per machine and path there, so every session on that path shares a cwd and an
+ * engine that keys its history by cwd lists them all. It ends in `<machine>/<repo folder>`: a sidebar
+ * names a directory by its folder, and by its last two segments when another project shares that folder name.
  */
-export function remoteWorkspaceDir(machine: string, taskId: string, name: string, home = homeDir()): string {
-  return join(remoteWorkspacesRoot(home), taskId, machine, basename(name.replaceAll("\\", "/")) || "workspace")
+export function remoteWorkspaceDir(machine: string, path: string, name: string, home = homeDir()): string {
+  const id = createHash("sha256").update(`${machine}\0${remotePathKey(path)}`).digest("hex").slice(0, 12)
+  return join(remoteWorkspacesRoot(home), id, machine, basename(name.replaceAll("\\", "/")) || "workspace")
 }
 
 export function readRemoteWorkspace(dir: string): RemoteWorkspace | null {
@@ -163,6 +171,7 @@ export function whereThingsRun(ws: RemoteWorkspaceNote, roveLine: string): strin
     forwarded.length > 0
       ? `- These MCP servers are ${ws.machine}'s, forwarded here: ${forwarded.map((s) => `\`${s}\``).join(", ")}. A page served on ${ws.machine} (a dev server you started there) opens in its browser at ${ws.machine}'s own \`localhost\` address; use them for that.`
       : `- A page served on ${ws.machine} is not at this machine's \`localhost\`. To open it in ${ws.machine}'s own browser, the owner can forward that machine's browser MCP server: \`rove machine mcp ${ws.machine} <name> <url>\`; it shows up in new sessions as \`<name>-${ws.machine}\`.`,
+    `- Earlier sessions in this project that ran from this directory can be resumed here. Sessions that ran natively on ${ws.machine} (the agent there) are stored on ${ws.machine} and cannot be resumed here; to continue one, use \`rove api add --machine ${ws.machine} --engine-there\` or start the session on ${ws.machine}.`,
   ]
 }
 
@@ -186,38 +195,48 @@ export interface LinkInput {
 /** Splits the probe's output: the system line, then the project's instructions. */
 const MARK = "@@rove-workspace@@"
 
-/** Make the link directory and probe the worktree through it. Throws when that machine does not answer. */
+/** Replaced whole, never truncated in place: another session may be running from the same link directory. */
+function writeAtomic(file: string, text: string, mode?: number): void {
+  const tmp = `${file}.${process.pid}.tmp`
+  writeFileSync(tmp, text)
+  if (mode !== undefined) chmodSync(tmp, mode)
+  renameSync(tmp, file)
+}
+
+/**
+ * Make (or refresh) the link directory and probe the worktree through it. Throws when that machine does
+ * not answer, removing the directory only when this call made it.
+ */
 export async function createRemoteLink(input: LinkInput, home = homeDir()): Promise<string> {
   const { ws } = input
-  const dir = remoteWorkspaceDir(ws.machine, ws.taskId, input.repo, home)
+  const dir = remoteWorkspaceDir(ws.machine, ws.path, input.repo, home)
+  const created = !isRemoteWorkspace(dir)
   mkdirSync(remoteBinDir(dir), { recursive: true })
-  writeFileSync(join(dir, REMOTE_WORKSPACE_FILE), `${JSON.stringify(ws, null, 2)}\n`)
+  writeAtomic(join(dir, REMOTE_WORKSPACE_FILE), `${JSON.stringify(ws, null, 2)}\n`)
   if (isWindowsPath(ws.path)) {
     const shell = await runAsync(input.sshArgv[0] ?? "ssh", [...input.sshArgv.slice(1), SSH_SHELL_PROBE], {
       timeoutMs: 30_000,
     })
-    writeFileSync(rxPath(dir), windowsRxScript(input.sshArgv, ws.path, SSH_SHELL_IS_CMD.test(shell.stdout)))
-    writeFileSync(rshPath(dir), windowsRshScript(input.sshArgv, ws.path))
+    writeAtomic(rxPath(dir), windowsRxScript(input.sshArgv, ws.path, SSH_SHELL_IS_CMD.test(shell.stdout)), 0o755)
+    writeAtomic(rshPath(dir), windowsRshScript(input.sshArgv, ws.path), 0o755)
   } else {
-    writeFileSync(rxPath(dir), rxScript(input.sshArgv, ws.path))
-    writeFileSync(rshPath(dir), rshScript(input.sshArgv, ws.path))
+    writeAtomic(rxPath(dir), rxScript(input.sshArgv, ws.path), 0o755)
+    writeAtomic(rshPath(dir), rshScript(input.sshArgv, ws.path), 0o755)
   }
-  chmodSync(rxPath(dir), 0o755)
-  chmodSync(rshPath(dir), 0o755)
   const probe = await runAsync(
     rxPath(dir),
     [`uname -sm; echo ${MARK}; cat AGENTS.md 2>/dev/null || cat CLAUDE.md 2>/dev/null`],
     { timeoutMs: 30_000 },
   )
   if (!probe.ok && !probe.stdout.includes(MARK)) {
-    removeRemoteLink(dir, home)
+    if (created) removeRemoteLink(dir, home)
     throw new Error(`${ws.machine} did not answer at ${ws.path}: ${(probe.stderr || "ssh failed").trim()}`)
   }
   const [system = "", ...rest] = probe.stdout.split(`\n${MARK}\n`)
   const note: RemoteWorkspaceNote = { ...ws, system: system.trim(), ...(input.mcp?.length ? { mcp: input.mcp } : {}) }
   const project = projectInstructions(rest.join(`\n${MARK}\n`))
-  writeFileSync(join(dir, "AGENTS.md"), remoteNotes(note) + project)
-  for (const notes of input.engineNotes) writeFileSync(join(dir, notes.file), notes.text(note) + project)
+  writeAtomic(join(dir, "AGENTS.md"), remoteNotes(note) + project)
+  for (const notes of input.engineNotes) writeAtomic(join(dir, notes.file), notes.text(note) + project)
   return dir
 }
 
@@ -225,7 +244,7 @@ export async function createRemoteLink(input: LinkInput, home = homeDir()): Prom
 export function removeRemoteLink(dir: string, home = homeDir()): void {
   if (!pathWithin(remoteWorkspacesRoot(home), dir) || !isRemoteWorkspace(dir)) return
   rmSync(dir, { recursive: true, force: true })
-  // The per-task directories that held it; each left alone when anything else is in it.
+  // The directories that held it; each left alone when anything else is in it.
   for (const parent of [dirname(dir), dirname(dirname(dir))]) {
     try {
       rmdirSync(parent)
