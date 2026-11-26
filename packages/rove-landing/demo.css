@@ -28,10 +28,12 @@
 .d-nav.is-on{color:var(--d-ink)}
 .d-rows{flex:1 1 auto;min-height:0;overflow:hidden;padding-top:.4em}
 .d-group{padding:.9em .7em .3em;color:var(--d-ink-3);font-family:var(--font-mono);font-size:.9em}
-.d-row{display:flex;align-items:center;gap:.6em;padding:.38em .7em;border-radius:.45em;animation:d-in .35s var(--ease) both}
+.d-row{display:flex;align-items:center;gap:.6em;margin-top:.15em;padding:.32em .7em;border-radius:.45em;animation:d-in .35s var(--ease) both}
 .d-row.is-on{background:#2A2A27}
 .d-row.is-new{animation:d-in .35s var(--ease) both,d-flash 1.4s ease-out both}
-.d-row.is-child{margin-left:1.3em;color:var(--d-ink-2)}
+/* children hang off a rule that runs down from their parent, as in the web rail */
+.d-row.is-child{position:relative;margin-left:1.9em;color:var(--d-ink-2)}
+.d-row.is-child::before{content:"";position:absolute;left:-.75em;top:-.1em;bottom:-.1em;border-left:1px solid #4A4A45}
 .d-title{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .d-tag{flex:none;font-family:var(--font-mono);font-size:.8em;color:var(--d-ink-3);border:1px solid var(--d-line);border-radius:.35em;padding:0 .4em}
 .d-dot{flex:none;width:.5em;height:.5em;border-radius:50%;background:var(--d-ink-3);transition:background .3s}
