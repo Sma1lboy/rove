@@ -2,7 +2,7 @@
  * The shortcut HUD (TUI `prefix-hud.tsx`, `shortcut-reveal.tsx`), bottom-left over the rail.
  * Armed prefix: `ctrl+a ⋯`, and after 180 ms the complete command map, grouped, each row
  * a click target. Held Ctrl: the direct shortcuts. Each resolved stroke: `ctrl+a + z →
- * Toggle zen mode` (or `∅`) for four seconds. While the prefix is armed, controls that
+ * Show or hide Files` (or `∅`) for four seconds. While the prefix is armed, controls that
  * name a binding carry a keycap with its real chord (`ShortcutBadge`).
  */
 

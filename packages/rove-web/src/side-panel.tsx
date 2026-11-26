@@ -17,7 +17,7 @@ import { type Column, type PanelKind, columnOf, columnWeights, showKind } from "
 import { editPanel, usePanelShown, useTaskPanel } from "./panel-state.ts"
 import { RAIL_DEFAULT_PX, clampRailWidth, railFolded, railWidth } from "./rail-layout.ts"
 import { useStore } from "./store.ts"
-import { dragLayout, zen } from "./ui.ts"
+import { dragLayout } from "./ui.ts"
 import { SIDE_BODY, SIDE_COLUMN, sidePanelClass } from "./ui/panel.ts"
 import { ResizeGrip } from "./ui/resize-grip.tsx"
 
@@ -119,7 +119,7 @@ function TaskPanel({ model, task, narrow }: { model: AppModel; task: TaskRow; na
 }
 
 /**
- * Desktop: the grid's right column, hidden by zen or by closing its last column. A task on another
+ * Desktop: the grid's right column, hidden by closing its last column. A task on another
  * machine has no files or page here, so its panel says where it lives. Narrow: the task's chosen view,
  * in the pane.
  */
@@ -134,9 +134,8 @@ export function SidePanel({
   remoteHost?: string
   narrow?: boolean
 }) {
-  const zenOn = useStore(zen)
   const open = usePanelShown(task?.id ?? null)
-  if (!narrow && (zenOn || !open)) return null
+  if (!narrow && !open) return null
   if (task) return <TaskPanel key={task.id} model={model} task={task} narrow={narrow} />
   if (!remoteHost) return null
   return (

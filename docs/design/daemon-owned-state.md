@@ -57,7 +57,7 @@ client. "Before" is how a running client saw another process's change.
 | First-party mods installed | `builtin-mods.json` | read when the Plugins section opens | unchanged; gap noted | a |
 | Inbox visit log (RECENT order) | TUI `inboxVisits`; web, iOS, Android each their own | per client | TUI copies follow changed remote visits, suppressing identical local-write echoes; web and phones keep their own | b for now |
 | Rail sort, project filter | `activeSortMode`, `tasksPane.projectFilter`; web localStorage | seeded once per host | unchanged: following another session's sort is a product call (`use-sidebar-host-state.tsx`) | b |
-| Rail fold/width, zen, split style, key hints, keys legend fold | `sidebar.*`, `zen.active`, `hints.*`; web localStorage | per window | the kv core keeps `sidebar.collapsed`, `sidebar.width`, `zen.active` per window when following | b |
+| Rail fold/width, Files shown, split style, key hints, keys legend fold | `sidebar.*`, `files.open`, `hints.*`; web localStorage | per window | the kv core keeps `sidebar.collapsed`, `sidebar.width`, `files.open` per window when following | b |
 | Web selection, rail width, collapsed projects; phone tab marks | browser localStorage, UserDefaults, SharedPreferences | per device | unchanged | b |
 | Onboarding and version bookkeeping | `app.*`, welcome keys | per machine CLI | unchanged | b |
 | Secrets, bridge auth | `secrets.json`, `~/.rove/bridge/` | local only | unchanged | b |

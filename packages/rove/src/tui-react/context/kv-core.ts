@@ -18,15 +18,15 @@ import { logClientError } from "@sma1lboy/rove-daemon/client/client-log"
 import { isUnpublishedStateKey } from "@sma1lboy/rove-daemon/daemon/state-watcher"
 import { kvStatePath } from "../../env.ts"
 import { createStateCell } from "../../lib/external-store"
+import { FILES_OPEN_KEY } from "../../state/files-pane.ts"
 import { SIDEBAR_COLLAPSED_KEY, SIDEBAR_WIDTH_KEY } from "../../state/sidebar-collapsed.ts"
 import { loadStateFile, readStateFileStrict, replaceStateFile, updateStateFile } from "../../state/store.ts"
 import { TERMINAL_TABS_PREFIX } from "../../state/tabs-persistence.ts"
-import { ZEN_ACTIVE_KEY } from "../../state/zen.ts"
 
 const WRITE_DEBOUNCE_MS = 250
 
 /** Per-window layout: another window folding its rail must not fold this one. The file keeps the last write, for the next launch. */
-const PER_WINDOW_KEYS: ReadonlySet<string> = new Set([SIDEBAR_COLLAPSED_KEY, SIDEBAR_WIDTH_KEY, ZEN_ACTIVE_KEY])
+const PER_WINDOW_KEYS: ReadonlySet<string> = new Set([SIDEBAR_COLLAPSED_KEY, SIDEBAR_WIDTH_KEY, FILES_OPEN_KEY])
 
 /** A debounced or exit flush that did not reach disk. */
 export interface KvWriteFailure {

@@ -64,7 +64,6 @@ describe("prefs.get", () => {
       workingBorder: "flow",
       toast: true,
       keyHints: true,
-      zen: true,
       splitStyle: "line",
       editorKind: "auto",
       worktreeBase: "default",

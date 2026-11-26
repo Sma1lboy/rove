@@ -11,7 +11,7 @@ export interface CollapseButtonProps {
   readonly collapsed: boolean
   readonly onToggle: () => void
   /** Sit in the flow instead of pinning to the rail's bottom-right corner.
-   *  The expanded rail shares a row with the zen chip; the collapsed rail has
+   *  The expanded rail has a foot row for it; the collapsed rail has
    *  no such row and keeps the corner. */
   readonly inline?: boolean
 }

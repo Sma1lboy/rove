@@ -396,17 +396,17 @@ waits until refresh is back on. No Settings row: set it with `rove config`.
 The daemon rereads it within 30 seconds, no restart; any other value falls
 back to the default.
 
-### Zen mode
+### Files pane
 
-Zen hides the Files pane so the active workspace gets the freed width. The
-engine or shell in the workspace remains visible. Toggle with `ctrl+a` `z`.
+The Files pane sits beside the workspace and is hidden until you open it. The
+`Files` button at the workspace's top right shows or hides it, as does
+`ctrl+a` `z`.
 
 | Key | Type | Default | What it does |
 |---|---|---|---|
-| `zen.active` | boolean | `true` | On/off. Persisted, so switching projects keeps you in zen. On by default: the Files pane is opt-in — turn off Settings → "Start in zen mode" (or `prefix` `z`) to show it |
+| `files.open` | boolean | `false` | Whether the Files pane is showing. Written by the button and the chord, so it is as you left it on the next launch |
 
-Zen always keeps the Tasks rail visible, because the rail also contains the
-exit affordance. A `zen.keepTasks` value left in your `state.json` by an older
+A `zen.active` or `zen.keepTasks` value left in your `state.json` by an older
 Rove is ignored; nothing reads or writes it any more.
 
 ### Update channel

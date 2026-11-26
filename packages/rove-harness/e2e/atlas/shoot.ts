@@ -164,36 +164,15 @@ for (const u of unchanged) console.error(`  UNCHANGED ${u.flow}/${u.step} — id
 /**
  * Undo state the PREVIOUS flow left in the TUI, before this flow's first step.
  *
- * Two leaks, both found by looking at frames rather than at exit codes:
- *
- * - **Zen mode is sticky.** The `workspace` flow ends on `ctrl+a z`, and the
- *   TUI restores it for every later flow — a whole run photographed a single
- *   column with the zen chip in the corner, so every layout after that was wrong.
- * - **The seeded engine parks on a permission prompt.** A real Claude Code turn
- *   can stop at `Do you want to proceed? 1. Yes / 2. No`, and that modal eats
- *   every keystroke that follows. Seven frames across `review` and `splits`
- *   came back byte-identical because of it. `esc` cancels the prompt; it is
- *   harmless when no prompt is up.
- *
- * Both are advisory — a flow whose state was already clean loses nothing.
+ * **The seeded engine parks on a permission prompt.** A real Claude Code turn
+ * can stop at `Do you want to proceed? 1. Yes / 2. No`, and that modal eats
+ * every keystroke that follows. Seven frames across `review` and `splits`
+ * came back byte-identical because of it. `esc` cancels the prompt; it is
+ * harmless when no prompt is up.
  */
 async function clearInheritedState(page: Page): Promise<void> {
   await page.keyboard.press("Escape")
   await page.waitForTimeout(300)
-  // Leave zen if it is on. The chord is a toggle, so this is only safe because
-  // `zenActive` reads the footer glyph first rather than pressing blind.
-  const zenActive = await page
-    .getByTestId("opentui-buffer")
-    .textContent()
-    // The rail's foot reads `zen ‹` while zen is on.
-    .then((text) => /\bzen\s+‹/.test(text ?? ""))
-    .catch(() => false)
-  if (zenActive) {
-    await page.keyboard.press("Control+a")
-    await page.waitForTimeout(200)
-    await page.keyboard.press("z")
-    await page.waitForTimeout(800)
-  }
 }
 
 async function shootFlow(flow: Flow): Promise<void> {

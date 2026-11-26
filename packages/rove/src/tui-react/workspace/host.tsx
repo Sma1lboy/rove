@@ -52,6 +52,7 @@ import { useAttention } from "./use-attention"
 import { requestCreatePR } from "./use-create-pr"
 import { useDaemonState } from "./use-daemon-state"
 import { useEditorHandles } from "./use-editor-handles"
+import { useFilesPane } from "./use-files-pane"
 import { useHostNotifiers } from "./use-host-notifiers"
 import { useInboxHost } from "./use-inbox-host"
 import { useIssueChat } from "./use-issue-chat"
@@ -59,7 +60,6 @@ import { usePrCheckNotifier } from "./use-pr-check-notifier"
 import { useScratchShell } from "./use-scratch-shell"
 import { useSidebarCollapsed, useSidebarWidth } from "./use-sidebar-layout"
 import { useWorkspaceSelection } from "./use-workspace-selection"
-import { useZenMode } from "./use-zen-mode"
 import { WorkspacePaneFrame } from "./workspace-frame"
 
 /** Exported for the render track: banner wiring is only provable on the REAL host. */
@@ -205,8 +205,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     seedPrompt: quickFork.seedPrompt,
   })
 
-  /* --------- zen mode ---------------------------------------------------- */
-  const { zen, toggleZen } = useZenMode({ kv, focus })
+  const filesPane = useFilesPane({ kv, focus })
   const filesActions = useFilesPaneActions({
     onOpenFile: (relPath) => void editor.onOpenFile(relPath),
     onOpenDiff: editor.onOpenDiff,
@@ -286,7 +285,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     focus,
     dialog,
     pages,
-    filesPaneVisible: !zen && pages.nav === "terminal" && pageRender.showSidebar && pageRender.showContent,
+    filesPaneVisible: filesPane.open && pages.nav === "terminal" && pageRender.showSidebar && pageRender.showContent,
     searchActive,
     selectedId,
     cursorTaskId: () => cursorTaskIdRef.current(),
@@ -294,7 +293,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     createTask: () => void taskActions.createTask(),
     renameBranch: (id) => void taskActions.renameBranch(id),
     cycleVendor: (id) => void taskActions.cycleVendor(id),
-    toggleZen,
+    toggleFiles: filesPane.toggle,
     jumpToNextAttention,
     backToPreviousTask: () => {
       if (!backToPreviousTask()) notifyInfo(t("workspace.noPreviousTask"))
@@ -347,8 +346,6 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
       onPaneDrag={sidebarResize.onPaneDrag}
       onPaneRelease={sidebarResize.onPaneRelease}
     >
-      {/* Tasks sidebar stays visible in zen (tmux parity) — its
-          ☯ ZEN chip is also the exit affordance. */}
       {/* Borderless rail (owner call 2026-07-27): no frame, no divider —
           opentui coerces a full frame if borderColor is ever set, so the box
           carries no border prop at all. The workspace frame's left edge is
@@ -383,8 +380,6 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
               openScratch={scratch.openScratchShell}
               activePane={activePane}
               usage={orch.usageSnapshotSignal()}
-              zen={zen}
-              toggleZen={toggleZen}
               sortMode={sortMode}
               moveMode={moveMode}
               exitMoveMode={() => setMoveMode(false)}
@@ -410,6 +405,11 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
               : undefined
           }
           onActivate={() => focus.setFocused("workspace")}
+          files={
+            pageRender.contentPage == null && pageRender.showSidebar
+              ? { open: filesPane.open, onToggle: filesPane.toggle }
+              : undefined
+          }
         >
           {/* Narrow hides the sidebar; a null slot keeps the boundary's index stable across the breakpoint. */}
           {isNarrowWidth(dims.width) ? <NarrowBackBar onBack={() => focus.setFocused("sidebar")} /> : null}
@@ -451,9 +451,9 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
 
       {/* The FileTree lists a WORKTREE's files. A rail page is not about a
           worktree — it reads daemon state that spans projects — so the pane
-          would be showing an unrelated tree beside it. Hidden, same as zen
+          would be showing an unrelated tree beside it. Hidden there
           (and always in narrow — three panes don't fit 46 cols). */}
-      {!zen && pageRender.contentPage == null && pageRender.showSidebar && pageRender.showContent ? (
+      {filesPane.open && pageRender.contentPage == null && pageRender.showSidebar && pageRender.showContent ? (
         <HostFilesPane
           sidebarWidth={sidebarWidth.width}
           worktree={worktree}

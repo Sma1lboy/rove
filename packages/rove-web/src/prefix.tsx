@@ -25,12 +25,13 @@ import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { startNewTask } from "./new-session-view.tsx"
 import { openPalette } from "./palette-view.tsx"
 import { focusPane } from "./pane-focus.ts"
+import { launchPanel } from "./panel-state.ts"
 import { hud, hudPush } from "./prefix-state.ts"
 import { aimedTask } from "./rail-aim.ts"
 import { SettingsDialog } from "./settings-view.tsx"
 import { isSplit } from "./split-model.ts"
 import { fixChecksFlow, openEditorFlow, syncBaseFlow } from "./task-flows.tsx"
-import { dialog, toast, zen } from "./ui.ts"
+import { dialog, toast } from "./ui.ts"
 import { defaultPrefixKeys, prefixKey, userKeys } from "./user-keys.ts"
 
 interface PrefixAction {
@@ -90,7 +91,14 @@ export const ACTIONS: readonly PrefixAction[] = [
   { id: "inbox.show", live: () => true, run: (model) => dialog.set(<InboxDialog model={model} />) },
   { id: "focus.previous", live: () => true, run: () => focusPane(-1) },
   { id: "focus.next", live: () => true, run: () => focusPane(1) },
-  { id: "workspace.zenToggle", live: (m) => !!selectedTask(m), run: () => zen.set(!zen.get()) },
+  {
+    id: "workspace.filesToggle",
+    live: (m) => !!selectedTask(m),
+    run: (model) => {
+      const task = selectedTask(model)
+      if (task) launchPanel(task.id, "files")
+    },
+  },
   {
     id: "files.createPR",
     live: (m) => !!selectedTask(m),

@@ -3,7 +3,6 @@
 import { showPanel } from "./panel-state.ts"
 import { createStore } from "./store.ts"
 import type { HitRef } from "./transcript-data.ts"
-import { zen } from "./ui.ts"
 
 export interface TranscriptTarget {
   readonly taskId: string
@@ -17,9 +16,8 @@ export const transcriptTarget = createStore<TranscriptTarget | null>(null)
 
 let nonce = 0
 
-/** Open the task's Chat tab (leaving zen, and on a phone switching to it) scrolled to `hit`'s message. */
+/** Open the task's Chat tab (on a phone switching to it) scrolled to `hit`'s message. */
 export function openTranscriptAt(taskId: string, hit: HitRef): void {
   transcriptTarget.set({ taskId, hit, nonce: ++nonce })
   showPanel(taskId, "chat")
-  if (zen.get()) zen.set(false)
 }

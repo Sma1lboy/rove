@@ -179,8 +179,8 @@ async function setup(): Promise<void> {
     "engineCommand.codex": `${engineBin("codex")} ${CODEX_ARGS}`,
     // Room for the branch labels; Kanban and Issues stay uninstalled, so only this film's pages show.
     "sidebar.width": SIDEBAR_WIDTH,
-    // Zen starts on by default and hides the Files pane, whose Changes tab the diff beat needs.
-    "zen.active": false,
+    // The Files pane starts hidden, and the diff beat needs its Changes tab.
+    "files.open": true,
     ...(skillVersion ? { [`skillHintSeen:v${skillVersion}`]: "1" } : {}),
   }
   await mkdir(join(HERO_CONFIG, "rove"), { recursive: true })

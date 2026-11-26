@@ -115,22 +115,17 @@ export function editBrowser(panel: TaskPanel, edit: (col: BrowserColumn) => Brow
 /**
  * A launcher button toggles its own column. `visible`: the panel is on screen. Pressed on a column that
  * is showing, it closes that column (the panel goes with its last one); otherwise it opens it.
- * `closed`: the panel is shut, not just hidden by zen, so the columns it remembers (a new task's
- * Files, what another visit left) were not asked for: the button opens its own column alone.
+ * With the panel shut, the columns it remembers (a new task's Files, what another visit left)
+ * were not asked for: the button opens its own column alone.
  */
-export function launch(
-  panel: TaskPanel,
-  visible: boolean,
-  kind: PanelKind,
-  closed = false,
-): { panel: TaskPanel; open: boolean } {
-  if (visible && columnOf(panel, kind)) {
-    const next = closeColumn(panel, kind)
-    return { panel: next, open: next.columns.length > 0 }
-  }
-  if (closed) {
+export function launch(panel: TaskPanel, visible: boolean, kind: PanelKind): { panel: TaskPanel; open: boolean } {
+  if (!visible) {
     const own = panel.columns.filter((col) => col.kind === kind)
     return { panel: showKind({ ...panel, columns: own }, kind), open: true }
+  }
+  if (columnOf(panel, kind)) {
+    const next = closeColumn(panel, kind)
+    return { panel: next, open: next.columns.length > 0 }
   }
   return { panel: showKind(panel, kind), open: true }
 }

@@ -106,17 +106,11 @@ describe("the launcher buttons", () => {
     expect(launch(newPanel(), true, "files")).toEqual({ panel: { columns: [], weights: {} }, open: false })
   })
 
-  test("with the panel hidden by zen a button brings its column back beside the others", () => {
-    const panel = newPanel()
-    expect(launch(panel, false, "files")).toEqual({ panel, open: true })
-    expect(kinds(launch(panel, false, "diff").panel)).toEqual(["files", "diff"])
-  })
-
   test("with the panel shut a button opens its own column alone, not the ones the task remembered", () => {
     // A new task remembers Files: Browser must not bring it along.
-    expect(kinds(launch(newPanel(), false, "browser", true).panel)).toEqual(["browser"])
+    expect(kinds(launch(newPanel(), false, "browser").panel)).toEqual(["browser"])
     const remembered = showKind(showKind(newPanel(), "diff"), "browser")
-    const diff = launch(remembered, false, "diff", true)
+    const diff = launch(remembered, false, "diff")
     expect(kinds(diff.panel)).toEqual(["diff"])
     expect(diff.open).toBe(true)
     // Its own column keeps what it showed.

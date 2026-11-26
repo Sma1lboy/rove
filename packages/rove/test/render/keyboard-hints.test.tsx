@@ -79,7 +79,7 @@ function locate(frameText: string, needle: string): { x: number; y: number } {
 }
 
 /** Registers the real workspace chord set so reachability has live data. */
-function WorkspaceDriver(props: { children?: React.ReactNode; onToggleZen?: () => void }) {
+function WorkspaceDriver(props: { children?: React.ReactNode; onToggleFiles?: () => void }) {
   const focus = useFocus()
   const dialog = useDialog()
   useWorkspaceKeybindings({
@@ -94,7 +94,7 @@ function WorkspaceDriver(props: { children?: React.ReactNode; onToggleZen?: () =
     createTask: NOOP,
     renameBranch: NOOP,
     cycleVendor: NOOP,
-    toggleZen: props.onToggleZen ?? NOOP,
+    toggleFiles: props.onToggleFiles ?? NOOP,
     jumpToNextAttention: NOOP,
     backToPreviousTask: NOOP,
     openInbox: NOOP,
@@ -183,10 +183,10 @@ describe("StatusKeyHintBar", () => {
 
   it("opens and dispatches the command layer with ctrl+a inside the terminal", async () => {
     withGuideKvHome()
-    let zenToggles = 0
+    let filesToggles = 0
     const { frame, mockInput } = await renderComponent(
       <WorkspaceFrame orchestrator={fakeOrchestrator()} onOpenSettings={NOOP}>
-        <WorkspaceDriver onToggleZen={() => zenToggles++}>
+        <WorkspaceDriver onToggleFiles={() => filesToggles++}>
           <TerminalPassthroughDriver>
             <PrefixHud left={1} width={24} />
           </TerminalPassthroughDriver>
@@ -202,7 +202,7 @@ describe("StatusKeyHintBar", () => {
 
     act(() => mockInput.pressKey("z"))
     await settle()
-    expect(zenToggles).toBe(1)
+    expect(filesToggles).toBe(1)
     act(() => resetPrefixState())
   })
 

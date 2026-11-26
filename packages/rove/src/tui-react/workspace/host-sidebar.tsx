@@ -49,8 +49,6 @@ export interface HostSidebarProps
   /** "newer version on npm" chip beside the brand text; null hides it. */
   readonly updateChip?: { label: string } | null
   readonly onUpdateChipClick?: () => void
-  readonly zenActive: boolean
-  readonly onZenClick: () => void
   readonly usage?: SidebarProps["usage"]
   readonly onOpenSettings?: () => void
   readonly onFocusRequest: () => void

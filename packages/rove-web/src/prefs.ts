@@ -34,7 +34,6 @@ export interface Prefs {
   readonly crossTask: boolean
   readonly finishedAlerts: boolean
   readonly keyHints: boolean
-  readonly zen: boolean
   readonly editorKind: string
   readonly worktreeBase: "default" | "nextToProject" | "custom"
   readonly scrollbackRows: number
@@ -122,7 +121,6 @@ const DEFAULTS: Prefs = {
   crossTask: true,
   finishedAlerts: true,
   keyHints: true,
-  zen: true,
   editorKind: "auto",
   worktreeBase: "default",
   scrollbackRows: 1000,

@@ -77,7 +77,7 @@ function ChordHost({ spies }: { spies: Spies }) {
     createTask: () => {},
     renameBranch: (id) => spies.renameBranch.push(id),
     cycleVendor: (id) => spies.cycleVendor.push(id),
-    toggleZen: () => {},
+    toggleFiles: () => {},
     jumpToNextAttention: () => {},
     backToPreviousTask: () => {},
     openInbox: () => {},

@@ -88,11 +88,9 @@ export type SidebarProps = SidebarTaskCallbacks & {
   onUpdateChipClick?: () => void
   /** Start a task; `repo` names the project it starts in (a header's `+` or menu), else the flow picks. */
   onAddTask?: (repo?: string) => void
-  zenActive?: boolean
   /** The rail's foot: each engine's quota, then the Settings row. Absent = neither is drawn. */
   usage?: ReadableState<UsageSnapshotMap | null>
   onOpenSettings?: () => void
-  onZenClick?: () => void
   engineState?: ReadonlyMap<string, TaskEngineState>
   /** Per-tab activity (taskId → tabId → state); the tree's tab rows use it. */
   engineTabState?: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>

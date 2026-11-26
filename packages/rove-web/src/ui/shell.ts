@@ -11,7 +11,8 @@ export const APP_SHELL = "flex h-full flex-col"
 
 /** `app` and its `is-*` states stay as hooks: the layout variants in tailwind.css read them. */
 export const appClass = (o: {
-  zen: boolean
+  /** The side panel has a column of the grid. */
+  panel: boolean
   expanded: boolean
   surface: string | null
   folded: boolean
@@ -22,10 +23,9 @@ export const appClass = (o: {
     "app relative grid min-h-0 flex-1 grid-rows-[1fr_auto] transition-[grid-template-columns] duration-220 ease-snap motion-reduce:transition-none",
     o.surface
       ? `is-narrow narrow-${o.surface} grid-cols-[minmax(0,1fr)]`
-      : o.zen
-        ? "grid-cols-[var(--rail-w,minmax(220px,280px))_1fr]"
-        : "grid-cols-[var(--rail-w,minmax(220px,280px))_minmax(0,1fr)_minmax(0,var(--panel-w,33%))]",
-    o.zen ? "is-zen" : "",
+      : o.panel
+        ? "grid-cols-[var(--rail-w,minmax(220px,280px))_minmax(0,1fr)_minmax(0,var(--panel-w,33%))]"
+        : "grid-cols-[var(--rail-w,minmax(220px,280px))_1fr]",
     o.expanded ? "is-panel-expanded" : "",
     o.folded ? "is-rail-folded" : "",
     o.peek ? "is-rail-peek" : "",

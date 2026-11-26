@@ -57,7 +57,6 @@ import {
   normalizeWorktreeBase,
   worktreeBaseKindOf,
 } from "../../../state/worktree-base"
-import { ZEN_ACTIVE_KEY, ZEN_DEFAULT } from "../../../state/zen"
 import {
   DEFAULT_EDITOR_KIND,
   EDITOR_CUSTOM_KEY,
@@ -135,15 +134,6 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   }
   function selectSplitStyle(style: SplitStyle): void {
     kv.set(SPLIT_STYLE_KEY, style)
-  }
-
-  // Zen: start collapsed to the engine pane. Same key the runtime toggle writes
-  // (`state/zen.ts`), so this row also mirrors the current session.
-  function zenDefaultOn(): boolean {
-    return kv.get(ZEN_ACTIVE_KEY, ZEN_DEFAULT) === true
-  }
-  function toggleZenDefaultOn(): void {
-    kv.set(ZEN_ACTIVE_KEY, !zenDefaultOn())
   }
 
   // Update channel (`state/update-channel.ts`): unset reads as the running build's channel.
@@ -379,8 +369,6 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     selectPrefixTapPresentation,
     splitStyle,
     selectSplitStyle,
-    zenDefaultOn,
-    toggleZenDefaultOn,
     updateChannel,
     cycleUpdateChannel,
     updateNotify,

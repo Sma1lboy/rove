@@ -43,5 +43,4 @@ async function headerLines(): Promise<string[]> {
 test("the header opens on the All / Changes tabs, with no action chips", async () => {
   const lines = await headerLines()
   expect(lines.findIndex((line) => line.includes("Changes"))).toBe(1)
-  expect(lines.join("\n")).not.toContain("Zen")
 })

@@ -154,7 +154,7 @@ export function guideCategory(action: string): string {
   if (action.startsWith("inbox.") || action.startsWith("attention.")) return "Attention"
   if (action.startsWith("chat.tab.") || action.startsWith("chat.session.")) return "Sessions"
   if (action.startsWith("chat.fork.") || action.startsWith("task.")) return "Tasks"
-  if (action.startsWith("settings.") || action === "workspace.zenToggle") return "Tools"
+  if (action.startsWith("settings.") || action === "workspace.filesToggle") return "Tools"
   return findBinding(action)?.category ?? "Global"
 }
 

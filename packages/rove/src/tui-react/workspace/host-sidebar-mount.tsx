@@ -51,8 +51,6 @@ export interface HostSidebarMountProps {
   readonly openScratch: (vendor: VendorId | undefined) => void
   readonly activePane: string | null
   readonly usage: HostSidebarProps["usage"]
-  readonly zen: boolean
-  readonly toggleZen: () => void
   readonly sortMode: TaskSortMode
   readonly moveMode: boolean
   readonly exitMoveMode: () => void
@@ -151,8 +149,6 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
       onUpdateChipClick={pages.openUpdate}
       usage={props.usage}
       onOpenSettings={pages.openSettings}
-      zenActive={props.zen}
-      onZenClick={props.toggleZen}
       onFocusRequest={() => focus.setFocused("sidebar")}
       recentTask={props.recentTask}
       cursorTaskIdRef={props.cursorTaskIdRef}

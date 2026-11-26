@@ -158,7 +158,6 @@ export function GeneralSettingsSection(
   const crossTaskRow = rowIdx("cross-task")
   const finishedAlertsRow = rowIdx("finished-alerts")
   const keyHintsRow = rowIdx("key-hints")
-  const zenDefaultOnRow = rowIdx("zen-default-on")
   const updateChannelRow = rowIdx("update-channel")
   const updateCheckRow = rowIdx("update-check")
   const updateNotifyRow = rowIdx("update-notify")
@@ -270,17 +269,6 @@ export function GeneralSettingsSection(
             hint={hint("settings.general.keyHintsShowHint")}
           >
             {pad(`${check(keyHintsToggleOn(kv))} ${t("settings.general.keyHintsShow")}`)}
-          </Row>
-        </SubSection>
-        <SubSection title={t("settings.general.zen")} hint={t("settings.general.zenHint")}>
-          <Row
-            cursor={isBodyCursor(zenDefaultOnRow)}
-            rowRef={props.rowRef(zenDefaultOnRow)}
-            onMouseUp={activate(zenDefaultOnRow, prefs.toggleZenDefaultOn)}
-            fg={prefs.zenDefaultOn() ? theme.accent : theme.textMuted}
-            bold={true}
-          >
-            {`${check(prefs.zenDefaultOn())} ${t("settings.general.zenDefaultOn")}`}
           </Row>
         </SubSection>
         <SubSection title={t("settings.general.updates")} hint={t("settings.general.updatesHint")}>

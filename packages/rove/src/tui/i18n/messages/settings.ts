@@ -114,9 +114,6 @@ export const en = {
     /** Checkbox row label */
     keyHintsShow: "Show keyboard hints",
     keyHintsShowHint: "re-enabling relights hints dismissed by use",
-    zen: "Zen mode",
-    zenHint: "The `zen` chip and `prefix`+z hide Files, keeping the Tasks rail and workspace.",
-    zenDefaultOn: "Start in zen mode",
     updates: "Updates",
     updatesHint:
       "Stable is the default channel; next previews the coming release; nightly is built from main every day.",
@@ -359,9 +356,6 @@ export const zh: typeof en = {
     keyHintsHint: "状态栏提醒，以及侧栏和文件面板的首用提示。",
     keyHintsShow: "显示键盘提示",
     keyHintsShowHint: "重新开启会点亮已因使用而熄灭的提示",
-    zen: "禅模式",
-    zenHint: "`zen` 标记和 `prefix`+z 隐藏 Files，保留 Tasks 侧栏与 workspace。",
-    zenDefaultOn: "启动即进入禅模式",
     updates: "更新",
     updatesHint: "稳定版是默认渠道；next 预览即将发布的版本；nightly 每天从 main 自动构建。",
     updateChannelTitle: "发布渠道",

@@ -133,7 +133,7 @@ function SortHost() {
     createTask: () => {},
     renameBranch: () => {},
     cycleVendor: () => {},
-    toggleZen: () => {},
+    toggleFiles: () => {},
     jumpToNextAttention: () => {},
     backToPreviousTask: () => {},
     openInbox: () => {},

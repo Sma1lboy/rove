@@ -49,12 +49,6 @@ export function GeneralSection({ model }: { model: AppModel }) {
           checked={prefs.keyHints}
           onChange={(next) => set("keyHints", next)}
         />
-        <Toggle
-          label={ts("general.zenDefaultOn")}
-          hint={t("prefs.zenHint")}
-          checked={prefs.zen}
-          onChange={(next) => set("zen", next)}
-        />
         <Choice
           label={t("settings.general.tabStrip")}
           value={prefs.tabStrip}

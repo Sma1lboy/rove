@@ -36,12 +36,12 @@ export function isPanelPush(data: unknown): data is PanelPush {
 
 /**
  * What `ui.viewing` says about the panel. A narrow page has none (its Files / Diff / Browser are
- * full-pane views); a desktop page has one that zen hides.
+ * full-pane views); a desktop page has one.
  */
-export function panelFields(layout: { narrow: boolean; panelOpen: boolean; zen: boolean }) {
+export function panelFields(layout: { narrow: boolean; panelOpen: boolean }) {
   return layout.narrow
     ? { panel: false, panelOpen: false, narrow: true }
-    : { panel: true, panelOpen: layout.panelOpen && !layout.zen, narrow: false }
+    : { panel: true, panelOpen: layout.panelOpen, narrow: false }
 }
 
 /** What to do with a `panel` push on this page. */

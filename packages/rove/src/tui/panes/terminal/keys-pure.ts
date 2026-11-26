@@ -298,7 +298,7 @@ const RESERVED_SPEC: ReadonlyArray<string | { id: string }> = [
   { id: "focus.next" }, // f4
   // Terminal reset (confirm-gated).
   { id: "terminal.reset" }, // f5
-  // f6 is not reserved (zen is prefix-only). Next waiting task is f7, NOT
+  // f6 is not reserved (the Files toggle is prefix-only). Next waiting task is f7, NOT
   // ctrl+g (readline abort); see docs/KEYBINDINGS.md.
   { id: "attention.next" }, // f7
 ] as const
