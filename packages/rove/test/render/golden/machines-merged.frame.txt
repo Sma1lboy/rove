@@ -12,8 +12,8 @@
 |                              |
 | rove                         |
 |▌alpha                     ⠯⠇ |
-| charlie               ⣔⣉⣢ ⠯⠇ |
-| delta                 ⣔⣉⣢ ⠯⠇ |
+| charlie                ⠮⠵ ⠯⠇ |
+| delta                  ⠮⠵ ⠯⠇ |
 |                              |
 | api                          |
 | echo                      ⠯⠇ |

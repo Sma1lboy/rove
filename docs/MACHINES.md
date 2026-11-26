@@ -107,7 +107,7 @@ rove                          ← your projects, exactly where they were
   main
   fix/machines
 narwhal:rove                  ← narwhal's checkout of a repo you also have
-  remote probe ⣔⣉⣢            ← a task there: the cloud says where it runs
+  remote probe ⠮⠵             ← a task there: the cloud says where it runs
 ```
 
 There is no row for the machine itself: projects from every machine share one
