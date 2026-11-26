@@ -119,8 +119,9 @@ export function ContextMenu(props: {
             </text>
             {entry.cap ? (
               <text
+                // The web's meta column: subtle at rest, a step stronger on the row under the cursor.
                 fg={active && entry.danger ? theme.selectedListItemText : theme.textMuted}
-                attributes={TextAttributes.DIM}
+                attributes={active ? undefined : TextAttributes.DIM}
                 wrapMode="none"
                 flexShrink={0}
               >
