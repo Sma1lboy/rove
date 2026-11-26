@@ -1,31 +1,30 @@
 /**
- * The hero's backdrop: a time-lapse of a flower opening, larger than the page, converted as it
- * plays. Left of a slowly sweeping line it is the film itself; right of the line, every frame is
- * rebuilt from square cells printed with their brightness (00–99). The green behind the flower is
- * cut away frame by frame, so the flower stands on the page's own paper and the cells end in a
- * ragged edge with a few loose ones. Both halves clear behind the headline so the text reads
- * over them.
+ * The hero's backdrop: a coral peony, larger than the page, shown half as it is and half rebuilt
+ * from square cells printed with their brightness (00–99). A line divides the two and sweeps
+ * slowly by itself. The flower breathes (a slow swell and sway), and the cells are converted from
+ * it on every frame, so their colours and numbers keep changing. The picture's plain background
+ * is cut away, so the flower stands on the page's own paper and the cells end in a ragged edge
+ * with a few loose ones. Both halves clear behind the headline so the text reads over them.
  *
- * The film is "Time-lapse of a flower blooming" by Ajith Samuel, CC BY 3.0 (credited in the page
- * footer), played forward then backward so the loop has no jump. Built to celestial.js by
- * `bun run build:celestial`; edit here, not there.
+ * Built to celestial.js by `bun run build:celestial`; edit here, not there.
  */
 
-const SRC = "/assets/hero-bloom.mp4"
+const SRC = "/assets/hero-peony.webp"
 /** A cell's pitch and its filled side, in px. */
 const PITCH = 16
 const TILE = 15
-/** The film's height in canvas heights, and where the open flower's centre sits on the canvas (fractions of its width and height). */
-const TALL = 1.12
-const AT_X = 0.78
+/** The picture's height in canvas heights, and where its centre sits on the canvas (fractions of its width and height). */
+const TALL = 1.22
+const AT_X = 0.8
 const AT_Y = 0.5
-/** Where the flower's centre is in the film's own frame until the first frame is read. */
-const FLOWER_X = 0.6
-const FLOWER_Y = 0.55
-/** The size the film is read at to find the flower and colour the cells. */
-const READ_W = 420
+/** How much the flower swells, how far it sways in px, and the speed of each in radians per second. */
+const SWELL = 0.03
+const SWAY = 10
+const BREATH = 0.45
+/** The size the picture is read at to colour the cells. */
+const READ = 512
 /** Where the line rests (a fraction of the width), how far it swings, and its speed in radians per second. */
-const REST = 0.78
+const REST = 0.76
 const SWING = 0.1
 const PACE = 0.3
 
@@ -50,36 +49,46 @@ const board = (width: number, height: number, read = false) => {
 
 if (canvas && ctx) {
   const motion = matchMedia("(prefers-reduced-motion: reduce)")
-  const film = document.createElement("video")
-  film.muted = true
-  film.loop = true
-  film.playsInline = true
-  film.preload = "auto"
-  film.src = SRC
-
+  const picture = new Image()
+  /** The picture at its own size with its background cut away, and a small copy the cells read. */
+  let cut: HTMLCanvasElement | null = null
+  let pixels: ImageData | null = null
   let w = 0
   let h = 0
   let dpr = 1
-  /** The film at a small size, with everything but the flower made transparent. */
-  let [cut, cutPen] = board(1, 1, true)
-  let pixels: ImageData | null = null
   /** The two halves at the canvas's size, and what is erased from both (behind the text, toward the edges). */
   let [real, realPen] = board(1, 1)
   let [cells, cellPen] = board(1, 1)
   let [hole, holePen] = board(1, 1)
-  /** Each cell's eased colour, by row * 512 + col, and whether it has one yet. */
-  const held = new Float32Array(512 * 256 * 3)
-  const seen = new Uint8Array(512 * 256)
-  /** The flower's centre in the film's frame, followed frame by frame: the bud starts far left of where it opens. */
-  let flowerX = FLOWER_X
-  let flowerY = FLOWER_Y
-  let found = false
   let line = -1
   let last = 0
   let elapsed = 0
   let timer = 0
   let visible = false
-  let ready = false
+
+  /** Cut the pale, colourless background out of the picture. */
+  const prepare = () => {
+    const [full, pen] = board(picture.naturalWidth, picture.naturalHeight, true)
+    if (!pen) return
+    pen.drawImage(picture, 0, 0)
+    const data = pen.getImageData(0, 0, full.width, full.height)
+    const d = data.data
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i] ?? 0
+      const g = d[i + 1] ?? 0
+      const b = d[i + 2] ?? 0
+      const light = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
+      const colour = (Math.max(r, g, b) - Math.min(r, g, b)) / 255
+      // Background is both bright and nearly grey; a pale petal still keeps some colour.
+      d[i + 3] = Math.round(255 * (1 - smooth(0.82, 0.93, light) * (1 - smooth(0.05, 0.14, colour))))
+    }
+    pen.putImageData(data, 0, 0)
+    cut = full
+    const [small, smallPen] = board(READ, (READ * full.height) / full.width, true)
+    if (!smallPen) return
+    smallPen.drawImage(full, 0, 0, small.width, small.height)
+    pixels = smallPen.getImageData(0, 0, small.width, small.height)
+  }
 
   /** What is erased from both halves: behind the headline and the install box, and toward the top and bottom edges. */
   const punch = () => {
@@ -97,8 +106,9 @@ if (canvas && ctx) {
     holePen.restore()
     const edges = holePen.createLinearGradient(0, 0, 0, h)
     edges.addColorStop(0, "#000")
-    edges.addColorStop(0.1, "rgb(0 0 0 / 0)")
-    edges.addColorStop(0.8, "rgb(0 0 0 / 0)")
+    edges.addColorStop(0.07, "#000")
+    edges.addColorStop(0.2, "rgb(0 0 0 / 0)")
+    edges.addColorStop(0.82, "rgb(0 0 0 / 0)")
     edges.addColorStop(1, "#000")
     holePen.fillStyle = edges
     holePen.fillRect(0, 0, w, h)
@@ -118,56 +128,19 @@ if (canvas && ctx) {
     punch()
   }
 
-  /** Read the film's current frame and keep only the flower: warm pixels stay, the green behind them goes. */
-  const read = () => {
-    if (!film.videoWidth) return
-    const readH = Math.round((READ_W * film.videoHeight) / film.videoWidth)
-    if (cut.width !== READ_W || cut.height !== readH) [cut, cutPen] = board(READ_W, readH, true)
-    if (!cutPen) return
-    cutPen.globalCompositeOperation = "copy"
-    cutPen.drawImage(film, 0, 0, READ_W, readH)
-    const frame = cutPen.getImageData(0, 0, READ_W, readH)
-    const d = frame.data
-    let sumX = 0
-    let sumY = 0
-    let count = 0
-    for (let i = 0; i < d.length; i += 4) {
-      const warm = ((d[i] ?? 0) - (d[i + 1] ?? 0)) / 255
-      const keep = smooth(0.02, 0.14, warm)
-      d[i + 3] = Math.round(255 * keep)
-      if (keep > 0.5) {
-        const p = i / 4
-        sumX += p % READ_W
-        sumY += Math.floor(p / READ_W)
-        count++
-      }
-    }
-    cutPen.putImageData(frame, 0, 0)
-    pixels = frame
-    if (count > 40) {
-      const x = sumX / count / READ_W
-      const y = sumY / count / readH
-      // The first reading places the flower; later ones are followed gently so it never jumps.
-      flowerX = found ? flowerX + (x - flowerX) * 0.06 : x
-      flowerY = found ? flowerY + (y - flowerY) * 0.06 : y
-      found = true
-    }
-  }
-
-  /** Paint both halves from the frame just read. */
-  const paint = () => {
-    if (!pixels || !realPen || !cellPen || !w) return
-    const tall = h * TALL
-    const wide = tall * (pixels.width / pixels.height)
-    const left = w * AT_X - wide * flowerX
-    const top = h * AT_Y - tall * flowerY
+  /** Paint both halves with the flower as it is `t` seconds in. */
+  const paint = (t: number) => {
+    if (!cut || !pixels || !realPen || !cellPen || !w) return
+    const tall = h * TALL * (1 + SWELL * Math.sin(t * BREATH))
+    const wide = tall * (cut.width / cut.height)
+    const left = w * AT_X - wide / 2 + SWAY * Math.sin(t * BREATH * 0.6 + 1)
+    const top = h * AT_Y - tall / 2
     const scale = pixels.width / wide
 
     realPen.setTransform(dpr, 0, 0, dpr, 0, 0)
-    realPen.globalCompositeOperation = "copy"
-    realPen.drawImage(film, left, top, wide, tall)
-    // Keep the film only where the small cut-out says the flower is.
-    realPen.globalCompositeOperation = "destination-in"
+    realPen.globalCompositeOperation = "source-over"
+    realPen.clearRect(0, 0, w, h)
+    realPen.imageSmoothingQuality = "high"
     realPen.drawImage(cut, left, top, wide, tall)
     realPen.setTransform(1, 0, 0, 1, 0, 0)
     realPen.globalCompositeOperation = "destination-out"
@@ -180,31 +153,20 @@ if (canvas && ctx) {
     cellPen.textAlign = "center"
     cellPen.textBaseline = "middle"
     // Only the cells right of where the line can reach are ever shown.
-    const from = Math.floor((w * (REST - SWING) - PITCH) / PITCH) * PITCH
+    const from = Math.max(0, Math.floor((w * (REST - SWING) - PITCH) / PITCH) * PITCH)
     for (let y = 0, row = 0; y < h; y += PITCH, row++) {
-      for (let x = Math.max(0, from), col = Math.round(x / PITCH); x < w; x += PITCH, col++) {
+      for (let x = from, col = Math.round(from / PITCH); x < w; x += PITCH, col++) {
         const px = Math.floor((x + TILE / 2 - left) * scale)
         const py = Math.floor((y + TILE / 2 - top) * scale)
         if (px < 0 || py < 0 || px >= pixels.width || py >= pixels.height) continue
         const i = (py * pixels.width + px) * 4
         const solid = (pixels.data[i + 3] ?? 0) / 255
-        if (solid < 0.15) {
-          seen[row * 512 + col] = 0
-          continue
-        }
-        // Each cell eases toward the film's colour, so compression noise does not make its number flicker.
-        const k = (row * 512 + col) * 3
-        const fresh = !seen[k / 3]
-        seen[k / 3] = 1
-        for (let c = 0; c < 3; c++) {
-          const now = pixels.data[i + c] ?? 0
-          held[k + c] = fresh ? now : (held[k + c] ?? now) + (now - (held[k + c] ?? now)) * 0.25
-        }
-        const r = Math.round(held[k] ?? 0)
-        const g = Math.round(held[k + 1] ?? 0)
-        const b = Math.round(held[k + 2] ?? 0)
+        if (solid < 0.15) continue
+        const r = pixels.data[i] ?? 0
+        const g = pixels.data[i + 1] ?? 0
+        const b = pixels.data[i + 2] ?? 0
         cellPen.fillStyle = `rgb(${r} ${g} ${b})`
-        if (solid < 0.7) {
+        if (solid < 0.8) {
           // The edge: some cells are missing, the rest are small, pale and blank.
           if (hash(col, row) > 0.5) continue
           const side = TILE * (0.4 + 0.45 * hash(row, col))
@@ -217,11 +179,7 @@ if (canvas && ctx) {
         cellPen.fillRect(x, y, TILE, TILE)
         cellPen.globalAlpha = 0.8
         cellPen.fillStyle = light > 0.55 ? "#3a1c12" : "#fff"
-        cellPen.fillText(
-          String(Math.min(99, Math.floor(light * 100))).padStart(2, "0"),
-          x + TILE / 2,
-          y + TILE / 2 + 0.5,
-        )
+        cellPen.fillText(String(Math.min(99, Math.floor(light * 100))).padStart(2, "0"), x + TILE / 2, y + TILE / 2 + 0.5)
       }
     }
     cellPen.globalAlpha = 1
@@ -236,8 +194,7 @@ if (canvas && ctx) {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     const at = Math.max(0, Math.min(canvas.width, Math.round(line * dpr)))
     if (at > 0) ctx.drawImage(real, 0, 0, at, canvas.height, 0, 0, at, canvas.height)
-    if (at < canvas.width)
-      ctx.drawImage(cells, at, 0, canvas.width - at, canvas.height, at, 0, canvas.width - at, canvas.height)
+    if (at < canvas.width) ctx.drawImage(cells, at, 0, canvas.width - at, canvas.height, at, 0, canvas.width - at, canvas.height)
     // The line itself, fading out toward both ends.
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     const style = getComputedStyle(canvas)
@@ -253,61 +210,43 @@ if (canvas && ctx) {
     ctx.globalAlpha = 1
   }
 
-  /** The film's frame, last read, so a frame the film has not advanced on only moves the line. */
-  let shown = -1
   const tick = (now: number) => {
     timer = requestAnimationFrame(tick)
     const dt = Math.min(0.1, (now - last) / 1000)
     last = now
     elapsed += dt
     line += (w * (REST + SWING * Math.sin(elapsed * PACE)) - line) * Math.min(1, dt * 2.2)
-    if (film.currentTime !== shown) {
-      shown = film.currentTime
-      read()
-      paint()
-    }
+    paint(elapsed)
     draw()
   }
   const sync = () => {
     cancelAnimationFrame(timer)
-    if (!visible || document.hidden || !ready) {
-      film.pause()
-      return
-    }
+    if (!visible || document.hidden || !cut) return
     measure()
     if (line < 0) line = w
     if (motion.matches) {
-      // A still: the open flower, the line at rest.
-      film.pause()
       line = w * REST
-      read()
-      paint()
+      paint(0)
       draw()
       return
     }
-    void film.play().catch(() => {})
     last = performance.now()
     timer = requestAnimationFrame(tick)
   }
 
-  film.addEventListener("loadeddata", () => {
-    ready = true
-    // Reduced motion shows the flower open: the film's midpoint, where forward meets backward.
-    if (motion.matches) film.currentTime = film.duration / 2
+  picture.onload = () => {
+    prepare()
     sync()
-  })
-  film.addEventListener("seeked", () => {
-    if (motion.matches) sync()
-  })
+  }
+  picture.src = SRC
   new IntersectionObserver(([entry]) => {
     visible = !!entry?.isIntersecting
     sync()
   }).observe(canvas)
   new ResizeObserver(() => {
-    if (!visible || document.hidden || !ready) return
+    if (!visible || document.hidden || !cut) return
     measure()
-    read()
-    paint()
+    paint(elapsed)
     draw()
   }).observe(canvas)
   motion.addEventListener("change", sync)
