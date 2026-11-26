@@ -83,9 +83,9 @@ export function rowCloud(
 export function CloudMark({ label }: { label: string }) {
   return (
     <span className={CLOUD_MARK} title={label} role="img" aria-label={label}>
-      {/* Lucide `cloud` (ISC). */}
+      {/* Three arcs, mirrored: a big bump between two small ones. */}
       <svg className={CLOUD_ICON} viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+        <path d="M6.25 18.5A3.75 3.75 0 0 1 7.34 11.16A4.75 4.75 0 0 1 16.66 11.16A3.75 3.75 0 0 1 17.75 18.5Z" />
       </svg>
     </span>
   )
