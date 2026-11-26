@@ -82,12 +82,12 @@ export function rowCloud(
 export function CloudMark({ label }: { label: string }) {
   return (
     <span className={CLOUD_MARK} title={label} role="img" aria-label={label}>
-      <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true">
         <path
-          d="M4.5 13a3 3 0 0 1-.4-5.97A4.5 4.5 0 0 1 12.8 6.6 3.2 3.2 0 0 1 12.3 13Z"
+          d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"
           fill="none"
           stroke="currentColor"
-          strokeWidth="1.4"
+          strokeWidth="2"
           strokeLinejoin="round"
         />
       </svg>
