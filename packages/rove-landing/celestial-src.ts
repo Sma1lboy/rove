@@ -1,5 +1,6 @@
 /**
- * The hero's sky: the web client's welcome plate (packages/rove/src/lib/celestial), drawn larger.
+ * The hero's sky: the web client's welcome plate (packages/rove/src/lib/celestial), as a backdrop
+ * that spans the page behind the headline.
  * The scenes are the app's own frame functions; this file only paints their cells on a canvas in
  * the page's tokens. Built to celestial.js by `bun run build:celestial`; edit here, not there.
  */
@@ -7,9 +8,12 @@ import { ACCENT, COLS, ROWS, SUBTLE } from "../rove/src/lib/celestial/grid.ts"
 import { orbitFrame } from "../rove/src/lib/celestial/orbit.ts"
 import { cometFrame, ringsFrame } from "../rove/src/lib/celestial/scenes.ts"
 
-const PITCH = 5
-const DOT = 3
-const TOKEN = ["", "--ink-3", "--ink-2", "--ink", "--accent"]
+// A backdrop: wide grain, small dots, and inks one step quieter than the app's so text reads over it.
+const PITCH = 10
+const DOT = 4
+const TOKEN = ["", "--rule", "--rule", "--ink-3", "--accent"]
+/** How strongly each ink is laid down: the brightest cells stay well under the text's own weight. */
+const ALPHA = [0, 0.7, 1, 0.4, 0.75]
 const SCENES = [ringsFrame, cometFrame, orbitFrame]
 /** Seconds a scene holds before the next fades in. */
 const HOLD = 22
@@ -41,6 +45,7 @@ if (canvas && ctx) {
     const style = getComputedStyle(canvas)
     for (let ink = SUBTLE; ink <= ACCENT; ink++) {
       ctx.fillStyle = style.getPropertyValue(TOKEN[ink] ?? "") || style.color
+      ctx.globalAlpha = ALPHA[ink] ?? 1
       for (let i = 0; i < cells.length; i++)
         if (cells[i] === ink) ctx.fillRect((i % COLS) * PITCH, Math.floor(i / COLS) * PITCH, DOT, DOT)
     }
