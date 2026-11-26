@@ -73,6 +73,16 @@
     });
   }, STEP_MS);
 
+  /* The small cloud the web rail puts on a task that lives on another machine (rove/src/lib/cloud-dots.ts). */
+  var CLOUD = ['..##..', '##..#.', '#....#', '.####.'].map(function (row, y) {
+    return row.split('').map(function (cell, x) {
+      return cell === '#' ? '<circle cx="' + (x * 2 + 0.75) + '" cy="' + (y * 2 + 0.75) + '" r=".75"/>' : '';
+    }).join('');
+  }).join('');
+  function cloud(machine) {
+    return '<svg class="d-cloud" viewBox="0 0 11.5 7.5" aria-hidden="true"><title>' + machine + '</title>' + CLOUD + '</svg>';
+  }
+
   function build() {
     root.innerHTML =
       '<aside class="d-side">' +
@@ -117,7 +127,7 @@
         var r = el('div', 'd-row' + (o.child ? ' is-child' : '') + (o.child || o.flash ? ' is-new' : ''),
           (o.child ? '<span class="d-guide"></span>' : '') +
           icon(o.icon || (NAMES[o.tag] ? o.tag : 'claude')) + '<span class="d-title">' + o.title + '</span>' +
-          (o.tag && !NAMES[o.tag] ? '<span class="d-tag">' + o.tag + '</span>' : '') +
+          (o.tag && !NAMES[o.tag] ? cloud(o.tag) : '') +
           dots(s));
         r.id = 'dRow-' + o.id;
         var after = o.after && document.getElementById('dRow-' + o.after);
@@ -412,9 +422,9 @@
       k.group('ml-pipeline');
       k.row({ id: 'z', title: 'Nightly eval', icon: 'codex', tag: 'gpu-box', status: 'work' });
       k.select('x');
-      k.pane({ id: 'a', label: 'claude', where: 'new task' });
-      await k.w(700);
-      k.line('a', 'Run on: this Mac · mac-mini · <b>gpu-box</b>', 'is-menu');
+      k.pane({ id: 'a', label: 'claude', where: 'new task · this Mac' });
+      await k.w(900);
+      k.paneHead('a', { label: 'claude', where: 'new task · gpu-box' });
       await k.w(900);
       await k.type('a', 'Train the ranking model on the new data and report the score.');
       k.row({ id: 'a', title: 'Ranking model', tag: 'gpu-box', status: 'work', flash: true, after: 'z' });

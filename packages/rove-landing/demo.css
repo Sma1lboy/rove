@@ -39,7 +39,7 @@
 .d-guide::before{content:"";position:absolute;left:.3em;top:-.15em;bottom:0;border-left:1px solid var(--d-rule)}
 .d-row.is-child:not(:has(+ .d-row.is-child)) .d-guide::before{right:0;bottom:50%;border-bottom:1px solid var(--d-rule);border-bottom-left-radius:.46em}
 .d-title{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.d-tag{flex:none;font-family:var(--font-mono);font-size:.8em;color:var(--d-ink-3);border:1px solid var(--d-line);border-radius:.35em;padding:0 .4em}
+.d-cloud{flex:none;width:.88em;height:.58em;fill:#9D9A95}
 /* the web client's status mark: nine dots in the status's tone; demo.js sets each dot's opacity */
 .d-dots{flex:none;display:inline-grid;grid-template-columns:repeat(3,.23em);grid-auto-rows:.23em;gap:.077em;align-self:center;color:#9D9A95}
 .d-dots i{border-radius:50%;background:currentColor;opacity:.12}
