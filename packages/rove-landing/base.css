@@ -163,6 +163,8 @@ select{
 .sky{position:absolute;z-index:-1;top:-60px;left:50%;width:100vw;height:920px;translate:-50% 0;pointer-events:none;font-family:var(--font-mono)}
 /* Frosted glass over the backdrop, strongest behind the headline and the install box and gone toward the sides. */
 .sky-glass{position:absolute;z-index:-1;top:30px;left:50%;width:100vw;height:830px;translate:-50% 0;pointer-events:none;-webkit-backdrop-filter:blur(18px) saturate(1.15);backdrop-filter:blur(18px) saturate(1.15);background:color-mix(in srgb,var(--paper) 38%,transparent);-webkit-mask-image:radial-gradient(ellipse 46% 42% at 50% 24%,#000 45%,transparent 100%);mask-image:radial-gradient(ellipse 46% 42% at 50% 24%,#000 45%,transparent 100%)}
+/* A phone has no room beside the text for the flower. */
+@media (max-width:760px){.sky,.sky-glass{display:none}}
 /* A field of dots behind the headline, fading out downward; a second field in the accent shows
    only near the pointer (dots.js sets --mx/--my), and drifts by itself where there is none. */
 .dotfield{position:relative;isolation:isolate}
