@@ -40,7 +40,7 @@ One function, `rowStatusGlyph` (`packages/rove/src/lib/row-status-glyph.ts`), tu
 | attention: error, dead engine, failed delete | `!` (`†` dead) | `error` |
 | idle | `○` | `subtle` |
 
-Status appears only on **tab rows**. Task rows carry no status cell and start flush with their project head. A task's right edge holds the chips (pin, PR), then the job spinner, then `⢖⣉⡢` when the task lives on another machine.
+Status appears only on **tab rows**. Task rows carry no status cell and start flush with their project head. A task's right edge holds the chips (pin, PR), then the job spinner, then `⠮⠵` when the task lives on another machine.
 
 ## Keys
 

@@ -57,7 +57,7 @@ Rove is a local-first workspace for running many AI coding sessions at once. It 
 
 ## Iconography
 
-- The status vocabulary is text glyphs, not an icon font: `○` idle, `●` unseen, `?` needs input, `!` attention, `◷` rate limited, `†` dead, `✓`/`✗` checks, `◇` subagents, `⢖⣉⡢` another machine. A braille spinner (`⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏`) marks a running row. Users can switch to the `starburst` or `ascii` sets.
+- The status vocabulary is text glyphs, not an icon font: `○` idle, `●` unseen, `?` needs input, `!` attention, `◷` rate limited, `†` dead, `✓`/`✗` checks, `◇` subagents, `⠮⠵` another machine. A braille spinner (`⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏`) marks a running row. Users can switch to the `starburst` or `ascii` sets.
 - The web draws a running or waiting status as a 3×3 dot orb, stepped on a shared 80ms clock, in the same tone.
 - Engine status lines and prompt themes use Nerd Font symbols. The web ships them as the "Rove Nerd Symbols" face (`src/fonts/symbols-nerd-font-mono.woff2`, limited to the private-use ranges), so viewers need nothing installed.
 - The only drawn glyph is the thin chevron (10×10 viewBox, 1.3 stroke, round caps), which points down and rotates a quarter turn for "right".

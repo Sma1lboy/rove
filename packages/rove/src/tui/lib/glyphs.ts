@@ -12,7 +12,7 @@
  */
 
 import { DEFAULT_SPINNER_FRAMES } from "@/engine/spinner-frames"
-import { CLOUD_DOT_ROWS, brailleOf } from "@/lib/cloud-dots"
+import { TERMINAL_CLOUD_DOT_ROWS, brailleOf } from "@/lib/cloud-dots"
 import type { GlyphSetName } from "@/state/glyph-set"
 
 export interface GlyphSet {
@@ -39,14 +39,13 @@ export interface GlyphSet {
   readonly checksFailing: string
   readonly checksPassing: string
   /**
-   * On a row whose task lives on ANOTHER machine: a cloud's outline in braille dots, three cells
-   * (6×4 dots, `cloud-dots.ts`: the web rail draws the same grid). The braille block is one cell per character in every font the other glyphs were
-   * checked in; callers measure it with `clusterCells`, never assume one cell. ascii keeps `@`.
+   * On a row whose task lives on ANOTHER machine: a cloud in braille dots, two cells
+   * (`cloud-dots.ts`). Callers measure it with `clusterCells`, never assume a width. ascii keeps `@`.
    */
   readonly remote: string
 }
 
-const CLOUD = brailleOf(CLOUD_DOT_ROWS)
+const CLOUD = brailleOf(TERMINAL_CLOUD_DOT_ROWS)
 
 export const GLYPH_SETS: Readonly<Record<GlyphSetName, GlyphSet>> = {
   braille: {

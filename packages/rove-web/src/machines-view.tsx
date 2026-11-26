@@ -76,7 +76,7 @@ export function rowCloud(
   )
 }
 
-/** The TUI's cloud (`cloud-dots.ts`), dot for dot: 1.5px dots at a 2px pitch, half the status mark's grain. */
+/** The cloud's outline (`cloud-dots.ts`): 1.5px dots at a 2px pitch, half the status mark's grain. */
 const CLOUD_DOTS = CLOUD_DOT_ROWS.flatMap((row, y) =>
   [...row].flatMap((cell, x) => (cell === "#" ? [[x, y] as const] : [])),
 )
