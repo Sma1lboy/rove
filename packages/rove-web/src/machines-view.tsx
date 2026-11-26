@@ -4,7 +4,6 @@
  * cloud mark, its row greyed unless online so a stale snapshot never reads as live. The state is the bridge's `machines.list`; each machine's tasks come in the task feed.
  */
 
-import { CLOUD_DOT_ROWS } from "@sma1lboy/rove/src/lib/cloud-dots.ts"
 import type { en as tasksEn } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
 import { useEffect, useState } from "react"
 import { everyVisible } from "./every-visible.ts"
@@ -15,7 +14,7 @@ import { lastReply, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
 import { Button } from "./ui/button.tsx"
-import { CLOUD_MARK } from "./ui/rail.ts"
+import { CLOUD_ICON, CLOUD_MARK } from "./ui/rail.ts"
 import { REMOTE_NOTICE } from "./ui/shell.ts"
 
 export interface MachineRow {
@@ -77,11 +76,6 @@ export function rowCloud(
   )
 }
 
-/** The cloud's outline (`cloud-dots.ts`): 1.5px dots at a 2px pitch, half the status mark's grain. */
-const CLOUD_DOTS = CLOUD_DOT_ROWS.flatMap((row, y) =>
-  [...row].flatMap((cell, x) => (cell === "#" ? [[x, y] as const] : [])),
-)
-
 /**
  * The small cloud on a remote task's row, the only place the rail says a task lives elsewhere
  * (the bottom status line names this machine once). `label` is {@link remoteLabel}.
@@ -89,10 +83,9 @@ const CLOUD_DOTS = CLOUD_DOT_ROWS.flatMap((row, y) =>
 export function CloudMark({ label }: { label: string }) {
   return (
     <span className={CLOUD_MARK} title={label} role="img" aria-label={label}>
-      <svg viewBox="0 0 11.5 7.5" width="11.5" height="7.5" fill="currentColor" aria-hidden="true">
-        {CLOUD_DOTS.map(([x, y]) => (
-          <circle key={`${x}.${y}`} cx={x * 2 + 0.75} cy={y * 2 + 0.75} r="0.75" />
-        ))}
+      {/* Lucide `cloud` (ISC). */}
+      <svg className={CLOUD_ICON} viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
       </svg>
     </span>
   )
