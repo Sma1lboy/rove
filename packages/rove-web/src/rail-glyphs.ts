@@ -97,8 +97,8 @@ export function prMarkOf(
   stale: boolean,
 ): PrMark | null {
   if (!pr) return null
-  if (pr.lifecycle === "merged")
-    return { glyph: NERD.prMerged, tone: stale ? "text-muted" : "text-merged", state: "merged" }
+  // Merged is final, so a poll that failed since cannot have made it untrue.
+  if (pr.lifecycle === "merged") return { glyph: NERD.prMerged, tone: "text-merged", state: "merged" }
   if (pr.lifecycle === "closed") return { glyph: NERD.prClosed, tone: "text-muted", state: "closed" }
   if (pr.lifecycle !== "open" && pr.lifecycle !== "ready_to_merge" && pr.lifecycle !== "unknown") return null
   const checks =
