@@ -60,5 +60,6 @@ class TaskRowMenuTest {
         assertEquals(ProjectMoves(null, null, "/b"), ProjectMoves.of("/a", sections))
         assertEquals(ProjectMoves("/a", "/b", null), ProjectMoves.of("/c", sections))
         assertEquals(ProjectMoves(null, null, null), ProjectMoves.of("ssh://mini/far", sections))
+        assertEquals(ProjectMoves(null, null, null), ProjectMoves.of("ssh://mini/far", sections.filter { it.repo.startsWith("ssh://") }))
     }
 }

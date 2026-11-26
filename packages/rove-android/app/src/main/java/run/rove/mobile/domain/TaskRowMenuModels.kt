@@ -12,7 +12,7 @@ data class ProjectMoves(val top: String?, val above: String?, val below: String?
         fun of(repo: String, sections: List<TaskSection>): ProjectMoves {
             val movable = sections.filter { s -> s.repo.startsWith("/") && s.rows.all { it.machine == null } }.map { it.repo }
             val at = movable.indexOf(repo)
-            return ProjectMoves(movable.first().takeIf { at > 0 }, movable.getOrNull(at - 1).takeIf { at > 0 }, movable.getOrNull(at + 1).takeIf { at >= 0 })
+            return ProjectMoves(movable.firstOrNull().takeIf { at > 0 }, movable.getOrNull(at - 1).takeIf { at > 0 }, movable.getOrNull(at + 1).takeIf { at >= 0 })
         }
     }
 }
