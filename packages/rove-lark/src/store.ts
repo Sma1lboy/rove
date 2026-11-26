@@ -23,7 +23,10 @@ export const DEFAULT_TONE = "简短直接，像同事聊天，结论先说，不
 export interface LarkConfig {
   readonly botOpenId: string
   readonly botName: string
-  /** open_ids whose messages reach the agent; the owner is added on connect. */
+  /** lark-cli's signed-in user at connect: always let through. */
+  readonly ownerOpenId?: string
+  readonly ownerName?: string
+  /** Other people's open_ids whose messages reach the agent. */
   readonly allow: readonly string[]
   readonly tone: string
   readonly savedAt: string
@@ -77,6 +80,8 @@ export class LarkStore {
     return {
       botOpenId: raw.botOpenId,
       botName: typeof raw.botName === "string" ? raw.botName : "",
+      ...(typeof raw.ownerOpenId === "string" && raw.ownerOpenId ? { ownerOpenId: raw.ownerOpenId } : {}),
+      ...(typeof raw.ownerName === "string" && raw.ownerName ? { ownerName: raw.ownerName } : {}),
       allow: strings(raw.allow),
       tone: typeof raw.tone === "string" && raw.tone ? raw.tone : DEFAULT_TONE,
       savedAt: typeof raw.savedAt === "string" ? raw.savedAt : "",

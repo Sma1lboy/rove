@@ -4,7 +4,14 @@
  * `index-commands.ts`), so a plain `rove add` never pays for a connector.
  */
 
-import type { ChatConnector, ChatConnectorContext, ChatConnectorModule, ChatConnectorStatus } from "./chat-connector.ts"
+import type {
+  ChatConnectOutcome,
+  ChatConnector,
+  ChatConnectorContext,
+  ChatConnectorModule,
+  ChatConnectorSettings,
+  ChatConnectorStatus,
+} from "./chat-connector.ts"
 
 const CONNECTOR_LOADERS: Readonly<Record<string, () => Promise<ChatConnectorModule>>> = {
   weixin: async () => (await import("rove-weixin")).default,
@@ -36,7 +43,33 @@ export async function startChatConnectors(ctx: ChatConnectorContext): Promise<re
   return started
 }
 
-/** Every connector this build ships, connected or not. */
-export function chatConnectorStatuses(): Promise<readonly ({ readonly id: string } & ChatConnectorStatus)[]> {
-  return Promise.all(Object.entries(CONNECTOR_LOADERS).map(async ([id, load]) => ({ id, ...(await load()).status() })))
+/** Every connector this build ships, connected or not; `connectable`: Settings can connect it without a terminal. */
+export function chatConnectorStatuses(): Promise<
+  readonly ({ readonly id: string; readonly connectable: boolean } & ChatConnectorStatus)[]
+> {
+  return Promise.all(
+    Object.entries(CONNECTOR_LOADERS).map(async ([id, load]) => {
+      const mod = await load()
+      return { id, connectable: mod.connect !== undefined, ...mod.status() }
+    }),
+  )
+}
+
+async function moduleOf(id: string): Promise<ChatConnectorModule> {
+  const load = CONNECTOR_LOADERS[id]
+  if (!load) throw new Error(`no chat connector "${id}"`)
+  return await load()
+}
+
+export async function disconnectChatConnector(id: string): Promise<boolean> {
+  return (await moduleOf(id)).disconnect()
+}
+
+export async function connectChatConnector(id: string): Promise<ChatConnectOutcome> {
+  const mod = await moduleOf(id)
+  return mod.connect ? await mod.connect() : { ok: false, message: `rove ${id} login` }
+}
+
+export async function updateChatConnector(id: string, settings: ChatConnectorSettings): Promise<void> {
+  ;(await moduleOf(id)).update(settings)
 }

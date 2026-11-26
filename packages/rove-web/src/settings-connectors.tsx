@@ -4,7 +4,7 @@
  * Rove can be messaged from, each connected from its own CLI.
  */
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import {
   type GithubStatus,
   LOCAL,
@@ -18,7 +18,7 @@ import {
 import { t } from "./i18n/index.ts"
 import type { MachineRow } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
-import { lastReply, requestRemembered } from "./remembered.ts"
+import { ChatConnectors } from "./settings-chat-connectors.tsx"
 import { toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import {
@@ -310,82 +310,6 @@ function GithubCard({ model }: { model: AppModel }) {
         </section>
       )}
     </div>
-  )
-}
-
-interface ChatStatus {
-  readonly id: string
-  readonly connected: boolean
-  readonly since?: string
-}
-
-/** A chat connector is drawn only when this build has words for it. */
-const CHAT_COPY: Readonly<Record<string, string>> = { weixin: "weixin", lark: "lark" }
-
-function ChatMark({ id }: { id: string }) {
-  if (id === "lark") {
-    return (
-      <svg className="size-7 flex-none" viewBox="0 0 16 16" aria-hidden="true">
-        <path
-          fill="currentColor"
-          d="M14.6 1.6 1.5 7.2c-.5.2-.5.9 0 1.1l3.4 1.3 1.3 3.9c.2.5.8.6 1.1.2l1.9-2.1 3.3 2.4c.4.3 1 .1 1.1-.4l2-11.2c.1-.5-.5-1-1-.8ZM6 9.3l6.2-5.1-4.8 6-.4 2.1L6 9.3Z"
-        />
-      </svg>
-    )
-  }
-  return (
-    <svg className="size-7 flex-none" viewBox="0 0 16 16" aria-hidden="true">
-      <path
-        fill="currentColor"
-        d="M6 2C3.2 2 1 3.9 1 6.2c0 1.3.7 2.5 1.8 3.2L2.3 11l1.9-1c.6.2 1.2.3 1.8.3h.3A3.6 3.6 0 0 1 6.2 9c0-2.2 2-3.9 4.5-3.9h.2C10.4 3.3 8.4 2 6 2Zm4.7 3.9c-2.1 0-3.7 1.4-3.7 3.1s1.6 3.1 3.7 3.1c.5 0 .9-.1 1.3-.2l1.5.8-.4-1.3c.8-.6 1.3-1.4 1.3-2.4 0-1.7-1.6-3.1-3.7-3.1Z"
-      />
-    </svg>
-  )
-}
-
-function ChatConnectors({ model }: { model: AppModel }) {
-  const { client } = model
-  const [rows, setRows] = useState(() => lastReply<{ connectors: ChatStatus[] }>(client, "connectors.chat")?.connectors)
-  useEffect(() => {
-    let live = true
-    requestRemembered<{ connectors: ChatStatus[] }>(client, "connectors.chat").then(
-      (reply) => live && setRows(reply.connectors),
-      // A bridge without the op has no chat connectors to list.
-      () => live && setRows([]),
-    )
-    return () => {
-      live = false
-    }
-  }, [client])
-  const known = (rows ?? []).filter((row) => CHAT_COPY[row.id])
-  if (known.length === 0) return null
-  return (
-    <section className="flex flex-col pt-4">
-      <h2 className={SETTINGS_GROUP_LABEL}>{c("chat")}</h2>
-      <p className={SETTINGS_GROUP_HINT}>{c("chatHint")}</p>
-      <div className={BENTO}>
-        {known.map((row) => (
-          <div key={row.id} className={bentoCardClass(true)}>
-            <div className={`${BENTO_HEAD} w-narrow:flex-wrap`}>
-              <span className="flex min-w-0 flex-1 items-center gap-3 w-narrow:basis-full">
-                <ChatMark id={row.id} />
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  <span className={SETTINGS_NAME}>{c(`${CHAT_COPY[row.id]}Name`)}</span>
-                  <span className={SETTINGS_NOTE}>{c(`${CHAT_COPY[row.id]}Description`)}</span>
-                </span>
-              </span>
-              {row.connected ? (
-                <span className="whitespace-nowrap text-meta text-diff-added">
-                  {row.since ? c("chatConnectedSince", { date: row.since.slice(0, 10) }) : c("chatConnected")}
-                </span>
-              ) : (
-                <span className={SETTINGS_VALUE}>{c(`${CHAT_COPY[row.id]}Connect`)}</span>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
   )
 }
 

@@ -4,11 +4,10 @@
  * commands edit the binding on disk, which the daemon re-reads.
  */
 
-import { spawnSync } from "node:child_process"
 import { SUBCOMMAND_VERBS } from "@sma1lboy/rove/src/cli/subcommands.ts"
 import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove/src/product.ts"
-import { LARK_CLI, authStatus, botInfo } from "./lark-cli.ts"
-import { DEFAULT_TONE, type LarkConfig, LarkStore } from "./store.ts"
+import { connectLark } from "./connect.ts"
+import { DEFAULT_TONE, LarkStore } from "./store.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME
 
@@ -35,51 +34,20 @@ function fail(message: string): never {
   process.exit(1)
 }
 
-/** Run lark-cli in this terminal: its setup and login are interactive (a browser link, a QR code). */
-function interactive(args: readonly string[]): boolean {
-  return spawnSync(LARK_CLI, [...args], { stdio: "inherit" }).status === 0
-}
-
-function hasLarkCli(): boolean {
-  return !spawnSync(LARK_CLI, ["--version"], { stdio: "ignore" }).error
-}
-
 async function connect(store: LarkStore, argv: readonly string[]): Promise<void> {
-  if (!hasLarkCli()) fail("lark-cli is not installed. Install it with: npm i -g @larksuite/cli")
-  if (!(await authStatus()).appId) {
-    process.stdout.write("No Lark app yet: lark-cli will create one in your browser.\n")
-    const brand = argv[argv.indexOf("--brand") + 1]
-    const brandArgs = argv.includes("--brand") && brand ? ["--brand", brand] : []
-    if (!interactive(["config", "init", "--new", ...brandArgs])) fail("lark-cli config init did not finish")
-  }
-  const bot = await botInfo()
-  if (!bot) fail(`the app's bot is not ready. Check it with: ${LARK_CLI} api GET /open-apis/bot/v3/info --as bot`)
-  let owner = await authStatus()
-  if (!owner.userOpenId) {
-    process.stdout.write("Sign in to Lark as yourself, so the bot knows who you are.\n")
-    if (!interactive(["auth", "login", "--scope", "auth:user.id:read"])) fail("lark-cli auth login did not finish")
-    owner = await authStatus()
-  }
-  const previous = store.readConfig()
-  const allow = [...new Set([...(owner.userOpenId ? [owner.userOpenId] : []), ...(previous?.allow ?? [])])]
-  const config: LarkConfig = {
-    botOpenId: bot.openId,
-    botName: bot.name,
-    allow,
-    tone: previous?.tone ?? DEFAULT_TONE,
-    savedAt: previous?.savedAt || new Date().toISOString(),
-  }
-  store.writeConfig(config)
-  process.stdout.write(
-    [
-      `Lark connected: bot "${bot.name || bot.openId}".`,
-      allow.length > 0
-        ? `Allowed: ${owner.userName ? `${owner.userName} (${owner.userOpenId}), ` : ""}${allow.length} in all.`
-        : `Nobody is allowed yet: ${CLI_NAME} lark allow <open_id>.`,
-      "DM the bot or @ it in a group; your agent shows up as Lark at the bottom of the sidebar.",
-      "",
-    ].join("\n"),
+  const at = argv.indexOf("--brand")
+  const brand = at >= 0 ? argv[at + 1] : undefined
+  const say = (line: string) => process.stdout.write(`${line}\n`)
+  const out = await connectLark(store, { interactive: true, ...(brand ? { brand } : {}), say })
+  if (!out.ok || !out.config) fail(out.ok ? "not connected" : `not connected. Next: ${out.message}`)
+  const { config } = out
+  say(`Lark connected: bot "${config.botName || config.botOpenId}".`)
+  say(
+    config.ownerOpenId
+      ? `Allowed: you (${config.ownerName ?? config.ownerOpenId}) and ${config.allow.length} more.`
+      : `Nobody is allowed yet: ${CLI_NAME} lark allow <open_id>.`,
   )
+  say("DM the bot or @ it in a group; your agent shows up as Lark at the bottom of the sidebar.")
 }
 
 function status(store: LarkStore): void {
@@ -92,7 +60,7 @@ function status(store: LarkStore): void {
   process.stdout.write(
     [
       `Lark: connected since ${config.savedAt.slice(0, 10)} as bot "${config.botName || config.botOpenId}"`,
-      `Allowed: ${config.allow.join(", ") || "nobody"}`,
+      `Allowed: ${[config.ownerName ? `you (${config.ownerName})` : config.ownerOpenId, ...config.allow].filter(Boolean).join(", ") || "nobody"}`,
       `Tone: ${config.tone}`,
       `Agent: ${agent ? `${agent.taskId} ${agent.tab}` : "not started (the first message starts it)"}`,
       "",

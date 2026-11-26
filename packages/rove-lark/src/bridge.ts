@@ -107,7 +107,8 @@ export function createLarkBridge(deps: LarkBridgeDeps, timings = DONE_TIMINGS) {
     const state = deps.store.readState()
     if (state.seen.includes(id)) return
     deps.store.writeState({ ...state, seen: [...state.seen, id] })
-    const verdict = admit(e, config.botOpenId, config.allow)
+    const allow = config.ownerOpenId ? [config.ownerOpenId, ...config.allow] : config.allow
+    const verdict = admit(e, config.botOpenId, allow)
     deps.log(`${id} ${e.chat_type} ${verdict}`)
     if (verdict !== "ok") return
     void deps.react(id, "OnIt")
