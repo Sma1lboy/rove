@@ -36,6 +36,9 @@ export const en = {
       weixinName: "WeChat",
       weixinDescription: "Talk to your own agent and check on tasks from your phone",
       weixinConnect: "Not connected · run rove weixin login",
+      larkName: "Lark",
+      larkDescription: "DM or @ your own agent in Lark; it starts tasks and answers in the thread",
+      larkConnect: "Not connected · run rove lark connect",
       connect: "Connect",
       disconnect: "Disconnect",
       disconnectBody:
@@ -284,6 +287,9 @@ export const zh: typeof en = {
       weixinName: "微信",
       weixinDescription: "在手机上和你自己的智能体对话、查看任务",
       weixinConnect: "未连接 · 运行 rove weixin login",
+      larkName: "飞书 Lark",
+      larkDescription: "在飞书里私聊或 @ 你自己的智能体，它会开任务并在话题里回复",
+      larkConnect: "未连接 · 运行 rove lark connect",
       connect: "连接",
       disconnect: "断开",
       disconnectBody:

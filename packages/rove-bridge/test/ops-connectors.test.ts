@@ -15,18 +15,31 @@ afterEach(() => {
 
 const chat = () => connectorOps["connectors.chat"]?.run({}, { api: fakeApi().api })
 
-test("connectors.chat says WeChat is connected once an account is bound", async () => {
+test("connectors.chat says WeChat and Lark are connected once each is bound", async () => {
   home = mkdtempSync(join(tmpdir(), "rove-connectors-"))
   process.env.ROVE_HOME_DIR = home
-  expect(await chat()).toEqual({ connectors: [{ id: "weixin", connected: false }] })
+  expect(await chat()).toEqual({
+    connectors: [
+      { id: "weixin", connected: false },
+      { id: "lark", connected: false },
+    ],
+  })
 
   mkdirSync(join(home, ".rove", "weixin"), { recursive: true })
   writeFileSync(
     join(home, ".rove", "weixin", "account.json"),
     JSON.stringify({ accountId: "bot@im.bot", token: "t", savedAt: "2026-10-04T12:00:00.000Z" }),
   )
+  mkdirSync(join(home, ".rove", "lark"), { recursive: true })
+  writeFileSync(
+    join(home, ".rove", "lark", "config.json"),
+    JSON.stringify({ botOpenId: "ou_bot", allow: [], savedAt: "2026-11-26T12:00:00.000Z" }),
+  )
   expect(await chat()).toEqual({
-    connectors: [{ id: "weixin", connected: true, since: "2026-10-04T12:00:00.000Z" }],
+    connectors: [
+      { id: "weixin", connected: true, since: "2026-10-04T12:00:00.000Z" },
+      { id: "lark", connected: true, since: "2026-11-26T12:00:00.000Z" },
+    ],
   })
 })
 
