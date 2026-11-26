@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.9.305
+
+### Patch Changes
+
+- [#2207](https://github.com/Sma1lboy/rove/pull/2207) [`e83d105`](https://github.com/Sma1lboy/rove/commit/e83d1055ff114137c3a82f4c901bc75a0f604215) A new Antigravity task now gets its first message: Rove passes it with `agy -i`, where the bare argument it used to append made `agy` exit with `unexpected argument`. A row waiting on Antigravity's folder-trust question now shows as waiting. Antigravity rows also show its mark in the web rail instead of the plain ring. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2209](https://github.com/Sma1lboy/rove/pull/2209) [`09b9eb4`](https://github.com/Sma1lboy/rove/commit/09b9eb4d7b0eb7ef900835b2e629b0921273c54e) A new Antigravity task no longer stops at "Do you trust the contents of this project?": Rove adds the task's worktree to Antigravity's trusted workspaces before launch, as it does for Claude, Codex and Copilot. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2211](https://github.com/Sma1lboy/rove/pull/2211) [`717e6b7`](https://github.com/Sma1lboy/rove/commit/717e6b7b5429badf79a042a29b7f16d21dc978fb) Antigravity rows in the web rail now show Google's four-pointed spark in its four colours, in place of the blue arch. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2210](https://github.com/Sma1lboy/rove/pull/2210) [`fc1b42f`](https://github.com/Sma1lboy/rove/commit/fc1b42f2ab316e0fb1e7217273655c7b864c517c) Sessions that work in the same checkout on another machine (`rove api add --machine <alias> --no-worktree`) now share one working directory here, so `claude --resume` in a new session lists the earlier ones. They also share one row on that machine, which goes away with the last of them. The session's instructions now say that a session that ran natively on that machine can only be continued there or with `--engine-there`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2205](https://github.com/Sma1lboy/rove/pull/2205) [`aa7ecab`](https://github.com/Sma1lboy/rove/commit/aa7ecab8219c25d403a5074a24cceef0bb95407d) A session whose workspace is on another machine now knows which machine runs what. `rove` commands in its Bash run here, so `rove api send --prompt-file -` and `--repo /Users/…` work from a Windows workspace. `rove machine mcp <alias> <name> <url>` forwards that machine's MCP servers, such as its browser, into the session as `<name>-<alias>`. `list` and `get-task` name the machine and path, and the TUI and web sidebars mark the row with the machine's cloud. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2208](https://github.com/Sma1lboy/rove/pull/2208) [`da7611c`](https://github.com/Sma1lboy/rove/commit/da7611c7f80029e55eaf43ba13693ff744164c30) Sessions keep their transcripts, so `--resume` finds them, even when Rove was started from inside a Claude Code session. Rove no longer passes that session's child marker on to the engines it starts. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2206](https://github.com/Sma1lboy/rove/pull/2206) [`79724ce`](https://github.com/Sma1lboy/rove/commit/79724ce4ab55e649b6be5b0180dc88428e781d10) Archiving or deleting a project's first session in the web no longer makes the project jump down and back. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.304
 
 ### Patch Changes
