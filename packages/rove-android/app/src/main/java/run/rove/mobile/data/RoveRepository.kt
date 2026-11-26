@@ -18,6 +18,12 @@ class RoveRepository(val bridge: BridgeClient) {
     suspend fun createTask(repo: String, engine: String, title: String, prompt: String): String =
         bridge.request("task.create", args("repo" to repo, "engine" to engine, "title" to title, "prompt" to prompt))
             .id("taskId")
+    /** A terminal in a new worktree, no engine; [line], when given, runs as its first command. */
+    suspend fun createShellTask(repo: String, title: String, line: String): String {
+        val first = if (line.isEmpty()) emptyArray() else arrayOf<Pair<String, Any>>("type" to line)
+        val reply = bridge.request("task.spawn", args("repo" to repo, "title" to title, "shell" to true, *first))
+        return reply["taskIds"]?.jsonArray?.firstOrNull()?.jsonPrimitive?.content ?: throw BridgeFailure("BAD_RESULT", "task.spawn returned no task id")
+    }
     /** `taskId` in the reply names the child task the conversation opened in, when the bridge made one. */
     suspend fun newTab(taskId: String, engine: String, prompt: String): OpenedTab =
         wireJson.decodeFromJsonElement(bridge.request("tab.new", args("taskId" to taskId, "engine" to engine, "prompt" to prompt)))

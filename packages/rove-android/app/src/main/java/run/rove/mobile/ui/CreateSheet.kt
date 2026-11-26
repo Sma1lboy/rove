@@ -37,14 +37,22 @@ import run.rove.mobile.data.BridgeFailure
     val engine = pickedEngine.takeIf { p -> engines.any { it.id == p } }
         ?: engines.firstOrNull { it.id == taskEngine }?.id ?: engines.firstOrNull()?.id.orEmpty()
     val isTask = taskId == null
-    // A task is an agent sent to do something, so it needs its first message, as a new tab does.
-    val ready = !busy && engine.isNotEmpty() && prompt.isNotBlank() && (!isTask || repo.isNotEmpty())
+    // The web's Shell row: a new task can be a terminal in its worktree; the pick never becomes the remembered engine.
+    val shell = isTask && pickedEngine == SHELL
+    val shellLine = prompt.trim()
+    val shellName = stringResource(R.string.create_shell)
+    // A task is an agent sent to do something, so it needs its first message, as a new tab does; a shell needs none.
+    val ready = !busy && if (shell) repo.isNotEmpty() && '\n' !in shellLine
+        else engine.isNotEmpty() && prompt.isNotBlank() && (!isTask || repo.isNotEmpty())
 
     fun submit() {
         busy = true; error = null
         scope.launch {
             try {
-                if (taskId == null) {
+                if (shell) {
+                    val id = model.repository.createShellTask(repo, title.trim().ifEmpty { shellLine.take(60).ifEmpty { shellName } }, shellLine)
+                    model.refresh(); created(id, null)
+                } else if (taskId == null) {
                     val id = model.repository.createTask(repo, engine, title.trim(), prompt.trim())
                     model.refresh(); created(id, null)
                 } else {
@@ -77,18 +85,23 @@ import run.rove.mobile.data.BridgeFailure
         }
         FormSection(stringResource(R.string.create_engine)) {
             if (engines.isEmpty()) BrailleSpinner(13)
-            else EngineTiles(engines.map { it.id to it.name.lowercase() }, engine) { pickedEngine = it }
+            else EngineTiles(engines.map { it.id to it.name.lowercase() } + listOfNotNull((SHELL to shellName.lowercase()).takeIf { isTask }),
+                if (shell) SHELL else engine) { pickedEngine = it }
         }
         if (isTask) FormSection(stringResource(R.string.create_title)) {
             FieldBox(title, { title = it }, stringResource(R.string.create_title_placeholder))
         }
-        FormSection(stringResource(if (isTask) R.string.create_first_prompt else R.string.create_first_message)) {
+        FormSection(stringResource(if (shell) R.string.create_shell_command else if (isTask) R.string.create_first_prompt else R.string.create_first_message)) {
             PromptEditor(prompt, { prompt = it },
-                stringResource(R.string.create_prompt_placeholder_session))
+                stringResource(if (shell) R.string.create_shell_placeholder else R.string.create_prompt_placeholder_session))
+            if ('\n' in shellLine && shell) Text(stringResource(R.string.create_shell_one_line), color = Rove.c.error, style = Rove.mono(12))
         }
         if (!isTask) Hint(stringResource(R.string.create_hint_tab) + " " + stringResource(R.string.create_hint_engines_only))
     }
 }
+
+/** Never an engine id: those carry no colon. */
+private const val SHELL = ":shell"
 
 /** One repository: folder name over its full path (iOS `RepoTiles` row). */
 @Composable private fun RepoTile(path: String, on: Boolean, onSelect: () -> Unit) {

@@ -16,4 +16,8 @@
     <string name="create_hint_tab">Tabs share the worktree but keep their own process, scrollback and conversation.</string>
     <string name="create_hint_engines_only">Shell tabs and plugin panes need a desktop terminal, so the phone starts engines only.</string>
     <string name="create_failed">Request failed. Check the result before retrying.</string>
+    <string name="create_shell">Shell</string>
+    <string name="create_shell_command">first command</string>
+    <string name="create_shell_placeholder">A command to run first, or leave empty for a plain terminal</string>
+    <string name="create_shell_one_line">A shell command is one line</string>
 </resources>

@@ -16,4 +16,8 @@
     <string name="create_hint_tab">标签页共用 worktree，但各自保留进程、回滚内容和对话。</string>
     <string name="create_hint_engines_only">Shell 标签页和插件面板需要桌面终端，手机端只能启动引擎。</string>
     <string name="create_failed">请求失败，重试前请先确认结果。</string>
+    <string name="create_shell">Shell</string>
+    <string name="create_shell_command">首条命令</string>
+    <string name="create_shell_placeholder">先运行的命令，留空就只开一个终端</string>
+    <string name="create_shell_one_line">Shell 命令只能写一行</string>
 </resources>
