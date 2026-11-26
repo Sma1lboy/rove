@@ -11,12 +11,12 @@
 | Issues                       |
 |                              |
 | rove                         |
-|▌alpha                        |
-| charlie                      |
-| delta                offline |
+|▌alpha                     ⠯⠇ |
+| charlie                   ⠯⠇ |
+| delta             offline ⠯⠇ |
 |                              |
 | api                          |
-| echo                         |
+| echo                      ⠯⠇ |
 |                              |
 |                              |
 |                              |

@@ -9,6 +9,7 @@ import { SidebarTree } from "../../src/tui-react/panes/sidebar/SidebarTree"
 import { resetRowStatusForTests } from "../../src/tui-react/workspace/row-status-sync"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import { DEFAULT_GLYPHS } from "../../src/tui/lib/glyphs"
+import { dotsGlyph, litDots } from "../../src/tui/lib/status-dots"
 import { type Task, toTaskId } from "../../src/types/task"
 import { renderComponent, waitForFrameText } from "./harness"
 
@@ -55,7 +56,7 @@ test("a collapsed parent shows its child count and the most urgent child's state
     { width: 40, height: 16 },
   )
   const open = await waitForFrameText(frame, "check types")
-  expect(lineWith(open, "check types")).toContain(DEFAULT_GLYPHS.needsInput)
+  expect(lineWith(open, "check types")).toContain(dotsGlyph(litDots("waiting", 0)))
   expect(lineWith(open, "parent")).toContain("▾")
 
   // Folding is a click on the parent's fold glyph.

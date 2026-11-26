@@ -158,7 +158,14 @@ anything of you:
 | spinner | Engine is working (also shown while a worktree materializes or deletes; a materializing row also shows its checkout percent once git reports one) |
 | `!` | Needs you: a permission prompt, a rate limit, an errored turn, a dead engine process, or a failed worktree deletion. Open the tab to see which |
 | `●` | Turn finished, and you haven't looked yet |
-| `○` | Quiet (drawn as an empty cell in the task list, so only rows with something to say carry a mark): idle, not yet observed, a finished turn you've already seen, a shell tab, or a custom engine without activity tracking |
+| `○` | Quiet: idle, not yet observed, a finished turn you've already seen, a shell tab, or a custom engine without activity tracking |
+
+In the task list the default glyph preset draws these as a 3×3 grid of dots at
+the end of the row, the same mark the web client uses: a ripple out from the
+centre while the engine works, the full grid when it waits on you or on a rate
+limit, a cross for an error, a tick for a finished turn you haven't seen, and a
+muted ring at rest. The other presets keep one glyph per state and leave a
+quiet row bare.
 
 A tab labelled `⚠ <name>` is a live hosted session that was missing from the
 saved tab list. Rove exposes it instead of hiding a running process and adopts

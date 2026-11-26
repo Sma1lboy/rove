@@ -11,12 +11,12 @@
 | Issues                       |
 |                              |
 | rove                         |
-| alpha                        |
-| charlie on mac-mini · v0.9.… |
-|▌delta                offline |
+| alpha                     ⠯⠇ |
+| charlie on mac-mini · v0… ⠯⠇ |
+|▌delta             offline ⠯⠇ |
 |                              |
 | api                          |
-| echo                         |
+| echo                      ⠯⠇ |
 |                              |
 |                              |
 |                              |

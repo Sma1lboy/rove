@@ -40,7 +40,7 @@ const SPINNER_GLYPHS = new Set(DEFAULT_SPINNER_FRAMES)
 
 function maskSpinner(frame: string): string {
   let out = ""
-  for (const ch of frame) out += SPINNER_GLYPHS.has(ch) ? "~" : ch
+  for (const ch of frame) out += SPINNER_GLYPHS.has(ch) || /[\u2800-\u28ff]/.test(ch) ? "~" : ch
   return out
 }
 

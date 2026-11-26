@@ -11,12 +11,12 @@
 | Issues                       |
 |                              |
 | rove                         |
-|▌review                       |
-| stuck                        |
-| shipped                      |
-| dropped                      |
-| broke                        |
-| quiet                        |
+|▌review                    ⠯⠇ |
+| stuck                     ⠯⠇ |
+| shipped                   ⠯⠇ |
+| dropped                   ⠯⠇ |
+| broke                     ⠯⠇ |
+| quiet                     ⠯⠇ |
 |                              |
 |                              |
 |                              |

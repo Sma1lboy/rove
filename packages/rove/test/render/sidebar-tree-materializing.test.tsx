@@ -17,15 +17,16 @@
  * arrives everywhere except the cells.
  */
 import { afterEach, expect, test } from "bun:test"
-import { DEFAULT_SPINNER_FRAMES } from "../../src/engine/spinner-frames"
 import { SidebarTree } from "../../src/tui-react/panes/sidebar/SidebarTree"
 import { resetRowStatusForTests } from "../../src/tui-react/workspace/row-status-sync"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
+import { dotsGlyph, litDots } from "../../src/tui/lib/status-dots"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
 import { renderComponent } from "./harness"
 
-const SPINNER = new Set(DEFAULT_SPINNER_FRAMES)
+/** Every frame of a working row's 3×3 mark. */
+const WORKING = [0, 2, 4, 6].map((tick) => dotsGlyph(litDots("working", tick)))
 
 /** A sibling exactly as `addParallel` creates it: placeholder title, branch
  *  deliberately left empty until `ensureWorktree` names it. */
@@ -65,9 +66,7 @@ function jobs(ids: readonly string[]): void {
 afterEach(() => resetRowStatusForTests())
 
 function spinnerCells(frame: string): number {
-  let n = 0
-  for (const ch of frame) if (SPINNER.has(ch)) n++
-  return n
+  return frame.split("\n").filter((line) => WORKING.some((glyph) => line.includes(glyph))).length
 }
 
 test("every materializing sibling shows a spinner, with no tab row anywhere", async () => {

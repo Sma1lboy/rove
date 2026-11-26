@@ -20,6 +20,8 @@ import { charWidth, displayWidth } from "../../../lib/display-width"
 import { rowStatusGlyph } from "../../../lib/row-status-glyph"
 import { DEFAULT_RUNNING_TITLE, RUNNING_TITLE_KEY, normalizeRunningTitle } from "../../../state/running-title"
 import { breathColor, breathGlyph } from "../../../tui/lib/breathe"
+import { GLYPH_SETS } from "../../../tui/lib/glyphs"
+import { dotLook, dotsGlyph, litDots } from "../../../tui/lib/status-dots"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
 import { machineStateKey, remoteMarkLive, remoteRowCaption } from "../../../tui/panes/sidebar/machine-layer"
@@ -215,13 +217,18 @@ export function WorktreeTreeRow(props: {
   // Where it runs shows under the mouse; a machine that is not online says so on its own.
   const remoteStateKey = remote ? machineStateKey(remote.state) : null
   const remoteNote = remote && hovered ? remoteRowCaption(remote, t) : remoteStateKey ? t(remoteStateKey) : null
-  const quiet = rowView.stateGlyph === glyphs.idle
+  // The default preset draws the web's 3×3 dots on every row, a muted ring at rest. The other
+  // presets exist for fonts without braille: they keep their one glyph, and a quiet row draws nothing.
+  const dots = glyphs === GLYPH_SETS.braille
+  const look = dotLook(status)
+  const quiet = !dots && rowView.stateGlyph === glyphs.idle
+  const stateText = dots ? dotsGlyph(litDots(look, frame)) : rowView.stateGlyph
   // A task over several repos is listed once, under its primary, with how many more it spans.
   const extraRepoText = task.extraRepos?.length ? `+${task.extraRepos.length}` : null
   const fold = props.fold
   const reserved =
     // The trailing state glyph, and the child indent (`indentOf` in tree-row-shell).
-    (quiet ? 0 : 2) +
+    (quiet ? 0 : clusterCells(stateText)) +
     2 * ((props.depth ?? 1) - 1) +
     // A plugin can crowd the branch name but never overflow the row.
     tokens.reduce((cells, token) => cells + clusterCells(token.text), 0) +
@@ -316,10 +323,15 @@ export function WorktreeTreeRow(props: {
             {remoteText}
           </text>
         ) : null}
-        {/* Last, at the rail's edge. A quiet row draws nothing: only rows with something to say carry a mark. */}
+        {/* Last, at the rail's edge. */}
         {quiet ? null : (
-          <text fg={fg} attributes={pulsing ? TextAttributes.BOLD : undefined} wrapMode="none" flexShrink={0}>
-            {rowView.stateGlyph}
+          <text
+            fg={dots && look === "idle" && !pulsing ? theme.textMuted : fg}
+            attributes={pulsing ? TextAttributes.BOLD : undefined}
+            wrapMode="none"
+            flexShrink={0}
+          >
+            {stateText}
           </text>
         )}
       </box>
