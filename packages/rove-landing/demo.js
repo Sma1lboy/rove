@@ -14,6 +14,8 @@
   var tabs = document.getElementById('scenes');
   if (!root || !tabs) return;
 
+  /** Every wait is scaled by this; lower plays faster. */
+  var SPEED = 0.55;
   var still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   var run = 0;          // bumped on every scene start; a stale scene stops at its next wait
   var visible = true;
@@ -44,6 +46,7 @@
     var kit = {
       total: function () { return total; },
       w: function (ms) {
+        ms *= SPEED;
         total += ms;
         if (dry || still) return Promise.resolve();
         return new Promise(function (resolve, reject) {
