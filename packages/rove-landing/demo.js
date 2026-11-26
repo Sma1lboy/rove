@@ -44,6 +44,7 @@
   function makeKit(id, dry) {
     var total = 0;
     var kit = {
+      isDry: dry,
       total: function () { return total; },
       w: function (ms) {
         ms *= SPEED;
@@ -109,6 +110,25 @@
           '<header>' + head(o) + '</header><div class="d-lines"></div><div class="d-input"><i></i></div><div class="d-foot"></div>');
         p.id = 'dPane-' + o.id;
         document.getElementById('dMain').appendChild(p);
+      },
+      /* The Browser panel of the web and desktop clients, showing the page a task's dev server serves. */
+      web: function (url) {
+        if (dry) return;
+        var p = el('section', 'd-pane d-web', '<header><b>Browser</b> · ' + url + '</header><div class="d-page" id="dPage"></div>');
+        document.getElementById('dMain').appendChild(p);
+      },
+      page: function (html, cls) {
+        if (dry) return;
+        var pg = document.getElementById('dPage');
+        pg.appendChild(el('div', 'd-pg ' + (cls || ''), html));
+        pg.scrollTop = pg.scrollHeight;
+      },
+      pageStyle: function () { if (!dry) document.getElementById('dPage').classList.add('is-styled'); },
+      /* Bring one pane (and its sidebar row) to the front; the others keep running out of view. */
+      show: function (paneId) {
+        if (dry) return;
+        [].forEach.call(root.querySelectorAll('.d-pane'), function (p) { p.hidden = p.id !== 'dPane-' + paneId; });
+        kit.select(paneId);
       },
       paneHead: function (paneId, o) {
         if (dry) return;
@@ -206,46 +226,90 @@
   }
 
   var scenes = {
-    /* One agent splits a job, two others take a part each, and their reports come back. */
+    /* One agent splits a feature into a backend and a frontend part, two others build them,
+       and the view visits each child before the reports come back. */
     dispatch: async function (k) {
       await k.shell('rove');
       k.usage('Claude', 42); k.usage('Codex', 8);
       k.group('storefront');
-      k.row({ id: 'a', title: 'EU checkout tax', status: 'idle' });
+      k.row({ id: 'a', title: 'Wishlist', status: 'idle' });
       k.row({ id: 'x', title: 'Flaky cart test', status: 'done' });
       k.select('a');
       k.pane({ id: 'a', label: 'claude' });
       await k.w(600);
-      await k.type('a', 'Add EU tax to checkout. Hand the tax rules to Codex and the tests to Gemini.');
+      await k.type('a', 'Add a wishlist: save items from the product page, list them at /wishlist. Split the work.');
       k.status('a', 'work');
-      await k.think('a', 900, 'Reading checkout…');
-      k.line('a', '<b>Read</b>(src/checkout.ts)', 'is-tool');
-      k.line('a', 'Read 96 lines', 'is-out');
-      await k.w(250);
-      await k.say('a', "I'll wire up checkout and hand the VAT table and tests to Codex and Gemini.");
-      await k.w(500);
-      k.line('a', '<b>rove api add</b> --title tax-rules --command codex', 'is-tool');
+      await k.think('a', 900, 'Reading the codebase…');
+      k.line('a', '<b>Read</b>(src/api/routes.ts)', 'is-tool');
+      k.line('a', 'Read 142 lines', 'is-out');
+      await k.w(300);
+      k.line('a', '<b>Read</b>(web/pages/product.tsx)', 'is-tool');
+      k.line('a', 'Read 88 lines', 'is-out');
+      await k.w(300);
+      await k.say('a', "The API and the page don't share files. I'll hand out both and wire them together.");
+      await k.w(400);
+      k.line('a', '<b>rove api add</b> --title wishlist-api --command codex', 'is-tool');
       await k.w(260);
-      k.row({ id: 'b', title: 'tax-rules', tag: 'codex', status: 'work', child: true, after: 'a' });
-      await k.w(520);
-      k.line('a', '<b>rove api add</b> --title tax-tests --command gemini', 'is-tool');
+      k.row({ id: 'b', title: 'wishlist-api', tag: 'codex', status: 'work', child: true, after: 'a' });
+      await k.w(450);
+      k.line('a', '<b>rove api add</b> --title wishlist-ui --command gemini', 'is-tool');
       await k.w(260);
-      k.row({ id: 'c', title: 'tax-tests', tag: 'gemini', status: 'work', child: true, after: 'b' });
-      await k.w(1300);
-      k.line('a', '<b>Update</b>(src/checkout.ts)', 'is-tool');
-      await k.burst('a', [
-        ['-  return { total, currency }', 'is-del'],
-        ['+  const tax = regionalTax(sub, region)', 'is-add'],
-        ['+  return { subtotal: sub, tax, total: sub + tax, currency }', 'is-add'],
+      k.row({ id: 'c', title: 'wishlist-ui', tag: 'gemini', status: 'work', child: true, after: 'b' });
+      await k.think('a', 1100, 'Waiting for two reports…');
+
+      k.pane({ id: 'b', label: 'codex', where: 'wishlist-api' });
+      k.show('b');
+      k.line('b', 'Add GET, POST and DELETE /api/wishlist on a new wishlist table. Report the route shapes.', 'is-prompt');
+      await k.think('b', 800);
+      k.line('b', '<b>Ran</b> bun run db:generate wishlist', 'is-tool');
+      k.line('b', 'created migrations/0014_wishlist.sql', 'is-out');
+      await k.w(350);
+      k.line('b', '<b>Edited</b> src/api/wishlist.ts (+62 -0)', 'is-tool');
+      await k.burst('b', [
+        ["+  app.get('/api/wishlist', auth, (c) =&gt; list(c.var.user))", 'is-add'],
+        ["+  app.post('/api/wishlist', auth, (c) =&gt; add(c.var.user, c.req.json()))", 'is-add'],
+        ["+  app.delete('/api/wishlist/:id', auth, (c) =&gt; remove(c.var.user, c.req.param('id')))", 'is-add'],
       ]);
-      await k.think('a', 1500, 'Waiting for two reports…');
+      await k.think('b', 800);
+      k.line('b', '<b>Ran</b> bun test src/api/wishlist', 'is-tool');
+      k.line('b', '9 pass, 0 fail', 'is-out');
+      await k.w(300);
+      await k.say('b', 'Three routes are in and tested. Reported the shapes to the parent task.');
       k.status('b', 'done'); k.inbox(1);
-      k.line('a', '<b>tax-rules</b> (codex) reported: VAT table for 27 countries, +48 −6', 'is-report');
-      await k.think('a', 1100, 'Waiting for one report…');
+      await k.w(900);
+
+      k.pane({ id: 'c', label: 'gemini', where: 'wishlist-ui' });
+      k.show('c');
+      k.line('c', 'Build the /wishlist page and a save button on the product page.', 'is-prompt');
+      await k.think('c', 800);
+      k.line('c', '<b>Edit</b> web/pages/wishlist.tsx', 'is-tool');
+      await k.burst('c', [
+        ['+  const { data: items } = useQuery(["wishlist"], fetchWishlist)', 'is-add'],
+        ['+  return &lt;ProductGrid items={items} empty="Nothing saved yet" /&gt;', 'is-add'],
+      ]);
+      await k.w(300);
+      k.line('c', '<b>Edit</b> web/pages/product.tsx', 'is-tool');
+      await k.burst('c', [['+  &lt;SaveButton productId={product.id} /&gt;', 'is-add']]);
+      await k.think('c', 700);
+      k.line('c', '<b>Shell</b> bun run typecheck', 'is-tool');
+      k.line('c', 'no errors', 'is-out');
+      await k.w(300);
+      await k.say('c', 'The page and the save button are in.');
       k.status('c', 'done'); k.inbox(2);
-      k.line('a', '<b>tax-tests</b> (gemini) reported: 12 tests, all pass', 'is-report');
-      await k.w(700);
-      await k.say('a', 'Both parts are back and merged into this branch. 12 tests pass.');
+      await k.w(900);
+
+      k.show('a');
+      k.line('a', '<b>wishlist-api</b> (codex) reported: 3 routes, 9 tests, +84 −0', 'is-report');
+      await k.w(450);
+      k.line('a', '<b>wishlist-ui</b> (gemini) reported: page and save button, +71 −3', 'is-report');
+      await k.think('a', 900, 'Wiring the page to the API…');
+      k.line('a', '<b>Update</b>(web/lib/api.ts)', 'is-tool');
+      await k.burst('a', [["+  export const fetchWishlist = () => get('/api/wishlist')", 'is-add']]);
+      await k.w(300);
+      k.line('a', '<b>Bash</b>(bun test)', 'is-tool');
+      k.line('a', '231 pass, 0 fail', 'is-out');
+      await k.w(300);
+      await k.say('a', 'Both parts are merged into this branch and the page loads saved items.');
       k.status('a', 'done');
       await k.w(2400);
     },
@@ -364,6 +428,53 @@
       await k.w(2400);
     },
 
+    /* An agent builds a page while the Browser panel beside it shows the page growing. */
+    preview: async function (k) {
+      k.usage('Claude', 42); k.usage('Codex', 8);
+      k.group('storefront');
+      k.row({ id: 'a', title: 'Summer sale page', status: 'idle' });
+      k.row({ id: 'x', title: 'Wishlist', status: 'done' });
+      k.select('a');
+      k.pane({ id: 'a', label: 'claude' });
+      await k.w(500);
+      await k.type('a', 'Build a page for the summer sale: a headline, three products, an email signup.');
+      k.status('a', 'work');
+      await k.think('a', 700);
+      k.line('a', '<b>Bash</b>(bun run dev)', 'is-tool');
+      k.line('a', 'ready on http://localhost:5173', 'is-out');
+      await k.w(500);
+      k.web('localhost:5173/sale');
+      await k.w(900);
+      k.line('a', '<b>Write</b>(web/sale.html)', 'is-tool');
+      await k.burst('a', [
+        ['+  &lt;h1&gt;Summer sale&lt;/h1&gt;', 'is-add'],
+        ['+  &lt;p&gt;Up to 40% off until Sunday.&lt;/p&gt;', 'is-add'],
+      ]);
+      k.page('<h4>Summer sale</h4><p>Up to 40% off until Sunday.</p>', 'is-hero');
+      await k.think('a', 900);
+      k.line('a', '<b>Update</b>(web/sale.html)', 'is-tool');
+      k.page('', 'is-cards');
+      var items = [['Linen shirt', '$39'], ['Canvas tote', '$24'], ['Sun hat', '$19']];
+      for (var i = 0; i < items.length; i++) {
+        k.line('a', '+  &lt;Product name="' + items[i][0] + '" price="' + items[i][1] + '" /&gt;', 'is-add');
+        if (!k.isDry) document.querySelector('#dPage .is-cards').appendChild(
+          el('div', 'd-card', '<i></i><b>' + items[i][0] + '</b><span>' + items[i][1] + '</span>'));
+        await k.w(550);
+      }
+      await k.think('a', 700);
+      k.line('a', '<b>Update</b>(web/sale.html)', 'is-tool');
+      await k.burst('a', [['+  &lt;form&gt;&lt;input type="email"&gt;&lt;button&gt;Notify me&lt;/button&gt;&lt;/form&gt;', 'is-add']]);
+      k.page('<i>you@example.com</i><b>Notify me</b>', 'is-form');
+      await k.think('a', 900, 'Styling…');
+      k.line('a', '<b>Write</b>(web/sale.css)', 'is-tool');
+      k.line('a', 'Wrote 48 lines', 'is-out');
+      k.pageStyle();
+      await k.w(900);
+      await k.say('a', 'The page is up at localhost:5173/sale.');
+      k.status('a', 'done'); k.inbox(1);
+      await k.w(2600);
+    },
+
     /* One task, two panes: one agent writes the change, another reviews it. */
     split: async function (k) {
       k.usage('Claude', 42); k.usage('Codex', 8);
@@ -406,7 +517,7 @@
     },
   };
 
-  var order = ['dispatch', 'swap', 'machines', 'routine', 'split'];
+  var order = ['dispatch', 'preview', 'swap', 'machines', 'routine', 'split'];
   var lengths = {};
   order.forEach(function (name) {
     var k = makeKit(-1, true);
@@ -426,6 +537,9 @@
       if (on) pressed = b;
     });
     root.setAttribute('data-scene', name);
+    // The Browser panel belongs to the desktop and web clients, so that scene's window says so.
+    var bar = document.querySelector('.appwin-bar span');
+    if (bar) bar.textContent = name === 'preview' ? 'Rove (desktop app)' : 'rove — ~/storefront';
     document.dispatchEvent(new CustomEvent('rove:scene', { detail: name }));
     var k = makeKit(id, false);
     var spent = 0;

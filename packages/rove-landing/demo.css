@@ -59,6 +59,7 @@
 .d-main{flex:1 1 auto;min-height:0;display:flex;gap:.5em}
 .d-status{flex:none;padding-top:.3em;text-align:right;color:var(--d-ink-3)}
 .d-pane{flex:1 1 0;min-width:0;display:flex;flex-direction:column;border:1px solid var(--d-line);border-radius:.6em;overflow:hidden;animation:d-pane .45s var(--ease) both}
+.d-pane[hidden]{display:none}
 .d-pane header{flex:none;padding:.3em 1em;color:var(--d-ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .d-pane header b{font-weight:600;color:var(--d-ink)}
 .d-pane header.is-new{animation:d-flash 1.4s ease-out both}
@@ -92,12 +93,43 @@
 .d-line.is-warn{margin:.5em 1em;padding:.4em .8em;border:1px solid var(--d-accent);border-radius:.45em;color:var(--d-accent);animation:d-in .3s var(--ease) both,d-warn 1.6s ease-in-out 2}
 .d-line.is-menu{width:fit-content;margin:.4em 1em;padding:.4em .8em;border-radius:.45em;background:#30302D}
 .d-line.is-menu b{color:var(--d-accent)}
+.is-gemini .d-line.is-say::before{content:"✦ ";color:#A9B4F5}
+.is-gemini .d-line.is-tool::before{content:"✓ "}
+.is-gemini .d-line.is-prompt::before,.is-gemini .d-input::before{content:"> "}
+.is-gemini .d-input{margin:0 1em;border-width:1px;border-radius:.45em}
 /* Claude Code's prompt sits between two rules; Codex's is a filled block. Each has its own hint line below. */
 .d-input{flex:none;display:flex;padding:.3em 1em;border:solid var(--d-ink-3);border-width:1px 0;white-space:pre}
 .is-codex .d-input{padding:.6em 1em;border:0;background:#262623}
 .d-foot{flex:none;padding:.2em 1em .4em;color:var(--d-ink-3);white-space:nowrap;overflow:hidden}
 .d-foot::before{content:"  ? for shortcuts"}
 .is-codex .d-foot::before{content:"  100% context left · ? for shortcuts"}
+
+/* the Browser panel and the page inside it; the page is light and unstyled until .is-styled lands */
+.d-web{flex:1.1 1 0}
+.d-page{flex:1 1 auto;min-height:0;overflow:hidden;margin:0 .6em .6em;padding:1.4em 1.6em;border-radius:.4em;background:#FFF;color:#111;font-family:Times,serif;transition:background .6s var(--ease),color .6s var(--ease)}
+.d-pg{animation:d-in .45s var(--ease) both}
+.d-pg,.d-pg *{transition:all .6s var(--ease)}
+.d-pg h4{margin:0;font-size:1.6em;font-weight:700}
+.d-pg p{margin:.2em 0 1em}
+.d-pg.is-cards{display:flex;flex-direction:column;gap:.3em;margin-bottom:1em}
+.d-card{display:flex;gap:.6em;align-items:center;animation:d-in .45s var(--ease) both}
+.d-card i{width:1em;height:1em;background:#CCC}
+.d-card span{margin-left:auto}
+.d-pg.is-form{display:flex;gap:.5em;align-items:center}
+.d-pg.is-form i{font-style:normal;padding:.1em .4em;border:1px solid #777;color:#777}
+.d-pg.is-form b{padding:.1em .5em;border:1px solid #777;background:#EEE;font-weight:400}
+.d-page.is-styled{background:#FBF6EE;color:#2A211B;font-family:var(--font-prose)}
+.is-styled .d-pg.is-hero{padding:1.2em 0 .4em;text-align:center}
+.is-styled .d-pg h4{font-size:2.4em;letter-spacing:-.02em;color:#B4532F}
+.is-styled .d-pg.is-cards{flex-direction:row;gap:.8em}
+.is-styled .d-card{flex:1 1 0;flex-direction:column;align-items:flex-start;gap:.3em;padding:.7em;border-radius:.7em;background:#FFF;box-shadow:0 .1em .5em rgb(0 0 0 / .08)}
+.is-styled .d-card i{width:100%;height:5.5em;border-radius:.45em;background:linear-gradient(135deg,#F3C9A8,#E0835F)}
+.is-styled .d-card:nth-child(2) i{background:linear-gradient(135deg,#CFE3C4,#7FAE7A)}
+.is-styled .d-card:nth-child(3) i{background:linear-gradient(135deg,#F5E3A6,#E3B341)}
+.is-styled .d-card span{margin:0;color:#B4532F;font-weight:600}
+.is-styled .d-pg.is-form{justify-content:center}
+.is-styled .d-pg.is-form i{flex:0 1 16em;padding:.5em .9em;border-color:#D8CDBF;border-radius:2em;background:#FFF}
+.is-styled .d-pg.is-form b{padding:.5em 1.1em;border:0;border-radius:2em;background:#B4532F;color:#FFF;font-weight:600}
 
 .d-item>*{white-space:nowrap}
 
