@@ -75,7 +75,7 @@ button{cursor:pointer}
 .head{display:flex;align-items:center;gap:24px;flex-wrap:wrap;padding:20px 0}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none}
 .brand .wm{font-size:var(--fs-l);font-weight:600}
-.brand .mark rect{fill:none;stroke:var(--ink-3);stroke-width:2}
+.brand .mark rect{display:none}
 .brand .mark path{fill:none;stroke:var(--accent);stroke-linecap:round;stroke-linejoin:round}
 .brand .mark .r{fill:var(--ink);stroke:none}
 .head .spacer{flex:1 1 auto;min-width:12px}
