@@ -36,6 +36,9 @@ export const PR_LIST_STATS = "ml-auto flex gap-1.5 pl-3 tabular-nums"
 
 /** A task on another machine: a small cloud just before the row's state. */
 export const CLOUD_MARK = "inline-flex flex-none items-center text-subtle"
+/** Its icon, stroked like the rail's Settings icon. */
+export const CLOUD_ICON =
+  "size-3.5 flex-none fill-none stroke-current stroke-[1.75] [stroke-linecap:round] [stroke-linejoin:round]"
 
 /** The rail itself; `rail` stays as the hook focus and pane code find it by. */
 export const RAIL = `group/rail rail @container row-1 flex min-h-0 flex-col focus:outline-none ${RAIL_FRAME}`
