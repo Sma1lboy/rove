@@ -28,7 +28,7 @@ export function topLevelUsage(cliName: ProductCliName = ROVE_PRODUCT_NAME): stri
     "  export [--csv|--json]   Print the task list (json/csv/table; daemon-free)",
     "  repo <verb>             Per-repo init script + first prompt (show|set|unset)",
     `  api <verb>              Scriptable RPC surface for agents (see \`${cliName} api --help\`)`,
-    "  daemon <verb>           Manage the daemon (start|stop|status|restart)",
+    "  daemon <verb>           Manage the daemon (start|stop|status|restart|autostart)",
     "  machine <verb>          Other computers running Rove (add|doctor|remove|list)",
     "  weixin <verb>           Talk to Rove from WeChat (login|logout|status|allow|deny|send|agent)",
     "  doctor [--report|--fix] Diagnose daemon/PTY/engines/git; --fix walks the remedies",

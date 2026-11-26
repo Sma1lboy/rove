@@ -35,7 +35,7 @@ export const TOP_LEVEL_SUBCOMMANDS = [
 export type VerbedSubcommand = "daemon" | "machine" | "plugin" | "repo" | "skill" | "theme" | "weixin"
 
 export const SUBCOMMAND_VERBS: Readonly<Record<VerbedSubcommand, readonly string[]>> = {
-  daemon: ["status", "start", "stop", "restart", "relay"],
+  daemon: ["status", "start", "stop", "restart", "relay", "autostart"],
   machine: ["add", "doctor", "update", "remove", "list", "tunnel", "inbound", "primary"],
   plugin: [
     "install",
