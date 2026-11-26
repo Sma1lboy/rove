@@ -6,6 +6,7 @@ import type { GitScope } from "../../../tui/panes/filetree/git"
 import { type FileTreeTab, TAB_ORDER, tabLabelKey } from "../../../tui/panes/filetree/keys-core"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
+import { useHoverFill } from "../../ui/use-hover-fill"
 
 export type FileTreeHeaderProps = {
   tab: FileTreeTab
@@ -20,6 +21,23 @@ export type FileTreeHeaderProps = {
   onDiffAll?: () => void
 }
 
+/** One tab: the active one in the accent, the others brighten under the pointer. */
+function HeaderTab(props: { label: string; active: boolean; onSelect: () => void }) {
+  const { theme } = useTheme()
+  const hover = useHoverFill()
+  return (
+    <box backgroundColor={props.active ? undefined : hover.fill} {...hover.handlers} onMouseUp={props.onSelect}>
+      <text
+        fg={props.active ? theme.primary : hover.hovered ? theme.text : theme.textMuted}
+        attributes={props.active ? TextAttributes.BOLD : undefined}
+        wrapMode="none"
+      >
+        {props.label}
+      </text>
+    </box>
+  )
+}
+
 export function FileTreeHeaderView(props: FileTreeHeaderProps) {
   const { theme } = useTheme()
   const t = useT()
@@ -28,20 +46,14 @@ export function FileTreeHeaderView(props: FileTreeHeaderProps) {
       {/* Header: tabs row. Each tab is clickable (sets active), and
          `[` / `]` cycle from the keyboard. */}
       <box flexDirection="row" paddingBottom={0} flexShrink={0} gap={2}>
-        {TAB_ORDER.map((tabId) => {
-          const isActive = props.tab === tabId
-          return (
-            <text
-              key={tabId}
-              fg={isActive ? theme.primary : theme.textMuted}
-              attributes={isActive ? TextAttributes.BOLD : undefined}
-              wrapMode="none"
-              onMouseUp={() => props.onSelectTab(tabId)}
-            >
-              {t(tabLabelKey(tabId))}
-            </text>
-          )
-        })}
+        {TAB_ORDER.map((tabId) => (
+          <HeaderTab
+            key={tabId}
+            label={t(tabLabelKey(tabId))}
+            active={props.tab === tabId}
+            onSelect={() => props.onSelectTab(tabId)}
+          />
+        ))}
       </box>
       {/* Status legend + scope line — only on the Changes tab. The scope
          line names the active view (working tree vs branch-vs-base) and,
