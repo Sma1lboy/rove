@@ -72,14 +72,10 @@ export interface PrMark {
 
 /**
  * A PR as the rail draws it, after GitHub and Claude's list: the PR's own icon in its
- * lifecycle's colour, red while it can't land, grey when the forge was unreachable last poll.
- * An unpolled PR (`unknown`) draws as an open one with no check state.
+ * lifecycle's colour, red while it can't land. An open PR is never grey: green unless it can't land,
+ * whether its checks passed, still run, or were never read (an unpolled `unknown` one, a failed poll).
  */
-export function prMarkOf(
-  pr: TaskRowPr | null | undefined,
-  chip: TaskRow["prChip"] | undefined,
-  stale: boolean,
-): PrMark | null {
+export function prMarkOf(pr: TaskRowPr | null | undefined, chip: TaskRow["prChip"] | undefined): PrMark | null {
   if (!pr) return null
   // Merged is final, so a poll that failed since cannot have made it untrue.
   if (pr.lifecycle === "merged") return { glyph: NERD.prMerged, tone: "text-merged", state: "merged" }
@@ -95,21 +91,13 @@ export function prMarkOf(
           : pr.checkState === "pending"
             ? "pending"
             : undefined
-  const tone = stale
-    ? "text-muted"
-    : checks === "conflict"
-      ? "text-warning"
-      : checks === "failing"
-        ? "text-error"
-        : checks === "passing"
-          ? "text-success"
-          : "text-muted"
+  const tone = checks === "conflict" ? "text-warning" : checks === "failing" ? "text-error" : "text-success"
   return { glyph: NERD.prOpen, tone, state: "open", ...(checks ? { checks } : {}) }
 }
 
 /** A task's own branch PR as the rail draws it. */
-export function prMark(task: Pick<TaskRow, "pr" | "prChip" | "prChipStale">): PrMark | null {
-  return prMarkOf(task.pr, task.prChip, task.prChipStale === true)
+export function prMark(task: Pick<TaskRow, "pr" | "prChip">): PrMark | null {
+  return prMarkOf(task.pr, task.prChip)
 }
 
 /** A session PR carries no row chip: the same conflict > failing > passing rule, read off its own status. */
@@ -122,7 +110,7 @@ export function sessionPrMark(pr: TaskRowPr): PrMark | null {
         : pr.checkState === "passing"
           ? "passing"
           : null
-  return prMarkOf(pr, chip, false)
+  return prMarkOf(pr, chip)
 }
 
 /** The mark a row with several PRs leads with: an open one that can't land, any other open one, merged, closed. */
