@@ -21,19 +21,24 @@ import { DEFAULT_GLYPHS, type GlyphSet } from "@/tui/lib/glyphs"
 import type { Task, TaskPRStatus } from "@/types/task"
 import type { SidebarTone } from "./row-view.ts"
 
-function chipOf(pr: TaskPRStatus | undefined, glyphs: GlyphSet): { glyph: string; tone: SidebarTone } | null {
+/** `kind` names the state: the glyph is shared, so only the tone and this tell the three apart. */
+export type PrChip = { glyph: string; tone: SidebarTone; kind: "conflict" | "failing" | "passing" }
+
+function chipOf(pr: TaskPRStatus | undefined, glyphs: GlyphSet): PrChip | null {
   if (!pr) return null
   const stale = pr.lastError !== undefined
   if ((pr.mergeable ?? "").toUpperCase() === "CONFLICTING")
     // Amber: a wait the task can clear (rebase), where red is checks that failed.
-    return { glyph: glyphs.conflict, tone: stale ? "textMuted" : "warning" }
-  if (pr.checkState === "failing") return { glyph: glyphs.checksFailing, tone: stale ? "textMuted" : "error" }
-  if (pr.checkState === "passing") return { glyph: glyphs.checksPassing, tone: stale ? "textMuted" : "success" }
+    return { kind: "conflict", glyph: glyphs.conflict, tone: stale ? "textMuted" : "warning" }
+  if (pr.checkState === "failing")
+    return { kind: "failing", glyph: glyphs.checksFailing, tone: stale ? "textMuted" : "error" }
+  if (pr.checkState === "passing")
+    return { kind: "passing", glyph: glyphs.checksPassing, tone: stale ? "textMuted" : "success" }
   return null
 }
 
 /** The task's own PR (all its repos rolled up). */
-export function prChip(task: Task, glyphs: GlyphSet = DEFAULT_GLYPHS): { glyph: string; tone: SidebarTone } | null {
+export function prChip(task: Task, glyphs: GlyphSet = DEFAULT_GLYPHS): PrChip | null {
   return chipOf(rollupPr(task), glyphs)
 }
 
@@ -41,10 +46,7 @@ export function prChip(task: Task, glyphs: GlyphSet = DEFAULT_GLYPHS): { glyph: 
  * What the sidebar draws: {@link prChip} over the task's own PRs plus the polled PRs its session
  * attached (`rove api pr-attach`), so a `dir` task with no branch of its own still shows one.
  */
-export function sidebarPrChip(
-  task: Task,
-  glyphs: GlyphSet = DEFAULT_GLYPHS,
-): { glyph: string; tone: SidebarTone } | null {
+export function sidebarPrChip(task: Task, glyphs: GlyphSet = DEFAULT_GLYPHS): PrChip | null {
   const attached = (task.sessionPrs ?? []).flatMap((entry) => (entry.status ? [{ prStatus: entry.status }] : []))
   return chipOf(rollupPr({ prStatus: task.prStatus, extraRepos: [...(task.extraRepos ?? []), ...attached] }), glyphs)
 }
