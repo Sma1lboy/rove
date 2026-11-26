@@ -264,11 +264,11 @@ describe("a task's PR mark", () => {
     expect(prMark(withPr("merged"))?.glyph).not.toBe(prMark(withPr("open"))?.glyph)
   })
 
-  test("an open PR is red while it can't land, green when checks pass, grey when the forge was unreachable", () => {
+  test("an open PR is red while it can't land and green otherwise, never grey", () => {
     expect(prMark(withPr("open", "conflict"))).toMatchObject({ tone: "text-warning", checks: "conflict" })
     expect(prMark(withPr("ready_to_merge", "failing"))).toMatchObject({ tone: "text-error", checks: "failing" })
     expect(prMark(withPr("open", "passing"))).toMatchObject({ tone: "text-success", checks: "passing" })
-    expect(prMark(withPr("open", "passing", { prChipStale: true }))?.tone).toBe("text-muted")
+    expect(prMark(withPr("open", "passing", { prChipStale: true }))?.tone).toBe("text-success")
   })
 
   test("no PR, or one still being created, draws nothing", () => {
@@ -336,7 +336,7 @@ describe("a task's PR mark", () => {
 
   test("an unpolled session PR draws as an open one with no check state", () => {
     const mark = sessionPrMark({ lifecycle: "unknown", checkState: "unknown", url: "https://github.com/o/r/pull/5" })
-    expect(mark).toMatchObject({ state: "open", tone: "text-muted" })
+    expect(mark).toMatchObject({ state: "open", tone: "text-success" })
     expect(mark?.checks).toBeUndefined()
   })
 })
