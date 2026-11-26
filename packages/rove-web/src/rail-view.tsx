@@ -417,7 +417,7 @@ function RailRow(props: {
         {/* The PR list opens where the title tip sits; only one card at a time. */}
         <PrChip tasks={props.prTasks ?? [task]} onOpen={tip.hide} />
         {/* The cloud of a task elsewhere sits before the row's state, so the state column lines up down the rail. */}
-        {props.cloud && <CloudMark label={props.cloud} />}
+        {props.cloud && <CloudMark label={props.cloud} onOpen={tip.hide} />}
         {!byEngine && <StatusDots status={status} />}
       </span>
     </button>
