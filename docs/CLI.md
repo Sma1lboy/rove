@@ -116,7 +116,7 @@ Commands:
   export [--csv|--json]   Print the task list (json/csv/table; daemon-free)
   repo <verb>             Per-repo init script + first prompt (show|set|unset)
   api <verb>              Scriptable RPC surface for agents (see `rove api --help`)
-  daemon <verb>           Manage the daemon (start|stop|status|restart)
+  daemon <verb>           Manage the daemon (start|stop|status|restart|autostart)
   machine <verb>          Other computers running Rove (add|doctor|remove|list)
   weixin <verb>           Talk to Rove from WeChat (login|logout|status|allow|deny|send|agent)
   doctor [--report|--fix] Diagnose daemon/PTY/engines/git; --fix walks the remedies
@@ -220,7 +220,7 @@ Completes two levels: the subcommand, then its verb.
 
 ```text
 rove <TAB>          completions add remove adopt export repo api daemon …
-rove daemon <TAB>   status start stop restart relay
+rove daemon <TAB>   status start stop restart relay autostart
 rove machine <TAB>  add doctor update remove list tunnel inbound primary
 rove theme <TAB>    list add remove
 rove api routine-<TAB>   routine-list routine-create routine-update …
@@ -443,25 +443,29 @@ its pidfile, so `rove daemon restart`, Settings → Dev → **Restart backend**,
 and an autospawn after a crash all come back resident. Only an explicit
 `rove daemon stop` (or stopping the service) clears it.
 
-Run it under your init system so it comes back after a reboot. systemd (user
-unit, `~/.config/systemd/user/rove.service`):
+### Start at login: `autostart`
 
-```ini
-[Unit]
-Description=Rove daemon
-
-[Service]
-ExecStart=%h/.bun/bin/rove daemon start --resident
-Restart=on-failure
-
-[Install]
-WantedBy=default.target
+```sh
+rove daemon autostart on    # start the daemon, resident, every time you log in
+rove daemon autostart off   # stop doing that; the running daemon is left alone
+rove daemon autostart       # say which it is
 ```
 
-Then `systemctl --user enable --now rove` (and `loginctl enable-linger $USER`
-so it runs without a login session). On macOS, a LaunchAgent whose
-`ProgramArguments` are `rove daemon start --resident` with `KeepAlive` set does
-the same.
+After a reboot the daemon is then up without anyone opening Rove: routines
+run, other machines that registered this one reconnect, and `rove --web` and
+the phone apps find it. Sessions are still reopened when you look at them
+([SESSIONS.md](SESSIONS.md#what-survives)); nothing is relaunched at login.
+
+| System | What `on` writes |
+| --- | --- |
+| Linux | `~/.config/systemd/user/rove.service`, enabled. It starts at login; `loginctl enable-linger $USER` makes that boot. |
+| macOS | `~/Library/LaunchAgents/run.rove.daemon.plist`, loaded at the next login. |
+| Windows | A `Rove` value under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`. It runs when you sign in, with no window. |
+
+The entry names this install's path and, on Linux and macOS, the `PATH` of the
+shell you ran `on` in, so engines, `git` and `gh` are found the way they are
+in your terminal. Run `on` again after moving the install. A unit file at that
+path that does not start the Rove daemon is left as it is and reported.
 
 Headless, the requests that need a front-end answer honestly instead of
 hanging: `rove api prompt` returns `reason: "no-gui"` at once, and

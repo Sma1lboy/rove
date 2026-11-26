@@ -34,6 +34,7 @@ function printDaemonUsage(out: Pick<typeof process.stderr, "write">): void {
       "             --resident: never idle-stop when the last TUI leaves (headless host)",
       "  stop       Ask the running daemon to shut down",
       "  restart    Stop the daemon (graceful → SIGTERM → SIGKILL) and respawn it",
+      "  autostart  Start the daemon, resident, when you log in: autostart [on|off]",
       "",
     ].join("\n"),
   )
@@ -75,6 +76,11 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
       process.stdin.on("end", () => socket.end())
     })
     process.exit(0)
+  }
+
+  if (command === "autostart") {
+    const { autostartCommand } = await import("./daemon-autostart.ts")
+    return autostartCommand(flags)
   }
 
   // `status --json` is what other machines' `machine add` sends; its output is JSON either way.

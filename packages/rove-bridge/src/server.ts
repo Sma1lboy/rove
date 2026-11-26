@@ -239,8 +239,8 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       const attach = () => forwarder.attach(target, shownTab, cwd, size, leafId, acks)
       // A tab with no running session reopens as it is opened, the way a TUI attach
       // resumes it (`tab-revive`). When that fails the page still gets the dead tab and
-      // its Reopen button. Split panes and another machine's tabs attach as they are.
-      const autoRevive = !remote && leafId === undefined
+      // its Reopen button. Another machine's tab reopens there. Split panes attach as they are.
+      const autoRevive = leafId === undefined
       let attached: AttachResult | null = null
       let gone: unknown = null
       try {

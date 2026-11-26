@@ -33,6 +33,28 @@ describe("a task on another machine", () => {
     expect(h.pty.calls).toEqual([])
   })
 
+  test("a tab with no session there is reopened on that machine before it attaches", async () => {
+    const far = new FakePty()
+    far.sessions = []
+    const revived: string[] = []
+    const h = start({
+      ops: {
+        ...fakeOps(),
+        machineOf: () => "mac",
+        worktreeOf: async () => "/Users/me/wt",
+        reviveTab: async (taskId: string, tabId: string) => {
+          revived.push(`${taskId}::${tabId}`)
+          far.sessions = [{ key: `${taskId}::${tabId}`, alive: true }]
+          return { revived: true, resumed: true }
+        },
+      },
+      openMachinePty: async () => far,
+    })
+    const c = await connect(h.url, { Authorization: `Bearer ${"t".repeat(43)}` })
+    expect((await c.call("term.attach", { taskId: "T1", tabId: "tab-1" })).result).toMatchObject({ alive: true })
+    expect(revived).toEqual(["T1::tab-1"])
+  })
+
   test("a machine the bridge cannot reach refuses the attach, and the next attach tries again", async () => {
     let tries = 0
     const h = start({

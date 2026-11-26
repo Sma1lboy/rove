@@ -298,7 +298,9 @@ process, including a reboot.
   shell (`Engine exited (code N)`; `--restart-exited`). That notice also offers
   **Settings → Engines**, **New conversation with…** for another engine, and
   **Continue in another engine** (the conversation's context carried into the
-  new engine's first prompt, same directory); nothing reopens on view.
+  new engine's first prompt, same directory). Opening a tab whose session is
+  gone or restored reopens it by itself, on this machine or another one; the
+  button is what is left when that reopen failed.
 
 Where a continuation lands depends on whether the source engine is alive. A
 **live** source opens the new engine as a child task sharing the directory, so
