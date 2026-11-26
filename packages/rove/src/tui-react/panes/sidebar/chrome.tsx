@@ -48,7 +48,8 @@ export function SectionHeader(props: {
             : undefined
         }
       >
-        <text fg={theme.textMuted} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
+        {/* A terminal has one type size: the web's small project name is the muted ink, dimmed. */}
+        <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none" flexShrink={0}>
           {props.label}
         </text>
         {props.prefix ? (

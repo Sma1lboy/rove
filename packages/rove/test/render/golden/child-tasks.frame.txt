@@ -3,21 +3,21 @@
 # 30x22, spinner glyphs masked as ~
 # GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
-| [ rove ]                     |
+|  [ rove ]                    |
 |                              |
-| New task                  +  |
-| Kanban                       |
-| Routines                     |
-| Issues                       |
+|  New task                +   |
+|  Kanban                      |
+|  Routines                    |
+|  Issues                      |
 |                              |
-| rove                         |
-|▌alpha                   ▾ ~~ |
-| └ check types             ~~ |
-| └ port tree builder     ▾ ~~ |
-|   └ wire fold glyph     ▾ ~~ |
-|   └ cover depth cap   ▾ 4 ~~ |
-|   └ fifth generation    5 ~~ |
-| bravo                     ~~ |
+|  rove                        |
+| ▌alpha                 ▾ ~~  |
+|  └ check types           ~~  |
+|  └ port tree builder   ▾ ~~  |
+|    └ wire fold glyph   ▾ ~~  |
+|    └ cover depth cap ▾ 4 ~~  |
+|    └ fifth generation  5 ~~  |
+|  bravo                   ~~  |
 |                              |
 |                              |
 |                              |

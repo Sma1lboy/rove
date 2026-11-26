@@ -37,6 +37,8 @@ import { useTreeMenu } from "./use-tree-menu"
 import { useTreeSearch } from "./use-tree-search"
 import { useTreeState } from "./use-tree-state"
 
+const RAIL_GUTTER = 1
+
 export type SidebarTreeProps = SidebarProps & {
   /** Open a new conversation ("chat" — the ctrl+e picker) or a bare shell tab
    *  in any worktree — offered by the worktree row's menu. */
@@ -247,6 +249,8 @@ export function SidebarTree(props: SidebarTreeProps) {
 
   const outerRef = useRef<BoxRenderable | null>(null)
   const effectiveWidth = props.width ?? SIDEBAR_WIDTH
+  // One cell of air on each side, as the web's rail has: rows and their selection sit inside it.
+  const innerWidth = effectiveWidth - 2 * RAIL_GUTTER
   useEffect(() => {
     const el = outerRef.current
     if (!el) return
@@ -257,7 +261,7 @@ export function SidebarTree(props: SidebarTreeProps) {
   }, [effectiveWidth])
 
   const shared: TreeRowShared = {
-    width: effectiveWidth,
+    width: innerWidth,
     cursorIndex,
     activeRowId: tree.activeRowId,
     selectedTaskId: props.selectedId,
@@ -289,6 +293,8 @@ export function SidebarTree(props: SidebarTreeProps) {
       // so the borderless rail needs one padding row to align with them.
       paddingTop={1}
       paddingBottom={1}
+      paddingLeft={RAIL_GUTTER}
+      paddingRight={RAIL_GUTTER}
     >
       <SidebarBrandHeader
         focused={focused}
@@ -321,7 +327,7 @@ export function SidebarTree(props: SidebarTreeProps) {
           Settings, the zen chip and the fold chevron. */}
       {props.usage ? (
         <box flexShrink={0} paddingTop={1}>
-          <SidebarUsageLines usage={props.usage} width={effectiveWidth} />
+          <SidebarUsageLines usage={props.usage} width={innerWidth} />
         </box>
       ) : null}
       {props.onOpenSettings || props.zenActive || props.onToggleCollapsed ? (
