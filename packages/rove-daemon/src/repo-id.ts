@@ -50,17 +50,21 @@ export function computeRepoId(path: string): string | undefined {
   return root ? `root:${root}` : undefined
 }
 
-const memo = new Map<string, string | undefined>()
+const memo = new Map<string, { readonly id: string | undefined; readonly at: number }>()
+/** How long "no id" holds: a folder becomes a repo (`git init`, a first commit) without Rove hearing of it. */
+const NO_ID_TTL_MS = 30_000
 
 /**
- * {@link computeRepoId}, memoized per path for the process: git runs once per existing path. A
- * repo that later gains an origin keeps its first id until restart. A missing path is not memoized.
+ * {@link computeRepoId}, memoized per path for the process: git runs once per existing repo. A repo
+ * that later gains an origin keeps its first id until restart; a path with no id is asked again after
+ * {@link NO_ID_TTL_MS}. A missing path is not memoized.
  */
-export function repoIdOf(path: string): string | undefined {
+export function repoIdOf(path: string, now = Date.now()): string | undefined {
   if (!path) return undefined
-  if (memo.has(path)) return memo.get(path)
+  const hit = memo.get(path)
+  if (hit && (hit.id !== undefined || now - hit.at < NO_ID_TTL_MS)) return hit.id
   if (!existsSync(path)) return undefined
   const id = computeRepoId(path)
-  memo.set(path, id)
+  memo.set(path, { id, at: now })
   return id
 }
