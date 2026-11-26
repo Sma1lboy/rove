@@ -230,6 +230,7 @@ header's menu (**Move to top**, **Move up**, **Move down**).
 | `o` | Open audio, video, or PDF files in the system application |
 | `a` | Insert an `@path` mention into the engine pane |
 | `[` / `]` | Switch file tabs |
+| `/` | Search file names and text: `↑`/`↓` move, `enter` opens, `esc` closes (**proposed**, awaiting sign-off) |
 
 `h` / `l` fold directories on both tabs — on Changes they also expand
 and collapse untracked-directory rows.

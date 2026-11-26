@@ -65,7 +65,9 @@ export const FileTreeRowView = memo(function FileTreeRowView(props: FileTreeRowP
   }
   if (row.kind === "file") {
     const indent = "  ".repeat(row.depth)
-    // Two-cell gutter where the dir marker would sit.
+    // A search result names its whole path, so it keeps the filename end.
+    const label = row.name === row.path ? truncatePathTail(row.name, props.pathBudget - 2) : row.name
+    // Two-cell gutter where the dir marker would sit; `≡` marks a text-only search hit.
     return (
       <box
         flexDirection="row"
@@ -75,9 +77,12 @@ export const FileTreeRowView = memo(function FileTreeRowView(props: FileTreeRowP
         onMouseUp={() => props.onActivate(props.row, props.index)}
       >
         {bar}
-        <box flexGrow={1} paddingRight={1}>
+        <box flexDirection="row" flexGrow={1} paddingRight={1}>
+          <text fg={theme.info} wrapMode="none">
+            {`${indent}${row.textMatch ? "≡ " : "  "}`}
+          </text>
           <text fg={theme.text} wrapMode="none">
-            {`${indent}  ${row.name}`}
+            {label}
           </text>
         </box>
       </box>

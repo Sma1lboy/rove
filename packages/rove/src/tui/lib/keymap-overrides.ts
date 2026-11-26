@@ -70,6 +70,7 @@ const SLOT_CONTRACTS: Readonly<Record<string, SlotContract>> = {
   "files.nav": pairContract("down", "up"),
   "diff.review.cursor": pairContract("down", "up"),
   "sidebar.search.nav": pairContract("down", "up"),
+  "files.search.nav": pairContract("down", "up"),
   "files.hierarchy": pairContract("collapse", "expand"),
   "files.tab": pairContract("previous tab", "next tab"),
   // Not a pair: slot 0 = quit confirm, slot 1 = the native workspace's second

@@ -29,6 +29,12 @@ export const en = {
     noTask: "(no task — press n to create)",
     noFiles: "(empty worktree)",
     noChanges: "(no changes — clean worktree)",
+    noMatches: "(no file name or text matches)",
+  },
+  search: {
+    placeholder: "file names and text",
+    /** Suffix while `git grep` for the current query is still running. */
+    searchingText: "searching text…",
   },
   error: {
     /** Only rendered for the two kinds `r` can actually resolve — see
@@ -78,6 +84,11 @@ export const zh: typeof en = {
     noTask: "（暂无任务 — 按 n 创建）",
     noFiles: "（worktree 为空）",
     noChanges: "（无改动 — worktree 干净）",
+    noMatches: "（没有匹配的文件名或内容）",
+  },
+  search: {
+    placeholder: "文件名和内容",
+    searchingText: "正在搜索内容…",
   },
   error: {
     retryHint: "按 r 重试",

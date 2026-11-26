@@ -7,6 +7,8 @@ import { type FileTreeTab, TAB_ORDER, tabLabelKey } from "../../../tui/panes/fil
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { useHoverFill } from "../../ui/use-hover-fill"
+import { SidebarSearchInput } from "../sidebar/chrome"
+import type { FileSearch } from "./use-file-search"
 
 export type FileTreeHeaderProps = {
   tab: FileTreeTab
@@ -15,6 +17,9 @@ export type FileTreeHeaderProps = {
   /** Resolved Branch-scope base ref, or null when none resolved (Branch
    *  scope + `b` toggle are unavailable then). */
   base: string | null
+  /** The open `/` query row; it replaces the tab's legend while open. */
+  search?: Pick<FileSearch, "query" | "textPending">
+  resultCount: number
   onSelectTab: (tab: FileTreeTab) => void
   /** Whole-worktree combined diff, as a chip: its `D` binding is still
    *  PROPOSED (docs/design/keybinding-decisions.md). */
@@ -58,7 +63,17 @@ export function FileTreeHeaderView(props: FileTreeHeaderProps) {
       {/* Status legend + scope line — only on the Changes tab. The scope
          line names the active view (working tree vs branch-vs-base) and,
          when a base resolved, the `b` toggle affordance. */}
-      {props.tab === "changes" ? (
+      {props.search ? (
+        <box flexDirection="column" paddingTop={1} flexShrink={0}>
+          <SidebarSearchInput
+            query={props.search.query}
+            matchCount={props.resultCount}
+            totalCount={props.resultCount}
+            placeholder={t("files.search.placeholder")}
+            status={props.search.textPending ? t("files.search.searchingText") : String(props.resultCount)}
+          />
+        </box>
+      ) : props.tab === "changes" ? (
         <box flexDirection="column" paddingBottom={1} flexShrink={0} gap={0}>
           {/* Wraps: the no-base reason does not fit a narrow pane on one
              line, and a truncated reason is no better than no reason. */}

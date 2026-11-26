@@ -27,6 +27,8 @@ export function FileTreeBodyView(props: {
   /** The active tab's git read has landed — tells an empty list from a pending one. */
   readonly loaded: boolean
   readonly tab: "all" | "changes"
+  /** The `/` query has text: the rows are its results. */
+  readonly searching?: boolean
 }) {
   const { theme } = useTheme()
   const t = useT()
@@ -77,7 +79,11 @@ export function FileTreeBodyView(props: {
       ) : rows.length === 0 && props.loaded ? (
         <box paddingTop={1} paddingLeft={1}>
           <text fg={theme.textMuted}>
-            {props.tab === "all" ? t("files.empty.noFiles") : t("files.empty.noChanges")}
+            {props.searching
+              ? t("files.empty.noMatches")
+              : props.tab === "all"
+                ? t("files.empty.noFiles")
+                : t("files.empty.noChanges")}
           </text>
         </box>
       ) : rows.length > 0 ? (
