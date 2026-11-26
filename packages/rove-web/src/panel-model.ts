@@ -6,10 +6,11 @@
  * `side-panel.tsx` draws them.
  */
 
-import { type BrowserColumn, blankBrowser, openUrl } from "./browser-tabs.ts"
+import { type BrowserColumn, blankBrowser, openFileTab, openUrl } from "./browser-tabs.ts"
+import { fileAddress } from "./browser-url.ts"
 
 /** The side panel's kinds of view; each is a column of its own. This order is the columns' left to right and the launcher icons'. */
-export const PANEL_KINDS = ["quota", "files", "file", "diff", "chat", "browser"] as const
+export const PANEL_KINDS = ["quota", "files", "diff", "chat", "browser"] as const
 export type PanelKind = (typeof PANEL_KINDS)[number]
 
 /** `working` = uncommitted, `branch` = committed since the base, `task` = both. */
@@ -17,8 +18,6 @@ export type DiffScope = "working" | "branch" | "task"
 
 export type Column =
   | { readonly kind: "files" | "chat" | "quota" }
-  /** A file read as itself, opened from Files; its diff is the Diff column's. */
-  | { readonly kind: "file"; readonly path: string; readonly at?: number }
   | { readonly kind: "diff"; readonly path: string; readonly scope: DiffScope; readonly at?: number }
   | BrowserColumn
 
@@ -51,7 +50,7 @@ function replaceColumn(panel: TaskPanel, col: Column): TaskPanel {
   return { ...panel, columns: panel.columns.map((c) => (c.kind === col.kind ? col : c)) }
 }
 
-/** `columns` in their fixed places: a file opened from Files lands beside it, never past the Browser. */
+/** `columns` in their fixed places. */
 export function inKindOrder(columns: readonly Column[]): Column[] {
   return [...columns].sort((a, b) => PANEL_KINDS.indexOf(a.kind) - PANEL_KINDS.indexOf(b.kind))
 }
@@ -62,24 +61,21 @@ function addColumn(panel: TaskPanel, col: Column): TaskPanel {
 
 /** A view by kind alone (`--view files`, the phone's switch, a launcher): its column, opened in its place if closed. */
 export function showKind(panel: TaskPanel, kind: PanelKind): TaskPanel {
-  // The file view has nothing to show without a file.
-  if (columnOf(panel, kind) || kind === "file") return panel
+  if (columnOf(panel, kind)) return panel
   const col: Column =
     kind === "diff" ? { kind, path: ".", scope: "working" } : kind === "browser" ? blankBrowser() : { kind }
   return addColumn(panel, col)
 }
 
-/** A file read as itself: the File column, retargeted if it is open. `at`: a panel push's time; a new one reads the file again. */
+/** A file read as itself: a Browser tab on its path (`openFileTab`); the column opens if closed. `at`: a panel push's time; a new one reads the file again. */
 export function showFile(panel: TaskPanel, path: string, at?: number): TaskPanel {
-  const col: Column = at === undefined ? { kind: "file", path } : { kind: "file", path, at }
-  const open = columnOf(panel, "file")
-  if (!open) return addColumn(panel, col)
-  return open.kind === "file" && open.path === path && (at === undefined || open.at === at)
-    ? panel
-    : replaceColumn(panel, col)
+  const open = columnOf(panel, "browser")
+  if (open?.kind !== "browser") return addColumn(panel, openFileTab(blankBrowser(), fileAddress(path), at))
+  const next = openFileTab(open, fileAddress(path), at)
+  return next === open ? panel : replaceColumn(panel, next)
 }
 
-/** A file's diff (`.` = the whole worktree): the Diff column, retargeted if it is open. `at` as for `showFile`. */
+/** A file's diff (`.` = the whole worktree): the Diff column, retargeted if it is open. `at`: a panel push's time; a new one reads the diff again. */
 export function showDiff(panel: TaskPanel, path: string, scope: DiffScope, at?: number): TaskPanel {
   const col: Column = at === undefined ? { kind: "diff", path, scope } : { kind: "diff", path, scope, at }
   const open = columnOf(panel, "diff")

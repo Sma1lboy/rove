@@ -1596,7 +1596,8 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   [--task-id ID]`: bring up the web side panel (Files / Diff / Browser) on a
   task. `--url` (browser view; `http`/`https` only) loads a page; `--path`
   (files and diff views) is a file relative to the task's worktree, with no
-  `..`. Broadcast over the daemon's `panel.show` channel and pushed to every
+  `..`: with `--view files` the file opens in a Browser tab, its path in the
+  address bar; with `--view diff` its diff opens in the Diff column. Broadcast over the daemon's `panel.show` channel and pushed to every
   browser: each web page remembers the view for that task, and one currently
   on the task with a side panel opens it, without stealing focus or switching
   task. A TUI has no panel. Task defaults to `$ROVE_TASK_ID`, then the active

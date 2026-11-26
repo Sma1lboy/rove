@@ -1,4 +1,4 @@
-/** The File and Diff columns of one changed file point at each other: `[ diff ]` from the file, `[ file ]` from its diff. */
+/** A file's Browser tab and its Diff column point at each other: `[ diff ]` from the file, `[ file ]` from its diff. */
 
 import { useEffect, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
@@ -8,7 +8,7 @@ import { openDiff, openFile } from "./panel-state.ts"
 import { requestRemembered } from "./remembered.ts"
 import { Button } from "./ui/button.tsx"
 
-/** `file`: this is the File column, so the link opens the diff beside it; otherwise the file. */
+/** `file`: this is the file itself, so the link opens the diff beside it; otherwise the file. */
 export function OtherViewLink(props: { taskId: string; path: string; file: boolean }) {
   const open = () =>
     props.file

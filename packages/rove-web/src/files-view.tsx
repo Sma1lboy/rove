@@ -104,7 +104,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
       else next.delete(path)
       return next
     })
-  // The file itself in the File column; its diff is `d`, or the File column's `[ diff ]`.
+  // The file itself in a Browser tab; its diff is `d`, or the tab's `[ diff ]`.
   const open = (path: string) => openFile(task.id, path)
   const openChanges = (path: string) => openDiff({ taskId: task.id, path, scope: "working" })
   const mention = (path: string) => {

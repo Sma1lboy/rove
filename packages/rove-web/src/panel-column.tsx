@@ -5,7 +5,7 @@
 
 import { type PointerEvent, type RefObject, useRef } from "react"
 import type { TaskRow } from "rove-bridge/protocol"
-import { type BrowserColumn, mountedTabs, navigate, stepTab } from "./browser-tabs.ts"
+import { type BrowserColumn, browserUrl, mountedTabs, navigate, stepTab } from "./browser-tabs.ts"
 import { BrowserView } from "./browser-view.tsx"
 import { ContextView } from "./context-view.tsx"
 import { FilesView } from "./files-view.tsx"
@@ -21,7 +21,7 @@ import {
   resetWidths,
   setWidths,
 } from "./panel-model.ts"
-import { closePanelColumn, editBrowserColumn, editPanel } from "./panel-state.ts"
+import { closeBrowserTab, closePanelColumn, editBrowserColumn, editPanel } from "./panel-state.ts"
 import { BrowserTabStrip } from "./panel-tabs.tsx"
 import { PreviewHost } from "./preview-host.tsx"
 import { useStore } from "./store.ts"
@@ -36,7 +36,6 @@ const SCOPE_LABEL = {
 
 /** A column's name in its header: the kind, or for a diff its file (the whole worktree: its scope). */
 function title(col: Exclude<Column, BrowserColumn>): { text: string; hint: string } {
-  if (col.kind === "file") return { text: diffName(col.path), hint: col.path }
   if (col.kind !== "diff") return { text: t(`panel.${col.kind}`), hint: t(`panel.${col.kind}`) }
   if (col.path === ".") return { text: t(SCOPE_LABEL[col.scope]), hint: t("preview.whole") }
   return { text: diffName(col.path), hint: col.path }
@@ -109,10 +108,19 @@ export function ColumnHead({ taskId, column, narrow }: { taskId: string; column:
   )
 }
 
-function BrowserTabs({ model, task, column }: { model: AppModel; task: TaskRow; column: BrowserColumn }) {
+const tabKey = (tab: BrowserColumn["tabs"][number]): string => `${tab.id}:${browserUrl(tab)}`
+
+function BrowserTabs({
+  model,
+  task,
+  column,
+  restored,
+}: { model: AppModel; task: TaskRow; column: BrowserColumn; restored: boolean }) {
   // A tab mounts when first shown and then stays, hidden, so its page keeps its place; past `MAX_FRAMES` the oldest go.
   const mounted = useRef<string[]>([])
   mounted.current = mountedTabs(mounted.current, column.active, column.tabs)
+  // A file opened later in a restored column was asked for: only what the column first drew leaves the keyboard alone.
+  const first = useRef(column.tabs.map(tabKey))
   return column.tabs
     .filter((tab) => mounted.current.includes(tab.id))
     .map((tab) => (
@@ -121,6 +129,10 @@ function BrowserTabs({ model, task, column }: { model: AppModel; task: TaskRow; 
           model={model}
           taskId={task.id}
           tab={tab}
+          root={task.workspace}
+          shown={tab.id === column.active}
+          restored={restored && first.current.includes(tabKey(tab))}
+          onClose={() => closeBrowserTab(task.id, tab.id)}
           onNavigate={(url) => editBrowserColumn(task.id, (col) => navigate(col, tab.id, url))}
           onStep={(at) => editBrowserColumn(task.id, (col) => stepTab(col, tab.id, at))}
         />
@@ -136,22 +148,12 @@ export function ColumnView({
   narrow,
   restored,
 }: { model: AppModel; task: TaskRow; column: Column; narrow: boolean; restored: boolean }) {
-  if (column.kind === "browser") return <BrowserTabs model={model} task={task} column={column} />
+  if (column.kind === "browser") return <BrowserTabs model={model} task={task} column={column} restored={restored} />
   return (
     <div className={SIDE_VIEW}>
       {column.kind === "files" && <FilesView model={model} task={task} narrow={narrow} />}
       {column.kind === "chat" && <TranscriptView model={model} task={task} active />}
       {column.kind === "quota" && <ContextView model={model} task={task} active />}
-      {column.kind === "file" && (
-        <PreviewHost
-          key={`${task.id}:file:${column.path}:${column.at ?? ""}`}
-          model={model}
-          view={{ taskId: task.id, path: column.path, scope: "working", file: true }}
-          active
-          restored={restored}
-          onClose={() => closePanelColumn(task.id, "file")}
-        />
-      )}
       {column.kind === "diff" && (
         <PreviewHost
           key={`${task.id}:${column.path}:${column.scope}:${column.at ?? ""}`}
