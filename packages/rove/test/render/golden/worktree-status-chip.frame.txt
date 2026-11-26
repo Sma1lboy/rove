@@ -10,8 +10,8 @@
 | Issues                       |
 |                              |
 | rove                         |
-|▌review                   ✓ ○ |
-| stuck                    ≠ ○ |
+|▌review                   ◆ ○ |
+| stuck                    ◆ ○ |
 | shipped                    ○ |
 | dropped                    ○ |
 | broke                      ○ |

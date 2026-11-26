@@ -14,8 +14,8 @@ import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"
 
-/** Indent cells at `depth`: none for a top-level task (its title sits under the project header), then two per level. */
-const indentOf = (depth: number): string => (depth > 1 ? " ".repeat((depth - 1) * 2) : "")
+/** Indent cells at `depth`: none for a top-level task (its title sits under the project header), then two per level, the last two an elbow to its parent. */
+const indentOf = (depth: number): string => (depth > 1 ? `${" ".repeat((depth - 2) * 2)}└ ` : "")
 
 export type TreeRowShared = {
   /** Rail width in cells; the label budget derives from it. */
@@ -118,7 +118,7 @@ export function RowShell(props: {
         {selection.marker}
       </text>
       {props.depth > 1 ? (
-        <text wrapMode="none" flexShrink={0}>
+        <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
           {indentOf(props.depth)}
         </text>
       ) : null}

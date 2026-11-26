@@ -2,16 +2,18 @@
  * The sidebar row's ONE chip: can this PR land? Pinned by
  * `test/golden/sidebar-row-state.golden.txt`. Priority:
  *
- *   `≠`  conflicts with its base
- *   `✗`  checks failing
- *   `✓`  checks passing
+ *   amber  conflicts with its base
+ *   red    checks failing
+ *   green  checks passing
+ *
+ * One mark (`◆`) in all three, as the web draws one PR icon; the colour is the state.
  *
  * Pending checks, review, merged/closed and board status draw nothing. An
  * unreachable provider (`prStatus.lastError`) keeps the last good value but
  * drains its colour.
  *
  * Glyph coverage (`fc-list :charset=…` over Fira Code, JetBrainsMono Nerd
- * Font, Menlo, Monaco): U+2260, U+2713, U+2717 are one cell in all of them.
+ * Font, Menlo, Monaco): U+25C6 is one cell in all of them.
  */
 
 import { rollupPr } from "@/orchestrator/task-tree"

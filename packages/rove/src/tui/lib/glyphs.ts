@@ -38,11 +38,9 @@ export interface GlyphSet {
   readonly checksFailing: string
   readonly checksPassing: string
   /**
-   * After the title of a row whose task lives on ANOTHER machine. U+2601 is
-   * East-Asian-Width Neutral and text-presentation by default (no VS16 is
-   * ever appended), so wcwidth, `charWidth` and the terminal all give it one
-   * cell; only an emoji-presentation fallback font could draw it wider, which
-   * is why ascii keeps a 7-bit stand-in.
+   * On a row whose task lives on ANOTHER machine. U+2197 ships in Fira Code,
+   * JetBrains Mono, Menlo and Maple; a cloud (U+2601) is in Menlo alone, so
+   * elsewhere a fallback face drew it off the row's line.
    */
   readonly remote: string
 }
@@ -60,10 +58,10 @@ export const GLYPH_SETS: Readonly<Record<GlyphSetName, GlyphSet>> = {
     dead: "†",
     routineFailed: "↻",
     subagent: "◇",
-    conflict: "≠",
-    checksFailing: "✗",
-    checksPassing: "✓",
-    remote: "☁",
+    conflict: "◆",
+    checksFailing: "◆",
+    checksPassing: "◆",
+    remote: "↗",
   },
   starburst: {
     spinner: ["✻", "✼", "❉", "❊", "✺", "✹", "✸", "✶"],
@@ -77,10 +75,10 @@ export const GLYPH_SETS: Readonly<Record<GlyphSetName, GlyphSet>> = {
     dead: "✞",
     routineFailed: "↻",
     subagent: "❖",
-    conflict: "≠",
-    checksFailing: "✘",
-    checksPassing: "✔",
-    remote: "☁",
+    conflict: "◆",
+    checksFailing: "◆",
+    checksPassing: "◆",
+    remote: "↗",
   },
   ascii: {
     spinner: ["|", "/", "-", "\\"],

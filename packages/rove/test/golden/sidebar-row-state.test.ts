@@ -127,13 +127,7 @@ test("every rendered glyph is in the font-verified vocabulary", () => {
     ["?", "ASCII — blocked on your answer"],
     ["◇", "U+25C7 — subagent count prefix"],
     ["▴", "U+25B4 — pinned marker"],
-    ["✓", "U+2713 — PR checks passing; the one dingbat-adjacent glyph both fonts carry"],
-    ["✗", "U+2717 — PR checks failing; the sibling of ✓ both fonts carry"],
-    // U+2260 Mathematical Operators — the PR cannot merge. `fc-list
-    // :charset=2260`: Fira Code, FiraCode/JetBrainsMono Nerd Font, Menlo AND
-    // Monaco — the widest coverage of any glyph in this table. The intuitive
-    // `⑂` (U+2442 OCR FORK) is in NONE of them and was rejected here.
-    ["≠", "U+2260 — PR merge conflict; in Fira Code / JetBrainsMono / Menlo / Monaco"],
+    ["◆", "U+25C6 — the PR mark, coloured by state; in Fira Code / JetBrainsMono / Menlo / Monaco / Maple"],
     ...DEFAULT_SPINNER_FRAMES.map((frame) => [frame, "braille — uniform AppleBraille fallback"] as const),
   ])
   // Glyph cells the matrix emits, plus the constants the tab rows render

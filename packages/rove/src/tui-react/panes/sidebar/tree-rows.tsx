@@ -15,7 +15,7 @@ import { type TaskEngineState, liveRowTokens } from "@/client/remote-orchestrato
 import type { Task } from "@/types/task"
 import { TextAttributes } from "@opentui/core"
 import type { RowStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { charWidth, displayWidth } from "../../../lib/display-width"
 import { rowStatusGlyph } from "../../../lib/row-status-glyph"
 import { DEFAULT_RUNNING_TITLE, RUNNING_TITLE_KEY, normalizeRunningTitle } from "../../../state/running-title"
@@ -158,9 +158,9 @@ function FoldCluster(props: { readonly task: Task; readonly fold: TreeFold; read
  * deletion or checkout in flight) and, on a child, the marker for where it
  * runs plus a level number once the indent stops growing.
  *
- * A task on ANOTHER machine (`remote`) wears a cloud at the row's right edge — muted
+ * A task on ANOTHER machine (`remote`) wears the remote mark at the row's right edge — muted
  * while that machine is online, warning-toned (and the title greyed) while it
- * is offline, connecting or mismatched. Under the cursor the cloud also says
+ * is offline, connecting or mismatched. Under the mouse the row also says
  * where: `on <host> · <state>`. Machines are not sections; this mark is the
  * only place a row says it lives elsewhere.
  */
@@ -214,7 +214,8 @@ export function WorktreeTreeRow(props: {
   const tokens = liveRowTokens(shared.rowTokens, task.id, Date.now())
   const remote = props.remote
   const remoteLive = remote ? remoteMarkLive(remote) : true
-  const caption = remote && shared.cursorIndex === props.flatIndex ? remoteRowCaption(remote, t) : null
+  const [hovered, setHovered] = useState(false)
+  const caption = remote && hovered ? remoteRowCaption(remote, t) : null
   // A task over several repos is listed once, under its primary, with how many more it spans.
   const extraRepoText = task.extraRepos?.length ? `+${task.extraRepos.length}` : null
   const fold = props.fold
@@ -236,13 +237,13 @@ export function WorktreeTreeRow(props: {
     (task.pinned === true ? 2 : 0) +
     (chip ? 2 : 0) +
     (moving ? clusterCells(t("tasks.moveChip").trim()) : 0)
-  // The cursor's caption takes what the title leaves (the title keeps up to
+  // The hover caption takes what the title leaves (the title keeps up to
   // REMOTE_TITLE_CELLS), clipped with `…`, so a narrow rail never loses the branch.
   const budget = treeLabelBudget(shared, reserved)
   const captionCells = caption ? Math.max(0, budget - Math.min(displayWidth(label), REMOTE_TITLE_CELLS) - 1) : 0
   const remoteText = remote
     ? captionCells > 2
-      ? `${glyphs.remote} ${truncateEndCells(caption ?? "", captionCells, charWidth)}`
+      ? `${truncateEndCells(caption ?? "", captionCells, charWidth)} ${glyphs.remote}`
       : glyphs.remote
     : null
   const shimmer =
@@ -252,7 +253,15 @@ export function WorktreeTreeRow(props: {
   const clipped = truncateEndCells(label, budget - (remoteText ? displayWidth(remoteText) - 1 : 0), charWidth)
   return (
     <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={props.depth ?? 1} shared={shared}>
-      <box flexDirection="row" flexGrow={1} paddingRight={1} gap={1}>
+      {/* biome-ignore lint/a11y/useKeyWithMouseEvents: a terminal box takes no focus; the mark alone says "elsewhere" for the keyboard */}
+      <box
+        flexDirection="row"
+        flexGrow={1}
+        paddingRight={1}
+        gap={1}
+        onMouseOver={() => setHovered(true)}
+        onMouseOut={() => setHovered(false)}
+      >
         {/* A row from an unreachable machine is the LAST KNOWN state, not a
             live one — it keeps its place and drops to muted rather than
             disappearing, which would erase the only record of where the work
@@ -318,7 +327,7 @@ export function WorktreeTreeRow(props: {
             {remoteText}
           </text>
         ) : null}
-        {/* Last, so every row's state lines up in one column at the rail's edge, the cloud before it. */}
+        {/* Last, so every row's state lines up in one column at the rail's edge, the remote mark before it. */}
         <text fg={fg} attributes={pulsing ? TextAttributes.BOLD : undefined} wrapMode="none" flexShrink={0}>
           {rowView.stateGlyph}
         </text>

@@ -91,7 +91,7 @@ Task rows carry worktree-level facts:
 | `▴` | Pinned Task |
 | `+N` / `−N` | Changed and deleted files in the worktree |
 | `↑N` / `↓N` | Commits this worktree has that its base does not, and the ones the base has that it does not |
-| `≠` / `✗` / `✓` | The pull request conflicts with its base, has failing checks, or has passing checks. One mark: a conflict outranks a check result |
+| `◆` | The task has a pull request: amber when it conflicts with its base, red when checks fail, green when they pass. A conflict outranks a check result |
 
 `↑N` is the one mark that outlives a commit: committing empties `+N` / `−N`, so
 without it a worker that committed its work and one that reported success and
@@ -219,7 +219,7 @@ While a Task's pull request has failing checks, the menu also offers **Fix
 failing checks**, which pastes the failing jobs' log tails into the Task's
 engine, and **Re-run failed checks**, which restarts only the failed CI jobs
 (through `gh run rerun --failed`) for a failure that looks flaky rather than
-caused by the change. The `✗` mark turns pending on the next PR refresh.
+caused by the change. The red `◆` mark turns pending on the next PR refresh.
 Checks that did not run on GitHub Actions cannot be restarted from Rove; the
 toast says so. Reruns wait for every `gh run rerun` command to finish; a slow batch
 does not trigger the client's 20-second daemon-disconnect deadline.
