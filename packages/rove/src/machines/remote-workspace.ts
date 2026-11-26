@@ -54,7 +54,7 @@ export function remoteWorkspacesRoot(home = homeDir()): string {
 
 /** The link directory. It ends in the repo's own folder name, which is what a sidebar shows for a directory. */
 export function remoteWorkspaceDir(machine: string, taskId: string, name: string, home = homeDir()): string {
-  return join(remoteWorkspacesRoot(home), machine, taskId, basename(name) || "workspace")
+  return join(remoteWorkspacesRoot(home), machine, taskId, basename(name.replaceAll("\\", "/")) || "workspace")
 }
 
 export function readRemoteWorkspace(dir: string): RemoteWorkspace | null {

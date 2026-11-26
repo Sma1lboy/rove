@@ -72,6 +72,24 @@ describe("task.spawn", () => {
     ])
   })
 
+  test("Worktree off on another machine works in its checkout itself; with nothing to branch, a base ref is refused", async () => {
+    const { calls } = await run(
+      "task.spawn",
+      { repo: "C:\\w\\app", machine: "pc", noWorktree: true, prompt: "p" },
+      { add: { taskId: "N1", task: {} } },
+    )
+    expect(calls).toEqual([
+      {
+        verb: "add",
+        argv: ["--repo=C:\\w\\app", "--workspace-on=pc", "--no-worktree=true", "--prompt=p"],
+        machine: undefined,
+      },
+    ])
+    await expect(
+      run("task.spawn", { repo: "C:\\w\\app", machine: "pc", noWorktree: true, baseBranch: "main", prompt: "p" }, {}),
+    ).rejects.toThrow(/noWorktree/)
+  })
+
   // A path there is passed as written, a Windows one too: it is that machine's to read.
   test.each(["/Users/me/app", "C:\\Users\\me\\site"])(
     "with the engine there: add runs on that machine at %p, and the engine is that machine's to check",

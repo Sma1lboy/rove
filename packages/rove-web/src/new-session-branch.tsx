@@ -17,6 +17,8 @@ export function BranchChips(props: {
   remoteBase: string
   onRemoteBase: (ref: string) => void
   remote: boolean
+  /** On another machine: "required" when only a worktree can serve (the agent runs there, a clone). */
+  remoteWorktree: "on" | "off" | "required"
   ungrouped: boolean
   inPlace: boolean
   /** A picked folder has no git: no worktree to toggle. */
@@ -35,7 +37,25 @@ export function BranchChips(props: {
   const [query, setQuery] = useState("")
   if (props.ungrouped) return null
   if (props.remote) {
-    return props.remotePick && <RemoteBranchChip value={props.remoteBase} onPick={props.onRemoteBase} />
+    if (!props.remotePick) return null
+    const state = props.remoteWorktree
+    return (
+      <>
+        <WorktreeToggle
+          on={state !== "off"}
+          disabled={state === "required"}
+          title={t(
+            state === "required"
+              ? "newSession.worktreeRemoteRequired"
+              : state === "off"
+                ? "newSession.worktreeOff"
+                : "newSession.worktreeOn",
+          )}
+          onClick={props.onToggleWorktree}
+        />
+        {state !== "off" && <RemoteBranchChip value={props.remoteBase} onPick={props.onRemoteBase} />}
+      </>
+    )
   }
   const { repos, bases, inPlace } = props
   const primary = repos[0] ?? ""
@@ -56,7 +76,7 @@ export function BranchChips(props: {
   }))
   return (
     <>
-      <ComposerToggle
+      <WorktreeToggle
         on={!inPlace}
         disabled={repos.length > 1 || props.plain}
         title={
@@ -67,10 +87,7 @@ export function BranchChips(props: {
               : t(inPlace ? "newSession.worktreeOff" : "newSession.worktreeOn")
         }
         onClick={props.onToggleWorktree}
-      >
-        <BranchIcon />
-        <span className={CHIP_WORD}>{t("newSession.worktree")}</span>
-      </ComposerToggle>
+      />
       {repos.length > 1 ? (
         <ChipPopover field="branch" title={t("newSession.branches")} label={t("newSession.branches")}>
           {() => (
@@ -105,5 +122,14 @@ export function BranchChips(props: {
         )
       )}
     </>
+  )
+}
+
+function WorktreeToggle(props: { on: boolean; disabled: boolean; title: string; onClick: () => void }) {
+  return (
+    <ComposerToggle on={props.on} disabled={props.disabled} title={props.title} onClick={props.onClick}>
+      <BranchIcon />
+      <span className={CHIP_WORD}>{t("newSession.worktree")}</span>
+    </ComposerToggle>
   )
 }

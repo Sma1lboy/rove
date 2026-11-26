@@ -79,6 +79,9 @@ describe("a workspace on another machine", () => {
       home,
     )
     expect(dir).toBe(join(home, ".rove", "remote-workspaces", "deck", "T1", "app"))
+    expect(remoteWorkspaceDir("win", "T2", "C:\\Users\\me\\app", home)).toBe(
+      join(home, ".rove", "remote-workspaces", "win", "T2", "app"),
+    )
     expect(readRemoteWorkspace(dir)).toEqual(ws)
     expect(readFileSync(join(dir, "AGENTS.md"), "utf8")).toMatch(/rx '<command>'[\s\S]*Use tabs\./)
     expect(readFileSync(join(dir, "CLAUDE.md"), "utf8")).toMatch(/^wired on deck\n[\s\S]*Use tabs\./)

@@ -35,6 +35,14 @@ export function remoteRef(repo: RemoteRepo): string {
   return repo.primary ?? repo.checkouts[0] ?? repo.id
 }
 
+/** The checkout there a pick works in without a worktree; null for a clone or a repo with none. */
+export function remoteCheckout(pick: RemotePick | null, repos: readonly RemoteRepo[]): string | null {
+  if (!pick || pick.clone) return null
+  if (isAbsolutePath(pick.ref)) return pick.ref
+  const repo = repos.find((r) => r.id === pick.ref)
+  return repo?.primary ?? repo?.checkouts[0] ?? null
+}
+
 /**
  * The pick a seed (the project a rail row opened the composer on) stands for: the listed repo whose id or
  * checkout it is, else an absolute path on that machine, else nothing.
@@ -102,6 +110,8 @@ export interface RemoteStartInput {
   readonly prompt: string
   /** The ref its worktree branches from; "" = that repo's current branch. */
   readonly baseRef: string
+  /** Work in this checkout there itself, no worktree; undefined = cut one. */
+  readonly checkout?: string
   /** Run the engine on that machine too. Off: the agent is this machine's and only the work is there. */
   readonly engineThere: boolean
   /** This machine's model for the agent; "" = the engine's default. Not sent with `engineThere`. */
@@ -115,10 +125,11 @@ export interface RemoteStartInput {
  */
 export function remoteSpawnArgs(input: RemoteStartInput): Record<string, unknown> {
   return {
-    repo: input.pick.ref,
+    repo: input.checkout ?? input.pick.ref,
     machine: input.machine,
+    ...(input.checkout ? { noWorktree: true } : {}),
     ...(input.pick.clone ? { clone: true } : {}),
-    ...(input.baseRef ? { baseBranch: input.baseRef } : {}),
+    ...(input.baseRef && !input.checkout ? { baseBranch: input.baseRef } : {}),
     ...(input.prompt ? { prompt: input.prompt } : {}),
     ...(input.engine ? { engine: input.engine } : {}),
     ...(input.engineThere ? { engineThere: true } : {}),

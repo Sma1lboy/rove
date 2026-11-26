@@ -29,7 +29,7 @@ import {
 } from "./new-session-machine.tsx"
 import { ChipPopover } from "./new-session-menus.tsx"
 import { ComposerMore } from "./new-session-more.tsx"
-import { cloneLabel, remoteRef } from "./new-session-remote.ts"
+import { cloneLabel, remoteCheckout, remoteRef } from "./new-session-remote.ts"
 import { RepoMenu } from "./new-session-repo-menu.tsx"
 import { startShell, useShellPick } from "./new-session-shell.ts"
 import {
@@ -175,6 +175,9 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   // Several repos always get worktrees: one checkout can't hold a multi-repo task. A folder without git has none.
   const plain = repos.some((path) => probes[path]?.git === false)
   const inPlace = !remote && (!worktree || plain) && repos.length === 1
+  // Another machine: its checkout itself when Worktree is off, the agent here and the repo already there.
+  const remoteCheckoutPath = remote && !engineThere ? remoteCheckout(remotePick, remoteList.repos) : null
+  const remoteInPlace = remoteCheckoutPath !== null && !worktree
   const primary = repos[0] ?? ""
   // Each repo is reread once per open, when first picked.
   useEffect(() => {
@@ -231,6 +234,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         engine: engineId,
         prompt: prompt.trim(),
         baseRef: remoteBase,
+        ...(remoteInPlace ? { checkout: remoteCheckoutPath } : {}),
         engineThere,
         model: modelValue,
       })
@@ -469,6 +473,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               remotePick={remotePick}
               remoteBase={remoteBase}
               onRemoteBase={setRemoteBase}
+              remoteWorktree={remoteCheckoutPath === null ? "required" : remoteInPlace ? "off" : "on"}
               ungrouped={ungrouped}
               inPlace={inPlace}
               plain={plain}

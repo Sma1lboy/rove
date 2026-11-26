@@ -1,28 +1,34 @@
 /**
  * `add --workspace-on <machine>`: the agent runs here, its files and commands live on that machine.
- * That machine cuts the worktree (`add --worktree-only` there, so it needs Rove but no engine); this one
- * links to it (`machines/remote-workspace.ts`) and starts the engine in the link directory.
+ * That machine cuts the worktree (`add --worktree-only` there, so it needs Rove but no engine), or with
+ * `--no-worktree` holds an engineless row on the checkout itself; this one links to it
+ * (`machines/remote-workspace.ts`) and starts the engine in the link directory.
  */
 
 import type { ApiParams, SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { remoteNotesFiles } from "../../engine/registry.ts"
 import { homeDir } from "../../env.ts"
 import { errorMessage } from "../../lib/error-message.ts"
-import { forwardVerb, requireMachine } from "../../machines/forward.ts"
+import { forwardVerb, machineRequest, requireMachine } from "../../machines/forward.ts"
+import type { MachineEntry } from "../../machines/registry.ts"
 import { createRemoteLink, removeRemoteLink } from "../../machines/remote-workspace.ts"
 import { machineSshArgs } from "../../machines/ssh-args.ts"
+import { isWindowsPath } from "../../machines/windows-remote.ts"
 import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
 import { openDirSession, startDirSession } from "./add-dir-session.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, helpStep } from "./types.ts"
 
 /** Flags that shape a local worktree or a round of them: none of that exists for a workspace elsewhere. */
-const LOCAL_ONLY = ["count", "agents", "fork", "workspace", "no-worktree", "isolate-in", "worktree-only", "tier"]
+const LOCAL_ONLY = ["count", "agents", "fork", "workspace", "isolate-in", "worktree-only", "tier"]
+/** What only a new worktree takes. */
+const NEW_WORKTREE_FLAGS = ["branch", "base-branch", "clone", "allow-fork"]
 
 export async function addOnMachine(ctx: VerbContext, alias: string): Promise<unknown> {
   const { args } = ctx
   const daemon = daemonOf(ctx)
-  const clash = LOCAL_ONLY.find((flag) => args.str(flag) !== undefined)
+  const inPlace = args.bool("no-worktree")
+  const clash = [...LOCAL_ONLY, ...(inPlace ? NEW_WORKTREE_FLAGS : [])].find((flag) => args.str(flag) !== undefined)
   const repos = args.list("repo")
   if (clash || repos.length > 1) {
     throw new ApiError(
@@ -45,19 +51,15 @@ export async function addOnMachine(ctx: VerbContext, alias: string): Promise<unk
     const value = args.str(flag)
     return value === undefined ? {} : { [flag]: value }
   }
-  const cut = await forwardVerb(entry, "add", {
-    repo: repos[0] ?? "",
-    "worktree-only": true,
-    ...(title ? { title } : {}),
-    ...pass("branch"),
-    ...pass("base-branch"),
-    ...pass("clone"),
-    ...pass("allow-fork"),
-  })
-  if (!cut.ok)
-    throw new ApiError(cut.error.message, cut.error.code, cut.error.data as Record<string, unknown> | undefined)
-  const there = cut.result as { taskId: string; task: SerializedTask; worktreePath: string }
-  // Past this point a failure takes the worktree it just cut back down.
+  const there = inPlace
+    ? await openCheckoutThere(entry, repos[0] ?? "", title)
+    : await cutWorktreeThere(entry, {
+        repo: repos[0] ?? "",
+        "worktree-only": true,
+        ...(title ? { title } : {}),
+        ...NEW_WORKTREE_FLAGS.reduce<ApiParams>((acc, flag) => Object.assign(acc, pass(flag)), {}),
+      })
+  // Past this point a failure takes the row it just made back down (a checkout's own files are never touched).
   const undo = async () => {
     await forwardVerb(entry, "delete", { "task-id": there.taskId, wait: true, force: true })
   }
@@ -91,4 +93,37 @@ export async function addOnMachine(ctx: VerbContext, alias: string): Promise<unk
   }
   const where = { machine: alias, remoteTaskId: there.taskId, remotePath: there.worktreePath, home: homeDir() }
   return startDirSession(ctx, daemon, task, dir, where)
+}
+
+interface There {
+  readonly taskId: string
+  readonly task: SerializedTask
+  readonly worktreePath: string
+}
+
+async function cutWorktreeThere(entry: MachineEntry, params: ApiParams): Promise<There> {
+  const cut = await forwardVerb(entry, "add", params)
+  if (!cut.ok)
+    throw new ApiError(cut.error.message, cut.error.code, cut.error.data as Record<string, unknown> | undefined)
+  return cut.result as There
+}
+
+/**
+ * `--no-worktree`: the checkout itself, held there by an engineless `dir` row that no client lists (as a
+ * `--worktree-only` one is not), so the Files pane and diff have a task there to read through.
+ */
+async function openCheckoutThere(entry: MachineEntry, repo: string, title: string): Promise<There> {
+  if (!isWindowsPath(repo) && !repo.startsWith("/")) {
+    throw new ApiError(
+      `--workspace-on with --no-worktree takes the checkout's absolute path on "${entry.alias}" as --repo, not "${repo}"`,
+      "BAD_FLAG",
+      helpStep("add"),
+    )
+  }
+  const { task } = await machineRequest<{ task: SerializedTask }>(entry, "task.openDir", {
+    dir: repo,
+    ...(title ? { title } : {}),
+  })
+  await machineRequest(entry, "task.worktreeOnly", { taskId: task.id, on: true })
+  return { taskId: task.id, task, worktreePath: task.worktreePath || repo }
 }

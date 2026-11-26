@@ -103,6 +103,14 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
   const parallel = count !== undefined || agentsGiven
   const there = machine !== undefined && (optBool(args, "engineThere") === true || parallel) ? machine : undefined
   if (count !== undefined && agentsGiven) throw new BridgeError("BAD_ARGS", "count and agents are exclusive")
+  // Another machine's checkout itself, the agent here: no worktree, so nothing to branch from.
+  const noWorktree = optBool(args, "noWorktree") === true
+  if (noWorktree && (!machine || there || clone || branch || baseBranch)) {
+    throw new BridgeError(
+      "BAD_ARGS",
+      "noWorktree takes a machine with the agent here, and no clone, branch or baseBranch",
+    )
+  }
   if (parallel && !prompt) throw new BridgeError("BAD_ARGS", "count/agents need a prompt")
   // "Later": the daemon records what to create and creates it, engine and prompt, when the time comes.
   const later = scheduledStart(args)
@@ -139,6 +147,7 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
   if (title) argv.push(flag("title", title))
   if (branch) argv.push(flag("branch", branch))
   if (baseBranch) argv.push(flag("base-branch", baseBranch))
+  if (noWorktree) argv.push(flag("no-worktree", "true"))
   if (engine) argv.push(flag("command", carried ?? engine))
   if (effort) argv.push(flag("effort", effort))
   if (mdl) argv.push(flag("model", mdl))
