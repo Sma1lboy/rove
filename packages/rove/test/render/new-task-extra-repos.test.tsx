@@ -41,7 +41,7 @@ async function mount(defaultRepo: string, savedRepos: readonly string[]) {
 
 /** Tab stops from the opening field to `target`, counted from the focus chain (claude: model and effort rows). */
 function stopsTo(target: Field): number {
-  let field: Field = "tabs"
+  let field: Field = "prompt"
   for (let i = 1; i <= 24; i++) {
     field = nextField(field, "existing", { extrasVisible: true, effortVisible: true, modelVisible: true })
     if (field === target) return i

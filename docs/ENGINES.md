@@ -103,7 +103,7 @@ the fallback, then `claude`. From a script it is
 `rove api add --command <engine-or-command-line>`; see
 [engine presets and protocols](#engine-presets-and-protocols).
 
-Engines whose CLI isn't installed are hidden from the new-task dialog, and
+Engines whose CLI isn't installed are hidden from the New task page, and
 so are engines you switched off in Settings → Engines (Settings still lists
 them so you can switch them back on). Custom engines always show; you added
 it, so Rove assumes you meant it.
@@ -149,7 +149,7 @@ The same three places select one:
 
 - `rove api add --command pi --model cliproxy/claude-fable-5`, which reaches
   the task's **first** session;
-- **Change engine** and the new-task dialog, whose model row is a free-text
+- **Change engine** and the New task page, whose model row is a free-text
   input with the engine's list as suggestions underneath (`tab` reaches the
   row in the change-engine picker; empty = the engine's default);
 - `rove api update --task-id ID --model MODEL` from a shell.

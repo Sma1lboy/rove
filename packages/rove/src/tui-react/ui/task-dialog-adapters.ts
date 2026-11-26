@@ -11,22 +11,16 @@ import { openTaskEngine } from "../../tui/lib/open-task-engine"
 import type { ChildrenPrompt, ConfirmPrompt, TextPromptOpts } from "../../tui/lib/task-actions"
 import type { CreateTaskContext } from "../../tui/lib/task-create-flow"
 import type { Task, VendorId } from "../../types/task.ts"
-import { NewTaskDialog, type NewTaskDialogOptions } from "../component/new-task-dialog"
 import { RenameTaskDialog } from "../component/rename-task-dialog"
 import type { DialogContext } from "./dialog"
 import { DialogChoice } from "./dialog-choice"
 import { DialogConfirm } from "./dialog-confirm"
 
-/** The dialog-surfacing callbacks of `TaskActionContext`/`CreateTaskContext`. */
+/** The dialog-surfacing callbacks of `TaskActionContext`. */
 function taskDialogAdapters(dialog: DialogContext): {
   confirm: (p: ConfirmPrompt) => Promise<boolean>
   pickChildren: (p: ChildrenPrompt) => Promise<"promote" | "cascade" | undefined>
   promptText: (initial: string, opts?: TextPromptOpts) => Promise<string | undefined>
-  promptNewTask: (
-    defaultRepo: string,
-    repos: readonly string[],
-    opts: NewTaskDialogOptions,
-  ) => ReturnType<typeof NewTaskDialog.show>
 } {
   return {
     confirm: async (p) =>
@@ -44,7 +38,6 @@ function taskDialogAdapters(dialog: DialogContext): {
         initial: 0,
       }),
     promptText: (initial, opts) => RenameTaskDialog.show(dialog, initial, opts),
-    promptNewTask: (defaultRepo, repos, opts) => NewTaskDialog.show(dialog, defaultRepo, repos, opts),
   }
 }
 
@@ -72,6 +65,8 @@ export interface BaseCreateTaskContextDeps {
   readonly orch: RemoteOrchestrator | null
   readonly tasks: () => readonly Task[]
   readonly dialog: DialogContext
+  /** The host's New task page: resolves with the form's answer, `undefined` on cancel. */
+  readonly promptNewTask: CreateTaskContext["promptNewTask"]
   readonly notifyError: (message: string) => void
   readonly notifyInfo: (message: string) => void
   readonly selectedId: () => string | null
@@ -88,6 +83,7 @@ export function buildBaseCreateTaskContext(deps: BaseCreateTaskContextDeps): Cre
     orch: deps.orch,
     tasks: () => deps.tasks(),
     ...taskDialogAdapters(deps.dialog),
+    promptNewTask: deps.promptNewTask,
     ...vendorPrefAdapters,
     logger: console,
     logPrefix: deps.logPrefix,

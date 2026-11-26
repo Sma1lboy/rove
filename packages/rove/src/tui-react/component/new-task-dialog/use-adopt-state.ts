@@ -28,7 +28,6 @@ export function useAdoptState(args: {
   vendor: VendorId
   discoverAdoptable: ((repo: string) => Promise<readonly AdoptableWorktree[]>) | undefined
   onSubmit: (v: NewTaskInput) => void
-  clearDialog: () => void
   setSubmitError: (e: string | null) => void
 }) {
   const [adoptFilter, setAdoptFilter] = useState("")
@@ -129,7 +128,6 @@ export function useAdoptState(args: {
       vendor: args.vendor,
       adopt: chosen.map((w) => ({ worktreePath: w.path, branch: w.branch })),
     })
-    args.clearDialog()
   }
 
   return {

@@ -82,7 +82,12 @@ function descendants(root: Renderable): Renderable[] {
 }
 
 async function press(handle: RenderHandle, key: "right" | "tab" | "down") {
-  act(() => (key === "tab" ? handle.mockInput.pressTab() : handle.mockInput.pressArrow(key)))
+  // "right" is the next mode: ctrl+], which works from the first message the form opens on.
+  act(() => {
+    if (key === "tab") handle.mockInput.pressTab()
+    else if (key === "right") handle.mockInput.pressKey("]", { ctrl: true })
+    else handle.mockInput.pressArrow(key)
+  })
   await settle()
 }
 
@@ -91,9 +96,9 @@ async function pressAll(handle: RenderHandle, keys: readonly ("right" | "tab" | 
   for (const key of keys) await press(handle, key)
 }
 
-/** Tab from the dialog's first stop to `target` on the clone form, counted from the focus chain. */
+/** Tab from the clone form's first stop to `target`, counted from the focus chain. */
 async function tabToCloneField(handle: RenderHandle, target: Field) {
-  let field: Field = "tabs"
+  let field: Field = "cloneUrl"
   let stops = 0
   do {
     field = nextField(field, "clone", { modelVisible: true, effortVisible: true })
@@ -151,7 +156,6 @@ test("200x60: wrapped engines and inputs keep full borders above the footer", as
 })
 
 test.each([
-  { mode: "existing", toTab: [], landmark: "FROM BRANCH", inTab: [], shown: "FROM BRANCH" },
   {
     mode: "adopt",
     toTab: ["right", "right"],
@@ -174,7 +178,7 @@ test.each([
   expect(new Set(borderedBoxes(h).map((box) => box.height))).toEqual(new Set([3]))
   const scroll = scrollBox(h)
   expect(scroll).toBeDefined()
-  const footer = frame.split("\n").findIndex((line) => line.includes("enter next field"))
+  const footer = frame.split("\n").findIndex((line) => /enter (next field|create)/.test(line))
   expect(footer).toBeGreaterThan(scroll!.y + scroll!.height)
   act(() => h.destroy())
 })
@@ -205,7 +209,6 @@ test("a focused last field remains visible after narrowing and shortening the te
 async function compactForm(width: number, height: number) {
   const h = await mount(width, height)
   await press(h, "right")
-  await pressAll(h, ["tab", "tab", "tab", "tab"])
   await act(async () => h.mockInput.typeText("https://github.com/Sma1lboy/mc-rpg.git"))
   const frame = await h.frame()
   const lines = frame.split("\n")
@@ -270,7 +273,7 @@ function FocusWalk(props: { tab: DialogTab; onDone: (seen: readonly Field[]) => 
     if (ran.current) return
     ran.current = true
     const seen: Field[] = []
-    let field: Field = "tabs"
+    let field: Field = "prompt"
     for (let i = 0; i < 24 && !seen.includes(field); i++) {
       seen.push(field)
       field = vm.advanceFieldFor(field, props.tab)

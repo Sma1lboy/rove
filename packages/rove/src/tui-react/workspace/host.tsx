@@ -34,7 +34,7 @@ import { FullWindowPage, useHostBanner } from "./host-banner"
 import { HostFilesPane, useFilesPaneActions } from "./host-files-pane"
 import { WorkspaceFrame } from "./host-footer"
 import { useWorkspaceKeybindings } from "./host-keybindings"
-import { type BootDialogs, openTaskOnTab, useHostPagesRender, useHostPagesState } from "./host-pages"
+import { type BootDialogs, openTaskOnTab, useHostPagesRender, useHostPagesState, useNewTaskPage } from "./host-pages"
 import { HostSidebarMount } from "./host-sidebar-mount"
 import { useWorkspaceTaskActions } from "./host-task-actions"
 import { NarrowBackBar } from "./narrow-back-bar"
@@ -176,6 +176,8 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     forgetTaskTabs: (id) => forgetTaskTabs(kv, id),
     // `quickFork` is declared below; the dialog only calls this after the first render.
     startWithPrompt: (repo, start) => quickFork.onQuickFork(repo, { ...start, attachments: [], attempts: 1 }),
+    // `newTaskPage` is built below; this only runs on a later user action.
+    promptNewTask: (repo, repos, opts) => newTaskPage.prompt(repo, repos, opts),
   })
 
   // Imperative tab handles: refs handed by TerminalTabs + FileTree/PR actions.
@@ -221,6 +223,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
   useRowStatusSync(orch.rowStatus, orch.connectionStateSignal())
 
   const pages = useHostPagesState(focus, props)
+  const newTaskPage = useNewTaskPage(pages, () => focus.setFocused("workspace"))
   // Modals, opened here because the dialog stack lives here.
   useWhatsNewDialog(pages.whatsNewFrom, pages.closeWhatsNew)
   useWelcomeDialog(pages.welcome, pages.closeWelcome)
@@ -238,6 +241,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
   const pageRender = useHostPagesRender({
     orchestrator: orch,
     pages,
+    newTask: newTaskPage,
     focus,
     dialog,
     kv,
@@ -396,12 +400,12 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
 
       {pageRender.showContent ? (
         <WorkspacePaneFrame
-          workingFlow={workingFlow}
-          taskInk={taskInk}
+          workingFlow={workingFlow && !pageRender.contentPage}
+          taskInk={pageRender.contentPage ? undefined : taskInk}
           focused={focus.focused === "workspace"}
           inactiveBorder={inactiveBorder}
           title={
-            workingFlow && selectedTask
+            workingFlow && selectedTask && !pageRender.contentPage
               ? runningPaneTitle(selectedTask.title, t("workspace.inbox.state.running"))
               : undefined
           }
