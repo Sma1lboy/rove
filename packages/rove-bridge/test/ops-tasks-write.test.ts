@@ -72,17 +72,21 @@ describe("task.spawn", () => {
     ])
   })
 
-  test("with the engine there: add runs on that machine, and the engine is that machine's to check", async () => {
-    const { calls } = await run(
-      "task.spawn",
-      { repo: "/Users/me/app", machine: "mac", engineThere: true, engine: "only-on-mac", baseBranch: "main" },
-      { add: { taskId: "N1", task: {} } },
-    )
-    // No engine-list read here: this machine's engines say nothing about the Mac's.
-    expect(calls).toEqual([
-      { verb: "add", argv: ["--repo=/Users/me/app", "--base-branch=main", "--command=only-on-mac"], machine: "mac" },
-    ])
-  })
+  // A path there is passed as written, a Windows one too: it is that machine's to read.
+  test.each(["/Users/me/app", "C:\\Users\\me\\site"])(
+    "with the engine there: add runs on that machine at %p, and the engine is that machine's to check",
+    async (repo) => {
+      const { calls } = await run(
+        "task.spawn",
+        { repo, machine: "mac", engineThere: true, engine: "only-on-mac", baseBranch: "main" },
+        { add: { taskId: "N1", task: {} } },
+      )
+      // No engine-list read here: this machine's engines say nothing about the Mac's.
+      expect(calls).toEqual([
+        { verb: "add", argv: [`--repo=${repo}`, "--base-branch=main", "--command=only-on-mac"], machine: "mac" },
+      ])
+    },
+  )
 
   test("a Windows machine runs the engine there: rx cannot reach it, so the workspace cannot be split off", async () => {
     taskOpDeps.isWindowsMachine = (alias) => alias === "pc"
@@ -119,21 +123,11 @@ describe("task.spawn", () => {
     },
   )
 
-  test("a path on a Windows machine starts there as written", async () => {
-    const repo = "C:\\Users\\me\\Downloads\\site"
-    const { calls } = await run(
-      "task.spawn",
-      { repo, machine: "pc", engineThere: true },
-      { add: { taskId: "N1", task: {} } },
-    )
-    expect(calls).toEqual([{ verb: "add", argv: [`--repo=${repo}`], machine: "pc" }])
-    await refused("task.spawn", { repo, machine: "pc", clone: true })
-  })
-
   test("clone and repo ids are for another machine's add, and never a flag, a path or a local clone", async () => {
     await refused("task.spawn", { repo: "sma1lboy/rove", clone: true })
     await refused("task.spawn", { repo: "sma1lboy/rove" })
     await refused("task.spawn", { repo: "/Users/me/app", machine: "mac", clone: true })
+    await refused("task.spawn", { repo: "C:\\Users\\me\\site", machine: "pc", clone: true })
     await refused("task.spawn", { repo: "--upload-pack=x", machine: "mac", clone: true })
     await refused("task.spawn", { repo: "ext::sh -c id", machine: "mac", clone: true })
     await refused("task.spawn", { repo: "relative/path/here", machine: "mac" })
