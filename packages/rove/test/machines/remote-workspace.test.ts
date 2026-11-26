@@ -8,7 +8,6 @@ import { bashHookReply, callWorkspaceTool, fileHookReply, mcpReply } from "../..
 import { claudeRemoteWorkspaceArgv } from "../../src/engine/claude-code-local/remote-workspace.ts"
 import { buildEngineSessionLaunch } from "../../src/engine/session-launch.ts"
 import { addStaysHere } from "../../src/machines/forward.ts"
-import type { MachineEntry } from "../../src/machines/registry.ts"
 import {
   REMOTE_WORKSPACE_FILE,
   createRemoteLink,
@@ -19,6 +18,7 @@ import {
   removeRemoteLink,
   rxScript,
 } from "../../src/machines/remote-workspace.ts"
+import { RX_MARKER, windowsRxScript } from "../../src/machines/windows-remote.ts"
 
 /** `sh -c` stands in for ssh: the "remote" command line runs in a local shell, so the quoting is the real one. */
 const LOCAL_SSH = ["sh", "-c"]
@@ -51,6 +51,17 @@ describe("a workspace on another machine", () => {
     run("cat > note.txt", "from stdin\n")
     expect(readFileSync(join(worktree, "note.txt"), "utf8")).toBe("from stdin\n")
     expect(run("exit 7").status).toBe(7)
+  })
+
+  test("rx to a Windows machine drops the ssh shell's banner and passes output byte for byte and the exit code through", () => {
+    // Stands in for ssh to a PowerShell DefaultShell: a profile banner, then the far side's marker and the command.
+    const ssh = ["sh", "-c", `printf 'fastfetch banner\\n${RX_MARKER}\\r\\n'; cat; exit 7`]
+    const rx = join(scratch(), "rx")
+    writeFileSync(rx, windowsRxScript(ssh, "C:\\w", false))
+    chmodSync(rx, 0o755)
+    const res = spawnSync(rx, ["cat"], { input: "héllo\nno newline", encoding: "utf8" })
+    expect(res.stdout).toBe("héllo\nno newline")
+    expect(res.status).toBe(7)
   })
 
   test("the link directory names the worktree, carries both instruction files with the project's own, and is all a removal takes", async () => {
@@ -184,15 +195,12 @@ describe("a workspace on another machine", () => {
   })
 
   test("add --machine keeps the agent here unless the engine is asked for there or only that machine can serve the request", () => {
-    const deck: MachineEntry = { alias: "deck", host: "deck", auth: { kind: "key" } }
-    const windows = { ...deck, alias: "pc", roveBin: "C:\\rove\\rove.exe" }
-    expect(addStaysHere("add", { repo: "me/app", prompt: "p" }, deck)).toBe(true)
-    expect(addStaysHere("add", { repo: "me/app", prompt: "p", "engine-there": true }, deck)).toBe(false)
-    expect(addStaysHere("add", { repo: "me/app", prompt: "p", count: "3" }, deck)).toBe(false)
-    expect(addStaysHere("add", { repo: "me/app", "worktree-only": true }, deck)).toBe(false)
-    expect(addStaysHere("add", { repo: ["me/app", "me/lib"], prompt: "p" }, deck)).toBe(false)
-    expect(addStaysHere("add", { repo: "me/app", prompt: "p" }, windows)).toBe(false)
-    expect(addStaysHere("send", { "task-id": "T" }, deck)).toBe(false)
+    expect(addStaysHere("add", { repo: "me/app", prompt: "p" })).toBe(true)
+    expect(addStaysHere("add", { repo: "me/app", prompt: "p", "engine-there": true })).toBe(false)
+    expect(addStaysHere("add", { repo: "me/app", prompt: "p", count: "3" })).toBe(false)
+    expect(addStaysHere("add", { repo: "me/app", "worktree-only": true })).toBe(false)
+    expect(addStaysHere("add", { repo: ["me/app", "me/lib"], prompt: "p" })).toBe(false)
+    expect(addStaysHere("send", { "task-id": "T" })).toBe(false)
   })
 
   test("a link directory answers with its worktree's repo id, so the task groups under its project", () => {

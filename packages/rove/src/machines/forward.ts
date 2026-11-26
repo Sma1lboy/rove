@@ -27,7 +27,6 @@ import { type RepoIdentity, isLocalCheckout, repoIdentity, unpushedCommits } fro
 import { findCheckouts, parseRepoRef } from "./repo-ref.ts"
 import { localDaemonSocketPath, localPtySocketPath } from "./ssh-args.ts"
 import { ensureForwards } from "./tunnel.ts"
-import { isWindowsMachine } from "./windows-remote.ts"
 
 /** `--machine local` names this machine explicitly. */
 export const LOCAL_MACHINE = "local"
@@ -421,11 +420,10 @@ const NEEDS_ENGINE_THERE = [
 /**
  * `add --machine X` runs the agent HERE and keeps the work on X (`add --workspace-on X`), so X needs no
  * engine. It stays X's own `add` when `--engine-there` asks for that, when the request is one only that
- * daemon serves (a round of attempts, a fork, a bare checkout, several repos), or when X is a Windows
- * machine, which `rx` does not reach.
+ * daemon serves (a round of attempts, a fork, a bare checkout, several repos).
  */
-export function addStaysHere(verb: string, params: ApiParams, entry: MachineEntry): boolean {
-  if (verb !== "add" || flagOn(params["engine-there"]) || isWindowsMachine(entry)) return false
+export function addStaysHere(verb: string, params: ApiParams): boolean {
+  if (verb !== "add" || flagOn(params["engine-there"])) return false
   if (NEEDS_ENGINE_THERE.some((name) => params[name] !== undefined)) return false
   return !Array.isArray(params.repo) || params.repo.length <= 1
 }
@@ -464,8 +462,7 @@ export async function invokeRouted(args: {
     return failure(err.code, err.message, err.data ?? {})
   }
   if (!target) return args.runHere(args.params)
-  if (addStaysHere(args.verb, args.params, target))
-    return args.runHere({ ...args.params, "workspace-on": target.alias })
+  if (addStaysHere(args.verb, args.params)) return args.runHere({ ...args.params, "workspace-on": target.alias })
   return forwardVerb(target, args.verb, withoutEngineThere(args.params))
 }
 

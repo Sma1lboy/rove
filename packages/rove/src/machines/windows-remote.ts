@@ -7,6 +7,8 @@
  * Pure: nothing here spawns, so the logic is tested on every OS.
  */
 
+import { quoteShellArg } from "../lib/shell-command.ts"
+
 /** `C:\…`, `C:/…`, or a `\\.\pipe\…` / `\\?\…` device path. */
 export function isWindowsPath(path: string): boolean {
   return /^[A-Za-z]:[\\/]/.test(path) || /^\\\\[.?]\\/.test(path)
@@ -107,4 +109,80 @@ export function windowsAuthorizeKeySteps(publicKey: string): readonly string[] {
     "# Standard account (normal PowerShell):",
     `New-Item -ItemType Directory -Force "$HOME\\.ssh" | Out-Null; Add-Content -Path "$HOME\\.ssh\\authorized_keys" -Value ${key}`,
   ]
+}
+
+/** Git for Windows' bash, which every Windows Rove already runs its sessions through; never System32's WSL launcher. */
+const LOCATE_GIT_BASH = [
+  '$b = @($env:ProgramFiles, ${env:ProgramFiles(x86)}, "$env:LOCALAPPDATA\\Programs") | Where-Object { $_ } |',
+  "  ForEach-Object { Join-Path $_ 'Git\\bin\\bash.exe' } | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1",
+  "if (-not $b) { [Console]::Error.WriteLine('rove: Git for Windows (bash.exe) not found on this machine'); exit 127 }",
+  "$env:CHERE_INVOKING = '1'",
+].join("\n")
+
+/** Sent as `echo %OS%`: only cmd expands it. */
+export const SSH_SHELL_PROBE = "echo %OS%"
+export const SSH_SHELL_IS_CMD = /^Windows_NT\r?$/m
+
+/** Printed by the far side right before the command runs: everything ahead of it is the ssh shell's profile. */
+export const RX_MARKER = "@@rove-rx@@"
+
+/** The PowerShell around one `rx` command, split where the command's base64 goes. */
+function rxPowershell(path: string): readonly [string, string] {
+  const head = [
+    "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'",
+    LOCATE_GIT_BASH,
+    "$f = [IO.Path]::GetTempFileName()",
+    "[IO.File]::WriteAllBytes($f, [Convert]::FromBase64String('",
+  ].join("\n")
+  const tail = [
+    "'))",
+    `Set-Location -LiteralPath ${psQuote(path)}`,
+    `[Console]::Out.Write("${RX_MARKER}\`n"); [Console]::Out.Flush()`,
+    // Start-Process hands bash this process's own handles: PowerShell never re-encodes its output.
+    "$p = Start-Process -FilePath $b -ArgumentList @('-l', ('\"' + $f + '\"')) -NoNewWindow -PassThru",
+    // Holding the handle is what keeps ExitCode readable once it exits.
+    "$null = $p.Handle; $p.WaitForExit()",
+    "Remove-Item -LiteralPath $f -ErrorAction SilentlyContinue",
+    "exit $p.ExitCode",
+  ].join("\n")
+  return [head, tail]
+}
+
+/**
+ * `rx` for a Windows machine: the command runs in Git Bash in the worktree, with stdin, output and the
+ * exit code passed through. The ssh shell's profile output (a fastfetch banner) is dropped up to
+ * {@link RX_MARKER}. `cmdShell`: the machine's ssh DefaultShell is cmd ({@link SSH_SHELL_IS_CMD}); PowerShell
+ * there, which reports 1 for any failing command, is handed the real exit code explicitly.
+ * ponytail: the command rides the command line (~3.5x after encoding), so one over ~8 KB is refused;
+ * large content goes on stdin, as the workspace tools already send it.
+ */
+export function windowsRxScript(sshArgv: readonly string[], path: string, cmdShell: boolean): string {
+  const [head, tail] = rxPowershell(path)
+  const exit = cmdShell ? "" : "; exit \\$LASTEXITCODE"
+  return [
+    "#!/bin/sh",
+    "# Rove: run one command in this task's workspace on another machine (Windows).",
+    `head=${quoteShellArg(head)}`,
+    `tail=${quoteShellArg(tail)}`,
+    `c=$(printf '%s' "$1" | base64 | tr -d '\\n')`,
+    `enc=$(printf '%s%s%s' "$head" "$c" "$tail" | iconv -f UTF-8 -t UTF-16LE | base64 | tr -d '\\n')`,
+    `if [ \${#enc} -gt 30000 ]; then echo "rx: command too long for a Windows machine; pass large content on stdin" >&2; exit 2; fi`,
+    `strip() { while IFS= read -r l; do case $l in ${RX_MARKER}*) exec cat ;; esac; done; }`,
+    "exec 3>&1",
+    `rc=$( { { ${sshArgv.map((a) => quoteShellArg(a)).join(" ")} "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand $enc${exit}"; echo $? >&4; } | strip >&3; } 4>&1 )`,
+    'exit "${rc:-255}"',
+    "",
+  ].join("\n")
+}
+
+/** `rsh` for a Windows machine: an interactive Git Bash in the worktree. */
+export function windowsRshScript(sshArgv: readonly string[], path: string): string {
+  const [ssh = "ssh", ...rest] = sshArgv
+  const script = [LOCATE_GIT_BASH, `Set-Location -LiteralPath ${psQuote(path)}`, "& $b -il"].join("\n")
+  return [
+    "#!/bin/sh",
+    "# Rove: open a shell in this task's workspace on another machine (Windows).",
+    `exec ${[ssh, "-t", ...rest].map((a) => quoteShellArg(a)).join(" ")} ${quoteShellArg(powershellCommand(script))}`,
+    "",
+  ].join("\n")
 }

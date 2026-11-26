@@ -240,7 +240,7 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
  * `--workspace-on X` and the verb runs in this daemon. Otherwise `--engine-there` is dropped, being this side's word.
  */
 function keepAddHere(verb: VerbSpec, parsed: ParsedArgs, entry: MachineEntry): boolean {
-  const stays = addStaysHere(verb.name, forwardParams(verb, parsed.flags), entry)
+  const stays = addStaysHere(verb.name, forwardParams(verb, parsed.flags))
   if (stays) parsed.flags.set("workspace-on", entry.alias)
   parsed.flags.delete("engine-there")
   return stays
