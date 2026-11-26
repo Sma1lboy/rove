@@ -4,6 +4,7 @@
  */
 
 import type { TaskRow, TasksPayload } from "rove-bridge/protocol"
+import { isNoProject } from "./rail.ts"
 
 export type TasksEdit = (payload: TasksPayload) => TasksPayload
 
@@ -36,11 +37,33 @@ function subtree(rows: readonly TaskRow[], id: string): ReadonlySet<string> {
   return ids
 }
 
+const orderOf = (task: TaskRow): number => task.order ?? task.rank
+
+/**
+ * The daemon's `holdProjectPlace`, drawn ahead of it: a project sits where its first row does, so
+ * before `id` leaves, the project's later rows close up right behind it. Without this the project
+ * jumps to its next row's place and back when the daemon's list arrives.
+ */
+function holdProjectPlace(rows: readonly TaskRow[], id: string): TaskRow[] {
+  const gone = rows.find((task) => task.id === id)
+  if (!gone || isNoProject(gone)) return [...rows]
+  const at = orderOf(gone)
+  const later = rows
+    .filter((task) => task.repo === gone.repo && !isNoProject(task) && orderOf(task) > at)
+    .sort((a, b) => orderOf(a) - orderOf(b))
+  // Fractions keep them between `at` and the next whole index, in their own order.
+  const step = new Map(later.map((task, i) => [task.id, at + (i + 1) / (later.length + 1)]))
+  return rows.map((task) => {
+    const order = step.get(task.id)
+    return order === undefined ? task : { ...task, order }
+  })
+}
+
 /** `promote` archives the row alone; its children stay and move up to its parent. */
 export const archiveEdit =
   (id: string, archived: boolean, promote = false): TasksEdit =>
   (payload) => {
-    const from = archived ? payload.tasks : (payload.archived ?? [])
+    const from = archived ? holdProjectPlace(payload.tasks, id) : (payload.archived ?? [])
     const ids = promote ? new Set([id]) : subtree(from, id)
     const parent = from.find((task) => task.id === id)?.parentTaskId
     const moved = from.filter((task) => ids.has(task.id)).map((task) => ({ ...task, archived }))
@@ -63,7 +86,11 @@ const deleteEdit =
       rows
         .filter((task) => !ids.has(task.id))
         .map((task) => (task.parentTaskId === id ? { ...task, parentTaskId: parent } : task))
-    return { ...payload, tasks: keep(payload.tasks), ...(payload.archived ? { archived: keep(payload.archived) } : {}) }
+    return {
+      ...payload,
+      tasks: keep(holdProjectPlace(payload.tasks, id)),
+      ...(payload.archived ? { archived: keep(payload.archived) } : {}),
+    }
   }
 
 type Args = Readonly<Record<string, unknown>>

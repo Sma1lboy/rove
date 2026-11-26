@@ -146,3 +146,18 @@ test("a patch changes the rows it names; one that starts from another revision a
   await flush()
   expect(model.tasks.get()?.tasks.map((task) => task.id)).toEqual(["B"])
 })
+
+test("archiving or deleting a project's first row keeps the project in place before the daemon answers", async () => {
+  const { archiveEdit, taskEdit } = await import("../src/optimistic.ts")
+  const { groupByProject } = await import("../src/rail.ts")
+  const row = (id: string, repo: string, order: number) => ({ id, repo, kind: "dir", rank: order, order }) as never
+  const payload = {
+    tasks: [row("a1", "/a", 0), row("b", "/b", 1), row("a2", "/a", 2), row("a3", "/a", 3)],
+    attention: [],
+  }
+  const projects = (edited: { tasks: readonly never[] }) => groupByProject(edited.tasks).map((group) => group.repo)
+  const archived = archiveEdit("a1", true)(payload as never)
+  expect(projects(archived as never)).toEqual(["/a", "/b"])
+  expect(groupByProject(archived.tasks)[0]?.tasks.map((task) => task.id)).toEqual(["a2", "a3"])
+  expect(projects(taskEdit("task.delete", { taskId: "a1" })?.(payload as never) as never)).toEqual(["/a", "/b"])
+})
