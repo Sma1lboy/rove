@@ -555,3 +555,17 @@ Run 1 (patched) exited 0, nothing past tolerance: firstFrame 416.1, boot.ready 1
 **No attempt:** same as 11-13 to 11-24. Owner calls still stand: a new nightly scenario, an idle phase that waits for quiet, a wider tolerance for timing outliers — and now: whether the routine should move the baseline on a timing-only ✓ when the parent commit reads the same.
 
 **Sandbox:** as 11-24 (bun 1.3.14 from npm, `ELECTRON_SKIP_BINARY_DOWNLOAD=1`, per-file symlinks of `/opt/pw-browsers/chromium_headless_shell-1243/chrome-headless-shell-linux64/*` into `/tmp/pwshim/chromium_headless_shell-{1228,1243}/...`).
+
+## 2026-11-26 — regression bisected to #2173 (sidebar hover), not fixed (main e67be33)
+
+**Regression, reproduced.** Run 1 exited 1 on the boot burst landing in the idle window (idle commit.root/workspace 5, sidebar 3, stateListener 18; boot.firstFrame 2122.9, boot.ready 3945) and on switch.perOp.paintRow/styled 1.5 → 3. Run 2 exited 1 on switch.perOp.commit.root 6 → 7.1 and paintRow/styled 1.5 → 2.9. typing.echo 130.3 → 44 ✓ is the fast sandbox again (see 11-25). Tonight's history line is run 2.
+
+**Bisect (one run per commit, same sandbox), switch.perOp commit.root / commit.sidebar / paintRow:** 88cb13b 6 / 2 / 1.2 · e55f651 6 / 2 / 1.7 · 97393b4 6 / 2 / 1.0 · f138206 6 / 2 / 1.0 · **6425b0c 6.7 / 2.7 / 1.4** · 11e3524 6.9 / 2.9 / 1.6 · bf6cbaa 6.8 / 2.7 / 2.0 · b1370d2 6.9–6.7 / 2.8–2.7 / 2.7–2.2 · 9196cf2 6.9 / 2.7 / 2.1 · 968c8a9 6.5 / 2.5 / 2.0 · 53193e4 6.7 / 2.7 / 1.4 · 7d20185 6.9 / 2.9 / 2.8 · e67be33 6.6–7.1 / 2.6–2.7 / 2.1–3.0.
+
+**Cause of the commit shift: 6425b0c (#2173, sidebar rows answer the pointer).** `useHoverFill` keeps `hovered` in `useState` on every sidebar row. perf-measure switches tasks by `mouse.click` on the sidebar row, so the pointer moves from row A to row B on every switch: onMouseOut/onMouseOver re-render the sidebar (+~0.7 commit.sidebar and commit.root per switch). That is the feature drawing the hover fill, so there is no clear fix. Not fixed.
+
+**paintRow/styled:** not tied to one commit. It moves with switch.perOp.feed (bash output landing in the switch window: 0.1 at 88cb13b, 0.6–0.9 at HEAD), the same live-bash swing seen 11-12. A temporary `profileTick` in `XtermTaskPty.resize` showed one 148x44 → 148x44 same-size resize per switch (the per-mount dedup in `useTerminalHostCursor` resets on remount). That is the floor publish of 1, not the extra rows. Left as noise. HEAD reads 2.1 / 2.9 / 3.0 against a 2.5 limit.
+
+**No optimization attempted** (the routine does not optimize on a regression night). Owner calls: accept the hover cost and move commit.root/sidebar in the baseline (6 → ~7, 2 → ~3), or have perf-measure switch tasks by keyboard so pointer hover stays out of the switch count. The 11-13 to 11-25 calls still stand (idle phase that waits for quiet; tonight's run 1 is that false ✗ again).
+
+**Sandbox:** as 11-25.
