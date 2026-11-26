@@ -156,11 +156,10 @@ select{
 
 /* centred hero: title, lede, agent marquee, install, then the film ------- */
 .hero-c{display:flex;flex-direction:column;align-items:center;gap:56px;padding:64px 0 8px;text-align:center}
-/* The hero's sky (celestial.js): the app's welcome plate as a backdrop, as wide as the page and
-   fading out toward its edges so the headline and the install box read over it. */
+/* The hero's sky (celestial.js): a planet in characters, larger than the page. The canvas is the
+   full width of the window and as tall as the hero down to the demo, and clips what runs past it. */
 .hero-c{position:relative;isolation:isolate}
-.sky{position:absolute;z-index:-1;top:-110px;left:50%;width:min(1560px,calc(100vw - 16px));height:auto;translate:-50% 0;pointer-events:none;transition:opacity .6s var(--ease);-webkit-mask-image:radial-gradient(ellipse 62% 70% at 50% 42%,#000 35%,transparent 100%);mask-image:radial-gradient(ellipse 62% 70% at 50% 42%,#000 35%,transparent 100%)}
-.sky.is-out{opacity:0}
+.sky{position:absolute;z-index:-1;top:-60px;left:50%;width:100vw;height:820px;translate:-50% 0;pointer-events:none;font-family:var(--font-mono)}
 /* A field of dots behind the headline, fading out downward; a second field in the accent shows
    only near the pointer (dots.js sets --mx/--my), and drifts by itself where there is none. */
 .dotfield{position:relative;isolation:isolate}
