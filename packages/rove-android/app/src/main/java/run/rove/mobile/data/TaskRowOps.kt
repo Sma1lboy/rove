@@ -19,9 +19,10 @@ suspend fun RoveRepository.moveTaskToProject(taskId: String, repo: String) { bri
 suspend fun RoveRepository.worktreePath(taskId: String): String? =
     bridge.request("task.get", args("taskId" to taskId))["task"]?.jsonObject?.get("worktreePath")?.jsonPrimitive?.contentOrNull
 
-/** Archive only hides the row. `force` hides one whose engine is still working, after the owner says so. */
-suspend fun RoveRepository.archiveTask(taskId: String, archived: Boolean, force: Boolean = false) {
-    bridge.request("task.archive", if (force) args("taskId" to taskId, "archived" to archived, "force" to true) else args("taskId" to taskId, "archived" to archived))
+/** Archive only hides the row. `force` hides one whose engine is still working, after the owner says so; `promote` moves its children up a level, still running, instead of archiving them too. */
+suspend fun RoveRepository.archiveTask(taskId: String, archived: Boolean, force: Boolean = false, promote: Boolean = false) {
+    val extra = listOfNotNull("force".takeIf { force }, "promote".takeIf { promote }).map { it to true }
+    bridge.request("task.archive", args("taskId" to taskId, "archived" to archived, *extra.toTypedArray()))
 }
 
 /** An engine on the project's last-used engine, the TUI's ctrl+t. In a task that already has a conversation it starts a child task, named by the reply. */

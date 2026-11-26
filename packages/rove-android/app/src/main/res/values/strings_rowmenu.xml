@@ -30,6 +30,10 @@
     <string name="rowmenu_archive_busy_title">Archive while it\'s working?</string>
     <string name="rowmenu_archive_busy_body">An engine in %1$s is still working or waiting on you. Archiving stops it.</string>
     <string name="rowmenu_archive_busy_confirm">archive anyway</string>
+    <string name="rowmenu_archive_children_title">\"%1$s\" has %2$d child tasks</string>
+    <string name="rowmenu_archive_children_body">Promote moves them up one level and keeps them running. Archive with children hides them too and ends their sessions.</string>
+    <string name="rowmenu_archive_children_promote">promote children</string>
+    <string name="rowmenu_archive_children_all">archive with children</string>
     <string name="rowmenu_archived_fold">archived · %1$d</string>
     <string name="rowmenu_more">more</string>
     <string name="rowmenu_land">land into base branch</string>
