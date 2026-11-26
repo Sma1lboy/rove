@@ -38,11 +38,9 @@ export interface GlyphSet {
   readonly checksFailing: string
   readonly checksPassing: string
   /**
-   * After the title of a row whose task lives on ANOTHER machine. U+2601 is
-   * East-Asian-Width Neutral and text-presentation by default (no VS16 is
-   * ever appended), so wcwidth, `charWidth` and the terminal all give it one
-   * cell; only an emoji-presentation fallback font could draw it wider, which
-   * is why ascii keeps a 7-bit stand-in.
+   * On a row whose task lives on ANOTHER machine: a cloud's outline in braille dots, three cells
+   * (6×4 dots). The braille block is one cell per character in every font the other glyphs were
+   * checked in; callers measure it with `clusterCells`, never assume one cell. ascii keeps `@`.
    */
   readonly remote: string
 }
@@ -63,7 +61,7 @@ export const GLYPH_SETS: Readonly<Record<GlyphSetName, GlyphSet>> = {
     conflict: "≠",
     checksFailing: "✗",
     checksPassing: "✓",
-    remote: "☁",
+    remote: "⣔⣉⣢",
   },
   starburst: {
     spinner: ["✻", "✼", "❉", "❊", "✺", "✹", "✸", "✶"],
@@ -80,7 +78,7 @@ export const GLYPH_SETS: Readonly<Record<GlyphSetName, GlyphSet>> = {
     conflict: "≠",
     checksFailing: "✘",
     checksPassing: "✔",
-    remote: "☁",
+    remote: "⣔⣉⣢",
   },
   ascii: {
     spinner: ["|", "/", "-", "\\"],
