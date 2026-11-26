@@ -3,6 +3,7 @@ import type { Task, TaskId } from "../types/task.ts"
 import { canonPath } from "./core-helpers.ts"
 import { type DirtyFinding, DirtyWorktreeError, WorktreeRemoveFailedError } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
+import { holdProjectPlace } from "./move-partition.ts"
 import { deletionTargets, gitRepoOf, taskRepos, taskWorktreePaths } from "./task-tree.ts"
 import {
   type WorkspaceBackend,
@@ -127,6 +128,7 @@ export class TaskDeletionCoordinator {
     }
 
     for (const target of doomed) {
+      await holdProjectPlace(this.store, target)
       await this.store.update(target.id, {
         deletion: {
           phase: "queued",
