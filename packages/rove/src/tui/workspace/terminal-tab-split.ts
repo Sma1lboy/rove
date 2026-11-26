@@ -67,15 +67,17 @@ const SHELL_LEAF_NAME = "shell"
 /**
  * Leaf id → display name. Manual `leaf.title` wins and is never suffixed.
  * Engine leaf (`null` content): `engineTitle` (the tab's title/autoTitle), else
- * its live title, else the command basename. Shell leaf: its live OSC 0/2 title
- * ("zsh", "vim"), else "shell". Duplicate defaults get a reading-order suffix
- * ("shell", "shell 2").
+ * its live title, else the command basename. Shell leaf: the engine a process
+ * walk found in it (`liveVendors`; an OSC title is free text and codex's says the
+ * project), else its live OSC 0/2 title ("zsh", "vim"), else "shell". Duplicate
+ * defaults get a reading-order suffix ("shell", "shell 2").
  */
 export function splitLeafNames(
   leafList: readonly { id: string; title?: string | null; content: readonly string[] | null }[],
   tabCommand: readonly string[],
   engineTitle?: string | null,
   liveTitles?: ReadonlyMap<string, string>,
+  liveVendors?: ReadonlyMap<string, VendorId>,
 ): ReadonlyMap<string, string> {
   const basename = (argv: readonly string[] | null): string => {
     const head = (argv ?? tabCommand)[0] ?? ""
@@ -94,13 +96,16 @@ export function splitLeafNames(
     const name =
       leaf.content === null
         ? engineTitle || liveTitles?.get(leaf.id) || basename(leaf.content)
-        : liveTitles?.get(leaf.id) || SHELL_LEAF_NAME
+        : engineLeafName(liveVendors?.get(leaf.id)) || liveTitles?.get(leaf.id) || SHELL_LEAF_NAME
     const n = (seen.get(name) ?? 0) + 1
     seen.set(name, n)
     out.set(leaf.id, n === 1 ? name : `${name} ${n}`)
   }
   return out
 }
+
+const engineLeafName = (vendor: VendorId | undefined): string | undefined =>
+  vendor ? engineEntry(vendor).defaultCommand[0] : undefined
 
 /**
  * A first prompt that was a menu answer ("1", "y", "ok") or bare punctuation

@@ -286,7 +286,14 @@ export interface TabRow {
 
 /** A split layout: panes are leaves named `leaf-N`; `leaf-1` is the tab's own process, the rest are hosted login shells. */
 export type SplitNodeView =
-  | { readonly kind: "leaf"; readonly id: string; readonly title: string | null; readonly own: boolean }
+  | {
+      readonly kind: "leaf"
+      readonly id: string
+      readonly title: string | null
+      readonly own: boolean
+      /** A split shell running an engine now (a process walk): its display name. Absent = none found or not walked. */
+      readonly engineName?: string
+    }
   | { readonly kind: "group"; readonly orientation: "row" | "column"; readonly children: readonly SplitNodeView[] }
 
 export interface SplitView {

@@ -10,6 +10,7 @@ export interface LeafView {
   readonly id: string
   readonly title: string | null
   readonly own: boolean
+  readonly engineName?: string
 }
 
 /** DFS order = the visual reading order; focus cycling follows it. */
@@ -61,7 +62,7 @@ export function cycleLeaf(split: SplitView, from: string, delta: 1 | -1 = 1): st
 
 /**
  * Pane names: a manual title wins; otherwise the tab's own pane shows the tab's label and a
- * shell pane "shell"; duplicate defaults get a reading-order suffix ("shell", "shell 2").
+ * shell pane the engine running in it, else "shell"; duplicate defaults get a reading-order suffix ("shell", "shell 2").
  */
 export function leafNames(split: SplitView, tabLabel: string): ReadonlyMap<string, string> {
   const seen = new Map<string, number>()
@@ -71,7 +72,7 @@ export function leafNames(split: SplitView, tabLabel: string): ReadonlyMap<strin
       names.set(leaf.id, leaf.title)
       continue
     }
-    const base = leaf.own ? tabLabel : "shell"
+    const base = leaf.own ? tabLabel : (leaf.engineName ?? "shell")
     const n = (seen.get(base) ?? 0) + 1
     seen.set(base, n)
     names.set(leaf.id, n === 1 ? base : `${base} ${n}`)

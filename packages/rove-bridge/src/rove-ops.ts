@@ -10,6 +10,7 @@ import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { AttentionInboxItem } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { ActivityEntry } from "@sma1lboy/rove/src/cli/api/context-view.ts"
+import type { WireSplitNode } from "@sma1lboy/rove/src/cli/api/split-wire.ts"
 import type { TaskTabRow } from "@sma1lboy/rove/src/cli/api/tab-snapshot.ts"
 import type { ActiveGate, RowTokenMap, WorktreeChangesMap } from "@sma1lboy/rove/src/client/remote-orchestrator.ts"
 import { detectEngineStatus } from "@sma1lboy/rove/src/engine/engine-status.ts"
@@ -40,7 +41,14 @@ import { createBridgeApi } from "./ops/api.ts"
 import { flag } from "./ops/args.ts"
 import { taskOpDeps } from "./ops/tasks-shared.ts"
 import type { BridgeApi } from "./ops/types.ts"
-import { BridgeError, type DiffFileRow, type TabRow, type TaskRow, type TasksPayload } from "./protocol.ts"
+import {
+  BridgeError,
+  type DiffFileRow,
+  type SplitNodeView,
+  type TabRow,
+  type TaskRow,
+  type TasksPayload,
+} from "./protocol.ts"
 import { type RowTitleSources, rowLabels } from "./row-labels.ts"
 import type { RowStatuses } from "./row-status.ts"
 import { attentionRows, remoteRowStatus, taskRows } from "./task-rows.ts"
@@ -139,10 +147,18 @@ export function tabRows(rows: readonly TaskTabRow[], statuses?: RowStatuses[stri
     alive: t.alive,
     engineAlive: t.engineAlive,
     ...(t.exit ? { exit: { code: t.exit.code, signal: t.exit.signal } } : {}),
-    ...(t.split ? { split: t.split } : {}),
+    ...(t.split ? { split: { activeLeafId: t.split.activeLeafId, root: splitView(t.split.root, nameOf) } } : {}),
     ...(t.viewOf ? { viewOf: t.viewOf } : {}),
     ...(statuses?.[t.id] ? { status: statuses[t.id] } : {}),
   }))
+}
+
+/** The wire tree with each walked leaf's vendor turned into its engine's name. */
+function splitView(node: WireSplitNode, nameOf: (vendor: string | null) => string | null): SplitNodeView {
+  if (node.kind === "group") return { ...node, children: node.children.map((c) => splitView(c, nameOf)) }
+  const { liveVendor, ...leaf } = node
+  const engineName = nameOf(liveVendor ?? null)
+  return engineName ? { ...leaf, engineName } : leaf
 }
 
 async function tryRead<T>(read: () => Promise<T>): Promise<T | null> {

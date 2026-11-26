@@ -17,6 +17,7 @@ import { SPLIT_STYLE_KEY, normalizeSplitStyle } from "../../state/split-style"
 import { prefixAction } from "../../tui/lib/keymap-dispatch"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
+import { getDefaultLiveEngines } from "../../tui/workspace/live-engine"
 import { type SplitDivider, groupChrome, leafOnEdge, paneBoxProps, paneChrome } from "../../tui/workspace/split-chrome"
 import {
   type SplitLeaf,
@@ -36,6 +37,7 @@ import {
   splitLeafNames,
   splitLeafPtyKey,
 } from "../../tui/workspace/terminal-tabs-core"
+import type { VendorId } from "../../types/vendor"
 import { RenameTaskDialog } from "../component/rename-task-dialog"
 import { bindByIds } from "../context/keybindings"
 import { useKV } from "../context/kv"
@@ -194,9 +196,16 @@ export function TerminalSplit(props: {
     return map
   }, [props.tabKey, state])
   const liveTitles = useTitleSubscriptions(leafPtyKeys)
+  const [, redraw] = useState(0)
+  useEffect(() => getDefaultLiveEngines().subscribe(() => redraw((n) => n + 1)), [])
+  const liveVendors = new Map<string, VendorId>()
+  for (const [id, key] of leafPtyKeys) {
+    const vendor = getDefaultLiveEngines().get(key)
+    if (vendor) liveVendors.set(id, vendor)
+  }
 
-  /** id → display name: F2 rename wins, else basename of what it runs ("zsh 2"). */
-  const leafNames = splitLeafNames(leaves(state.root), props.command, props.engineTitle, liveTitles)
+  /** id → display name: F2 rename wins, else what it runs ("codex", "zsh 2"). */
+  const leafNames = splitLeafNames(leaves(state.root), props.command, props.engineTitle, liveTitles, liveVendors)
 
   /* `line` draws dividers, not frames: a node draws ONLY the single edge it
    * shares with its previous sibling (`left` in a row, `top` in a column) —

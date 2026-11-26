@@ -21,6 +21,7 @@ import { type SharedTabs, type TabOp, diffTabs } from "@sma1lboy/rove-daemon/dae
 import { engineLaunchArgv } from "../../engine/engine-presets.ts"
 import { loadStateFile } from "../../state/store.ts"
 import { terminalTabsKey } from "../../state/tabs-persistence.ts"
+import { splitLeafPtyKey } from "../../tui/workspace/terminal-tab-split.ts"
 import {
   type TabsState,
   type TerminalTab,
@@ -327,7 +328,15 @@ export function joinTaskTabs(
       engineAlive: engineIsAlive,
       // A session death wins: it is the later event and took the engine with it.
       exit: isAlive === false ? deadExit(key) : engineIsAlive === false ? engineExit(key) : null,
-      ...(t.splitTree ? { split: wireSplit(t.splitTree) as WireSplit } : {}),
+      // A split shell is its own session: walk its key, so an engine typed into it is named.
+      ...(t.splitTree
+        ? {
+            split: wireSplit(t.splitTree, (leafId) => {
+              const leafKey = splitLeafPtyKey(key, leafId)
+              return liveVendors?.has(leafKey) ? (liveVendors.get(leafKey) ?? null) : undefined
+            }) as WireSplit,
+          }
+        : {}),
       ...(t.kind === "engine" && t.ptyTask ? { viewOf: t.ptyTask.id } : {}),
     }
   })
