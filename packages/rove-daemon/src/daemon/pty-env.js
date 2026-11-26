@@ -48,6 +48,15 @@ const PARENT_AGENT_VARS = new Set([
   "CLAUDE_EFFORT",
 ])
 
+/**
+ * Boot of a long-lived Rove process (daemon, PTY host): forget the agent session
+ * that happened to start it, so nothing it later spawns, PTY or not, inherits it.
+ * @param {Record<string, string | undefined>} [env]
+ */
+export function dropParentAgentSession(env = process.env) {
+  for (const key of PARENT_AGENT_VARS) delete env[key]
+}
+
 /** Emulator-owned variable families, matched by prefix. */
 const IDENTITY_PREFIXES = ["ITERM_", "KITTY_", "GHOSTTY_", "WEZTERM_", "ALACRITTY_", "KONSOLE_", "ZELLIJ_"]
 

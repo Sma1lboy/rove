@@ -13,6 +13,7 @@ import { ROVE_STATE_DIR_BASENAME } from "../compat-env.ts"
 import { rotateLogIfNeeded } from "./log-rotate.ts"
 import { defaultDaemonSocketPath, defaultPtyHostLogPath, resolveDaemonHomeDir } from "./paths.ts"
 import { nodePtyDriver } from "./pty-driver.ts"
+import { dropParentAgentSession } from "./pty-env.js"
 import { formatPtyHostLine } from "./pty-host-log.ts"
 import { startPtyHostServer } from "./pty-server.ts"
 import { ensurePtyJobLauncher } from "./win-pty-job.ts"
@@ -25,6 +26,7 @@ async function main(): Promise<void> {
   // Not installDaemonCrashHandlers(): that module is Bun-side.
   process.on("uncaughtException", (err) => console.error(formatPtyHostLine("crash", err?.stack ?? String(err))))
   process.on("unhandledRejection", (err) => console.error(formatPtyHostLine("reject", String(err))))
+  dropParentAgentSession()
 
   const log = (event: string, message: string) => console.log(formatPtyHostLine(event, message))
   // Every session in its own Job Object, so ending it ends what it spawned
