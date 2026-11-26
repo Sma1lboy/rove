@@ -13,7 +13,6 @@ import { subscribeBackgroundPolls } from "../../../tui/lib/background-poll"
 import { createSidebarController } from "../../../tui/panes/sidebar/controller"
 import { RECENT_ROW_ID } from "../../../tui/panes/sidebar/tree-core"
 import { SIDEBAR_WIDTH } from "../../../tui/panes/sidebar/view-core"
-import { usePaneHintMark } from "../../component/keyboard-hints"
 import { useOptionalKV } from "../../context/kv"
 import { useTheme } from "../../context/theme"
 import { useLatest } from "../../lib/use-latest"
@@ -213,9 +212,6 @@ export function SidebarTree(props: SidebarTreeProps) {
     actions: props,
   })
 
-  // Using the pane's own nav/select keys extinguishes its first-use hint.
-  const markKeysUsed = usePaneHintMark("sidebar")
-
   // Mode priority (menu > search > move > main) lives in the hook's `enabled` guards.
   useTreeBindings({
     focused,
@@ -231,7 +227,6 @@ export function SidebarTree(props: SidebarTreeProps) {
     onRenameRequest: props.onRenameRequest,
     onPinRequest: props.onPinRequest,
     onLocalMergeRequest: props.onLocalMergeRequest,
-    markKeysUsed,
   })
 
   // Viewport follow; rowEls is keyed by flat index.

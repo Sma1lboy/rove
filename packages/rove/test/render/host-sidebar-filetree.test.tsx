@@ -1,9 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Real-render coverage for the two panes that carry first-use key hints:
- * the workspace's HostSidebar (flat + tree mounts, flat keys via
- * `useSidebarBindings`) and the FileTree over a real git worktree. Presses
- * real keys — the hint-extinguish contract IS a keypress side effect.
+ * Real-render coverage for the two vim-style panes: the workspace's
+ * HostSidebar (flat + tree mounts, flat keys via `useSidebarBindings`) and
+ * the FileTree over a real git worktree. Presses real keys.
  */
 
 import { describe, expect, it } from "bun:test"
@@ -115,7 +114,7 @@ describe("HostSidebar", () => {
 })
 
 describe("FileTree", () => {
-  it("lists a real worktree, opens a file with enter, and shows the live footer hint", async () => {
+  it("lists a real worktree, and opens a file with enter", async () => {
     const repo = mkdtempSync(join(tmpdir(), "rove-filetree-"))
     execSync("git init -q -b main && git -c user.email=t@t -c user.name=t commit -q --allow-empty -m init", {
       cwd: repo,
@@ -132,9 +131,6 @@ describe("FileTree", () => {
     // The listing loads through an async git read — poll the real frame.
     const text = await waitForFrameText(frame, "alpha.ts")
     expect(text).toContain("beta.md")
-    // First-use footer hint, resolved from the live keymap.
-    expect(text).toContain("⏎ open")
-    expect(text).toContain("d diff")
 
     act(() => mockInput.pressEnter())
     await settle()

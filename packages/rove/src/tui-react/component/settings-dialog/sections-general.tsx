@@ -266,7 +266,6 @@ export function GeneralSettingsSection(
             onMouseUp={activate(keyHintsRow, () => toggleKeyHints(kv))}
             fg={keyHintsToggleOn(kv) ? theme.accent : theme.textMuted}
             bold={true}
-            hint={hint("settings.general.keyHintsShowHint")}
           >
             {pad(`${check(keyHintsToggleOn(kv))} ${t("settings.general.keyHintsShow")}`)}
           </Row>

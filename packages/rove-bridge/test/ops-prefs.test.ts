@@ -123,19 +123,6 @@ describe("prefs.set", () => {
     expect(s.state).toEqual({})
   })
 
-  test("turning key hints on re-arms the first-use pane hints; turning them off leaves those alone", async () => {
-    const { ops, s } = prefs({ "hints.keyboard.enabled": false, "hints.sidebar.used": true, "hints.files.used": true })
-    await call(ops, "prefs.set", { key: "keyHints", value: true })
-    expect(s.state).toMatchObject({
-      "hints.keyboard.enabled": true,
-      "hints.sidebar.used": false,
-      "hints.files.used": false,
-    })
-    s.state["hints.sidebar.used"] = true
-    await call(ops, "prefs.set", { key: "keyHints", value: false })
-    expect(s.state["hints.sidebar.used"]).toBe(true)
-  })
-
   test("worktree location cycles default, next to project and the remembered custom base, never a sent path", async () => {
     const { ops, s } = prefs()
     await call(ops, "prefs.set", { key: "worktreeBase", value: "nextToProject" })

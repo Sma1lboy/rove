@@ -159,9 +159,6 @@ files; it does not show your sessions.
 | `hints.keyboard.enabled` | boolean | `true` | Keyboard discoverability hints |
 | `hints.keyboard.prefixTapPresentation` | `local` \| `guide` | `local` | One tap of the prefix key always opens the full keyboard guide. This picks what comes with it: `local` also shows shortcut badges beside the clickable controls already on screen, `guide` hides those badges |
 
-Turning keyboard hints back on relights the first-use pane hints you'd
-already dismissed.
-
 ### Editor
 
 `editor.kind` and `editor.customCommand` control the file tree's `enter`

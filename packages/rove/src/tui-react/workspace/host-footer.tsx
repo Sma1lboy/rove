@@ -49,6 +49,8 @@ export function WorkspaceFrame(props: {
   activeTabId?: string | null
   /** Top-of-window banner; host-owned because frame-bypassing pages need it too. */
   banner?: ReactNode
+  /** The row under the banner, above every pane. */
+  topBar?: ReactNode
   /** Drag handler on the row HOLDING the panes: opentui captures the pointer
    *  to whatever is under it on first motion, so only an ancestor of every
    *  pane hears the whole drag (`sidebar-resize-gesture.ts`). */
@@ -73,6 +75,7 @@ export function WorkspaceFrame(props: {
     <ShortcutRevealProvider>
       <box flexDirection="column" flexGrow={1} backgroundColor={theme.background}>
         {props.banner}
+        {props.topBar}
         <box flexDirection="row" flexGrow={1} onMouseDrag={props.onPaneDrag} onMouseUp={props.onPaneRelease}>
           {props.children}
         </box>

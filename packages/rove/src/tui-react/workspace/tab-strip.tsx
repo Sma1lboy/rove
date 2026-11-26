@@ -33,7 +33,6 @@ import { isNarrowWidth } from "../lib/narrow-mode"
 import { useGlyphs } from "../lib/use-glyphs"
 import { useTerminalSize } from "../lib/use-terminal-size"
 import { useSpinnerFrame } from "../panes/sidebar/row-cards"
-import { FilesButton, useFilesToggle } from "./files-button"
 import { useRowStatusMap } from "./row-status-sync"
 
 export { tabTitle }
@@ -83,9 +82,9 @@ export interface TabStripProps {
 }
 
 /**
- * The gate. The tabs are off by default (the sidebar tree already lists every
- * worktree's tabs), and while they are off this renders the row's Files button
- * alone, BEFORE subscribing to the row-status map or arming the pulse.
+ * The gate. Off by default (the sidebar tree already lists every worktree's
+ * tabs), and while it is off this renders nothing BEFORE subscribing to the
+ * row-status map or arming the pulse — hidden used to build every chip first.
  */
 export function TabStrip(props: TabStripProps) {
   const kv = useKV()
@@ -96,17 +95,8 @@ export function TabStrip(props: TabStripProps) {
   )
   // Narrow mode overrides the setting: the sidebar tree isn't on screen there.
   const narrow = isNarrowWidth(size.width)
-  const files = useFilesToggle()
-  const tabsShown = narrow || tabStripVisible(stripMode, props.tabs.length)
-  if (!tabsShown && !files) return null
-  return (
-    <box flexDirection="row" flexShrink={0}>
-      <box flexGrow={1} flexShrink={1} overflow="hidden">
-        {tabsShown ? <TabStripBody {...props} narrow={narrow} dimsWidth={size.width} /> : null}
-      </box>
-      {files ? <FilesButton files={files} /> : null}
-    </box>
-  )
+  if (!narrow && !tabStripVisible(stripMode, props.tabs.length)) return null
+  return <TabStripBody {...props} narrow={narrow} dimsWidth={size.width} />
 }
 
 function TabStripBody(props: TabStripProps & { readonly narrow: boolean; readonly dimsWidth: number }) {
