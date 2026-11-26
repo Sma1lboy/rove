@@ -172,7 +172,7 @@ test("a parent's menu folds its children away", async () => {
   expect(await frame()).toContain("kid")
   await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT))
   // Seldom used, so it sits one level down, as on the web.
-  await clickEntry(frame, mockMouse, "More ›")
+  await clickEntry(frame, mockMouse, "More")
   await clickEntry(frame, mockMouse, "Collapse children")
 
   expect(await frame()).not.toContain("kid")

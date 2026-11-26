@@ -89,7 +89,8 @@ function visibleEntries(menu: OpenMenu, t: (key: string) => string): readonly Co
     const inSection = menu.entries.filter((entry) => entry.section === section)
     if (inSection.length === 0) return []
     if (section === "copy" || section === "more")
-      return [{ id: SUBMENU_ID(section), label: `${t(`tasks.menu.${section}`)} ›`, section }]
+      // The chevron sits where a key hint would, at the row's end, as the web's does.
+      return [{ id: SUBMENU_ID(section), label: t(`tasks.menu.${section}`), cap: "›", section }]
     return [...inSection]
   })
 }
