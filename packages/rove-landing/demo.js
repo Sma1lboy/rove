@@ -190,11 +190,12 @@
       },
       type: async function (paneId, text) {
         var box = dry ? null : document.querySelector('#dPane-' + paneId + ' .d-input i');
-        for (var i = 1; i <= text.length; i++) {
+        // Three characters a step: one wait cannot be shorter than the 40 ms tick in `w`.
+        for (var i = 3; i < text.length + 3; i += 3) {
           if (box) box.textContent = text.slice(0, i);
-          await kit.w(16);
+          await kit.w(40);
         }
-        await kit.w(420);
+        await kit.w(300);
         if (box) box.textContent = '';
         kit.line(paneId, text, 'is-prompt');
       },
