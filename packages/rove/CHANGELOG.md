@@ -1,5 +1,85 @@
 # Changelog
 
+## 0.9.302
+
+### Patch Changes
+
+- [#2165](https://github.com/Sma1lboy/rove/pull/2165) [`664d3cd`](https://github.com/Sma1lboy/rove/commit/664d3cda99f6dfda45ba2f8ae6f2505df0b901cb) `rove api add --repo <folder>` now starts a session in a folder that is not a git repository instead of refusing it. The session runs in the folder itself, with no worktree and no branch. This is what New session on the web uses for a folder on another machine, so + on such a project there can now start. Whether the folder is a repository is checked at each start: after `git init`, new tasks in it get worktrees. Flags that need a repository (`--branch`, `--worktree-only`, `--count` and the like) are still refused there with NOT_A_REPO. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2166](https://github.com/Sma1lboy/rove/pull/2166) [`bc9f03d`](https://github.com/Sma1lboy/rove/commit/bc9f03d6aaa2755ce11c7d00a8a48876ea227048) Archiving a session that has child sessions now asks what to do with them, in the web rail and the sidebar: promote them one level, where they keep running, or archive them with it. `rove api archive --promote-children` does the first from a shell. A project on a Windows machine is headed by its folder name in the web rail, not its full path. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2174](https://github.com/Sma1lboy/rove/pull/2174) [`bf6cbaa`](https://github.com/Sma1lboy/rove/commit/bf6cbaa1dcc8d6d4199ff77dc9a1e849c43a58c0) The cloud that marks a task on another machine is the same shape in the terminal sidebar and the web rail. Both now draw one shared 6×4 dot grid; the terminal's glyph is `⢖⣉⡢`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2183](https://github.com/Sma1lboy/rove/pull/2183) [`3e45e76`](https://github.com/Sma1lboy/rove/commit/3e45e76d4a7a3ff9d28225ca1268410fa08e200b) In the web task list, an open pull request is no longer drawn in grey. A pull request that was just attached and not read yet, one whose checks still run, and one whose last read failed all show green; yellow for a conflict and red for failing checks are unchanged. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2176](https://github.com/Sma1lboy/rove/pull/2176) [`096577a`](https://github.com/Sma1lboy/rove/commit/096577a31e1437bc9494fd8080dda69410c4eea9) A message sent from one Rove task to another now names the sender by task id only: `[ROVE PEER] from task <id> (…)`. The header used to quote the sender's title too, which is the first line of that session and usually no longer describes what it is doing. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2181](https://github.com/Sma1lboy/rove/pull/2181) [`2e734ab`](https://github.com/Sma1lboy/rove/commit/2e734ab9cdc70ee7d3aa907cb89b50002c090939) A file pasted, dropped or attached for an agent that runs on another machine is now copied to that machine, and the agent is given the path there. Before, the file stayed on this machine and the agent was handed a path it could not open. This covers the web terminal, the web composer, a new session started with its engine on another machine, and a file path dragged into such a terminal in the TUI. The other machine needs this version too: `rove machine update <alias>`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2185](https://github.com/Sma1lboy/rove/pull/2185) [`7648a33`](https://github.com/Sma1lboy/rove/commit/7648a33944fb5e080f1968af7e2ee3ccab8be8e7) - The open-fold chevron in the terminal UI's task list is a character every font carries. The one it replaces is missing from many fonts, where a fallback drew it small and below the line. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2172](https://github.com/Sma1lboy/rove/pull/2172) [`f138206`](https://github.com/Sma1lboy/rove/commit/f1382065e762f5c922ac64ae2115e650279410a8) The sidebar's mark for a task on another machine is a cloud drawn in braille dots (`⣔⣉⣢`), three cells wide, in place of `☁`. The ascii glyph set keeps `@`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2175](https://github.com/Sma1lboy/rove/pull/2175) [`b1370d2`](https://github.com/Sma1lboy/rove/commit/b1370d2a95942b52efa37de70a6aa8c6b7fbe66b) The terminal sidebar's cloud mark is two cells wide (`⠮⠵`) instead of three. Braille dots sit too far apart in a terminal for the web rail's larger cloud to hold together, so the terminal draws a smaller one of its own. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2178](https://github.com/Sma1lboy/rove/pull/2178) [`f0905a9`](https://github.com/Sma1lboy/rove/commit/f0905a98b2d540dc2e8f7aa9515037df70f222c7) - The terminal UI's right-click menus read like the web's: entries grouped into sections with a rule between them, a quiet fill under the cursor in place of the accent block, muted key hints, and a menu that stays inside the task list instead of running under the workspace.
+
+  - Child tasks hang off their parent the way the web draws them: a line down past each sibling and a rounded hook into the last one. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2162](https://github.com/Sma1lboy/rove/pull/2162) [`968c8a9`](https://github.com/Sma1lboy/rove/commit/968c8a9eb6f7dc459a2cb9869f01c4811e11d346) - The terminal UI's task list shows a row's state at the end of the row, at the list's edge as the web does, instead of before the title.
+
+  - The terminal UI's task list is quieter: a row no longer shows how long it has been running or waiting, a child task no longer wears a shared/own-worktree mark, and a project name stands without a rule after it.
+  - The task list's header reads like the web's: the `[ rove ]` wordmark on the left and `inbox 3` on the right.
+  - A child task hangs off its parent on a `└` line.
+  - The New task row ends in a plain `+`; its key no longer sits beside it.
+  - The task list no longer marks a pull request's checks or conflicts on its row; the web still does, and a finished or failed check still raises its notice.
+  - A task's state is a 3×3 grid of dots at the very end of its row, the web's mark: a ripple while it works, the full grid when it waits on you, a cross for an error, a tick for a finished turn you have not seen, a muted ring at rest. The starburst and ASCII glyph presets keep their one glyph and leave a quiet row bare. The header has a blank line under it.
+  - Where a task on another machine runs (`on win · v0.9.301`) shows while the mouse is over its row, no longer on the keyboard cursor's row, and its cloud sits just before the state.
+  - The web's and the terminal's state marks share one definition of their shapes and timing: a working mark ripples once every 1.2 seconds on both, and a waiting mark dips on the same beat.
+  - Each engine's quota moves from the bottom bar to the foot of the task list, one line apiece as on the web: its name, a fill line and its tightest window (`Claude ━━━━━━━━ 5h 42%`). The bottom bar no longer shows quota or the session's token total.
+  - Settings is a row at the foot of the task list, in place of the `[settings]` chip in the bottom bar.
+  - Settings groups its sections as the web does: Preferences (General, Keybindings), Agents (Engines, Auto routing, Plugins, Marketplace) and More (Feedback, Dev).
+  - A folded project shows its arrow after the name (`rove ▸`), as the web does.
+  - The task list no longer shows the first-use `j/k move · ⏎ open` line under it; `F1` lists the keys. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2182](https://github.com/Sma1lboy/rove/pull/2182) [`4f9cc71`](https://github.com/Sma1lboy/rove/commit/4f9cc71c2f137e41a753e82e8c3a1e08eb733bbe) - In the terminal UI's right-click menu, the arrow on `Copy` and `More` sits at the end of the row, where the key hints are, as on the web. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2186](https://github.com/Sma1lboy/rove/pull/2186) [`e1b6403`](https://github.com/Sma1lboy/rove/commit/e1b6403605b32d48258a8c48b516d65b817d3b96) - In the terminal UI's right-click menu, `Copy` and `More` open their entries in a second list beside the menu, level with the row, once the pointer rests on them or on a click or `enter`. It opens to the left when the right has no room.
+
+  - A menu opened with the mouse lights no entry until the pointer or a key picks one; `esc` closes an open list first, then the menu. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2180](https://github.com/Sma1lboy/rove/pull/2180) [`53193e4`](https://github.com/Sma1lboy/rove/commit/53193e4162badf132c51df13a0a6d5c69a2a5d13) - A task's right-click menu in the terminal UI holds what the web's does, in the same order: New conversation, New shell, Run again and Open in editor first, then Rename, Pin and Set status, with the copy entries under `Copy ›` and the seldom-used ones under `More ›`. `Open` is gone: a click on the row already opens it.
+
+  - The menu opens down and right of the pointer and may reach past the task list's edge, instead of being pinned inside it.
+  - A menu entry lights up under the pointer. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2160](https://github.com/Sma1lboy/rove/pull/2160) [`11e3524`](https://github.com/Sma1lboy/rove/commit/11e3524bb49403d7f731320aee85e14b0169b086) - New task in the terminal UI is now a page in the content pane instead of a dialog over it, laid out like the web's: a centred title with the animated sky above it, the first message in a box at the bottom with Create inside it, and one row of chips underneath for the project, branch, engine, model and effort. The message is focused when the page opens, however it was opened, so typing what the task is for and pressing `enter` creates it with the defaults on the chips. `tab` or a click opens a chip's picker above the box. The task list stays visible beside the page, and picking another task or pressing `esc` leaves without creating.
+
+  - A page shown over a running task no longer carries that task's title and colour on its frame. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2184](https://github.com/Sma1lboy/rove/pull/2184) [`4afd030`](https://github.com/Sma1lboy/rove/commit/4afd0302f3e48b307975de5c8b7a71467b86b017) - A project header in the terminal UI's task list follows the web's: a folded project shows `›` after its name, an open one shows `⌄` while the pointer is on it, and the pointer also brings up a `+` at the end of the row that starts a task in that project.
+
+  - New task from a project's header, by its `+` or its menu, opens the New task page on that project, where it used to open on the project under the cursor.
+  - A task's fold arrow uses the same chevrons. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2177](https://github.com/Sma1lboy/rove/pull/2177) [`9196cf2`](https://github.com/Sma1lboy/rove/commit/9196cf2f028e1bb6de937d735b4ef3cfee0f0eeb) - The terminal UI's task list has a cell of air on each side, so titles, marks and the selection no longer touch its edges.
+
+  - A project name in the task list is dimmed and no longer bold, the terminal's stand-in for the web's smaller type. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2173](https://github.com/Sma1lboy/rove/pull/2173) [`6425b0c`](https://github.com/Sma1lboy/rove/commit/6425b0cc21e383010d8f0f04c9fea406c0adf832) Sidebar rows in the terminal interface answer the pointer: a task row, a tab row or a page link under the mouse gets a faint fill, as rows in the web rail do. With a transparent background, where rows carry no fill, the page link brightens and the row shows a thin marker. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2169](https://github.com/Sma1lboy/rove/pull/2169) [`48bacb2`](https://github.com/Sma1lboy/rove/commit/48bacb28c43bab9a1e81c3bfa797567e147ddecc) The web rail's cloud mark is drawn in dots, like the status mark beside it: a cloud outline on a grid half as coarse. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2167](https://github.com/Sma1lboy/rove/pull/2167) [`62c12e9`](https://github.com/Sma1lboy/rove/commit/62c12e98362c5b160167ee7312cb49b95cd3ec84) The cloud mark on a web rail row is drawn whole. Its right side ran past the icon's box and was cut off. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2168](https://github.com/Sma1lboy/rove/pull/2168) [`f7bed42`](https://github.com/Sma1lboy/rove/commit/f7bed421c9b08c821f437312231372ab2d337649) Settings → Connectors in the web client is laid out as cards: GitHub across the top, one card per machine below it with its state in the card's corner and its actions inside it. "Check again" sits on the Machines heading. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2170](https://github.com/Sma1lboy/rove/pull/2170) [`078704d`](https://github.com/Sma1lboy/rove/commit/078704d08297e1f5fc7762b752da67ce1a314a51) A merged PR keeps its purple mark in the web rail when the last status poll failed (a machine signed out of GitHub, for one). It used to turn grey, which read as closed. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2164](https://github.com/Sma1lboy/rove/pull/2164) [`7e7ea9e`](https://github.com/Sma1lboy/rove/commit/7e7ea9ea101443a836eaafd1d93d063b03f16b09) On the web, + on a project that lives on a Windows machine now opens New session with that machine and that folder picked, and starting a session in a `C:\…` folder there is no longer refused as "not an absolute path". This affected folders the machine does not list as a repo. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2171](https://github.com/Sma1lboy/rove/pull/2171) [`796dfe0`](https://github.com/Sma1lboy/rove/commit/796dfe026ee8bbd592b10f6247f0d1d03aafb64b) Selecting text in the web terminal no longer copies it. Copy with Ctrl+Shift+C or Cmd+C (Ctrl+C still copies a selection). This also holds for an engine that draws its own selection and copies when the mouse lets go, as Claude Code does: its text waits for the copy key instead of landing on the clipboard. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.301
 
 ### Patch Changes
