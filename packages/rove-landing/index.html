@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rove: the agent workspace for every coding agent</title>
+<title>Rove: One workspace for every coding agent</title>
 <link rel="icon" href="/assets/favicon.png" type="image/png">
 <link rel="apple-touch-icon" href="/assets/favicon.png">
-<meta name="description" content="Rove is an agent workspace for your terminal. It runs Claude Code, Codex, Copilot, Gemini CLI, OpenCode and other coding agents side by side. When one runs out of quota, you switch the task to another and it continues. Agents hand work to each other directly, and they keep working after you close the terminal.">
+<meta name="description" content="An agent workspace for your terminal. Run Claude Code, Codex, Gemini CLI, Copilot, and more side by side, each task in its own git worktree. Switch agents on quota limits, delegate across agents, schedule routines, and disconnect without stopping work.">
 <link rel="canonical" href="https://rove.run/">
 <!-- Release notes feed: GitHub already publishes this for every release, so
      there is no feed to build or keep in sync. -->
 <link rel="alternate" type="application/atom+xml" title="Rove releases"
       href="https://github.com/Sma1lboy/rove/releases.atom">
-<meta property="og:title" content="Rove: all your coding agents, in one place">
-<meta property="og:description" content="An agent workspace for your terminal: Claude Code, Codex, Copilot and more, side by side, handing tasks to each other.">
+<meta property="og:title" content="Rove: One workspace for every coding agent">
+<meta property="og:description" content="Run Claude Code, Codex, Gemini, and more side by side in your terminal, each task in its own git worktree.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://rove.run/">
 <meta name="twitter:card" content="summary_large_image">
@@ -26,15 +26,6 @@
 <link rel="stylesheet" href="/demo.css">
 <style>
 .hero h1{max-width:none}
-@media (prefers-reduced-motion:reduce){.bars{list-style:none;padding:0;display:grid;gap:24px}
-.bars li{display:grid;gap:6px}
-.bars .bar-l{font-weight:500}
-.bars .bar{display:block;height:8px;width:var(--w);background:var(--ink)}
-.bars .bar-d{color:var(--ink-2)}
-.fan{display:flex;gap:24px;align-items:center;flex-wrap:wrap}
-.fan-in{background:var(--ink);color:var(--paper);padding:8px 14px}
-.fan ul{list-style:none;padding:0;display:flex;gap:8px;flex-wrap:wrap}
-.fan li{background:var(--paper-2);padding:8px 12px;font-family:var(--font-mono);font-size:var(--fs-s)}
 </style>
 <script type="application/ld+json">
 {
@@ -45,7 +36,7 @@
       "@id": "https://rove.run/#website",
       "url": "https://rove.run/",
       "name": "Rove",
-      "description": "An agent workspace for your terminal: Claude Code, Codex, Copilot and more work side by side, each in its own git worktree, and hand tasks to each other.",
+      "description": "An agent workspace for your terminal. Run Claude Code, Codex, Gemini CLI, Copilot, and more side by side, each task in its own git worktree.",
       "inLanguage": "en",
       "publisher": {
         "@id": "https://rove.run/#org"
@@ -80,9 +71,9 @@
       "url": "https://rove.run/",
       "applicationCategory": "DeveloperApplication",
       "applicationSubCategory": "Agent workspace for the terminal",
-      "operatingSystem": "macOS, Linux, Windows (WSL)",
-      "softwareRequirements": "git and at least one AI coding engine CLI (Claude Code or Codex) on PATH",
-      "description": "Rove is an agent workspace for your terminal. Claude Code, Codex, Copilot and more run side by side in one window, each task with its own git worktree, branch and hosted engine session. Agents hand tasks to each other and message each other as peers, and sessions survive closing the SSH connection.",
+      "operatingSystem": "macOS, Linux, Windows",
+      "softwareRequirements": "git and at least one coding agent CLI (such as Claude Code or Codex) on PATH",
+      "description": "Rove is an agent workspace for your terminal. Run Claude Code, Codex, Gemini CLI, Copilot, and more side by side, each task in its own git worktree and branch. Switch agents on quota limits, delegate tasks between agents, run across remote machines or cron schedules, and disconnect without stopping sessions.",
       "license": "https://github.com/Sma1lboy/rove/blob/main/LICENSE",
       "isAccessibleForFree": true,
       "offers": {
@@ -108,15 +99,15 @@
           "name": "What is Rove?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Rove is an agent workspace for your terminal: one window where Claude Code, Codex, Copilot and other coding agents work side by side and hand tasks to each other. Each task gets its own git worktree, its own branch, and its own hosted engine session, so the agents never step on each other."
+            "text": "Rove is an agent workspace for your terminal. Run Claude Code, Codex, Gemini CLI, Copilot, and other coding agents side by side in one window, each task in its own git worktree and branch, with agent-to-agent delegation, remote machines, and scheduled routines."
           }
         },
         {
           "@type": "Question",
-          "name": "Why would I use more than one coding agent?",
+          "name": "Why run more than one coding agent?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Every agent has a usage limit. In Rove, when one hits its limit halfway through a task you switch the task to another agent, which reads what the first one did and continues on the same branch. Agents also hand tasks to each other directly, so you stop copying text between windows."
+            "text": "When one agent hits its usage limit mid-task, Rove lets you switch the task to another agent, which reads the transcript and picks up on the same branch. Agents can also spawn child tasks on other agents and receive reports back directly."
           }
         },
         {
@@ -132,7 +123,7 @@
           "name": "What does Rove require to run?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "macOS or Linux (Windows works through WSL), git, and at least one AI coding engine CLI on your PATH. Claude Code is the default engine; Codex is supported behind the same engine contract."
+            "text": "macOS, Linux, or Windows (native with Node.js and Git Bash, or via WSL), git, and at least one signed-in coding agent CLI on your PATH. Rove installs Bun automatically when needed."
           }
         },
         {
@@ -140,7 +131,7 @@
           "name": "Do Rove sessions survive closing SSH?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Yes. Engine sessions are hosted PTYs owned by a separate PTY host process, not by the terminal you are looking at. Closing the SSH connection, or even restarting the Rove daemon, leaves the running agents alive; you reattach and they are still working."
+            "text": "Yes. Engine sessions are hosted PTYs owned by a separate PTY host process, not by the terminal you are looking at. Closing the terminal, dropping SSH, or restarting the Rove daemon leaves running agents alive on an awake host until you reattach."
           }
         },
         {
@@ -148,15 +139,15 @@
           "name": "How is Rove different from tmux?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "tmux multiplexes terminals. Rove multiplexes agent attempts: the unit of isolation is a git worktree plus a branch plus terminal tabs, not just a pane. Rove also routes peer messages between running agents and tracks each attempt's engine state, which a generic multiplexer has no concept of."
+            "text": "tmux multiplexes terminals. Rove multiplexes agent tasks: each managed task owns a git worktree, a branch, and terminal tabs. Rove also tracks engine state, handles cross-agent transcript handoffs, routes reports between agents, and opens the same sessions in a browser or desktop window."
           }
         },
         {
           "@type": "Question",
-          "name": "Which AI coding engines does Rove support?",
+          "name": "Which coding agents does Rove support?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Claude Code is the default engine. Codex is supported through the same engine-owned adapter contract. Engine adapters are execution backends; the terminal UI is the product surface, so adding an engine does not change how you drive Rove."
+            "text": "Built-in engines include Claude Code, Codex, GitHub Copilot, Kimi Code, Pi, OMP, and IBM Bob. Rove also ships a catalog for Gemini CLI, OpenCode, Cursor, Amp, Cline, Grok, Devin, Kiro, Antigravity, and more whenever the CLI is on your PATH, plus any custom command or plugin engine you register."
           }
         }
       ]
@@ -195,10 +186,10 @@
 
   <section class="hero hero-c">
     <div class="hero-l">
-      <h1 data-i18n-html="hero.title">The agent workspace <span class="thin">for <span class="nb">every coding agent.</span></span></h1>
-      <p class="lede" data-i18n-html="hero.sub">Rove runs the coding agents you already have, side by side in one terminal. When one runs out of quota, switch the task to another and it continues. They also talk to each other directly, so you stop passing messages between them.</p>
+      <h1 data-i18n-html="hero.title">One workspace <span class="thin">for <span class="nb">every coding agent.</span></span></h1>
+      <p class="lede" data-i18n-html="hero.sub">Run Claude Code, Codex, Gemini, and more side by side in one terminal, each task in its own git worktree. Switch agents when one hits its limit, let them hand work to each other, and disconnect while they keep working.</p>
       <div class="engines">
-        <p class="engines-label" data-i18n="hero.engines">Works with the agents you already have</p>
+        <p class="engines-label" data-i18n="hero.engines">Runs the CLIs already on your PATH</p>
         <div class="marquee" id="engineMarquee">
           <ul class="marquee-track">
           <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0 11.784l.055-.352.48-.321.686.06 1.52.103 2.278.158 1.652.097 2.449.255h.389l.055-.157-.134-.098-.103-.097-2.358-1.596-2.552-1.688-1.336-.972-.724-.491-.364-.462-.158-1.008.656-.722.881.06.225.061.893.686 1.908 1.476 2.491 1.833.365.304.145-.103.019-.073-.164-.274-1.355-2.446-1.446-2.49-.644-1.032-.17-.619a2.97 2.97 0 01-.104-.729L6.283.134 6.696 0l.996.134.42.364.62 1.414 1.002 2.229 1.555 3.03.456.898.243.832.091.255h.158V9.01l.128-1.706.237-2.095.23-2.695.08-.76.376-.91.747-.492.584.28.48.685-.067.444-.286 1.851-.559 2.903-.364 1.942h.212l.243-.242.985-1.306 1.652-2.064.73-.82.85-.904.547-.431h1.033l.76 1.129-.34 1.166-1.064 1.347-.881 1.142-1.264 1.7-.79 1.36.073.11.188-.02 2.856-.606 1.543-.28 1.841-.315.833.388.091.395-.328.807-1.969.486-2.309.462-3.439.813-.042.03.049.061 1.549.146.662.036h1.622l3.02.225.79.522.474.638-.079.485-1.215.62-1.64-.389-3.829-.91-1.312-.329h-.182v.11l1.093 1.068 2.006 1.81 2.509 2.33.127.578-.322.455-.34-.049-2.205-1.657-.851-.747-1.926-1.62h-.128v.17l.444.649 2.345 3.521.122 1.08-.17.353-.608.213-.668-.122-1.374-1.925-1.415-2.167-1.143-1.943-.14.08-.674 7.254-.316.37-.729.28-.607-.461-.322-.747.322-1.476.389-1.924.315-1.53.286-1.9.17-.632-.012-.042-.14.018-1.434 1.967-2.18 2.945-1.726 1.845-.414.164-.717-.37.067-.662.401-.589 2.388-3.036 1.44-1.882.93-1.086-.006-.158h-.055L4.132 18.56l-1.13.146-.487-.456.061-.746.231-.243 1.908-1.312-.006.006z" fill="#D97757" fill-rule="nonzero"></path></svg>Claude Code</li>
@@ -252,11 +243,11 @@
 
     <div class="hero-r">
       <div class="seg scenes" role="group" aria-label="Demo scenes" id="scenes">
-        <button type="button" data-scene="dispatch" aria-pressed="true" data-i18n="scene.dispatch">Hand work to other agents</button>
-        <button type="button" data-scene="swap" aria-pressed="false" data-i18n="scene.swap">Switch agent when quota runs out</button>
-        <button type="button" data-scene="machines" aria-pressed="false" data-i18n="scene.machines">Run on another machine</button>
-        <button type="button" data-scene="routine" aria-pressed="false" data-i18n="scene.routine">Run on a schedule</button>
-        <button type="button" data-scene="split" aria-pressed="false" data-i18n="scene.split">Two agents side by side</button>
+        <button type="button" data-scene="dispatch" aria-pressed="true" data-i18n="scene.dispatch">Delegate to agents</button>
+        <button type="button" data-scene="swap" aria-pressed="false" data-i18n="scene.swap">Switch on quota</button>
+        <button type="button" data-scene="machines" aria-pressed="false" data-i18n="scene.machines">Remote machines</button>
+        <button type="button" data-scene="routine" aria-pressed="false" data-i18n="scene.routine">Scheduled runs</button>
+        <button type="button" data-scene="split" aria-pressed="false" data-i18n="scene.split">Side-by-side review</button>
       </div>
       <figure class="appwin">
         <div class="appwin-bar" aria-hidden="true"><i></i><i></i><i></i><span>rove — ~/storefront</span></div>
@@ -265,32 +256,19 @@
     </div>
   </section>
 
-  <section class="note wide" id="why">
-    <h2 data-i18n="why.h">Two things you get from more than one agent</h2>
-
-    <div class="cards">
-      <p class="card" data-i18n-html="why.p2"><b>When one agent runs out of quota, switch to another.</b> When Claude Code hits its usage limit halfway through a task, switch the task to Codex or any other agent. It reads what the first one did and continues from there.</p>
-      <p class="card" data-i18n-html="why.p3"><b>Agents talk to each other directly.</b> Without Rove, each agent sits in its own window and you copy text between them. Here one agent hands a task to another and gets the report back by itself.</p>
-    </div>
-  </section>
-
   <section class="note wide" id="features">
-    <h2 data-i18n="can.h">What you can do</h2>
+    <h2 data-i18n="can.h">Built for parallel work</h2>
 
     <dl class="can">
-      <div><dt data-i18n="can.1">New task</dt><dd data-i18n="can.1d">Type one sentence. Rove gives the agent its own copy of your code to work on, so nothing else gets touched.</dd></div>
-      <div><dt data-i18n="can.2">Any agent</dt><dd data-i18n="can.2d">Claude Code, Codex, Copilot, Gemini CLI and a dozen more. Pick one per task.</dd></div>
-      <div><dt data-i18n="can.3">Hand off</dt><dd data-i18n="can.3d">An agent can pass part of the job to another agent and get the result back.</dd></div>
-      <div><dt data-i18n="can.4">Keeps running</dt><dd data-i18n="can.4d">Close the terminal or lose your connection. The agents keep working while the computer is awake, and everything is there when you come back.</dd></div>
-      <div><dt data-i18n="can.5">Inbox</dt><dd data-i18n="can.5d">One list of the agents that finished and the ones waiting for your answer.</dd></div>
-      <div><dt data-i18n="can.6">Pull request</dt><dd data-i18n="can.6d">Turn a finished task into a pull request without leaving Rove.</dd></div>
-      <div><dt data-i18n="can.7">Routines</dt><dd data-i18n="can.7d">Give a prompt a schedule, like every morning at 9, and Rove starts the task for you.</dd></div>
-      <div><dt data-i18n="can.8">Web and phone</dt><dd data-i18n="can.8d">Open the same sessions in a browser or on your phone.</dd></div>
+      <div><dt data-i18n="can.1">Isolated worktrees</dt><dd data-i18n="can.1d">Every task gets its own git worktree and branch. Run a refactor, a fix, and a review in parallel without colliding.</dd></div>
+      <div><dt data-i18n="can.2">Quota handoff</dt><dd data-i18n="can.2d">Hit a usage limit mid-task? Switch the task to another agent. It reads the transcript and picks up on the same branch.</dd></div>
+      <div><dt data-i18n="can.3">Agent dispatch</dt><dd data-i18n="can.3d">One agent spawns child tasks on other agents, delegates pieces of the job, and gets reports back in its own tab.</dd></div>
+      <div><dt data-i18n="can.4">Detached sessions</dt><dd data-i18n="can.4d">Close the terminal or drop SSH. Hosted PTY sessions stay alive on the host until you reattach.</dd></div>
+      <div><dt data-i18n="can.5">Remote machines</dt><dd data-i18n="can.5d">Add a workstation or GPU box over SSH. Its tasks live in the same sidebar while files and commands stay there.</dd></div>
+      <div><dt data-i18n="can.6">Routines</dt><dd data-i18n="can.6d">Put a prompt on a cron schedule. Rove starts a real task on time so you can inspect the diff and follow up.</dd></div>
+      <div><dt data-i18n="can.7">Inbox &amp; PRs</dt><dd data-i18n="can.7d">See finished runs and blocked agents in one queue, review diffs inline, and open a PR from the task.</dd></div>
+      <div><dt data-i18n="can.8">Web, desktop &amp; phone</dt><dd data-i18n="can.8d">Attach to the same live sessions from a desktop window, any browser (rove --web), or your phone.</dd></div>
     </dl>
-
-    <div class="txt-col">
-      <p data-i18n-html="can.more">Rove runs agents you already have, so install and sign in to one first, such as Claude Code or Codex. How each feature works is in the <a href="https://docs.rove.run">docs</a>.</p>
-    </div>
   </section>
 
   <section class="note wide" id="get">
@@ -300,36 +278,36 @@
         <p id="installHelp" class="t-note get-req" aria-live="polite">macOS / Linux: use a POSIX shell. Requires git and a signed-in agent CLI, such as Claude Code. The installer sets up Bun if needed.</p>
     <div class="chan">
       <div class="chan-row">
-        <div class="chan-n"><b data-i18n="get.stable">Stable</b><span data-i18n="get.stableD">The tested release. Install this one if you are new.</span></div>
+        <div class="chan-n"><b data-i18n="get.stable">Stable</b><span data-i18n="get.stableD">Full test suite passed. Start here.</span></div>
         <button class="copy" type="button" data-cmd="curl -fsSL https://rove.run/install.sh | sh"><span class="cmd">curl -fsSL https://rove.run/install.sh | sh</span><span class="hint" data-hint data-i18n="copy.short">copy</span></button>
         <button class="copy" type="button" data-cmd="npm install -g @sma1lboy/rove"><span class="cmd">npm install -g @sma1lboy/rove</span><span class="hint" data-hint data-i18n="copy.short">copy</span></button>
       </div>
       <div class="chan-row">
-        <div class="chan-n"><b data-i18n="get.next">Next</b><span data-i18n="get.nextD">You get every change a few minutes after it is merged. It has had fewer tests.</span></div>
+        <div class="chan-n"><b data-i18n="get.next">Next</b><span data-i18n="get.nextD">Published minutes after each merge to main; fast checks only.</span></div>
         <button class="copy" type="button" data-cmd="curl -fsSL https://rove.run/install.sh | sh -s -- --next"><span class="cmd">curl -fsSL https://rove.run/install.sh | sh -s -- --next</span><span class="hint" data-hint data-i18n="copy.short">copy</span></button>
         <button class="copy" type="button" data-cmd="npm install -g @sma1lboy/rove@next"><span class="cmd">npm install -g @sma1lboy/rove@next</span><span class="hint" data-hint data-i18n="copy.short">copy</span></button>
       </div>
       <div class="chan-row">
-        <div class="chan-n"><b data-i18n="get.nightly">Nightly</b><span data-i18n="get.nightlyD">You get one new build each morning, after all the tests have passed.</span></div>
+        <div class="chan-n"><b data-i18n="get.nightly">Nightly</b><span data-i18n="get.nightlyD">Daily build after the full suite goes green.</span></div>
         <button class="copy" type="button" data-cmd="curl -fsSL https://rove.run/install.sh | sh -s -- --nightly"><span class="cmd">curl -fsSL https://rove.run/install.sh | sh -s -- --nightly</span><span class="hint" data-hint data-i18n="copy.short">copy</span></button>
         <button class="copy" type="button" data-cmd="npm install -g @sma1lboy/rove@nightly"><span class="cmd">npm install -g @sma1lboy/rove@nightly</span><span class="hint" data-hint data-i18n="copy.short">copy</span></button>
       </div>
     </div>
-    <p class="t-note" data-i18n-html="get.switch">If Rove is already installed, switch with <span class="mono">rove update --next</span>, <span class="mono">--nightly</span> or <span class="mono">--stable</span>. On Windows use the npm command in PowerShell.</p>
+    <p class="t-note" data-i18n-html="get.switch">Already installed? Switch channels with <span class="mono">rove update --next</span>, <span class="mono">--nightly</span>, or <span class="mono">--stable</span>. On Windows, run the npm command in PowerShell.</p>
 
     <h3 class="sub" data-i18n="get.apps">Apps</h3>
     <div class="cards">
       <div class="card">
-        <p data-i18n-html="get.desktop"><b>Desktop app.</b> Rove in its own window, so you don't need to keep a terminal open. Install the terminal app above first, because the desktop app runs it for you.</p>
+        <p data-i18n-html="get.desktop"><b>Desktop app.</b> Dedicated window with native notifications, backed by the same local daemon. Install the CLI above first.</p>
         <p class="dl">
           <a href="https://github.com/Sma1lboy/rove/releases/download/desktop/Rove-mac-arm64.dmg" data-i18n="get.dlMac">macOS, Apple silicon</a>
           <a href="https://github.com/Sma1lboy/rove/releases/download/desktop/Rove-mac-x64.dmg" data-i18n="get.dlIntel">macOS, Intel</a>
           <a href="https://github.com/Sma1lboy/rove/releases/download/desktop/Rove-win-x64.exe">Windows</a>
           <a href="https://github.com/Sma1lboy/rove/releases/download/desktop/Rove-linux-x86_64.AppImage">Linux</a>
         </p>
-        <p class="t-note" data-i18n="get.desktopNote">The Windows installer is not signed yet, so Windows asks once: choose More info, then Run anyway.</p>
+        <p class="t-note" data-i18n="get.desktopNote">Windows builds are unsigned for now: click More info → Run anyway on first launch.</p>
       </div>
-      <div class="card"><p data-i18n-html="get.phone"><b>Phone: iOS and Android.</b> Read output, answer questions and start tasks from your phone. Not in the app stores yet: <a href="https://docs.rove.run/rove/ios">build it from source</a>, or open <span class="mono">rove --web</span> in your phone browser today.</p></div>
+      <div class="card"><p data-i18n-html="get.phone"><b>iOS &amp; Android.</b> Check output, unblock agents, and start tasks from your phone. Not in app stores yet: <a href="https://docs.rove.run/rove/ios">build from source</a>, or open <span class="mono">rove --web</span> in your mobile browser.</p></div>
     </div>
   </section>
 
@@ -337,7 +315,7 @@
 
   <footer>
     <a href="https://github.com/Sma1lboy/rove">GitHub</a>
-    <a href="https://docs.rove.run" data-i18n="footer.docs">docs.rove.run</a>
+    <a href="https://docs.rove.run" data-i18n="footer.docs">Docs</a>
     <a href="https://www.npmjs.com/package/@sma1lboy/rove">npm</a>
     <a href="/plugins" data-i18n="footer.plugins">Plugins</a>
     <a href="/themes" data-i18n="footer.themesLink">Themes</a>

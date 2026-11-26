@@ -216,10 +216,10 @@
       await k.w(600);
       await k.type('a', 'Add EU tax to checkout. Hand the tax rules to Codex and the tests to Gemini.');
       k.status('a', 'work');
-      await k.think('a', 900, 'Reading the checkout code…');
+      await k.think('a', 900, 'Reading checkout…');
       k.line('a', 'Read <u>src/checkout.ts</u>, <u>src/cart.ts</u>', 'is-dim');
       await k.w(250);
-      await k.say('a', "I'll keep the checkout change and hand out the other two parts.");
+      await k.say('a', "I'll wire up checkout and hand the VAT table and tests to Codex and Gemini.");
       await k.w(500);
       k.line('a', '<b>rove api add</b> --title tax-rules --command codex', 'is-tool');
       await k.w(260);
@@ -274,10 +274,10 @@
       await k.w(900);
       k.paneHead('a', { label: 'codex' });
       k.status('a', 'work'); k.inbox(0);
-      await k.think('a', 1100, 'Reading the earlier conversation…');
-      k.line('a', 'Read 38 messages: 2 of 3 steps are done', 'is-dim');
+      await k.think('a', 1100, 'Reading previous transcript…');
+      k.line('a', 'Read 38 messages: route done, ledger interrupted', 'is-dim');
       await k.w(250);
-      await k.say('a', 'Picking up at the ledger entry, on the same branch.');
+      await k.say('a', 'Picking up at the ledger entry on the same branch.');
       k.usage('Codex', 11);
       await k.w(350);
       k.line('a', '<b>Update</b>(src/ledger.ts)', 'is-tool');
@@ -286,7 +286,7 @@
       k.line('a', '<b>Update</b>(src/email/refund.ts)', 'is-tool');
       k.usage('Codex', 14);
       await k.w(500);
-      await k.say('a', 'Ledger entry and email are in. All three steps are done.');
+      await k.say('a', 'Ledger entry and email are in. Partial refunds complete.');
       k.status('a', 'done');
       await k.w(2400);
     },
@@ -307,7 +307,7 @@
       await k.type('a', 'Train the ranking model on the new data and report the score.');
       k.row({ id: 'a', title: 'Ranking model', tag: 'gpu-box', status: 'work', flash: true, after: 'z' });
       k.select('a');
-      k.paneHead('a', { label: 'claude', where: 'files and commands on gpu-box' });
+      k.paneHead('a', { label: 'claude', where: 'ssh · gpu-box' });
       await k.think('a', 800, 'Connecting to gpu-box…');
       k.line('a', '<b>Bash</b>(python train.py --data data/2026-11)', 'is-tool');
       await k.w(500);
@@ -318,7 +318,7 @@
       await k.w(650);
       k.line('a', 'epoch 3/3  loss 0.231', 'is-dim');
       await k.think('a', 800, 'Scoring…');
-      await k.say('a', 'Training ran on gpu-box. NDCG@10 went from 0.61 to 0.66.');
+      await k.say('a', 'Done on gpu-box. NDCG@10 improved from 0.61 to 0.66.');
       k.status('a', 'done'); k.inbox(2);
       await k.w(2400);
     },
@@ -342,7 +342,7 @@
       k.row({ id: 'a', title: 'Dependency check', status: 'work', flash: true, after: 'x' });
       k.select('a');
       await k.w(600);
-      k.pane({ id: 'a', label: 'claude', where: 'started by a routine' });
+      k.pane({ id: 'a', label: 'claude', where: 'routine · 09:00' });
       k.line('a', 'Check for outdated dependencies and open a pull request for the safe ones.', 'is-prompt');
       await k.think('a', 900);
       k.line('a', '<b>Bash</b>(bun outdated)', 'is-tool');
@@ -354,7 +354,7 @@
       await k.think('a', 1100, 'Running the tests…');
       k.line('a', '<b>Bash</b>(bun test) 212 pass', 'is-tool');
       await k.w(400);
-      await k.say('a', 'Opened pull request #412: bump 3 dependencies. All tests pass.');
+      await k.say('a', 'Opened PR #412 (bump 3 dependencies). 212 tests pass.');
       k.status('a', 'done'); k.inbox(1);
       k.item(0, 'ran 09:00', 'is-ok');
       await k.w(2400);
@@ -385,14 +385,17 @@
       await k.think('b', 600);
       k.line('b', '<b>Ran</b> git diff HEAD -- src/cart.ts', 'is-tool');
       await k.think('b', 900, 'Reviewing…');
-      await k.say('b', 'A NaN percent still returns NaN: Math.max(0, NaN) is NaN.');
+      await k.say('b', 'NaN slips through: Math.max(0, NaN) is NaN.');
       await k.w(500);
-      await k.say('b', 'Totals are not rounded to cents after the discount.');
+      await k.say('b', "Discounted total isn't rounded to whole cents.");
       await k.think('a', 1000);
       k.line('a', '<b>Update</b>(src/cart.ts)', 'is-tool');
-      await k.burst('a', [['+  if (Number.isNaN(percent)) return total', 'is-add']]);
+      await k.burst('a', [
+        ['+  if (!Number.isFinite(percent)) return total', 'is-add'],
+        ['+  return Math.round(total - total * (p / 100))', 'is-add'],
+      ]);
       await k.w(300);
-      await k.say('a', 'Fixed the NaN case Codex found.');
+      await k.say('a', 'Fixed non-finite input and rounded to cents.');
       k.status('a', 'done');
       await k.w(2400);
     },
