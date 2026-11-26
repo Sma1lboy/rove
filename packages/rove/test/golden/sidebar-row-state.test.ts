@@ -127,7 +127,8 @@ test("every rendered glyph is in the font-verified vocabulary", () => {
     ["?", "ASCII — blocked on your answer"],
     ["◇", "U+25C7 — subagent count prefix"],
     ["▴", "U+25B4 — pinned marker"],
-    ["◆", "U+25C6 — the PR mark, coloured by state; in Fira Code / JetBrainsMono / Menlo / Monaco / Maple"],
+    ["p", "ASCII — the PR chip is the word `pr`, coloured by state"],
+    ["r", "ASCII — see `p`"],
     ...DEFAULT_SPINNER_FRAMES.map((frame) => [frame, "braille — uniform AppleBraille fallback"] as const),
   ])
   // Glyph cells the matrix emits, plus the constants the tab rows render

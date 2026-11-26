@@ -22,7 +22,7 @@ import { DEFAULT_RUNNING_TITLE, RUNNING_TITLE_KEY, normalizeRunningTitle } from 
 import { breathColor, breathGlyph } from "../../../tui/lib/breathe"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
-import { remoteMarkLive, remoteRowCaption } from "../../../tui/panes/sidebar/machine-layer"
+import { machineStateKey, remoteMarkLive, remoteRowCaption } from "../../../tui/panes/sidebar/machine-layer"
 import { sidebarPrChip } from "../../../tui/panes/sidebar/row-chips"
 import {
   type SidebarRowView,
@@ -144,7 +144,7 @@ function FoldCluster(props: { readonly task: Task; readonly fold: TreeFold; read
           {String(fold.count)}
         </text>
       ) : null}
-      {fold.collapsed && urgent ? (
+      {fold.collapsed && urgent && (mark.spinning || mark.glyph !== glyphs.idle) ? (
         <text fg={toneColor(theme, sidebarTone(mark.tone))} wrapMode="none">
           {mark.spinning ? breathGlyph(glyphs.spinner, frame) : mark.glyph}
         </text>
@@ -158,11 +158,10 @@ function FoldCluster(props: { readonly task: Task; readonly fold: TreeFold; read
  * deletion or checkout in flight) and, on a child, the marker for where it
  * runs plus a level number once the indent stops growing.
  *
- * A task on ANOTHER machine (`remote`) wears the remote mark at the row's right edge — muted
- * while that machine is online, warning-toned (and the title greyed) while it
- * is offline, connecting or mismatched. Under the mouse the row also says
- * where: `on <host> · <state>`. Machines are not sections; this mark is the
- * only place a row says it lives elsewhere.
+ * A task on ANOTHER machine (`remote`) draws no mark while that machine is online. While it
+ * is offline, connecting or mismatched the row says so in the warning tone (and the
+ * title greys). Under the mouse the row says where: `on <host> · <state>`.
+ * Machines are not sections; this is the only place a row says it lives elsewhere.
  */
 export function WorktreeTreeRow(props: {
   readonly rowId: string
@@ -215,13 +214,16 @@ export function WorktreeTreeRow(props: {
   const remote = props.remote
   const remoteLive = remote ? remoteMarkLive(remote) : true
   const [hovered, setHovered] = useState(false)
-  const caption = remote && hovered ? remoteRowCaption(remote, t) : null
+  // Where it runs shows under the mouse; a machine that is not online says so on its own.
+  const remoteStateKey = remote ? machineStateKey(remote.state) : null
+  const remoteNote = remote && hovered ? remoteRowCaption(remote, t) : remoteStateKey ? t(remoteStateKey) : null
+  const quiet = rowView.stateGlyph === glyphs.idle
   // A task over several repos is listed once, under its primary, with how many more it spans.
   const extraRepoText = task.extraRepos?.length ? `+${task.extraRepos.length}` : null
   const fold = props.fold
   const reserved =
     // The trailing state glyph, and the child indent (`indentOf` in tree-row-shell).
-    2 +
+    (quiet ? 0 : 2) +
     2 * ((props.depth ?? 1) - 1) +
     // A plugin can crowd the branch name but never overflow the row.
     tokens.reduce((cells, token) => cells + clusterCells(token.text), 0) +
@@ -233,27 +235,22 @@ export function WorktreeTreeRow(props: {
       ? clusterCells(fold.collapsed ? FOLD_CLOSED : FOLD_OPEN) +
         (fold.collapsed ? clusterCells(String(fold.count)) + clusterCells(glyphs.idle) : 0)
       : 0) +
-    (remote ? clusterCells(glyphs.remote) : 0) +
     (task.pinned === true ? 2 : 0) +
-    (chip ? 2 : 0) +
+    (chip ? clusterCells(chip.glyph) : 0) +
     (moving ? clusterCells(t("tasks.moveChip").trim()) : 0)
-  // The hover caption takes what the title leaves (the title keeps up to
+  // The remote note takes what the title leaves (the title keeps up to
   // REMOTE_TITLE_CELLS), clipped with `…`, so a narrow rail never loses the branch.
   const budget = treeLabelBudget(shared, reserved)
-  const captionCells = caption ? Math.max(0, budget - Math.min(displayWidth(label), REMOTE_TITLE_CELLS) - 1) : 0
-  const remoteText = remote
-    ? captionCells > 2
-      ? `${truncateEndCells(caption ?? "", captionCells, charWidth)} ${glyphs.remote}`
-      : glyphs.remote
-    : null
+  const noteCells = remoteNote ? Math.max(0, budget - Math.min(displayWidth(label), REMOTE_TITLE_CELLS) - 1) : 0
+  const remoteText = remoteNote && noteCells > 2 ? truncateEndCells(remoteNote, noteCells, charWidth) : null
   const shimmer =
     rowView.loading &&
     !pulsing &&
     normalizeRunningTitle(kv?.get(RUNNING_TITLE_KEY, DEFAULT_RUNNING_TITLE)) === "shimmer"
-  const clipped = truncateEndCells(label, budget - (remoteText ? displayWidth(remoteText) - 1 : 0), charWidth)
+  const clipped = truncateEndCells(label, budget - (remoteText ? displayWidth(remoteText) + 1 : 0), charWidth)
   return (
     <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={props.depth ?? 1} shared={shared}>
-      {/* biome-ignore lint/a11y/useKeyWithMouseEvents: a terminal box takes no focus; the mark alone says "elsewhere" for the keyboard */}
+      {/* biome-ignore lint/a11y/useKeyWithMouseEvents: a terminal box takes no focus; where a task runs is a mouse-over detail */}
       <box
         flexDirection="row"
         flexGrow={1}
@@ -327,11 +324,12 @@ export function WorktreeTreeRow(props: {
             {remoteText}
           </text>
         ) : null}
-        {/* Last, so every row's state lines up in one column at the rail's edge, the remote mark before it. */}
-        <text fg={fg} attributes={pulsing ? TextAttributes.BOLD : undefined} wrapMode="none" flexShrink={0}>
-          {/* A quiet row draws nothing: only rows with something to say carry a mark. */}
-          {rowView.stateGlyph === glyphs.idle ? " " : rowView.stateGlyph}
-        </text>
+        {/* Last, at the rail's edge. A quiet row draws nothing: only rows with something to say carry a mark. */}
+        {quiet ? null : (
+          <text fg={fg} attributes={pulsing ? TextAttributes.BOLD : undefined} wrapMode="none" flexShrink={0}>
+            {rowView.stateGlyph}
+          </text>
+        )}
       </box>
     </RowShell>
   )

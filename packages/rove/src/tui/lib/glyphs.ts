@@ -37,12 +37,6 @@ export interface GlyphSet {
   readonly conflict: string
   readonly checksFailing: string
   readonly checksPassing: string
-  /**
-   * On a row whose task lives on ANOTHER machine. U+2197 ships in Fira Code,
-   * JetBrains Mono, Menlo and Maple; a cloud (U+2601) is in Menlo alone, so
-   * elsewhere a fallback face drew it off the row's line.
-   */
-  readonly remote: string
 }
 
 export const GLYPH_SETS: Readonly<Record<GlyphSetName, GlyphSet>> = {
@@ -58,10 +52,9 @@ export const GLYPH_SETS: Readonly<Record<GlyphSetName, GlyphSet>> = {
     dead: "†",
     routineFailed: "↻",
     subagent: "◇",
-    conflict: "◆",
-    checksFailing: "◆",
-    checksPassing: "◆",
-    remote: "↗",
+    conflict: "pr",
+    checksFailing: "pr",
+    checksPassing: "pr",
   },
   starburst: {
     spinner: ["✻", "✼", "❉", "❊", "✺", "✹", "✸", "✶"],
@@ -75,10 +68,9 @@ export const GLYPH_SETS: Readonly<Record<GlyphSetName, GlyphSet>> = {
     dead: "✞",
     routineFailed: "↻",
     subagent: "❖",
-    conflict: "◆",
-    checksFailing: "◆",
-    checksPassing: "◆",
-    remote: "↗",
+    conflict: "pr",
+    checksFailing: "pr",
+    checksPassing: "pr",
   },
   ascii: {
     spinner: ["|", "/", "-", "\\"],
@@ -95,7 +87,6 @@ export const GLYPH_SETS: Readonly<Record<GlyphSetName, GlyphSet>> = {
     conflict: "#",
     checksFailing: "x",
     checksPassing: "+",
-    remote: "@",
   },
 }
 

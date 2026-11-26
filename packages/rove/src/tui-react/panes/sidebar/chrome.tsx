@@ -122,8 +122,7 @@ export function SidebarBrandHeader(props: {
       {props.status ? (
         <box position="relative" flexShrink={0} onMouseUp={() => props.onStatusClick?.()}>
           <text
-            fg={props.status.emphasize ? theme.warningOnHost : theme.textMuted}
-            attributes={props.status.emphasize ? TextAttributes.BOLD : TextAttributes.DIM}
+            fg={props.status.emphasize ? theme.primary : theme.textMuted}
             wrapMode="none"
           >
             {props.status.label}

@@ -107,12 +107,12 @@ rove                          ← your projects, exactly where they were
   main
   fix/machines
 narwhal:rove                  ← narwhal's checkout of a repo you also have
-  remote probe ↗              ← a task there: the arrow says it runs elsewhere
+  remote probe                ← a task there
 ```
 
 There is no row for the machine itself: projects from every machine share one
-list, and a task from another machine carries an `↗` mark (`on narwhal ·
-v0.9.185` beside it while the mouse is over the row).
+list, and a task from another machine says where it runs while the mouse is over its row (`on narwhal ·
+v0.9.185`), and says `offline` on its own while that machine is unreachable.
 
 - **Two machines, one repo name.** A repo called `rove` on both machines shows
   as `rove` here and `narwhal:rove` there. The local one keeps the bare name —

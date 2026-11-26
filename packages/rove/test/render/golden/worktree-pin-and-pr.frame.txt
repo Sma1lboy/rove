@@ -11,8 +11,8 @@
 | Issues                       |
 |                              |
 | rove                         |
-|▌alpha                  ▴ ◆   |
-| bravo                    ◆   |
+|▌alpha                   ▴ pr |
+| bravo                     pr |
 |                              |
 |                              |
 |                              |

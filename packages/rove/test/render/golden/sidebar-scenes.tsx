@@ -114,7 +114,7 @@ function tree(over: Partial<Parameters<typeof SidebarTree>[0]> = {}) {
 
 /**
  * One repo checked out here, on a mac and on an offline vps (same `repoId`):
- * ONE project, every machine's task under it, the remote ones wearing the remote mark.
+ * ONE project, every machine's task under it, the remote ones unmarked while their machine is online.
  */
 const REPO_ID = "github.com/sma1lboy/rove"
 const MACHINES: readonly MachineLayerEntry[] = [
@@ -160,7 +160,7 @@ export const SCENES: readonly Scene[] = [
   {
     name: "machines-merged",
     about:
-      "one repo on three machines is ONE project; no machine headers, remote rows wear the remote mark (offline: warning)",
+      "one repo on three machines is ONE project; no machine headers, a remote row is unmarked while online and says offline otherwise",
     setup: resetScene,
     machines: MACHINES,
     element: tree({ tasks: MERGED_TASKS }),

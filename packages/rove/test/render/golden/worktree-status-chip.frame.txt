@@ -11,8 +11,8 @@
 | Issues                       |
 |                              |
 | rove                         |
-|▌review                   ◆   |
-| stuck                    ◆   |
+|▌review                    pr |
+| stuck                     pr |
 | shipped                      |
 | dropped                      |
 | broke                        |
