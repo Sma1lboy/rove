@@ -133,6 +133,8 @@ export function openHarnessTerminal(
   // Plain URLs in engine output become clickable.
   term.loadAddon(new WebLinksAddon())
   term.open(el)
+  // The right button is the TUI's (its context menus); the browser's own menu would cover them.
+  el.addEventListener("contextmenu", (event) => event.preventDefault())
   // The visual harness normally keeps this renderer policy. Its explicit
   // DOM diagnostic mode skips both accelerated addons; buffer reads stay
   // renderer-independent either way. Renderer choice is a three-way trade:
