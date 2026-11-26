@@ -17,18 +17,21 @@ import {
 import { t } from "./i18n/index.ts"
 import type { MachineRow } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
-import { Group, Row } from "./settings-rows.tsx"
 import { toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import {
+  BENTO,
+  BENTO_HEAD,
+  BENTO_TITLE,
   CONFIRM_INLINE,
-  LINE_MAIN,
-  LINE_ROW,
   SETTINGS_ACTIONS,
+  SETTINGS_GROUP_HINT,
+  SETTINGS_GROUP_LABEL,
   SETTINGS_NAME,
   SETTINGS_NOTE,
   SETTINGS_PANEL,
   SETTINGS_VALUE,
+  bentoCardClass,
   lineDetailClass,
 } from "./ui/settings.ts"
 
@@ -142,43 +145,45 @@ interface LineProps {
   readonly onCancel: () => void
 }
 
-function MachineLine(p: LineProps) {
+function MachineCard(p: LineProps) {
   const mark = markOf(p.probe, p.machine, p.rove)
   const status = p.probe?.status ?? null
   const flowing = loginBusy(status)
   const needsAccount = mark === "different" || mark === "signedOut"
   const login = status?.login
+  const detail = detailOf(status)
+  const actions = needsAccount && !flowing
   return (
-    <div>
-      <div className={LINE_ROW}>
-        <div className={LINE_MAIN}>
-          <span className={SETTINGS_NAME}>{p.name}</span>
-          <span
-            className={lineDetailClass()}
-            title={[status?.authDetail, status?.ssh.detail].filter(Boolean).join(", ") || undefined}
-          >
-            {detailOf(status)}
-          </span>
-        </div>
+    <div className={bentoCardClass()}>
+      <div className={BENTO_HEAD}>
+        <span className={`${SETTINGS_NAME} min-w-0 flex-1 truncate`}>{p.name}</span>
         <span className={`whitespace-nowrap text-meta ${MARK_TONE[mark]}`} title={p.probe?.message}>
           {markText(mark, status)}
         </span>
-        {p.onSync && needsAccount && p.rove && !flowing && (
-          <Button variant="action" disabled={p.busy} onClick={p.onSync}>
-            {c("useRove")}
-          </Button>
-        )}
-        {p.onLogin && needsAccount && !flowing && (
-          <Button variant="action" disabled={p.busy} onClick={p.onLogin}>
-            {c("loginThere")}
-          </Button>
-        )}
       </div>
-      {login && (
-        <div className="pb-3">
-          <DeviceFlow login={login} onCancel={p.onCancel} />
+      {detail && (
+        <span
+          className={lineDetailClass()}
+          title={[status?.authDetail, status?.ssh.detail].filter(Boolean).join(", ") || undefined}
+        >
+          {detail}
+        </span>
+      )}
+      {actions && (p.onSync || p.onLogin) && (
+        <div className="mt-auto flex flex-wrap gap-2">
+          {p.onSync && p.rove && (
+            <Button variant="action" disabled={p.busy} onClick={p.onSync}>
+              {c("useRove")}
+            </Button>
+          )}
+          {p.onLogin && (
+            <Button variant="action" disabled={p.busy} onClick={p.onLogin}>
+              {c("loginThere")}
+            </Button>
+          )}
         </div>
       )}
+      {login && <DeviceFlow login={login} onCancel={p.onCancel} />}
     </div>
   )
 }
@@ -223,91 +228,86 @@ function GithubCard({ model }: { model: AppModel }) {
     })
 
   return (
-    <>
-      <Group>
-        <div>
-          <Row
-            // The mark stands beside both lines, so the name and its note share one left edge.
-            label={
-              <span className="flex items-center gap-3">
-                <GithubMark />
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  <span>GitHub</span>
-                  <span className={SETTINGS_NOTE}>{c("githubDescription")}</span>
-                </span>
-              </span>
-            }
-          >
-            {rove ? (
-              <>
-                <span className={SETTINGS_VALUE}>@{rove}</span>
-                <Button variant="action" disabled={busy !== null} onClick={() => setConfirming(true)}>
-                  {c("disconnect")}
-                </Button>
-              </>
-            ) : !local ? (
-              // Not known yet: say so, rather than offer Connect to someone who may be signed in.
-              <span className="text-meta text-muted">{c("loading")}</span>
-            ) : (
-              !flowing && (
-                <Button variant="filled" disabled={busy !== null} onClick={() => void login(LOCAL)}>
-                  {c("connect")}
-                </Button>
-              )
-            )}
-          </Row>
-          {confirming && (
-            <div className="pb-3">
-              <div className={CONFIRM_INLINE}>
-                <p>{c("disconnectBody")}</p>
-                <div className={SETTINGS_ACTIONS}>
-                  <Button onClick={() => setConfirming(false)}>{t("dialog.cancel")}</Button>
-                  <Button variant="danger" disabled={busy !== null} onClick={() => void disconnect()}>
-                    {c("disconnect")}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-          {!rove && local?.status?.login && (
-            <div className="pb-3">
-              <DeviceFlow login={local.status.login} onCancel={() => void cancel(LOCAL)} />
-            </div>
+    <div className={BENTO}>
+      <div className={bentoCardClass(true)}>
+        <div className={`${BENTO_HEAD} w-narrow:flex-wrap`}>
+          {/* On a phone the account and its button drop under the name, so the description keeps its width. */}
+          <span className="flex min-w-0 flex-1 items-center gap-3 w-narrow:basis-full">
+            <GithubMark />
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className={SETTINGS_NAME}>GitHub</span>
+              <span className={SETTINGS_NOTE}>{c("githubDescription")}</span>
+            </span>
+          </span>
+          {rove ? (
+            <>
+              <span className={SETTINGS_VALUE}>@{rove}</span>
+              <Button variant="action" disabled={busy !== null} onClick={() => setConfirming(true)}>
+                {c("disconnect")}
+              </Button>
+            </>
+          ) : !local ? (
+            // Not known yet: say so, rather than offer Connect to someone who may be signed in.
+            <span className="text-meta text-muted">{c("loading")}</span>
+          ) : (
+            !flowing && (
+              <Button variant="filled" disabled={busy !== null} onClick={() => void login(LOCAL)}>
+                {c("connect")}
+              </Button>
+            )
           )}
         </div>
-      </Group>
-      {/* Listed from the start, each row "checking…", so nothing jumps in when the answers land; gone only once this machine is known to be signed out. */}
+        {confirming && (
+          <div className={CONFIRM_INLINE}>
+            <p>{c("disconnectBody")}</p>
+            <div className={SETTINGS_ACTIONS}>
+              <Button onClick={() => setConfirming(false)}>{t("dialog.cancel")}</Button>
+              <Button variant="danger" disabled={busy !== null} onClick={() => void disconnect()}>
+                {c("disconnect")}
+              </Button>
+            </div>
+          </div>
+        )}
+        {!rove && local?.status?.login && <DeviceFlow login={local.status.login} onCancel={() => void cancel(LOCAL)} />}
+      </div>
+      {/* Listed from the start, each card "checking…", so nothing jumps in when the answers land; gone only once this machine is known to be signed out. */}
       {(rove || !local) && (
-        <Group title={c("machines")} hint={c("machinesHint")}>
-          <MachineLine
-            name={c("thisMachine")}
-            probe={local}
-            machine={null}
-            rove={rove}
-            busy={busy !== null}
-            onCancel={() => void cancel(LOCAL)}
-          />
-          {machines.map((m) => (
-            <MachineLine
-              key={m.alias}
-              name={m.alias}
-              probe={probes[m.alias]}
-              machine={m.state}
+        <section className="col-span-2 flex flex-col pt-4 w-narrow:col-span-1">
+          <div className={BENTO_TITLE}>
+            <h2 className={SETTINGS_GROUP_LABEL}>{c("machines")}</h2>
+            {refreshing ? (
+              <span className="text-meta text-muted">{c("refreshing")}</span>
+            ) : (
+              <Button onClick={() => void refresh()}>{c("refresh")}</Button>
+            )}
+          </div>
+          <p className={SETTINGS_GROUP_HINT}>{c("machinesHint")}</p>
+          <div className={BENTO}>
+            <MachineCard
+              name={c("thisMachine")}
+              probe={local}
+              machine={null}
               rove={rove}
               busy={busy !== null}
-              onSync={() => void sync(m.alias)}
-              onLogin={() => void login(m.alias)}
-              onCancel={() => void cancel(m.alias)}
+              onCancel={() => void cancel(LOCAL)}
             />
-          ))}
-          <div className="py-2.5">
-            <Button variant="action" disabled={refreshing} onClick={() => void refresh()}>
-              {refreshing ? c("refreshing") : c("refresh")}
-            </Button>
+            {machines.map((m) => (
+              <MachineCard
+                key={m.alias}
+                name={m.alias}
+                probe={probes[m.alias]}
+                machine={m.state}
+                rove={rove}
+                busy={busy !== null}
+                onSync={() => void sync(m.alias)}
+                onLogin={() => void login(m.alias)}
+                onCancel={() => void cancel(m.alias)}
+              />
+            ))}
           </div>
-        </Group>
+        </section>
       )}
-    </>
+    </div>
   )
 }
 
