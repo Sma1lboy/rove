@@ -25,7 +25,6 @@
 <link rel="stylesheet" href="/base.css">
 <style>
 .hero h1{max-width:none}
-.demo{margin:0}
 .tui-scroll{overflow-x:auto}
 .tui{width:1200px;min-width:1200px;max-width:none}
 .tui text{font-size:var(--fs-s)}
@@ -290,15 +289,13 @@
           <button class="alt" type="button" data-cmd="bun install -g @sma1lboy/rove" title="bun install -g @sma1lboy/rove">bun</button>
           <button class="alt" type="button" data-cmd="npx @sma1lboy/rove" title="npx @sma1lboy/rove">npx</button>
         </p>
-        <p id="installHelp" class="install-help" aria-live="polite">macOS / Linux: use a POSIX shell. Requires git and a signed-in agent CLI, such as Claude Code. The installer sets up Bun if needed.</p>
-        <p class="install-help"><a href="#get" data-i18n="hero.allInstall">All install options: next and nightly builds, desktop and phone apps ↓</a></p>
       </div>
     </div>
 
     <div class="hero-r">
-      <figure class="demo">
-        <video id="heroVideo" src="/assets/hero-typed-en.mp4" poster="/assets/hero-typed-en-poster.webp" autoplay muted loop playsinline preload="metadata"
-               aria-label="A 40-second film of Rove: a task is typed in one sentence, a second agent reviews it, one agent hands work to three others, the terminal closes while they keep working, and the same list opens in a browser and on a phone"></video>
+      <figure class="appwin">
+        <div class="appwin-bar" aria-hidden="true"><i></i><i></i><i></i><span>Rove</span></div>
+        <img src="/assets/app-web.webp" width="1600" height="1000" alt="Rove open in a browser: four tasks in the sidebar running on Claude Code and Codex, one agent's conversation in the middle, and the diff of its change on the right">
       </figure>
     </div>
   </section>
@@ -401,6 +398,7 @@
     <h2 data-i18n="get.h">Get Rove</h2>
 
     <h3 class="sub" data-i18n="get.tui">Terminal app</h3>
+        <p id="installHelp" class="t-note get-req" aria-live="polite">macOS / Linux: use a POSIX shell. Requires git and a signed-in agent CLI, such as Claude Code. The installer sets up Bun if needed.</p>
     <div class="chan">
       <div class="chan-row">
         <div class="chan-n"><b data-i18n="get.stable">Stable</b><span data-i18n="get.stableD">The tested release. Install this one if you are new.</span></div>

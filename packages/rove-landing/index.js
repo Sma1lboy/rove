@@ -10,7 +10,7 @@ var ROVE_I18N = (function () {
     'why.p2': '<b>额度用完了？换一个 agent。</b>Claude Code 干到一半额度没了，把任务换给 Codex 或者别的 agent。它读一遍前一个做了什么，从那里接着干。',
     'why.p3': '<b>agent 之间直接对话。</b>没有 Rove 时，每个 agent 各占一个窗口，你在中间复制粘贴。在这里，一个 agent 把活交给另一个，回报自己送回来。',
     'hero.engines': '你已经在用的 agent 都能接进来',
-    'hero.allInstall': '全部安装方式：next 和 nightly 版本、桌面和手机应用 ↓',
+    'hero.shotAlt': '浏览器里打开的 Rove：侧栏有四个任务，分别跑在 Claude Code 和 Codex 上；中间是其中一个 agent 的对话，右边是它改动的 diff',
     'get.h': '获取 Rove',
     'get.tui': '终端版',
     'get.stable': '稳定版',
@@ -62,7 +62,7 @@ var ROVE_I18N = (function () {
     'why.p2': '<b>Out of quota? Switch to another agent.</b> When Claude Code hits its usage limit halfway through a task, switch the task to Codex or any other agent. It reads what the first one did and continues from there.',
     'why.p3': '<b>Agents talk to each other directly.</b> Without Rove, each agent sits in its own window and you copy text between them. Here one agent hands a task to another and gets the report back by itself.',
     'hero.engines': 'Works with the agents you already have',
-    'hero.allInstall': 'All install options: next and nightly builds, desktop and phone apps ↓',
+    'hero.shotAlt': 'Rove open in a browser: four tasks in the sidebar running on Claude Code and Codex, one agent\'s conversation in the middle, and the diff of its change on the right',
     'get.h': 'Get Rove',
     'get.tui': 'Terminal app',
     'get.stable': 'Stable',
@@ -129,12 +129,8 @@ var ROVE_I18N = (function () {
       var v = t(el.getAttribute('data-i18n-html'));
       if (v) el.innerHTML = v;
     });
-    var hero = document.getElementById('heroVideo');
-    var heroSrc = '/assets/hero-typed-' + lang + '.mp4';
-    if (hero && hero.getAttribute('src') !== heroSrc) {
-      hero.poster = '/assets/hero-typed-' + lang + '-poster.webp';
-      hero.src = heroSrc;
-    }
+    var shot = document.querySelector('.appwin img');
+    if (shot) shot.alt = t('hero.shotAlt');
     document.dispatchEvent(new Event('rove:language'));
     var label = document.getElementById('copyLabel');
     if (label) label.textContent = t('copy.hint');

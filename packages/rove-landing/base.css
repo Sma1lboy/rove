@@ -101,7 +101,6 @@ h1 .thin,h1 .acc{font-weight:400;color:var(--ink-2)}
 .hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);gap:48px;padding:24px 0 8px;align-items:start}
 .hero-l{min-width:0}
 .hero-r{min-width:0}
-.demo video{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;background:#FAF8F5;border:1px solid var(--rule);border-radius:14px;box-shadow:0 24px 60px -30px rgb(15 17 19 / .25)}
 
 /* install --------------------------------------------------------------- */
 .install-wrap{max-width:600px}
@@ -158,8 +157,14 @@ select{
 /* centred hero: title, lede, agent marquee, install, then the film ------- */
 .hero-c{display:flex;flex-direction:column;align-items:center;gap:56px;padding:64px 0 8px;text-align:center}
 .hero-c .hero-l,.hero-c .hero-r{width:100%}
-.hero-c .hero-r{max-width:1080px}
-.hero-c h1,.hero-c .lede,.hero-c .install-wrap,.hero-c .install-help{margin-left:auto;margin-right:auto}
+.hero-c .hero-r{max-width:1240px}
+.appwin{border:1px solid var(--rule);border-radius:14px;overflow:hidden;background:#141413;box-shadow:0 40px 80px -40px rgb(15 17 19 / .45)}
+.appwin-bar{display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;position:relative;border-bottom:1px solid #2A2A28}
+.appwin-bar i{width:11px;height:11px;border-radius:50%;background:#3A3A37}
+.appwin-bar span{position:absolute;left:0;right:0;text-align:center;font-size:var(--fs-s);color:#8A8A85;pointer-events:none}
+.appwin img{display:block;width:100%;height:auto}
+.get-req{margin:0 0 12px;max-width:80ch}
+.hero-c h1,.hero-c .lede,.hero-c .install-wrap{margin-left:auto;margin-right:auto}
 .hero-c .lede{max-width:58ch}
 .hero-c .install-platform,.hero-c .alts{justify-content:center}
 .engines{margin:0 0 36px}
