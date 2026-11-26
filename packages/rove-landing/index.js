@@ -9,7 +9,7 @@ var ROVE_I18N = (function () {
     'why.h': '为什么要不止一个 agent？',
     'why.p2': '<b>额度用完了？换一个 agent。</b>Claude Code 干到一半额度没了，把任务换给 Codex 或者别的 agent。它读一遍前一个做了什么，从那里接着干。',
     'why.p3': '<b>agent 之间直接对话。</b>没有 Rove 时，每个 agent 各占一个窗口，你在中间复制粘贴。在这里，一个 agent 把活交给另一个，回报自己送回来。',
-    'hero.engines': '支持', 'hero.enginesMore': '还有十几个 →',
+    'hero.engines': '你已经在用的 agent 都能接进来',
     'hero.allInstall': '全部安装方式：next 和 nightly 版本、桌面和手机应用 ↓',
     'get.h': '获取 Rove',
     'get.tui': '终端版',
@@ -61,7 +61,7 @@ var ROVE_I18N = (function () {
     'why.h': 'Why more than one agent?',
     'why.p2': '<b>Out of quota? Switch to another agent.</b> When Claude Code hits its usage limit halfway through a task, switch the task to Codex or any other agent. It reads what the first one did and continues from there.',
     'why.p3': '<b>Agents talk to each other directly.</b> Without Rove, each agent sits in its own window and you copy text between them. Here one agent hands a task to another and gets the report back by itself.',
-    'hero.engines': 'Works with', 'hero.enginesMore': 'and a dozen more →',
+    'hero.engines': 'Works with the agents you already have',
     'hero.allInstall': 'All install options: next and nightly builds, desktop and phone apps ↓',
     'get.h': 'Get Rove',
     'get.tui': 'Terminal app',
@@ -155,6 +155,15 @@ var ROVE_I18N = (function () {
     });
   }
   apply(); // first paint: honors ?lang= / stored pref / browser language
+
+  // The marquee loops over two copies of the list; with reduced motion it stays one wrapped row.
+  var mq = document.getElementById('engineMarquee');
+  if (mq && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    var copy = mq.firstElementChild.cloneNode(true);
+    copy.setAttribute('aria-hidden', 'true');
+    mq.appendChild(copy);
+    mq.classList.add('is-on');
+  }
 
   return { t: t };
 })();
