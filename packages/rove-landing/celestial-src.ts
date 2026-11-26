@@ -67,6 +67,9 @@ if (canvas && ctx) {
   let [real, realPen] = board(1, 1)
   let [cells, cellPen] = board(1, 1)
   let [hole, holePen] = board(1, 1)
+  /** Each cell's eased colour, by row * 512 + col, and whether it has one yet. */
+  const held = new Float32Array(512 * 256 * 3)
+  const seen = new Uint8Array(512 * 256)
   let line = -1
   let last = 0
   let elapsed = 0
@@ -163,10 +166,21 @@ if (canvas && ctx) {
         if (px < 0 || py < 0 || px >= pixels.width || py >= pixels.height) continue
         const i = (py * pixels.width + px) * 4
         const solid = (pixels.data[i + 3] ?? 0) / 255
-        if (solid < 0.15) continue
-        const r = pixels.data[i] ?? 0
-        const g = pixels.data[i + 1] ?? 0
-        const b = pixels.data[i + 2] ?? 0
+        if (solid < 0.15) {
+          seen[row * 512 + col] = 0
+          continue
+        }
+        // Each cell eases toward the film's colour, so compression noise does not make its number flicker.
+        const k = (row * 512 + col) * 3
+        const fresh = !seen[k / 3]
+        seen[k / 3] = 1
+        for (let c = 0; c < 3; c++) {
+          const now = pixels.data[i + c] ?? 0
+          held[k + c] = fresh ? now : (held[k + c] ?? now) + (now - (held[k + c] ?? now)) * 0.25
+        }
+        const r = Math.round(held[k] ?? 0)
+        const g = Math.round(held[k + 1] ?? 0)
+        const b = Math.round(held[k + 2] ?? 0)
         cellPen.fillStyle = `rgb(${r} ${g} ${b})`
         if (solid < 0.7) {
           // The edge: some cells are missing, the rest are small, pale and blank.
@@ -181,7 +195,11 @@ if (canvas && ctx) {
         cellPen.fillRect(x, y, TILE, TILE)
         cellPen.globalAlpha = 0.8
         cellPen.fillStyle = light > 0.55 ? "#3a1c12" : "#fff"
-        cellPen.fillText(String(Math.min(99, Math.floor(light * 100))).padStart(2, "0"), x + TILE / 2, y + TILE / 2 + 0.5)
+        cellPen.fillText(
+          String(Math.min(99, Math.floor(light * 100))).padStart(2, "0"),
+          x + TILE / 2,
+          y + TILE / 2 + 0.5,
+        )
       }
     }
     cellPen.globalAlpha = 1
@@ -196,7 +214,8 @@ if (canvas && ctx) {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     const at = Math.max(0, Math.min(canvas.width, Math.round(line * dpr)))
     if (at > 0) ctx.drawImage(real, 0, 0, at, canvas.height, 0, 0, at, canvas.height)
-    if (at < canvas.width) ctx.drawImage(cells, at, 0, canvas.width - at, canvas.height, at, 0, canvas.width - at, canvas.height)
+    if (at < canvas.width)
+      ctx.drawImage(cells, at, 0, canvas.width - at, canvas.height, at, 0, canvas.width - at, canvas.height)
     // The line itself, fading out toward both ends.
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     const style = getComputedStyle(canvas)
