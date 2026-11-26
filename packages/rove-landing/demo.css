@@ -143,6 +143,7 @@
 .d-item.is-ok em{color:var(--d-ok)}
 @keyframes d-in{from{opacity:0;transform:translateY(.5em)}to{opacity:1;transform:none}}
 @keyframes d-pane{from{opacity:0;flex-grow:.001}to{opacity:1;flex-grow:1}}
+@keyframes d-fade{from{opacity:0}to{opacity:1}}
 @keyframes d-pulse{0%,100%{opacity:1}50%{opacity:.35}}
 @keyframes d-blink{50%{opacity:0}}
 @keyframes d-spin{to{transform:rotate(1turn)}}

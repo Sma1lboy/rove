@@ -125,10 +125,25 @@
       },
       pageStyle: function () { if (!dry) document.getElementById('dPage').classList.add('is-styled'); },
       /* Bring one pane (and its sidebar row) to the front; the others keep running out of view. */
-      show: function (paneId) {
+      show: function (ids) {
         if (dry) return;
-        [].forEach.call(root.querySelectorAll('.d-pane'), function (p) { p.hidden = p.id !== 'dPane-' + paneId; });
-        kit.select(paneId);
+        [].forEach.call(root.querySelectorAll('.d-pane'), function (p) {
+          var on = ids.indexOf(p.id.slice(6)) >= 0;
+          // A pane coming back fades in; replaying its opening animation would make the row jump.
+          if (on && p.hidden) p.style.animation = 'd-fade .3s both';
+          p.hidden = !on;
+        });
+        [].forEach.call(root.querySelectorAll('.d-row'), function (r) {
+          r.classList.toggle('is-on', ids.indexOf(r.id.slice(5)) >= 0);
+        });
+      },
+      /* A spinner that does not hold the script: it stays until the returned function is called. */
+      spin: function (paneId, label) {
+        if (dry || still) return function () {};
+        var box = document.querySelector('#dPane-' + paneId + ' .d-lines');
+        var p = el('p', 'd-line is-think', '<i></i>' + (label || 'Working…'));
+        box.appendChild(p);
+        return function () { if (p.parentNode) p.parentNode.removeChild(p); };
       },
       paneHead: function (paneId, o) {
         if (dry) return;
@@ -227,7 +242,7 @@
 
   var scenes = {
     /* One agent splits a feature into a backend and a frontend part, two others build them,
-       and the view visits each child before the reports come back. */
+       and the two children run side by side before the reports come back. */
     dispatch: async function (k) {
       await k.shell('rove');
       k.usage('Claude', 42); k.usage('Codex', 8);
@@ -248,60 +263,60 @@
       await k.w(300);
       await k.say('a', "The API and the page don't share files. I'll hand out both and wire them together.");
       await k.w(400);
-      k.line('a', '<b>rove api add</b> --title wishlist-api --command codex', 'is-tool');
+      k.line('a', '<b>rove api add</b> --title wishlist-api --command claude', 'is-tool');
       await k.w(260);
-      k.row({ id: 'b', title: 'wishlist-api', tag: 'codex', status: 'work', child: true, after: 'a' });
+      k.row({ id: 'b', title: 'wishlist-api', tag: 'claude', status: 'work', child: true, after: 'a' });
       await k.w(450);
-      k.line('a', '<b>rove api add</b> --title wishlist-ui --command gemini', 'is-tool');
+      k.line('a', '<b>rove api add</b> --title wishlist-ui --command codex', 'is-tool');
       await k.w(260);
-      k.row({ id: 'c', title: 'wishlist-ui', tag: 'gemini', status: 'work', child: true, after: 'b' });
+      k.row({ id: 'c', title: 'wishlist-ui', tag: 'codex', status: 'work', child: true, after: 'b' });
       await k.think('a', 1100, 'Waiting for two reports…');
 
-      k.pane({ id: 'b', label: 'codex', where: 'wishlist-api' });
-      k.show('b');
-      k.line('b', 'Add GET, POST and DELETE /api/wishlist on a new wishlist table. Report the route shapes.', 'is-prompt');
-      await k.think('b', 800);
-      k.line('b', '<b>Ran</b> bun run db:generate wishlist', 'is-tool');
-      k.line('b', 'created migrations/0014_wishlist.sql', 'is-out');
-      await k.w(350);
-      k.line('b', '<b>Edited</b> src/api/wishlist.ts (+62 -0)', 'is-tool');
-      await k.burst('b', [
-        ["+  app.get('/api/wishlist', auth, (c) =&gt; list(c.var.user))", 'is-add'],
-        ["+  app.post('/api/wishlist', auth, (c) =&gt; add(c.var.user, c.req.json()))", 'is-add'],
-        ["+  app.delete('/api/wishlist/:id', auth, (c) =&gt; remove(c.var.user, c.req.param('id')))", 'is-add'],
-      ]);
-      await k.think('b', 800);
-      k.line('b', '<b>Ran</b> bun test src/api/wishlist', 'is-tool');
-      k.line('b', '9 pass, 0 fail', 'is-out');
-      await k.w(300);
-      await k.say('b', 'Three routes are in and tested. Reported the shapes to the parent task.');
-      k.status('b', 'done'); k.inbox(1);
-      await k.w(900);
-
-      k.pane({ id: 'c', label: 'gemini', where: 'wishlist-ui' });
-      k.show('c');
+      // Both children on screen at once, each in its own agent's terminal, lines landing in turn.
+      k.pane({ id: 'b', label: 'claude', where: 'wishlist-api' });
+      k.pane({ id: 'c', label: 'codex', where: 'wishlist-ui' });
+      k.show(['b', 'c']);
+      k.line('b', 'Add GET, POST and DELETE /api/wishlist on a new wishlist table.', 'is-prompt');
       k.line('c', 'Build the /wishlist page and a save button on the product page.', 'is-prompt');
-      await k.think('c', 800);
-      k.line('c', '<b>Edit</b> web/pages/wishlist.tsx', 'is-tool');
-      await k.burst('c', [
-        ['+  const { data: items } = useQuery(["wishlist"], fetchWishlist)', 'is-add'],
-        ['+  return &lt;ProductGrid items={items} empty="Nothing saved yet" /&gt;', 'is-add'],
-      ]);
-      await k.w(300);
-      k.line('c', '<b>Edit</b> web/pages/product.tsx', 'is-tool');
-      await k.burst('c', [['+  &lt;SaveButton productId={product.id} /&gt;', 'is-add']]);
-      await k.think('c', 700);
-      k.line('c', '<b>Shell</b> bun run typecheck', 'is-tool');
-      k.line('c', 'no errors', 'is-out');
-      await k.w(300);
-      await k.say('c', 'The page and the save button are in.');
-      k.status('c', 'done'); k.inbox(2);
+      var sb = k.spin('b'), sc = k.spin('c');
       await k.w(900);
-
-      k.show('a');
-      k.line('a', '<b>wishlist-api</b> (codex) reported: 3 routes, 9 tests, +84 −0', 'is-report');
+      sb(); k.line('b', '<b>Bash</b>(bun run db:generate wishlist)', 'is-tool');
+      k.line('b', 'created migrations/0014_wishlist.sql', 'is-out');
+      sb = k.spin('b');
       await k.w(450);
-      k.line('a', '<b>wishlist-ui</b> (gemini) reported: page and save button, +71 −3', 'is-report');
+      sc(); k.line('c', '<b>Edited</b> web/pages/wishlist.tsx (+38 -0)', 'is-tool');
+      k.line('c', '+  const { data: items } = useQuery(["wishlist"], fetchWishlist)', 'is-add');
+      await k.w(300);
+      k.line('c', '+  return &lt;ProductGrid items={items} /&gt;', 'is-add');
+      sc = k.spin('c');
+      await k.w(450);
+      sb(); k.line('b', '<b>Write</b>(src/api/wishlist.ts)', 'is-tool');
+      k.line('b', "+  app.get('/api/wishlist', auth, list)", 'is-add');
+      await k.w(250);
+      k.line('b', "+  app.post('/api/wishlist', auth, add)", 'is-add');
+      await k.w(250);
+      sc(); k.line('c', '<b>Edited</b> web/pages/product.tsx (+4 -1)', 'is-tool');
+      k.line('c', '+  &lt;SaveButton productId={product.id} /&gt;', 'is-add');
+      sc = k.spin('c');
+      k.line('b', "+  app.delete('/api/wishlist/:id', auth, remove)", 'is-add');
+      sb = k.spin('b');
+      await k.w(800);
+      sc(); k.line('c', '<b>Ran</b> bun run typecheck', 'is-tool');
+      k.line('c', 'no errors', 'is-out');
+      await k.w(350);
+      sb(); k.line('b', '<b>Bash</b>(bun test src/api/wishlist)', 'is-tool');
+      k.line('b', '9 pass, 0 fail', 'is-out');
+      await k.w(350);
+      await k.say('c', 'The page and the save button are in.');
+      k.status('c', 'done'); k.inbox(1);
+      await k.say('b', 'Three routes are in and tested.');
+      k.status('b', 'done'); k.inbox(2);
+      await k.w(1100);
+
+      k.show(['a']);
+      k.line('a', '<b>wishlist-api</b> (claude) reported: 3 routes, 9 tests, +84 −0', 'is-report');
+      await k.w(450);
+      k.line('a', '<b>wishlist-ui</b> (codex) reported: page and save button, +42 −1', 'is-report');
       await k.think('a', 900, 'Wiring the page to the API…');
       k.line('a', '<b>Update</b>(web/lib/api.ts)', 'is-tool');
       await k.burst('a', [["+  export const fetchWishlist = () => get('/api/wishlist')", 'is-add']]);
