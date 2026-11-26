@@ -22,6 +22,10 @@ export const en = {
     "Promote moves them up one level and keeps their worktrees and sessions. Remove with children removes them too.",
   childrenPromote: "promote children",
   childrenCascade: "remove with children",
+  /** The archive dialog's version of the two; the title and the promote button are shared. */
+  archiveChildrenBody:
+    "Promote moves them up one level and keeps them running. Archive with children hides them too and ends their sessions.",
+  archiveChildrenAll: "archive with children",
   forceDeleteTitle: '"{title}" has uncommitted changes',
   forceDeleteConfirm: "force remove",
   /** Rows an older Rove added by itself for worktrees made outside it. */
@@ -55,6 +59,8 @@ export const zh: typeof en = {
   childrenBody: "提升会把它们上移一级，并保留它们的 worktree 和会话。连同子任务移除会把它们一并移除。",
   childrenPromote: "提升子任务",
   childrenCascade: "连同子任务移除",
+  archiveChildrenBody: "提升会把它们上移一级，并让它们继续运行。连同子任务归档会把它们一并隐藏，并结束它们的会话。",
+  archiveChildrenAll: "连同子任务归档",
   forceDeleteTitle: "「{title}」有未提交的改动",
   forceDeleteConfirm: "强制移除",
   legacyAdoptTitle: "移除 {count} 个 Rove 自己加进来的会话？",

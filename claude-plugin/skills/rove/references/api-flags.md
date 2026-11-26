@@ -271,7 +271,7 @@ land            --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delet
                 --remove-worktree(true) --repo
 sync            --task-id(REQ) --repo
 delete          --task-id --group --cascade --force --delete-branch --delete-remote --wait
-archive         --task-id(REQ) --force
+archive         --task-id(REQ) --force --promote-children
 unarchive       --task-id(REQ)
 github-login    --cancel
 github-logout   (none)

@@ -14,6 +14,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { everyVisible } from "./every-visible.ts"
 import { useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import { pathParts } from "./rail-labels.ts"
 import { isNoProject } from "./rail.ts"
 import { useStore } from "./store.ts"
 import { dialog, menu } from "./ui.ts"
@@ -57,9 +58,9 @@ export function repoKey(repo: string): string {
 
 /** The project's name; a clash adds the parent folder (the TUI's `sidebarProjectLabel`). */
 export function projectLabel(repo: string, all: readonly string[]): string {
-  const parts = repo.split("/").filter(Boolean)
+  const parts = pathParts(repo)
   const base = parts[parts.length - 1] ?? repo
-  const clash = all.some((other) => other !== repo && other.split("/").filter(Boolean).pop() === base)
+  const clash = all.some((other) => other !== repo && pathParts(other).pop() === base)
   return clash && parts.length > 1 ? `${parts[parts.length - 2]}/${base}` : base
 }
 

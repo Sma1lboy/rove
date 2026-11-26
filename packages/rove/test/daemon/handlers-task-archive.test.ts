@@ -20,11 +20,15 @@ const TASKS = [PARENT, CHILD, GRANDCHILD, OTHER, MAIN, CHECKOUT]
 function archiveCtx(states: Record<string, string> = {}) {
   const calls: Array<[string, boolean]> = []
   const stopped: string[] = []
+  const promoted: string[] = []
   const { ctx } = fakeCtx({
     listTasks: () => TASKS,
     getTask: (id: string) => TASKS.find((t) => t.id === id),
     setArchived: async (id: string, archived: boolean) => {
       calls.push([id, archived])
+    },
+    promoteChildren: async (id: string) => {
+      promoted.push(id)
     },
   })
   const activity = { ...ctx.activity, stateOf: (id: string) => states[id] } as unknown as typeof ctx.activity
@@ -35,7 +39,7 @@ function archiveCtx(states: Record<string, string> = {}) {
     },
   } as typeof ctx.runtime
   const withActivity = { ...ctx, activity, runtime }
-  return { ctx: withActivity, calls, stopped }
+  return { ctx: withActivity, calls, stopped, promoted }
 }
 
 describe("task.archive", () => {
@@ -49,6 +53,16 @@ describe("task.archive", () => {
       ["c", true],
       ["p", true],
     ])
+  })
+
+  it("with promote, archives the task alone and moves its children up, still running", async () => {
+    const { ctx, calls, stopped, promoted } = archiveCtx({ g: "running" })
+    await expect(dispatch("task.archive", { taskId: "p", archived: true, promote: true }, ctx)).resolves.toEqual({
+      archived: ["p"],
+    })
+    expect(promoted).toEqual(["p"])
+    expect(calls).toEqual([["p", true]])
+    expect(stopped).toEqual(["p"])
   })
 
   it("takes along a bare checkout the task cut, which has no row to archive it from", async () => {
