@@ -163,7 +163,8 @@ select{
 .appwin-bar{display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;position:relative;border-bottom:1px solid #2A2A28}
 .appwin-bar i{width:11px;height:11px;border-radius:50%;background:#3A3A37}
 .appwin-bar span{position:absolute;left:0;right:0;text-align:center;font-size:var(--fs-s);color:#8A8A85;pointer-events:none}
-.appwin img{display:block;width:100%;height:auto}
+.scenes button{position:relative}
+.scenes button[aria-pressed="true"]::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--accent);transform-origin:left;transform:scaleX(var(--p,0))}
 .get-req{margin:0 0 12px;max-width:80ch}
 .hero-c h1,.hero-c .lede,.hero-c .install-wrap{margin-left:auto;margin-right:auto}
 .hero-c .lede{max-width:58ch}

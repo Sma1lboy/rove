@@ -10,10 +10,11 @@ var ROVE_I18N = (function () {
     'why.p2': '<b>额度用完了？换一个 agent。</b>Claude Code 干到一半额度没了，把任务换给 Codex 或者别的 agent。它读一遍前一个做了什么，从那里接着干。',
     'why.p3': '<b>agent 之间直接对话。</b>没有 Rove 时，每个 agent 各占一个窗口，你在中间复制粘贴。在这里，一个 agent 把活交给另一个，回报自己送回来。',
     'hero.engines': '你已经在用的 agent 都能接进来',
-    'scene.split': '两个 agent 并排', 'scene.review': '审它改了什么', 'scene.compare': '一句话，两个 agent 各做一遍',
-    'scene.splitAlt': '浏览器里的 Rove。一个任务分成左右两栏：左边 Claude Code 改完了结账代码，右边 Codex 正在审这份改动。',
-    'scene.reviewAlt': '浏览器里的 Rove。中间是 Claude Code 的对话，右边面板逐行列出它改的代码。',
-    'scene.compareAlt': '浏览器里的 Rove。同一句话交给 Claude Code 和 Codex 各做一遍，两边的结果和改动的文件并排列出，可以留下其中一个。',
+    'scene.dispatch': '把活分给别的 agent', 'scene.swap': '额度用完，换一个接着干', 'scene.machines': '跑在别的机器上', 'scene.split': '两个 agent 并排',
+    'scene.dispatchAlt': 'Rove 界面的动画演示：Claude Code 把一件事拆成三份，自己做一份，另外两份交给 Codex 和 Gemini；两个子任务出现在侧栏里，做完后把结果报回来。',
+    'scene.swapAlt': 'Rove 界面的动画演示：Claude Code 做到一半额度用完，任务换给 Codex；Codex 读完之前的对话，在同一个分支上接着做完。',
+    'scene.machinesAlt': 'Rove 界面的动画演示：在这台电脑上新建任务时选了另一台机器 gpu-box，文件和命令都在那台机器上，训练结果报回到这里。',
+    'scene.splitAlt': 'Rove 界面的动画演示：同一个任务分成两栏，左边 Claude Code 改代码，右边 Codex 审这份改动并指出一个 bug，左边随后修掉。',
     'get.h': '获取 Rove',
     'get.tui': '终端版',
     'get.stable': '稳定版',
@@ -59,10 +60,11 @@ var ROVE_I18N = (function () {
     'why.p2': '<b>Out of quota? Switch to another agent.</b> When Claude Code hits its usage limit halfway through a task, switch the task to Codex or any other agent. It reads what the first one did and continues from there.',
     'why.p3': '<b>Agents talk to each other directly.</b> Without Rove, each agent sits in its own window and you copy text between them. Here one agent hands a task to another and gets the report back by itself.',
     'hero.engines': 'Works with the agents you already have',
-    'scene.split': 'Two agents side by side', 'scene.review': 'Review the change', 'scene.compare': 'One prompt, two agents',
-    'scene.splitAlt': 'Rove in a browser. One task is split in two: Claude Code on the left has changed the checkout code, and Codex on the right is reviewing that change.',
-    'scene.reviewAlt': 'Rove in a browser. Claude Code\'s conversation is in the middle, and a panel on the right lists the lines it changed.',
-    'scene.compareAlt': 'Rove in a browser. The same prompt went to Claude Code and Codex; their results and changed files are listed side by side, with a button to keep one.',
+    'scene.dispatch': 'Hand work to other agents', 'scene.swap': 'Out of quota? Switch agent', 'scene.machines': 'Run on another machine', 'scene.split': 'Two agents side by side',
+    'scene.dispatchAlt': 'An animated drawing of Rove. Claude Code splits a job in three, keeps one part, and hands the other two to Codex and Gemini. The two child tasks appear in the sidebar and report back when they finish.',
+    'scene.swapAlt': 'An animated drawing of Rove. Claude Code runs out of quota halfway through a task. The task moves to Codex, which reads the earlier conversation and finishes on the same branch.',
+    'scene.machinesAlt': 'An animated drawing of Rove. A new task is started from this computer on another machine, gpu-box. Its files and commands are on that machine, and the training result is reported back here.',
+    'scene.splitAlt': 'An animated drawing of Rove. One task is split into two panes: Claude Code changes the code on the left, Codex reviews the change on the right and points out a bug, and Claude Code fixes it.',
     'get.h': 'Get Rove',
     'get.tui': 'Terminal app',
     'get.stable': 'Stable',
@@ -110,21 +112,14 @@ var ROVE_I18N = (function () {
 
   function t(key) { return dicts[lang][key] || dicts.en[key] || ''; }
 
-  var scene = 'split';
+  // demo.js announces the scene it plays; its description is the window's accessible name.
+  var scene = 'dispatch';
   function showScene(name) {
     scene = name;
-    var img = document.getElementById('sceneImg');
-    if (!img) return;
-    img.src = '/assets/app-' + name + '.webp';
-    img.alt = t('scene.' + name + 'Alt');
-    document.querySelectorAll('#scenes button').forEach(function (b) {
-      b.setAttribute('aria-pressed', String(b.getAttribute('data-scene') === name));
-    });
+    var wrap = document.getElementById('demoWrap');
+    if (wrap) wrap.setAttribute('aria-label', t('scene.' + name + 'Alt'));
   }
-  document.addEventListener('click', function (e) {
-    var b = e.target.closest && e.target.closest('#scenes button');
-    if (b) showScene(b.getAttribute('data-scene'));
-  });
+  document.addEventListener('rove:scene', function (e) { showScene(e.detail); });
 
   function apply() {
     document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
