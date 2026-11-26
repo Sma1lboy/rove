@@ -25,19 +25,7 @@
 <link rel="stylesheet" href="/base.css">
 <style>
 .hero h1{max-width:none}
-.tui-scroll{overflow-x:auto}
-.tui{width:1200px;min-width:1200px;max-width:none}
-.tui text{font-size:var(--fs-s)}
-.tui .real,.tui .rail-n{fill:var(--ink)}
-.tui .rail-repo,.tui .rail-s,.tui .pane-tag{fill:var(--ink-3)}
-.tui .rail-a{fill:var(--accent-text)}
-.tui #tkMark{transition:transform .2s var(--ease)}
-.tui .tk{cursor:pointer}
-.tui .tk:hover .rail-n{fill:var(--accent-text)}
-.tui .tk:focus-visible .hit{fill:none;stroke:var(--accent-line);stroke-width:1.5}
-.tui .hit{fill:transparent}
-@media (prefers-reduced-motion:reduce){.tui #tkMark{transition:none}}
-.bars{list-style:none;padding:0;display:grid;gap:24px}
+@media (prefers-reduced-motion:reduce){.bars{list-style:none;padding:0;display:grid;gap:24px}
 .bars li{display:grid;gap:6px}
 .bars .bar-l{font-weight:500}
 .bars .bar{display:block;height:8px;width:var(--w);background:var(--ink)}
@@ -179,38 +167,6 @@
 <script src="/install.js" defer></script>
 <script src="/copy.js" defer></script>
 <script src="/version.js" defer></script>
-<script>
-/* Picking a task moves the selection rectangle and swaps the two pane tags and
-   the scope line. Everything it swaps already lives on the row as data-*, so
-   the figure stays the single source for what it shows. */
-(function () {
-  function wire() {
-    var rows = [].slice.call(document.querySelectorAll('.tui .tk'));
-    if (!rows.length) return;
-    var mark = document.getElementById('tkMark');
-    var base = null;
-    function pick(g) {
-      var y = +g.querySelector('.hit').getAttribute('y');
-      if (base === null) base = y;
-      mark.style.transform = 'translateY(' + (y - base) + 'px)';
-      var d = g.dataset;
-      document.getElementById('tagA').textContent = d.eng;
-      document.getElementById('tagB').textContent = d.tab2;
-      document.getElementById('scopeTx').textContent = d.scope;
-      rows.forEach(function (o) { o.setAttribute('aria-pressed', String(o === g)); });
-    }
-    rows.forEach(function (g) {
-      g.addEventListener('click', function () { pick(g); });
-      g.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(g); }
-      });
-    });
-    pick(rows[0]);
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
-  else wire();
-})();
-</script>
 </head>
 <body>
 <a class="skip" href="#main" data-i18n="sheet.skip">Skip to content</a>
@@ -293,9 +249,14 @@
     </div>
 
     <div class="hero-r">
+      <div class="seg scenes" role="group" aria-label="Screenshots" id="scenes">
+        <button type="button" data-scene="split" aria-pressed="true" data-i18n="scene.split">Two agents side by side</button>
+        <button type="button" data-scene="review" aria-pressed="false" data-i18n="scene.review">Review the change</button>
+        <button type="button" data-scene="compare" aria-pressed="false" data-i18n="scene.compare">One prompt, two agents</button>
+      </div>
       <figure class="appwin">
         <div class="appwin-bar" aria-hidden="true"><i></i><i></i><i></i><span>Rove</span></div>
-        <img src="/assets/app-web.webp" width="1600" height="1000" alt="Rove open in a browser: four tasks in the sidebar running on Claude Code and Codex, and one agent's conversation with the change it made">
+        <img id="sceneImg" src="/assets/app-split.webp" width="1600" height="1000" alt="Rove in a browser. One task is split in two: Claude Code on the left has changed the checkout code, and Codex on the right is reviewing that change.">
       </figure>
     </div>
   </section>
@@ -306,72 +267,6 @@
     <div class="cards">
       <p class="card" data-i18n-html="why.p2"><b>Out of quota? Switch to another agent.</b> When Claude Code hits its usage limit halfway through a task, switch the task to Codex or any other agent. It reads what the first one did and continues from there.</p>
       <p class="card" data-i18n-html="why.p3"><b>Agents talk to each other directly.</b> Without Rove, each agent sits in its own window and you copy text between them. Here one agent hands a task to another and gets the report back by itself.</p>
-    </div>
-  </section>
-
-  <section class="note wide">
-    <h2 data-i18n="s1.h">What it looks like</h2>
-
-    <div class="fig-col">
-      <figure class="tui-scroll">
-        <svg class="tui" viewBox="0 0 1200 600" role="img"
-        aria-label="The Rove terminal: a task list on the left, the selected task's agent pane in the middle, a second tab on the right">
-        <rect class="v" x="1" y="1" width="1198" height="598" rx="12"/>
-        <line class="thin" x1="1" y1="41" x2="1199" y2="41"/>
-        <line class="thin" x1="1" y1="557" x2="1199" y2="557"/>
-        <text class="tx-s" x="18" y="28" data-i18n="s1.bar">Rove: 3 repos, 4 tasks, running in the background</text>
-        <line class="thin" x1="280" y1="41" x2="280" y2="557"/>
-        <line class="thin" x1="880" y1="41" x2="880" y2="557"/>
-
-        <text class="tx-s" x="18" y="70" data-i18n="s1.tasks">Tasks</text>
-        <text class="tx-m rail-repo" x="26" y="108">rove</text>
-        <text class="tx-m rail-repo" x="26" y="128">ledger-api, storefront</text>
-        <g id="tkRows">
-        <g class="tk" data-i="0" data-eng="claude" data-tab2="bun dev" data-scope="vs main" data-name="streaming-diff" tabindex="0" role="button" aria-label="Task streaming-diff"><rect class="hit" x="14" y="137" width="252" height="40"/><text class="tx-m rail-n" x="26" y="152">streaming-diff</text><text class="tx-m rail-a" x="196" y="152">+142</text><text class="tx-m rail-d" x="236" y="152">−31</text><text class="tx-m rail-s" x="26" y="169">⋮ Stream the diff pane</text></g>
-        <g class="tk" data-i="1" data-eng="codex" data-tab2="pytest" data-scope="working tree" data-name="oauth-refresh" tabindex="0" role="button" aria-label="Task oauth-refresh"><rect class="hit" x="14" y="185" width="252" height="40"/><text class="tx-m rail-n" x="26" y="200">oauth-refresh</text><text class="tx-m rail-a" x="196" y="200">+88</text><text class="tx-m rail-d" x="236" y="200">−54</text><text class="tx-m rail-s" x="26" y="217">● Refresh before 401</text></g>
-        <g class="tk" data-i="2" data-eng="copilot" data-tab2="psql" data-scope="vs main" data-name="ledger-migration" tabindex="0" role="button" aria-label="Task ledger-migration"><rect class="hit" x="14" y="233" width="252" height="40"/><text class="tx-m rail-n" x="26" y="248">ledger-migration</text><text class="tx-m rail-a" x="196" y="248">+34</text><text class="tx-m rail-d" x="236" y="248">−6</text><text class="tx-m rail-s" x="26" y="265">? Backfill the ledger</text></g>
-        <g class="tk" data-i="3" data-eng="kimi" data-tab2="git" data-scope="vs release/24.8" data-name="flaky-e2e" tabindex="0" role="button" aria-label="Task flaky-e2e"><rect class="hit" x="14" y="281" width="252" height="40"/><text class="tx-m rail-n" x="26" y="296">flaky-e2e</text><text class="tx-m rail-a" x="196" y="296">+21</text><text class="tx-m rail-d" x="236" y="296">−34</text><text class="tx-m rail-s" x="26" y="313">○ Why checkout flakes</text></g>
-        </g>
-        <rect id="tkMark" class="acc" x="14" y="137" width="252" height="40"/>
-
-        <text class="tx-m pane-tag" id="tagA" x="864" y="70" text-anchor="end">claude</text>
-        <text class="tx-m" x="300" y="72">›</text>
-        <text class="tx-m real" x="322" y="72">stream the diff pane instead of buffering</text>
-        <text class="tx-m" x="300" y="106">●</text>
-        <text class="tx-m real" x="322" y="106">I’ll parse git diff as a line stream, push</text>
-        <text class="tx-m real" x="322" y="126">hunks to the pane as they land.</text>
-        <line class="thin" x1="322" y1="162" x2="800" y2="162"/>
-        <line class="thin" x1="322" y1="179" x2="639" y2="179"/>
-        <line class="thin" x1="322" y1="196" x2="727" y2="196"/>
-        <line class="thin" x1="322" y1="213" x2="556" y2="213"/>
-        <line class="thin" x1="322" y1="230" x2="769" y2="230"/>
-        <line class="thin" x1="322" y1="247" x2="608" y2="247"/>
-        <line class="thin" x1="322" y1="264" x2="686" y2="264"/>
-        <line class="thin" x1="322" y1="281" x2="519" y2="281"/>
-        <line class="thin" x1="322" y1="298" x2="743" y2="298"/>
-        <line class="thin" x1="322" y1="315" x2="582" y2="315"/>
-        <text class="tx-m" x="300" y="540">›</text>
-        <rect class="accf" x="322" y="529" width="9" height="15"/>
-
-        <text class="tx-m pane-tag" id="tagB" x="1182" y="70" text-anchor="end">bun dev</text>
-        <text class="tx-m real" x="900" y="106">$ bun run dev</text>
-        <text class="tx-m real" x="900" y="140">ready in 341 ms</text>
-        <line class="thin" x1="900" y1="176" x2="1048" y2="176"/>
-        <line class="thin" x1="900" y1="193" x2="1089" y2="193"/>
-        <line class="thin" x1="900" y1="210" x2="1002" y2="210"/>
-        <line class="thin" x1="900" y1="227" x2="1118" y2="227"/>
-        <line class="thin" x1="900" y1="244" x2="1035" y2="244"/>
-        <text class="tx-m pane-tag" id="scopeTx" x="900" y="424">vs main</text>
-
-        <text class="tx-m" x="18" y="583">claude 5h 42% → 14:00, 7d 12%</text>
-        <text class="tx-m" x="1182" y="583" text-anchor="end">^A commands, F1 help</text>
-      </svg>
-      </figure>
-    </div>
-
-    <div class="txt-col">
-      <p data-i18n="s1.p1">Your tasks are on the left. Pick one to see its agent working in the middle, with a shell and the changed files beside it.</p>
-      <p data-i18n-html="s1.p2">Every status mark in the sidebar is listed in the <a href="https://docs.rove.run">docs</a>.</p>
     </div>
   </section>
 
@@ -397,8 +292,7 @@
   <section class="note wide" id="get">
     <h2 data-i18n="get.h">Get Rove</h2>
 
-    <h3 class="sub" data-i18n="get.tui">Terminal app</h3>
-        <p id="installHelp" class="t-note get-req" aria-live="polite">macOS / Linux: use a POSIX shell. Requires git and a signed-in agent CLI, such as Claude Code. The installer sets up Bun if needed.</p>
+    <h3 class="sub" data-i18n="get        <p id="installHelp" class="t-note get-req" aria-live="polite">macOS / Linux: use a POSIX shell. Requires git and a signed-in agent CLI, such as Claude Code. The installer sets up Bun if needed.</p>
     <div class="chan">
       <div class="chan-row">
         <div class="chan-n"><b data-i18n="get.stable">Stable</b><span data-i18n="get.stableD">The tested release. Install this one if you are new.</span></div>

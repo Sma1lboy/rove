@@ -10,7 +10,10 @@ var ROVE_I18N = (function () {
     'why.p2': '<b>额度用完了？换一个 agent。</b>Claude Code 干到一半额度没了，把任务换给 Codex 或者别的 agent。它读一遍前一个做了什么，从那里接着干。',
     'why.p3': '<b>agent 之间直接对话。</b>没有 Rove 时，每个 agent 各占一个窗口，你在中间复制粘贴。在这里，一个 agent 把活交给另一个，回报自己送回来。',
     'hero.engines': '你已经在用的 agent 都能接进来',
-    'hero.shotAlt': '浏览器里打开的 Rove：侧栏有四个任务，分别跑在 Claude Code 和 Codex 上；右边是其中一个 agent 的对话和它改的代码',
+    'scene.split': '两个 agent 并排', 'scene.review': '审它改了什么', 'scene.compare': '一句话，两个 agent 各做一遍',
+    'scene.splitAlt': '浏览器里的 Rove。一个任务分成左右两栏：左边 Claude Code 改完了结账代码，右边 Codex 正在审这份改动。',
+    'scene.reviewAlt': '浏览器里的 Rove。中间是 Claude Code 的对话，右边面板逐行列出它改的代码。',
+    'scene.compareAlt': '浏览器里的 Rove。同一句话交给 Claude Code 和 Codex 各做一遍，两边的结果和改动的文件并排列出，可以留下其中一个。',
     'get.h': '获取 Rove',
     'get.tui': '终端版',
     'get.stable': '稳定版',
@@ -32,12 +35,6 @@ var ROVE_I18N = (function () {
     'sheet.skip': '跳到正文',
     'sheet.nav.docs': '文档', 'sheet.nav.plugins': '插件',
     'sheet.nav.themes': '主题', 'sheet.nav.changelog': '更新日志', 'sheet.nav.github': 'GitHub',
-
-    's1.h': '装上以后长这样',
-    's1.bar': 'Rove：3 个仓库，4 个任务，后台运行',
-    's1.tasks': '任务',
-    's1.p1': '左边是你的任务。点一个，中间是它的 agent 在干活，旁边是 shell 和改过的文件。',
-    's1.p2': '侧栏里的每个状态标记，<a href="https://docs.rove.run">文档</a>里都有说明。',
 
     'can.h': '装上以后能做什么',
     'can.1': '新建任务', 'can.1d': '打一句话。Rove 给这个 agent 单独一份代码去改，不会碰到别的任务。',
@@ -62,7 +59,10 @@ var ROVE_I18N = (function () {
     'why.p2': '<b>Out of quota? Switch to another agent.</b> When Claude Code hits its usage limit halfway through a task, switch the task to Codex or any other agent. It reads what the first one did and continues from there.',
     'why.p3': '<b>Agents talk to each other directly.</b> Without Rove, each agent sits in its own window and you copy text between them. Here one agent hands a task to another and gets the report back by itself.',
     'hero.engines': 'Works with the agents you already have',
-    'hero.shotAlt': 'Rove open in a browser: four tasks in the sidebar running on Claude Code and Codex, and one agent\'s conversation with the change it made',
+    'scene.split': 'Two agents side by side', 'scene.review': 'Review the change', 'scene.compare': 'One prompt, two agents',
+    'scene.splitAlt': 'Rove in a browser. One task is split in two: Claude Code on the left has changed the checkout code, and Codex on the right is reviewing that change.',
+    'scene.reviewAlt': 'Rove in a browser. Claude Code\'s conversation is in the middle, and a panel on the right lists the lines it changed.',
+    'scene.compareAlt': 'Rove in a browser. The same prompt went to Claude Code and Codex; their results and changed files are listed side by side, with a button to keep one.',
     'get.h': 'Get Rove',
     'get.tui': 'Terminal app',
     'get.stable': 'Stable',
@@ -84,12 +84,6 @@ var ROVE_I18N = (function () {
     'sheet.skip': 'Skip to content',
     'sheet.nav.docs': 'Docs', 'sheet.nav.plugins': 'Plugins',
     'sheet.nav.themes': 'Themes', 'sheet.nav.changelog': 'Changelog', 'sheet.nav.github': 'GitHub',
-
-    's1.h': 'What it looks like',
-    's1.bar': 'Rove: 3 repos, 4 tasks, running in the background',
-    's1.tasks': 'Tasks',
-    's1.p1': 'Your tasks are on the left. Pick one to see its agent working in the middle, with a shell and the changed files beside it.',
-    's1.p2': 'Every status mark in the sidebar is listed in the <a href="https://docs.rove.run">docs</a>.',
 
     'can.h': 'What you can do',
     'can.1': 'New task', 'can.1d': 'Type one sentence. Rove gives the agent its own copy of your code to work on, so nothing else gets touched.',
@@ -116,6 +110,22 @@ var ROVE_I18N = (function () {
 
   function t(key) { return dicts[lang][key] || dicts.en[key] || ''; }
 
+  var scene = 'split';
+  function showScene(name) {
+    scene = name;
+    var img = document.getElementById('sceneImg');
+    if (!img) return;
+    img.src = '/assets/app-' + name + '.webp';
+    img.alt = t('scene.' + name + 'Alt');
+    document.querySelectorAll('#scenes button').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.getAttribute('data-scene') === name));
+    });
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('#scenes button');
+    if (b) showScene(b.getAttribute('data-scene'));
+  });
+
   function apply() {
     document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
     document.title = t('meta.title');
@@ -129,8 +139,7 @@ var ROVE_I18N = (function () {
       var v = t(el.getAttribute('data-i18n-html'));
       if (v) el.innerHTML = v;
     });
-    var shot = document.querySelector('.appwin img');
-    if (shot) shot.alt = t('hero.shotAlt');
+    showScene(scene);
     document.dispatchEvent(new Event('rove:language'));
     var label = document.getElementById('copyLabel');
     if (label) label.textContent = t('copy.hint');
