@@ -20,8 +20,8 @@ test("connectors.chat says WeChat and Lark are connected once each is bound", as
   process.env.ROVE_HOME_DIR = home
   expect(await chat()).toEqual({
     connectors: [
-      { id: "weixin", connected: false },
-      { id: "lark", connected: false },
+      { id: "weixin", connectable: false, connected: false },
+      { id: "lark", connectable: true, connected: false },
     ],
   })
 
@@ -37,9 +37,35 @@ test("connectors.chat says WeChat and Lark are connected once each is bound", as
   )
   expect(await chat()).toEqual({
     connectors: [
-      { id: "weixin", connected: true, since: "2026-10-04T12:00:00.000Z" },
-      { id: "lark", connected: true, since: "2026-11-26T12:00:00.000Z" },
+      { id: "weixin", connectable: false, connected: true, since: "2026-10-04T12:00:00.000Z", allow: [] },
+      {
+        id: "lark",
+        connectable: true,
+        connected: true,
+        since: "2026-11-26T12:00:00.000Z",
+        allow: [],
+        tone: "简短直接，像同事聊天，结论先说，不客套",
+      },
     ],
+  })
+})
+
+const run = (op: string, args: Record<string, unknown>) => connectorOps[op]?.run(args, { api: fakeApi().api })
+
+test("Settings changes a connector's allowed senders and tone, and disconnects it", async () => {
+  home = mkdtempSync(join(tmpdir(), "rove-connectors-"))
+  process.env.ROVE_HOME_DIR = home
+  mkdirSync(join(home, ".rove", "lark"), { recursive: true })
+  writeFileSync(join(home, ".rove", "lark", "config.json"), JSON.stringify({ botOpenId: "ou_bot", botName: "Bot" }))
+
+  await run("connectors.chatUpdate", { id: "lark", allow: ["ou_a", " ou_a", "ou_b"], tone: "warm" })
+  expect(await chat()).toMatchObject({
+    connectors: [{ id: "weixin" }, { id: "lark", allow: ["ou_a", "ou_b"], tone: "warm" }],
+  })
+
+  expect(await run("connectors.chatDisconnect", { id: "lark" })).toEqual({ removed: true })
+  expect(await chat()).toMatchObject({
+    connectors: [{ id: "weixin" }, { id: "lark", connectable: true, connected: false }],
   })
 })
 

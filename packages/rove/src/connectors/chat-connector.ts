@@ -27,7 +27,25 @@ export interface ChatConnectorStatus {
   readonly connected: boolean
   /** ISO time the account was connected. */
   readonly since?: string
+  /** What it talks as, for the card: the bot's name. */
+  readonly account?: string
+  /** The owner, who is always let through: a display name. */
+  readonly owner?: string
+  /** The session messages go to, once the first one started it. */
+  readonly agentTaskId?: string
+  /** People besides the owner who may talk to it. */
+  readonly allow?: readonly string[]
+  /** How its agent sounds; absent for a connector without one. */
+  readonly tone?: string
 }
+
+/** What Settings may change on a connected connector. */
+export interface ChatConnectorSettings {
+  readonly allow?: readonly string[]
+  readonly tone?: string
+}
+
+export type ChatConnectOutcome = { readonly ok: true } | { readonly ok: false; readonly message: string }
 
 /** What a connector package exports as its entry. */
 export interface ChatConnectorModule {
@@ -38,4 +56,9 @@ export interface ChatConnectorModule {
   status(): ChatConnectorStatus
   /** `rove <id> <argv…>`; argv excludes the id. */
   runCli(argv: readonly string[]): Promise<void>
+  /** Remove the binding; false when there was none. The daemon stops answering within seconds. */
+  disconnect(): boolean
+  /** Connect without a terminal, when no step needs one; otherwise `message` says what to run. Absent: terminal only. */
+  connect?(): Promise<ChatConnectOutcome>
+  update(settings: ChatConnectorSettings): void
 }

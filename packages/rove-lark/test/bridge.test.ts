@@ -29,7 +29,14 @@ let clock: number
 
 beforeEach(() => {
   store = new LarkStore(mkdtempSync(join(tmpdir(), "rove-lark-")))
-  store.writeConfig({ botOpenId: BOT, botName: "Sma1lAgent", allow: [OWNER], tone: "terse", savedAt: "2026-11-26" })
+  store.writeConfig({
+    botOpenId: BOT,
+    botName: "Sma1lAgent",
+    ownerOpenId: OWNER,
+    allow: [],
+    tone: "terse",
+    savedAt: "2026-11-26",
+  })
   running = []
   reactions = []
   clock = 0

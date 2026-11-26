@@ -10,8 +10,24 @@ const weixin: ChatConnectorModule = {
   createConnector: createWeixinConnector,
   runCli: runWeixinCli,
   status() {
-    const account = new WeixinStore().readAccount()
-    return account ? { connected: true, ...(account.savedAt ? { since: account.savedAt } : {}) } : { connected: false }
+    const store = new WeixinStore()
+    const account = store.readAccount()
+    if (!account) return { connected: false }
+    const agentTaskId = account.agent?.taskId ?? store.readState(account.accountId).agent?.taskId
+    return {
+      connected: true,
+      ...(account.savedAt ? { since: account.savedAt } : {}),
+      ...(agentTaskId ? { agentTaskId } : {}),
+      allow: account.allow,
+    }
+  },
+  // Credentials go; a new binding needs the QR code in a terminal again.
+  disconnect: () => new WeixinStore().clearAccount(),
+  update(settings) {
+    const store = new WeixinStore()
+    const account = store.readAccount()
+    if (!account) throw new Error("WeChat is not connected")
+    if (settings.allow) store.writeAccount({ ...account, allow: [...new Set(settings.allow)] })
   },
 }
 
