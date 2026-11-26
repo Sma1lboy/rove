@@ -30,7 +30,7 @@ import type {
 } from "@sma1lboy/rove-daemon/daemon/task-state-contracts"
 import type { ObservedLanguage } from "@sma1lboy/rove-daemon/prompts/observed-language"
 import type { TaskTodo } from "@sma1lboy/rove-daemon/task-notes"
-import type { TaskWorkspace } from "@sma1lboy/rove-daemon/workspace"
+import type { TaskWorkspace, WireWorkspace } from "@sma1lboy/rove-daemon/workspace"
 import type { VendorId } from "./vendor.ts"
 
 export type {
@@ -264,9 +264,10 @@ export interface Task {
   readonly extraRepos?: readonly TaskExtraRepo[]
   /**
    * Backend that materialised the directory. Absent = derived from `kind` (`workspaceBackendId`),
-   * so rows written before backends existed need no migration.
+   * so rows written before backends existed need no migration. A client's copy of a `remote` one
+   * also carries where it is (`WireWorkspace`); the store never holds that.
    */
-  readonly workspace?: TaskWorkspace
+  readonly workspace?: WireWorkspace
   /**
    * What the worker claims it delivered (`update --report-*`). Separate
    * from {@link prStatus}, which the daemon polls from the forge: a worker can

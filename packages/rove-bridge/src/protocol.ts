@@ -191,6 +191,8 @@ export interface TaskRow {
   readonly startsAt?: string
   /** Set on a row another registered machine's daemon served (`rove machine add`); absent = this Mac's. `stale` = that machine is unreachable and this is its last known state. */
   readonly machine?: MachineTag
+  /** A row of this machine whose files and commands are on that registered machine (`add --workspace-on`): its alias. */
+  readonly workspaceOn?: string
   /** The repo across machines (`host/owner/name`, else `root:<sha>`), from the serving daemon; absent outside a repo. Clients group projects by it, else by `repo`. */
   readonly repoId?: string
   /** How many repos beyond the primary this task spans (`task.extraRepos`); absent = one repo. */

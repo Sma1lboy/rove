@@ -6,7 +6,8 @@
  *
  *  1. Zero machines → returns the SAME array (identity included), so
  *     machine-free sidebar goldens match byte for byte.
- *  2. Local rows are untouched; this computer is home.
+ *  2. Local rows are untouched; this computer is home. A local task whose workspace is on another
+ *     machine (`add --workspace-on`) wears that machine's mark, and is never dropped: the row is ours.
  *
  * An OFFLINE machine keeps its rows (greyed by the renderer): a vanished row
  * would take the only record of where the work was.
@@ -91,14 +92,12 @@ export function applyMachineLayer(
       kept.push(row)
       continue
     }
-    const alias = row.task.origin?.machineId ?? "local"
-    if (alias === "local") {
-      kept.push(row)
-      continue
-    }
-    const entry = byAlias.get(alias)
-    if (!entry) {
-      dropped = true
+    const origin = row.task.origin?.machineId ?? "local"
+    const alias = origin === "local" ? row.task.workspace?.machine : origin
+    const entry = alias ? byAlias.get(alias) : undefined
+    if (!alias || !entry) {
+      if (origin === "local") kept.push(row)
+      else dropped = true
       continue
     }
     kept.push({

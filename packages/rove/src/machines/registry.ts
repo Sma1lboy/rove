@@ -47,6 +47,17 @@ export interface MachineConfig {
   readonly relayPreamble?: boolean
   /** ISO timestamp of registration, for `machine list` ordering. */
   readonly addedAt?: string
+  /**
+   * HTTP MCP servers on that machine's loopback (`rove machine mcp`), forwarded into each session
+   * whose workspace is there (`remote-mcp.ts`): a browser server there loads that machine's pages.
+   */
+  readonly mcp?: readonly MachineMcp[]
+}
+
+/** One forwarded MCP server: a name, and its URL as that machine reaches it. */
+export interface MachineMcp {
+  readonly name: string
+  readonly url: string
 }
 
 /**
@@ -164,7 +175,12 @@ export function addMachine(alias: string, config: MachineConfig): { added: boole
   updateStateFile((state) => {
     const machines = { ...readMachines(state) }
     added = machines[alias] === undefined
-    machines[alias] = { ...config, addedAt: config.addedAt ?? machines[alias]?.addedAt ?? new Date().toISOString() }
+    const kept = config.mcp ?? machines[alias]?.mcp
+    machines[alias] = {
+      ...config,
+      addedAt: config.addedAt ?? machines[alias]?.addedAt ?? new Date().toISOString(),
+      ...(kept ? { mcp: kept } : {}),
+    }
     state.machines = machines
     return undefined
   })

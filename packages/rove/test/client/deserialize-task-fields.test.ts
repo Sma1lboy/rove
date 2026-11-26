@@ -109,7 +109,7 @@ const FULL: DeepRequired<Omit<SerializedTask, "origin">> = {
   baseRef: "release/2.x",
   worktreeName: "probe-1",
   gitRepo: "/work/origin",
-  workspace: { backend: "cow-clone", ref: "01ARZ3NDEKTSV4RRFFQ69G5FB5" },
+  workspace: { backend: "cow-clone", ref: "01ARZ3NDEKTSV4RRFFQ69G5FB5", machine: "win", path: "C:\\work\\app" },
   extraRepos: [
     {
       name: "api",

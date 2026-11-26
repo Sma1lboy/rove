@@ -1,6 +1,7 @@
 /** A task as it travels on the wire: the daemon's `DaemonTask` flattened into `SerializedTask`. */
 
-import { repoIdOf } from "../repo-id.ts"
+import { linkedWorkspace, repoIdOf } from "../repo-id.ts"
+import type { TaskWorkspace, WireWorkspace } from "../workspace.ts"
 import type { DaemonTask } from "./contracts.ts"
 import type { SerializedTask } from "./protocol.ts"
 
@@ -50,7 +51,7 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     ...(task.cwdSubpath ? { cwdSubpath: task.cwdSubpath } : {}),
     ...(task.ptyAlias ? { ptyAlias: task.ptyAlias } : {}),
     ...(task.extraRepos?.length ? { extraRepos: task.extraRepos } : {}),
-    ...(task.workspace ? { workspace: task.workspace } : {}),
+    ...(task.workspace ? { workspace: wireWorkspace(task.workspace, task.worktreePath) } : {}),
     ...(task.sessionPrs?.length ? { sessionPrs: task.sessionPrs } : {}),
     requireReport: task.requireReport,
     ...(task.worktreeOnly ? { worktreeOnly: true } : {}),
@@ -63,4 +64,9 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
   }
+}
+
+/** A remote workspace says where it is: the link directory is the only record of that machine and path. */
+function wireWorkspace(ws: TaskWorkspace, dir: string): WireWorkspace {
+  return ws.backend === "remote" ? { ...ws, ...linkedWorkspace(dir) } : ws
 }

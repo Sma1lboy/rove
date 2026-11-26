@@ -22,6 +22,7 @@
  * field list to forget.
  */
 
+import type { TaskWorkspace } from "@sma1lboy/rove-daemon/workspace"
 import { describe, expect, it } from "vitest"
 import { normalizeIndex } from "../../src/orchestrator/index/store-codec.ts"
 import { type Task, toTaskId } from "../../src/types/task.ts"
@@ -49,8 +50,10 @@ type DeepRequired<T> = {
  * merging several machines' task lists (`machines/hub.ts`), so a round-trip
  * guard demanding it survive would be asserting the opposite of the design.
  */
-/** `repoId` too: derived on the wire, never stored. */
-const FULL_TASK: DeepRequired<Omit<Task, "origin" | "repoId">> = {
+/** `repoId` too, and where a remote workspace is: derived on the wire, never stored. */
+const FULL_TASK: DeepRequired<Omit<Task, "origin" | "repoId" | "workspace">> & {
+  workspace: DeepRequired<TaskWorkspace>
+} = {
   id: toTaskId("01ARZ3NDEKTSV4RRFFQ69G5FAV"),
   title: "round-trip fixture",
   repo: "/repo",

@@ -251,6 +251,7 @@ export function taskRows(
         createdAt: task.createdAt,
         updatedAt: task.updatedAt,
         ...machineOf(task),
+        ...(task.workspace?.machine ? { workspaceOn: task.workspace.machine } : {}),
         ...(task.repoId ? { repoId: task.repoId } : {}),
         ...(task.extraRepos?.length ? { extraRepoCount: task.extraRepos.length } : {}),
         ...(task.parentTaskId ? { parentTaskId: task.parentTaskId } : {}),

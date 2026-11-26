@@ -2,10 +2,12 @@
  * `rove remote-workspace <bash-hook|file-hook|mcp> --dir <link>`: INTERNAL, run by an engine whose workspace is on
  * another machine (`machines/remote-workspace.ts`).
  *
- * - `bash-hook` answers an engine's pre-tool hook: the shell command is rewritten to run there through `rx`.
+ * - `bash-hook` answers an engine's pre-tool hook: the shell command is rewritten to run there through `rx`,
+ *   except Rove's own CLI: the task, its daemon and the paths it names are this machine's.
  * - `file-hook` answers the same hook for the engine's own file tools: they stay on for this machine's
  *   files, and a call aimed at the project is turned back with where to send it.
  * - `mcp` is a stdio MCP server whose read / write / edit tools work on that machine's files.
+ * - `mcp-hook` answers the pre-tool hook on a server forwarded from that machine: it brings the forward back up.
  */
 
 import { spawnSync } from "node:child_process"
@@ -13,6 +15,7 @@ import { realpathSync } from "node:fs"
 import { dirname, resolve } from "node:path"
 import { createInterface } from "node:readline"
 import { quoteShellArg } from "../lib/shell-command.ts"
+import { ensureMcpForwards, machineMcp } from "../machines/remote-mcp.ts"
 import { isRemoteWorkspace, readRemoteWorkspace, rxPath } from "../machines/remote-workspace.ts"
 import { CURRENT_VERSION } from "../version.ts"
 import { flagValue } from "./argv.ts"
@@ -23,6 +26,11 @@ export async function runRemoteWorkspaceSubcommand(args: readonly string[]): Pro
   if (args[0] === "bash-hook") process.stdout.write(bashHookReply(await readAll(process.stdin), rxPath(dir)))
   else if (args[0] === "file-hook") process.stdout.write(fileHookReply(await readAll(process.stdin), dir))
   else if (args[0] === "mcp") await serveMcp(rxPath(dir))
+  else if (args[0] === "mcp-hook") {
+    const ws = readRemoteWorkspace(dir)
+    // Run as asked either way: a forward that stays down shows as the call's own connection error.
+    if (ws) ensureMcpForwards(ws.machine, machineMcp(ws.machine))
+  }
 }
 
 async function readAll(stream: NodeJS.ReadableStream): Promise<string> {
@@ -31,10 +39,15 @@ async function readAll(stream: NodeJS.ReadableStream): Promise<string> {
   return text
 }
 
+/** A command line that starts with Rove's CLI, env assignments allowed ahead of it. */
+const ROVE_COMMAND = /^\s*(?:[A-Za-z_]\w*=\S*\s+)*(?:\S*\/)?rove(?:\s|$)/
+
 /**
  * The reply to a PreToolUse hook on the shell tool: the same call with its command sent through `rx`.
  * No permission decision rides along, so the engine's own rules and prompts still judge the call.
- * "" (run as asked) for a payload with no command, or one that already goes through `rx`.
+ * "" (run as asked) for a payload with no command, one that already goes through `rx`, or one that
+ * starts with `rove` (env assignments allowed ahead of it): there it would reach that machine's daemon,
+ * which has no such task, and Git Bash would rewrite its `/Users/…` paths.
  */
 export function bashHookReply(payload: string, rx: string): string {
   let input: Record<string, unknown>
@@ -44,7 +57,7 @@ export function bashHookReply(payload: string, rx: string): string {
     return ""
   }
   const command = input.command
-  if (typeof command !== "string" || /^\s*(\S*\/)?rx\s/.test(command)) return ""
+  if (typeof command !== "string" || /^\s*(\S*\/)?rx\s/.test(command) || ROVE_COMMAND.test(command)) return ""
   return JSON.stringify({
     hookSpecificOutput: {
       hookEventName: "PreToolUse",

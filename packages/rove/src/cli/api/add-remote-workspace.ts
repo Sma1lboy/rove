@@ -11,6 +11,7 @@ import { homeDir } from "../../env.ts"
 import { errorMessage } from "../../lib/error-message.ts"
 import { forwardVerb, machineRequest, requireMachine } from "../../machines/forward.ts"
 import type { MachineEntry } from "../../machines/registry.ts"
+import { forwardedMcp } from "../../machines/remote-mcp.ts"
 import { createRemoteLink, removeRemoteLink } from "../../machines/remote-workspace.ts"
 import { machineSshArgs } from "../../machines/ssh-args.ts"
 import { isWindowsPath } from "../../machines/windows-remote.ts"
@@ -77,6 +78,7 @@ export async function addOnMachine(ctx: VerbContext, alias: string): Promise<unk
       repo: there.task.repo,
       sshArgv: machineSshArgs(alias, entry),
       engineNotes: remoteNotesFiles(),
+      mcp: forwardedMcp(alias, entry.mcp ?? []).map((f) => f.server),
     })
   } catch (err) {
     await undo()

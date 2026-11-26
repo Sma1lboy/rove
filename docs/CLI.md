@@ -488,6 +488,7 @@ rove machine list
 rove machine tunnel <alias>     # keep a reverse tunnel so <alias> can reach this machine
 rove machine inbound [allow|deny <class>]   # what other machines' hubs may run here
 rove machine primary [<path>] [--clear]     # the checkout a repo id resolves to here
+rove machine mcp <alias> [<name> <url> | <name> --clear]   # MCP servers there to forward into sessions whose workspace is there
 ```
 
 The other computers running Rove, each reached over SSH. Walkthrough and

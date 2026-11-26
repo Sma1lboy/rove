@@ -6,6 +6,7 @@
  * file is the wire VOCABULARY (frames, request names, task serialization).
  */
 
+import type { WireWorkspace } from "../workspace.ts"
 import type { ChannelName } from "./channels.ts"
 import type { DaemonTask } from "./contracts.ts"
 export type {
@@ -473,7 +474,7 @@ export interface SerializedTask {
   /** Secondary repos of a multi-repo task; omitted for a one-repo task. */
   readonly extraRepos?: DaemonTask["extraRepos"]
   /** Workspace backend when it is not the one `kind` implies; omitted otherwise. */
-  readonly workspace?: DaemonTask["workspace"]
+  readonly workspace?: WireWorkspace
   /** PRs the session opened from any directory (`rove api pr-attach`); omitted when none. */
   readonly sessionPrs?: DaemonTask["sessionPrs"]
   /** The worker's own outcome claim (`update --report-*`) — a CLAIM,
