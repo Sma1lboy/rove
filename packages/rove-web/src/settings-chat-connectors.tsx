@@ -65,7 +65,7 @@ function ChatMark({ id }: { id: string }) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 pl-10 w-narrow:pl-0">
-      <span className="w-24 flex-none text-meta text-muted">{label}</span>
+      <span className="w-28 flex-none whitespace-nowrap text-meta text-muted">{label}</span>
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">{children}</div>
     </div>
   )
@@ -125,12 +125,14 @@ function ChatCard({ model, row, reload }: { model: AppModel; row: ChatStatus; re
         </span>
         {row.connected ? (
           <>
-            <span
-              className={SETTINGS_VALUE}
-              title={row.since ? c("chatSince", { date: row.since.slice(0, 10) }) : undefined}
-            >
-              {row.account ?? (row.since ? c("chatSince", { date: row.since.slice(0, 10) }) : "")}
-            </span>
+            {row.account && (
+              <span
+                className={SETTINGS_VALUE}
+                title={row.since ? c("chatSince", { date: row.since.slice(0, 10) }) : undefined}
+              >
+                {row.account}
+              </span>
+            )}
             {row.agentTaskId && (
               <Button variant="action" onClick={() => openAgent(row.agentTaskId as string)}>
                 {c("chatOpen")}
