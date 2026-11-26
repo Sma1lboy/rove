@@ -154,7 +154,10 @@ select{
 .alt:hover{color:var(--ink)}
 .alt.is-copied{color:var(--accent-text)}
 .platform{margin-top:16px;font-size:var(--fs-s);color:var(--ink-2)}
-.engines{margin-top:16px;color:var(--ink-2)}
+.lede:has(+.engines){margin-bottom:20px}
+.engines{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 28px;padding:0;list-style:none;font-size:var(--fs-s);color:var(--ink)}
+.engines li{border:var(--hair) solid var(--ink-3);padding:4px 10px;font-family:var(--font-mono)}
+.engines .engines-label{border:0;padding:0;font-family:inherit;color:var(--ink-2)}
 
 /* sections -------------------------------------------------------------- */
 section{position:relative}

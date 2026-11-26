@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rove: all your coding agents, in one place</title>
+<title>Rove: the agent workspace for every coding agent</title>
 <link rel="icon" href="/assets/favicon.png" type="image/png">
 <link rel="apple-touch-icon" href="/assets/favicon.png">
-<meta name="description" content="Rove puts all your coding agents in one terminal. When Claude Code runs out of quota, you switch the task to Codex or another agent and it continues. Agents hand work to each other directly, and they keep working after you close the terminal.">
+<meta name="description" content="Rove is an agent workspace for your terminal. It runs Claude Code, Codex, Copilot, Gemini CLI, OpenCode and other coding agents side by side. When one runs out of quota, you switch the task to another and it continues. Agents hand work to each other directly, and they keep working after you close the terminal.">
 <link rel="canonical" href="https://rove.run/">
 <!-- Release notes feed: GitHub already publishes this for every release, so
      there is no feed to build or keep in sync. -->
 <link rel="alternate" type="application/atom+xml" title="Rove releases"
       href="https://github.com/Sma1lboy/rove/releases.atom">
 <meta property="og:title" content="Rove: all your coding agents, in one place">
-<meta property="og:description" content="An agentic development environment (ADE) for your terminal: Claude Code, Codex, Copilot and more, side by side, handing tasks to each other.">
+<meta property="og:description" content="An agent workspace for your terminal: Claude Code, Codex, Copilot and more, side by side, handing tasks to each other.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://rove.run/">
 <meta name="twitter:card" content="summary_large_image">
@@ -57,7 +57,7 @@
       "@id": "https://rove.run/#website",
       "url": "https://rove.run/",
       "name": "Rove",
-      "description": "An agentic development environment (ADE) for your terminal: Claude Code, Codex, Copilot and more work side by side, each in its own git worktree, and hand tasks to each other.",
+      "description": "An agent workspace for your terminal: Claude Code, Codex, Copilot and more work side by side, each in its own git worktree, and hand tasks to each other.",
       "inLanguage": "en",
       "publisher": {
         "@id": "https://rove.run/#org"
@@ -91,10 +91,10 @@
       "name": "Rove",
       "url": "https://rove.run/",
       "applicationCategory": "DeveloperApplication",
-      "applicationSubCategory": "Agentic development environment (ADE) for the terminal",
+      "applicationSubCategory": "Agent workspace for the terminal",
       "operatingSystem": "macOS, Linux, Windows (WSL)",
       "softwareRequirements": "git and at least one AI coding engine CLI (Claude Code or Codex) on PATH",
-      "description": "Rove is an agentic development environment (ADE) for your terminal. Claude Code, Codex, Copilot and more run side by side in one window, each task with its own git worktree, branch and hosted engine session. Agents hand tasks to each other and message each other as peers, and sessions survive closing the SSH connection.",
+      "description": "Rove is an agent workspace for your terminal. Claude Code, Codex, Copilot and more run side by side in one window, each task with its own git worktree, branch and hosted engine session. Agents hand tasks to each other and message each other as peers, and sessions survive closing the SSH connection.",
       "license": "https://github.com/Sma1lboy/rove/blob/main/LICENSE",
       "isAccessibleForFree": true,
       "offers": {
@@ -120,7 +120,7 @@
           "name": "What is Rove?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Rove is an agentic development environment (ADE) for your terminal: one window where Claude Code, Codex, Copilot and other coding agents work side by side and hand tasks to each other. Each task gets its own git worktree, its own branch, and its own hosted engine session, so the agents never step on each other."
+            "text": "Rove is an agent workspace for your terminal: one window where Claude Code, Codex, Copilot and other coding agents work side by side and hand tasks to each other. Each task gets its own git worktree, its own branch, and its own hosted engine session, so the agents never step on each other."
           }
         },
         {
@@ -238,8 +238,13 @@
 
   <section class="hero">
     <div class="hero-l">
-      <h1 data-i18n-html="hero.title">All your coding agents, <span class="thin"><span class="nb">in one place.</span></span></h1>
-      <p class="lede" data-i18n-html="hero.sub">Every agent runs out of quota. Rove puts them in one terminal: when one hits its limit, switch the task to another and keep going. They also talk to each other directly, so you stop passing messages between them.</p>
+      <h1 data-i18n-html="hero.title">The agent workspace <span class="thin">for <span class="nb">every coding agent.</span></span></h1>
+      <p class="lede" data-i18n-html="hero.sub">Rove runs the coding agents you already have, side by side in one terminal. When one runs out of quota, switch the task to another and it continues. They also talk to each other directly, so you stop passing messages between them.</p>
+      <ul class="engines">
+        <li class="engines-label" data-i18n="hero.engines">Works with</li>
+        <li>Claude Code</li><li>Codex</li><li>Copilot</li><li>Gemini CLI</li><li>OpenCode</li><li>Cursor</li><li>Pi</li><li>Amp</li><li>Kimi</li><li>Droid</li>
+        <li class="engines-label"><a href="https://docs.rove.run/rove/engines" data-i18n="hero.enginesMore">and a dozen more →</a></li>
+      </ul>
 
       <div id="install">
         <div class="install-platform">
@@ -268,7 +273,6 @@
           <button class="alt" type="button" data-cmd="npx @sma1lboy/rove" title="npx @sma1lboy/rove">npx</button>
         </p>
         <p id="installHelp" class="install-help" aria-live="polite">macOS / Linux: use a POSIX shell. Requires git and a signed-in agent CLI, such as Claude Code. The installer sets up Bun if needed.</p>
-        <p class="engines" data-i18n="hero.engines">Works with Claude Code, Codex, Copilot, Gemini CLI, OpenCode and more.</p>
         <p class="install-help"><a href="#get" data-i18n="hero.allInstall">All install options: next and nightly builds, desktop and phone apps ↓</a></p>
       </div>
     </div>
