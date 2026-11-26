@@ -99,7 +99,8 @@ if (canvas && ctx) {
     holePen.translate(w * 0.5, h * 0.3)
     holePen.scale(w * 0.3, h * 0.3)
     const middle = holePen.createRadialGradient(0, 0, 0.55, 0, 0, 1.1)
-    middle.addColorStop(0, "rgb(0 0 0 / 0.97)")
+    // The glass over the middle (.sky-glass) blurs what is left here.
+    middle.addColorStop(0, "rgb(0 0 0 / 0.45)")
     middle.addColorStop(1, "rgb(0 0 0 / 0)")
     holePen.fillStyle = middle
     holePen.fillRect(-2, -2, 4, 4)
