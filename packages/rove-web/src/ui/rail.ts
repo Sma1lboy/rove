@@ -34,7 +34,7 @@ export const PR_LIST_GLYPH = "font-mono"
 export const PR_LIST_META = "overflow-hidden text-ellipsis whitespace-pre text-muted"
 export const PR_LIST_STATS = "ml-auto flex gap-1.5 pl-3 tabular-nums"
 
-/** A task on another machine: a small cloud at the row's right edge. */
+/** A task on another machine: a small cloud just before the row's state. */
 export const CLOUD_MARK = "inline-flex flex-none items-center text-subtle"
 
 /** The rail itself; `rail` stays as the hook focus and pane code find it by. */
