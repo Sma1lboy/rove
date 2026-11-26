@@ -109,7 +109,7 @@ export function SidebarBrandHeader(props: {
 }) {
   const { theme } = useTheme()
   return (
-    <box flexDirection="row" gap={1} flexShrink={0} paddingLeft={1} paddingRight={1}>
+    <box flexDirection="row" gap={1} flexShrink={0} paddingLeft={1} paddingRight={1} marginBottom={1}>
       {/* The web's wordmark. Brackets keep the accent; focus reads in the name going full ink. */}
       <text wrapMode="none" flexShrink={0}>
         <span fg={theme.primary}>[</span>

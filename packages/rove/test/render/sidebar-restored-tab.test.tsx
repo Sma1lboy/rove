@@ -20,7 +20,7 @@ import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
 import { renderComponent } from "./harness"
 
-const { idle: NO_STATE_GLYPH, attention: ATTENTION_GLYPH } = DEFAULT_GLYPHS
+const { attention: ATTENTION_GLYPH } = DEFAULT_GLYPHS
 
 const TASK: Task = {
   id: toTaskId("alpha"),
@@ -70,8 +70,6 @@ test("a restored tab wears the attention glyph, a quiet one does not", async () 
     tracked: false,
   })
 
-  expect(quiet).toContain(NO_STATE_GLYPH)
   expect(quiet).not.toContain(ATTENTION_GLYPH)
   expect(restored).toContain(ATTENTION_GLYPH)
-  expect(restored).not.toContain(NO_STATE_GLYPH)
 })

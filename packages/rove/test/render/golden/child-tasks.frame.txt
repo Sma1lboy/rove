@@ -4,20 +4,20 @@
 # GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
 | [ rove ]                     |
+|                              |
 | New task                + n  |
 | Kanban                       |
 | Routines                     |
 | Issues                       |
 |                              |
 | rove                         |
-|▌alpha                    ▾ ○ |
+|▌alpha                    ▾   |
 | └ check types              ? |
 | └ port tree builder      ▾ ~ |
-|   └ wire fold glyph      ▾ ○ |
-|   └ cover depth cap    4 ▾ ○ |
-|   └ fifth generation     5 ○ |
-| bravo                      ○ |
-|                              |
+|   └ wire fold glyph      ▾   |
+|   └ cover depth cap    4 ▾   |
+|   └ fifth generation     5   |
+| bravo                        |
 |                              |
 |                              |
 |                              |

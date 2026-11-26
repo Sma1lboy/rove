@@ -4,6 +4,7 @@
 # GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
 | [ rove ]                     |
+|                              |
 | New task                + n  |
 | /bravo█ 1/2                  |
 |                              |
@@ -12,8 +13,7 @@
 | Issues                       |
 |                              |
 | rove                         |
-|▌bravo                      ○ |
-|                              |
+|▌bravo                        |
 |                              |
 |                              |
 |                              |

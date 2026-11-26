@@ -50,7 +50,7 @@ afterEach(() => {
 const mount = (tasks: readonly Task[] = TASKS) =>
   renderComponent(<SidebarTree tasks={tasks} selectedId="parent" onSelect={() => {}} focused={true} width={40} />, {
     width: 40,
-    height: 12,
+    height: 14,
     providers: { kv: true },
   })
 

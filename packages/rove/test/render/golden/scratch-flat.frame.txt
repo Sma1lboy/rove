@@ -4,17 +4,17 @@
 # GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
 | [ rove ]                     |
+|                              |
 | New task                + n  |
 | Kanban                       |
 | Routines                     |
 | Issues                       |
 |                              |
 | Ungrouped                    |
-| scratchy                   ○ |
+| scratchy                     |
 |                              |
 | rove                         |
-|▌alpha                      ○ |
-|                              |
+|▌alpha                        |
 |                              |
 |                              |
 |                              |

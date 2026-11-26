@@ -9,3 +9,4 @@
 - A child task hangs off its parent on a `└` line.
 - A task on another machine wears `↗` instead of a cloud, which most terminal fonts lack and drew off the row's line. Where it runs (`on win · v0.9.301`) shows while the mouse is over the row, no longer on the keyboard cursor's row.
 - A pull request's mark in the task list is one `◆`, amber for a conflict, red for failing checks, green for passing, in place of `≠` / `✗` / `✓`.
+- A quiet task draws no mark at the end of its row, so only tasks that are working or waiting on you stand out, and the header has a blank line under it.

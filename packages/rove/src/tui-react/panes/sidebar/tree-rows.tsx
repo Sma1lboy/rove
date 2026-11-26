@@ -329,7 +329,8 @@ export function WorktreeTreeRow(props: {
         ) : null}
         {/* Last, so every row's state lines up in one column at the rail's edge, the remote mark before it. */}
         <text fg={fg} attributes={pulsing ? TextAttributes.BOLD : undefined} wrapMode="none" flexShrink={0}>
-          {rowView.stateGlyph}
+          {/* A quiet row draws nothing: only rows with something to say carry a mark. */}
+          {rowView.stateGlyph === glyphs.idle ? " " : rowView.stateGlyph}
         </text>
       </box>
     </RowShell>

@@ -4,6 +4,7 @@
 # GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
 | [ rove ]                     |
+|                              |
 | New task                + n  |
 | /types█ 2/3                  |
 |                              |
@@ -12,9 +13,8 @@
 | Issues                       |
 |                              |
 | rove                         |
-|▌alpha                    ▾ ○ |
-| └ check types              ○ |
-|                              |
+|▌alpha                    ▾   |
+| └ check types                |
 |                              |
 |                              |
 |                              |

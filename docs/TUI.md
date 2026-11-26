@@ -159,7 +159,7 @@ anything of you:
 | spinner | Engine is working (also shown while a worktree materializes or deletes; a materializing row also shows its checkout percent once git reports one) |
 | `!` | Needs you: a permission prompt, a rate limit, an errored turn, a dead engine process, or a failed worktree deletion. Open the tab to see which |
 | `●` | Turn finished, and you haven't looked yet |
-| `○` | Quiet: idle, not yet observed, a finished turn you've already seen, a shell tab, or a custom engine without activity tracking |
+| `○` | Quiet (drawn as an empty cell in the task list, so only rows with something to say carry a mark): idle, not yet observed, a finished turn you've already seen, a shell tab, or a custom engine without activity tracking |
 
 A tab labelled `⚠ <name>` is a live hosted session that was missing from the
 saved tab list. Rove exposes it instead of hiding a running process and adopts
@@ -167,7 +167,7 @@ it back into the Task's tab state when possible.
 
 **Seen means consumed.** A `●` clears the moment you actually open that tab,
 select the task, with that tab active. Moving the sidebar cursor over the row
-doesn't count. Once seen, the badge drops back to `○`; there is no lingering
+doesn't count. Once seen, the badge drops back to quiet; there is no lingering
 checkmark. Rove saves the completion timestamp per task and tab, so restarting
 or reattaching does not relight a completion you already read. A later
 completion has a later timestamp and appears unread as usual.

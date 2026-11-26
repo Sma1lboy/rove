@@ -106,7 +106,8 @@ test("a task row draws the daemon's status for its conversation", async () => {
   expect(unseen.text).toBe(DEFAULT_GLYPHS.unseen)
 
   const idle = await statusCell({ kind: "idle", since: NOW, state: "turn_complete" })
-  expect(idle.text).toBe(DEFAULT_GLYPHS.idle)
+  // Quiet draws nothing: only a row with something to say carries a mark.
+  expect(idle.text).toBe("")
 })
 
 test("a migrated child draws the status of the parent's tab its conversation lives in", async () => {

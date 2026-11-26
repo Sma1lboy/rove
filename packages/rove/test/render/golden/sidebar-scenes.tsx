@@ -159,7 +159,8 @@ const seedChildStatus = (): void => {
 export const SCENES: readonly Scene[] = [
   {
     name: "machines-merged",
-    about: "one repo on three machines is ONE project; no machine headers, remote rows wear the remote mark (offline: warning)",
+    about:
+      "one repo on three machines is ONE project; no machine headers, remote rows wear the remote mark (offline: warning)",
     setup: resetScene,
     machines: MACHINES,
     element: tree({ tasks: MERGED_TASKS }),
