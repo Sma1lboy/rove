@@ -247,33 +247,48 @@ export function deleteTaskDialog(model: AppModel, task: Pick<TaskRow, "id" | "ti
 }
 
 /**
- * Row menu Archive / Unarchive (`archive-task-action.ts`): hide or restore the task and its children.
- * No confirm, since nothing stops; only the daemon's TASK_BUSY refusal (an engine still working or
- * waiting on you) asks once, and "Archive anyway" retries with force.
+ * Row menu Archive / Unarchive (`archive-task-action.ts`): hide or restore the task. Nothing is
+ * deleted, so the only questions are what happens to its listed children (move up, the focused
+ * choice, or go with it) and the daemon's TASK_BUSY refusal (an engine still working or waiting on
+ * you), where "Archive anyway" retries with force and keeps the choice.
  */
 export async function archiveFlow(model: AppModel, task: Pick<TaskRow, "id" | "label" | "archived">): Promise<void> {
   const archived = task.archived !== true
   const title = task.label
-  const run = async (force: boolean) => {
-    await model.act("task.archive", { taskId: task.id, archived, ...(force ? { force: true } : {}) })
+  const run = async (opts: { readonly force?: true; readonly promote?: true }) => {
+    await model.act("task.archive", { taskId: task.id, archived, ...opts })
     toast(tc("tasks", archived ? "archive.done" : "archive.restored", { title }))
   }
-  try {
-    await run(false)
-  } catch (err) {
-    if (archived && err instanceof BridgeRequestError && err.code === "TASK_BUSY") {
-      dialog.set(
-        <ConfirmDialog
-          title={tc("tasks", "archive.busyTitle")}
-          body={tc("tasks", "archive.busyBody", { title })}
-          confirmLabel={tc("tasks", "archive.busyConfirm")}
-          onConfirm={() => run(true)}
-        />,
-      )
-      return
+  const attempt = async (opts: { readonly promote?: true }) => {
+    try {
+      await run(opts)
+    } catch (err) {
+      if (archived && err instanceof BridgeRequestError && err.code === "TASK_BUSY") {
+        dialog.set(
+          <ConfirmDialog
+            title={tc("tasks", "archive.busyTitle")}
+            body={tc("tasks", "archive.busyBody", { title })}
+            confirmLabel={tc("tasks", "archive.busyConfirm")}
+            onConfirm={() => run({ ...opts, force: true })}
+          />,
+        )
+        return
+      }
+      toast(tc("tasks", archived ? "archive.failed" : "archive.restoreFailed", { error: errorText(err) }), "error")
     }
-    toast(tc("tasks", archived ? "archive.failed" : "archive.restoreFailed", { error: errorText(err) }), "error")
   }
+  const children = archived ? (model.tasks.get()?.tasks ?? []).filter((row) => row.parentTaskId === task.id) : []
+  if (children.length === 0) return attempt({})
+  // The dialog closes on the click; a busy refusal comes back as its own question.
+  dialog.set(
+    <ConfirmDialog
+      title={tc("tasks", "confirm.childrenTitle", { title, count: String(children.length) })}
+      body={tc("tasks", "confirm.archiveChildrenBody")}
+      confirmLabel={tc("tasks", "confirm.childrenPromote")}
+      onConfirm={async () => void attempt({ promote: true })}
+      secondary={{ label: tc("tasks", "confirm.archiveChildrenAll"), onConfirm: async () => void attempt({}) }}
+    />,
+  )
 }
 
 /** The project header's Remove project: the repo and its tasks stay on disk, only the list entry goes. */

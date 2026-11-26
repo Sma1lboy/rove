@@ -75,21 +75,22 @@ export function rowCloud(
   )
 }
 
+/** A cloud's outline on a grid of 1.5px dots at a 2px pitch: half the status mark's grain, which is what lets seven columns draw a real cloud beside it. */
+const CLOUD_DOTS = ["...##..", ".##..#.", "#.....#", "#.....#", ".#####."]
+  .flatMap((row, y) => [...row].map((cell, x) => (cell === "#" ? ([x, y] as const) : null)))
+  .filter((dot) => dot !== null)
+
 /**
- * The small cloud after a remote task's title, the only place the rail says a task lives elsewhere
+ * The small cloud on a remote task's row, the only place the rail says a task lives elsewhere
  * (the bottom status line names this machine once). `label` is {@link remoteLabel}.
  */
 export function CloudMark({ label }: { label: string }) {
   return (
     <span className={CLOUD_MARK} title={label} role="img" aria-label={label}>
-      <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
-        <path
-          d="M4.5 13a3 3 0 0 1-.4-5.97A4.5 4.5 0 0 1 12.8 6.6 3.2 3.2 0 0 1 12.3 13Z"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.4"
-          strokeLinejoin="round"
-        />
+      <svg viewBox="0 0 13.5 9.5" width="13.5" height="9.5" fill="currentColor" aria-hidden="true">
+        {CLOUD_DOTS.map(([x, y]) => (
+          <circle key={`${x}.${y}`} cx={x * 2 + 0.75} cy={y * 2 + 0.75} r="0.75" />
+        ))}
       </svg>
     </span>
   )

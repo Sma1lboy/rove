@@ -9,9 +9,11 @@ import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react
 import type { WelcomeRequest } from "../../cli/welcome.ts"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import type { TaskEngineState } from "../../client/remote-orchestrator-payloads"
+import type { NewTaskDialogOptions, NewTaskInput } from "../../tui/component/new-task-dialog/state"
 import type { SectionId } from "../../tui/component/settings-dialog/model"
 import { type SidebarNav, focusPaneForNav } from "../../tui/panes/sidebar/nav-core"
 import type { Task } from "../../types/task"
+import { NewTaskPage } from "../component/new-task-dialog"
 import { SettingsDialog } from "../component/settings-dialog"
 import { UpdatePage } from "../component/update-page"
 import { WorktreesPage } from "../component/worktrees-page"
@@ -115,7 +117,67 @@ export function useHostPagesState(
   }
 }
 
+/** The content pane's New task page: a `nav` value outside the registry, since it needs a pending request. */
+const NEW_TASK_NAV = "new-task"
+
+/** One open New task page and the caller awaiting its answer. */
+interface NewTaskRequest {
+  readonly defaultRepo: string
+  readonly savedRepos: readonly string[]
+  readonly options: NewTaskDialogOptions
+  readonly resolve: (value: NewTaskInput | undefined) => void
+}
+
+export interface NewTaskPageState {
+  readonly request: NewTaskRequest | null
+  /** Show the page and resolve with its answer; leaving it any other way resolves `undefined`. */
+  readonly prompt: (
+    defaultRepo: string,
+    savedRepos: readonly string[],
+    options: NewTaskDialogOptions,
+  ) => Promise<NewTaskInput | undefined>
+  /** A cancel returns to the task list; a submit leaves focus for the task it creates. */
+  readonly finish: (value: NewTaskInput | undefined) => void
+}
+
+export function useNewTaskPage(
+  pages: Pick<HostPagesState, "nav" | "setNav" | "goToNav">,
+  /** The page is a form: it takes the keys however it was opened. */
+  focusContent: () => void,
+): NewTaskPageState {
+  const [request, setRequest] = useState<NewTaskRequest | null>(null)
+  const open = request !== null
+  // An effect, so it lands after the sidebar click that opened the page has claimed focus.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: focusContent is a fresh closure each render
+  useEffect(() => {
+    if (open) focusContent()
+  }, [open])
+  // Every way off the page (a task picked, another page opened) is a cancel.
+  useEffect(() => {
+    if (!request || pages.nav === NEW_TASK_NAV) return
+    request.resolve(undefined)
+    setRequest(null)
+  }, [request, pages.nav])
+  return {
+    request,
+    prompt: (defaultRepo, savedRepos, options) =>
+      new Promise((resolve) => {
+        request?.resolve(undefined)
+        setRequest({ defaultRepo, savedRepos, options, resolve })
+        pages.goToNav(NEW_TASK_NAV)
+      }),
+    finish: (value) => {
+      request?.resolve(value)
+      setRequest(null)
+      if (value) pages.setNav("terminal")
+      else pages.goToNav("terminal")
+    },
+  }
+}
+
 export interface HostPageDeps extends HostPageState {
+  /** Absent in a host with no New task page. */
+  readonly newTask?: Pick<NewTaskPageState, "request" | "finish">
   readonly orchestrator: RemoteOrchestrator
   readonly selectedTask: Task | undefined
   /** The rail's current page id, or `terminal`. */
@@ -152,6 +214,18 @@ export function openTaskOnTab(closePage: () => void, activateTask: (taskId: stri
 
 /** CONTENT-PANE pages the rail swaps; the task list stays beside them. Null for `terminal` or an unregistered id. */
 export function renderContentPage(deps: HostPageDeps): ReactNode | null {
+  const newTask = deps.newTask?.request
+  if (newTask && deps.nav === NEW_TASK_NAV) {
+    return (
+      <NewTaskPage
+        defaultRepo={newTask.defaultRepo}
+        savedRepos={newTask.savedRepos}
+        options={newTask.options}
+        focused={deps.contentFocused}
+        onDone={deps.newTask.finish}
+      />
+    )
+  }
   const Page = deps.pages.find((page) => page.id === deps.nav)?.component
   if (!Page) return null
   return (
@@ -169,6 +243,7 @@ export function renderContentPage(deps: HostPageDeps): ReactNode | null {
 export interface UseHostPagesRenderOpts {
   orchestrator: RemoteOrchestrator
   pages: HostPagesState
+  newTask?: NewTaskPageState
   focus: FocusContextValue
   dialog: DialogContext
   kv: KVContext
@@ -194,6 +269,7 @@ export interface UseHostPagesRenderResult {
 export function useHostPagesRender(opts: UseHostPagesRenderOpts): UseHostPagesRenderResult {
   const { orchestrator, pages, focus, dialog, kv, dims, selectedTask, activeTaskId, tasks, engineState, activateTask } =
     opts
+  const { newTask } = opts
   const pageEntries = usePageEntries()
   useLegacyAdoptPrompt(orchestrator, {
     dialog,
@@ -212,6 +288,7 @@ export function useHostPagesRender(opts: UseHostPagesRenderOpts): UseHostPagesRe
       pages: pageEntries,
       worktreesOpen: pages.worktreesOpen,
       updateOpen: pages.updateOpen,
+      newTask,
       closeWorktrees: pages.closeWorktrees,
       closePage: pages.closePage,
       closeUpdate: pages.closeUpdate,
@@ -219,7 +296,7 @@ export function useHostPagesRender(opts: UseHostPagesRenderOpts): UseHostPagesRe
       engineStates: engineState,
       contentFocused: activePane === "workspace",
     }),
-    [orchestrator, selectedTask, pages, pageEntries, engineState, activePane, activateTask],
+    [orchestrator, selectedTask, pages, newTask, pageEntries, engineState, activePane, activateTask],
   )
 
   const fullWindowPage = useMemo(() => renderFullWindowPage(pageDeps), [pageDeps])

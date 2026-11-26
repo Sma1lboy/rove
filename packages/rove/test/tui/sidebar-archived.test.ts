@@ -102,8 +102,8 @@ describe("archiveTaskAction", () => {
     expect(await archiveTaskAction(h.deps, { id: toTaskId("a"), title: "Fix" })).toBe(true)
     expect(await archiveTaskAction(h.deps, { id: toTaskId("a"), title: "Fix", archived: true })).toBe(true)
     expect(calls).toEqual([
-      ["a", true, false],
-      ["a", false, false],
+      ["a", true, false, false],
+      ["a", false, false, false],
     ])
     expect(h.info).toEqual(['tasks.archive.done {"title":"Fix"}', 'tasks.archive.restored {"title":"Fix"}'])
   })
@@ -117,8 +117,8 @@ describe("archiveTaskAction", () => {
     expect(await archiveTaskAction(h.deps, { id: toTaskId("a"), title: "Fix" })).toBe(true)
     expect(h.asked).toEqual(["Fix"])
     expect(archive.mock.calls).toEqual([
-      ["a", true, false],
-      ["a", true, true],
+      ["a", true, false, false],
+      ["a", true, true, false],
     ])
     expect(h.errors).toEqual([])
   })
@@ -142,4 +142,19 @@ describe("archiveTaskAction", () => {
     expect(h.asked).toEqual([])
     expect(h.errors).toEqual(['tasks.archive.failed {"error":"task not found: m"}'])
   })
+})
+
+test("archiving a task with children asks, and promote archives it alone", async () => {
+  const calls: unknown[] = []
+  const deps = {
+    orchestrator: { archiveTask: async (...args: unknown[]) => void calls.push(args) },
+    confirmBusy: async () => true,
+    pickChildren: async () => "promote" as const,
+    tasks: () => [{ parentTaskId: toTaskId("a") }],
+    notifyInfo: () => {},
+    notifyError: () => {},
+    t: (key: string) => key,
+  }
+  expect(await archiveTaskAction(deps, { id: toTaskId("a"), title: "Fix" })).toBe(true)
+  expect(calls).toEqual([["a", true, false, true]])
 })

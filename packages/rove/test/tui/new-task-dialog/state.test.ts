@@ -184,16 +184,17 @@ describe("offersProjectIntent", () => {
 })
 
 describe("nextField / firstFieldFor (per-tab field cycling)", () => {
-  it("cycles the existing tab: tabs → engine → repo → baseRef → prompt → confirm → tabs", () => {
+  it("cycles the existing tab: tabs → prompt → engine → repo → baseRef → confirm → tabs", () => {
     expect(nextField("repo", "existing")).toBe("baseRef")
-    expect(nextField("baseRef", "existing")).toBe("prompt")
-    expect(nextField("prompt", "existing")).toBe("confirm")
+    expect(nextField("baseRef", "existing")).toBe("confirm")
     expect(nextField("confirm", "existing")).toBe("tabs")
-    expect(nextField("tabs", "existing")).toBe("engine")
+    expect(nextField("tabs", "existing")).toBe("prompt")
+    expect(nextField("prompt", "existing")).toBe("engine")
+    expect(nextField("tabs", "clone")).toBe("engine")
     expect(nextField("engine", "existing")).toBe("repo")
-    // The tier stop sits between the mode row and the engine row while the
+    // The tier stop sits between the first message and the engine row while the
     // auto-routing table is configured.
-    expect(nextField("tabs", "existing", { tierVisible: true })).toBe("tier")
+    expect(nextField("prompt", "existing", { tierVisible: true })).toBe("tier")
     expect(nextField("tier", "existing")).toBe("engine")
     // The model/effort stops exist only while their rows render, and the walk
     // follows the rows top to bottom: model sits above effort (owner

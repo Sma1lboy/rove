@@ -59,4 +59,18 @@ describe("moveProject", () => {
     await reread.load()
     expect(projectOrder(reread.list())).toEqual(["/a", "/b", "/dir"])
   })
+
+  it("a project keeps its place when its first task is archived or deleted", async () => {
+    const first = await row("/a", "a1", { kind: "dir" })
+    await row("/b", "b", { kind: "dir" })
+    const second = await row("/a", "a2", { kind: "dir" })
+    await row("/a", "a3", { kind: "dir" })
+    const listed = () => projectOrder(orch.listTasks().filter((t) => !t.archived && !t.deletion))
+
+    await orch.setArchived(first.id, true)
+    expect(listed()).toEqual(["/a", "/b"])
+
+    await orch.deleteTask(second.id, { force: true })
+    expect(listed()).toEqual(["/a", "/b"])
+  })
 })

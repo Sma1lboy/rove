@@ -1,5 +1,5 @@
 /** @jsxImportSource @opentui/react */
-/** Existing tab: repo input with saved/browse dropdown, base-branch picker, first message.
+/** Existing tab: first message, repo input with saved/browse dropdown, base-branch picker.
  *  JSX only; behavior lives in the view-model. */
 
 import { type ExistingIntent, splitRepoRow } from "../../../tui/component/new-task-dialog/state"
@@ -15,7 +15,8 @@ import type { NewTaskVm } from "./view-model"
  *  directory takes the rest and shrinks first. */
 const REPO_INPUT_CELLS = 28
 
-export function ExistingTab({ vm }: { vm: NewTaskVm }) {
+/** `only`: render just the focused field (the composer layout shows the rest as chips). */
+export function ExistingTab({ vm, only }: { vm: NewTaskVm; only?: boolean }) {
   const { theme } = useTheme()
   const t = useT()
 
@@ -52,48 +53,56 @@ export function ExistingTab({ vm }: { vm: NewTaskVm }) {
 
   return (
     <>
-      <DialogSection label={t("newTask.field.repo")} focused={vm.field === "repo"} onPress={() => vm.setField("repo")}>
-        {/* Name left, directory right — the same weighting as the picker rows
+      {only && vm.field !== "repo" ? null : (
+        <DialogSection
+          label={t("newTask.field.repo")}
+          focused={vm.field === "repo"}
+          onPress={() => vm.setField("repo")}
+        >
+          {/* Name left, directory right — the same weighting as the picker rows
             below, so a repo reads the same whether it is being chosen or has
             been. The input still holds the full path (`vm.repo`); only which
             half of it sits in the editable cell changes. */}
-        <DialogField focused={vm.field === "repo"}>
-          <box flexDirection="row">
-            <input
-              {...INPUT_SCROLL}
-              value={vm.repo}
-              placeholder={splitRepoRow(vm.defaultRepo).base}
-              focused={vm.field === "repo"}
-              onMouseUp={() => vm.setField("repo")}
-              onInput={(v: string) => vm.setRepoText(v)}
-              // Every Enter routes through onRepoSubmit — it handles the
-              // empty-input pick-first case too.
-              onSubmit={() => vm.onRepoSubmit()}
-              // NAME: fixed column, the directory beside it gives way. NOT
-              // `flexGrow` — the directory would squeeze the input below its
-              // content, which scrolls to the cursor (`fixture-repo` shows as
-              // `ture-repo`). PATH: nothing beside it, takes the whole row.
-              flexGrow={vm.repoDir ? 0 : 1}
-              flexShrink={0}
-              {...(vm.repoDir ? { flexBasis: REPO_INPUT_CELLS } : {})}
-            />
-            {/* The separating space is INSIDE the string rather than
+          <DialogField focused={vm.field === "repo"}>
+            <box flexDirection="row">
+              <input
+                {...INPUT_SCROLL}
+                value={vm.repo}
+                placeholder={splitRepoRow(vm.defaultRepo).base}
+                focused={vm.field === "repo"}
+                onMouseUp={() => vm.setField("repo")}
+                onInput={(v: string) => vm.setRepoText(v)}
+                // Every Enter routes through onRepoSubmit — it handles the
+                // empty-input pick-first case too.
+                onSubmit={() => vm.onRepoSubmit()}
+                // NAME: fixed column, the directory beside it gives way. NOT
+                // `flexGrow` — the directory would squeeze the input below its
+                // content, which scrolls to the cursor (`fixture-repo` shows as
+                // `ture-repo`). PATH: nothing beside it, takes the whole row.
+                flexGrow={vm.repoDir ? 0 : 1}
+                flexShrink={0}
+                {...(vm.repoDir ? { flexBasis: REPO_INPUT_CELLS } : {})}
+              />
+              {/* The separating space is INSIDE the string rather than
                 `paddingLeft`: padding belongs to the box Yoga is shrinking, so a
                 full row closes it to zero and the name runs into the path. */}
-            {vm.repoDir ? (
-              <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
-                {` ${vm.repoDir}`}
-              </text>
-            ) : null}
-          </box>
-        </DialogField>
-      </DialogSection>
+              {vm.repoDir ? (
+                <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
+                  {` ${vm.repoDir}`}
+                </text>
+              ) : null}
+            </box>
+          </DialogField>
+        </DialogSection>
+      )}
       {vm.field === "repo" && vm.activeList.length > 0 && !vm.repoPicked ? (
         <PickerList window={vm.activeWindow} cursor={vm.repoCursor} rows={repoRows} onPick={vm.selectRepoAt} />
       ) : null}
       {/* More repos the task spans: the repo above is the primary, these follow in pick order. Not for
           "open the project", which enters one existing checkout. */}
-      {vm.extraCandidates.length > 0 && !(vm.intent === "project" && vm.canOpenProject) ? (
+      {vm.extraCandidates.length > 0 &&
+      !(vm.intent === "project" && vm.canOpenProject) &&
+      (!only || vm.field === "extras") ? (
         <>
           <DialogSection
             label={t("newTask.field.extras")}
@@ -132,7 +141,7 @@ export function ExistingTab({ vm }: { vm: NewTaskVm }) {
       {/* Only for a repo that HAS a project checkout. Everywhere
           else this row would be a control whose second option does nothing,
           so it stays absent rather than disabled. */}
-      {vm.canOpenProject ? (
+      {vm.canOpenProject && (!only || vm.field === "intent") ? (
         <DialogSection
           label={t("newTask.field.opens")}
           focused={vm.field === "intent"}
@@ -152,7 +161,7 @@ export function ExistingTab({ vm }: { vm: NewTaskVm }) {
       ) : null}
       {/* Opening the project has no branch to fork from — it enters the
           repo's own checkout — so the field goes away with the verb. */}
-      {vm.intent === "project" && vm.canOpenProject ? null : (
+      {(vm.intent === "project" && vm.canOpenProject) || (only && vm.field !== "baseRef") ? null : (
         <DialogSection
           label={t("newTask.field.fromBranch")}
           focused={vm.field === "baseRef"}
@@ -166,8 +175,6 @@ export function ExistingTab({ vm }: { vm: NewTaskVm }) {
               focused={vm.field === "baseRef"}
               onMouseUp={() => vm.setField("baseRef")}
               onInput={(v: string) => vm.setBaseRefText(v)}
-              // Last field on the tab — Enter resolves the highlighted branch
-              // and creates straight away.
               onSubmit={() => vm.onBaseRefSubmit()}
             />
           </DialogField>
@@ -189,26 +196,6 @@ export function ExistingTab({ vm }: { vm: NewTaskVm }) {
           paddingBottom={1}
         />
       ) : null}
-      {/* The task's first message; Enter creates. The project intent opens an existing checkout, so it has none. */}
-      {vm.intent === "project" && vm.canOpenProject ? null : (
-        <DialogSection
-          label={t("newTask.field.prompt")}
-          focused={vm.field === "prompt"}
-          onPress={() => vm.setField("prompt")}
-        >
-          <DialogField focused={vm.field === "prompt"}>
-            <input
-              {...INPUT_SCROLL}
-              value={vm.prompt}
-              placeholder={t("newTask.placeholder.prompt")}
-              focused={vm.field === "prompt"}
-              onMouseUp={() => vm.setField("prompt")}
-              onInput={(v: string) => vm.setPrompt(v)}
-              onSubmit={() => vm.commitExisting()}
-            />
-          </DialogField>
-        </DialogSection>
-      )}
     </>
   )
 }

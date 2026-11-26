@@ -70,7 +70,7 @@ export function useBranchField(opts: BranchFieldOpts) {
     opts.onPicked()
   }
 
-  // Enter resolves the highlighted branch and walks on to the first message.
+  // Enter resolves the highlighted branch and walks on to Create.
   function onBaseRefSubmit(): void {
     setBaseRef(resolveBaseRef(baseRef, branchFiltered, branchCursor))
     setBaseRefTouched(true)

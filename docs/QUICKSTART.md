@@ -109,7 +109,7 @@ With no tasks and a usable engine, the welcome panel offers **Start a task with
 a prompt** when you launched Rove inside a Git repo with a commit. Click it,
 type a prompt, and press `enter` to create an isolated worktree and open its
 engine tab. It defaults to the current repo and branch and a usable engine.
-`n` still opens the full task dialog for repository, engine, and task intent.
+`n` still opens the full New task page for repository, engine, and task intent.
 
 The first `ctrl+t` also shows a one-time reminder that tabs share the current
 task's files. It creates the tab immediately, without a confirmation.

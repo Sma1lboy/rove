@@ -9,6 +9,7 @@ import {
   cloneSource,
   expandTilde,
   githubRepoName,
+  isAbsolutePath,
   isPathInput,
   splitRepoRow,
   stripTrailingSlash,
@@ -90,7 +91,7 @@ export function RepoMenu(props: {
   const source = cloneSource(typed)
   const clone = source && (source.includes(":") || local.length === 0) ? source : null
   const typedPath =
-    !clone && isPathInput(typed) && !saved.includes(typed) && (!remote || typed.startsWith("/"))
+    !clone && isPathInput(typed) && !saved.includes(typed) && (!remote || isAbsolutePath(typed))
       ? stripTrailingSlash(expandTilde(typed, home))
       : ""
   const more = (github?.repos ?? [])

@@ -31,6 +31,7 @@ import { ProjectPickerDialog } from "../component/project-picker-dialog"
 import { RunAgainDialog } from "../component/run-again-dialog"
 import { StatusPickerDialog } from "../component/status-picker-dialog"
 import type { DialogContext } from "../ui/dialog"
+import { DialogChoice } from "../ui/dialog-choice"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import { buildBaseCreateTaskContext, selectNextAfterDelete } from "../ui/task-dialog-adapters"
 import { archiveTaskAction } from "./archive-task-action"
@@ -56,6 +57,7 @@ export type WorkspaceTaskActionDeps = {
   forgetTaskTabs: (taskId: string) => void
   /** New-task dialog with a first message: create the task and run its engine on it. */
   startWithPrompt?: CreateTaskContext["startWithPrompt"]
+  promptNewTask: CreateTaskContext["promptNewTask"]
 }
 
 export type WorkspaceTaskActions = {
@@ -107,6 +109,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
       orch: orchestrator,
       tasks,
       dialog,
+      promptNewTask: deps.promptNewTask,
       notifyError,
       notifyInfo: deps.notifyInfo,
       selectedId: deps.selectedId,
@@ -216,6 +219,18 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
             t("common.cancel"),
             t("tasks.archive.busyConfirm"),
           ).then((ok: unknown) => ok === true),
+        pickChildren: (title, count) =>
+          DialogChoice.show<"promote" | "cascade">(dialog, {
+            title: t("tasks.confirm.childrenTitle", { title, count: String(count) }),
+            message: t("tasks.confirm.archiveChildrenBody"),
+            options: [
+              { value: "promote", label: t("tasks.confirm.childrenPromote") },
+              { value: "cascade", label: t("tasks.confirm.archiveChildrenAll") },
+              { value: undefined, label: t("common.cancel") },
+            ],
+            initial: 0,
+          }),
+        tasks,
         notifyInfo: deps.notifyInfo,
         notifyError,
         t,

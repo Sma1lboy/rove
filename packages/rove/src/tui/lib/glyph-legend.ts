@@ -22,6 +22,7 @@ const PLACEMENT: Readonly<Record<GlyphLegendMark, Placement | null>> = {
   unseen: ["rows", "primary"],
   idle: ["rows", "textMuted"],
   subagent: ["rows", "textMuted"],
+  remote: ["rows", "textMuted"],
   done: ["inbox", "success"],
   rateLimited: ["inbox", "warning"],
   dead: ["inbox", "error"],

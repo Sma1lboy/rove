@@ -1,5 +1,5 @@
 /**
- * Create/adopt flow behind the NewTaskDialog. NO `@opentui` imports: the dialog
+ * Create/adopt flow behind the New task page. NO `@opentui` imports: the page
  * arrives only as the `promptNewTask` callback, so this runs under plain vitest.
  */
 
@@ -25,7 +25,7 @@ export interface FirstPromptStart {
 
 /** Hosts build ONE of these and pass it to every flow. */
 export interface CreateTaskContext extends TaskActionContext {
-  /** New-task dialog adapter — host implements with `NewTaskDialog.show(dialog, …)`. */
+  /** New-task form adapter — the host shows its New task page and resolves with the answer. */
   readonly promptNewTask: (
     defaultRepo: string,
     repos: readonly string[],

@@ -245,7 +245,7 @@ chords. A Task or tab row also offers **New conversation** (what `ctrl+t`
 does: a child task sharing the worktree) and **New shell** (a child task sharing the worktree whose `tab-1` is a login shell) for that worktree,
 both enter the Task first, exactly as pressing the chord there would.
 These entries have no chord of their own. **New task from this branch**, on a
-managed Task with a branch, opens the New task dialog on that Task's repo with
+managed Task with a branch, opens the New task page on that Task's repo with
 its branch as the base, so the new Task stacks on the unmerged work (menu-only;
 not offered on multi-repo or another machine's Tasks). **Set status** opens a picker over
 the six Task statuses and writes the one you choose. **Copy task ID** puts the

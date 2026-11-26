@@ -1,6 +1,9 @@
 /** A project's header label: the narrowest name that tells it apart from the other projects on screen. */
 
-export const repoLabel = (repo: string): string => repo.split("/").filter(Boolean).pop() ?? repo
+/** A path's folders; a Windows machine's project arrives with backslashes. */
+export const pathParts = (path: string): string[] => path.split(/[\\/]/).filter(Boolean)
+
+export const repoLabel = (repo: string): string => pathParts(repo).pop() ?? repo
 
 /** What a label rule reads of a project. */
 interface Labelled {
@@ -25,7 +28,7 @@ export function projectLabel(repo: string, repos: readonly LabelledRepo[], host 
     (entry) => (entry.repo !== repo || entry.host !== host) && repoLabel(entry.repo) === base,
   )
   if (collisions.length === 0) return base
-  const tailOf = (path: string) => path.split("/").filter(Boolean).slice(-2).join("/")
+  const tailOf = (path: string) => pathParts(path).slice(-2).join("/")
   if (collisions.some((entry) => entry.host === host)) {
     const tailRepeats = collisions.some((entry) => entry.host !== host && tailOf(entry.repo) === tailOf(repo))
     return tailRepeats && host ? `${host}:${tailOf(repo)}` : tailOf(repo)

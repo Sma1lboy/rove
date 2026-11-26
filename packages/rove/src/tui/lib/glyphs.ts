@@ -34,6 +34,12 @@ export interface GlyphSet {
   readonly routineFailed: string
   /** Prefix of the running-subagent count (`◇2 main`). */
   readonly subagent: string
+  /**
+   * On a row whose task lives on ANOTHER machine: a cloud's outline in braille dots, three cells
+   * (6×4 dots). The braille block is one cell per character in every font the other glyphs were
+   * checked in; callers measure it with `clusterCells`, never assume one cell. ascii keeps `@`.
+   */
+  readonly remote: string
 }
 
 export const GLYPH_SETS: Readonly<Record<GlyphSetName, GlyphSet>> = {
@@ -49,6 +55,7 @@ export const GLYPH_SETS: Readonly<Record<GlyphSetName, GlyphSet>> = {
     dead: "†",
     routineFailed: "↻",
     subagent: "◇",
+    remote: "⣔⣉⣢",
   },
   starburst: {
     spinner: ["✻", "✼", "❉", "❊", "✺", "✹", "✸", "✶"],
@@ -62,6 +69,7 @@ export const GLYPH_SETS: Readonly<Record<GlyphSetName, GlyphSet>> = {
     dead: "✞",
     routineFailed: "↻",
     subagent: "❖",
+    remote: "⣔⣉⣢",
   },
   ascii: {
     spinner: ["|", "/", "-", "\\"],
@@ -75,6 +83,7 @@ export const GLYPH_SETS: Readonly<Record<GlyphSetName, GlyphSet>> = {
     dead: "x",
     routineFailed: "@",
     subagent: "&",
+    remote: "@",
   },
 }
 

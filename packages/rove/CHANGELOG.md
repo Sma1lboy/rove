@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.9.301
+
+### Patch Changes
+
+- [#2163](https://github.com/Sma1lboy/rove/pull/2163) [`f7796be`](https://github.com/Sma1lboy/rove/commit/f7796be991b0bcac063d345566dd877187132a39) Archiving or deleting the first session of a project no longer drops the whole project to the bottom of the sidebar. The project stays where it was. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2154](https://github.com/Sma1lboy/rove/pull/2154) [`4e0dd64`](https://github.com/Sma1lboy/rove/commit/4e0dd6452e4511d011eb757a273288d9fcb88f5f) Settings → Engines, `rove doctor` and `rove api engine-list --status` name the installed Claude Code, Codex and Copilot CLI version, so you can tell at a glance whether an engine is due for an update. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2157](https://github.com/Sma1lboy/rove/pull/2157) [`afa00dc`](https://github.com/Sma1lboy/rove/commit/afa00dc4782150e2197dba8ec023a6956e66ac55) - The terminal UI no longer stops taking keyboard input after startup when an engine is not on `PATH`. Looking that engine up in your login shell briefly took the terminal away from Rove, and a key pressed (or a terminal reply arriving) in that moment broke input until restart. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2151](https://github.com/Sma1lboy/rove/pull/2151) [`1fbfca9`](https://github.com/Sma1lboy/rove/commit/1fbfca92efe034d2a7180b6c8edcf127cf77cd18) Starting several pi tasks at once no longer leaves some of them stuck on pi's "Trust project folder?" prompt. Each Rove process used to read pi's trust file, add its own worktree and write the whole file back, so two starting together could drop each other's entry or leave the file half-written. The write now goes through the same lock and atomic replace the other engines' trust files use. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2152](https://github.com/Sma1lboy/rove/pull/2152) [`88cb13b`](https://github.com/Sma1lboy/rove/commit/88cb13b4a376d772a4a6abb36e1241d4fbb0433a) Acking an Inbox item now calms the task list too. Clearing an error, an exited engine or a question in the Inbox (`d`, ack all, or opening it) stops that row's mark until the engine reports something new; before, the row stayed red after the Inbox was empty. Sessions restored after a reboot or a terminal host crash now show up in the Inbox once each, as "restored after restart", so their red mark can be acked like everything else instead of staying until each tab was opened. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2161](https://github.com/Sma1lboy/rove/pull/2161) [`97393b4`](https://github.com/Sma1lboy/rove/commit/97393b4a0dfe6e910d2ee8c8dc80adb69b75b921) After a reboot, less is left for you to do. Opening a tab of a task on another machine now reopens its session there by itself, as a local tab already did, including when its saved screen had expired; before, it showed "this tab has no running session" until you pressed Reopen session. And `rove daemon autostart on` starts the daemon, resident, every time you log in (a systemd user unit on Linux, a launchd agent on macOS, a sign-in entry on Windows), so a machine that restarted is reachable again without anyone opening Rove on it. `rove daemon autostart off` undoes it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2153](https://github.com/Sma1lboy/rove/pull/2153) [`e55f651`](https://github.com/Sma1lboy/rove/commit/e55f6510ccdfa05a78403c307879083c0e95408d) Jumping to another task while one is still setting up its worktree now keeps you where you jumped. Before, picking a task from the Inbox or the folded rail during that wait was undone a moment later, when the slower task finished and pulled the selection and focus back to itself. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2150](https://github.com/Sma1lboy/rove/pull/2150) [`a4e73e5`](https://github.com/Sma1lboy/rove/commit/a4e73e582e6143e509f22315162ee463bbadf7b0) `ctrl+a` `tab` takes you back to the task you were on before this one, and pressing it again returns, so two tasks you are bouncing between are one chord apart. It works from inside the engine terminal too, and is listed in the command palette and `F1`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2149](https://github.com/Sma1lboy/rove/pull/2149) [`16165fb`](https://github.com/Sma1lboy/rove/commit/16165fb71ad7678e66ec7d6bf728f266d25617ca) The terminal UI shows less chrome. The `sort: …` line above the task list is gone, and so are the Zen and "Ask agent to create PR" buttons above Files, so the pane opens straight on All / Changes. The shortcuts are unchanged: `t` in the sidebar still cycles the order, `ctrl+a` `z` toggles zen, `ctrl+a` `p` asks the agent for a PR. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2159](https://github.com/Sma1lboy/rove/pull/2159) [`00c9ad3`](https://github.com/Sma1lboy/rove/commit/00c9ad3ce8b3f9bc2cc6c483f0d002e421fda97d) Web: in the task list, the cloud mark of a task on another machine now sits before the row's status dots, so the status column lines up on every row. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2155](https://github.com/Sma1lboy/rove/pull/2155) [`5cf6dee`](https://github.com/Sma1lboy/rove/commit/5cf6dee9753cd0005f1c74ba397377356cb22de1) Rove Web on a phone: the row of chips under the New session box no longer squashes the worktree button or runs past the right edge when it is full. The folder name shortens to make room, and the other chips keep their shape. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.300
 
 ### Patch Changes

@@ -46,6 +46,3 @@ function braille(lit: readonly number[], cols: number): string {
 export function dotsGlyph(lit: readonly number[]): string {
   return braille(lit, 3)
 }
-
-/** A cloud in three cells, for a row whose task runs on another machine: a hump over a flat base. */
-export const CLOUD_DOTS = braille([2, 3, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17], 6)

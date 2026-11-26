@@ -1,14 +1,14 @@
 /** @jsxImportSource @opentui/react */
 /**
  * The Existing tab's "open the project" choice, through the real
- * dialog entry point.
+ * page entry point.
  *
  * The flow-level tests (`test/tui/create-task-flow-open-project.test.ts`) pin
  * what `mode: "open"` DOES once submitted. What they cannot see is whether the
- * dialog ever produces it: `NewTaskDialog.show` is what wires `mainRepos` from
+ * form ever produces it: `NewTaskPage` is what wires `mainRepos` from
  * the caller's options down to the view-model, and a dropped prop there would
  * leave every one of those tests green while the choice never appeared on
- * screen. So these drive the mounted dialog and read the frame.
+ * screen. So these drive the mounted page and read the frame.
  *
  * The repos are real `git init` temp dirs because the tab reads branches and
  * validates the path synchronously — a fake path renders the error state
@@ -20,9 +20,7 @@ import { execSync } from "node:child_process"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { useEffect, useRef } from "react"
-import { NewTaskDialog } from "../../src/tui-react/component/new-task-dialog"
-import { useDialog } from "../../src/tui-react/ui/dialog"
+import { NewTaskPage } from "../../src/tui-react/component/new-task-dialog"
 import { type Field, type NewTaskInput, nextField } from "../../src/tui/component/new-task-dialog/state"
 import { act, isolateHome, renderComponent, settle } from "./harness"
 
@@ -34,29 +32,24 @@ function repo(): string {
   return dir
 }
 
-/**
- * Mount the dialog the way a host does — through `NewTaskDialog.show` on a
- * live dialog stack, which is the wiring under test.
- */
+/** Mount the page the way the host does: `NewTaskPage` is what wires `mainRepos` into the form. */
 function Harness(props: {
   repo: string
   saved?: readonly string[]
   mainRepos?: ReadonlySet<string>
   onSubmit: (v: NewTaskInput) => void
 }) {
-  const dialog = useDialog()
-  const opened = useRef(false)
-  useEffect(() => {
-    if (opened.current) return
-    opened.current = true
-    void NewTaskDialog.show(dialog, props.repo, props.saved ?? [props.repo], { mainRepos: props.mainRepos }).then(
-      (result) => {
+  return (
+    <NewTaskPage
+      defaultRepo={props.repo}
+      savedRepos={props.saved ?? [props.repo]}
+      options={{ mainRepos: props.mainRepos }}
+      focused
+      onDone={(result) => {
         if (result) props.onSubmit(result)
-      },
-    )
-  }, [dialog, props.repo, props.saved, props.mainRepos, props.onSubmit])
-  // DialogProvider renders the stack itself; this component only opens it.
-  return <box />
+      }}
+    />
+  )
 }
 
 async function mount(dir: string, mainRepos?: ReadonlySet<string>, saved?: readonly string[]) {
@@ -88,7 +81,7 @@ test("a repo with no project checkout does not", async () => {
  * left in 2026-09 every count pointed one field past where it meant.
  */
 function stopsTo(target: Field, opts: { intentVisible?: boolean; extrasVisible?: boolean } = {}): number {
-  let field: Field = "tabs"
+  let field: Field = "prompt"
   for (let i = 1; i <= 24; i++) {
     field = nextField(field, "existing", {
       intentVisible: opts.intentVisible ?? false,
@@ -127,6 +120,9 @@ function stopsFromTo(
   throw new Error(`the focus chain never reaches ${target} from ${from}`)
 }
 
+/** The branch field while it is not focused: a chip under the composer. */
+const BRANCH_CHIP = /│ +main +│/
+
 /** Press Tab `times` times. */
 async function pressTabs(mockInput: { pressTab: () => void }, times: number): Promise<void> {
   for (let i = 0; i < times; i++) {
@@ -151,7 +147,7 @@ test("the intent row is reachable by keyboard, and choosing the project drops th
   // the DIALOG tab instead), and a click-driven test passed against that.
   const dir = repo()
   const { frame, mockInput } = await mount(dir, new Set([dir]))
-  expect(await frame()).toContain("FROM BRANCH")
+  expect(await frame()).toMatch(BRANCH_CHIP)
 
   await tabToIntent(mockInput)
   await act(async () => {
@@ -160,7 +156,7 @@ test("the intent row is reachable by keyboard, and choosing the project drops th
   await settle()
 
   const text = await frame()
-  expect(text).not.toContain("FROM BRANCH")
+  expect(text).not.toMatch(BRANCH_CHIP)
   // Still on the Existing tab — `right` must not have cycled the tab strip.
   expect(text).toContain("the project itself")
 })
@@ -205,7 +201,7 @@ test("picking a different repo resets the intent back to a task worktree", async
   // The intent chips carry selection in their border colour, which a frame
   // dump cannot see — so read the intent off its CONSEQUENCE instead: the
   // project intent forks from nothing, so it hides the branch field.
-  expect(await frame()).not.toContain("FROM BRANCH")
+  expect(await frame()).not.toMatch(BRANCH_CHIP)
 
   // Back around the cycle to the repo field. Counted from the chain, with the
   // project intent's skip applied: under that intent the branch field is
@@ -223,5 +219,5 @@ test("picking a different repo resets the intent back to a task worktree", async
   await settle()
 
   // Reset to the task worktree — the branch field is back.
-  expect(await frame()).toContain("FROM BRANCH")
+  expect(await frame()).toMatch(BRANCH_CHIP)
 })

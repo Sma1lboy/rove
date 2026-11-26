@@ -248,7 +248,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `GATE_NOT_OPEN` | The gate is already answered or withdrawn. |
 | `BAD_OPTION` | `gate-answer --option` is not one of the gate's option keys (or the gate is free-text only). |
 | `NO_ENGINE_TAB` | The task has live tabs but none of them is an engine, so there is nothing to deliver to or interrupt. |
-| `NOT_A_REPO` | `--repo` does not point at a git repository. |
+| `NOT_A_REPO` | `add --repo` points at something that is neither a git repository nor a directory; or at a directory that is not a repository together with a flag that needs one (`--branch`, `--base-branch`, `--worktree-only`, `--count`, `--parent`, … — the message names it). A plain directory alone is fine: the session runs in it, with no worktree. |
 | `NOT_A_GIT_REPO` | One of several `--repo` values is not a git repository (the message names it); `add` (or `add --isolate-in`) under a `dir` task that is not inside a git repository; `update --project PATH` where PATH is not inside a git repository. |
 | `REPO_DUPLICATE` | `add` names the same repo root twice; a subdirectory counts as its root. |
 | `TOO_MANY_REPOS` | `add` names more than 8 repos for one task. |
@@ -2131,7 +2131,7 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   every removed id as `deleted`. A directory goes only once no remaining task
   points at it, so deleting a shared child never touches its parent's files,
   and every removed worktree still passes the dirty gate.
-- `archive --task-id ID [--force]` / `unarchive --task-id ID`: hide a task
+- `archive --task-id ID [--force] [--promote-children]` / `unarchive --task-id ID`: hide a task
   from the sidebar, the web rail and the default `list`, or bring it back.
   Archiving also ends the task's sessions: every engine and shell process
   of the task is stopped. The worktree, branch, transcript and each tab's
@@ -2145,6 +2145,10 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   recursively) together, and return `{ taskId, archived, ids }`, where `ids`
   is every task they changed. A child unarchived on its own while its parent
   stays archived shows as a top-level row until the parent comes back.
+  `archive --promote-children` archives the task alone: its children are
+  re-parented to its own parent (or top level) and keep running. The
+  sidebar and the web rail ask which of the two you want when the task has
+  children.
   `archive` is refused with `TASK_BUSY` while an engine in the subtree is
   `running` or `permission_needed`; `--force` stops it and archives anyway. The sidebar and the rail do not list
   archived tasks. To bring one back from the interface, open the command

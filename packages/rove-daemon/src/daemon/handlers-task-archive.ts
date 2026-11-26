@@ -1,7 +1,8 @@
 /**
  * `task.archive`: hide or restore a task and its descendants, Inbox rows included. Archiving
  * ends their sessions (a hidden row must not keep processes alive); the worktree, branch and
- * each tab's conversation stay. The one guard is a busy engine.
+ * each tab's conversation stay. `promote` archives the task alone and moves its children up
+ * one level. The one guard is a busy engine.
  */
 
 import { logDaemonError } from "./crash-log.ts"
@@ -24,8 +25,9 @@ export const ARCHIVE_HANDLERS: readonly DaemonRequestHandler[] = [
       const task = ctx.orch.getTask(taskId)
       if (!task) throw new Error(`task not found: ${taskId}`)
       // The task, every descendant and their bare checkouts move together: a hidden parent must not leave an orphan.
+      const promote = archived && optionalBoolean(payload, "promote") === true
       const before = ctx.orch.listTasks()
-      const ids = withOwnedCheckouts(before, subtreeIds(before, taskId))
+      const ids = withOwnedCheckouts(before, promote ? [taskId] : subtreeIds(before, taskId))
       if (archived && optionalBoolean(payload, "force") !== true) {
         const busy = ids.filter((id) => ENGINE_BUSY[ctx.activity.stateOf(id, null) ?? "idle"] === true)
         if (busy.length > 0) {
@@ -34,6 +36,8 @@ export const ARCHIVE_HANDLERS: readonly DaemonRequestHandler[] = [
           )
         }
       }
+      // After the busy guard, so a refusal moves nothing. The checkouts in `ids` are already picked.
+      if (promote) await ctx.orch.promoteChildren(taskId)
       for (const id of ids) await ctx.orch.setArchived(id, archived)
       if (archived) {
         const tasks = ctx.orch.listTasks()

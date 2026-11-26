@@ -7,6 +7,7 @@ import { ShortcutRevealBadge } from "../../component/shortcut-reveal"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { usePageEntries } from "../../pages/registry"
+import { useHoverFill } from "../../ui/use-hover-fill"
 import { zenChipGlyph } from "./zen-glyph"
 
 export function SectionHeader(props: {
@@ -194,43 +195,49 @@ export function SidebarSettingsRow(props: { onOpenSettings: () => void }) {
 
 /** One destination per registered page, one per line: the 24-cell rail can't fit chips side by side. */
 export function SidebarNavRail(props: { nav: SidebarNav; setNav: (nav: SidebarNav) => void }) {
-  const { theme } = useTheme()
   // Subscribes to the UI language: page titles are read at render.
   useT()
   const pages = usePageEntries()
   if (pages.length === 0) return null
   return (
     <box flexDirection="column" flexShrink={0} paddingBottom={1}>
-      {pages.map((item) => {
-        const active = props.nav === item.id
-        return (
-          <box
-            key={item.id}
-            position="relative"
-            flexDirection="row"
-            flexShrink={0}
-            paddingLeft={1}
-            paddingRight={1}
-            onMouseUp={(e: { stopPropagation(): void }) => {
-              // A bubbled sidebar focus-grab would take focus back from the
-              // page, so keys typed into it would fire sidebar chords.
-              e.stopPropagation()
-              props.setNav(item.id)
-            }}
-          >
-            <text
-              // Not the focus accent: it already marks focused borders and selected cards.
-              fg={active ? theme.text : theme.textMuted}
-              attributes={active ? TextAttributes.BOLD : undefined}
-              wrapMode="none"
-              flexGrow={1}
-            >
-              {item.title()}
-            </text>
-            {item.action ? <ShortcutRevealBadge bindingId={item.action} /> : null}
-          </box>
-        )
-      })}
+      {pages.map((item) => (
+        <NavRow key={item.id} item={item} active={props.nav === item.id} onPick={() => props.setNav(item.id)} />
+      ))}
+    </box>
+  )
+}
+
+function NavRow(props: { item: ReturnType<typeof usePageEntries>[number]; active: boolean; onPick: () => void }) {
+  const { theme } = useTheme()
+  const hover = useHoverFill()
+  const { item, active } = props
+  return (
+    <box
+      position="relative"
+      flexDirection="row"
+      flexShrink={0}
+      paddingLeft={1}
+      paddingRight={1}
+      backgroundColor={hover.fill}
+      {...hover.handlers}
+      onMouseUp={(e: { stopPropagation(): void }) => {
+        // A bubbled sidebar focus-grab would take focus back from the
+        // page, so keys typed into it would fire sidebar chords.
+        e.stopPropagation()
+        props.onPick()
+      }}
+    >
+      <text
+        // Not the focus accent: it already marks focused borders and selected cards.
+        fg={active || hover.hovered ? theme.text : theme.textMuted}
+        attributes={active ? TextAttributes.BOLD : undefined}
+        wrapMode="none"
+        flexGrow={1}
+      >
+        {item.title()}
+      </text>
+      {item.action ? <ShortcutRevealBadge bindingId={item.action} /> : null}
     </box>
   )
 }

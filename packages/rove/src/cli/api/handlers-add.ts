@@ -17,6 +17,7 @@ import { taskCwd } from "../../orchestrator/task-tree.ts"
 import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
 import { DEFAULT_VENDOR, type VendorId } from "../../types/vendor.ts"
 import { applyPostCreateFlags, deliverArmed, persistPrompt } from "./add-delivery.ts"
+import { addInPlainFolder, isDirectory } from "./add-dir-session.ts"
 import {
   type EngineFields,
   effortFor,
@@ -59,12 +60,13 @@ export async function add(ctx: VerbContext): Promise<unknown> {
   const inherited = flags.takesParentRepo ? await resolveAddParent(ctx, daemon, flags, undefined) : null
   const requestedRepo = inherited ? inherited.repo : fork ? fork.repo : await resolveRepoFlag(ctx, refs[0] ?? "")
   const repo = inherited ? inherited.repo : await runtime.resolveRepoRoot(requestedRepo)
-  // Without this a non-git `--repo` SUCCEEDS: `resolveRepoRoot` falls back to
-  // the path verbatim and the row persists with an empty branch and
-  // worktreePath, failing only later with nothing pointing back at the flag.
+  // `resolveRepoRoot` hands a non-git path back verbatim: created as a task, its row would have no
+  // branch and no worktree to cut.
   if (!inherited && !(await runtime.isUsableRepo(repo))) {
+    // A folder git knows nothing about still takes a session, in place: only a worktree needs a repository.
+    if (!fork && isDirectory(repo)) return addInPlainFolder(ctx, repo)
     throw new ApiError(
-      `--repo ${repo} is not a git repository — a task needs one to cut its worktree and branch from (run \`git init\` there, or point --repo at a checkout)`,
+      `--repo ${repo} is neither a git repository nor a directory on this machine — point --repo at a checkout, or at a folder to run a session in`,
       "NOT_A_REPO",
       helpStep("add"),
     )

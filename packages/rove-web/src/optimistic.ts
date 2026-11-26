@@ -36,13 +36,17 @@ function subtree(rows: readonly TaskRow[], id: string): ReadonlySet<string> {
   return ids
 }
 
+/** `promote` archives the row alone; its children stay and move up to its parent. */
 export const archiveEdit =
-  (id: string, archived: boolean): TasksEdit =>
+  (id: string, archived: boolean, promote = false): TasksEdit =>
   (payload) => {
     const from = archived ? payload.tasks : (payload.archived ?? [])
-    const ids = subtree(from, id)
+    const ids = promote ? new Set([id]) : subtree(from, id)
+    const parent = from.find((task) => task.id === id)?.parentTaskId
     const moved = from.filter((task) => ids.has(task.id)).map((task) => ({ ...task, archived }))
-    const rest = from.filter((task) => !ids.has(task.id))
+    const rest = from
+      .filter((task) => !ids.has(task.id))
+      .map((task) => (promote && task.parentTaskId === id ? { ...task, parentTaskId: parent } : task))
     return archived
       ? { ...payload, tasks: rest, archived: [...(payload.archived ?? []), ...moved] }
       : { ...payload, tasks: [...payload.tasks, ...moved], archived: rest }
@@ -70,7 +74,7 @@ const EDITS: Readonly<Record<string, (id: string, args: Args) => TasksEdit>> = {
   "task.keep": (id, a) => patch(id, { kept: a.kept === true } as Partial<TaskRow>),
   "task.setStatus": (id, a) => patch(id, { status: a.status } as Partial<TaskRow>),
   "task.rename": (id, a) => renameEdit(id, String(a.title)),
-  "task.archive": (id, a) => archiveEdit(id, a.archived === true),
+  "task.archive": (id, a) => archiveEdit(id, a.archived === true, a.promote === true),
   "task.delete": (id, a) => deleteEdit(id, a.cascade === true),
 }
 

@@ -107,7 +107,7 @@ rove                          ← your projects, exactly where they were
   main
   fix/machines
 narwhal:rove                  ← narwhal's checkout of a repo you also have
-  remote probe                ← a task there
+  remote probe ⣔⣉⣢            ← a task there: the cloud says where it runs
 ```
 
 There is no row for the machine itself: projects from every machine share one
@@ -341,6 +341,9 @@ Not there yet: a Windows machine, and a machine without Rove.
 The web and the TUI open a task on another machine like a local one. Its tabs
 are listed from that machine. Its terminal attaches that machine's live
 session: you can watch and type, and new and closed tabs happen over there.
+A tab with no running session there (that machine rebooted, or its saved
+screen expired) is reopened on that machine as you open it, the way a local
+tab is.
 The Files pane reads that machine's worktree through the `worktree-files`,
 `worktree-diff`, `worktree-diff-file`, `worktree-file` and `worktree-refs` verbs. Nothing is spawned on the hub
 for a remote task. The other machine needs a Rove with those verbs. Opening a

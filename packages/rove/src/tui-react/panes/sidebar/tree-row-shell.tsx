@@ -13,6 +13,7 @@ import type { WorktreeChanges } from "../../../tui/panes/sidebar/worktree-change
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"
+import { useHoverFill } from "../../ui/use-hover-fill"
 
 /** Indent cells at `depth`: none for a top-level task (its title sits under the project header), then two per level, the last two an elbow to its parent. */
 const indentOf = (depth: number): string => (depth > 1 ? `${" ".repeat((depth - 2) * 2)}└ ` : "")
@@ -90,6 +91,7 @@ export function RowShell(props: {
     cursor: shared.cursorIndex === props.flatIndex,
     selected: shared.activeRowId === props.rowId,
   })
+  const hover = useHoverFill()
   return (
     <box
       ref={(renderable: BoxRenderable | null) => {
@@ -102,7 +104,8 @@ export function RowShell(props: {
       width="100%"
       flexDirection="row"
       gap={0}
-      backgroundColor={selection.backgroundColor}
+      backgroundColor={selection.backgroundColor ?? hover.fill}
+      {...hover.handlers}
       onMouseUp={(evt: { button: number; x: number; y: number; stopPropagation(): void }) => {
         // Activating hands focus to the content pane; a bubbled sidebar
         // re-grab would leave sidebar letter chords live over the terminal.
@@ -114,8 +117,9 @@ export function RowShell(props: {
         shared.onPress(props.flatIndex, props.rowId)
       }}
     >
-      <text fg={selection.markerColor} wrapMode="none">
-        {selection.marker}
+      {/* A hovered row that is neither the cursor nor the open one borrows the marker, quietly. */}
+      <text fg={selection.markerColor ?? theme.border} wrapMode="none">
+        {selection.marker === " " && hover.hovered ? "▏" : selection.marker}
       </text>
       {props.depth > 1 ? (
         <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>

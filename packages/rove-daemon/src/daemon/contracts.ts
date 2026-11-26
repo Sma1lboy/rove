@@ -358,6 +358,8 @@ export interface DaemonOrchestrator extends CheckpointOrchestrator {
   setParent(id: string, parentId: string | null, replyTab?: string): Promise<ReparentResult>
   /** Archive or restore ONE task row; the cascade over its descendants is the caller's. */
   setArchived(id: string, archived: boolean): Promise<void>
+  /** Move a task's children up to its own parent (or top level); they keep running. */
+  promoteChildren(id: string): Promise<void>
   setRequireReport(id: string, required: boolean): Promise<void>
   setWorktreeOnly(id: string, on: boolean): Promise<void>
   moveTask(id: string, delta: -1 | 1): Promise<void>

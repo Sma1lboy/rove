@@ -133,7 +133,7 @@ Score: 206 / 231 rows at ✅ (7 🟡, 2 ↔, 5 🚫, 11 ❌). Regenerate from th
 | 91a | Newline in the engine prompt | Shift+Enter | ✅ | `term.input` | shift-enter: sent as `ESC[27;2;13~` like the TUI pane; Claude's prompt took `line1`, Shift+Enter, `line2` as two lines, and `cat -v` in a shell read the sequence once with no CR. Skipped while an IME is composing. |
 | 92 | Scroll back / forward | Ctrl+PgUp/PgDn, wheel | ✅ | local | workspace: Ctrl+PgUp/PgDn scroll a page, wheel scrolls; `↑ scrolled NL` chip. |
 | 93 | Jump to earliest / latest retained output | first/latest chips | ✅ | local | workspace: `first`/`latest` chips jump to earliest/latest and the chip clears. |
-| 94 | Select and auto-copy terminal text | mouse drag / release | ✅ | local | workspace: Mouse-drag selection copies on release (clipboard read back). |
+| 94 | Select terminal text | mouse drag | ⚠️ differs | local | The TUI copies on release; the web only selects, by the owner's decision, and copies on Ctrl+C / Cmd+C / Ctrl+Shift+C (rows 95, 96). An engine that draws its own selection and copies on release (OSC 52) has that text held for Cmd+C / Ctrl+Shift+C instead of written to the clipboard. |
 | 95 | Copy selection or interrupt | Ctrl+C | ✅ | `tab.interrupt`, `term.input` | workspace: Ctrl+C with a selection copies (no ^C sent); without one it interrupts (`sleep 40` aborted, next command ran at once). |
 | 96 | Copy selection | Cmd+C / Ctrl+Shift+C | ✅ | local | workspace: Ctrl+Shift+C and Meta+C copy the selection. |
 | 97 | Reset active terminal | F5 + confirm | ✅ | `tab.split` (`reset`) | workspace: F5 -> confirm dialog -> shell respawned (exported var gone, checked via file written from the new shell); via `tab.split action=reset`. Engine panes refuse, as the TUI. |

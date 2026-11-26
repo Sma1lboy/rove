@@ -32,7 +32,7 @@ import {
   TaskNotFoundError,
 } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
-import { movePartition } from "./move-partition.ts"
+import { holdProjectPlace, movePartition, projectOf } from "./move-partition.ts"
 import { isPlaceholderDerivedBranch, sanitizeTaskTitle } from "./title.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 
@@ -302,6 +302,7 @@ export class TaskEditor {
   async setArchived(id: TaskId | string, archived: boolean): Promise<void> {
     const task = this.requireTask(id)
     if ((task.archived ?? false) === archived) return
+    if (archived) await holdProjectPlace(this.store, task)
     await this.store.update(task.id, { archived: archived || undefined })
   }
 
@@ -342,8 +343,6 @@ export class TaskEditor {
    */
   async moveProject(repo: string, target: string, side: "before" | "after"): Promise<void> {
     if (samePath(repo, target)) return
-    const projectOf = (t: Task): string | null =>
-      (t.kind ?? "task") === "dir" && (t.scratch === true || t.noProject === true) ? null : t.repo
     const tasks = this.store.list()
     const block = tasks.filter((t) => projectOf(t) !== null && samePath(t.repo, repo)).map((t) => String(t.id))
     if (block.length === 0) throw new Error(`no project at ${repo}`)

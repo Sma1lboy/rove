@@ -78,6 +78,7 @@ function makeActions(tasks: readonly Task[]) {
   const actions = useWorkspaceTaskActions({
     orchestrator: { setStatus } as unknown as RemoteOrchestrator,
     tasks: () => tasks,
+    promptNewTask: async () => undefined,
     dialog: DIALOG,
     notifyError,
     notifyInfo: vi.fn(),

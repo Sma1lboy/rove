@@ -12,6 +12,7 @@ import { dismissEpisode, openRoutineEpisode } from "./inbox-open.ts"
 import { InboxPeek, type PeekMode } from "./inbox-peek.tsx"
 import { compactAge, inboxBadge, isRoutineState, sortAttention } from "./inbox.ts"
 import type { AppModel, Visit } from "./model.ts"
+import { repoLabel } from "./rail-labels.ts"
 import { useStore } from "./store.ts"
 import { closeDialog } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
@@ -49,7 +50,7 @@ const RECENT_MAX = 6
 
 function identityOf(task: TaskRow | undefined, fallback: string): string {
   if (!task) return fallback
-  const project = task.repo.split("/").filter(Boolean).pop() ?? task.repo
+  const project = repoLabel(task.repo)
   return `${project} › ${task.label}`
 }
 

@@ -221,7 +221,7 @@ export function isBlankText(v: string): boolean {
 
 /**
  * Tab order, in visual order:
- *   existing:   tabs → [tier] → engine → [model] → [effort] → repo → [extras] → [intent] → baseRef → prompt → confirm → tabs
+ *   existing:   tabs → prompt → [tier] → engine → [model] → [effort] → repo → [extras] → [intent] → baseRef → confirm → tabs
  *   clone:      tabs → [tier] → engine → [model] → [effort] → cloneUrl → cloneParent → cloneFolder → cloneBaseRef → confirm → tabs
  *   adopt:      tabs → [tier] → engine → [model] → [effort] → adoptFilter → confirm → tabs
  *
@@ -242,7 +242,9 @@ export function nextField(
 ): Field {
   // Shared trailer — the selectors + Create button common to every tab.
   if (field === "confirm") return "tabs"
-  if (field === "tabs") return opts.tierVisible ? "tier" : "engine"
+  // The first message leads the Existing tab: it is what the task is for; the rest are defaults to adjust.
+  if (field === "tabs" && tab === "existing") return "prompt"
+  if (field === "tabs" || field === "prompt") return opts.tierVisible ? "tier" : "engine"
   if (field === "tier") return "engine"
   if (field === "engine") return opts.modelVisible ? "model" : opts.effortVisible ? "effort" : firstFieldFor(tab)
   if (field === "model") return opts.effortVisible ? "effort" : firstFieldFor(tab)
@@ -263,8 +265,7 @@ export function nextField(
   if (field === "repo") return opts.extrasVisible ? "extras" : opts.intentVisible ? "intent" : "baseRef"
   if (field === "extras") return opts.intentVisible ? "intent" : "baseRef"
   if (field === "intent") return "baseRef"
-  if (field === "baseRef") return "prompt"
-  if (field === "prompt") return "confirm"
+  if (field === "baseRef") return "confirm"
   return "repo"
 }
 

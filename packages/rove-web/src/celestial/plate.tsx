@@ -1,8 +1,8 @@
+import { ACCENT, COLS, ROWS, SUBTLE } from "@sma1lboy/rove/src/lib/celestial/grid.ts"
+import { orbitFrame } from "@sma1lboy/rove/src/lib/celestial/orbit.ts"
+import { cometFrame, ringsFrame } from "@sma1lboy/rove/src/lib/celestial/scenes.ts"
 import { useEffect, useRef } from "react"
 import { STARLING_FRAME } from "../ui/first-run.ts"
-import { ACCENT, COLS, ROWS, SUBTLE } from "./grid.ts"
-import { orbitFrame } from "./orbit.ts"
-import { cometFrame, ringsFrame } from "./scenes.ts"
 import { starlingPainter } from "./starling-paint.ts"
 import type { SkyScene } from "./visits.ts"
 

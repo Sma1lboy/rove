@@ -22,10 +22,10 @@ import { dotLook } from "../../../lib/status-dots"
 import { DEFAULT_RUNNING_TITLE, RUNNING_TITLE_KEY, normalizeRunningTitle } from "../../../state/running-title"
 import { breathColor, breathGlyph } from "../../../tui/lib/breathe"
 import { GLYPH_SETS } from "../../../tui/lib/glyphs"
-import { CLOUD_DOTS, dotsDip, dotsGlyph, litDots } from "../../../tui/lib/status-dots"
+import { dotsDip, dotsGlyph, litDots } from "../../../tui/lib/status-dots"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
-import { machineStateKey, remoteMarkLive, remoteRowCaption } from "../../../tui/panes/sidebar/machine-layer"
+import { remoteMarkLive, remoteRowCaption } from "../../../tui/panes/sidebar/machine-layer"
 import {
   type SidebarRowView,
   buildSidebarRowView,
@@ -160,7 +160,7 @@ function FoldCluster(props: { readonly task: Task; readonly fold: TreeFold; read
  * deletion or checkout in flight) and, on a child, the marker for where it
  * runs plus a level number once the indent stops growing.
  *
- * A task on ANOTHER machine (`remote`) wears a dotted cloud before its state, muted while that
+ * A task on ANOTHER machine (`remote`) wears a cloud before its state, muted while that
  * machine is online and warning-toned (the title greyed) while it is offline, connecting
  * or mismatched. Under the mouse the row says where: `on <host> · <state>`.
  * Machines are not sections; this is the only place a row says it lives elsewhere.
@@ -218,11 +218,9 @@ export function WorktreeTreeRow(props: {
   // The default preset draws the web's 3×3 dots on every row, a muted ring at rest. The other
   // presets exist for fonts without braille: they keep their one glyph, and a quiet row draws nothing.
   const dots = glyphs === GLYPH_SETS.braille
-  // A task on another machine wears a dotted cloud; where it runs shows under the mouse. Without
-  // braille there is no cloud, so a machine that is not online says so in a word.
-  const cloud = dots && remote ? CLOUD_DOTS : null
-  const remoteStateKey = remote && !dots ? machineStateKey(remote.state) : null
-  const remoteNote = remote && hovered ? remoteRowCaption(remote, t) : remoteStateKey ? t(remoteStateKey) : null
+  // A task on another machine wears the preset's cloud; where it runs shows under the mouse.
+  const cloud = remote ? glyphs.remote : null
+  const remoteNote = remote && hovered ? remoteRowCaption(remote, t) : null
   const look = dotLook(status)
   // A waiting mark dips on the same steps as the web's, so it needs the tick a working row already has.
   useSpinnerFrame(dots && look === "waiting")
