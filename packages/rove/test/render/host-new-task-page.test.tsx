@@ -25,12 +25,13 @@ afterEach(() => setUiEventReporter(null))
 const NULL_CELL = createStateCell(null)
 const EMPTY_MAP = createStateCell(new Map())
 const EMPTY_ARR = createStateCell(Object.freeze([]))
+// No worktreePath: the workspace shows its empty state instead of mounting terminals, whose PTY
+// connection would fail on the missing socket whenever it lost the race with the test.
 const TASK = Object.freeze({
   id: "t1",
   title: "Fix the flaky login",
   repo: "/tmp/repo",
   branch: "b",
-  worktreePath: "/tmp/repo",
   kind: "dir",
 })
 const TASKS = createStateCell(Object.freeze([TASK]))
