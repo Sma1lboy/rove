@@ -10,6 +10,7 @@ import type { TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
 import { applyTasksPatch, isTasksPatch } from "rove-bridge/tasks-patch"
 import type { BridgeClient } from "./bridge.ts"
 import { type TasksEdit, taskEdit } from "./optimistic.ts"
+import { requestRemembered } from "./remembered.ts"
 import { type Store, createStore } from "./store.ts"
 import { toast } from "./ui.ts"
 
@@ -138,6 +139,8 @@ export class AppModel {
       this.viewingSent = NOTHING_SHOWN
       this.reportViewing()
       void this.refreshMods()
+      // Reading the GitHub list takes seconds; read now, the project picker has it the moment it opens.
+      requestRemembered(client, "github.repos").catch(() => {})
     })
     // A hidden page shows nothing: its finished turns stay unseen until someone looks.
     if (typeof document !== "undefined" && typeof document.addEventListener === "function") {

@@ -125,7 +125,7 @@ export function RepoMenu(props: {
     // A pick replaces the project and closes; Shift (or ⌘ / Ctrl) + pick toggles it in a multi-repo task and keeps the list open.
     <SearchList
       placeholder={t(remote ? "newSession.repoSearchRemote" : "newSession.repoSearch")}
-      empty={remote?.empty ?? t("newSession.repoEmpty")}
+      empty={remote?.empty ?? t(github ? "newSession.repoEmpty" : "newSession.githubLoading")}
       rows={remote?.blocked ? [] : [...ungrouped, ...projects]}
       query={query}
       onQuery={props.onQuery}
