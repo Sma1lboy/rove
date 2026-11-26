@@ -244,6 +244,8 @@ const TOASTS_SHOWN = 3
 
 /** `ms` overrides how long the card stays (a notice that has to be read, not glanced at). */
 export function toast(text: string, tone: Toast["tone"] = "info", action?: ToastAction, ms?: number): void {
+  // A state that flaps (a rate-limited engine retrying) re-raises the same card; one is enough.
+  if (toasts.get().some((t) => t.text === text && t.tone === tone && !t.leaving)) return
   const id = nextToast++
   toasts.set([...toasts.get(), { id, text, tone, ...(action ? { action } : {}) }].slice(-TOASTS_SHOWN))
   window.setTimeout(() => dismissToast(id), ms ?? (action ? ACTION_TOAST_MS : TOAST_MS))
