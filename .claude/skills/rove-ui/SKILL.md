@@ -321,6 +321,30 @@ only last.
   desktop launcher once left it on the phone's switch for exactly that reason. Only the drawing
   (size, icons vs text, placement) may differ per layout.
 
+### Bringing one client's surface to the other
+
+Web → TUI or back. Do it as one pass over the whole surface, not one fix per review comment:
+
+1. **Read the source before writing.** Its component, its data model and the pure rules beside it
+   (`rail-blocks.ts`, `ui.ts` `MenuItem` / `tuckRare`, `row-actions.tsx`, the class recipes in
+   `src/ui/`). The behaviour is written there; a screenshot shows one state of it.
+2. **List everything it does**, then port the list: content and order, grouping, placement and
+   alignment, the starting state, what the pointer does (over, resting, press, right-press), what
+   keys do, the selected / danger / disabled looks, what opens from it and where, long and empty
+   content.
+3. **Share the rule, port the drawing.** A pure rule both clients need moves to
+   `packages/rove/src/lib/` and both import it (`status-dots.ts`, `tree-guides.ts`). Only paint is
+   written twice.
+4. **Mind the terminal.** A cell has one ink and one size, so fades become on/off and "smaller"
+   becomes dimmer. Use characters from the Latin range, or check the glyph where the font lacks
+   it: `/harness` ships a Latin-subset font, so a missing glyph falls back per OS (`⌄` drew small
+   and low on Windows while it looked right on a Mac with the full font installed).
+5. **Compare whole surfaces, side by side.** A harness shot next to the web's, every state on the
+   list from step 2 (`visual:shot` takes `hover:X,Y`, `click:`, `rclick:`). A test passing and one
+   crop of the changed corner is not the check.
+6. **Name what is left.** The differences not closed, with why (terminal limit, not done yet), go
+   in the PR and to the owner before they find them.
+
 ## Rove-specific
 
 **Structure.** `.app` is a grid: the rail (`minmax(220px, 280px)` or `--rail-w`, which can be
