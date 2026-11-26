@@ -26,7 +26,7 @@ import { toTaskId } from "../../src/types/task"
 import { renderComponent } from "./harness"
 
 /** Every frame of a working row's 3×3 mark. */
-const WORKING = [0, 2, 4, 6].map((tick) => dotsGlyph(litDots("working", tick)))
+const WORKING = [0, 300, 600, 900].map((ms) => dotsGlyph(litDots("working", ms)))
 
 /** A sibling exactly as `addParallel` creates it: placeholder title, branch
  *  deliberately left empty until `ensureWorktree` names it. */

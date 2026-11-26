@@ -164,8 +164,9 @@ In the task list the default glyph preset draws these as a 3×3 grid of dots at
 the end of the row, the same mark the web client uses: a ripple out from the
 centre while the engine works, the full grid when it waits on you or on a rate
 limit, a cross for an error, a tick for a finished turn you haven't seen, and a
-muted ring at rest. The other presets keep one glyph per state and leave a
-quiet row bare.
+muted ring at rest. A task on another machine also wears a dotted cloud before
+its state, amber while that machine is unreachable. The other presets keep one
+glyph per state, leave a quiet row bare and draw no cloud.
 
 A tab labelled `⚠ <name>` is a live hosted session that was missing from the
 saved tab list. Rove exposes it instead of hiding a running process and adopts

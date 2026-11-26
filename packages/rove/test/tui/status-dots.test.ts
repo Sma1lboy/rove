@@ -8,6 +8,6 @@ test("the 3×3 grid lands in two braille cells, and work never draws a settled s
   expect(dotsGlyph([8])).toBe("\u2800\u2804")
   const settled = (["idle", "done", "error", "waiting"] as const).map((look) => dotsGlyph(litDots(look, 0)))
   expect(new Set(settled).size).toBe(4)
-  const working = Array.from({ length: 16 }, (_, tick) => dotsGlyph(litDots("working", tick)))
+  const working = Array.from({ length: 16 }, (_, tick) => dotsGlyph(litDots("working", tick * 100)))
   expect(working.filter((glyph) => settled.includes(glyph))).toEqual([])
 })

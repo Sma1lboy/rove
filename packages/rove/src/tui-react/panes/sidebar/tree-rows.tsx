@@ -18,10 +18,11 @@ import type { RowStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { useMemo, useState } from "react"
 import { charWidth, displayWidth } from "../../../lib/display-width"
 import { rowStatusGlyph } from "../../../lib/row-status-glyph"
+import { dotLook } from "../../../lib/status-dots"
 import { DEFAULT_RUNNING_TITLE, RUNNING_TITLE_KEY, normalizeRunningTitle } from "../../../state/running-title"
 import { breathColor, breathGlyph } from "../../../tui/lib/breathe"
 import { GLYPH_SETS } from "../../../tui/lib/glyphs"
-import { dotLook, dotsGlyph, litDots } from "../../../tui/lib/status-dots"
+import { CLOUD_DOTS, dotsDip, dotsGlyph, litDots } from "../../../tui/lib/status-dots"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
 import { machineStateKey, remoteMarkLive, remoteRowCaption } from "../../../tui/panes/sidebar/machine-layer"
@@ -159,9 +160,9 @@ function FoldCluster(props: { readonly task: Task; readonly fold: TreeFold; read
  * deletion or checkout in flight) and, on a child, the marker for where it
  * runs plus a level number once the indent stops growing.
  *
- * A task on ANOTHER machine (`remote`) draws no mark while that machine is online. While it
- * is offline, connecting or mismatched the row says so in the warning tone (and the
- * title greys). Under the mouse the row says where: `on <host> · <state>`.
+ * A task on ANOTHER machine (`remote`) wears a dotted cloud before its state, muted while that
+ * machine is online and warning-toned (the title greyed) while it is offline, connecting
+ * or mismatched. Under the mouse the row says where: `on <host> · <state>`.
  * Machines are not sections; this is the only place a row says it lives elsewhere.
  */
 export function WorktreeTreeRow(props: {
@@ -214,15 +215,20 @@ export function WorktreeTreeRow(props: {
   const remote = props.remote
   const remoteLive = remote ? remoteMarkLive(remote) : true
   const [hovered, setHovered] = useState(false)
-  // Where it runs shows under the mouse; a machine that is not online says so on its own.
-  const remoteStateKey = remote ? machineStateKey(remote.state) : null
-  const remoteNote = remote && hovered ? remoteRowCaption(remote, t) : remoteStateKey ? t(remoteStateKey) : null
   // The default preset draws the web's 3×3 dots on every row, a muted ring at rest. The other
   // presets exist for fonts without braille: they keep their one glyph, and a quiet row draws nothing.
   const dots = glyphs === GLYPH_SETS.braille
+  // A task on another machine wears a dotted cloud; where it runs shows under the mouse. Without
+  // braille there is no cloud, so a machine that is not online says so in a word.
+  const cloud = dots && remote ? CLOUD_DOTS : null
+  const remoteStateKey = remote && !dots ? machineStateKey(remote.state) : null
+  const remoteNote = remote && hovered ? remoteRowCaption(remote, t) : remoteStateKey ? t(remoteStateKey) : null
   const look = dotLook(status)
+  // A waiting mark dips on the same steps as the web's, so it needs the tick a working row already has.
+  useSpinnerFrame(dots && look === "waiting")
+  const now = Date.now()
   const quiet = !dots && rowView.stateGlyph === glyphs.idle
-  const stateText = dots ? dotsGlyph(litDots(look, frame)) : rowView.stateGlyph
+  const stateText = dots ? dotsGlyph(litDots(look, now)) : rowView.stateGlyph
   // A task over several repos is listed once, under its primary, with how many more it spans.
   const extraRepoText = task.extraRepos?.length ? `+${task.extraRepos.length}` : null
   const fold = props.fold
@@ -240,6 +246,7 @@ export function WorktreeTreeRow(props: {
       ? clusterCells(fold.collapsed ? FOLD_CLOSED : FOLD_OPEN) +
         (fold.collapsed ? clusterCells(String(fold.count)) + clusterCells(glyphs.idle) : 0)
       : 0) +
+    (cloud ? clusterCells(cloud) : 0) +
     (task.pinned === true ? 2 : 0) +
     (moving ? clusterCells(t("tasks.moveChip").trim()) : 0)
   // The remote note takes what the title leaves (the title keeps up to
@@ -323,11 +330,16 @@ export function WorktreeTreeRow(props: {
             {remoteText}
           </text>
         ) : null}
+        {cloud ? (
+          <text fg={remoteLive ? theme.textMuted : theme.warning} wrapMode="none" flexShrink={0}>
+            {cloud}
+          </text>
+        ) : null}
         {/* Last, at the rail's edge. */}
         {quiet ? null : (
           <text
             fg={dots && look === "idle" && !pulsing ? theme.textMuted : fg}
-            attributes={pulsing ? TextAttributes.BOLD : undefined}
+            attributes={pulsing ? TextAttributes.BOLD : dots && dotsDip(look, now) ? TextAttributes.DIM : undefined}
             wrapMode="none"
             flexShrink={0}
           >

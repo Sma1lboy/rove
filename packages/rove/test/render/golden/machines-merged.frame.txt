@@ -12,8 +12,8 @@
 |                              |
 | rove                         |
 |▌alpha                     ⠯⠇ |
-| charlie                   ⠯⠇ |
-| delta             offline ⠯⠇ |
+| charlie               ⠴⠿⠦ ⠯⠇ |
+| delta                 ⠴⠿⠦ ⠯⠇ |
 |                              |
 | api                          |
 | echo                      ⠯⠇ |

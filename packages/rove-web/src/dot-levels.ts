@@ -4,15 +4,12 @@
  * dips twice per round, a settled state draws its shape dot by dot and holds.
  */
 
-import type { DotLook } from "./rail-glyphs.ts"
+import { DOT_SHAPE, type DotLook, RIPPLE_S, STEP_MS, waitingDips } from "@sma1lboy/rove/src/lib/status-dots.ts"
 
-export const STEP_MS = 80
+export { STEP_MS }
 
-/** One ripple in seconds, and how far a dot one dot out from the centre lags it. */
-const RIPPLE = 1.2
+/** How far a dot one dot out from the centre lags the ripple, in seconds. */
 const LAG = 0.3
-/** Steps in one round of a waiting mark's dips. */
-const BLINK = 20
 /** A working dot at its lowest, a waiting mark in a dip, and a dot outside a settled shape. */
 const DIM = 0.35
 const DIP = 0.25
@@ -21,11 +18,11 @@ const FAINT = 0.12
 const FADE = 2
 const STAGGER = 1
 
-/** A settled look's dots (row by row from the top left) in the order they light, and how bright they end. */
+/** A settled look's dots in the order they light, and how bright they end. */
 const SHAPE: Partial<Record<DotLook, { readonly dots: readonly number[]; readonly bright: number }>> = {
-  error: { dots: [0, 4, 8, 2, 6], bright: 1 },
-  done: { dots: [3, 7, 5, 2], bright: 1 },
-  idle: { dots: [1, 2, 5, 8, 7, 6, 3, 0], bright: 0.6 },
+  error: { dots: DOT_SHAPE.error, bright: 1 },
+  done: { dots: DOT_SHAPE.done, bright: 1 },
+  idle: { dots: DOT_SHAPE.idle, bright: 0.6 },
 }
 
 /** Each dot's distance from the centre: 0, 1 for an edge, √2 for a corner. */
@@ -33,7 +30,7 @@ const DISTANCE = Array.from({ length: 9 }, (_, dot) => Math.hypot((dot % 3) - 1,
 
 /** A dot's brightness `t` seconds into its ripple. */
 function crest(t: number): number {
-  return DIM + (1 - DIM) * (0.5 + 0.5 * Math.cos((2 * Math.PI * t) / RIPPLE))
+  return DIM + (1 - DIM) * (0.5 + 0.5 * Math.cos((2 * Math.PI * t) / RIPPLE_S))
 }
 
 /**
@@ -47,7 +44,7 @@ export function dotLevels(look: DotLook, step: number, held: number, slow = 1): 
       return DISTANCE.map((distance) => crest(t - distance * LAG))
     }
     case "waiting": {
-      const dip = [0, 1, 4, 5].includes(Math.floor(step / slow) % BLINK)
+      const dip = waitingDips(step / slow)
       return new Array<number>(9).fill(dip ? DIP : 1)
     }
     default: {

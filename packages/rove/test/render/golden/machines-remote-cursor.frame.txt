@@ -12,8 +12,8 @@
 |                              |
 | rove                         |
 | alpha                     ⠯⠇ |
-| charlie on mac-mini · v0… ⠯⠇ |
-|▌delta             offline ⠯⠇ |
+| charlie on mac-mini … ⠴⠿⠦ ⠯⠇ |
+|▌delta                 ⠴⠿⠦ ⠯⠇ |
 |                              |
 | api                          |
 | echo                      ⠯⠇ |

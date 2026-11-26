@@ -16,6 +16,7 @@ import type { RowStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import type { RowStatusPayload } from "@sma1lboy/rove-daemon/daemon/row-status-store"
 import type { RowStatusTransport } from "../../src/client/remote-orchestrator-row-status"
 import { createStateCell } from "../../src/lib/external-store"
+import type { DotLook } from "../../src/lib/status-dots"
 import { useAccessor } from "../../src/tui-react/lib/use-accessor"
 import type { TreeRowShared } from "../../src/tui-react/panes/sidebar/tree-row-shell"
 import { WorktreeTreeRow } from "../../src/tui-react/panes/sidebar/tree-rows"
@@ -25,13 +26,13 @@ import {
   resetRowStatusForTests,
   useViewingReport,
 } from "../../src/tui-react/workspace/row-status-sync"
-import { type DotLook, dotsGlyph, litDots } from "../../src/tui/lib/status-dots"
+import { dotsGlyph, litDots } from "../../src/tui/lib/status-dots"
 import { type Task, toTaskId } from "../../src/types/task"
 import { act, renderComponent, waitForFrameText } from "./harness"
 
 /** The 3×3 mark a task row draws for `look`, and every frame of the working ripple. */
 const mark = (look: DotLook): string => dotsGlyph(litDots(look, 0))
-const WORKING = [0, 2, 4, 6].map((tick) => dotsGlyph(litDots("working", tick)))
+const WORKING = [0, 300, 600, 900].map((ms) => dotsGlyph(litDots("working", ms)))
 
 const TASK: Task = {
   id: toTaskId("alpha"),
