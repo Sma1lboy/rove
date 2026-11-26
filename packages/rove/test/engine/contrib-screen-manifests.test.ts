@@ -126,6 +126,13 @@ describe("antigravity screen manifest", () => {
     )
   })
 
+  // Captured from agy 1.5.17 in an unseen worktree.
+  it("reads the folder-trust question as blocked", () => {
+    expect(
+      classifyScreen(agy, "Do you trust the contents of this project?\n\n> Yes, I trust this folder\n  No, exit"),
+    ).toBe("blocked")
+  })
+
   it("reads the spinner and the background-task counter as working", () => {
     expect(classifyScreen(agy, "⠹ Analyzing the repository")).toBe("working")
     expect(classifyScreen(agy, "❯ \n · 2 tasks running")).toBe("working")

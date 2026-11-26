@@ -55,7 +55,8 @@ PATH, with a proper name, a launch command, and screen-based activity
 badges. A catalog entry also declares how its CLI takes a first message:
 OpenCode's positional argument is a project directory, so Rove pastes the
 prompt after launch instead of appending it to the command line; Kilo takes
-its first message the same way. Before pasting, Rove waits up to 20 seconds for
+its first message the same way. Antigravity refuses a positional prompt, so
+its first message rides `agy -i`. Before pasting, Rove waits up to 20 seconds for
 recognized blocking dialogs (including OpenCode’s update confirmation) to clear.
 If the dialog remains open or the session exits, the prompt is not sent; dismiss
 the dialog and retry. OpenCode’s update settings are left unchanged.
