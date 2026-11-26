@@ -40,7 +40,12 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
   const key = draftKey(taskId, tabId)
   const text = useSyncExternalStore(subscribeDrafts, () => getDraft(key))
   const [busy, setBusy] = useState(false)
-  const { attachments, attach, remove, ready, clear } = useAttachments(model, (message) => toast(message, "error"))
+  const { attachments, attach, remove, ready, clear } = useAttachments(
+    model,
+    (message) => toast(message, "error"),
+    undefined,
+    taskId,
+  )
   const field = useRef<HTMLTextAreaElement>(null)
   // Talking comes first on a phone: the field shows only for a draft or a tap on the hold control.
   const hosted = useVoiceHosted(model.client)

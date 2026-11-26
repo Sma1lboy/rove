@@ -45,11 +45,18 @@ function base64(bytes: Uint8Array): string {
   return btoa(binary)
 }
 
-/** Stores one file on the machine running rove, in parts when it is more than one frame's worth. */
-export async function storeAttachment(client: BridgeClient, file: File): Promise<{ path: string; kind: string }> {
+/**
+ * Stores one file on the machine running rove, in parts when it is more than one frame's worth.
+ * With `task`, the path that comes back is where that task's agent reads it: on its own machine.
+ */
+export async function storeAttachment(
+  client: BridgeClient,
+  file: File,
+  task?: string,
+): Promise<{ path: string; kind: string }> {
   // Before reading it: a file the bridge would refuse must not be sent at all.
   if (file.size > MAX_ATTACHMENT_BYTES) throw new Error(t("pages.attachTooLarge", { name: file.name }))
-  const meta = { mime: file.type, name: file.name }
+  const meta = { mime: file.type, name: file.name, ...(task ? { task } : {}) }
   const read = async (from: number, to: number) => base64(new Uint8Array(await file.slice(from, to).arrayBuffer()))
   if (file.size <= PART_BYTES) return client.request("attachment.put", { ...meta, data: await read(0, file.size) })
   let upload: string | undefined
@@ -68,7 +75,7 @@ export async function storeAttachment(client: BridgeClient, file: File): Promise
   }
 }
 
-/** Stores one file; resolves to its path on the machine running rove. */
-export async function putAttachment(client: BridgeClient, file: File): Promise<string> {
-  return (await storeAttachment(client, file)).path
+/** Stores one file; resolves to its path on the machine running rove, or on the one `task` lives on. */
+export async function putAttachment(client: BridgeClient, file: File, task?: string): Promise<string> {
+  return (await storeAttachment(client, file, task)).path
 }

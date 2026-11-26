@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { parseFlags } from "@sma1lboy/rove/src/cli/api/flags.ts"
 import type { TerminalTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
-import { taskOpDeps } from "../src/ops/tasks-shared.ts"
+import { promptOn, taskOpDeps } from "../src/ops/tasks-shared.ts"
 import { MAX_ATTACHMENT_BYTES, type TerminalOpDeps, matchesMagic, terminalOps } from "../src/ops/terminal.ts"
 import type { BridgeApi } from "../src/ops/types.ts"
 import { BridgeError } from "../src/protocol.ts"
@@ -45,6 +45,7 @@ function deps(over: Partial<TerminalOpDeps> = {}): TerminalOpDeps {
     now: () => new Date("2026-10-05T12:00:00Z"),
     nonce: () => "deadbeef",
     writeFile: (path, bytes) => void written.push({ path, bytes }),
+    sendToMachine: async (alias, path) => `${alias}:${path}`,
     readTab: () => undefined,
     planHandoff: async () => ({ kind: "no-session" }),
     prPrompt: async () => "make a PR",
@@ -305,6 +306,24 @@ describe("attachment.put", () => {
     })
     expect(written[0]?.path).toBe("/home/.rove/attachments/attach-20261005-deadbeef.png")
     expect(Buffer.from(written[0]?.bytes ?? []).equals(PNG)).toBe(true)
+  })
+
+  test("for a task on another machine the file is copied there, and the path is that machine's", async () => {
+    const spec = terminalOps(deps())["attachment.put"]
+    const api = { ...fakeApi({}).api, machineOf: (id: string) => (id === "deck:T1" ? "deck" : undefined) }
+    const args = { mime: "image/png", data: PNG.toString("base64") }
+    const local = "/home/.rove/attachments/attach-20261005-deadbeef.png"
+    expect(await spec?.run({ ...args, task: "deck:T1" }, { api })).toMatchObject({ path: `deck:${local}` })
+    expect(await spec?.run({ ...args, task: TASK }, { api })).toMatchObject({ path: local })
+  })
+
+  test("a first prompt for an engine on another machine names its attachments there, and nothing else moves", async () => {
+    taskOpDeps.attachmentsDir = () => "/home/.rove/attachments"
+    taskOpDeps.sendToMachine = async (alias, path) => `${alias}:${path}`
+    const stored = "/home/.rove/attachments/attach-1.png"
+    expect(await promptOn("pc", `see ${stored}\n\nimages[0]: ${stored}\nfiles[1]: /etc/hosts`)).toBe(
+      `see pc:${stored}\n\nimages[0]: pc:${stored}\nfiles[1]: /etc/hosts`,
+    )
   })
 
   test("any other file is stored under its own extension, and a name cannot steer the path", async () => {

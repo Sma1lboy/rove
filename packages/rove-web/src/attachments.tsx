@@ -108,8 +108,9 @@ let nextId = 0
 /**
  * Dropped or pasted files. A file shows at once and uploads behind
  * it; a refusal goes to `onError`. With `keepKey` the stored ones survive a reload of this browser tab.
+ * `task` is the task whose agent reads them, which may be on another machine.
  */
-export function useAttachments(model: AppModel, onError: (message: string) => void, keepKey?: string) {
+export function useAttachments(model: AppModel, onError: (message: string) => void, keepKey?: string, task?: string) {
   const [attachments, setAttachments] = useState<readonly Attachment[]>(() => loadKept(keepKey))
   // The list as of the last change, for `ready` to read after an upload lands and before React renders it.
   const list = useRef(attachments)
@@ -129,7 +130,7 @@ export function useAttachments(model: AppModel, onError: (message: string) => vo
     const thumb = await thumbOf(file)
     update((now) => [...now, { id, name: file.name, size: file.size, mime: file.type, ...(thumb ? { thumb } : {}) }])
     try {
-      const res = await storeAttachment(model.client, file)
+      const res = await storeAttachment(model.client, file, task)
       update((now) => now.map((a) => (a.id === id ? { ...a, path: res.path, kind: res.kind } : a)))
     } catch (err) {
       update((now) => now.filter((a) => a.id !== id))

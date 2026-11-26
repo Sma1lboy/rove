@@ -138,6 +138,8 @@ export type DaemonRequestName =
   | "task.openDir"
   // Scratch → project migration: repoint + clear the flag.
   | "task.adoptScratchRepo"
+  // One part of a file another machine sends for an agent here (`machines/send-file.ts`).
+  | "attachment.append"
   // An Ungrouped session moves itself under a project (`update --project`); its directory stays.
   | "task.moveToProject"
   | "project.forget"

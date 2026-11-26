@@ -9,6 +9,9 @@
 import type { EngineTerminalPresentation } from "@/types/terminal-presentation"
 import type { BoxRenderable } from "@opentui/core"
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { requireMachine } from "../../../machines/forward"
+import { sendFileToMachine } from "../../../machines/send-file"
+import { asAttachmentPaths } from "../../../tui/lib/attachments"
 import { ImeCursorRetention } from "../../../tui/panes/terminal/ime-cursor"
 import type { TerminalRow } from "../../../tui/panes/terminal/pty"
 import { type PtyRegistry, getDefaultPtyRegistry } from "../../../tui/panes/terminal/registry"
@@ -266,7 +269,15 @@ function TerminalSession(props: TerminalProps) {
     },
     paste: (text) => {
       if (!pty || pty.killed) return
-      pty.paste(text)
+      // A dragged file's path names a file here; an agent on another machine reads its copy there.
+      const files = props.machine ? asAttachmentPaths(text) : null
+      if (!files) return pty.paste(text)
+      const entry = requireMachine(props.machine as string)
+      void Promise.all(files.map((file) => sendFileToMachine(entry, file)))
+        .then((there) => there.join(" "))
+        // Unsent (that machine is unreachable, or its Rove is older): the path as pasted, as before.
+        .catch(() => text)
+        .then((out) => !pty.killed && pty.paste(out))
     },
     scroll: scrollBy,
     // With the engine gone the shell holds nothing worth a confirm: F5 is Retry.

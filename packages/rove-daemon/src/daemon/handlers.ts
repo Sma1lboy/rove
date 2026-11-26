@@ -33,6 +33,7 @@ import type { GatesStore } from "./gates-store.ts"
 import { objectPayload, requireString } from "./handler-validators.ts"
 import { AGENT_TURN_HANDLERS } from "./handlers-agent-turns.ts"
 import { API_HANDLERS, invokingVerbs } from "./handlers-api.ts"
+import { ATTACHMENT_HANDLERS } from "./handlers-attachment.ts"
 import { ATTENTION_HANDLERS } from "./handlers-attention.ts"
 import { AUTOMATION_HANDLERS } from "./handlers-automations.ts"
 import { CHECKPOINT_HANDLERS } from "./handlers-checkpoint.ts"
@@ -341,6 +342,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...CHECKPOINT_HANDLERS,
     ...SESSION_PR_HANDLERS,
     ...SCRATCH_HANDLERS,
+    ...ATTACHMENT_HANDLERS,
     ...WORKTREE_HANDLERS,
     ...ATTENTION_HANDLERS,
     ...GATE_HANDLERS,
