@@ -300,17 +300,17 @@ export function WorktreeTreeRow(props: {
             {checkoutText}
           </text>
         ) : null}
-        {props.level !== undefined ? (
-          <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
-            {String(props.level)}
-          </text>
-        ) : null}
         {extraRepoText ? (
           <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
             {extraRepoText}
           </text>
         ) : null}
         {fold ? <FoldCluster task={task} fold={fold} shared={shared} /> : null}
+        {props.level !== undefined ? (
+          <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
+            {String(props.level)}
+          </text>
+        ) : null}
         {remoteText ? (
           <text fg={remoteLive ? theme.textMuted : theme.warning} wrapMode="none" flexShrink={0}>
             {remoteText}
