@@ -121,10 +121,7 @@ export function SidebarBrandHeader(props: {
       <box flexGrow={1} />
       {props.status ? (
         <box position="relative" flexShrink={0} onMouseUp={() => props.onStatusClick?.()}>
-          <text
-            fg={props.status.emphasize ? theme.primary : theme.textMuted}
-            wrapMode="none"
-          >
+          <text fg={props.status.emphasize ? theme.primary : theme.textMuted} wrapMode="none">
             {props.status.label}
           </text>
           {props.onStatusClick ? <ShortcutRevealBadge bindingId="inbox.show" /> : null}
