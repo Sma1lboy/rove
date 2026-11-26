@@ -5,6 +5,7 @@ import { daemonSpawnReason, restartDaemon } from "@sma1lboy/rove-daemon/client/d
 import { installDaemonCrashHandlers, logDaemonError, logDaemonInfo } from "@sma1lboy/rove-daemon/daemon/crash-log"
 import { rotateLogIfNeeded } from "@sma1lboy/rove-daemon/daemon/log-rotate"
 import { defaultDaemonLogPath, defaultDaemonPidPath, defaultDaemonSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
+import { dropParentAgentSession } from "@sma1lboy/rove-daemon/daemon/pty-env"
 import { readPidFile, startDaemonServer } from "@sma1lboy/rove-daemon/daemon/server"
 import type { ChatConnector } from "../connectors/chat-connector.ts"
 import { startChatConnectors } from "../connectors/registry.ts"
@@ -146,6 +147,7 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
   // Before any work, so a startup rejection is logged, not a silent death.
   // Only ever runs in the spawned daemon process, never the TUI or tests.
   installDaemonCrashHandlers()
+  dropParentAgentSession()
 
   // First line: who asked (`explicit-restart`, `autospawn`, `manual`).
   logDaemonInfo("boot", `daemon starting — ${daemonSpawnReason()} (pid ${process.pid}, v${CURRENT_VERSION})`)

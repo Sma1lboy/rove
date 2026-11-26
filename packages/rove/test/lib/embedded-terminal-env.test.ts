@@ -1,4 +1,4 @@
-import { embeddedTerminalEnv } from "@sma1lboy/rove-daemon/daemon/pty-env"
+import { dropParentAgentSession, embeddedTerminalEnv } from "@sma1lboy/rove-daemon/daemon/pty-env"
 import { describe, expect, it } from "vitest"
 
 describe("embeddedTerminalEnv", () => {
@@ -51,5 +51,18 @@ describe("embeddedTerminalEnv", () => {
     })
 
     expect(result).toEqual({ CLAUDE_CONFIG_DIR: "/home/test/.claude-cpa", HOME: "/home/test" })
+  })
+
+  it("a daemon or PTY host started inside an agent session forgets it at boot", () => {
+    const env: Record<string, string | undefined> = {
+      CLAUDE_CODE_CHILD_SESSION: "1",
+      CLAUDE_CODE_SESSION_ID: "9a390036-73ce-41ca-9d99-d98ffc8d25c7",
+      CLAUDE_CONFIG_DIR: "/home/test/.claude-cpa",
+      HOME: "/home/test",
+    }
+
+    dropParentAgentSession(env)
+
+    expect(env).toEqual({ CLAUDE_CONFIG_DIR: "/home/test/.claude-cpa", HOME: "/home/test" })
   })
 })
