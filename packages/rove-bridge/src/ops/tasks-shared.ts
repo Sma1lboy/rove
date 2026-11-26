@@ -26,7 +26,7 @@ import {
 import { getCurrentBranch, listLocalBranches, validateRepoPath } from "@sma1lboy/rove/src/tui/lib/git-snapshot-async.ts"
 import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
 import { BridgeError } from "../protocol.ts"
-import { absPath } from "./args.ts"
+import { absPath, isAbsPath } from "./args.ts"
 import type { Args, OpContext } from "./types.ts"
 
 /**
@@ -266,7 +266,8 @@ const REPO_ID =
  */
 export function remoteRepoRef(args: Args, name = "repo"): string {
   const v = args[name]
-  if (typeof v === "string" && v.startsWith("/")) return absPath(args, name)
+  // Read as the other machine would: it may be a Windows one, whatever this one is.
+  if (typeof v === "string" && isAbsPath(v, "win32") && !v.includes("\0")) return v
   if (typeof v === "string" && REPO_ID.test(v)) return v
   try {
     return cloneUrl(args, name)

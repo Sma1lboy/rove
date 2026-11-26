@@ -119,6 +119,17 @@ describe("task.spawn", () => {
     },
   )
 
+  test("a path on a Windows machine starts there as written", async () => {
+    const repo = "C:\\Users\\me\\Downloads\\site"
+    const { calls } = await run(
+      "task.spawn",
+      { repo, machine: "pc", engineThere: true },
+      { add: { taskId: "N1", task: {} } },
+    )
+    expect(calls).toEqual([{ verb: "add", argv: [`--repo=${repo}`], machine: "pc" }])
+    await refused("task.spawn", { repo, machine: "pc", clone: true })
+  })
+
   test("clone and repo ids are for another machine's add, and never a flag, a path or a local clone", async () => {
     await refused("task.spawn", { repo: "sma1lboy/rove", clone: true })
     await refused("task.spawn", { repo: "sma1lboy/rove" })
