@@ -21,7 +21,9 @@
  *     reviewed startup code (Hermes bed0d535, Kilo 76bcfd40, MastraCode 0.44.1).
  *     Hermes project-skill trust and each CLI's tool approvals are separate.
  *     Source review only; no real-CLI launch or hook-delivery capture yet.
- *   - gemini / grok / droid / amp / devin / qodercli / cline / kiro / maki / antigravity:
+ *   - antigravity 1.5.17 DOES gate ("Do you trust the contents of this
+ *     project?"). Its hook pre-writes the trust store.
+ *   - gemini / grok / droid / amp / devin / qodercli / cline / kiro / maki:
  *     UNVERIFIED. Don't assume either way.
  *
  * A declarative `trustRecord: { file, jsonPath, value }` can't replace this

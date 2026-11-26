@@ -13,6 +13,7 @@
 import { homedir } from "node:os"
 import { join } from "node:path"
 import type { EngineIdentity } from "@/types/engine"
+import { trustAntigravityWorktree } from "./antigravity-local/trust.ts"
 import {
   AMP,
   ANTIGRAVITY,
@@ -61,6 +62,8 @@ export interface ContribEngineSpec {
   readonly firstMessageDelivery?: "argv" | "paste"
   /** See `EngineRegistryEntry.firstMessageArgv`. */
   readonly firstMessageArgv?: EngineRegistryEntry["firstMessageArgv"]
+  /** See `EngineRegistryEntry.trustWorktree`. */
+  readonly trustWorktree?: EngineRegistryEntry["trustWorktree"]
   /**
    * Optional activity-hook installer. Without it the entry keeps the base's
    * `NoopHookAdapter`: screen-only, no install, no warning, no file written.
@@ -174,6 +177,7 @@ export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
     processNames: ["antigravity", "antigravity-cli"],
     screenManifest: ANTIGRAVITY,
     firstMessageArgv: (argv, text) => [...argv, "-i", text],
+    trustWorktree: trustAntigravityWorktree,
     skillsDir: () => skillsDirUnder(join(homedir(), ".gemini", "antigravity")),
   },
   // Hook schemas and screen strings below are documentation-derived, not captured.
@@ -227,6 +231,7 @@ export function contribEngineEntry(id: string, base: EngineRegistryEntry): Engin
     ...(spec.identity ? { identity: spec.identity } : {}),
     ...(spec.firstMessageDelivery ? { firstMessageDelivery: spec.firstMessageDelivery } : {}),
     ...(spec.firstMessageArgv ? { firstMessageArgv: spec.firstMessageArgv } : {}),
+    ...(spec.trustWorktree ? { trustWorktree: spec.trustWorktree } : {}),
     ...(spec.createHookAdapter ? { createHookAdapter: spec.createHookAdapter } : {}),
     ...(spec.skillsDir ? { skillsDir: spec.skillsDir } : {}),
   }

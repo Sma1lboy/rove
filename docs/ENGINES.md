@@ -198,6 +198,7 @@ never clobbering:
 | Kimi | `~/.kimi-code/workspace-trust/<record>` |
 | Pi | `~/.pi/agent/trust.json` → `{ "<canonical path>": true }` |
 | OMP | none — OMP has no project-trust gate |
+| Antigravity | `~/.gemini/antigravity-cli/settings.json` → `trustedWorkspaces` |
 
 Claude, Codex, and Kimi trust writes follow `CLAUDE_CONFIG_DIR`, `CODEX_HOME`,
 and `KIMI_CODE_HOME`, respectively; Pi's follows `PI_CODING_AGENT_DIR` (the
