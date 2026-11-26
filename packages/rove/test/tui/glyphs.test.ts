@@ -13,11 +13,14 @@ import { type Task, toTaskId } from "../../src/types/task.ts"
 const cells = (s: string): number => [...s].reduce((n, ch) => n + charWidth(ch.codePointAt(0) ?? 0), 0)
 
 describe("glyph presets", () => {
-  it.each(GLYPH_SET_NAMES)("%s fills every slot with one-cell glyphs", (name) => {
+  it.each(GLYPH_SET_NAMES)("%s fills every slot with one-cell glyphs, the cloud aside", (name) => {
     const set: GlyphSet = GLYPH_SETS[name]
     expect(Object.keys(set).sort()).toEqual(Object.keys(GLYPH_SETS.braille).sort())
     expect(set.spinner.length).toBeGreaterThan(1)
-    const glyphs = Object.values(set).flat()
+    // The cloud is drawn across cells; its callers measure it (`clusterCells`).
+    const { remote, ...oneCell } = set
+    expect(cells(remote)).toBeGreaterThan(0)
+    const glyphs = Object.values(oneCell).flat()
     expect(glyphs.filter((glyph) => cells(glyph) !== 1)).toEqual([])
   })
 

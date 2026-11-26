@@ -1,5 +1,6 @@
 /** The rail's rows as nested blocks: drag steps, where a drop lands, and the child rows' tree guides. */
 
+import { type TreeGuide, treeGuides as sharedTreeGuides } from "@sma1lboy/rove/src/lib/tree-guides.ts"
 import type { TaskRow } from "rove-bridge/protocol"
 import type { NavRow } from "./rail.ts"
 
@@ -50,21 +51,11 @@ export function blockEnd(rows: readonly NavRow[], i: number): number {
   return end
 }
 
-/** One indent column of a child row: a line passing by, nothing, a line on to the next sibling, or the last sibling's hook. */
-export type TreeGuide = "pipe" | "blank" | "tee" | "elbow"
+export type { TreeGuide }
 
-/** The indent columns of the child row at `i`, outermost first (empty for a top-level row), as Claude's session tree draws them. */
+/** The indent columns of the child row at `i`, outermost first (empty for a top-level row). */
 export function treeGuides(rows: readonly NavRow[], i: number): TreeGuide[] {
-  const depth = depthOf(rows[i])
-  const guides: TreeGuide[] = []
-  for (let d = 2; d <= depth; d++) {
-    // The row at level `d` on this row's path has a later sibling: the first row after it at or above `d` sits at `d`.
-    let j = i + 1
-    while (j < rows.length && depthOf(rows[j]) > d) j++
-    const more = j < rows.length && depthOf(rows[j]) === d
-    guides.push(d === depth ? (more ? "tee" : "elbow") : more ? "pipe" : "blank")
-  }
-  return guides
+  return sharedTreeGuides(rows.length, (index) => depthOf(rows[index]), i)
 }
 
 /** `rows` with the dragged row's block moved right above or below the target's block, as it would land. */

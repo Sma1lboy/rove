@@ -14,7 +14,7 @@
 |                              |
 |  rove                        |
 | ▌alpha                 ▾ ⠯⠇  |
-|  └ check types           ⠯⠇  |
+|  ╰ check types           ⠯⠇  |
 |                              |
 |                              |
 |                              |

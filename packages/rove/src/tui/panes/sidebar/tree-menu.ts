@@ -57,6 +57,50 @@ export type TreeMenuAction =
   | "archive"
   | "delete"
 
+/** The web menu's sections: entries of one sit together, a rule falls where the section changes. */
+export type TreeMenuSection = "open" | "tab" | "edit" | "copy" | "tools" | "git" | "danger"
+
+const SECTION_OF: Readonly<Record<TreeMenuAction, TreeMenuSection>> = {
+  open: "open",
+  toggleFold: "open",
+  newTask: "open",
+  newScratchChat: "open",
+  newScratchShell: "open",
+  newChat: "tab",
+  newShell: "tab",
+  continueEngine: "tab",
+  newTaskFromBranch: "tab",
+  rename: "edit",
+  pin: "edit",
+  reorder: "edit",
+  moveToTop: "edit",
+  moveProjectUp: "edit",
+  moveProjectDown: "edit",
+  runAgain: "edit",
+  setStatus: "edit",
+  muteNotifications: "edit",
+  moveToProject: "edit",
+  copyId: "copy",
+  copyBranch: "copy",
+  copyPath: "copy",
+  openEditor: "tools",
+  renameBranch: "tools",
+  changeEngine: "tools",
+  fieldNotes: "tools",
+  fixChecks: "git",
+  rerunChecks: "git",
+  syncBase: "git",
+  resolveConflicts: "git",
+  land: "git",
+  archive: "danger",
+  delete: "danger",
+  forgetProject: "danger",
+}
+
+export function treeMenuSection(action: TreeMenuAction): TreeMenuSection {
+  return SECTION_OF[action]
+}
+
 export interface TreeMenuItem {
   readonly action: TreeMenuAction
   /** i18n key under `tasks.menu.*`. */
