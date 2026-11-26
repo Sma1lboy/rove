@@ -6,6 +6,7 @@
  */
 
 import { useTheme } from "../../context/theme"
+import { useHoverFill } from "../../ui/use-hover-fill"
 
 export interface CollapseButtonProps {
   readonly collapsed: boolean
@@ -19,25 +20,34 @@ export interface CollapseButtonProps {
 /** A chevron pointing the way the rail will move: the fold chevron of the project headers, turned. */
 export function CollapseButton(props: CollapseButtonProps) {
   const { theme } = useTheme()
+  const hover = useHoverFill()
   // Stop the pane shell's focus-grab: folding must not focus the sidebar.
   const onMouseUp = (evt: { stopPropagation(): void }) => {
     evt.stopPropagation()
     props.onToggle()
   }
   const glyph = (
-    <text fg={theme.textMuted} wrapMode="none">
+    <text fg={hover.hovered ? theme.text : theme.textMuted} wrapMode="none">
       {props.collapsed ? "›" : "‹"}
     </text>
   )
   if (props.inline) {
     return (
-      <box flexShrink={0} onMouseUp={onMouseUp}>
+      <box flexShrink={0} backgroundColor={hover.fill} {...hover.handlers} onMouseUp={onMouseUp}>
         {glyph}
       </box>
     )
   }
   return (
-    <box position="absolute" bottom={0} right={1} flexShrink={0} onMouseUp={onMouseUp}>
+    <box
+      position="absolute"
+      bottom={0}
+      right={1}
+      flexShrink={0}
+      backgroundColor={hover.fill}
+      {...hover.handlers}
+      onMouseUp={onMouseUp}
+    >
       {glyph}
     </box>
   )

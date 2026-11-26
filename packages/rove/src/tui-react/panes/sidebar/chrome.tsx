@@ -209,16 +209,19 @@ export function SidebarCreateAction(props: { onAddTask?: () => void }) {
 export function SidebarSettingsRow(props: { onOpenSettings: () => void }) {
   const { theme } = useTheme()
   const t = useT()
+  const hover = useHoverFill()
   return (
     <box
       position="relative"
       flexShrink={0}
+      backgroundColor={hover.fill}
+      {...hover.handlers}
       onMouseUp={(e: { stopPropagation(): void }) => {
         e.stopPropagation()
         props.onOpenSettings()
       }}
     >
-      <text fg={theme.textMuted} wrapMode="none">
+      <text fg={hover.hovered ? theme.text : theme.textMuted} wrapMode="none">
         {t("settings.title")}
       </text>
       <ShortcutRevealBadge bindingId="settings.open" />
