@@ -16,6 +16,7 @@
  *   bun run visual:shot -- --wallpaper=/wallpaper.svg ctrl+pageup  # transparent
  *   bun run visual:shot -- click:29,56         # a row the keyboard can't reach
  *   bun run visual:shot -- rclick:29,140       # that row's context menu
+ *   bun run visual:shot -- hover:29,140        # that row under the pointer
  *   bun run visual:shot -- drag:236,300,420,300  # pull a pane edge rightwards
  *   bun run visual:shot -- --no-focus-click      # keep a boot-time modal open
  */
@@ -143,7 +144,12 @@ try {
   for (const token of tokens) {
     if (token.startsWith("text:")) await page.keyboard.type(token.slice(5))
     else if (token.startsWith("wait:")) await page.waitForTimeout(Number(token.slice(5)))
-    else if (token.startsWith("click:") || token.startsWith("rclick:")) {
+    else if (token.startsWith("hover:")) {
+      // `hover:X,Y` — rest the pointer there with no button down: what a row looks like under it.
+      const [x, y] = token.slice(6).split(",").map(Number)
+      if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error(`hover: needs X,Y, got ${JSON.stringify(token)}`)
+      await page.mouse.move(x, y)
+    } else if (token.startsWith("click:") || token.startsWith("rclick:")) {
       // `click:X,Y` — a raw viewport click, for a row the keyboard cannot
       // reach without first walking the tree cursor through it. `rclick:X,Y`
       // is the same with button 2, which is the ONLY way to photograph a
