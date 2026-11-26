@@ -27,7 +27,7 @@ Task's worktree (each opens a child Task listed under the row; a shell child's
 last shell exiting leaves the row empty, and `enter` starts a fresh shell), **New task from this branch** (the New task page with the Task's branch as the base), plus **Copy task ID**, **Copy branch name** and **Copy path**,
 which put the Task's id, branch or worktree path on the system clipboard for a
 `rove api` call, a `git checkout` or a `cd` in another shell, and **Open in editor**, **Rename branch**, and
-**Change engine** for the row you clicked. The menu opens down and right of the pointer, laid out as the web's: the everyday actions at the top level, the copy entries under **Copy ›** and the seldom-used ones (**New task from this branch**, **Rename branch**, **Change engine**, and others) under **More ›**. Right-clicking a project header
+**Change engine** for the row you clicked. The menu opens down and right of the pointer, laid out as the web's: the everyday actions at the top level, the copy entries in a list that opens beside **Copy** and the seldom-used ones (**New task from this branch**, **Rename branch**, **Change engine**, and others) beside **More**. Right-clicking a project header
 offers **New task**, **Field notes** (the notes agents filed on that repo with
 `rove api note`, newest first, each with its author and time — `↑↓` walks them
 and `d` retires the one under the cursor, which is how a note whose fact has

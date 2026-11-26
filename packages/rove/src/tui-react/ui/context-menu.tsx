@@ -1,7 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
  * A right-click menu, after the web's: a hairline-bordered, screen-clamped list anchored to the
- * click, its sections parted by a rule, the row under the cursor on a quiet fill.
+ * click, its sections parted by a rule, the row under the cursor on a quiet fill. An entry's
+ * choices open in a second list beside it, level with its row.
  * Presentational only; the owner holds open/cursor state and key bindings.
  * Placement reuses the hover tooltip's clamp.
  */
@@ -45,38 +46,42 @@ function opensSection(entries: readonly ContextMenuEntry[], i: number): boolean 
   return i > 0 && entry?.section !== undefined && entries[i - 1]?.section !== entry.section
 }
 
-export function ContextMenu(props: {
+/** A list one level down, open beside the entry at `anchor`. */
+export interface ContextSubmenu {
+  readonly anchor: number
   readonly entries: readonly ContextMenuEntry[]
   readonly cursor: number
-  readonly x: number
-  readonly y: number
-  readonly dims: { width: number; height: number }
   readonly onPick: (id: string) => void
-  /** The pointer came to rest on entry `index`: the owner moves its cursor there, as the web's menu does. */
+  readonly onHover?: (index: number) => void
+}
+
+type Layout = ReturnType<typeof resolveSidebarHoverTooltipLayout>
+
+/** A list's lines for the clamp: label and cap measured together, and a row for each rule. */
+function menuLines(entries: readonly ContextMenuEntry[]): { text: string }[] {
+  return [
+    ...entries.map((entry) => ({ text: entry.label + " ".repeat(capCells(entry) + CAP_GAP) })),
+    ...entries.flatMap((_, i) => (opensSection(entries, i) ? [{ text: "" }] : [])),
+  ]
+}
+
+/** One bordered list at `layout`; `lit` keeps a second row lit (the entry whose choices are open). */
+function MenuList(props: {
+  readonly layout: Layout
+  readonly entries: readonly ContextMenuEntry[]
+  readonly cursor: number
+  readonly lit?: number
+  readonly onPick: (id: string) => void
   readonly onHover?: (index: number) => void
 }) {
   const { theme } = useTheme()
+  const { layout } = props
   // A step toward the ink from the menu's own surface, so the row under the cursor reads on it; a
   // palette theme has no inks to mix and keeps the element surface.
   const hoverFill =
     theme.text.intent === "rgb" && theme.backgroundMenu.intent === "rgb"
       ? mixInk(theme.text, theme.backgroundMenu, 0.14)
       : theme.backgroundElement
-  if (props.entries.length === 0) return null
-  const layout = resolveSidebarHoverTooltipLayout({
-    hoverX: props.x,
-    hoverY: props.y,
-    screenWidth: props.dims.width,
-    screenHeight: props.dims.height,
-    // Never wider than the surface it is clamped to: past the rail's edge it would sit under the workspace.
-    maxWidth: Math.min(SIDEBAR_HOVER_TOOLTIP_MAX_WIDTH, props.dims.width),
-    // Measure label + cap together, or the border clips the cap.
-    lines: [
-      ...props.entries.map((entry) => ({ text: entry.label + " ".repeat(capCells(entry) + CAP_GAP) })),
-      // A rule is a row too: the clamp must count it or a tall menu runs off the screen.
-      ...props.entries.flatMap((entry, i) => (opensSection(props.entries, i) ? [{ text: "" }] : [])),
-    ],
-  })
   return (
     <box
       position="absolute"
@@ -95,7 +100,7 @@ export function ContextMenu(props: {
       onMouseDown={(e: { stopPropagation(): void }) => e.stopPropagation()}
     >
       {props.entries.map((entry, i) => {
-        const active = i === props.cursor
+        const active = i === props.cursor || i === props.lit
         // The web's row: a quiet fill under the cursor, the error fill on a destructive entry.
         const fill = active ? (entry.danger ? theme.error : hoverFill) : undefined
         const ink = active && entry.danger ? theme.selectedListItemText : entry.danger ? theme.error : theme.text
@@ -132,5 +137,68 @@ export function ContextMenu(props: {
         ]
       })}
     </box>
+  )
+}
+
+export function ContextMenu(props: {
+  readonly entries: readonly ContextMenuEntry[]
+  /** The highlighted entry; -1 before the pointer or a key has picked one. */
+  readonly cursor: number
+  readonly x: number
+  readonly y: number
+  readonly dims: { width: number; height: number }
+  readonly onPick: (id: string) => void
+  /** The pointer came to rest on entry `index`: the owner moves its cursor there, as the web's menu does. */
+  readonly onHover?: (index: number) => void
+  readonly sub?: ContextSubmenu | null
+}) {
+  if (props.entries.length === 0) return null
+  const screen = { screenWidth: props.dims.width, screenHeight: props.dims.height }
+  // Never wider than the surface it is clamped to.
+  const maxWidth = Math.min(SIDEBAR_HOVER_TOOLTIP_MAX_WIDTH, props.dims.width)
+  const layout = resolveSidebarHoverTooltipLayout({
+    hoverX: props.x,
+    hoverY: props.y,
+    ...screen,
+    maxWidth,
+    lines: menuLines(props.entries),
+  })
+  const sub = props.sub && props.sub.entries.length > 0 ? props.sub : null
+  let subLayout: Layout | null = null
+  if (sub) {
+    // Beside the menu, its first row level with the entry that opened it; to the left when the right has no room.
+    const rules = props.entries.slice(0, sub.anchor + 1).filter((_, i) => opensSection(props.entries, i)).length
+    const anchorRow = layout.top + 1 + sub.anchor + rules
+    const right = layout.left + layout.boxWidth
+    // The clamp places a box two right and one below its point.
+    const beside = resolveSidebarHoverTooltipLayout({
+      hoverX: right - 2,
+      hoverY: anchorRow - 2,
+      ...screen,
+      maxWidth,
+      lines: menuLines(sub.entries),
+    })
+    subLayout = beside.left >= right ? beside : { ...beside, left: Math.max(0, layout.left - beside.boxWidth) }
+  }
+  return (
+    <>
+      <MenuList
+        layout={layout}
+        entries={props.entries}
+        cursor={props.cursor}
+        lit={sub?.anchor}
+        onPick={props.onPick}
+        onHover={props.onHover}
+      />
+      {sub && subLayout ? (
+        <MenuList
+          layout={subLayout}
+          entries={sub.entries}
+          cursor={sub.cursor}
+          onPick={sub.onPick}
+          onHover={sub.onHover}
+        />
+      ) : null}
+    </>
   )
 }

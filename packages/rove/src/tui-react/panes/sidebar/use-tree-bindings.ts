@@ -21,7 +21,7 @@ export interface TreeBindingsOpts
   > {
   readonly focused: boolean
   readonly search: TreeSearch
-  readonly menu: Pick<TreeMenu, "open" | "moveCursor" | "pickCurrent" | "close">
+  readonly menu: Pick<TreeMenu, "open" | "moveCursor" | "pickCurrent" | "back">
   readonly moveMode: boolean
   readonly onMoveModeExit?: () => void
   readonly controller: ReturnType<typeof createSidebarController>
@@ -146,7 +146,7 @@ export function useTreeBindings(opts: TreeBindingsOpts): void {
         "sidebar.nav": (_evt, slot) => menu.moveCursor((slot ?? 0) % 2 === 0 ? 1 : -1),
         "sidebar.select": () => menu.pickCurrent(),
       }),
-      { key: "escape", cmd: () => menu.close() },
+      { key: "escape", cmd: () => menu.back() },
     ],
   }))
 }

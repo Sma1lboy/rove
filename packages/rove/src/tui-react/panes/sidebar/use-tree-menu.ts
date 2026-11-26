@@ -4,7 +4,7 @@
  * `t()` pass, and the dispatch between them.
  */
 
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { resolvePreferredVendor } from "../../../state/vendor-prefs"
 import { formatChord } from "../../../tui/lib/chord-glyphs"
 import { legendCap } from "../../../tui/lib/help-groups"
@@ -20,20 +20,25 @@ import {
 } from "../../../tui/panes/sidebar/tree-menu"
 import { useT } from "../../i18n"
 import { useGlobalMouseDown } from "../../lib/use-global-mouse-down"
-import type { ContextMenuEntry } from "../../ui/context-menu"
+import type { ContextMenuEntry, ContextSubmenu } from "../../ui/context-menu"
 import type { SidebarTaskCallbacks } from "./types"
 import type { TreeState } from "./use-tree-state"
 
 export interface TreeMenu {
   readonly open: boolean
   readonly entries: readonly ContextMenuEntry[]
+  /** -1 until the pointer or a key picks an entry, as the web's pointer-opened menu. */
   readonly cursor: number
+  /** The list open beside the menu (`Copy`, `More`), or null. */
+  readonly sub: ContextSubmenu | null
   readonly x: number
   readonly y: number
   readonly close: () => void
+  /** Escape: out of an open list first, then the menu. */
+  readonly back: () => void
   readonly moveCursor: (delta: 1 | -1) => void
-  /** Put the highlight on an entry (the pointer is over it). */
-  readonly setCursor: (index: number) => void
+  /** The pointer is over an entry: it lights up, and one with a list opens it after a beat. */
+  readonly hover: (index: number) => void
   /** Fire the highlighted entry (enter). */
   readonly pickCurrent: () => void
   /** Fire an entry by action id (a click on a menu row). */
@@ -61,30 +66,25 @@ function menuCap(bindingId: string | undefined): string | undefined {
   return cap ? formatChord(cap) : undefined
 }
 
-/** The two entries that open a list one level down, as the web's `Copy ›` and `More ›` do. */
+/** The two entries that open a list beside the menu, as the web's `Copy ›` and `More ›` do. */
 type Submenu = "copy" | "more"
+const SUBMENUS: readonly Submenu[] = ["copy", "more"]
 const SUBMENU_ID = (sub: Submenu): string => `submenu:${sub}`
-const BACK_ID = "submenu:back"
+/** How long the pointer rests on such an entry before its list opens (the web's `SUB_OPEN_MS`). */
+const SUB_OPEN_MS = 120
+
+type MenuEntry = ContextMenuEntry & { readonly section: TreeMenuSection }
 
 interface OpenMenu {
   readonly row: TreeRow
   /** Every entry the row offers, each with its section. */
-  readonly entries: readonly (ContextMenuEntry & { readonly section: TreeMenuSection })[]
-  /** The list showing in place of the top level, when one is open. */
-  readonly sub: Submenu | null
+  readonly entries: readonly MenuEntry[]
   readonly x: number
   readonly y: number
 }
 
-/** What the menu shows: the top level with `Copy ›` and `More ›` standing in for their entries, or one of those lists. */
-function visibleEntries(menu: OpenMenu, t: (key: string) => string): readonly ContextMenuEntry[] {
-  if (menu.sub) {
-    const back: ContextMenuEntry = { id: BACK_ID, label: `‹ ${t("tasks.menu.back")}`, section: "back" }
-    return [
-      back,
-      ...menu.entries.filter((entry) => entry.section === menu.sub).map((entry) => ({ ...entry, section: "list" })),
-    ]
-  }
+/** The top level: each section's entries, with `Copy` and `More` standing in for theirs. */
+function topEntries(menu: OpenMenu, t: (key: string) => string): readonly ContextMenuEntry[] {
   return TREE_MENU_SECTIONS.flatMap((section): ContextMenuEntry[] => {
     const inSection = menu.entries.filter((entry) => entry.section === section)
     if (inSection.length === 0) return []
@@ -104,14 +104,19 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
   const t = useT()
   const { tree, activateRow, setCursorIndex, actions } = deps
   const [menu, setMenu] = useState<OpenMenu | null>(null)
-  const [cursor, setCursor] = useState(0)
+  const [cursor, setCursor] = useState(-1)
+  // The list open beside the menu, the highlight in it, and whether the keys drive it.
+  const [sub, setSub] = useState<Submenu | null>(null)
+  const [subCursor, setSubCursor] = useState(-1)
+  const [inSub, setInSub] = useState(false)
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => () => clearTimeout(timer.current), [])
 
   const openAt = useCallback(
     (row: TreeRow, ctx: TreeMenuContext, x: number, y: number): void => {
       const items = treeMenuItems(row, ctx)
       setMenu({
         row,
-        sub: null,
         // Caps resolve at OPEN time from the live keymap; unbound ids get none.
         entries: items.map((item) => ({
           id: item.action,
@@ -123,7 +128,9 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
         x,
         y,
       })
-      setCursor(0)
+      setCursor(-1)
+      setSub(null)
+      setInSub(false)
     },
     [t],
   )
@@ -161,22 +168,60 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
     [tree.rows, tree.searching, openAt],
   )
 
-  const close = useCallback((): void => setMenu(null), [])
+  const close = useCallback((): void => {
+    clearTimeout(timer.current)
+    setMenu(null)
+  }, [])
 
   // A press elsewhere dismisses. Presses INSIDE never reach the root
   // (`ContextMenu` stops the down phase), so picking still gets its mouse-up.
   useGlobalMouseDown(menu !== null, close)
 
-  const visible = useMemo(() => (menu ? visibleEntries(menu, t) : []), [menu, t])
+  const visible = useMemo(() => (menu ? topEntries(menu, t) : []), [menu, t])
+  const subEntries = useMemo(
+    () => (menu && sub ? menu.entries.filter((entry) => entry.section === sub) : []),
+    [menu, sub],
+  )
+
+  const openSub = useCallback((next: Submenu, byKeys: boolean): void => {
+    clearTimeout(timer.current)
+    setSub(next)
+    setInSub(byKeys)
+    setSubCursor(byKeys ? 0 : -1)
+  }, [])
+  const closeSub = useCallback((): void => {
+    clearTimeout(timer.current)
+    setSub(null)
+    setInSub(false)
+  }, [])
+
+  const back = useCallback((): void => (inSub ? closeSub() : close()), [inSub, closeSub, close])
 
   const moveCursor = useCallback(
     (delta: 1 | -1): void => {
-      const count = visible.length
+      const count = inSub ? subEntries.length : visible.length
       if (count === 0) return
-      // Wraps.
-      setCursor((prev) => (prev + delta + count) % count)
+      // Wraps; from "nothing lit" the first step lands on an end.
+      const step = (prev: number): number => (prev < 0 ? (delta === 1 ? 0 : count - 1) : (prev + delta + count) % count)
+      if (inSub) setSubCursor(step)
+      else {
+        closeSub()
+        setCursor(step)
+      }
     },
-    [visible],
+    [inSub, subEntries, visible, closeSub],
+  )
+
+  const hover = useCallback(
+    (index: number): void => {
+      setCursor(index)
+      setInSub(false)
+      clearTimeout(timer.current)
+      const next = SUBMENUS.find((candidate) => SUBMENU_ID(candidate) === visible[index]?.id)
+      if (next) timer.current = setTimeout(() => openSub(next, false), SUB_OPEN_MS)
+      else closeSub()
+    },
+    [visible, openSub, closeSub],
   )
 
   /** Run an entry. The menu adds a route, not a capability (see `tree-menu.ts`). */
@@ -295,27 +340,53 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
   const pick = useCallback(
     (id: string): void => {
       if (!menu) return
-      // A list entry swaps what the menu shows; it runs nothing.
-      const sub = (["copy", "more"] as const).find((candidate) => SUBMENU_ID(candidate) === id)
-      if (sub || id === BACK_ID) {
-        setMenu({ ...menu, sub: sub ?? null })
-        setCursor(0)
+      // An entry with a list opens it; it runs nothing itself.
+      const next = SUBMENUS.find((candidate) => SUBMENU_ID(candidate) === id)
+      if (next) {
+        openSub(next, false)
         return
       }
       fire(menu.entries.find((entry) => entry.id === id)?.id as TreeMenuAction | undefined)
     },
-    [fire, menu],
+    [fire, menu, openSub],
   )
   const pickCurrent = useCallback((): void => {
+    if (inSub) {
+      const id = subEntries[subCursor]?.id
+      if (id !== undefined) pick(id)
+      return
+    }
+    // Nothing lit yet: Enter is swallowed rather than reaching the row under the menu.
     const id = visible[cursor]?.id
-    if (id !== undefined) pick(id)
-  }, [pick, visible, cursor])
+    const next = SUBMENUS.find((candidate) => SUBMENU_ID(candidate) === id)
+    if (next) openSub(next, true)
+    else if (id !== undefined) pick(id)
+  }, [pick, openSub, inSub, subEntries, subCursor, visible, cursor])
+
+  const subAnchor = sub ? visible.findIndex((entry) => entry.id === SUBMENU_ID(sub)) : -1
+  const subView: ContextSubmenu | null =
+    sub && subAnchor >= 0
+      ? {
+          anchor: subAnchor,
+          // One list, no sections of its own.
+          entries: subEntries.map((entry) => ({ ...entry, section: undefined })),
+          cursor: subCursor,
+          onPick: pick,
+          onHover: (index) => {
+            clearTimeout(timer.current)
+            setSubCursor(index)
+            setInSub(true)
+          },
+        }
+      : null
 
   return {
     open: menu !== null,
     entries: visible,
     cursor,
-    setCursor,
+    sub: subView,
+    hover,
+    back,
     x: menu?.x ?? 0,
     y: menu?.y ?? 0,
     close,
