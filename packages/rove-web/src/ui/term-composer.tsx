@@ -1,6 +1,7 @@
 import {
   type ChangeEvent,
   type ClipboardEvent,
+  type DragEvent,
   type KeyboardEvent,
   type ReactNode,
   type RefObject,
@@ -23,7 +24,7 @@ const BAR = "relative hidden px-0.5 py-1.5 touch:flex"
 const CHIPS = "absolute inset-x-3 bottom-full z-5 mb-1"
 const SUGGEST = "absolute inset-x-3 bottom-full z-6 mb-1"
 /** The one capsule: on the key row's own left and right edges, with its corners. */
-const ROW = `flex min-w-0 flex-1 items-center gap-0.5 rounded-[14px] p-0.5 ${glass()} focus-within:border-focus`
+const ROW = `relative flex min-w-0 flex-1 items-center gap-0.5 rounded-[14px] p-0.5 ${glass()} focus-within:border-focus`
 /** The field, bare inside the capsule: the mic sits at its right end. */
 const FIELD_BOX = "flex h-11 min-w-0 flex-1 items-center has-[textarea:disabled]:opacity-60"
 /** One line as tall as the box: a longer draft scrolls a whole line at a time, so no half line peeks in below. */
@@ -32,6 +33,15 @@ const FIELD =
 /** The hold control stays pressed for the whole take: it gives less, or the row would look shrunk. */
 const PRESS_WIDE =
   "transition-[scale,background-color,color] duration-150 active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-none"
+/** Files held over a composer: an accent ring on its edge and what letting go does, over its contents. */
+export function DropHint({ label }: { label: string }) {
+  return (
+    <span className="pointer-events-none absolute -inset-px z-10 grid place-items-center rounded-[inherit] border-2 border-accent bg-[color-mix(in_srgb,var(--surface)_88%,transparent)] font-sans text-body text-accent motion-safe:animate-fade-in">
+      {label}
+    </span>
+  )
+}
+
 /** A control inside the capsule: a 44px square with the keys' corners. */
 const KEY = `flex size-11 shrink-0 cursor-pointer items-center justify-center ${SQUARE} touch-manipulation active:bg-[color-mix(in_srgb,var(--ink)_14%,transparent)] disabled:opacity-60 has-[:disabled]:opacity-60 ${PRESS}`
 /** The session's primary action, at the capsule's right end: solid accent once there is something to send. */
@@ -333,6 +343,9 @@ export function TermComposerBar(props: {
   composerKey?: string
   /** The `@name` suggestions, floated over the terminal like the chips. */
   suggest?: ReactNode
+  /** Drag handlers that take dropped files (attachments.tsx `useFileDrop`), and what to say while files are held over. */
+  drop?: { readonly [handler: string]: (e: DragEvent<HTMLDivElement>) => unknown }
+  dropHint?: string
   onSend: () => void
 }) {
   return (
@@ -346,7 +359,8 @@ export function TermComposerBar(props: {
     >
       {props.attached && <div className={CHIPS}>{props.attached}</div>}
       {props.suggest && <div className={SUGGEST}>{props.suggest}</div>}
-      <div className={ROW}>
+      <div className={ROW} {...props.drop}>
+        {props.dropHint && <DropHint label={props.dropHint} />}
         {props.attach}
         {props.voice ?? (
           <>

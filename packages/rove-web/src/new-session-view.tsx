@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useRef, useState } from "react"
-import { AttachPicker, AttachmentThumbs, fileTargets, useAttachments, withRefs } from "./attachments.tsx"
+import { AttachPicker, AttachmentThumbs, useAttachments, useFileDrop, withRefs } from "./attachments.tsx"
 import { CelestialPlate } from "./celestial/plate.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { isTouch } from "./key-hints.ts"
@@ -52,7 +52,7 @@ import { useEngineChoice } from "./task-dialogs.tsx"
 import { type NewSessionStart, newSession, openNewSession, toast } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
 import * as C from "./ui/composer.ts"
-import { CardMicFace, ClipGlyph, SendButton, composerAttach, composerHold } from "./ui/term-composer.tsx"
+import { CardMicFace, ClipGlyph, DropHint, SendButton, composerAttach, composerHold } from "./ui/term-composer.tsx"
 import { DictationButton, talksFirst, useVoiceHosted } from "./voice/dictation-button.tsx"
 
 /** New task: the composer in `repo`, on this machine or the registered one the caller names. Naming neither is the global New task, which opens on No folder: it must not guess a project from whatever is selected. */
@@ -148,7 +148,8 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const { pick: remotePick, setPick: setRemotePick, base: remoteBase, setBase: setRemoteBase } = at_
   const sh = useShellPick(shown, !remote)
   // Files live on this Mac: another machine's task could not read them. A shell takes none.
-  const targets = remote || sh.on ? null : fileTargets((files) => void attach(files))
+  const fileDrop = useFileDrop((files) => void attach(files))
+  const targets = remote || sh.on ? null : fileDrop
   const engineId = shown.engine
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: the starting project is read once
@@ -350,6 +351,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         }}
       >
         <div className={C.CARD} {...targets?.drop}>
+          {targets?.over && <DropHint label={t("layout.composerDrop")} />}
           {!remote && <AttachmentThumbs attachments={attachments} onRemove={remove} />}
           <textarea
             ref={area}

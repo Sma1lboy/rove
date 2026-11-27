@@ -279,7 +279,8 @@ function WebTerminal(props: TerminalViewProps) {
       // An empty text paste would reach the engine as an empty bracketed paste, which makes it read the
       // rove machine's clipboard: read the browser's instead.
       onPasteCapture={(e) => {
-        if (!handle) return
+        // The composer under the terminal attaches what is pasted into it.
+        if (!handle || (e.target as Element).closest("form[data-composer]")) return
         const files = Array.from(e.clipboardData.files)
         if (files.length === 0 && e.clipboardData.getData("text/plain") !== "") return
         e.preventDefault()

@@ -5,14 +5,33 @@ import { storeAttachment } from "./kanban-attach.ts"
 import type { AppModel } from "./model.ts"
 import { AttachThumbs } from "./ui/attach-thumbs.tsx"
 
-/** Drop a file on the box, or paste one into its field; text pastes pass through. */
-export function fileTargets(attach: (files: File[]) => void) {
+/**
+ * Drop a file on the box (a photo dragged in from another app on a phone, too), or paste one into its field; text
+ * drags and pastes pass through. `onOver` says whether files are held over the box.
+ */
+export function fileTargets(attach: (files: File[]) => void, onOver?: (over: boolean) => void) {
+  const files = (e: DragEvent) => e.dataTransfer.types.includes("Files")
   return {
     drop: {
-      onDragOver: (e: DragEvent) => e.dataTransfer.types.includes("Files") && e.preventDefault(),
+      onDragEnter: (e: DragEvent) => files(e) && onOver?.(true),
+      onDragOver: (e: DragEvent) => {
+        if (!files(e)) return
+        // Without this the page takes the drop and opens the file.
+        e.preventDefault()
+        onOver?.(true)
+      },
+      // Leaving for a child also fires dragleave: only a pointer outside the box ends the hover.
+      onDragLeave: (e: DragEvent) => {
+        const box = e.currentTarget.getBoundingClientRect()
+        const inside = e.clientX > box.left && e.clientX < box.right && e.clientY > box.top && e.clientY < box.bottom
+        if (!inside) onOver?.(false)
+      },
       onDrop: (e: DragEvent) => {
+        onOver?.(false)
         if (e.dataTransfer.files.length === 0) return
         e.preventDefault()
+        // The terminal pane around a session's composer would also type the files' paths into the engine.
+        e.stopPropagation()
         attach(Array.from(e.dataTransfer.files))
       },
     },
@@ -23,6 +42,12 @@ export function fileTargets(attach: (files: File[]) => void) {
       attach(files)
     },
   }
+}
+
+/** `fileTargets` plus whether files are held over the box, for its drop ring. */
+export function useFileDrop(attach: (files: File[]) => void) {
+  const [over, setOver] = useState(false)
+  return { over, ...fileTargets(attach, setOver) }
 }
 
 /** A label that opens the system file picker (the phone's photo library): `children` is what it shows. */

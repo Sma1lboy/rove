@@ -12,7 +12,7 @@ export const COMPOSER = "relative mx-auto flex w-full max-w-[104ch] flex-none fl
 /** Errors and clone progress float above the card: in flow they would push the bottom-pinned composer up. */
 export const NOTE = "pointer-events-none absolute bottom-full left-0 mb-2 flex flex-col gap-1"
 export const CARD =
-  "flex flex-col gap-2 rounded-md border-hairline border-line bg-surface px-3 py-2.5 focus-within:border-line-active"
+  "relative flex flex-col gap-2 rounded-md border-hairline border-line bg-surface px-3 py-2.5 focus-within:border-line-active"
 export const CARD_ACTIONS = "flex flex-wrap items-center justify-end gap-1.5"
 export const PROMPT = "max-h-[40vh] min-h-[4.5em] w-full bg-transparent text-ink [border:0] [outline:0]"
 /** On a phone the chips sit above the card, starting and ending on its edges, so the card itself rests on the keyboard. */

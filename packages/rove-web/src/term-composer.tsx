@@ -7,7 +7,7 @@
 
 import { useRef, useState, useSyncExternalStore } from "react"
 import { flushSync } from "react-dom"
-import { AttachPicker, AttachmentThumbs, fileTargets, useAttachments, withRefs } from "./attachments.tsx"
+import { AttachPicker, AttachmentThumbs, useAttachments, useFileDrop, withRefs } from "./attachments.tsx"
 import { BridgeRequestError } from "./bridge.ts"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
@@ -112,6 +112,7 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
       setBusy(false)
     }
   }
+  const fileDrop = useFileDrop(attach)
   if (!local) return null
   const onFiles = attach
   const talk = {
@@ -169,7 +170,9 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
       fieldRef={field}
       suggest={snippets.list}
       {...snippets.field}
-      onPaste={fileTargets(onFiles).onPaste}
+      onPaste={fileDrop.onPaste}
+      drop={fileDrop.drop}
+      dropHint={fileDrop.over ? t("layout.composerDrop") : undefined}
       // An empty field left alone is the hold control again.
       onBlur={() => text === "" && setTyping(false)}
       onSend={() => void send()}
