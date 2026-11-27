@@ -27,6 +27,21 @@ function makeWorktree(files: Record<string, string>): string {
   return worktree
 }
 
+describe("engine exit wrapper", () => {
+  // The daemon reads "no banner" as a deliberate quit, so the banner must mark every failure and nothing else.
+  const run = (engine: string) =>
+    execFileSync("/bin/sh", ["-c", engineLaunchLine(engine)], {
+      env: { ...process.env, SHELL: "/usr/bin/true" },
+    }).toString()
+
+  test("a quit gets the quiet note and a shell, a failure or kill gets the banner", () => {
+    expect(run("(exit 0)")).toContain("Engine ended.")
+    expect(run("(exit 0)")).not.toContain("Engine exited")
+    expect(run("(exit 3)")).toContain("Engine exited (code 3)")
+    expect(run("sh -c 'kill -TERM $$'")).toContain("Engine exited (code 143)")
+  })
+})
+
 describe("hosted engine session launch", () => {
   test("uses the first engine tab as the canonical task session key", () => {
     expect(engineSessionKey("task-1")).toBe("task-1::tab-1")
@@ -269,9 +284,9 @@ describe("hosted engine session launch", () => {
     test("restores the init script's exports for EVERY session, not just the first", () => {
       const { dir, marker } = scratch()
       const script = launchScript("export ROVE_INIT_PROBE=1", marker)
-      expect(runLaunch(dir, script).trim()).toBe("1")
-      expect(runLaunch(dir, script).trim()).toBe("1")
-      expect(runLaunch(dir, script).trim()).toBe("1")
+      expect(runLaunch(dir, script).split("\n")[0]).toBe("1")
+      expect(runLaunch(dir, script).split("\n")[0]).toBe("1")
+      expect(runLaunch(dir, script).split("\n")[0]).toBe("1")
     })
 
     /**
@@ -308,8 +323,8 @@ describe("hosted engine session launch", () => {
       // C3: the loser waits for the marker rather than racing the dump, so it
       // sources a COMPLETE one — the dump is written inside the run, before
       // the marker. Both engines start with what init exported.
-      expect(fs.readFileSync(`${out}-a.log`, "utf8").trim()).toBe("racewinner")
-      expect(fs.readFileSync(`${out}-b.log`, "utf8").trim()).toBe("racewinner")
+      expect(fs.readFileSync(`${out}-a.log`, "utf8").split("\n")[0]).toBe("racewinner")
+      expect(fs.readFileSync(`${out}-b.log`, "utf8").split("\n")[0]).toBe("racewinner")
     })
 
     test("keeps the env dump 0600 — an init script's exports are where a key would be", () => {

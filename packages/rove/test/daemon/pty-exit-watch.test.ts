@@ -219,6 +219,45 @@ describe("startPtyExitWatch → activity registry", () => {
   })
 })
 
+describe("startPtyExitWatch: a quit is not a death", () => {
+  it("leaves a code-0 quit idle and out of the Inbox, but still badges a killed engine", () => {
+    const path = join(tmp(), "pty-exits.json")
+    const activity = new DaemonActivityRegistry(new DaemonEventBus())
+    const inboxed: string[] = []
+    const stop = startPtyExitWatch({
+      path,
+      plugins: () => ({ handleUiReport: () => {} }),
+      activity,
+      inbox: { recordEngineDeath: async (taskId) => void inboxed.push(taskId) },
+    })
+    try {
+      activity.report("quit", "turn-complete", undefined, "tab-1")
+      // keepAlive prints its banner only for a nonzero exit: a quit leaves the engine's goodbye and a prompt.
+      recordEngineExit(
+        { key: "quit::tab-1", pid: 7, at: "2099-01-01T00:00:00.000Z", tail: "Resume this session with:\n$ \n" },
+        path,
+      )
+      recordEngineExit(
+        {
+          key: "killed::tab-1",
+          pid: 8,
+          at: "2099-01-01T00:00:00.000Z",
+          tail: "  ⚠ Engine exited (code 143). Check Settings → Engines and fix the launch command.\n$ \n",
+        },
+        path,
+      )
+      settle()
+      const tabs = activity.debugSnapshot().tabs
+      expect(tabs.quit?.["tab-1"]?.state).not.toBe("dead")
+      expect(tabs.killed?.["tab-1"]?.state).toBe("dead")
+      expect(inboxed).toEqual(["killed"])
+    } finally {
+      stop()
+      activity.close()
+    }
+  })
+})
+
 describe("startPtyExitWatch with engine-layer records", () => {
   it("fires an engine death exactly once, however many sweeps follow", () => {
     // `recordEngineExit` writes under `<key>#engine` while the record inside

@@ -40,10 +40,12 @@ export function initMarkerSaysFinished(markerPath: string): boolean {
  */
 export const ENGINE_EXIT_BANNER = /Engine exited \(code (\d+)\)/
 
-/** Keep a hosted terminal useful after its engine exits. */
+/** Keep a hosted terminal useful after its engine exits: a quit (code 0) gets a dim note, not the failure banner. */
 export function keepAlive(command: string): string {
   const banner = "\\n  ⚠ Engine exited (code %s). Check Settings → Engines and fix the launch command.\\n\\n"
-  return `${command}; __rc=$?; [ "$__rc" -ne 0 ] && printf '${banner}' "$__rc"; exec "\${SHELL:-/bin/sh}"`
+  const note =
+    "\\n\\033[2m  Engine ended. This tab is a shell in the same folder now; run the engine again to continue.\\033[0m\\n\\n"
+  return `${command}; __rc=$?; if [ "$__rc" -ne 0 ]; then printf '${banner}' "$__rc"; else printf '${note}'; fi; exec "\${SHELL:-/bin/sh}"`
 }
 
 export interface EngineInitLaunch {
