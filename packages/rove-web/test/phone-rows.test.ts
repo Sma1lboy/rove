@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import type { TaskRow } from "rove-bridge/protocol"
 import { extPages, sessionAge, sessionLine2, statusWord } from "../src/phone-rows.ts"
-import { routineNeedsYou } from "../src/routines-data.ts"
+import { routineNeedsYou, routineWord } from "../src/routines-data.ts"
 
 const names = { kanban: "Kanban", issues: "Issues" }
 const pane = { plugin: "examples.counter-mod", id: "counter", title: "Counter", tree: { type: "text", text: "" } }
@@ -63,5 +63,19 @@ describe("the word beside a phone session row's status glyph", () => {
     ["no reading yet", undefined, "idle"],
   ])("names %s", (_, status, word) => {
     expect(statusWord(status)).toBe(word)
+  })
+})
+
+describe("the word at a phone routine row's right edge", () => {
+  test.each<[string, Parameters<typeof routineWord>[0], boolean, ReturnType<typeof routineWord>]>([
+    ["a run that worked", "ran", true, "ok"],
+    ["a failed command", "script_failed", true, "failed"],
+    ["a failure on a paused routine", "dispatch_failed", false, "failed"],
+    ["an engine that is not there", "skipped_unavailable", true, "needsYou"],
+    ["a tick that was refused", "skipped_blocked", true, "skipped"],
+    ["a paused routine whose last run worked", "ran", false, "paused"],
+    ["a routine that never ran", undefined, true, "notRun"],
+  ])("names %s", (_, status, enabled, word) => {
+    expect(routineWord(status, enabled)).toBe(word)
   })
 })

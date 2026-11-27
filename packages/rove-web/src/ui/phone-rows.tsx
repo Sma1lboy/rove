@@ -16,8 +16,6 @@ const TONE: Readonly<Record<RowTone, string>> = {
   error: "text-error",
   muted: "text-subtle",
 }
-/** The mark's cell: one glyph wide, so every row's title starts on one edge. */
-export const PHONE_MARK = "w-[1ch] flex-none text-center font-mono text-title leading-none"
 const SPINNER_MS = 80
 
 /** A row's daemon status as `row-status-glyph.ts` maps it, glyph then `word` in one tone; the spinner steps only while the row runs. */
@@ -31,13 +29,31 @@ export function StatusTag(props: { status: RowStatus | undefined; glyphs: RowGly
     const timer = window.setInterval(() => setFrame((n) => n + 1), SPINNER_MS)
     return () => window.clearInterval(timer)
   }, [spins])
+  return <PhoneTag tone={TONE[mark.tone]} glyph={mark.glyph} word={props.word} status={status?.kind ?? "none"} />
+}
+
+/** A row's state at its right edge: a glyph and a short word in one tone (a text-colour class). */
+export function PhoneTag(props: { tone: string; glyph: string; word: string; status?: string }) {
   return (
-    <span className={`flex items-center gap-1.5 ${TONE[mark.tone]}`} data-status={status?.kind ?? "none"}>
+    <span className={`flex items-center gap-1.5 ${props.tone}`} data-status={props.status}>
       <span className="w-[1ch] flex-none text-center" aria-hidden="true">
-        {mark.glyph}
+        {props.glyph}
       </span>
       {props.word}
     </span>
+  )
+}
+
+/** In the engine mark's cell, for a routine that runs a command and no engine: a terminal prompt. */
+export function ScriptMark() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="block size-4.5 flex-none translate-y-px fill-none stroke-current text-muted [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:1.3]"
+      aria-hidden="true"
+    >
+      <path d="M3 3.5h10a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1zM4.5 6.5 6.5 8l-2 1.5M8 10h3" />
+    </svg>
   )
 }
 

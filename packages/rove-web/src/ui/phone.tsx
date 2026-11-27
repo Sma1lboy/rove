@@ -5,7 +5,7 @@
 
 import type { MouseEvent, ReactNode, Ref } from "react"
 import { PRESS, SQUARE_BAR, glass } from "./glass.ts"
-import { GlassButton, NavButton, PlusGlyph } from "./nav-button.tsx"
+import { NavButton, PlusGlyph } from "./nav-button.tsx"
 
 const BAR = {
   /** Under a pane's own padding (a task, a page). */
@@ -71,21 +71,21 @@ export const PHONE_ROW =
 
 /**
  * The screen's floating foot, after iOS's: what the screen does sits where the thumb is. `children` are the secondary
- * controls bottom left (one glass capsule); `primary` is the one accent square bottom right, or `wide` a bar beside
- * the capsule. The content scrolls under it.
+ * controls bottom left (one glass capsule); `wide` is the screen's one action, a bar filling the rest of the row.
+ * The content scrolls under it.
  */
 export function BottomBar(props: {
   children?: ReactNode
-  primary?: { label: string; onClick: () => void; glyph?: ReactNode }
-  /** The list's own action in place of the square: a glass bar filling the row, its name after an accent +, `note` at its end. */
-  wide?: { label: string; note: string; onClick: () => void }
+  /** The screen's one action: a glass bar filling the row, its name after an accent +, `note` at its end. */
+  wide?: { label: string; note?: string; onClick: () => void }
 }) {
   return (
     <div
-      className="pointer-events-none absolute inset-x-0 bottom-0 z-2 flex items-end justify-between gap-2.5 px-4 pb-3"
+      // Alone on a page, the bar meets the cards' edges.
+      className={`pointer-events-none absolute inset-x-0 bottom-0 z-2 flex items-end gap-2.5 pb-3 ${props.children ? "px-4" : "px-3"}`}
       data-bottom-bar
     >
-      {props.children ?? <span />}
+      {props.children}
       {props.wide && (
         <button
           type="button"
@@ -97,13 +97,12 @@ export function BottomBar(props: {
             <PlusGlyph />
           </span>
           <span className="min-w-0 truncate text-body text-ink lowercase">{props.wide.label}</span>
-          <span className="ml-auto flex-none text-meta tracking-[0.08em] text-muted uppercase">{props.wide.note}</span>
+          {props.wide.note && (
+            <span className="ml-auto flex-none text-meta tracking-[0.08em] text-muted uppercase">
+              {props.wide.note}
+            </span>
+          )}
         </button>
-      )}
-      {props.primary && (
-        <GlassButton size="primary" label={props.primary.label} onClick={props.primary.onClick}>
-          {props.primary.glyph ?? <PlusGlyph />}
-        </GlassButton>
       )}
     </div>
   )
@@ -138,7 +137,7 @@ export function PhoneListRow(props: {
 
 /**
  * A page on a phone (Routines, Kanban, Issues, Update): the large title, a muted line of status under it, the page's
- * content scrolling under the bottom bar, and its one action as the bar's accent +. The way back is the session bar's.
+ * content scrolling under the bottom bar, and its one action as that bar. The way back is the session bar's.
  */
 export function PhonePage(props: {
   title: string
@@ -159,7 +158,7 @@ export function PhonePage(props: {
         {props.children}
       </div>
       {props.foot && <div className="flex-none px-4 pt-2 pb-3">{props.foot}</div>}
-      {props.primary && <BottomBar primary={props.primary} />}
+      {props.primary && <BottomBar wide={props.primary} />}
     </div>
   )
 }

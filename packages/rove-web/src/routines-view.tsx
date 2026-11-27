@@ -13,6 +13,7 @@ import { describeCronWith } from "@sma1lboy/rove/src/tui/component/cron-core.ts"
 import { useEffect, useRef, useState } from "react"
 import { ConfirmDialog } from "./dialogs.tsx"
 import { ChangeEngineDialog } from "./engine-dialog.tsx"
+import { useEngineIcons } from "./engine-icons.ts"
 import { t } from "./i18n/index.ts"
 import { useNarrow } from "./layout.ts"
 import type { AppModel } from "./model.ts"
@@ -63,6 +64,7 @@ type EngineName = { readonly id: string; readonly name: string }
 export function RoutinesView({ model }: { model: AppModel }) {
   const { auto, common, nav } = useCopy()
   const phone = useNarrow()
+  const icons = useEngineIcons(model)
   const c = model.client
   const [tick, reload] = useReload(POLL_MS)
   const payload = useStore(model.tasks)
@@ -373,6 +375,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
         <RoutinesPhoneList
           sections={sections}
           lastRunStatus={lastRunStatus}
+          icons={icons}
           runs={selectedRuns}
           now={now}
           line2={(routine) => `${cron(routine)} · ${routine.enabled ? when(routine.nextRunAt) : auto.paused}`}

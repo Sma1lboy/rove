@@ -21,6 +21,20 @@ export function routineNeedsYou(reply: Pick<RoutinesReply, "lastRunStatus"> | nu
   return status !== undefined && automationRunNeedsAttention(status)
 }
 
+/** A routine row's word at its right edge, a `rail.routineStatus` key: what its last run came to, or that it is paused. */
+export function routineWord(
+  status: AutomationRunStatus | undefined,
+  enabled: boolean,
+): "needsYou" | "failed" | "paused" | "skipped" | "ok" | "notRun" {
+  if (status === "dispatch_failed" || status === "script_failed") return "failed"
+  if (status !== undefined && automationRunNeedsAttention(status)) return "needsYou"
+  if (!enabled) return "paused"
+  if (status === undefined) return "notRun"
+  return status === "skipped_blocked" || status === "skipped_missed" || status === "skipped_cancelled"
+    ? "skipped"
+    : "ok"
+}
+
 type WhenCopy = Record<"now" | "justNow" | "inMinutes" | "minutesAgo" | "inHours" | "hoursAgo", string>
 
 /** A run time against `now`, in the page's words: `in 25m`, `3h ago`, a date past a day. */

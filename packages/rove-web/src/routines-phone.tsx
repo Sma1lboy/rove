@@ -1,15 +1,22 @@
-/** The Routines list on a phone: the session list's two-line rows on grouped cards, one card per section. */
+/** The Routines list on a phone: the session list's two-line rows on grouped cards, one card per section; a row leads with its engine's mark and ends with its last run. */
 
-import type { Automation, AutomationRun } from "@sma1lboy/rove/src/tui/component/automation-run-core.ts"
+import type {
+  Automation,
+  AutomationRun,
+  AutomationRunStatus,
+} from "@sma1lboy/rove/src/tui/component/automation-run-core.ts"
 import { t } from "./i18n/index.ts"
 import { compactAge } from "./inbox.ts"
 import { TONE_CLASS, TONE_GLYPH, runTone } from "./routine-runs.tsx"
-import { PHONE_MARK, PhoneStatusRow } from "./ui/phone-rows.tsx"
+import { routineWord } from "./routines-data.ts"
+import { EngineIcon, type EngineIconData } from "./ui/engine-icon.tsx"
+import { PhoneStatusRow, PhoneTag, ScriptMark } from "./ui/phone-rows.tsx"
 import { PhoneGroup } from "./ui/phone.tsx"
 
 export function RoutinesPhoneList(props: {
   sections: readonly { readonly key: string; readonly rows: readonly Automation[] }[]
-  lastRunStatus: Readonly<Record<string, string>>
+  lastRunStatus: Readonly<Record<string, AutomationRunStatus>>
+  icons: ReadonlyMap<string, EngineIconData>
   runs: Readonly<Record<string, readonly AutomationRun[]>>
   now: number
   /** The schedule in words, then when it runs next (or that it is paused). */
@@ -31,15 +38,23 @@ export function RoutinesPhoneList(props: {
                   key={routine.id}
                   data-routine={routine.id}
                   mark={
-                    <span className={`${PHONE_MARK} ${tone ? TONE_CLASS[tone] : "text-subtle"}`} aria-hidden="true">
-                      {tone ? TONE_GLYPH[tone] : "○"}
-                    </span>
+                    routine.script ? (
+                      <ScriptMark />
+                    ) : (
+                      <EngineIcon icon={props.icons.get(routine.vendor ?? "")} name={props.engine(routine)} />
+                    )
                   }
                   title={routine.name}
                   dim={!routine.enabled}
                   line2={<span className="min-w-0 truncate">{props.line2(routine)}</span>}
-                  top={Number.isFinite(ranAt) ? compactAge(props.now - ranAt) : "—"}
-                  bottom={props.engine(routine)}
+                  top={
+                    <PhoneTag
+                      tone={tone ? TONE_CLASS[tone] : "text-subtle"}
+                      glyph={tone ? TONE_GLYPH[tone] : "○"}
+                      word={t(`rail.routineStatus.${routineWord(last, routine.enabled)}`)}
+                    />
+                  }
+                  bottom={Number.isFinite(ranAt) ? compactAge(props.now - ranAt) : "—"}
                   onClick={() => props.onPick(routine)}
                 />
               )
