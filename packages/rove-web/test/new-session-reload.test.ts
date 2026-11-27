@@ -44,3 +44,17 @@ test("the open page is remembered for a reload, and forgotten once closed", asyn
   page.set(null)
   expect(kept.has("rove.web.page")).toBe(false)
 })
+
+test("the global New task opens on No folder; a project's + opens in that project", async () => {
+  const { startNewTask } = await import("../src/new-session-view.tsx")
+  const { newSession } = await import("../src/ui.ts")
+
+  startNewTask()
+  expect(newSession.get()).toMatchObject({ ungrouped: true })
+  expect(newSession.get()?.repo).toBeUndefined()
+
+  startNewTask("/r/app")
+  expect(newSession.get()).toMatchObject({ repo: "/r/app" })
+  expect(newSession.get()?.ungrouped).toBeUndefined()
+  newSession.set(null)
+})

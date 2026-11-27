@@ -55,8 +55,9 @@ import * as C from "./ui/composer.ts"
 import { CardMicFace, ClipGlyph, SendButton, composerAttach, composerHold } from "./ui/term-composer.tsx"
 import { DictationButton, talksFirst, useVoiceHosted } from "./voice/dictation-button.tsx"
 
-/** New task: the composer, on this machine or the registered one the caller names. */
+/** New task: the composer in `repo`, on this machine or the registered one the caller names. Naming neither is the global New task, which opens on No folder: it must not guess a project from whatever is selected. */
 export function startNewTask(repo?: string, machine?: string): void {
+  if (!repo && !machine) return startNewUngrouped()
   openNewSession(repo, undefined, machine)
 }
 
