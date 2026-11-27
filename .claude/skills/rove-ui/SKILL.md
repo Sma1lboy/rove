@@ -300,9 +300,9 @@ only last.
 
 ## 10a. Phone
 
-Any change to the phone layout (`narrow`, touch; also the iPhone app's WKWebView) follows [`phone.md`](phone.md):
-actions where the thumb reaches, one primary action bottom-right, bottom sheets over popovers, gestures, glass only on
-floating controls.
+Any change to the phone layout (`narrow`, touch; also the iPhone app's WKWebView) follows the `phone-ui` skill
+(`.claude/skills/phone-ui/SKILL.md`): actions where the thumb reaches, one primary action bottom-right, bottom sheets
+over popovers, gestures, glass only on floating controls, and how to verify on an iPhone.
 
 ## 11. Multi-client parity
 
