@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from "react"
 import type { GateRow } from "rove-bridge/protocol"
 import { t, useLocale } from "./i18n/index.ts"
 import { answerGate, pressKeys, readTail, sendReply } from "./inbox-peek.ts"
-import { PEEK_LINES } from "./inbox.ts"
+import { PEEK_LINES, type PeekTail, nextPeekTail } from "./inbox.ts"
 import type { AppModel } from "./model.ts"
 import { MENU_KEYS } from "./term-keys.ts"
 import { Button } from "./ui/button.tsx"
@@ -18,12 +18,8 @@ const REFRESH_MS = 2000
 
 export type PeekMode = "reply" | "menu" | "gate" | "readonly"
 
-function useTail(
-  model: AppModel,
-  taskId: string,
-  tabId: string | null,
-): { lines: string[] | null; refresh: () => void } {
-  const [lines, setLines] = useState<string[] | null>(null)
+function useTail(model: AppModel, taskId: string, tabId: string | null): { lines: PeekTail; refresh: () => void } {
+  const [lines, setLines] = useState<PeekTail>(null)
   const [tick, setTick] = useState(0)
   // biome-ignore lint/correctness/useExhaustiveDependencies: tick is a trigger the body doesn't read
   useEffect(() => {
@@ -35,7 +31,7 @@ function useTail(
         const next = await readTail(model.client, taskId, tabId)
         if (live) setLines(next)
       } catch {
-        if (live) setLines((cur) => cur ?? [])
+        if (live) setLines((cur) => nextPeekTail(cur, "failed"))
       }
       if (live) timer = window.setTimeout(poll, REFRESH_MS)
     }
@@ -96,7 +92,13 @@ export function InboxPeek(props: {
       {gate && <p className={PEEK_QUESTION}>{gate.question}</p>}
       {tabId && (
         <pre ref={tail} className={PEEK_TAIL} data-peek-lines={PEEK_LINES}>
-          {lines === null ? "…" : lines.length === 0 ? t("inbox.noOutput") : lines.join("\n")}
+          {lines === null
+            ? "…"
+            : lines === "unreadable"
+              ? t("inbox.outputUnreadable")
+              : lines.length === 0
+                ? t("inbox.noOutput")
+                : lines.join("\n")}
         </pre>
       )}
       {mode === "gate" && gate && (

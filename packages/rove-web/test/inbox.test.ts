@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { PEEK_LINES, inboxBadge, tailOf } from "../src/inbox.ts"
+import { PEEK_LINES, inboxBadge, nextPeekTail, tailOf } from "../src/inbox.ts"
 
 describe("Inbox peek", () => {
   test("the tail drops row padding and blank rows at both ends, keeping blanks between text", () => {
@@ -13,6 +13,12 @@ describe("Inbox peek", () => {
     expect(lines).toHaveLength(PEEK_LINES)
     expect(lines.at(-1)).toBe("line 29")
     expect(tailOf({})).toEqual([])
+  })
+
+  test("a failed read says the output can't be read, not that there is none; a later failure keeps the lines", () => {
+    expect(nextPeekTail(null, "failed")).toBe("unreadable")
+    expect(nextPeekTail(["done"], "failed")).toEqual(["done"])
+    expect(nextPeekTail("unreadable", [])).toEqual([])
   })
 
   test("a decision gate reads as needing a decision, not as an error", () => {
