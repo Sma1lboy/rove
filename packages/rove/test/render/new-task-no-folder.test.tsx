@@ -73,18 +73,28 @@ test("opened without a project, the picker leads with No folder and a project is
   await press(h, "down")
   await press(h, "enter")
   expect(await h.frame()).toContain(" main ")
-  await press(h, "enter")
+  // A project goes on to its branch, then Create.
+  await press(h, "enter", 2)
   expect(h.submitted).toEqual([expect.objectContaining({ repo: otter, baseRef: "main" })])
   act(() => h.destroy())
 })
 
-test("a project's page switches to No folder by mouse and creates no task", async () => {
+test("a project's page lists No folder first without clearing the field, and a typed query filters it by label", async () => {
   const otter = repo("otter")
   const h = await mount(otter, [otter])
   await click(h, "otter")
-  await press(h, "backspace", "otter".length)
-  // Second hit: the first is the emptied field's placeholder.
-  await click(h, "No folder", 1)
+  const rows = (await h.frame()).split("\n")
+  expect(rows.findIndex((line) => line.includes("No folder"))).toBeLessThan(
+    rows.findLastIndex((line) => line.includes("otter")),
+  )
+
+  await act(async () => h.mockInput.typeText("x"))
+  await settle()
+  expect(await h.frame()).not.toContain("No folder")
+  await press(h, "backspace", "otterx".length)
+  await act(async () => h.mockInput.typeText("fold"))
+  await settle()
+  await click(h, "No folder")
   expect(await h.frame()).not.toContain(" main ")
   await press(h, "enter")
   expect(h.submitted).toEqual([{ mode: "scratch", vendor: expect.any(String) }])

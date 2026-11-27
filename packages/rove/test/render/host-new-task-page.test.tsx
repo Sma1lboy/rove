@@ -86,7 +86,7 @@ test("clicking New task from a running task clears the task's title and takes th
   expect(await frame()).toContain("hello there")
 })
 
-test("the global New task opens on No folder and starts a no-folder session with the message", async () => {
+test("the global New task opens on No folder and starts a no-folder session with the message, model and effort", async () => {
   let opened: (input: unknown) => void = () => {}
   const openCall = new Promise((resolve) => {
     opened = resolve
@@ -110,10 +110,28 @@ test("the global New task opens on No folder and starts a no-folder session with
     3,
     before.split("\n").findIndex((line) => line.includes("New task")),
   )
-  await waitForFrameText(frame, "No folder")
+  const page = await waitForFrameText(frame, "No folder")
+  const at = (text: string, screen: string) => {
+    const y = screen.split("\n").findIndex((line) => line.includes(text))
+    return { x: (screen.split("\n")[y] ?? "").indexOf(text) + 1, y }
+  }
+  const model = at(" model ", page)
+  await mockMouse.click(model.x, model.y)
+  await mockInput.typeText("m-1")
+  const effort = at(" effort ", await frame())
+  await mockMouse.click(effort.x, effort.y)
+  mockInput.pressArrow("right")
+  const prompt = at("Describe a task", await frame())
+  await mockMouse.click(prompt.x, prompt.y)
   await mockInput.typeText("hello there")
   mockInput.pressEnter()
-  expect(await openCall).toEqual({ dir: homedir(), scratch: true, vendor: expect.any(String) })
+  expect(await openCall).toEqual({
+    dir: homedir(),
+    scratch: true,
+    vendor: expect.any(String),
+    model: "m-1",
+    modelEffort: expect.any(String),
+  })
 })
 
 test("a project's + pressed while the New task page is open moves the page to that project", async () => {

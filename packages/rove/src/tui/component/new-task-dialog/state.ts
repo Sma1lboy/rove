@@ -69,6 +69,8 @@ export type NewTaskInput =
       mode: "scratch"
       vendor: VendorId
       prompt?: string
+      model?: string
+      modelEffort?: string
     }
 
 /**

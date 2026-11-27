@@ -26,6 +26,7 @@ import {
   stripNewlines,
   windowAround,
 } from "../../../tui/component/new-task-dialog/state"
+import { t } from "../../../tui/i18n"
 import { expandHome, joinPicked, stripTrailingSlash } from "../../../tui/lib/path-helpers"
 import { useDerivedDir } from "./use-derived-dir"
 
@@ -41,8 +42,8 @@ export type RepoFieldOpts = {
   pickerRows: number
   /** A DIFFERENT repo is now in the field (any route). */
   onChanged: () => void
-  /** Enter / a click has answered the field; move focus along. */
-  onAnswered: () => void
+  /** Enter / a click has answered the field with `repo` (state still holds the old value); move focus along. */
+  onAnswered: (repo: string) => void
 }
 
 export function useRepoField(opts: RepoFieldOpts) {
@@ -52,7 +53,10 @@ export function useRepoField(opts: RepoFieldOpts) {
   const [repo, setRepo] = useState(() =>
     opts.defaultRepo ? nameOrPath(opts.defaultRepo, computeRepoOptions(opts.defaultRepo, opts.savedRepos)) : NO_FOLDER,
   )
-  const [repoCursor, setRepoCursor] = useState(0)
+  // On the field's current answer: a prefilled project sits under the No folder row.
+  const [repoCursor, setRepoCursor] = useState(() => (opts.defaultRepo.trim() ? 1 : 0))
+  // The field filters the picker only once typed in; a prefilled or picked answer lists everything.
+  const [repoTyped, setRepoTyped] = useState(false)
   // "Selected, not drilled" latch — collapses the suggestion dropdown after
   // Enter/click; typing resumes browsing.
   const [repoPicked, setRepoPicked] = useState(false)
@@ -70,10 +74,14 @@ export function useRepoField(opts: RepoFieldOpts) {
       ? splitRepoInput(repoResolution.path, true).dir
       : ""
   const { split: subdirSplit, filtered: subdirFiltered } = useDerivedDir(repo)
-  // No folder heads the list until a query narrows it to projects.
+  // No folder heads the list while the query is empty or matches its label, as in the web's picker.
+  const query = repoTyped ? repo.trim().toLowerCase() : ""
   const savedFiltered = useMemo(
-    () => (repo.trim() ? filterRepos(repoOptions, repo) : [NO_FOLDER, ...repoOptions]),
-    [repoOptions, repo],
+    () => [
+      ...(t("newTask.noFolder").toLowerCase().includes(query) ? [NO_FOLDER] : []),
+      ...filterRepos(repoOptions, query),
+    ],
+    [repoOptions, query],
   )
   const activeList = mode === "browse" ? subdirFiltered : savedFiltered
   const activeWindow: PickerWindow = windowAround(activeList, repoCursor, opts.pickerRows)
@@ -92,11 +100,17 @@ export function useRepoField(opts: RepoFieldOpts) {
 
   /** Every pick route funnels here: the picker deals in paths, the field in
    *  names. */
-  function pickRepo(path: string): void {
-    changeRepo(path === NO_FOLDER ? NO_FOLDER : nameOrPath(path, repoOptions))
+  function pickRepo(path: string): string {
+    const next = path === NO_FOLDER ? NO_FOLDER : nameOrPath(path, repoOptions)
+    changeRepo(next)
+    // The list is whole again, so the cursor follows the pick into it.
+    setRepoTyped(false)
+    setRepoCursor(Math.max(0, [NO_FOLDER, ...repoOptions].indexOf(path)))
+    return next
   }
 
   function setRepoText(v: string): void {
+    setRepoTyped(true)
     setRepoPicked(false)
     changeRepo(stripNewlines(v))
     setRepoCursor(0)
@@ -128,31 +142,30 @@ export function useRepoField(opts: RepoFieldOpts) {
   function onRepoSubmit(): void {
     if (mode === "browse") {
       const picked = subdirFiltered[repoCursor]
+      let next = repo
       if (picked) {
         // Enter selects and advances; drilling is Tab's job.
-        pickRepo(joinPicked(repo, subdirSplit.base, picked))
+        next = pickRepo(joinPicked(repo, subdirSplit.base, picked))
         setRepoCursor(0)
         setRepoPicked(true)
       }
-      opts.onAnswered()
+      opts.onAnswered(next)
       return
     }
     const picked = activeList[repoCursor]
-    if (picked) pickRepo(picked)
-    opts.onAnswered()
+    opts.onAnswered(picked === undefined ? repo : pickRepo(picked))
   }
 
   function selectRepoAt(absoluteIndex: number): void {
     const picked = activeList[absoluteIndex]
     if (picked === undefined) return
     if (mode === "browse") {
-      pickRepo(joinPicked(repo, subdirSplit.base, picked))
+      opts.onAnswered(pickRepo(joinPicked(repo, subdirSplit.base, picked)))
       setRepoPicked(true)
-    } else {
-      pickRepo(picked)
+      setRepoCursor(absoluteIndex)
+      return
     }
-    setRepoCursor(absoluteIndex)
-    opts.onAnswered()
+    opts.onAnswered(pickRepo(picked))
   }
 
   function moveRepoCursor(delta: 1 | -1): void {

@@ -55,7 +55,7 @@ export interface CreateTaskContext extends TaskActionContext {
   /** Open the created task's engine tab before it is entered. Absent → the pane spawns it on mount. */
   readonly openEngine?: (taskId: string) => Promise<void>
   /** No folder: open a session in no project on `vendor`, seeded with `prompt`. Absent → the pick is dropped. */
-  readonly openScratch?: (vendor: VendorId, prompt?: string) => void
+  readonly openScratch?: (vendor: VendorId, prompt?: string, pick?: { model?: string; modelEffort?: string }) => void
 }
 
 /** "Creating task…" and the failure that ends it share one toast slot, so a failure never sits under a ✓. */
@@ -106,7 +106,11 @@ export async function createTaskFlow(ctx: CreateTaskContext, seed?: CreateTaskSe
   if (!result) return
   if (result.mode === "scratch") {
     ctx.rememberVendor(result.vendor)
-    ctx.openScratch?.(result.vendor, result.prompt)
+    const { model, modelEffort } = result
+    ctx.openScratch?.(result.vendor, result.prompt, {
+      ...(model ? { model } : {}),
+      ...(modelEffort ? { modelEffort } : {}),
+    })
     return
   }
   // Auto-save keeps `add` optional. Use the returned git toplevel so a
