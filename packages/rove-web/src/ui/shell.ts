@@ -61,10 +61,6 @@ export const SIDE_PANEL_FRAME =
 /** The rail head's chips: a fingertip target on touch. */
 export const HEAD_CHIP = `${HIT} touch:after:-inset-x-1.5 touch:after:-inset-y-3`
 
-/** Narrow layout, content panel: the glass back button (ui/nav-button.tsx), the open task's name, and the view button. */
-export const NARROW_BAR = "flex items-center gap-2.5 px-1"
-/** A single tab has no strip to say which task this is. */
-export const NARROW_TITLE = "min-w-0 flex-1 truncate font-sans text-body font-normal text-ink"
 /** The view button's glyph: the panel icons drawn at the phone's icon size. */
 export const NARROW_VIEW_ICON =
   "size-5.5 fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:1.2]"

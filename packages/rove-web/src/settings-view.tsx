@@ -30,9 +30,8 @@ import { useStore } from "./store.ts"
 import { closeDialog } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import { Chevron } from "./ui/chevron.tsx"
-import { NavButton } from "./ui/nav-button.tsx"
+import { PHONE_LIST, PHONE_ROW, PhoneBar, PhoneGroup, PhoneTitle } from "./ui/phone.tsx"
 import {
-  SETTINGS_BAR,
   SETTINGS_BODY,
   SETTINGS_CARD,
   SETTINGS_CLOSE,
@@ -94,6 +93,24 @@ function SectionList(props: {
   /** Under the last group (a phone's usage readings). */
   foot?: ReactNode
 }) {
+  if (props.narrow)
+    return (
+      <nav className={PHONE_LIST} aria-label={t("settings.title")}>
+        <PhoneTitle>{t("settings.title")}</PhoneTitle>
+        {SECTION_GROUPS.map((group) => (
+          <PhoneGroup key={group.id} label={t(`settings.groups.${group.id}`)}>
+            {group.sections.map((id) => (
+              <Button key={id} variant="row" className={PHONE_ROW} onClick={() => props.onPick(id)}>
+                <SectionIcon id={id} />
+                {sectionName(id)}
+                <Chevron right className={SETTINGS_NAV_CHEVRON} />
+              </Button>
+            ))}
+          </PhoneGroup>
+        ))}
+        {props.foot}
+      </nav>
+    )
   return (
     <nav className={SETTINGS_NAV} aria-label={t("settings.title")}>
       <h1 className={SETTINGS_NAV_TITLE}>{t("settings.title")}</h1>
@@ -105,19 +122,16 @@ function SectionList(props: {
               <Button
                 key={id}
                 variant="row"
-                className={settingsNavItemClass(!props.narrow && props.current === id, group.id === "more")}
-                aria-current={!props.narrow && props.current === id ? "page" : undefined}
+                className={settingsNavItemClass(props.current === id, group.id === "more")}
+                aria-current={props.current === id ? "page" : undefined}
                 onClick={() => props.onPick(id)}
               >
-                <SectionIcon id={id} />
                 {sectionName(id)}
-                <Chevron right className={SETTINGS_NAV_CHEVRON} />
               </Button>
             ))}
           </div>
         </div>
       ))}
-      {props.foot}
     </nav>
   )
 }
@@ -167,13 +181,13 @@ export function SettingsDialog({ model, section: opening }: { model: AppModel; s
         {/* A phone's way out is the top-left back, as on every other page. */}
         {narrow ? (
           showList && (
-            <div className={SETTINGS_BAR}>
-              <NavButton
-                kind="back"
-                label={narrowPane.get() === "sidebar" ? workspaceText("narrowBack") : t("dialog.close")}
-                onClick={closeDialog}
-              />
-            </div>
+            <PhoneBar
+              frame="screen"
+              back={{
+                label: narrowPane.get() === "sidebar" ? workspaceText("narrowBack") : t("dialog.close"),
+                onClick: closeDialog,
+              }}
+            />
           )
         ) : (
           <Button
@@ -204,10 +218,12 @@ export function SettingsDialog({ model, section: opening }: { model: AppModel; s
         {showSection && (
           <div ref={narrow ? backPanel(back) : undefined} className={settingsPageClass(swiping)}>
             {narrow && (
-              <div className={SETTINGS_BAR}>
-                <NavButton kind="back" label={t("settings.title")} onClick={back} />
-                <h1 className={SETTINGS_TITLE}>{sectionName(view.section)}</h1>
-              </div>
+              <PhoneBar
+                frame="screen"
+                back={{ label: t("settings.title"), onClick: back }}
+                title={sectionName(view.section)}
+                titleKind="heading"
+              />
             )}
             <div key={view.section} className={SETTINGS_SCROLL}>
               <div className={SETTINGS_COLUMN}>

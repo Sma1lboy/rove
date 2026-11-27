@@ -5,17 +5,10 @@ import { ShortcutBadge } from "./prefix-guide.tsx"
 import { ts } from "./settings-copy.ts"
 import { skillMissing } from "./skill-status.ts"
 import { useStore } from "./store.ts"
-import { BarCapsule, GlassButton, PlusGlyph } from "./ui/nav-button.tsx"
-import {
-  RAIL_BAR_ICON,
-  RAIL_BOTTOM_BAR,
-  RAIL_FOOT,
-  RAIL_FOOT_ROW,
-  RAIL_NAV_CUE,
-  RAIL_NAV_ICON,
-  railNavRowClass,
-} from "./ui/page.ts"
+import { BarCapsule } from "./ui/nav-button.tsx"
+import { RAIL_BAR_ICON, RAIL_FOOT, RAIL_FOOT_ROW, RAIL_NAV_CUE, RAIL_NAV_ICON, railNavRowClass } from "./ui/page.ts"
 import { ICON_BUTTON_DOT } from "./ui/panel.ts"
+import { BottomBar } from "./ui/phone.tsx"
 import { UsageChips } from "./usage-view.tsx"
 
 /** Lucide `settings` (ISC). */
@@ -45,7 +38,7 @@ export function RailFoot({
   const hint = ts("engines.skill.bannerHintWeb", { engines: gap.join(", ") })
   if (narrow) {
     return (
-      <div className={RAIL_BOTTOM_BAR} data-rail-bar>
+      <BottomBar primary={{ label: t("rail.newTask"), onClick: () => startNewTask() }}>
         <BarCapsule
           settings={{
             label: gap.length > 0 ? `${t("rail.settings")}, ${hint}` : t("rail.settings"),
@@ -59,10 +52,7 @@ export function RailFoot({
           }}
           inbox={{ label: t("rail.inbox", { count: inbox.count }), onClick: inbox.onClick, count: inbox.count }}
         />
-        <GlassButton size="primary" label={t("rail.newTask")} onClick={() => startNewTask()}>
-          <PlusGlyph />
-        </GlassButton>
-      </div>
+      </BottomBar>
     )
   }
   return (
