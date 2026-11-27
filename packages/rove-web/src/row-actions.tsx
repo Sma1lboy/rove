@@ -281,7 +281,8 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
     run: () =>
       void model.act("task.pin", { taskId: task.id, pinned: !task.pinned }).catch((e) => toast(String(e), "error")),
   })
-  if (local) {
+  // An archived task has no rail row to move.
+  if (local && !task.archived) {
     items.push({
       label: tc("tasks", "menu.reorder"),
       section: "edit",
