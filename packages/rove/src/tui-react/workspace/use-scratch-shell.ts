@@ -31,6 +31,9 @@ import { useScratchAdopt } from "./use-scratch-adopt"
  *  Never cleared (ids stay for the process's life). */
 const scratchTeardowns = new Set<string>()
 
+/** The model and effort a No folder session launches its engine with. */
+export type ScratchModelPick = { readonly model?: string; readonly modelEffort?: string }
+
 export function useScratchShell(deps: {
   readonly orchestrator: RemoteOrchestrator
   readonly tasks: readonly Task[]
@@ -44,7 +47,7 @@ export function useScratchShell(deps: {
   /** Parks a first prompt that the task's engine tab starts on. */
   readonly seedPrompt: (taskId: string, prompt: string) => void
 }): {
-  openScratchShell: (vendor: VendorId | undefined, prompt?: string) => void
+  openScratchShell: (vendor: VendorId | undefined, prompt?: string, pick?: ScratchModelPick) => void
   onScratchExit: (taskId: string) => void
   reportProblem: () => void
 } {
@@ -68,9 +71,9 @@ export function useScratchShell(deps: {
     },
   })
 
-  const openScratchShell = (vendor: VendorId | undefined, prompt?: string): void => {
+  const openScratchShell = (vendor: VendorId | undefined, prompt?: string, pick?: ScratchModelPick): void => {
     void orchestrator
-      .openDirectoryTask({ dir: homedir(), scratch: true, ...(vendor ? { vendor } : {}) })
+      .openDirectoryTask({ dir: homedir(), scratch: true, ...(vendor ? { vendor, ...pick } : {}) })
       .then((task) => {
         // Before the select mounts its tabs: the mount reads the mark.
         if (vendor) engineScratchTasks.add(task.id)

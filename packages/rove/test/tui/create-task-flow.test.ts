@@ -410,7 +410,7 @@ describe("createTaskFlow — No folder", () => {
 
     await createTaskFlow({ ...ctx, openScratch })
 
-    expect(openScratch).toHaveBeenCalledWith("codex", "hello")
+    expect(openScratch).toHaveBeenCalledWith("codex", "hello", {})
     expect(rememberVendor).toHaveBeenCalledWith("codex")
     expect(mockAddSavedRepo).not.toHaveBeenCalled()
     expect(createTask).not.toHaveBeenCalled()
