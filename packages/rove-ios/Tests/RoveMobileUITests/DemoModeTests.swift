@@ -30,7 +30,7 @@ final class DemoModeTests: XCTestCase {
     private func launch(resetPairing: Bool = true) {
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchArguments = resetPairing ? ["-resetPairing"] : []
+        app.launchArguments = ["-nativeUI", "YES"] + (resetPairing ? ["-resetPairing"] : [])
         app.launch()
         let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Allow"]
         if allow.waitForExistence(timeout: 3) { allow.tap() }

@@ -31,7 +31,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: run.rove.mobile
         PRODUCT_NAME: RoveMobile
         MARKETING_VERSION: "0.1.0"
-        CURRENT_PROJECT_VERSION: "1"
+        CURRENT_PROJECT_VERSION: "2026112701"
         ENABLE_PREVIEWS: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     info:
@@ -47,11 +47,13 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         # iPhone only: opts out of iPad multitasking, which would otherwise demand all four orientations.
         UIRequiresFullScreen: true
-        # The bridge speaks plain ws:// on the LAN / Tailscale, so ATS must allow it.
+        # The bridge serves plain http:// and ws:// on the LAN / Tailscale, so ATS must allow it.
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
-        NSCameraUsageDescription: Rove scans the pairing QR code shown by your Mac.
-        NSLocalNetworkUsageDescription: Rove connects to the rove-bridge running on your Mac over the local network.
+        NSCameraUsageDescription: Rove scans the pairing QR code shown by your computer.
+        NSLocalNetworkUsageDescription: Rove opens the Rove page served by your computer over the local network.
+        # Hold-to-talk dictation in the page (getUserMedia inside WKWebView).
+        NSMicrophoneUsageDescription: Rove records your voice while you hold the talk button, to type it into a session.
         # Only system TLS/WSS; no custom or non-exempt cryptography. Skips the export-compliance prompt per build.
         ITSAppUsesNonExemptEncryption: false
         CFBundleIconName: AppIcon

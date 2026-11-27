@@ -224,7 +224,7 @@ extension KeyboardStateTests {
         appearance = look
         label = "\(look == .dark ? "dark" : "light")-portrait-\(fixture == nil ? "demo" : "fixture")"
         app = XCUIApplication()
-        app.launchArguments = ["-resetPairing"]
+        app.launchArguments = ["-nativeUI", "YES", "-resetPairing"]
         let hostSet = env["ROVE_APPEARANCE"] != nil
         for attempt in 0..<(hostSet ? 1 : 3) {
             if attempt > 0 {

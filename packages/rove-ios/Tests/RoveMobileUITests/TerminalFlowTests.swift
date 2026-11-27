@@ -48,7 +48,7 @@ final class TerminalFlowTests: XCTestCase {
         }
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchArguments = ["-resetPairing"]
+        app.launchArguments = ["-nativeUI", "YES", "-resetPairing"]
         app.launch()
         let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Allow"]
         if allow.waitForExistence(timeout: 3) { allow.tap() }
@@ -142,7 +142,7 @@ final class TerminalFlowTests: XCTestCase {
             throw XCTSkip("ROVE_BRIDGE_URL / ROVE_NOTIFY_WAIT not set")
         }
         app = XCUIApplication()
-        app.launchArguments = ["-resetPairing"]
+        app.launchArguments = ["-nativeUI", "YES", "-resetPairing"]
         app.launch()
         let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Allow"]
         if allow.waitForExistence(timeout: 3) { allow.tap() }

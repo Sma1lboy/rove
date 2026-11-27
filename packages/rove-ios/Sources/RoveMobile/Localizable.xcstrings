@@ -8693,6 +8693,126 @@
     },
     "⋯" : {
       "shouldTranslate" : false
+    },
+    "can't reach %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连不上 %@"
+          }
+        }
+      }
+    },
+    "Is rove --web still running on that computer, and is this phone on the same network or tailnet?" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "那台电脑上的 rove --web 还在运行吗？这部手机和它在同一个网络或 tailnet 里吗？"
+          }
+        }
+      }
+    },
+    "computers" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电脑"
+          }
+        }
+      }
+    },
+    "open" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前"
+          }
+        }
+      }
+    },
+    "forget" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "忘记"
+          }
+        }
+      }
+    },
+    "+ pair another computer" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+ 配对另一台电脑"
+          }
+        }
+      }
+    },
+    "Hold two fingers on the page to come back here." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在页面上用两根手指按住，就能回到这里。"
+          }
+        }
+      }
+    },
+    "pair a computer" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配对电脑"
+          }
+        }
+      }
+    },
+    "open rove on your phone" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在手机上打开 rove"
+          }
+        }
+      }
+    },
+    "Run `rove --web` on your computer, then scan the QR code it shows or paste the link it prints." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在电脑上运行 `rove --web`，然后扫描它显示的二维码，或粘贴它打印的链接。"
+          }
+        }
+      }
+    },
+    "scan qr code" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "扫描二维码"
+          }
+        }
+      }
+    },
+    "or paste the link" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "或粘贴链接"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

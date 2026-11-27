@@ -30,7 +30,7 @@ final class FilesFlowTests: XCTestCase {
         guard let url = env["ROVE_BRIDGE_URL"], !url.isEmpty, let task = env["ROVE_FILES_TASK"] else { throw XCTSkip("not configured") }
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchArguments = ["-resetPairing"]
+        app.launchArguments = ["-nativeUI", "YES", "-resetPairing"]
         app.launch()
         let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Allow"]
         if allow.waitForExistence(timeout: 3) { allow.tap() }
@@ -85,7 +85,7 @@ final class FilesFlowTests: XCTestCase {
         guard let url = env["ROVE_BRIDGE_URL"], !url.isEmpty, let task = override ?? env["ROVE_FILES_TASK"] else { return }
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchArguments = ["-resetPairing"]
+        app.launchArguments = ["-nativeUI", "YES", "-resetPairing"]
         app.launch()
         let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Allow"]
         if allow.waitForExistence(timeout: 3) { allow.tap() }
