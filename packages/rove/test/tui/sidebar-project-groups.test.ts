@@ -85,6 +85,7 @@ describe("grouping", () => {
     const wechat = checkout("w1", "/home/.rove/weixin/agent")
     const result = groups([{ ...wechat, connector: "weixin" }, task("a1", { repo: "/work/api" })])
     expect(result.map((g) => g.key)).toEqual(["/work/api", "/home/.rove/weixin/agent"])
+    expect(result[1]?.connector).toBe("weixin")
   })
 
   test("a projectless routine's dir task joins the Ungrouped bench, not a project of its own", () => {

@@ -18,6 +18,8 @@ export const en = {
   /** Section headers */
   header: {
     scratch: "Ungrouped",
+    /** A chat connector's project, named by its app (a plugin's own connector keeps its folder name). */
+    connector: { weixin: "WeChat", lark: "Lark" },
   },
   /** Search bar */
   search: {
@@ -248,6 +250,7 @@ export const zh: typeof en = {
   },
   header: {
     scratch: "未分组",
+    connector: { weixin: "微信", lark: "飞书" },
   },
   search: {
     placeholder: "模糊搜索",

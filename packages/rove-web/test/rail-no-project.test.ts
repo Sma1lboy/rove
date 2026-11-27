@@ -54,3 +54,12 @@ test.each([
     "project:/home/.rove/weixin/agent",
   ])
 })
+
+test("a built-in chat connector's project is named by its app; a plugin's keeps its folder", () => {
+  const rows = [
+    task("wechat", { kind: "dir", repo: "/home/.rove/weixin/agent", connector: "weixin" }),
+    task("bot", { kind: "dir", repo: "/home/acme-bot", connector: "acme" }),
+  ]
+  const { rows: nav } = railRows({ tasks: rows, remote: [], machines: [], sort: "default", query: "" })
+  expect(nav.filter((r) => r.kind === "project").map((r) => r.label)).toEqual(["WeChat", "acme-bot"])
+})

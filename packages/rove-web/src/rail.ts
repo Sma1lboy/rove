@@ -351,6 +351,12 @@ export interface RailInput {
   readonly fold?: FoldState
 }
 
+/** A built-in chat connector's project is named by its app; a plugin's own connector keeps its folder name. */
+function connectorLabel(project: ProjectGroup): string | null {
+  const id = project.tasks.find((task) => task.connector)?.connector
+  return id === "weixin" || id === "lark" ? t(`rail.connector.${id}`) : null
+}
+
 const newest = (group: ProjectGroup): number => Math.max(0, ...group.tasks.map(createdTime))
 
 /** One machine's checkout of a project: a per-path group plus the machine it lives on (absent = this one). */
@@ -416,7 +422,10 @@ export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGro
     for (const part of bucket) projectOf.set(part, project)
   }
   const labels = new Map(
-    projects.map((project) => [project, project.noProject ? project.label : mergedLabel(project, projects)]),
+    projects.map((project) => [
+      project,
+      project.noProject ? project.label : (connectorLabel(project) ?? mergedLabel(project, projects)),
+    ]),
   )
   const labelled = projects.map((project) => ({ ...project, label: labels.get(project) ?? project.label }))
   if (input.sort === "recent") labelled.sort((a, b) => newest(b) - newest(a))

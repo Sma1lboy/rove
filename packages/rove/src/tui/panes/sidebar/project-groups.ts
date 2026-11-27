@@ -45,6 +45,8 @@ export interface SidebarGroup {
   readonly machineId: string
   /** Every visible task, in render order. */
   readonly tasks: readonly Task[]
+  /** The chat connector whose session this project holds (`weixin`, `lark`): the header names the app, not the directory. */
+  readonly connector?: string
 }
 
 export interface SidebarGroupInput {
@@ -165,16 +167,20 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
   const visible = [...byProject.entries()].filter(([, entry]) => !isClosedDownProject(entry.tasks, tabsByTask))
   const projects = visible.map(([, entry]) => entry)
   if (sortMode === "recent") visible.sort(([, a], [, b]) => b.newest - a.newest)
-  const groups: SidebarGroup[] = visible.map(([key, entry]) => ({
-    key,
-    repo: entry.repo,
-    label: sidebarRepoLabel(entry, projects),
-    machineId: entry.machineId,
-    tasks: entry.tasks.sort(pinnedFirst),
-  }))
+  const groups: SidebarGroup[] = visible.map(([key, entry]) => {
+    const connector = entry.tasks.find((task) => task.connector)?.connector
+    return {
+      key,
+      repo: entry.repo,
+      label: sidebarRepoLabel(entry, projects),
+      machineId: entry.machineId,
+      tasks: entry.tasks.sort(pinnedFirst),
+      ...(connector ? { connector } : {}),
+    }
+  })
   if (sortMode === "name") groups.sort((a, b) => nameCollator.compare(a.label, b.label))
   // A chat connector's session (WeChat, Lark) sinks below every project, whatever the sort (the web rail's rule).
-  const connector = (group: SidebarGroup): number => Number(group.tasks.some((task) => task.connector !== undefined))
+  const connector = (group: SidebarGroup): number => Number(group.connector !== undefined)
   groups.sort((a, b) => connector(a) - connector(b))
   if (scratchTasks.length > 0) {
     groups.unshift({
