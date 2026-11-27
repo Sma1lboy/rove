@@ -14,6 +14,9 @@
  * that we didn't stub still resolves, per the mocking gotcha).
  */
 
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { beforeEach, describe, expect, test, vi } from "vitest"
 
 vi.mock("../../src/worktree/content", async (importOriginal) => {
@@ -180,6 +183,16 @@ describe("listFiles", () => {
   test("throws with a descriptive message on non-zero exit", async () => {
     runGit.mockResolvedValue(fail("not a git repo"))
     await expect(listFiles("/repo")).rejects.toThrow(/not a git repo/)
+  })
+
+  test("lists a folder that is not a git repository from disk", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "filetree-folder-"))
+    for (const f of ["a.txt", "sub/b.md", "node_modules/x/i.js", ".git/HEAD"]) {
+      mkdirSync(join(dir, f, ".."), { recursive: true })
+      writeFileSync(join(dir, f), "")
+    }
+    runGit.mockResolvedValue(fail("fatal: not a git repository (or any of the parent directories): .git"))
+    expect(await listFiles(dir)).toEqual(["a.txt", "sub/b.md"])
   })
 
   test("strips trailing CR and drops blank lines", async () => {

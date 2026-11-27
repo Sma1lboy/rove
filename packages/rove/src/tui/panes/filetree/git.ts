@@ -11,7 +11,10 @@
  * - Non-zero exit throws, so the pane shows an error state instead of stale data.
  */
 
+import { readdir } from "node:fs/promises"
+import { join } from "node:path"
 import { parseNumstatRows, parsePorcelainRows, unquoteGitPath } from "@/lib/git-parsers"
+import { execHostForWorktreePath } from "../../../exec/resolve.ts"
 import { readLocalWorktreeHead, readWorktreeFile, runWorktreeGit } from "../../../worktree/content.ts"
 
 /**
@@ -67,11 +70,15 @@ async function runGit(args: readonly string[], cwd: string, signal?: AbortSignal
 
 /** Tracked + untracked-not-ignored files, worktree-relative, de-duplicated and sorted. */
 export async function listFiles(worktreePath: string, signal?: AbortSignal): Promise<string[]> {
-  const out = await runGit(
-    ["ls-files", "--cached", "--others", "--exclude-standard", "--full-name"],
-    worktreePath,
-    signal,
-  )
+  let out: string
+  try {
+    out = await runGit(["ls-files", "--cached", "--others", "--exclude-standard", "--full-name"], worktreePath, signal)
+  } catch (err) {
+    // A folder session (`rove .`, No folder, a routine's directory) is a plain folder: list it from disk.
+    const notRepo = err instanceof Error && err.message.includes("not a git repository")
+    if (!notRepo || execHostForWorktreePath(worktreePath).isRemote) throw err
+    return listFolderFiles(worktreePath, signal)
+  }
   // git octal-escapes non-ASCII path bytes by default (`文档/笔记.md` arrives
   // as `"\346\226\207…"`, quotes and all), so unquote like the porcelain parser.
   const lines = out.split("\n").map((l) => unquoteGitPath(l.replace(/\r$/, "")))
@@ -81,6 +88,31 @@ export async function listFiles(worktreePath: string, signal?: AbortSignal): Pro
     if (line.length > 0) set.add(line)
   }
   return Array.from(set).sort()
+}
+
+/** Entries a folder walk reads before it stops, so a session at `~` stays responsive. */
+const FOLDER_WALK_CAP = 50_000
+/** Never descended in a folder walk: no `.gitignore` applies there, and these drown the list. */
+const FOLDER_WALK_SKIP = new Set([".git", "node_modules"])
+
+/** Files under a folder that is not a git repository, breadth-first (shallow files survive the cap), sorted. */
+async function listFolderFiles(root: string, signal?: AbortSignal): Promise<string[]> {
+  const files: string[] = []
+  const dirs = [""]
+  let seen = 0
+  // ponytail: a fixed skip list and an entry cap stand in for ignore rules; a folder bigger than the cap lists partly.
+  for (let i = 0; i < dirs.length && seen < FOLDER_WALK_CAP && !signal?.aborted; i++) {
+    const rel = dirs[i] as string
+    const entries = await readdir(rel ? join(root, rel) : root, { withFileTypes: true }).catch(() => [])
+    for (const entry of entries) {
+      seen++
+      const path = rel ? `${rel}/${entry.name}` : entry.name
+      if (entry.isDirectory()) {
+        if (!FOLDER_WALK_SKIP.has(entry.name)) dirs.push(path)
+      } else files.push(path)
+    }
+  }
+  return files.sort()
 }
 
 /**
