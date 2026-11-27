@@ -105,6 +105,7 @@ export const en = {
     termKeyEnter: "Enter",
     termKeyMore: "More keys",
     narrowTerminal: "Terminal",
+    narrowViews: "Views",
   },
 }
 
@@ -213,5 +214,6 @@ export const zh: typeof en = {
     termKeyEnter: "回车",
     termKeyMore: "更多按键",
     narrowTerminal: "终端",
+    narrowViews: "视图",
   },
 }

@@ -10,6 +10,8 @@ import { Button } from "./ui/button.tsx"
 import { Segmented } from "./ui/segmented.tsx"
 import { Select } from "./ui/select.tsx"
 import {
+  ROW_NAME,
+  ROW_UNDER,
   SETTINGS_CONTROL,
   SETTINGS_GROUP,
   SETTINGS_GROUP_HINT,
@@ -53,11 +55,11 @@ export function Row(props: {
 }) {
   const text = (
     <div className={SETTINGS_TEXT}>
-      <span id={props.labelId} className={SETTINGS_NAME}>
+      <span id={props.labelId} className={`${SETTINGS_NAME} ${ROW_NAME}`}>
         {props.label}
       </span>
-      {props.hint && <span className={SETTINGS_NOTE}>{props.hint}</span>}
-      {props.sample && <span className={SETTINGS_SAMPLE}>{props.sample}</span>}
+      {props.hint && <span className={`${SETTINGS_NOTE} ${ROW_UNDER}`}>{props.hint}</span>}
+      {props.sample && <span className={`${SETTINGS_SAMPLE} ${ROW_UNDER}`}>{props.sample}</span>}
     </div>
   )
   if (props.stack) {

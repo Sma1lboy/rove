@@ -1,6 +1,6 @@
 /** Class recipes for the page shell: the app grid, the narrow bar, splits, terminal chrome, the key guide, palette and help. */
 
-import { PRESS, glass } from "./glass.ts"
+import { PRESS, SQUARE, glass } from "./glass.ts"
 
 /** Only the size, for lines outside a `.mono` element: they keep the line height they inherit. */
 const META = "text-meta leading-[inherit]"
@@ -58,13 +58,13 @@ export const SIDE_PANEL_FRAME =
 /** The rail head's chips: a fingertip target on touch. */
 export const HEAD_CHIP = `${HIT} touch:after:-inset-x-1.5 touch:after:-inset-y-3`
 
-/** Narrow layout, content panel: the glass back button (ui/nav-button.tsx), the open task's name, and the terminal/panel switch. */
+/** Narrow layout, content panel: the glass back button (ui/nav-button.tsx), the open task's name, and the view button. */
 export const NARROW_BAR = "flex items-center gap-2.5 px-1"
 /** A single tab has no strip to say which task this is. */
-export const NARROW_TITLE = "min-w-0 truncate font-sans text-body font-normal text-ink"
-/** The terminal/panel switch: one glass capsule, the view on screen lit inside it. */
-export const NARROW_SWITCH = `ml-auto flex flex-none gap-0.5 rounded-full p-0.5 ${glass()}`
-export const NARROW_TAB = `flex size-11 items-center justify-center rounded-full text-muted aria-selected:bg-[color-mix(in_srgb,var(--ink)_14%,transparent)] aria-selected:text-ink [&_svg]:size-5.5 ${PRESS}`
+export const NARROW_TITLE = "min-w-0 flex-1 truncate font-sans text-body font-normal text-ink"
+/** The view button's glyph: the panel icons drawn at the phone's icon size. */
+export const NARROW_VIEW_ICON =
+  "size-5.5 fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:1.2]"
 
 export const HINT_BAR =
   "inline-flex shrink-0 items-baseline gap-3 whitespace-nowrap text-meta text-muted *:relative [&_.link:disabled]:cursor-default [&_.link:disabled]:opacity-50"
@@ -113,7 +113,7 @@ const KEY_LOOK = {
   hint: "relative bg-transparent text-accent after:absolute after:top-2 after:right-2 after:size-1.5 after:rounded-full after:bg-accent after:content-['']",
 } as const
 export const termKey = (look: keyof typeof KEY_LOOK): string =>
-  `h-11 min-w-11 touch-manipulation [flex:1_1_0] rounded-[12px] px-0.5 py-0 font-mono text-[15px] ${FONT_RESET} ${PRESS} active:bg-[color-mix(in_srgb,var(--ink)_14%,transparent)] ${KEY_LOOK[look]}`
+  `h-11 min-w-11 touch-manipulation [flex:1_1_0] ${SQUARE} px-0.5 py-0 font-mono text-[15px] ${FONT_RESET} ${PRESS} active:bg-[color-mix(in_srgb,var(--ink)_14%,transparent)] ${KEY_LOOK[look]}`
 
 /** The which-key map, above the rail's last row so that row's keycap badge stays clickable. */
 /** `prefix-guide` stays: leave.ts copies it into a ghost that sinks out, and prefix.tsx keeps clicks on it from cancelling the prefix. */

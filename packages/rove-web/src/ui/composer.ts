@@ -15,8 +15,8 @@ export const CARD =
   "flex flex-col gap-2 rounded-md border-hairline border-line bg-surface px-3 py-2.5 focus-within:border-line-active"
 export const CARD_ACTIONS = "flex flex-wrap items-center justify-end gap-1.5"
 export const PROMPT = "max-h-[40vh] min-h-[4.5em] w-full bg-transparent text-ink [border:0] [outline:0]"
-/** On a phone the chips start and end on the card's own edges. */
-export const BAR = "flex items-center gap-1.5 px-1 narrow:px-0"
+/** On a phone the chips sit above the card, starting and ending on its edges, so the card itself rests on the keyboard. */
+export const BAR = "flex items-center gap-1.5 px-1 narrow:order-first narrow:px-0"
 /**
  * Where the task runs (left), then how (right): one row, never wrapped. A phone drops each chip's word instead
  * (`CHIP_WORD`); in a full row the left group gives up its room first, so the right-hand chips keep their shape.
@@ -39,7 +39,7 @@ const CHIP_FLOOR = "min-w-8.5"
 
 /** A pill in the bar; `on` is the Worktree toggle while it is on. Hover applies on touch too, as the sheet's did. */
 export const chipClass = (on = false): string =>
-  `inline-flex max-w-[28ch] ${CHIP_FLOOR} items-center gap-1.5 overflow-hidden rounded-full border-hairline px-2.5 py-0.75 text-ellipsis whitespace-nowrap touch:py-1.75 [&:hover]:bg-hover [&:hover]:text-ink aria-expanded:bg-hover aria-expanded:text-ink ${
+  `inline-flex max-w-[28ch] ${CHIP_FLOOR} items-center gap-1.5 overflow-hidden rounded-full border-hairline px-2.5 py-0.75 text-ellipsis whitespace-nowrap touch:py-1.75 narrow:min-h-11 narrow:text-[15px] [&:hover]:bg-hover [&:hover]:text-ink aria-expanded:bg-hover aria-expanded:text-ink ${
     on
       ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-accent-soft text-accent"
       : "border-line text-muted"
