@@ -1,8 +1,7 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Archiving the task on screen moves the workspace off it, as a delete does;
- * before, the archived task stayed open on the right. An archived task the
- * user opens from the Archived fold must stay open, though.
+ * Archiving the task on screen leaves nothing selected (the host shows New task), and no
+ * other task is picked in its place. An archived task the user opens from the Archived fold stays open.
  */
 
 import { afterEach, expect, test } from "bun:test"
@@ -39,7 +38,7 @@ afterEach(() => {
   else process.env.ROVE_HOME_DIR = priorHome
 })
 
-test("archiving the open task leaves it; opening an archived one keeps it", async () => {
+test("archiving the open task leaves nothing selected; opening an archived one keeps it", async () => {
   process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-archive-select-"))
   const active = createStateCell<string | null>("alpha")
   const orch = {
@@ -54,10 +53,18 @@ test("archiving the open task leaves it; opening an archived one keeps it", asyn
   let setTasks: (tasks: Task[]) => void = () => {}
   let selectTask: (id: string) => void = () => {}
   let selectedId = null as string | null
+  let left = 0
   function Probe() {
     const [tasks, set] = useState<Task[]>([task("alpha"), task("bravo", { updatedAt: "2026-08-02T00:00:00.000Z" })])
     setTasks = set
-    const selection = useWorkspaceSelection({ orch, tasks, activeTaskId: active(), focusWorkspace: () => {}, kv: KV })
+    const selection = useWorkspaceSelection({
+      orch,
+      tasks,
+      activeTaskId: active(),
+      focusWorkspace: () => {},
+      kv: KV,
+      onSelectedLeft: () => left++,
+    })
     selectTask = selection.selectTask
     selectedId = selection.selectedId
     return null
@@ -69,7 +76,8 @@ test("archiving the open task leaves it; opening an archived one keeps it", asyn
   await act(async () =>
     setTasks([task("alpha", { archived: true }), task("bravo", { updatedAt: "2026-08-02T00:00:00.000Z" })]),
   )
-  expect(selectedId).toBe("bravo")
+  expect(selectedId).toBeNull()
+  expect(left).toBe(1)
 
   await act(async () => selectTask("alpha"))
   expect(selectedId).toBe("alpha")

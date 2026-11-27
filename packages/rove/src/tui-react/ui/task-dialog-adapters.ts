@@ -47,19 +47,6 @@ const vendorPrefAdapters = {
   rememberVendor: (vendor: VendorId): void => setLastActiveVendor(vendor),
 } as const
 
-/** Move the cursor off a deleted task: flow's next, else first remaining, else clear. */
-export function selectNextAfterDelete(args: {
-  readonly tasks: () => readonly Task[]
-  readonly selectedId: () => string | null
-  readonly setSelectedId: (id: string | null) => void
-}): (taskId: string, nextTask: Task | undefined) => void {
-  return (taskId, nextTask) => {
-    if (args.selectedId() !== taskId) return
-    const remaining = args.tasks()
-    args.setSelectedId(nextTask?.id ?? remaining[0]?.id ?? null)
-  }
-}
-
 /** Deps for {@link buildBaseCreateTaskContext} — the wiring both hosts already own. */
 export interface BaseCreateTaskContextDeps {
   readonly orch: RemoteOrchestrator | null
@@ -91,7 +78,6 @@ export function buildBaseCreateTaskContext(deps: BaseCreateTaskContextDeps): Cre
     notifyInfo: deps.notifyInfo,
     // Publish the shared active-task focus so every surface follows.
     updateActiveTask: true,
-    onTaskDeleted: selectNextAfterDelete(deps),
     deleteBranchOnDelete: isDeleteBranchOnTaskDeleteEnabled,
     // Land the cursor on the new task so Enter / click enters it next.
     selectTask: (id) => deps.setSelectedId(id),

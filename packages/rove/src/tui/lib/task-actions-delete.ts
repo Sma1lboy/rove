@@ -15,10 +15,6 @@ import type { Task } from "@/types/task"
 import { type TeardownScope, teardownScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import type { TaskActionContext, TaskActionLogger } from "./task-actions"
 
-export function nextActiveTask(tasks: readonly Task[], excludeId: string): Task | undefined {
-  return tasks.find((t) => t.id !== excludeId)
-}
-
 async function stopHostedTask(
   taskId: string,
   tasks: readonly Task[],
@@ -40,7 +36,7 @@ async function stopHostedTask(
 }
 
 /**
- * Deleting a BACKGROUND task must not steal focus from the active one. A bare
+ * Deleting a BACKGROUND task must not touch the active one. A bare
  * test mock without `activeTaskSignal()` counts as active.
  */
 function removedTaskIsActive(orch: RoveOrchestrator, taskId: string): boolean {
@@ -60,13 +56,12 @@ export async function finishDeletedTaskFlow(opts: {
   readonly updateActiveTask?: boolean
   /** The daemon's scope for this task; absent → worked out from `tasks` as if only this task left. */
   readonly scope?: TeardownScope
-}): Promise<{ nextTask?: Task }> {
-  const nextTask = nextActiveTask(opts.tasks, opts.taskId)
+}): Promise<void> {
+  // Nothing is active once it goes: the host shows New task in its place.
   if (opts.updateActiveTask && opts.orch && removedTaskIsActive(opts.orch, opts.taskId)) {
-    await opts.orch.setActiveTask(nextTask?.id ?? null).catch(() => {})
+    await opts.orch.setActiveTask(null).catch(() => {})
   }
   await stopHostedTask(opts.taskId, opts.tasks, opts.logger, opts.logPrefix, opts.scope)
-  return { nextTask }
 }
 
 /** Project header → Remove project: only the list entry goes; the repo, its branches, worktrees and tasks stay on disk. */
@@ -189,9 +184,8 @@ async function removeTask(
   const removed = reply?.deleted ?? [taskId]
   const gone = new Set(removed)
   const remaining = ctx.tasks().filter((candidate) => !gone.has(candidate.id))
-  let nextTask: Task | undefined
   for (const id of removed) {
-    const finished = await finishDeletedTaskFlow({
+    await finishDeletedTaskFlow({
       orch,
       tasks: remaining,
       taskId: id,
@@ -201,9 +195,8 @@ async function removeTask(
       // A reply that lists the removed set also speaks for tasks it leaves out of `teardown`: nothing differs.
       scope: reply?.teardown?.[id] ?? (reply?.deleted ? NO_SCOPE_CHANGE : undefined),
     })
-    if (id === taskId) nextTask = finished.nextTask
   }
   await ctx.reload?.()
-  for (const id of removed) ctx.onTaskDeleted?.(id, nextTask)
+  for (const id of removed) ctx.onTaskDeleted?.(id)
   return true
 }

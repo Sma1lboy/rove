@@ -33,7 +33,7 @@ import { StatusPickerDialog } from "../component/status-picker-dialog"
 import type { DialogContext } from "../ui/dialog"
 import { DialogChoice } from "../ui/dialog-choice"
 import { DialogConfirm } from "../ui/dialog-confirm"
-import { buildBaseCreateTaskContext, selectNextAfterDelete } from "../ui/task-dialog-adapters"
+import { buildBaseCreateTaskContext } from "../ui/task-dialog-adapters"
 import { archiveTaskAction } from "./archive-task-action"
 import { landTaskAction } from "./land-task-action"
 import { rerunChecksAction } from "./rerun-checks-action"
@@ -127,18 +127,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     openScratch: deps.openScratch,
     // Local pipe + OSC52 (the half that reaches the user's machine over SSH).
     copyText: (text) => copyTextToSystemClipboard(text, (payload) => renderer?.copyToClipboardOSC52(payload)),
-    onTaskDeleted: (() => {
-      // Reclaim the tab snapshot, THEN move selection off the deleted task.
-      const moveSelection = selectNextAfterDelete({
-        tasks,
-        selectedId: deps.selectedId,
-        setSelectedId: deps.setSelectedId,
-      })
-      return (taskId: string, nextTask: Task | undefined) => {
-        deps.forgetTaskTabs(taskId)
-        moveSelection(taskId, nextTask)
-      }
-    })(),
+    onTaskDeleted: deps.forgetTaskTabs,
   }
 
   async function togglePin(id: string): Promise<void> {

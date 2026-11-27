@@ -30,12 +30,7 @@ vi.mock("../../src/engine/hosted-session", () => ({
 // to stay under the ~500-line cap).
 
 import type { RoveOrchestrator } from "../../src/client/remote-orchestrator"
-import {
-  type TaskActionContext,
-  deleteTaskFlow,
-  forgetProjectFlow,
-  nextActiveTask,
-} from "../../src/tui/lib/task-actions"
+import { type TaskActionContext, deleteTaskFlow, forgetProjectFlow } from "../../src/tui/lib/task-actions"
 import type { Task } from "../../src/types/task"
 
 function makeTask(overrides: Omit<Partial<Task>, "id"> & { id: string }): Task {
@@ -128,13 +123,6 @@ beforeEach(() => {
   })
 })
 
-describe("nextActiveTask", () => {
-  test("skips the excluded id", () => {
-    const tasks = [makeTask({ id: "a" }), makeTask({ id: "b" }), makeTask({ id: "c" })]
-    expect(nextActiveTask(tasks, "b")?.id).toBe("a")
-  })
-})
-
 describe("deleteTaskFlow — dirty-worktree branch", () => {
   test("re-prompts on DIRTY_WORKTREE and force-deletes after explicit confirm", async () => {
     const tasks = [makeTask({ id: "t1", title: "dirty" }), makeTask({ id: "t2" })]
@@ -162,7 +150,7 @@ describe("deleteTaskFlow — dirty-worktree branch", () => {
     // Successful force-delete proceeds to teardown + host selection hook.
     expect(killHostedSessions).toHaveBeenCalledWith(expect.anything(), ["t1::tab-1"])
     expect(reload).toHaveBeenCalledTimes(1)
-    expect(onTaskDeleted).toHaveBeenCalledWith("t1", expect.objectContaining({ id: "t2" }))
+    expect(onTaskDeleted).toHaveBeenCalledWith("t1")
   })
 
   test("declined force-delete leaves everything in place", async () => {
@@ -199,14 +187,14 @@ describe("deleteTaskFlow — dirty-worktree branch", () => {
     expect(onTaskDeleted).not.toHaveBeenCalled()
   })
 
-  test("updates focus before stopping the deleted task's hosted engine", async () => {
+  test("clears the active task before stopping the deleted task's hosted engine", async () => {
     const tasks = [makeTask({ id: "t1" }), makeTask({ id: "t2" })]
     const orch = makeOrch()
     const { ctx } = makeCtx({ tasks, orch, confirms: [true], updateActiveTask: true })
 
     await deleteTaskFlow(ctx, "t1")
 
-    expect(orch.setActiveTask).toHaveBeenCalledWith("t2")
+    expect(orch.setActiveTask).toHaveBeenCalledWith(null)
     expect(killHostedSessions).toHaveBeenCalledWith(expect.anything(), ["t1::tab-1"])
   })
 })
@@ -296,8 +284,6 @@ describe("deleteTaskFlow — child tasks", () => {
       ["p::tab-1"],
     ])
     expect(onTaskDeleted.mock.calls.map((call) => call[0])).toEqual(["g", "c", "p"])
-    // The next task to land on is never one that just went.
-    expect(onTaskDeleted.mock.calls.every((call) => call[1]?.id === "other")).toBe(true)
   })
 
   test("an older daemon ignores the cascade: only the task it deleted is torn down", async () => {

@@ -116,6 +116,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
       kv,
       notifyWorktreeGone,
       notifyError,
+      onSelectedLeft: () => void (newTaskPage.request === null && taskActions.createTask()),
     })
   const worktree = selectedTask?.worktreePath || null
   const workingFlow =
