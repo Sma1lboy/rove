@@ -17,6 +17,8 @@ export const en = {
     strip: "[ compare ]",
     stackLabel: "Stacked tasks",
     landBottom: "[ land bottom ]",
+    /** The phone's one-line chain: plain words, no brackets. */
+    landBottomPhone: "Land bottom",
     terminal: "[ terminal ]",
     diff: "[ diff ]",
     keep: "Keep this one",
@@ -53,6 +55,7 @@ export const zh: typeof en = {
     strip: "[ 对比 ]",
     stackLabel: "堆叠任务",
     landBottom: "[ 合并底部 ]",
+    landBottomPhone: "合并底部",
     terminal: "[ 终端 ]",
     diff: "[ diff ]",
     keep: "保留这个",

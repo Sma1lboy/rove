@@ -156,8 +156,9 @@ export const PLACEHOLDER_BOX = `${PLACEHOLDER} flex flex-col items-center gap-3 
 /** The content column: the workspace's top bar over its pane (`workspace` stays: pane-focus.ts and commands.ts find it). */
 /** `isolate`: the terminal's own layers (a leaving terminal's cover at z-6) stay under the folded rail floating over it. */
 export const WORKSPACE = "workspace isolate row-1 flex min-h-0 min-w-0 flex-col gap-1.5 px-1 pt-2 pb-1"
+/** On a phone the pane is the page itself: no frame, so the composer and keys sit on the page, not in a box. */
 export const PANE =
-  "flex min-h-0 flex-1 overflow-hidden rounded-md border-hairline border-line bg-paper focus-within:border-focus"
+  "flex min-h-0 flex-1 overflow-hidden rounded-md border-hairline border-line bg-paper focus-within:border-focus narrow:rounded-none narrow:border-0"
 /** The selected task is working: under the flow pref its border runs in the task's colour. */
 export const PANE_WORKING =
   "working-flow:border-transparent working-flow:[background:linear-gradient(var(--paper),var(--paper))_0_0/100%_100%_padding-box,linear-gradient(90deg,var(--line),var(--task-ink,var(--focus)),var(--line),var(--task-ink,var(--focus)),var(--line))_0_0/300%_100%_border-box] working-flow:motion-safe:animate-flow-border"
