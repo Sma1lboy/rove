@@ -12,9 +12,11 @@
 
 import { type NativeResourceOwner, SyntaxStyle } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
+import { TUI_NOTE_CLIENTS, splitReleaseNotes } from "../../lib/release-note-clients"
 import type { Theme } from "../../tui/context/theme-core"
 import { useTheme } from "../context/theme"
+import { useT } from "../i18n"
 import { releaseNotesMarkdown } from "./release-notes-markdown"
 
 function buildReleaseNotesStyle(theme: Theme, owner: NativeResourceOwner): SyntaxStyle {
@@ -48,9 +50,23 @@ function buildReleaseNotesStyle(theme: Theme, owner: NativeResourceOwner): Synta
   )
 }
 
+/** The TUI's own entries first; the ones tagged for other clients fold under one clickable line. */
 export function ReleaseNotesBody(props: { body: string }) {
-  const content = useMemo(() => releaseNotesMarkdown(props.body), [props.body])
-  return <MarkdownText content={content} />
+  const { theme } = useTheme()
+  const t = useT()
+  const [open, setOpen] = useState(false)
+  const notes = useMemo(() => splitReleaseNotes(releaseNotesMarkdown(props.body), TUI_NOTE_CLIENTS), [props.body])
+  return (
+    <box flexDirection="column" gap={1}>
+      {notes.own ? <MarkdownText content={notes.own} /> : null}
+      {notes.otherCount > 0 ? (
+        <text fg={theme.textMuted} wrapMode="word" onMouseUp={() => setOpen((v) => !v)}>
+          {open ? "▾" : "▸"} {t("update.otherClients", { count: String(notes.otherCount) })}
+        </text>
+      ) : null}
+      {open ? <MarkdownText content={notes.other} /> : null}
+    </box>
+  )
 }
 
 /** Markdown in the theme's release-notes styling; also routine responses. */

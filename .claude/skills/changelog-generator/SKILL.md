@@ -29,8 +29,10 @@ Drafts release notes as **Changesets** — one `.changeset/<name>.md` file per c
   "@sma1lboy/rove": patch
   ---
 
-  Single-line user-facing summary. This text lands verbatim under the next release and in the GitHub release body.
+  [tui] Single-line user-facing summary. This text lands verbatim under the next release and in the GitHub release body.
   ```
+
+- **The body opens with client tags** — one or more of `[web]` `[tui]` `[ios]` `[android]` `[cli]` `[daemon]`, no space needed between them (`[web][ios] On a phone, …`). Tag who sees the change: `[web]` the browser client, `[ios]`/`[android]` the phone apps, `[tui]` the terminal UI, `[cli]` `rove` commands and `rove api`, `[daemon]` a change every client sees through the daemon. `pre-pr` rejects an added changeset without a valid tag. Each client's What's New shows its own entries first and folds the rest (docs/RELEASING.md).
 
 - The canonical frontmatter bump key is `@sma1lboy/rove`, with value `patch` | `minor` | `major`.
 - Default to `patch` for every change, including features and pre-1.0 breaking changes. Use `minor` or `major` only when the user explicitly requests that bump in the current turn.
@@ -75,7 +77,7 @@ When in doubt, ask "would a Rove user reading this on github.com/Sma1lboy/rove/r
 "@sma1lboy/rove": patch
 ---
 
-**The Tasks pane fills its tmux pane and adapts to its width** — the task list now stretches to 100% of the pane as you drag the tmux split. On a narrow pane the secondary columns step aside so the task name stays readable: the branch label drops first, then the changes chip, and the title ellipsises only when it must.
+[tui] **The Tasks pane fills its tmux pane and adapts to its width** — the task list now stretches to 100% of the pane as you drag the tmux split. On a narrow pane the secondary columns step aside so the task name stays readable: the branch label drops first, then the changes chip, and the title ellipsises only when it must.
 ```
 
 Note: the summary is one long line. No newlines inside it. That's the only reliable way to make the GitHub release page render flowing text.

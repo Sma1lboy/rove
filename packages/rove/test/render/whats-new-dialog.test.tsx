@@ -173,3 +173,28 @@ test("it opens once — a re-render does not put it back", async () => {
   await act(async () => rerender())
   expect(await frame()).not.toContain("WHAT'S NEW")
 })
+
+test("the TUI's own entries come first; other clients' fold under one line that expands", async () => {
+  setLocaleLang("en")
+  const body = [
+    "### Patch Changes",
+    "",
+    "- [#2](https://github.com/Sma1lboy/rove/pull/2) **web · ios** Phone glass for the web.",
+    "",
+    "- [#1](https://github.com/Sma1lboy/rove/pull/1) **tui** Files search in the TUI.",
+    "",
+    "- [#3](https://github.com/Sma1lboy/rove/pull/3) Untagged change.",
+  ].join("\n")
+  const { frame, mockMouse } = await renderComponent(
+    <WhatsNewDialogView from="0.9.200" onClose={() => {}} fetchNotes={async () => [{ ...NOTES[0]!, body }]} />,
+    { width: 100, height: 30 },
+  )
+  const text = await waitForFrameText(frame, "Untagged change.", BODY_TIMEOUT)
+  expect(text).toContain("Files search in the TUI.")
+  expect(text).toContain("Untagged change.")
+  expect(text).not.toContain("Phone glass")
+  const fold = text.split("\n").findIndex((l) => l.includes("for other clients"))
+  expect(fold).toBeGreaterThan(text.split("\n").findIndex((l) => l.includes("Untagged change.")))
+  await act(async () => mockMouse.click(text.split("\n")[fold]!.indexOf("▸"), fold))
+  expect(await waitForFrameText(frame, "Phone glass for the web.", BODY_TIMEOUT)).toContain("▾")
+})

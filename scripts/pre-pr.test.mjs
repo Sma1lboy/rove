@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { aiAttribution, missingChangeset, packagesToTest, touchedAreas } from './pre-pr.mjs'
+import { aiAttribution, missingChangeset, packagesToTest, touchedAreas, untaggedChangesets } from './pre-pr.mjs'
 import { pickDistro, toWslPath, wslScript } from './pre-pr-wsl.mjs'
 
 const manifests = {
@@ -54,4 +54,16 @@ test('AI attribution lines are caught; prose that names the tools is not', () =>
   const msg = `fix: x\n\nbody about ${tool} Code sessions\n\nCo-Authored-By: ${tool} Opus 5.5 <noreply@anthropic.com>\n🤖 Generated with [${tool} Code](https://claude.com)`
   assert.equal(aiAttribution(msg).length, 2)
   assert.deepEqual(aiAttribution('Co-authored-by: Jane <jane@example.com>\nengine adapter for codex'), [])
+})
+
+test('an added changeset needs leading client tags; empty ones and pending ones on main are not checked', () => {
+  const files = {
+    '.changeset/tagged.md': '---\n"@sma1lboy/rove": patch\n---\n\n[web][ios] On a phone, glass.\n',
+    '.changeset/untagged.md': '---\n"@sma1lboy/rove": patch\n---\n\nOn a phone, glass.\n',
+    '.changeset/unknown.md': '---\n"@sma1lboy/rove": patch\n---\n\n[mac] A Mac app.\n',
+    '.changeset/empty.md': '---\n---\n',
+  }
+  const read = (f) => files[f]
+  assert.deepEqual(untaggedChangesets(Object.keys(files), read), ['.changeset/untagged.md', '.changeset/unknown.md'])
+  assert.deepEqual(untaggedChangesets(['.changeset/README.md', 'packages/rove/src/a.ts'], read), [])
 })

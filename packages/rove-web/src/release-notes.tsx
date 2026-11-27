@@ -5,8 +5,11 @@
  * `` `code` `` and `**bold**` — and built as React elements, never as HTML.
  */
 
+import { WEB_NOTE_CLIENTS, splitReleaseNotes } from "@sma1lboy/rove/src/lib/release-note-clients.ts"
+import { en as upEn, zh as upZh } from "@sma1lboy/rove/src/tui/i18n/messages/update.ts"
 import type { ReactNode } from "react"
-import { RELEASE_MD } from "./ui/update.ts"
+import { useLocale } from "./i18n/index.ts"
+import { RELEASE_MD, RELEASE_OTHER } from "./ui/update.ts"
 
 type Block = { kind: "heading" | "item" | "para"; text: string; id: number }
 
@@ -65,7 +68,24 @@ export function inlineMarkdown(text: string): ReactNode[] {
   return out
 }
 
+/** The web's own entries (web, iOS, daemon, untagged) first; the rest fold under one line. */
 export function ReleaseNotes({ body }: { body: string }) {
+  const u = useLocale() === "zh" ? upZh : upEn
+  const notes = splitReleaseNotes(body, WEB_NOTE_CLIENTS)
+  return (
+    <div className={RELEASE_MD}>
+      <NotesBlocks body={notes.own} />
+      {notes.otherCount > 0 && (
+        <details className={RELEASE_OTHER}>
+          <summary>{u.otherClients.replace("{count}", String(notes.otherCount))}</summary>
+          <NotesBlocks body={notes.other} />
+        </details>
+      )}
+    </div>
+  )
+}
+
+function NotesBlocks({ body }: { body: string }) {
   const blocks = parseReleaseNotes(body)
   const out: ReactNode[] = []
   let items: ReactNode[] = []
@@ -88,5 +108,5 @@ export function ReleaseNotes({ body }: { body: string }) {
     )
   }
   flush()
-  return <div className={RELEASE_MD}>{out}</div>
+  return out
 }

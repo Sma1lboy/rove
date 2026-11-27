@@ -17,7 +17,7 @@ import { readFileSync, writeFileSync } from "node:fs"
 const SYSTEM = `You translate Rove release notes (a terminal app for running AI coding sessions) from English into Simplified Chinese.
 Output only the translated Markdown: no preamble, no code fence around the whole thing.
 Keep the Markdown structure line for line: headings, list items, links.
-Copy unchanged: link targets and PR references like [#1431](...), everything inside backticks, command lines, flags, file paths, version numbers, key names, and product names (Rove, Claude, Claude Code, Codex, TUI, Inbox, Scratch).
+Copy unchanged: link targets and PR references like [#1431](...), the bold client tag that opens an entry like **web · ios**, everything inside backticks, command lines, flags, file paths, version numbers, key names, and product names (Rove, Claude, Claude Code, Codex, TUI, Inbox, Scratch).
 Translate the heading "Patch Changes" as "补丁更新", "Minor Changes" as "功能更新", "Major Changes" as "重大更新".
 Write plain, natural Chinese a developer would write; do not add or drop information.`
 
@@ -54,9 +54,11 @@ if (run.status !== 0) {
 }
 const zh = run.stdout.trim()
 
-/** Every `#123` reference and every backtick span must survive the translation verbatim. */
+const C = "(?:web|tui|ios|android|cli|daemon)"
+const CLIENT_TAG = new RegExp(`\\*\\*${C}(?: · ${C})*\\*\\*`, "g")
+/** Every `#123` reference, client tag (`**web · ios**`) and backtick span must survive the translation verbatim. */
 const kept = (pattern) => [...notes.matchAll(pattern)].map((m) => m[0]).filter((s) => !zh.includes(s))
-const lost = [...kept(/#\d+\b/g), ...kept(/`[^`\n]+`/g)]
+const lost = [...kept(/#\d+\b/g), ...kept(/`[^`\n]+`/g), ...kept(CLIENT_TAG)]
 if (!zh || lost.length > 0) {
   console.error(`translate-release-notes: rejected, lost ${lost.length} reference(s): ${lost.slice(0, 5).join(" ")}`)
   process.exit(1)
