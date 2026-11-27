@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import type { TaskRow } from "rove-bridge/protocol"
-import { extPages, sessionAge, sessionLine2 } from "../src/phone-rows.ts"
+import { extPages, sessionAge, sessionLine2, statusWord } from "../src/phone-rows.ts"
 import { routineNeedsYou } from "../src/routines-data.ts"
 
 const names = { kanban: "Kanban", issues: "Issues" }
@@ -49,5 +49,19 @@ describe("the phone's Routines button count", () => {
     const reply = { lastRunStatus: { broke: "dispatch_failed", fine: "dispatched" } } as const
     expect(["broke", "fine", "new"].filter((id) => routineNeedsYou(reply, id))).toEqual(["broke"])
     expect(routineNeedsYou(null, "broke")).toBe(false)
+  })
+})
+
+describe("the word beside a phone session row's status glyph", () => {
+  const at = (status: object) => ({ since: 0, ...status }) as TaskRow["rowStatus"]
+  test.each<[string, TaskRow["rowStatus"], ReturnType<typeof statusWord>]>([
+    ["a working engine", at({ kind: "running" }), "running"],
+    ["a question", at({ kind: "needs-input" }), "needsInput"],
+    ["a rate limit, which clears itself", at({ kind: "attention", reason: "rate_limited" }), "rateLimited"],
+    ["a failure", at({ kind: "attention", reason: "error" }), "error"],
+    ["an unread finished turn", at({ kind: "unseen" }), "done"],
+    ["no reading yet", undefined, "idle"],
+  ])("names %s", (_, status, word) => {
+    expect(statusWord(status)).toBe(word)
   })
 })

@@ -1,5 +1,6 @@
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import { newTaskMode } from "./new-session-draft.ts"
 import { startNewTask } from "./new-session-view.tsx"
 import { ShortcutBadge } from "./prefix-guide.tsx"
 import { ts } from "./settings-copy.ts"
@@ -24,7 +25,7 @@ function Gear({ className }: { className: string }) {
 /**
  * The rail's foot, ruled off from the task list: the usage readings, then Settings, one left edge and one
  * quiet voice, so the readings never read as a line of the last task. On a phone it is a floating bar the list
- * scrolls under: Settings and Inbox in one glass capsule bottom left, the accent New task bottom right; the readings sit at the top of Settings. A missing Rove skill is named in words beside
+ * scrolls under: Settings and Inbox in one glass capsule bottom left, a New task bar filling the rest, naming the mode it starts in; the readings sit at the top of Settings. A missing Rove skill is named in words beside
  * Settings (the engines on hover); installing it is in Settings › Engines.
  */
 export function RailFoot({
@@ -38,7 +39,13 @@ export function RailFoot({
   const hint = ts("engines.skill.bannerHintWeb", { engines: gap.join(", ") })
   if (narrow) {
     return (
-      <BottomBar primary={{ label: t("rail.newTask"), onClick: () => startNewTask() }}>
+      <BottomBar
+        wide={{
+          label: t("rail.newTask"),
+          note: t(`rail.newTaskMode.${newTaskMode()}`),
+          onClick: () => startNewTask(),
+        }}
+      >
         <BarCapsule
           settings={{
             label: gap.length > 0 ? `${t("rail.settings")}, ${hint}` : t("rail.settings"),

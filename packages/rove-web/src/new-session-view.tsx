@@ -15,7 +15,7 @@ import { isTouch } from "./key-hints.ts"
 import { openCompare } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { BranchChips } from "./new-session-branch.tsx"
-import { ATTACHMENTS_KEY, keepDraft, promptDraft } from "./new-session-draft.ts"
+import { ATTACHMENTS_KEY, WORKTREE_KEY, keepDraft, promptDraft } from "./new-session-draft.ts"
 import { EngineChip, ModelChip, useEnginePicks } from "./new-session-engines.tsx"
 import { FolderIcon } from "./new-session-icons.tsx"
 import {
@@ -64,8 +64,6 @@ export function startNewTask(repo?: string, machine?: string): void {
 export function startNewUngrouped(): void {
   openNewSession(undefined, undefined, undefined, undefined, true)
 }
-
-const WORKTREE_KEY = "rove.web.newSession.worktree"
 
 export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSessionStart }) {
   const initialRepo = seed.repo

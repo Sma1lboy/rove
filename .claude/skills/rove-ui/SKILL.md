@@ -372,9 +372,10 @@ Machines, Usage). Overlays (dialogs, menus, toasts, the inbox) are recipes in `s
   machine is unreachable). No machine names in the list.
 - **No change counts** on rows.
 - **The phone's session list is its own row** (`rail-phone.tsx`, `ui/phone-rows.tsx`), after the old iPhone app's:
-  a status glyph from `row-status-glyph.ts` first, the title over a muted mono line (branch, `↓N` behind its base),
-  age over engine name at the right; headers in capitals with a zero-padded count and a `⋯` for the project's
-  actions. The three rules above hold on the desktop only. Routines rows draw the same shape. The list has no page
+  the engine's mark first (the rail's `EngineIcon`), the title over a muted mono line (branch, `↓N` behind its base),
+  at the right the status glyph from `row-status-glyph.ts` with its word (`rail.rowStatus`) over the age; headers in capitals with a zero-padded count and a `⋯` for the project's
+  actions. The three rules above hold on the desktop only. Routines rows draw the same shape with their last run's mark first. The list's foot is the
+  Settings and Inbox capsule and a glass New task bar naming the mode it starts in (the owner picked it over an accent square). The list has no page
   rows of text: Routines and Extensions are glass buttons beside the wordmark (he called the text rows odd).
 - **Project sections are collapsible**, with a `+` for a new task in that project and **no
   divider rule**, following Claude Desktop's session list (#1371). The name opens the project's Sessions page. The chevron folds the

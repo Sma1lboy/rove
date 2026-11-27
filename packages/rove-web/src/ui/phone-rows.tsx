@@ -1,6 +1,6 @@
 /**
- * The phone's list rows, after the old iPhone app's task list: a status mark, two lines, and a right column
- * (an age over a short name). Session rows and routine rows both draw this, so the two lists read the same.
+ * The phone's list rows, after the old iPhone app's task list: a mark, two lines, and a right column. A session row
+ * leads with its engine's mark and ends with its status over its age; a routine row leads with its last run's mark.
  */
 
 import { type RowGlyphSet, type RowTone, rowStatusGlyph } from "@sma1lboy/rove/src/lib/row-status-glyph.ts"
@@ -20,8 +20,9 @@ const TONE: Readonly<Record<RowTone, string>> = {
 export const PHONE_MARK = "w-[1ch] flex-none text-center font-mono text-title leading-none"
 const SPINNER_MS = 80
 
-/** A row's daemon status as `row-status-glyph.ts` maps it; the spinner steps only while the row runs. */
-export function StatusGlyph({ status, glyphs }: { status: RowStatus | undefined; glyphs: RowGlyphSet }) {
+/** A row's daemon status as `row-status-glyph.ts` maps it, glyph then `word` in one tone; the spinner steps only while the row runs. */
+export function StatusTag(props: { status: RowStatus | undefined; glyphs: RowGlyphSet; word: string }) {
+  const { status, glyphs } = props
   const [frame, setFrame] = useState(0)
   const mark = rowStatusGlyph(status, glyphs, frame)
   const spins = mark.spinning && !reducedMotion()
@@ -31,8 +32,11 @@ export function StatusGlyph({ status, glyphs }: { status: RowStatus | undefined;
     return () => window.clearInterval(timer)
   }, [spins])
   return (
-    <span className={`${PHONE_MARK} ${TONE[mark.tone]}`} data-status={status?.kind ?? "none"} aria-hidden="true">
-      {mark.glyph}
+    <span className={`flex items-center gap-1.5 ${TONE[mark.tone]}`} data-status={status?.kind ?? "none"}>
+      <span className="w-[1ch] flex-none text-center" aria-hidden="true">
+        {mark.glyph}
+      </span>
+      {props.word}
     </span>
   )
 }
@@ -55,7 +59,7 @@ export function PhoneStatusRow(
     dim?: boolean
     selected?: boolean
     line2: ReactNode
-    top: string
+    top: ReactNode
     bottom?: string | undefined
   },
 ) {
@@ -70,7 +74,7 @@ export function PhoneStatusRow(
       </span>
       <span className="flex flex-none flex-col items-end gap-0.5 font-mono leading-[1.3]">
         <span className="text-[13px] text-muted tabular-nums">{top}</span>
-        {bottom && <span className="max-w-24 truncate text-[12px] text-subtle">{bottom}</span>}
+        {bottom && <span className="max-w-24 truncate text-[12px] text-subtle tabular-nums">{bottom}</span>}
       </span>
     </button>
   )

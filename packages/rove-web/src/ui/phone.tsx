@@ -4,6 +4,7 @@
  */
 
 import type { MouseEvent, ReactNode, Ref } from "react"
+import { PRESS, SQUARE_BAR, glass } from "./glass.ts"
 import { GlassButton, NavButton, PlusGlyph } from "./nav-button.tsx"
 
 const BAR = {
@@ -70,18 +71,35 @@ export const PHONE_ROW =
 
 /**
  * The screen's floating foot, after iOS's: what the screen does sits where the thumb is. `children` are the secondary
- * controls bottom left (one glass capsule); `primary` is the one accent square bottom right. The content scrolls under it.
+ * controls bottom left (one glass capsule); `primary` is the one accent square bottom right, or `wide` a bar beside
+ * the capsule. The content scrolls under it.
  */
 export function BottomBar(props: {
   children?: ReactNode
   primary?: { label: string; onClick: () => void; glyph?: ReactNode }
+  /** The list's own action in place of the square: a glass bar filling the row, its name after an accent +, `note` at its end. */
+  wide?: { label: string; note: string; onClick: () => void }
 }) {
   return (
     <div
-      className="pointer-events-none absolute inset-x-0 bottom-0 z-2 flex items-end justify-between px-4 pb-3"
+      className="pointer-events-none absolute inset-x-0 bottom-0 z-2 flex items-end justify-between gap-2.5 px-4 pb-3"
       data-bottom-bar
     >
       {props.children ?? <span />}
+      {props.wide && (
+        <button
+          type="button"
+          className={`pointer-events-auto flex h-13 min-w-0 flex-1 cursor-pointer items-center gap-2 px-3.5 font-mono ${SQUARE_BAR} ${glass()} ${PRESS}`}
+          data-new-task-bar
+          onClick={props.wide.onClick}
+        >
+          <span className="flex flex-none text-accent">
+            <PlusGlyph />
+          </span>
+          <span className="min-w-0 truncate text-body text-ink lowercase">{props.wide.label}</span>
+          <span className="ml-auto flex-none text-meta tracking-[0.08em] text-muted uppercase">{props.wide.note}</span>
+        </button>
+      )}
       {props.primary && (
         <GlassButton size="primary" label={props.primary.label} onClick={props.primary.onClick}>
           {props.primary.glyph ?? <PlusGlyph />}

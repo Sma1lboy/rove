@@ -6,7 +6,7 @@ import { openPage } from "./layout.ts"
 import { CloudMark } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { useCopy, useReload } from "./pages-kit.ts"
-import { extPages, lastExtPage, rememberExtPage, sessionAge, sessionLine2 } from "./phone-rows.ts"
+import { extPages, lastExtPage, rememberExtPage, sessionAge, sessionLine2, statusWord } from "./phone-rows.ts"
 import { PrChip } from "./pr-chip.tsx"
 import { usePrefs } from "./prefs.ts"
 import type { RailRowProps } from "./rail-view.tsx"
@@ -16,7 +16,8 @@ import { type RoutinesReply, routineNeedsYou } from "./routines-data.ts"
 import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
 import { dialog } from "./ui.ts"
-import { ExtensionsButton, PhoneGroupHead, PhoneStatusRow, RoutinesButton, StatusGlyph } from "./ui/phone-rows.tsx"
+import { EngineIcon } from "./ui/engine-icon.tsx"
+import { ExtensionsButton, PhoneGroupHead, PhoneStatusRow, RoutinesButton, StatusTag } from "./ui/phone-rows.tsx"
 import { CHILD_INDENT, guideClass, projectHead } from "./ui/rail.ts"
 import { SHEET_LIST, SHEET_SEP, Sheet, SheetRow } from "./ui/sheet.tsx"
 import { SwipeRow } from "./ui/swipe-row.tsx"
@@ -55,6 +56,7 @@ export function PhoneRailRow(props: RailRowProps) {
   }
   const task = row.task
   const line = sessionLine2(task)
+  const status = row.fold?.collapsed ? props.rollup : task.rowStatus
   const button = (
     <PhoneStatusRow
       lead={
@@ -67,12 +69,7 @@ export function PhoneRailRow(props: RailRowProps) {
           </span>
         )
       }
-      mark={
-        <StatusGlyph
-          status={row.fold?.collapsed ? props.rollup : task.rowStatus}
-          glyphs={glyphSets[prefs.glyphSet] ?? GLYPHS}
-        />
-      }
+      mark={<EngineIcon icon={props.engineIcon} name={task.engine?.name} />}
       title={row.attempt ?? task.label}
       dim={props.stale}
       selected={props.selected}
@@ -87,8 +84,14 @@ export function PhoneRailRow(props: RailRowProps) {
           {props.cloud && <CloudMark label={props.cloud} />}
         </>
       }
-      top={sessionAge(task, Date.now())}
-      bottom={task.engine?.name}
+      top={
+        <StatusTag
+          status={status}
+          glyphs={glyphSets[prefs.glyphSet] ?? GLYPHS}
+          word={t(`rail.rowStatus.${statusWord(status)}`)}
+        />
+      }
+      bottom={sessionAge(task, Date.now())}
       onClick={props.onClick}
       onContextMenu={props.onMenu}
       {...props.place}

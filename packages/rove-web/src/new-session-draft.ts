@@ -18,3 +18,8 @@ export function keepDraft(text: string): void {
     // Storage blocked: the draft lives as long as the page.
   }
 }
+
+/** Where the New task page keeps its Worktree switch; the list's New task bar names what it stands at. */
+export const WORKTREE_KEY = "rove.web.newSession.worktree"
+export const newTaskMode = (): "worktree" | "folder" =>
+  localStorage.getItem(WORKTREE_KEY) !== "0" ? "worktree" : "folder"
