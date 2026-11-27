@@ -57,7 +57,7 @@ export const composerHold = (recording: boolean, armed: boolean): string =>
       ? "border-accent bg-accent text-paper"
       : recording
         ? "border-accent bg-accent-soft text-accent"
-        : "border-line bg-inset text-ink"
+        : "border-line bg-inset text-muted"
   }`
 
 function Glyph({ d }: { d: string }) {
@@ -250,7 +250,7 @@ export function HoldFace(props: {
     return (
       <>
         {bubble}
-        <span key="idle" className={`${FACE} justify-center gap-2 text-display`}>
+        <span key="idle" className={`${FACE} justify-center gap-2 text-body`}>
           <span className="flex text-muted">
             <Glyph d={MIC} />
           </span>
