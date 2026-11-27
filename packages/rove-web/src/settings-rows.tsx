@@ -94,8 +94,18 @@ export interface Pick<T extends string | number> {
   readonly label: string
 }
 
-/** Up to this many characters of option labels fit joined in a row beside the setting's name. */
+/** Up to this many Latin-width characters of option labels fit joined in a row beside the setting's name. */
 const SEGMENT_CHARS = 36
+
+/** A CJK or full-width character takes two Latin widths. */
+const WIDE = /[\u2e80-\u9fff\uac00-\ud7af\uf900-\ufaff\uff00-\uffef]/
+
+/** Whether the options are few and short enough to show joined instead of in a drop-down. */
+export function fitsJoined(picks: readonly { readonly label: string }[]): boolean {
+  let width = 0
+  for (const pick of picks) for (const ch of pick.label) width += WIDE.test(ch) ? 2 : 1
+  return picks.length <= 4 && width <= SEGMENT_CHARS
+}
 
 /** One of several: joined options when they are few and short, a drop-down otherwise. */
 export function Choice<T extends string | number>(props: {
@@ -106,8 +116,7 @@ export function Choice<T extends string | number>(props: {
   picks: readonly Pick<T>[]
   onPick: (next: T) => void
 }) {
-  const joined = props.picks.length <= 4 && props.picks.reduce((n, pick) => n + pick.label.length, 0) <= SEGMENT_CHARS
-  const Control = joined ? Segmented : Select
+  const Control = fitsJoined(props.picks) ? Segmented : Select
   return (
     <Row label={props.label} hint={props.hint} sample={props.sample}>
       <Control label={props.label} value={props.value} picks={props.picks} onPick={props.onPick} />
