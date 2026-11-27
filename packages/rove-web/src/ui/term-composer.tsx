@@ -37,7 +37,8 @@ const KEY = `flex size-11 shrink-0 cursor-pointer items-center justify-center ro
 /** The session's primary action, at the capsule's right end: solid accent once there is something to send. */
 const send = (ready: boolean): string =>
   `flex size-11 shrink-0 items-center justify-center rounded-[12px] touch-manipulation ${PRESS} ${ready ? "bg-accent text-paper" : "text-muted opacity-60"}`
-const GLYPH = "size-4.5 narrow:size-5.5 flex-none fill-none stroke-current stroke-[1.5] [stroke-linecap:round] [stroke-linejoin:round]"
+const GLYPH =
+  "size-4.5 narrow:size-5.5 flex-none fill-none stroke-current stroke-[1.5] [stroke-linecap:round] [stroke-linejoin:round]"
 
 /** Attach, at the capsule's left end. */
 export const composerAttach = (on = false): string => `${KEY} ${on ? "text-accent" : "text-muted"}`
