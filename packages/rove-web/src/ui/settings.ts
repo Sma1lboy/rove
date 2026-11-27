@@ -8,11 +8,11 @@ import { OVERLAY_BASE } from "./overlay.ts"
 export const SETTINGS_OVERLAY = `${OVERLAY_BASE} w-narrow:pt-0`
 /** A fixed height, so switching sections never moves the box; the section scrolls inside it. */
 export const SETTINGS_DIALOG =
-  "dialog relative m-0 flex h-[min(640px,80vh)] w-[min(880px,calc(100vw-32px))] overflow-hidden rounded-md border-hairline border-line bg-surface text-inherit shadow-dialog focus:outline-none motion-safe:animate-rise-in [.is-leaving_&]:animate-sink-out w-narrow:bg-paper w-narrow:h-dvh w-narrow:w-screen w-narrow:flex-col w-narrow:rounded-none w-narrow:border-0 w-narrow:pt-[env(safe-area-inset-top)] w-narrow:translate-x-[var(--back-x,0px)] w-narrow:pb-[env(safe-area-inset-bottom)] short:h-[calc(100dvh-24px)]"
+  "dialog relative m-0 flex h-[min(640px,80vh)] w-[min(880px,calc(100vw-32px))] overflow-hidden rounded-md border-hairline border-line bg-surface text-inherit shadow-dialog focus:outline-none motion-safe:animate-rise-in [.is-leaving_&]:animate-sink-out w-narrow:bg-paper w-narrow:h-dvh w-narrow:w-screen w-narrow:flex-col w-narrow:rounded-none w-narrow:border-0 w-narrow:pt-[env(safe-area-inset-top)] w-narrow:translate-x-[var(--back-x,0px)] w-narrow:px-0 w-narrow:pb-[env(safe-area-inset-bottom)] short:h-[calc(100dvh-24px)]"
 export const SETTINGS_CLOSE =
   "absolute top-3 right-3 z-1 grid size-7 place-items-center rounded-sm text-display leading-none text-muted hover:bg-inset hover:text-ink focus-visible:bg-inset focus-visible:text-ink touch:size-10"
 /** A phone's top bar: the glass back button (out of Settings from the list, to the list from a section) and the title beside it. */
-export const SETTINGS_BAR = "flex flex-none items-center gap-3 px-4 py-2"
+export const SETTINGS_BAR = "flex flex-none items-center gap-3 px-3 py-2"
 /** The open section. Mid back swipe it rides the finger (`--back-x`) over the list, inside the dialog's own padding. */
 export const settingsPageClass = (swiping: boolean): string =>
   `flex min-h-0 min-w-0 flex-1 flex-col ${
@@ -23,13 +23,13 @@ export const settingsPageClass = (swiping: boolean): string =>
 
 /** On a phone: iOS's grouped list on the page's ground, a large title, then a card per group. */
 export const SETTINGS_NAV =
-  "flex w-56 flex-none flex-col gap-5 overflow-y-auto scrollbar-none [border-right:var(--hairline)_solid_var(--line)] px-2.5 py-4 w-narrow:w-full w-narrow:flex-1 w-narrow:gap-6 w-narrow:[border-right:none] w-narrow:px-4 w-narrow:pt-1 w-narrow:pb-8"
+  "flex w-56 flex-none flex-col gap-5 overflow-y-auto scrollbar-none [border-right:var(--hairline)_solid_var(--line)] px-2.5 py-4 w-narrow:w-full w-narrow:flex-1 w-narrow:gap-4 w-narrow:[border-right:none] w-narrow:px-3 w-narrow:pt-0 w-narrow:pb-8"
 export const SETTINGS_NAV_TITLE =
-  "m-0 px-2 pb-0.5 font-sans text-title font-semibold normal-nums text-ink w-narrow:px-1 w-narrow:text-[28px] w-narrow:leading-[1.2] w-narrow:font-bold"
+  "m-0 px-2 pb-0.5 font-sans text-title font-semibold normal-nums text-ink w-narrow:px-0 w-narrow:text-[28px] w-narrow:leading-[1.2] w-narrow:font-bold"
 export const SETTINGS_NAV_GROUP = "flex flex-col gap-0.5 w-narrow:gap-1.5"
 /** A group's name above its sections: small mono and faint, so it never reads as one more section. */
 export const SETTINGS_NAV_LABEL =
-  "m-0 px-2 pb-1 font-mono text-meta font-normal text-subtle w-narrow:px-4 w-narrow:pb-0"
+  "m-0 px-2 pb-1 font-mono text-meta font-normal text-subtle w-narrow:px-3 w-narrow:pb-0"
 /** A phone's card: the group's rows on one rounded surface, a hairline between them. */
 export const SETTINGS_CARD =
   "flex flex-col gap-0.5 w-narrow:gap-0 w-narrow:overflow-hidden w-narrow:rounded-[12px] w-narrow:bg-surface w-narrow:[&>*+*]:[border-top:var(--hairline)_solid_var(--line)]"
@@ -39,19 +39,9 @@ export const settingsNavItemClass = (active: boolean, quiet: boolean): string =>
     active ? "bg-menu text-ink" : `${quiet ? "text-muted" : "text-ink"} [&:hover]:bg-hover`
   }`
 export const SETTINGS_NAV_CHEVRON = "ml-auto hidden text-subtle w-narrow:block"
-/** A section's icon on a phone: a small rounded tile washed in one of Rove's own tones. */
-const TILE_TONE = {
-  accent: "bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-accent",
-  info: "bg-[color-mix(in_srgb,var(--info)_20%,transparent)] text-info",
-  success: "bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-success",
-  warning: "bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-warning",
-  error: "bg-[color-mix(in_srgb,var(--error)_20%,transparent)] text-error",
-  merged: "bg-[color-mix(in_srgb,var(--merged)_20%,transparent)] text-merged",
-  muted: "bg-[color-mix(in_srgb,var(--muted)_20%,transparent)] text-muted",
-} as const
-export type TileTone = keyof typeof TILE_TONE
-export const settingsTile = (tone: TileTone): string =>
-  `hidden size-7.5 flex-none place-items-center rounded-[8px] w-narrow:grid ${TILE_TONE[tone]} [&_svg]:size-4.5 [&_svg]:fill-none [&_svg]:stroke-current [&_svg]:[stroke-linecap:round] [&_svg]:[stroke-linejoin:round] [&_svg]:[stroke-width:1.4]`
+/** A section's glyph on a phone: plain and muted, 20px, one column. */
+export const SETTINGS_NAV_ICON =
+  "hidden size-5 flex-none fill-none stroke-current text-muted [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:1.4] w-narrow:block"
 /** The usage readings on a phone: a card of their own at the list's end. */
 export const SETTINGS_USAGE_CARD = "rounded-[12px] bg-surface px-3 py-1"
 
