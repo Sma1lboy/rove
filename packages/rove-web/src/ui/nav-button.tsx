@@ -4,16 +4,15 @@ import { useNarrow } from "../layout.ts"
 import { PRESS, SQUARE, SQUARE_BAR, glass } from "./glass.ts"
 import { DIALOG_CLOSE } from "./overlay.ts"
 
-/** Literal class names, so Tailwind finds them. The two in a bottom bar are one size. */
+/** Literal class names, so Tailwind finds them. `primary` is the bottom bar's height, as the capsule beside it. */
 const SIZE = {
   nav: `size-11 ${SQUARE}`,
-  bar: `size-13 ${SQUARE_BAR}`,
   primary: `size-13 ${SQUARE_BAR}`,
 } as const
 const ICON = "fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round]"
 
 /**
- * The phone's rounded-square button, after iOS's: glass for `nav` beside a title and `bar` in a floating bottom bar; `primary`,
+ * The phone's rounded-square button, after iOS's: glass for `nav` beside a title; `primary`,
  * the screen's one action, is a solid accent square of the bar's size, like Send, with a shadow and no glass. `label` names it for a screen reader; the caller passes the glyph.
  */
 export function GlassButton(props: {
@@ -38,6 +37,50 @@ export function GlassButton(props: {
   )
 }
 
+/** One segment of the bar's glass capsule: no glass of its own, the capsule carries it. */
+const SEGMENT = `pointer-events-auto relative grid h-full w-13 flex-none cursor-pointer place-items-center text-ink ${PRESS}`
+
+/**
+ * Settings and Inbox share one glass capsule bottom left, as related controls do on iOS; a hairline parts the two.
+ * The badge sits on the inbox segment's shoulder, the capsule's top right.
+ */
+export function BarCapsule(props: {
+  settings: { label: string; onClick: () => void; glyph: ReactNode }
+  inbox: { label: string; onClick: () => void; count: number }
+}) {
+  return (
+    <div
+      className={`pointer-events-auto relative flex h-13 flex-none items-center ${SQUARE_BAR} ${glass()}`}
+      data-bar-capsule
+    >
+      <button
+        type="button"
+        className={SEGMENT}
+        aria-label={props.settings.label}
+        title={props.settings.label}
+        onClick={props.settings.onClick}
+      >
+        {props.settings.glyph}
+      </button>
+      <span
+        aria-hidden="true"
+        className="h-6 w-(--hairline) flex-none bg-[color-mix(in_srgb,var(--ink)_14%,transparent)]"
+      />
+      <button
+        type="button"
+        className={SEGMENT}
+        data-nav="inbox"
+        aria-label={props.inbox.label}
+        title={props.inbox.label}
+        onClick={props.inbox.onClick}
+      >
+        <TrayGlyph />
+        {props.inbox.count > 0 && <CountBadge count={props.inbox.count} />}
+      </button>
+    </div>
+  )
+}
+
 const PATH = { back: "M10 3 5 8l5 5", close: "M4 4l8 8M12 4 4 12" } as const
 
 /** The phone layout's way back or out, top left of a page: a bare chevron (or ×), named by `label`. */
@@ -52,7 +95,7 @@ export function NavButton(props: { kind: keyof typeof PATH; label: string; onCli
 }
 
 /** A count on a glass button's shoulder (unread items); the caller hides it at zero. */
-export function CountBadge({ count }: { count: number }) {
+function CountBadge({ count }: { count: number }) {
   return (
     <span
       key={count}
@@ -64,7 +107,7 @@ export function CountBadge({ count }: { count: number }) {
 }
 
 /** Lucide `inbox` (ISC). */
-export function TrayGlyph() {
+function TrayGlyph() {
   return (
     <svg viewBox="0 0 24 24" className={`size-5.5 ${ICON} [stroke-width:1.6]`} aria-hidden="true">
       <path d="M22 12h-6l-2 3h-4l-2-3H2" />
