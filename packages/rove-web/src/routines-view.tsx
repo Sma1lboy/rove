@@ -35,7 +35,8 @@ import { RoutineComposer } from "./routine-composer.tsx"
 import { RoutineDetail } from "./routine-detail.tsx"
 import { useRoutineRuns } from "./routine-run-log.tsx"
 import { TONE_CLASS, TONE_GLYPH, runTone } from "./routine-runs.tsx"
-import type { RoutinesReply } from "./routines-data.ts"
+import { type RoutinesReply, whenText } from "./routines-data.ts"
+import { RoutinesPhoneList } from "./routines-phone.tsx"
 import { useStore } from "./store.ts"
 import { dialog, page, routineFocus, toast } from "./ui.ts"
 import { PAGE, PAGE_TITLE, PG_ACTIONS, PG_ACTION_LINK, PG_LIST, PG_NOTICE, PG_TOP } from "./ui/page.ts"
@@ -52,6 +53,7 @@ import {
   rtNameClass,
   rtRowClass,
 } from "./ui/routines.ts"
+import { SHEET_LIST, Sheet } from "./ui/sheet.tsx"
 import { KICKER, LINK } from "./ui/text.ts"
 
 const POLL_MS = 5_000
@@ -133,7 +135,9 @@ export function RoutinesView({ model }: { model: AppModel }) {
   }, [wanted, reply])
 
   // The selected routine's runs feed its Enter key, precheck and responses; the log reads its own.
-  const selectedRuns = useRoutineRuns(c, selected ? [selected.id] : [], tick)
+  // A phone's rows each show their last run's age, so it reads every routine's runs.
+  const selectedRuns = useRoutineRuns(c, phone ? rows.map((r) => r.id) : selected ? [selected.id] : [], tick)
+  const [sheet, setSheet] = useState(false)
   const runs = selected ? (selectedRuns[selected.id] ?? []) : []
 
   // A notice names ONE routine: clear it when the selection moves.
@@ -156,18 +160,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
   }, [at, reveal])
 
   const now = Date.now()
-  const when = (iso: string | undefined) => {
-    const time = iso ? Date.parse(iso) : Number.NaN
-    if (!Number.isFinite(time)) return "—"
-    const delta = time - now
-    const ahead = delta >= 0
-    const minutes = Math.floor(Math.abs(delta) / 60_000)
-    const hours = Math.floor(minutes / 60)
-    if (minutes < 1) return ahead ? auto.when.now : auto.when.justNow
-    if (minutes < 60) return fill(ahead ? auto.when.inMinutes : auto.when.minutesAgo, { n: minutes })
-    if (hours < 24) return fill(ahead ? auto.when.inHours : auto.when.hoursAgo, { n: hours })
-    return new Date(time).toLocaleDateString()
-  }
+  const when = whenText(auto.when, now)
   const titleOf = (taskId: string) => payload?.tasks.find((task) => task.id === taskId)?.label ?? taskId
   const openRun = (taskId: string) => {
     page.set(null)
@@ -350,6 +343,24 @@ export function RoutinesView({ model }: { model: AppModel }) {
           repo,
           listed.flatMap((r) => r.repo ?? []),
         )
+  const detailNode = selected && (
+    <RoutineDetail
+      routine={selected}
+      runs={runs}
+      busy={busy === selected.id}
+      project={repoName(selected.repo)}
+      engine={engineOf(selected)?.full ?? null}
+      targetTitle={selected.target ? titleOf(selected.target.taskId) : undefined}
+      now={now}
+      when={when}
+      openRun={openRun}
+      onRunNow={() => void runNow()}
+      onToggle={() => void toggleEnabled()}
+      onDelete={requestDelete}
+      onChangeEngine={changeEngine}
+    />
+  )
+  const cron = (routine: Automation) => describeCronWith(routine.schedule, cronT) ?? routine.schedule
   const body = (
     <>
       <PendingStarts client={c} tick={tick} reload={reload} />
@@ -361,6 +372,19 @@ export function RoutinesView({ model }: { model: AppModel }) {
           <p className="text-muted">{auto.empty}</p>
           <p className="keys-only">{auto.emptyHint}</p>
         </div>
+      ) : phone ? (
+        <RoutinesPhoneList
+          sections={sections}
+          lastRunStatus={lastRunStatus}
+          runs={selectedRuns}
+          now={now}
+          line2={(routine) => `${cron(routine)} · ${routine.enabled ? when(routine.nextRunAt) : auto.paused}`}
+          engine={(routine) => engineOf(routine)?.short}
+          onPick={(routine) => {
+            setCursorId(routine.id)
+            setSheet(true)
+          }}
+        />
       ) : (
         <div className={RT_BODY}>
           <div className={RT_LIST} ref={list}>
@@ -395,11 +419,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
                           </span>
                         </span>
                         <span className={`mono text-muted ${RT_ROW_SUB}`} title={routine.schedule}>
-                          {[
-                            repoName(routine.repo),
-                            describeCronWith(routine.schedule, cronT) ?? routine.schedule,
-                            engineOf(routine)?.short,
-                          ]
+                          {[repoName(routine.repo), cron(routine), engineOf(routine)?.short]
                             .filter(Boolean)
                             .join(" · ")}
                         </span>
@@ -421,25 +441,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
 
           {/* Always mounted, even with nothing selected: a panel that comes and goes makes the page jump. */}
           <div className={RT_DETAIL} ref={detail}>
-            {selected ? (
-              <RoutineDetail
-                routine={selected}
-                runs={runs}
-                busy={busy === selected.id}
-                project={repoName(selected.repo)}
-                engine={engineOf(selected)?.full ?? null}
-                targetTitle={selected.target ? titleOf(selected.target.taskId) : undefined}
-                now={now}
-                when={when}
-                openRun={openRun}
-                onRunNow={() => void runNow()}
-                onToggle={() => void toggleEnabled()}
-                onDelete={requestDelete}
-                onChangeEngine={changeEngine}
-              />
-            ) : (
-              <p className="text-muted">{auto.noSelection}</p>
-            )}
+            {detailNode ?? <p className="text-muted">{auto.noSelection}</p>}
           </div>
         </div>
       )}
@@ -455,6 +457,11 @@ export function RoutinesView({ model }: { model: AppModel }) {
         primary={{ label: t("pages.newRoutine"), onClick: () => void createRoutine() }}
       >
         {body}
+        {sheet && selected && (
+          <Sheet label={selected.name} onClose={() => setSheet(false)}>
+            {() => <div className={`${SHEET_LIST} gap-1.5 px-5`}>{detailNode}</div>}
+          </Sheet>
+        )}
       </PhonePage>
     )
   return (

@@ -115,6 +115,7 @@ const PAGE_IDS = [
   "compare",
   "usage",
   "sessions",
+  "extensions",
 ] as const
 export type PageId = (typeof PAGE_IDS)[number]
 

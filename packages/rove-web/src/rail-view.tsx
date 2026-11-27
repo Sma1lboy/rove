@@ -26,6 +26,7 @@ import { repoLabel } from "./rail-labels.ts"
 import { peekRail, railFolded, railPeek } from "./rail-layout.ts"
 import { PaneRowView, openPane } from "./rail-pane-row.tsx"
 import { withPanes } from "./rail-panes.ts"
+import { PhoneExtensions, PhoneRailNote, PhoneRailRow, groupCounts } from "./rail-phone.tsx"
 import { RoundRowView } from "./rail-round-row.tsx"
 import { SearchChip } from "./rail-search.tsx"
 import { railStateRows, rowRepo, withStateCounts } from "./rail-states.ts"
@@ -136,6 +137,8 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const folded = useStore(railFolded) && !narrow
   const peek = useStore(railPeek) && folded
   const recent = narrow ? (tasks.find((task) => task.id === selection.taskId && !task.deleting) ?? null) : null
+  const Row = narrow ? PhoneRailRow : RailRow
+  const counts = narrow ? groupCounts(built.rows) : undefined
 
   return (
     <nav
@@ -167,7 +170,9 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         )}
         <UpdateChip />
         <RefreshRoveButton client={model.client} railBar={!narrow} />
+        {narrow && <PhoneExtensions model={model} />}
       </header>
+      {narrow && payload && <PhoneRailNote model={model} count={tasks.length + remoteTasks.length} />}
       {moving && (
         <div className={`${RAIL_SEARCH} mono`}>
           <span className="text-accent">{tc("tasks", "moveChip").trim()}</span>
@@ -220,9 +225,10 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
               }}
             />
           ) : (
-            <RailRow
+            <Row
               key={row.id}
               row={row}
+              count={counts?.get(row.id)}
               guides={row.kind === "task" && row.depth > 1 ? treeGuides(rows, i) : undefined}
               cloud={rowCloud(row, machines, words)}
               repo={byState && row.kind === "task" && row.depth === 1 ? rowRepo(row.task) : undefined}
@@ -304,8 +310,12 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   )
 }
 
+export type RailRowProps = Parameters<typeof RailRow>[0]
+
 function RailRow(props: {
   row: Exclude<NavRow, { kind: "pane" | "round" }>
+  /** A phone's group header: the tasks under it. */
+  count?: number | undefined
   /** A child task's indent columns, outermost first. */
   guides?: readonly TreeGuide[]
   /** The task's project, named on a top-level row of the by-state list, which has no project headers. */

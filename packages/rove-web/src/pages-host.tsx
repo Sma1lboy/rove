@@ -6,6 +6,7 @@
  */
 
 import { CompareView } from "./compare-view.tsx"
+import { ExtensionsView } from "./extensions-view.tsx"
 import { t } from "./i18n/index.ts"
 import { IssuesView } from "./issues-view.tsx"
 import { KanbanView } from "./kanban-view.tsx"
@@ -47,7 +48,8 @@ export function PageNav({ model }: { model: AppModel }) {
   const hasMods = useStore(model.mods).length > 0
   const installed = useStore(model.installedMods)
   const shown = NAV.filter((item) => !item.mod || installed.has(item.mod))
-  const items = [...shown, ...(hasMods ? [MODS_NAV] : [])]
+  // A phone reaches what extensions add through the list's Extensions button; Routines is Rove's own.
+  const items = narrow ? NAV.filter((item) => !item.mod) : [...shown, ...(hasMods ? [MODS_NAV] : [])]
   return (
     <div className={RAIL_NAV}>
       {/* Starting a task is the first destination, drawn like the pages under it; a phone has it in its bottom bar. */}
@@ -81,6 +83,8 @@ export function PagesHost({ model, page: current }: { model: AppModel; page: Pag
     <UsageView model={model} />
   ) : current === "sessions" ? (
     <SessionsView model={model} />
+  ) : current === "extensions" ? (
+    <ExtensionsView model={model} />
   ) : current === "update" ? (
     <UpdateView client={model.client} />
   ) : null
