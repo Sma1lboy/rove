@@ -432,6 +432,11 @@ describe("read-output terminal tail shaping", () => {
     expect(capped.tail[0]).toBe("l50")
   })
 
+  it("a screen ending in blank rows still yields its last text lines", () => {
+    const screen = ["❯ fix the build", "✻ Worked for 3s", ...Array.from({ length: 24 }, () => "   ")].join("\n")
+    expect(boundedTail(screen, 2).tail).toEqual(["❯ fix the build", "✻ Worked for 3s"])
+  })
+
   it("keeps the last line even when it alone exceeds the byte budget", () => {
     // A single line larger than the byte cap (a minified dump / base64 blob
     // with no newline) must not blank the whole tail — the read has to show
