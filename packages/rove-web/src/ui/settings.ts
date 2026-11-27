@@ -8,7 +8,7 @@ import { OVERLAY } from "./overlay.ts"
 export const SETTINGS_OVERLAY = `${OVERLAY} w-narrow:pt-0`
 /** A fixed height, so switching sections never moves the box; the section scrolls inside it. */
 export const SETTINGS_DIALOG =
-  "dialog relative m-0 flex h-[min(640px,80vh)] w-[min(880px,calc(100vw-32px))] overflow-hidden rounded-md border-hairline border-line bg-surface text-inherit shadow-dialog focus:outline-none motion-safe:animate-rise-in [.is-leaving_&]:animate-sink-out w-narrow:h-dvh w-narrow:w-screen w-narrow:flex-col w-narrow:rounded-none w-narrow:border-0 w-narrow:pt-[env(safe-area-inset-top)] w-narrow:translate-x-[var(--back-x,0px)] w-narrow:pb-[env(safe-area-inset-bottom)] short:h-[calc(100dvh-24px)]"
+  "dialog relative m-0 flex h-[min(640px,80vh)] w-[min(880px,calc(100vw-32px))] overflow-hidden rounded-md border-hairline border-line bg-surface text-inherit shadow-dialog focus:outline-none motion-safe:animate-rise-in [.is-leaving_&]:animate-sink-out w-narrow:bg-paper w-narrow:h-dvh w-narrow:w-screen w-narrow:flex-col w-narrow:rounded-none w-narrow:border-0 w-narrow:pt-[env(safe-area-inset-top)] w-narrow:translate-x-[var(--back-x,0px)] w-narrow:pb-[env(safe-area-inset-bottom)] short:h-[calc(100dvh-24px)]"
 export const SETTINGS_CLOSE =
   "absolute top-3 right-3 z-1 grid size-7 place-items-center rounded-sm text-display leading-none text-muted hover:bg-inset hover:text-ink focus-visible:bg-inset focus-visible:text-ink touch:size-10"
 /** A phone's top bar: the glass back button (out of Settings from the list, to the list from a section) and the title beside it. */
@@ -16,29 +16,52 @@ export const SETTINGS_BAR = "flex flex-none items-center gap-3 px-4 py-2"
 /** The open section. Mid back swipe it rides the finger (`--back-x`) over the list, inside the dialog's own padding. */
 export const settingsPageClass = (swiping: boolean): string =>
   `flex min-h-0 min-w-0 flex-1 flex-col ${
-    swiping ? "absolute inset-0 z-1 translate-x-(--back-x) bg-surface [padding:inherit] shadow-dialog" : ""
+    swiping
+      ? "absolute inset-0 z-1 translate-x-(--back-x) bg-surface [padding:inherit] shadow-dialog w-narrow:bg-paper"
+      : ""
   }`
 
+/** On a phone: iOS's grouped list on the page's ground, a large title, then a card per group. */
 export const SETTINGS_NAV =
-  "flex w-56 flex-none flex-col gap-5 overflow-y-auto scrollbar-none [border-right:var(--hairline)_solid_var(--line)] px-2.5 py-4 w-narrow:w-full w-narrow:flex-1 w-narrow:[border-right:none] w-narrow:px-3 w-narrow:py-3"
-export const SETTINGS_NAV_TITLE = "m-0 px-2 pb-0.5 font-sans text-title font-semibold normal-nums text-ink"
-export const SETTINGS_NAV_GROUP = "flex flex-col gap-0.5"
+  "flex w-56 flex-none flex-col gap-5 overflow-y-auto scrollbar-none [border-right:var(--hairline)_solid_var(--line)] px-2.5 py-4 w-narrow:w-full w-narrow:flex-1 w-narrow:gap-6 w-narrow:[border-right:none] w-narrow:px-4 w-narrow:pt-1 w-narrow:pb-8"
+export const SETTINGS_NAV_TITLE =
+  "m-0 px-2 pb-0.5 font-sans text-title font-semibold normal-nums text-ink w-narrow:px-1 w-narrow:text-[28px] w-narrow:leading-[1.2] w-narrow:font-bold"
+export const SETTINGS_NAV_GROUP = "flex flex-col gap-0.5 w-narrow:gap-1.5"
 /** A group's name above its sections: small mono and faint, so it never reads as one more section. */
-export const SETTINGS_NAV_LABEL = "m-0 px-2 pb-1 font-mono text-meta font-normal text-subtle"
-/** Sections in ink, the group names under them faint; the quiet group (About, Feedback, Dev) reads a step lighter. */
+export const SETTINGS_NAV_LABEL =
+  "m-0 px-2 pb-1 font-mono text-meta font-normal text-subtle w-narrow:px-4 w-narrow:pb-0"
+/** A phone's card: the group's rows on one rounded surface, a hairline between them. */
+export const SETTINGS_CARD =
+  "flex flex-col gap-0.5 w-narrow:gap-0 w-narrow:overflow-hidden w-narrow:rounded-[12px] w-narrow:bg-surface w-narrow:[&>*+*]:[border-top:var(--hairline)_solid_var(--line)]"
+/** Sections in ink, the group names under them faint; the quiet group (About, Feedback, Dev) reads a step lighter, except on a phone, where every row weighs the same. */
 export const settingsNavItemClass = (active: boolean, quiet: boolean): string =>
-  `flex items-center rounded-sm px-2 py-1.25 text-left font-sans text-body touch:min-h-10 w-narrow:min-h-11 w-narrow:px-3 ${
+  `flex items-center rounded-sm px-2 py-1.25 text-left font-sans text-body touch:min-h-10 w-narrow:min-h-12 w-narrow:gap-3 w-narrow:rounded-none w-narrow:px-3 w-narrow:text-ink ${
     active ? "bg-menu text-ink" : `${quiet ? "text-muted" : "text-ink"} [&:hover]:bg-hover`
   }`
 export const SETTINGS_NAV_CHEVRON = "ml-auto hidden text-subtle w-narrow:block"
+/** A section's icon on a phone: a small rounded tile washed in one of Rove's own tones. */
+const TILE_TONE = {
+  accent: "bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-accent",
+  info: "bg-[color-mix(in_srgb,var(--info)_20%,transparent)] text-info",
+  success: "bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-success",
+  warning: "bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-warning",
+  error: "bg-[color-mix(in_srgb,var(--error)_20%,transparent)] text-error",
+  merged: "bg-[color-mix(in_srgb,var(--merged)_20%,transparent)] text-merged",
+  muted: "bg-[color-mix(in_srgb,var(--muted)_20%,transparent)] text-muted",
+} as const
+export type TileTone = keyof typeof TILE_TONE
+export const settingsTile = (tone: TileTone): string =>
+  `hidden size-7 flex-none place-items-center rounded-[7px] w-narrow:grid ${TILE_TONE[tone]} [&_svg]:size-4 [&_svg]:fill-none [&_svg]:stroke-current [&_svg]:[stroke-linecap:round] [&_svg]:[stroke-linejoin:round] [&_svg]:[stroke-width:1.4]`
+/** The usage readings on a phone: a card of their own at the list's end. */
+export const SETTINGS_USAGE_CARD = "rounded-[12px] bg-surface px-3 py-1"
 
 export const SETTINGS_SCROLL = "min-h-0 min-w-0 flex-1 overflow-y-auto scrollbar-none"
 /** The section: its title, then groups spaced twice as far as their rows. */
 export const SETTINGS_COLUMN =
-  "flex w-full flex-col gap-7 px-8 pt-7 pb-10 w-narrow:gap-6 w-narrow:px-4 w-narrow:pt-1 w-narrow:pb-10"
+  "flex w-full flex-col gap-7 px-8 pt-7 pb-10 w-narrow:gap-5 w-narrow:px-4 w-narrow:pt-0 w-narrow:pb-10"
 export const SETTINGS_HEAD = "flex flex-col gap-1 pr-8 w-narrow:pr-0"
 export const SETTINGS_TITLE = "m-0 font-sans text-display font-semibold normal-nums text-ink"
-export const SETTINGS_DESC = "m-0 text-body text-muted"
+export const SETTINGS_DESC = "m-0 text-body text-muted w-narrow:px-4 w-narrow:text-meta"
 export const SETTINGS_BODY = "flex flex-col gap-7 w-narrow:gap-6"
 
 /** A group: an optional name and note, then its rows between hairlines. */
@@ -48,13 +71,18 @@ export const SETTINGS_SAMPLE = "mt-1.5 flex min-w-0"
 export const SETTINGS_SAMPLE_ROWS = "flex min-w-0 flex-wrap gap-x-4 text-meta"
 export const SETTINGS_SAMPLE_ROW = "inline-flex min-h-6.5 min-w-0 items-center gap-2"
 export const SETTINGS_SAMPLE_PANE = "block h-7 w-36 rounded-md border-hairline border-line bg-paper"
-export const SETTINGS_GROUP_LABEL = "m-0 pb-1.5 font-sans text-meta font-medium normal-nums text-muted"
-export const SETTINGS_GROUP_HINT = "m-0 pb-2 text-meta text-subtle"
-export const SETTINGS_ROWS = "flex flex-col border-t-hairline border-t-line [&>*]:border-b-hairline [&>*]:border-b-line"
+/** On a phone: a caption above the group's card. */
+export const SETTINGS_GROUP_LABEL =
+  "m-0 pb-1.5 font-sans text-meta font-medium normal-nums text-muted w-narrow:px-4 w-narrow:font-normal w-narrow:text-subtle"
+/** On a phone: a footnote under the card. */
+export const SETTINGS_GROUP_HINT =
+  "m-0 pb-2 text-meta text-subtle w-narrow:order-last w-narrow:px-4 w-narrow:pt-1.5 w-narrow:pb-0"
+/** On a phone the rows share one rounded card, a hairline between them and none around. */
+export const SETTINGS_ROWS =
+  "flex flex-col border-t-hairline border-t-line [&>*]:border-b-hairline [&>*]:border-b-line w-narrow:overflow-hidden w-narrow:rounded-[12px] w-narrow:border-t-0 w-narrow:bg-surface w-narrow:[&>*]:px-4 w-narrow:[&>*:last-child]:border-b-0"
 
-/** A row: name and note on the left, the control on the right; on a phone the control drops under the text. */
-export const SETTINGS_ROW =
-  "flex items-center justify-between gap-x-6 gap-y-2 py-3 w-narrow:flex-col w-narrow:items-stretch"
+/** A row: name and note on the left, the control on the right, on a phone too. */
+export const SETTINGS_ROW = "flex items-center justify-between gap-x-6 gap-y-2 py-3 w-narrow:min-h-11 w-narrow:gap-x-3"
 /** A switch stays beside its text on a phone: it is small. */
 export const SETTINGS_ROW_INLINE = "flex items-center justify-between gap-x-6 py-3"
 /** A wide control (a picker, a form) under the row's text. */
@@ -62,7 +90,7 @@ export const SETTINGS_ROW_STACK = "flex flex-col gap-3 py-3"
 export const SETTINGS_TEXT = "flex min-w-0 flex-1 flex-col gap-0.5"
 export const SETTINGS_NAME = "text-body text-ink"
 export const SETTINGS_NOTE = "text-meta text-muted [&_a]:text-accent"
-export const SETTINGS_CONTROL = "flex min-w-0 flex-none items-center justify-end gap-2 w-narrow:justify-start"
+export const SETTINGS_CONTROL = "flex min-w-0 flex-none items-center justify-end gap-2 w-narrow:max-w-[50%]"
 /** A path, command or value the Mac holds: the one place a row's text is mono. */
 export const SETTINGS_VALUE = "max-w-90 min-w-0 truncate font-mono text-meta text-muted [overflow-wrap:anywhere]"
 
