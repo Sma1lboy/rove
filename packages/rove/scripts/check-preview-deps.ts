@@ -1,8 +1,13 @@
 /**
  * Postinstall-style check for the preview pane's optional system
- * binaries. Runs after `bun install` and prints a coloured warning
- * (never blocks) listing anything missing along with the per-platform
- * install command.
+ * binaries. Runs after `bun install` in a checkout and prints a coloured
+ * warning (never blocks) listing anything missing along with the
+ * per-platform install command.
+ *
+ * Wired into the monorepo ROOT postinstall, never the published package's:
+ * `scripts/` is not in the tarball, so there it can only fail, and its old
+ * `|| true` guard is not a command in cmd.exe — every `npm install -g` on
+ * Windows exited 1.
  *
  *   chafa          required — image preview (sixel + character grid)
  *   ffmpeg/ffprobe required — animated GIF frame extraction
@@ -97,4 +102,6 @@ async function main(): Promise<void> {
   console.log("")
 }
 
-await main()
+// Advisory only: the root postinstall chains the SDK build behind this, so a
+// failure here must never fail the install.
+await main().catch(() => {})

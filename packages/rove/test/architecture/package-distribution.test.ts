@@ -73,6 +73,19 @@ describe("Rove package distribution", () => {
     expect(launcher).not.toMatch(/from "\.\/(?!bun-runtime)/)
   })
 
+  test("the published package runs no script at install time", () => {
+    // npm runs these on the USER's machine, from a tarball that carries only
+    // `files` (no scripts/, no src/). A hook that points into the repo can
+    // only fail there, and a POSIX `|| true` guard does not save it: npm on
+    // Windows runs scripts through cmd.exe, where `true` is not a command, so
+    // the install exits 1. Checkout-only setup belongs in the root manifest.
+    const pkg = json<{ scripts: Record<string, string> }>("packages/rove/package.json")
+
+    for (const hook of ["preinstall", "install", "postinstall"]) {
+      expect(pkg.scripts[hook], `${hook} would run on every user's install`).toBeUndefined()
+    }
+  })
+
   // Slices the visual-ground-truth job by finding the NEXT top-level job, or
   // end-of-file when it is the last one. Naming a specific successor job made
   // this test fail the moment that job was deleted (`coverage-cap`), which said

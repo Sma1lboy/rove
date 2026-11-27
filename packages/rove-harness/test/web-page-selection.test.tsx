@@ -21,6 +21,8 @@ vi.hoisted(() => {
       },
     })
   }
+  // jsdom has no matchMedia; the pages read the narrow breakpoint on mount.
+  window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} }) as never
 })
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 const container = document.createElement("div")

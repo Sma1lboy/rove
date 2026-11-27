@@ -74,7 +74,7 @@
     "bench": "vitest bench --run",
     "lint": "biome check .",
     "knip": "knip-bun",
-    "postinstall": "bun run scripts/check-preview-deps.ts || true",
+    "check:preview-deps": "bun run scripts/check-preview-deps.ts",
     "prepublishOnly": "bun run typecheck && bun run build",
     "plugin-sandbox": "bun run scripts/plugin-sandbox.ts"
   },
