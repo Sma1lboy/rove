@@ -51,6 +51,25 @@ export function NavButton(props: { kind: keyof typeof PATH; label: string; onCli
   )
 }
 
+/** A count on a glass button's shoulder (unread items); the caller hides it at zero. */
+export function CountBadge({ count }: { count: number }) {
+  return (
+    <span className="absolute -top-1.5 -right-2 z-1 grid h-4.5 min-w-4.5 place-items-center rounded-full bg-accent px-1 font-sans text-[12px] leading-none font-semibold text-paper normal-nums">
+      {count > 99 ? "99+" : count}
+    </span>
+  )
+}
+
+/** Lucide `inbox` (ISC). */
+export function TrayGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" className={`size-4.5 ${ICON} [stroke-width:1.75]`} aria-hidden="true">
+      <path d="M22 12h-6l-2 3h-4l-2-3H2" />
+      <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+    </svg>
+  )
+}
+
 /** The primary action's +. */
 export function PlusGlyph() {
   return (
