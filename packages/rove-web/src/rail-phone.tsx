@@ -1,17 +1,20 @@
 /** The session list as a phone draws it: two-line rows with a status mark, group headers with a count and ⋯, and the line under the wordmark. */
 
+import { useEffect, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
 import { openPage } from "./layout.ts"
 import { CloudMark } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
-import { useCopy } from "./pages-kit.ts"
+import { useCopy, useReload } from "./pages-kit.ts"
 import { extPages, sessionAge, sessionLine2 } from "./phone-rows.ts"
 import { PrChip } from "./pr-chip.tsx"
 import { usePrefs } from "./prefs.ts"
 import type { RailRowProps } from "./rail-view.tsx"
 import type { NavRow } from "./rail.ts"
+import { lastReply, requestRemembered } from "./remembered.ts"
+import { type RoutinesReply, routineNeedsYou } from "./routines-data.ts"
 import { useStore } from "./store.ts"
-import { ExtensionsButton, PhoneGroupHead, PhoneStatusRow, StatusGlyph } from "./ui/phone-rows.tsx"
+import { ExtensionsButton, PhoneGroupHead, PhoneStatusRow, RoutinesButton, StatusGlyph } from "./ui/phone-rows.tsx"
 import { CHILD_INDENT, guideClass, projectHead } from "./ui/rail.ts"
 import { SwipeRow } from "./ui/swipe-row.tsx"
 
@@ -112,6 +115,33 @@ export function PhoneRailNote({ model, count }: { model: AppModel; count: number
         .join(" · ")}
     </p>
   )
+}
+
+/** A routine's last run can change with no task changing, so the count is read again this often. */
+const ROUTINES_POLL_MS = 30_000
+
+/** Top right of the list, left of Extensions: Routines, with how many need you. */
+export function PhoneRoutines({ model }: { model: AppModel }) {
+  const { nav } = useCopy()
+  const c = model.client
+  const [tick] = useReload(ROUTINES_POLL_MS)
+  const [reply, setReply] = useState(() => lastReply<RoutinesReply>(c, "routine.list") ?? null)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: tick is a trigger the body doesn't read
+  useEffect(() => {
+    let live = true
+    const read = () =>
+      requestRemembered<RoutinesReply>(c, "routine.list")
+        .then((res) => live && setReply(res))
+        .catch(() => {})
+    // Runs now when the socket is up, and on every (re)connect: the list mounts before it is.
+    const off = c.onOpen(read)
+    return () => {
+      live = false
+      off()
+    }
+  }, [c, tick])
+  const count = (reply?.automations ?? []).filter((routine) => routineNeedsYou(reply, routine.id)).length
+  return <RoutinesButton label={nav.automations} count={count} onClick={() => openPage("routines")} />
 }
 
 /** Top right of the list: the pages extensions add. Hidden while none is installed. */

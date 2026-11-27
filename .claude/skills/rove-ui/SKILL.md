@@ -374,7 +374,8 @@ Machines, Usage). Overlays (dialogs, menus, toasts, the inbox) are recipes in `s
 - **The phone's session list is its own row** (`rail-phone.tsx`, `ui/phone-rows.tsx`), after the old iPhone app's:
   a status glyph from `row-status-glyph.ts` first, the title over a muted mono line (branch, `↓N` behind its base),
   age over engine name at the right; headers in capitals with a zero-padded count and a `⋯` for the project's
-  actions. The three rules above hold on the desktop only. Routines rows draw the same shape.
+  actions. The three rules above hold on the desktop only. Routines rows draw the same shape. The list has no page
+  rows of text: Routines and Extensions are glass buttons beside the wordmark (he called the text rows odd).
 - **Project sections are collapsible**, with a `+` for a new task in that project and **no
   divider rule**, following Claude Desktop's session list (#1371). The name opens the project's Sessions page. The chevron folds the
   section (kept in `localStorage` `rove.collapsedProjects`); the `+` shows on hover and is

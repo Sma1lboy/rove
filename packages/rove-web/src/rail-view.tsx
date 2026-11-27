@@ -26,7 +26,7 @@ import { repoLabel } from "./rail-labels.ts"
 import { peekRail, railFolded, railPeek } from "./rail-layout.ts"
 import { PaneRowView, openPane } from "./rail-pane-row.tsx"
 import { withPanes } from "./rail-panes.ts"
-import { PhoneExtensions, PhoneRailNote, PhoneRailRow, groupCounts } from "./rail-phone.tsx"
+import { PhoneExtensions, PhoneRailNote, PhoneRailRow, PhoneRoutines, groupCounts } from "./rail-phone.tsx"
 import { RoundRowView } from "./rail-round-row.tsx"
 import { SearchChip } from "./rail-search.tsx"
 import { railStateRows, rowRepo, withStateCounts } from "./rail-states.ts"
@@ -170,6 +170,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         )}
         <UpdateChip />
         <RefreshRoveButton client={model.client} railBar={!narrow} />
+        {narrow && <PhoneRoutines model={model} />}
         {narrow && <PhoneExtensions model={model} />}
       </header>
       {narrow && payload && <PhoneRailNote model={model} count={tasks.length + remoteTasks.length} />}
@@ -188,7 +189,8 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
           onChange={(query) => filters.setSearch((s) => ({ ...s, query }))}
         />
       )}
-      <PageNav model={model} />
+      {/* A phone reaches pages from the buttons beside the wordmark and its bottom bar. */}
+      {!narrow && <PageNav model={model} />}
       <div data-rail-body className={railBody(dragging !== null)} {...drag.body} onPointerDownCapture={keys.onPress}>
         {payload && tasks.length === 0 && remoteTasks.length === 0 && narrow && <WelcomePane model={model} />}
         {payload && tasks.length === 0 && remoteTasks.length === 0 && !narrow && (

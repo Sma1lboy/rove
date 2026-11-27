@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import type { TaskRow } from "rove-bridge/protocol"
 import { extPages, sessionAge, sessionLine2 } from "../src/phone-rows.ts"
+import { routineNeedsYou } from "../src/routines-data.ts"
 
 const names = { kanban: "Kanban", issues: "Issues" }
 const pane = { plugin: "examples.counter-mod", id: "counter", title: "Counter", tree: { type: "text", text: "" } }
@@ -40,5 +41,13 @@ describe("the phone's Extensions list", () => {
       ["issues", "issues", "Issues"],
       ["mod:examples.counter-mod/counter", "mods", "Counter"],
     ])
+  })
+})
+
+describe("the phone's Routines button count", () => {
+  test("counts a routine whose last run failed, not one that finished or never ran", () => {
+    const reply = { lastRunStatus: { broke: "dispatch_failed", fine: "dispatched" } } as const
+    expect(["broke", "fine", "new"].filter((id) => routineNeedsYou(reply, id))).toEqual(["broke"])
+    expect(routineNeedsYou(null, "broke")).toBe(false)
   })
 })

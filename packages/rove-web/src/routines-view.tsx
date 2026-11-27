@@ -8,7 +8,7 @@
  */
 
 import { routineEngineText } from "@sma1lboy/rove/src/tui/component/automation-engine-core.ts"
-import { type Automation, automationRunNeedsAttention } from "@sma1lboy/rove/src/tui/component/automation-run-core.ts"
+import type { Automation } from "@sma1lboy/rove/src/tui/component/automation-run-core.ts"
 import { describeCronWith } from "@sma1lboy/rove/src/tui/component/cron-core.ts"
 import { useEffect, useRef, useState } from "react"
 import { ConfirmDialog } from "./dialogs.tsx"
@@ -35,7 +35,7 @@ import { RoutineComposer } from "./routine-composer.tsx"
 import { RoutineDetail } from "./routine-detail.tsx"
 import { useRoutineRuns } from "./routine-run-log.tsx"
 import { TONE_CLASS, TONE_GLYPH, runTone } from "./routine-runs.tsx"
-import { type RoutinesReply, whenText } from "./routines-data.ts"
+import { type RoutinesReply, routineNeedsYou, whenText } from "./routines-data.ts"
 import { RoutinesPhoneList } from "./routines-phone.tsx"
 import { useStore } from "./store.ts"
 import { dialog, page, routineFocus, toast } from "./ui.ts"
@@ -107,10 +107,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
   const listed = reply?.automations ?? []
   const lastRunStatus = reply?.lastRunStatus ?? {}
   const lastFailure = reply?.lastFailure ?? {}
-  const needsYou = (routine: Automation) => {
-    const status = lastRunStatus[routine.id]
-    return status !== undefined && automationRunNeedsAttention(status)
-  }
+  const needsYou = (routine: Automation) => routineNeedsYou(reply, routine.id)
   // What wants a human first, then what runs, then what is paused; daemon order within each.
   const sections = [
     { key: "pages.routinesNeedYou", rows: listed.filter(needsYou) },

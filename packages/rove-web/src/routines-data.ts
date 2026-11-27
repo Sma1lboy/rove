@@ -1,6 +1,10 @@
 /** What `routine.list` answers, as the Routines page reads it. */
 
-import type { Automation, AutomationRunStatus } from "@sma1lboy/rove/src/tui/component/automation-run-core.ts"
+import {
+  type Automation,
+  type AutomationRunStatus,
+  automationRunNeedsAttention,
+} from "@sma1lboy/rove/src/tui/component/automation-run-core.ts"
 import { fill } from "./pages-kit.ts"
 
 export interface RoutinesReply {
@@ -9,6 +13,12 @@ export interface RoutinesReply {
   readonly lastRunStatus?: Readonly<Record<string, AutomationRunStatus>>
   /** The newest failure among recent runs; absent when none failed (or an older daemon). */
   readonly lastFailure?: Readonly<Record<string, { readonly at: string; readonly reason: string }>>
+}
+
+/** Whether a routine's last run wants a human: the page's "needs you" group and the phone button's count. */
+export function routineNeedsYou(reply: Pick<RoutinesReply, "lastRunStatus"> | null, id: string): boolean {
+  const status = reply?.lastRunStatus?.[id]
+  return status !== undefined && automationRunNeedsAttention(status)
 }
 
 type WhenCopy = Record<"now" | "justNow" | "inMinutes" | "minutesAgo" | "inHours" | "hoursAgo", string>

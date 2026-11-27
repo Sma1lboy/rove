@@ -8,7 +8,7 @@ import { type ComponentProps, type MouseEvent, type ReactNode, useEffect, useSta
 import type { RowStatus } from "rove-bridge/protocol"
 import { reducedMotion } from "../ui.ts"
 import { Chevron } from "./chevron.tsx"
-import { GlassButton } from "./nav-button.tsx"
+import { CountBadge, GlassButton } from "./nav-button.tsx"
 
 const TONE: Readonly<Record<RowTone, string>> = {
   accent: "text-accent",
@@ -122,7 +122,24 @@ export function PhoneGroupHead(props: {
 /** Lucide `blocks` (ISC). */
 const BLOCKS = "M10 22V7a1 1 0 0 0-1-1H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5a1 1 0 0 0-1-1H2"
 
-/** The session list's one top control: the way in to the pages extensions add. */
+/** Beside the wordmark, left of Extensions: Lucide `clock` (ISC), with a count while routines need you. */
+export function RoutinesButton(props: { label: string; count: number; onClick: () => void }) {
+  return (
+    <GlassButton size="nav" kind="routines" label={props.label} onClick={props.onClick}>
+      <svg
+        viewBox="0 0 24 24"
+        className="size-5.5 fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:1.6]"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 6v6l4 2" />
+      </svg>
+      {props.count > 0 && <CountBadge count={props.count} />}
+    </GlassButton>
+  )
+}
+
+/** Beside the wordmark, at the right edge: the way in to the pages extensions add. */
 export function ExtensionsButton(props: { label: string; onClick: () => void }) {
   return (
     <GlassButton size="nav" kind="extensions" label={props.label} onClick={props.onClick}>
