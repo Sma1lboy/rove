@@ -58,3 +58,10 @@ describe("new task from a host branch", () => {
     expect(labels(task({ ownsBranch: undefined }))).not.toContain("New task from this branch")
   })
 })
+
+describe("an archived task", () => {
+  test("has no Reorder row: it is not in the rail", () => {
+    expect(labels(task())).toContain("Reorder row")
+    expect(labels(task({ archived: true }))).not.toContain("Reorder row")
+  })
+})

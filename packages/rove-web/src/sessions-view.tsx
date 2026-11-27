@@ -15,7 +15,7 @@ import { isNoProject } from "./rail.ts"
 import { taskMenu } from "./row-actions.tsx"
 import { type SessionsTab, sessionRepos, sessionRows } from "./sessions-data.ts"
 import { useStore } from "./store.ts"
-import { page, sessionsRepo } from "./ui.ts"
+import { page, sessionsRepo, tuckRare } from "./ui.ts"
 import {
   PAGE_SCROLL,
   PAGE_TITLE,
@@ -133,7 +133,7 @@ export function SessionsView({ model }: { model: AppModel }) {
                 onClick={() => open(task.id)}
                 onContextMenu={(e) => {
                   setCursor(index)
-                  openMenu(e, taskMenu(model, task, null))
+                  openMenu(e, tuckRare(taskMenu(model, task, null), t("menu.more")))
                 }}
               >
                 <div className={PG_ISSUE_LINE}>
