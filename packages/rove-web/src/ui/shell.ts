@@ -1,5 +1,7 @@
 /** Class recipes for the page shell: the app grid, the narrow bar, splits, terminal chrome, the key guide, palette and help. */
 
+import { PRESS, glass } from "./glass.ts"
+
 /** Only the size, for lines outside a `.mono` element: they keep the line height they inherit. */
 const META = "text-meta leading-[inherit]"
 /** What the sheets' `font: <size> <family>` shorthand reset besides size and family. */
@@ -61,8 +63,9 @@ export const NARROW_BAR = "flex items-center gap-2"
 export const NARROW_BACK = `flex min-w-0 items-baseline gap-1.5 px-1.5 py-0.5 text-meta font-bold ${HIT} touch:after:-inset-2.5 touch:after:-bottom-1`
 /** The open task's name in the back button: a single tab has no strip to say which task this is. */
 export const NARROW_TITLE = "truncate font-sans text-body font-normal text-ink"
-export const NARROW_SWITCH = "ml-auto flex flex-none gap-0.5"
-export const NARROW_TAB = `flex items-center rounded-sm px-2.5 py-1.5 text-muted aria-selected:bg-inset aria-selected:text-ink [&_svg]:size-4 ${HIT} touch:after:-inset-x-px touch:after:-top-2 touch:after:-bottom-1.5`
+/** The terminal/panel switch: one glass capsule, the view on screen lit inside it. */
+export const NARROW_SWITCH = `ml-auto flex flex-none gap-0.5 rounded-full p-0.5 ${glass()}`
+export const NARROW_TAB = `flex h-8 w-9 items-center justify-center rounded-full text-muted aria-selected:bg-[color-mix(in_srgb,var(--ink)_14%,transparent)] aria-selected:text-ink [&_svg]:size-4 ${PRESS} ${HIT} touch:after:-inset-x-px touch:after:-top-2 touch:after:-bottom-1.5`
 
 export const HINT_BAR =
   "inline-flex shrink-0 items-baseline gap-3 whitespace-nowrap text-meta text-muted *:relative [&_.link:disabled]:cursor-default [&_.link:disabled]:opacity-50"
@@ -102,10 +105,9 @@ export const TERM_SCROLLED =
 export const TERM_QUOTE = "absolute top-2.5 right-2.5 z-4"
 
 /** What a soft keyboard lacks; touch screens only. A narrower column keeps each label whole, then scrolls the row. */
-export const TERM_KEY_ROW =
-  "hidden gap-1 overflow-x-auto scrollbar-none [border-top:var(--hairline)_solid_var(--line)] bg-surface px-1.5 py-1 touch:flex"
+export const TERM_KEY_ROW = "hidden gap-1 overflow-x-auto scrollbar-none px-1.5 pt-0.5 pb-1.5 touch:flex"
 export const termKey = (on: boolean): string =>
-  `h-10 min-w-max touch-manipulation [flex:1_1_0] rounded-sm border-hairline bg-inset px-0.5 py-0 font-mono text-meta ${FONT_RESET} ${on ? "border-accent text-accent" : "border-line text-ink"}`
+  `h-10 min-w-max touch-manipulation [flex:1_1_0] rounded-[12px] px-0.5 py-0 font-mono text-meta ${FONT_RESET} ${PRESS} ${glass(on)} ${on ? "text-accent" : "text-ink"}`
 
 /** The which-key map, above the rail's last row so that row's keycap badge stays clickable. */
 /** `prefix-guide` stays: leave.ts copies it into a ghost that sinks out, and prefix.tsx keeps clicks on it from cancelling the prefix. */
