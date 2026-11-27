@@ -6,6 +6,7 @@ import { BridgeRequestError } from "./bridge.ts"
 import { ConfirmDialog, errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import { taskEdit } from "./optimistic.ts"
 import type { NavRow } from "./rail.ts"
 import { createStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
@@ -98,28 +99,53 @@ function topmost(tasks: readonly TaskRow[]): TaskRow[] {
   })
 }
 
-/** Runs `op` on each task; the ones refused with `code` are asked about once, together, and retried with force. */
-async function eachThenForce(
+/**
+ * Sends `op` for every task at once: each row leaves the list on the click, not when its turn comes. Requests to one
+ * machine go one after another (a picked parent and child would race in its daemon; each remote one is an ssh trip).
+ */
+function sendAll(
+  model: AppModel,
   tasks: readonly TaskRow[],
-  op: (task: TaskRow, force: boolean) => Promise<unknown>,
+  op: string,
+  args: (task: TaskRow) => Record<string, unknown>,
+): Promise<PromiseSettledResult<unknown>[]> {
+  const lanes = new Map<string, Promise<unknown>>()
+  return Promise.allSettled(
+    tasks.map((task) => {
+      const params = { taskId: task.id, ...args(task) }
+      const lane = task.machine?.id ?? ""
+      const send = (lanes.get(lane) ?? Promise.resolve()).then(() => model.client.request(op, params))
+      lanes.set(
+        lane,
+        send.catch(() => {}),
+      )
+      const edit = taskEdit(op, params)
+      return edit ? model.optimistic(edit, () => send) : send
+    }),
+  )
+}
+
+/** Runs `op` on every task; the ones refused with `code` come back, are asked about once, together, and retried with force. */
+async function eachThenForce(
+  model: AppModel,
+  tasks: readonly TaskRow[],
+  op: string,
+  args: (task: TaskRow) => Record<string, unknown>,
   code: string,
   ask: { title: string; body: string; confirm: string },
   done: (count: number) => void,
 ): Promise<void> {
-  const refused: TaskRow[] = []
-  const failed: string[] = []
-  let ok = 0
-  // One at a time: a picked parent and child would race each other in the daemon.
-  for (const task of tasks) {
-    try {
-      await op(task, false)
-      ok++
-    } catch (err) {
-      if (err instanceof BridgeRequestError && err.code === code) refused.push(task)
-      else failed.push(`${task.label}: ${errorText(err)}`)
-    }
-  }
   clearPick()
+  const results = await sendAll(model, tasks, op, args)
+  const refused = tasks.filter((_, i) => {
+    const r = results[i]
+    return r?.status === "rejected" && r.reason instanceof BridgeRequestError && r.reason.code === code
+  })
+  const failed = tasks.flatMap((task, i) => {
+    const r = results[i]
+    return r?.status === "rejected" && !refused.includes(task) ? [`${task.label}: ${errorText(r.reason)}`] : []
+  })
+  const ok = results.filter((r) => r.status === "fulfilled").length
   if (ok > 0) done(ok)
   if (failed.length > 0) toast(failed.join("\n"), "error")
   if (refused.length === 0) return
@@ -129,17 +155,13 @@ async function eachThenForce(
       body={`${ask.body}\n\n${refused.map((task) => task.label).join("\n")}`}
       confirmLabel={ask.confirm}
       onConfirm={async () => {
-        let won = 0
-        const lost: string[] = []
-        for (const task of refused) {
-          try {
-            await op(task, true)
-            won++
-          } catch (err) {
-            lost.push(`${task.label}: ${errorText(err)}`)
-          }
-        }
+        const again = await sendAll(model, refused, op, (task) => ({ ...args(task), force: true }))
+        const won = again.filter((r) => r.status === "fulfilled").length
         if (won > 0) done(won)
+        const lost = refused.flatMap((task, i) => {
+          const r = again[i]
+          return r?.status === "rejected" ? [`${task.label}: ${errorText(r.reason)}`] : []
+        })
         if (lost.length > 0) toast(lost.join("\n"), "error")
       }}
     />,
@@ -148,8 +170,10 @@ async function eachThenForce(
 
 function archiveMany(model: AppModel, tasks: readonly TaskRow[]): Promise<void> {
   return eachThenForce(
+    model,
     topmost(tasks),
-    (task, force) => model.act("task.archive", { taskId: task.id, archived: true, ...(force ? { force } : {}) }),
+    "task.archive",
+    () => ({ archived: true }),
     "TASK_BUSY",
     {
       title: tc("tasks", "archive.busyTitle"),
@@ -162,8 +186,10 @@ function archiveMany(model: AppModel, tasks: readonly TaskRow[]): Promise<void> 
 
 function removeMany(model: AppModel, tasks: readonly TaskRow[]): Promise<void> {
   return eachThenForce(
+    model,
     tasks,
-    (task, force) => model.act("task.delete", { taskId: task.id, ...(force ? { force } : {}) }),
+    "task.delete",
+    () => ({}),
     "DIRTY_WORKTREE",
     {
       title: t("menu.removeManyDirtyTitle"),
