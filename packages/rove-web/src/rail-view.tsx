@@ -30,7 +30,7 @@ import { RoundRowView } from "./rail-round-row.tsx"
 import { SearchChip } from "./rail-search.tsx"
 import { railStateRows, rowRepo, withStateCounts } from "./rail-states.ts"
 import { type NavRow, type RowFold, foldProjects, railRows } from "./rail.ts"
-import { type ProjectInfo, projectMenu, taskMenu, ungroupedMenu } from "./row-actions.tsx"
+import { type ProjectInfo, projectMenu, rowSwipe, taskMenu, ungroupedMenu } from "./row-actions.tsx"
 import { useRowTip } from "./row-tip.tsx"
 import { RowTokens } from "./row-tokens.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
@@ -63,6 +63,7 @@ import { RefreshRoveButton } from "./ui/refresh-rove-button.tsx"
 import { CHIPS, ROW_TITLE_RAIL, ROW_TITLE_RUNNING, rowClass } from "./ui/row.ts"
 import { BRACKET, HEAD_CHIP, WORDMARK } from "./ui/shell.ts"
 import { StatusDots } from "./ui/status-dots.tsx"
+import { type SwipeAction, SwipeRow } from "./ui/swipe-row.tsx"
 import { UpdateChip } from "./update-view.tsx"
 import { WelcomePane } from "./welcome-view.tsx"
 
@@ -232,6 +233,11 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
               stale={row.machine !== undefined && offline.has(row.machine)}
               collapsed={(row.kind === "project" || row.kind === "state") && filters.collapsed.has(row.id)}
               drag={drag.props(row)}
+              swipe={
+                narrow && row.kind === "task" && row.machine === undefined && !row.task.archived
+                  ? rowSwipe(model, row.task)
+                  : undefined
+              }
               dragging={dragging === row.id}
               place={place(row)}
               onNewTask={
@@ -332,6 +338,8 @@ function RailRow(props: {
   /** A folded task: the most urgent state of it and its hidden descendants, drawn in its one status mark. */
   rollup?: RowStatus | undefined
   onToggleFold: () => void
+  /** A phone's swipe actions on a task row. */
+  swipe?: { left: SwipeAction; right: SwipeAction }
 }) {
   const { row } = props
   const tip = useRowTip(row.kind === "task" ? row.task.label : "", props.cursor && row.kind === "task")
@@ -365,7 +373,7 @@ function RailRow(props: {
   const markStyle = useStatusMarkStyle()
   const byEngine = markStyle === "engine"
   const status = row.fold?.collapsed ? props.rollup : task.rowStatus
-  return (
+  const button = (
     <button
       type="button"
       ref={tip.ref}
@@ -424,6 +432,13 @@ function RailRow(props: {
         {!byEngine && <StatusDots status={status} />}
       </span>
     </button>
+  )
+  return props.swipe ? (
+    <SwipeRow left={props.swipe.left} right={props.swipe.right} ground="paper">
+      {button}
+    </SwipeRow>
+  ) : (
+    button
   )
 }
 

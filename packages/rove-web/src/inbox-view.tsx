@@ -5,16 +5,15 @@
  */
 
 import { useEffect, useState } from "react"
-import type { AttentionRow, TaskRow } from "rove-bridge/protocol"
 import { DialogShell } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
-import { dismissEpisode, openRoutineEpisode } from "./inbox-open.ts"
-import { InboxPeek, type PeekMode } from "./inbox-peek.tsx"
-import { compactAge, inboxBadge, isRoutineState, sortAttention } from "./inbox.ts"
-import type { AppModel, Visit } from "./model.ts"
-import { repoLabel } from "./rail-labels.ts"
-import { useStore } from "./store.ts"
-import { closeDialog } from "./ui.ts"
+import { type Card, useInbox } from "./inbox-data.ts"
+import { dismissEpisode } from "./inbox-open.ts"
+import { InboxPeek } from "./inbox-peek.tsx"
+import { InboxSheet } from "./inbox-sheet.tsx"
+import { compactAge, inboxBadge } from "./inbox.ts"
+import { useNarrow } from "./layout.ts"
+import type { AppModel } from "./model.ts"
 import { Button } from "./ui/button.tsx"
 import { Legend } from "./ui/legend.tsx"
 import {
@@ -35,82 +34,17 @@ import { ROW_TITLE, rowClass } from "./ui/row.ts"
 import { KICKER } from "./ui/text.ts"
 import { TONE_CLASS } from "./ui/tone.ts"
 
-interface Card {
-  readonly key: string
-  readonly section: "attention" | "recent"
-  readonly taskId: string | null
-  readonly tabId: string | null
-  readonly identity: string
-  readonly subtitle: string
-  readonly at: number
-  readonly attention?: AttentionRow
-}
-
-const RECENT_MAX = 6
-
-function identityOf(task: TaskRow | undefined, fallback: string): string {
-  if (!task) return fallback
-  const project = repoLabel(task.repo)
-  return `${project} › ${task.label}`
-}
-
+/** A phone gets its own sheet (inbox-sheet.tsx); the rows and what they do are shared (inbox-data.ts). */
 export function InboxDialog({ model }: { model: AppModel }) {
+  return useNarrow() ? <InboxSheet model={model} /> : <InboxDesk model={model} />
+}
+
+function InboxDesk({ model }: { model: AppModel }) {
   useLocale()
-  const payload = useStore(model.tasks)
-  const visits = useStore(model.visits)
-  const tabs = useStore(model.tabs)
+  const { attention, recent, cards, now, open, ackAll, peekOf } = useInbox(model)
   const [index, setIndex] = useState(0)
   const [peeked, setPeeked] = useState<string | null>(null)
-  const [now, setNow] = useState(Date.now())
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 30_000)
-    return () => window.clearInterval(timer)
-  }, [])
-
-  const tasks = new Map((payload?.tasks ?? []).map((task) => [task.id, task]))
-  const tabTitle = (taskId: string | null, tabId: string | null) =>
-    (taskId && tabId && tabs[taskId]?.find((tab) => tab.id === tabId)?.title) || ""
-  const attention: Card[] = sortAttention(payload?.attention ?? [], payload?.tasks.map((task) => task.id) ?? []).map(
-    (row, i) => {
-      const task = row.taskId ? tasks.get(row.taskId) : undefined
-      return {
-        key: `a${i}:${row.taskId}:${row.tabId}`,
-        section: "attention",
-        taskId: row.taskId,
-        tabId: row.tabId,
-        identity: identityOf(task, row.label ?? row.taskId ?? ""),
-        subtitle: tabTitle(row.taskId, row.tabId) || task?.branch || "",
-        at: row.at,
-        attention: row,
-      }
-    },
-  )
-  const pending = new Set(attention.map((c) => `${c.taskId}:${c.tabId}`))
-  const recent: Card[] = visits
-    .filter((v: Visit) => tasks.has(v.taskId) && !pending.has(`${v.taskId}:${v.tabId}`))
-    .slice(0, RECENT_MAX)
-    .map((v) => ({
-      key: `r:${v.taskId}:${v.tabId}`,
-      section: "recent",
-      taskId: v.taskId,
-      tabId: v.tabId,
-      identity: identityOf(tasks.get(v.taskId), v.taskId),
-      subtitle: tabTitle(v.taskId, v.tabId) || tasks.get(v.taskId)?.branch || "",
-      at: v.at,
-    }))
-  const cards = [...attention, ...recent]
   const current = cards[Math.min(index, cards.length - 1)]
-
-  const open = (card: Card) => {
-    if (card.attention && isRoutineState(card.attention.state)) return openRoutineEpisode(model, card.attention)
-    if (card.attention) void dismissEpisode(model, card.attention)
-    if (card.taskId && tasks.has(card.taskId)) {
-      model.select(card.taskId, card.tabId)
-      closeDialog()
-    }
-  }
-  const ackAll = () =>
-    void Promise.all(attention.map((card) => card.attention && dismissEpisode(model, card.attention, true)))
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -131,18 +65,8 @@ export function InboxDialog({ model }: { model: AppModel }) {
   const renderCard = (card: Card) => {
     const badge = card.attention ? inboxBadge(card.attention.state) : null
     const active = card === current
-    const row = card.attention
-    const task = card.taskId ? tasks.get(card.taskId) : undefined
-    // Another machine's rows are read-only here, as in the terminal composer.
-    const gate = row?.gateId ? payload?.gates?.find((g) => g.id === row.gateId && g.status === "open") : undefined
-    const peekTab = card.tabId ?? gate?.tabId ?? null
-    const peekable =
-      !!row && !!task && !task.machine && !isRoutineState(row.state) && (!row.gateId || !!gate) && (!!peekTab || !!gate)
-    const atMenu =
-      row?.state === "permission_needed" || (!!peekTab && task?.tabStatus?.[peekTab]?.kind === "needs-input")
-    const mode: PeekMode = gate ? "gate" : row?.state === "dead" ? "readonly" : atMenu ? "menu" : "reply"
-    const peekId = `${card.taskId}:${card.tabId}:${row?.gateId ?? ""}`
-    const peeking = peekable && peeked === peekId
+    const peek = peekOf(card)
+    const peeking = !!peek && peeked === peek.id
     return (
       <li key={card.key}>
         <div className={INBOX_CARD}>
@@ -163,13 +87,13 @@ export function InboxDialog({ model }: { model: AppModel }) {
             </span>
             {card.subtitle && <span className={INBOX_SUB}>{card.subtitle}</span>}
           </button>
-          {peekable ? (
+          {peek ? (
             <Button
               className={INBOX_PEEK_TOGGLE}
               aria-expanded={peeking}
               onClick={() => {
                 setIndex(cards.indexOf(card))
-                setPeeked(peeking ? null : peekId)
+                setPeeked(peeking ? null : peek.id)
               }}
             >
               {peeking ? t("inbox.hide") : t("inbox.reply")}
@@ -183,9 +107,9 @@ export function InboxDialog({ model }: { model: AppModel }) {
           <InboxPeek
             model={model}
             taskId={card.taskId}
-            tabId={peekTab}
-            mode={mode}
-            gate={gate}
+            tabId={peek.tabId}
+            mode={peek.mode}
+            gate={peek.gate}
             onOpenTab={() => open(card)}
           />
         )}

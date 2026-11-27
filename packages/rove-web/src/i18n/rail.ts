@@ -46,6 +46,15 @@ export const en = {
     outputUnreadable: "couldn't read this tab's output",
     replyPlaceholder: "reply to this session",
     gateKept: "Saved; the engine isn't running and will get it with its next message.",
+    /** The phone's sheet: sentence case, as its other screens. */
+    phone: {
+      title: "Inbox",
+      empty: "Nothing needs you right now.",
+      ackAll: "Ack all",
+      ack: "Ack",
+      open: "Open",
+      reply: "Reply",
+    },
     state: {
       done: "done",
       needsInput: "needs input",
@@ -102,6 +111,14 @@ export const zh: typeof en = {
     outputUnreadable: "读不到这个标签页的输出",
     replyPlaceholder: "回复这个会话",
     gateKept: "已记下；引擎没在运行，下次发消息时一并送达。",
+    phone: {
+      title: "收件箱",
+      empty: "现在没有需要你处理的。",
+      ackAll: "全部已阅",
+      ack: "已阅",
+      open: "打开",
+      reply: "回复",
+    },
     state: {
       done: "完成",
       needsInput: "需要输入",

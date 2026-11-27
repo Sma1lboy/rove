@@ -3,7 +3,7 @@
  * no `narrow:` variants. Glass and the rounded-square buttons are `glass.ts` and `nav-button.tsx`; sheets `sheet.tsx`.
  */
 
-import type { ReactNode } from "react"
+import type { MouseEvent, ReactNode } from "react"
 import { GlassButton, NavButton, PlusGlyph } from "./nav-button.tsx"
 
 const BAR = {
@@ -88,5 +88,32 @@ export function BottomBar(props: {
         </GlassButton>
       )}
     </div>
+  )
+}
+
+/**
+ * A phone list's two-line row, at least 52px: the title and a short trailing part (a status, an age) on the first
+ * line, a muted line under them. The whole row is one target; a long press opens its menu (`onContextMenu`).
+ */
+export function PhoneListRow(props: {
+  title: string
+  trailing?: ReactNode
+  subtitle?: string
+  onClick: () => void
+  onContextMenu?: (e: MouseEvent<HTMLButtonElement>) => void
+}) {
+  return (
+    <button
+      type="button"
+      className="flex min-h-13 w-full flex-col justify-center gap-0.5 px-3 py-2 text-left active:bg-hover focus-visible:bg-hover focus-visible:outline-none"
+      onClick={props.onClick}
+      onContextMenu={props.onContextMenu}
+    >
+      <span className="flex w-full min-w-0 items-baseline gap-2">
+        <span className="min-w-0 flex-1 truncate font-sans text-body text-ink">{props.title}</span>
+        {props.trailing}
+      </span>
+      {props.subtitle && <span className="w-full truncate font-sans text-meta text-muted">{props.subtitle}</span>}
+    </button>
   )
 }

@@ -30,6 +30,7 @@ import {
 import { FieldNotesDialog, RunAgainDialog } from "./taskops-dialogs.tsx"
 import { tc } from "./tui-copy.ts"
 import { type MenuItem, dialog, openNewSessionFrom, toast } from "./ui.ts"
+import type { SwipeAction } from "./ui/swipe-row.tsx"
 import { prefixHint } from "./user-keys.ts"
 
 const STATUSES = ["backlog", "in_progress", "in_review", "done", "canceled", "error"] as const
@@ -144,6 +145,19 @@ function moveToProjectDialog(model: AppModel, task: TaskRow, saved: readonly str
       }}
     />
   )
+}
+
+/** A phone's swipes on a session row, the long-press menu's two most-used entries: left archives, right pins. */
+export function rowSwipe(model: AppModel, task: TaskRow): { left: SwipeAction; right: SwipeAction } {
+  return {
+    left: { label: tc("tasks", "menu.archive"), tone: "neutral", run: () => void archiveFlow(model, task) },
+    right: {
+      label: task.pinned ? t("menu.unpin") : t("menu.pin"),
+      tone: "accent",
+      run: () =>
+        void model.act("task.pin", { taskId: task.id, pinned: !task.pinned }).catch((e) => toast(String(e), "error")),
+    },
+  }
 }
 
 export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): MenuItem[] {
