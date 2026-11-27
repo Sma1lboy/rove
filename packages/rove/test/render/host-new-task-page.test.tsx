@@ -115,3 +115,27 @@ test("the global New task opens on No folder and starts a no-folder session with
   mockInput.pressEnter()
   expect(await openCall).toEqual({ dir: homedir(), scratch: true, vendor: expect.any(String) })
 })
+
+test("a project's + pressed while the New task page is open moves the page to that project", async () => {
+  const { frame, mockMouse } = await renderComponent(<WorkspaceRoot orchestrator={orchestrator} />, {
+    width: 120,
+    height: 40,
+    providers: { kv: true, focus: true, dialog: true, notifications: true },
+  })
+  const before = await waitForFrameText(frame, "Fix the flaky login · running")
+  const lines = before.split("\n")
+  const header = lines.findIndex((line) => /^\s*repo\b/.test(line))
+  await mockMouse.click(
+    3,
+    lines.findIndex((line) => line.includes("New task")),
+  )
+  await waitForFrameText(frame, "No folder")
+  // The header's + shows under the pointer.
+  await mockMouse.moveTo(4, header)
+  const hovered = await waitForFrameText(frame, "repo v")
+  const plus = hovered.split("\n")[header]?.indexOf("+") ?? -1
+  expect(plus).toBeGreaterThan(0)
+  await mockMouse.click(plus, header)
+  const moved = await waitForFrameText(frame, "Describe a task")
+  expect(moved).not.toContain("No folder")
+})
