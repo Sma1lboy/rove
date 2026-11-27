@@ -1,22 +1,27 @@
 /** A stacked task's page starts with its chain: `main ← [ #1 ✓ ] ← [ #2 ] ← [ #3 ]`, click to switch, land the bottom link. */
 
 import { t, useLocale } from "./i18n/index.ts"
+import { useNarrow } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { bottomUnmerged, isMerged, stackOf } from "./stack-data.ts"
 import { useStore } from "./store.ts"
 import { landFlow } from "./task-flows.tsx"
 import { Button } from "./ui/button.tsx"
 import { ATTEMPTS_STRIP } from "./ui/compare.ts"
+import { PhoneStackLine } from "./ui/phone-stack-line.tsx"
 import { StatusDots } from "./ui/status-dots.tsx"
 
 export function StackStrip({ model, taskId }: { model: AppModel; taskId: string }) {
   useLocale()
+  const narrow = useNarrow()
   const payload = useStore(model.tasks)
   const rows = payload?.tasks ?? []
   const row = rows.find((r) => r.id === taskId)
   const stack = row ? stackOf(rows, row) : null
   if (!stack) return null
   const bottom = bottomUnmerged(stack)
+  const land = bottom && !bottom.machine ? () => void landFlow(model, bottom) : undefined
+  if (narrow) return <PhoneStackLine stack={stack} taskId={taskId} onSelect={(id) => model.select(id)} onLand={land} />
   return (
     <nav className={ATTEMPTS_STRIP} aria-label={t("compare.stackLabel")}>
       {stack.base && <span className="text-subtle">{stack.base} ←</span>}
