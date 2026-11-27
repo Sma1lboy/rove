@@ -53,12 +53,14 @@ export function PhoneTitle({ children }: { children: ReactNode }) {
   )
 }
 
-/** iOS's grouped list: an optional caption, then the group's rows on one rounded card, a hairline between them. */
-export function PhoneGroup({ label, children }: { label?: string; children: ReactNode }) {
+/** iOS's grouped list: an optional caption, then the group's rows on one rounded card, a hairline between them. `inset` is the card's ground on a sheet, which is already the surface. */
+export function PhoneGroup({ label, inset, children }: { label?: string; inset?: boolean; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
       {label && <p className="m-0 px-3 pb-0 font-mono text-meta font-normal text-subtle">{label}</p>}
-      <div className="flex flex-col overflow-hidden rounded-[12px] bg-surface [&>*+*]:[border-top:var(--hairline)_solid_var(--line)]">
+      <div
+        className={`flex flex-col overflow-hidden rounded-[12px] [&>*+*]:[border-top:var(--hairline)_solid_var(--line)] ${inset ? "bg-inset" : "bg-surface"}`}
+      >
         {children}
       </div>
     </div>
@@ -74,8 +76,50 @@ export const PHONE_ROW =
  * controls bottom left (one glass capsule); `wide` is the screen's one action, a bar filling the rest of the row.
  * The content scrolls under it.
  */
+export interface PhoneAction {
+  readonly label: string
+  /** The screen's main action is the accent; the rest are glass. */
+  readonly tone?: "accent"
+  /** A square that shows this instead of its label (⋯). */
+  readonly glyph?: ReactNode
+  readonly disabled?: boolean
+  readonly onClick: () => void
+}
+
+/** A foot's named actions, each the bar's height and shape, the label centred: the accent one last. */
+export function PhoneActions({ actions }: { actions: readonly PhoneAction[] }) {
+  return (
+    <div className="pointer-events-auto flex min-w-0 flex-1 items-center gap-2.5" data-phone-actions>
+      {actions.map((action) => (
+        <button
+          key={action.label}
+          type="button"
+          disabled={action.disabled}
+          aria-label={action.glyph ? action.label : undefined}
+          className={`grid h-13 cursor-pointer place-items-center px-3 font-sans text-body font-semibold disabled:opacity-50 ${SQUARE_BAR} ${PRESS} ${action.glyph ? "w-13 flex-none" : "min-w-0 flex-1"} ${action.tone === "accent" ? "bg-accent text-paper shadow-popover" : `${glass()} text-ink`}`}
+          onClick={action.onClick}
+        >
+          {action.glyph ?? <span className="max-w-full truncate">{action.label}</span>}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/** A fact in a `PhoneGroup`: its name, then its value at the right edge (two lines at most). */
+export function PhoneFact({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex min-h-13 items-center gap-4 px-3 py-2 font-sans text-body">
+      <span className="flex-none text-muted">{label}</span>
+      <span className="ml-auto line-clamp-2 min-w-0 text-right wrap-anywhere text-ink">{children}</span>
+    </div>
+  )
+}
+
 export function BottomBar(props: {
   children?: ReactNode
+  /** Named actions in place of the + bar (Update). */
+  actions?: readonly PhoneAction[]
   /** The screen's one action: a glass bar filling the row, its name after an accent +, `note` at its end. */
   wide?: { label: string; note?: string; onClick: () => void }
 }) {
@@ -86,6 +130,7 @@ export function BottomBar(props: {
       data-bottom-bar
     >
       {props.children}
+      {props.actions && <PhoneActions actions={props.actions} />}
       {props.wide && (
         <button
           type="button"
@@ -143,21 +188,21 @@ export function PhonePage(props: {
   title: string
   note?: ReactNode
   primary?: { label: string; onClick: () => void }
-  /** Actions that stay at the foot instead of a +: Update's buttons. */
-  foot?: ReactNode
+  /** Named actions at the foot instead of a +: Update's button. */
+  actions?: readonly PhoneAction[]
   rootRef?: Ref<HTMLDivElement>
   children: ReactNode
 }) {
   return (
     <div ref={props.rootRef} tabIndex={-1} className="relative flex min-h-0 flex-1 flex-col focus:outline-none">
-      <div className={`${PHONE_LIST} ${props.primary ? "pb-20" : ""}`}>
+      <div className={`${PHONE_LIST} ${props.primary || props.actions ? "pb-20" : ""}`}>
         <div className="flex flex-col gap-1">
           <PhoneTitle>{props.title}</PhoneTitle>
           {props.note && <p className="m-0 font-sans text-meta text-muted">{props.note}</p>}
         </div>
         {props.children}
       </div>
-      {props.foot && <div className="flex-none px-4 pt-2 pb-3">{props.foot}</div>}
+      {props.actions && <BottomBar actions={props.actions} />}
       {props.primary && <BottomBar wide={props.primary} />}
     </div>
   )
