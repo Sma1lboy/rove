@@ -1,8 +1,8 @@
 /**
  * The one dictation button. Bracket text like every other composer control, never a floating
  * action: `Say` → `Stop 0:03` → `Hearing…`. Two ways to talk: tap to start and tap again to stop, or
- * hold it and let go. Either hands the transcript to `onText`; only a hold slid up past `SEND_PX`
- * hands it to `onSend` instead, and only where the caller passes one.
+ * hold it and let go. Either hands the transcript to `onText`, except that where the caller passes `onSend`,
+ * a hold let go in place sends it; slid up past `SLIDE_PX` first, it goes to `onText` to be edited.
  */
 
 import { type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react"
@@ -16,8 +16,8 @@ import { Dictation, type DictationPhase, type DictationResult, type DictationSco
 const clock = (seconds: number) => `0:${String(Math.floor(seconds)).padStart(2, "0")}`
 /** A press held this long is a hold, not a tap. */
 const HOLD_MS = 300
-/** How far up a held press slides before letting go sends. */
-const SEND_PX = 48
+/** How far up a held press slides before letting go edits instead of sending. */
+const SLIDE_PX = 48
 /** A short tick where the platform has one (Android); iOS Safari has no vibration. */
 const tick = () => navigator.vibrate?.(8)
 
@@ -38,7 +38,7 @@ export interface DictationFace {
   readonly level: number
   /** Recording because the button is held, not tapped: letting go stops it. */
   readonly held: boolean
-  /** Held and slid up: letting go sends. */
+  /** Held and slid up: letting go puts the text in the field instead of sending it. */
   readonly armed: boolean
   /** A held take's text so far, from a local recognizer; empty otherwise. */
   readonly partial: string
@@ -99,12 +99,12 @@ export function DictationButton(props: {
   /** Read at stop, not at mount: the draft and the conversation as they are when the take ends. */
   readonly context: () => DictationScope
   readonly onText: (text: string) => void
-  /** Where a hold slid up sends the transcript; without it the slide does nothing. */
+  /** Where a hold let go in place sends the transcript (slid up, it goes to `onText`); without it the slide does nothing. */
   readonly onSend?: (text: string) => void
   /** A press too short to be a hold. Without it a tap starts a take and the next tap stops it. */
   readonly onTap?: () => void
   readonly disabled?: boolean
-  /** The box, by recording state and whether a hold is slid up to send; defaults to a composer-bar chip. */
+  /** The box, by recording state and whether a hold is slid up to edit; defaults to a composer-bar chip. */
   readonly look?: (recording: boolean, armed: boolean) => string
   /** The idle label (the accessible name when `face` draws the inside); defaults to `Say`. */
   readonly idle?: string
@@ -132,6 +132,7 @@ export function DictationButton(props: {
   )
 
   const deliver = (result: DictationResult | null, send: boolean) => {
+    // `send`: a hold let go where it was pressed; a tap or a hold slid up is to edit.
     if (!result?.text) return
     const { onSend, onText } = latest.current
     if (send && onSend) onSend(result.text)
@@ -158,7 +159,7 @@ export function DictationButton(props: {
   const move = (e: PointerEvent<HTMLButtonElement>) => {
     const p = press.current
     if (!p?.held || !latest.current.onSend) return
-    const armed = p.y - e.clientY > SEND_PX
+    const armed = p.y - e.clientY > SLIDE_PX
     if (armed === p.armed) return
     p.armed = armed
     setHold({ armed })
@@ -174,7 +175,7 @@ export function DictationButton(props: {
     if (!p.held) return latest.current.onTap ? undefined : toggle()
     setHold(null)
     await p.started
-    deliver((await dictation.current?.stop()) ?? null, p.armed)
+    deliver((await dictation.current?.stop()) ?? null, !p.armed)
   }
   const cancel = async () => {
     const p = press.current

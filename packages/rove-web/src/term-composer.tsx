@@ -156,8 +156,8 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
                   state={state}
                   idle={t("voice.holdOrType")}
                   working={t("voice.working")}
-                  slide={t("voice.slideToSend")}
-                  release={t("voice.tipSend")}
+                  slide={t("voice.slideToEdit")}
+                  release={t("voice.tipEdit")}
                 />
               )}
             />

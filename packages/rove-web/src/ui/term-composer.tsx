@@ -201,14 +201,14 @@ function HoldBubble({ bubble, leaving }: { bubble: Bubble; leaving: boolean }) {
 const FACE = "flex min-w-0 flex-1 items-center gap-2.5 motion-safe:animate-fade-in"
 
 /**
- * Inside the hold control. At rest, the label. Held where a slide sends: the level dot, the time, and where to
+ * Inside the hold control. At rest, the label. Held where letting go sends: the level dot, the time, and where to
  * slide; the voice itself is in the bubble above. Elsewhere the take's waveform (or its words) sits in the control.
  */
 export function HoldFace(props: {
   state: DictationFace
   idle: string
   working: string
-  /** Where to slide and what letting go there does; left out where a take is never sent from the hold. */
+  /** Where to slide to edit instead of sending, and what letting go there does; left out where a hold never sends. */
   slide?: string
   release?: string
 }) {

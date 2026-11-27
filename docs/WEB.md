@@ -144,8 +144,9 @@ has it yet.
 
 Typing on a phone is the worst part of driving a session from one, so the composers have a mic (and,
 on a phone, hold-to-talk). The page records 16 kHz mono PCM and the op `voice.transcribe` hands it to
-a sidecar on this machine together with the conversation it is dictated into; the transcript is
-inserted at the caret and sent only when you slide up to send.
+a sidecar on this machine together with the conversation it is dictated into. A tap on the mic inserts
+the transcript at the caret. On a phone, letting go of hold-to-talk sends it at once, as WeChat does;
+slide up before letting go to put it in the field instead and edit it first.
 
 Nothing in Rove bundles a model, and the mic stays hidden until dictation is set up. **Settings →
 Voice** does it from the page with one choice, **Dictation**:
