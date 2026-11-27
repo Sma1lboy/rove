@@ -103,6 +103,7 @@ export const en = {
     termKeyRight: "Right arrow",
     termKeyInterrupt: "Ctrl+C, interrupt",
     termKeyEnter: "Enter",
+    termKeyMore: "More keys",
     narrowTerminal: "Terminal",
   },
 }
@@ -210,6 +211,7 @@ export const zh: typeof en = {
     termKeyRight: "右方向键",
     termKeyInterrupt: "Ctrl+C 中断",
     termKeyEnter: "回车",
+    termKeyMore: "更多按键",
     narrowTerminal: "终端",
   },
 }

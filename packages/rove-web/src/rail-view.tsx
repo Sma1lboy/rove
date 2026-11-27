@@ -45,6 +45,7 @@ import { type MenuItem, dialog, menu, page, tuckRare } from "./ui.ts"
 import { Chevron } from "./ui/chevron.tsx"
 import { EngineIcon, type EngineIconData } from "./ui/engine-icon.tsx"
 import { Legend } from "./ui/legend.tsx"
+import { CountBadge, GlassButton, TrayGlyph } from "./ui/nav-button.tsx"
 import { INBOX_CHIP } from "./ui/overlay.ts"
 import { GroupActions } from "./ui/project-actions.tsx"
 import {
@@ -151,16 +152,28 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         <span className={`${WORDMARK} mr-auto`}>
           <span className={BRACKET}>[</span> rove <span className={BRACKET}>]</span>
         </span>
-        <span className="relative">
-          <button
-            type="button"
-            className={`m-0 text-meta font-medium normal-nums inbox-chip relative ${INBOX_CHIP} ${HEAD_CHIP} ${unread > 0 ? "text-accent" : "text-muted"}`}
+        {narrow ? (
+          <GlassButton
+            size="nav"
+            kind="inbox"
+            label={t("rail.inbox", { count: unread })}
             onClick={() => dialog.set(<InboxDialog model={model} />)}
           >
-            {t("rail.inbox", { count: unread })}
-          </button>
-          <ShortcutBadge model={model} bindingId="inbox.show" head />
-        </span>
+            <TrayGlyph />
+            {unread > 0 && <CountBadge count={unread} />}
+          </GlassButton>
+        ) : (
+          <span className="relative">
+            <button
+              type="button"
+              className={`m-0 text-meta font-medium normal-nums inbox-chip relative ${INBOX_CHIP} ${HEAD_CHIP} ${unread > 0 ? "text-accent" : "text-muted"}`}
+              onClick={() => dialog.set(<InboxDialog model={model} />)}
+            >
+              {t("rail.inbox", { count: unread })}
+            </button>
+            <ShortcutBadge model={model} bindingId="inbox.show" head />
+          </span>
+        )}
         <UpdateChip />
         <RefreshRoveButton client={model.client} railBar={!narrow} />
       </header>

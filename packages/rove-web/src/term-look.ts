@@ -1,4 +1,17 @@
-/** How a web terminal looks: the default theme and the font stack. */
+/** How a web terminal looks: the default theme, the font stack and the font size. */
+
+import type { Terminal } from "@xterm/xterm"
+import { isNarrow, onNarrowChange } from "./layout.ts"
+
+/** The phone layout reads a step larger: 45 columns on a 390px screen. */
+export const termFontSize = (): number => (isNarrow() ? 14 : 13)
+
+/** Keeps a mounted terminal's size in step as the viewport crosses into or out of the phone layout. */
+export const followFontSize = (term: Terminal, refit: () => void): (() => void) =>
+  onNarrowChange(() => {
+    term.options.fontSize = termFontSize()
+    refit()
+  })
 
 /** The TUI's default `claude` theme, dark (`tui/context/theme/claude.json`). */
 export const XTERM_THEME = {

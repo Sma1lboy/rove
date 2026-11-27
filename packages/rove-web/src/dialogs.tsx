@@ -9,7 +9,8 @@ import { t, useLocale } from "./i18n/index.ts"
 import { closeDialog } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
 import { CHOICES, TEXTAREA } from "./ui/form.ts"
-import { DIALOG_BODY, DIALOG_CLOSE, DIALOG_HEAD, DIALOG_TITLE, OVERLAY, dialogClass } from "./ui/overlay.ts"
+import { DialogClose } from "./ui/nav-button.tsx"
+import { DIALOG_BODY, DIALOG_HEAD, DIALOG_TITLE, OVERLAY, dialogClass } from "./ui/overlay.ts"
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { ACTIONS, INPUT, LINK } from "./ui/text.ts"
 
@@ -37,15 +38,7 @@ export function DialogShell(props: { title: string; children: ReactNode; wide?: 
       <dialog ref={ref} tabIndex={-1} open className={dialogClass(props.wide)} aria-label={props.title}>
         <div className={DIALOG_HEAD}>
           <h1 className={DIALOG_TITLE}>{props.title}</h1>
-          <button
-            type="button"
-            className={DIALOG_CLOSE}
-            aria-label={t("dialog.close")}
-            title={t("dialog.close")}
-            onClick={closeDialog}
-          >
-            ×
-          </button>
+          <DialogClose onClick={closeDialog} />
         </div>
         {props.children}
       </dialog>

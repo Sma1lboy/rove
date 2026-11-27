@@ -23,7 +23,7 @@ Object.defineProperty(globalThis, "localStorage", {
 Object.defineProperty(globalThis, "window", {
   configurable: true,
   writable: true,
-  value: { innerWidth: 1440, matchMedia: () => ({ matches: false, addEventListener() {} }) },
+  value: { innerWidth: 1440, matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }) },
 })
 const { closePanelColumn, launchPanel, openFile, panelShown } = await import("../src/panel-state.ts")
 

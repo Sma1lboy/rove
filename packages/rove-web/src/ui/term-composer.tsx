@@ -9,55 +9,54 @@ import {
   useState,
 } from "react"
 import type { DictationFace } from "../voice/dictation-button.tsx"
+import { PRESS, glass } from "./glass.ts"
 
 /**
  * The bar under an engine terminal on a touch screen. Talking comes first: with no draft it is attach, one wide
  * control that is held to talk and tapped to type, and Send (greyed until a file is attached); a draft, or the tap, turns it into attach, a message field with
- * the mic inside it, and Send. One filled control per row: the side keys are bare glyphs on 44px hit areas. Its height never
+ * the mic inside it, and Send. Its controls are glass (glass.ts) on the pane's own ground, with no bar drawn behind them. Its height never
  * changes (a long message scrolls inside the field; attachment chips float above it, over the terminal's last
- * rows), so the terminal is fitted once and never reflows while you compose. 16px text: iOS zooms the page into
- * any smaller field it focuses.
+ * rows), so the terminal is fitted once and never reflows while you compose. Display-size text: iOS zooms the page into
+ * any field under 16px it focuses.
  */
-const BAR = "relative hidden [border-top:var(--hairline)_solid_var(--line)] bg-surface px-3 pt-2.5 pb-3.5 touch:flex"
+const BAR = "relative hidden px-3 pt-2 pb-3 touch:flex"
 const CHIPS = "absolute inset-x-3 bottom-full z-5 mb-1"
 const SUGGEST = "absolute inset-x-3 bottom-full z-6 mb-1"
-const ROW = "flex min-w-0 flex-1 items-center gap-2.5"
+const ROW = "flex min-w-0 flex-1 items-center gap-2"
 /** The field's box: the mic sits inside it, at its right end. */
-const FIELD_BOX =
-  "flex h-11 min-w-0 flex-1 items-center rounded-[12px] border-hairline border-line bg-inset focus-within:border-focus has-[textarea:disabled]:opacity-60"
+const FIELD_BOX = `flex h-11 min-w-0 flex-1 items-center rounded-full ${glass()} focus-within:border-focus has-[textarea:disabled]:opacity-60`
 /** One line as tall as the box: a longer draft scrolls a whole line at a time, so no half line peeks in below. */
 const FIELD =
-  "h-full min-w-0 flex-1 resize-none bg-transparent py-0 pr-3.5 pl-3.5 font-sans text-display leading-[42px] text-ink outline-none [border:0] has-[+button]:pr-0"
-/** A pressed control gives a little under the finger; no motion when the system asks for none. */
-const PRESS =
-  "transition-transform duration-100 active:scale-94 motion-reduce:transition-none motion-reduce:active:scale-none"
+  "h-full min-w-0 flex-1 resize-none bg-transparent py-0 pr-4 pl-4 font-sans text-display leading-[42px] text-ink outline-none [border:0] has-[+button]:pr-0"
 /** The hold control stays pressed for the whole take: it gives less, or the row would look shrunk. */
 const PRESS_WIDE =
   "transition-[scale,background-color,border-color,color] duration-150 active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-none"
-const SEND = `flex size-11 shrink-0 items-center justify-center rounded-[12px] border-hairline border-accent text-accent touch-manipulation disabled:border-line disabled:text-muted disabled:opacity-60 ${PRESS}`
-const KEY = `flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-[10px] touch-manipulation active:bg-inset disabled:opacity-60 has-[:disabled]:opacity-60 ${PRESS}`
+const ROUND = `flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full touch-manipulation ${PRESS}`
+/** The session's primary action: accent-tinted once there is something to send. */
+const send = (ready: boolean): string =>
+  `${ROUND} ${ready ? `${glass("primary")} text-accent` : `${glass()} text-muted opacity-60`}`
+/** A bare glyph on a 44px hit area: the mic inside the field. */
+const KEY = `${ROUND} active:bg-inset disabled:opacity-60 has-[:disabled]:opacity-60`
 const GLYPH = "size-4.5 flex-none fill-none stroke-current stroke-[1.5] [stroke-linecap:round] [stroke-linejoin:round]"
 
-/**
- * Attach, at the row's left end. Its 44px hit area hangs past the row's edge, so the glyph itself starts on the
- * line the row's other end stops at, and sits as close to the control beside it as to that edge.
- */
-export const composerAttach = (on = false): string => `${KEY} -mr-1.5 -ml-3.25 ${on ? "text-accent" : "text-muted"}`
+/** Attach, at the row's left end. */
+export const composerAttach = (on = false): string =>
+  `${ROUND} ${glass()} disabled:opacity-60 has-[:disabled]:opacity-60 ${on ? "text-accent" : "text-muted"}`
 /** The mic inside the field. */
 export const composerMic = (recording: boolean): string => `${KEY} ${recording ? "text-accent" : "text-muted"}`
 
 /**
- * The voice row's hold-to-talk control: the only filled box in the row, tinted while recording, solid accent once
- * slid up to send. Disabled it greys its text and keeps its opacity: the bubble inside it must stay solid, and above
- * the strip over the terminal.
+ * The voice row's hold-to-talk control: glass at rest, tinted while recording, solid accent once slid up to send.
+ * Disabled it greys its text and keeps its opacity: the bubble inside it must stay solid, and above the strip over
+ * the terminal.
  */
 export const composerHold = (recording: boolean, armed: boolean): string =>
-  `relative z-6 flex h-11 min-w-0 flex-1 items-center gap-2.5 rounded-[12px] border-hairline px-3.5 font-sans touch-manipulation disabled:text-muted ${PRESS_WIDE} ${
+  `relative z-6 flex h-11 min-w-0 flex-1 items-center gap-2.5 rounded-full px-4 font-sans touch-manipulation disabled:text-muted ${PRESS_WIDE} ${
     armed
-      ? "border-accent bg-accent text-paper"
+      ? "border-hairline border-accent bg-accent text-paper"
       : recording
-        ? "border-accent bg-accent-soft text-accent"
-        : "border-line bg-inset text-muted"
+        ? "border-hairline border-accent bg-accent-soft text-accent"
+        : `${glass()} text-muted`
   }`
 
 function Glyph({ d }: { d: string }) {
@@ -78,7 +77,7 @@ export function ClipGlyph() {
 
 export function SendButton(props: { label: string; disabled: boolean }) {
   return (
-    <button type="submit" className={SEND} title={props.label} disabled={props.disabled}>
+    <button type="submit" className={send(!props.disabled)} title={props.label} disabled={props.disabled}>
       <span className="sr-only">{props.label}</span>
       <Glyph d={UP} />
     </button>

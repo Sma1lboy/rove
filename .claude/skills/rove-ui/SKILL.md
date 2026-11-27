@@ -118,7 +118,9 @@ Probe: `viewport-stress` for overflow; the rect snippets above for edges.
 - **The scale is the four tokens in `tailwind.css`:** 12px `--fs-meta` (secondary text, lists, chips,
   hints, buttons), 13px `--fs-body` (body, menu items), 14px `--fs-title` (rail task titles, the
   wordmark, dialog titles), and 16px `--fs-display` (the dialog close glyph, fields on touch). Nothing
-  new below 12px for readable text. Check: `getComputedStyle(el).fontSize`.
+  new below 12px for readable text. The phone layout (under 560px) moves the first three up a step, to 13/15/16px,
+  in one `:root` override; rows there are 44px and the terminal's font 14px (45 columns at 390px). Check:
+  `getComputedStyle(el).fontSize`.
 - **Hierarchy by weight and tone, not new sizes.** Use 700 for the wordmark, 600 for project
   heads (12px, `--subtle`: they label a group, the task rows at 14px read first), 500 for kickers,
   400 elsewhere. Use `--ink` > `--muted` > `--subtle` for importance.
@@ -382,6 +384,10 @@ Machines, Usage). Overlays (dialogs, menus, toasts, the inbox) are recipes in `s
 - **Unknown is not empty:** nothing says "no sessions" before the first tab list arrives.
 - **Scrollbars are thin or hidden:** thin token-coloured pills everywhere, and none on the rail.
 - Hover is a neutral wash; the accent is for selection and focus.
+- **Glass on the phone's session controls, and only there:** the composer bar, the terminal key row and the
+  session bar's view switch use `glass()` (`src/ui/glass.ts`), after iOS's glass buttons. Every back and close in
+  the phone layout is `NavButton` (`src/ui/nav-button.tsx`): a round glass chevron or ×, top left, its old words
+  kept as the label. §9's ban holds everywhere else.
 - **Web ↔ TUI parity** is part of done. A working rove-web change goes onto the owner's live web
   (the 7890 bridge from `rove-local-test`) at once, merged or not, then the owner refreshes:
   `docs/agents/dev-loop.md` § Live web preview. Never cut a release just so the owner can look.

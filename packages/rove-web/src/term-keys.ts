@@ -23,6 +23,20 @@ export const TERM_KEYS: readonly TermKey[] = [
   ENTER,
 ]
 
+/** The row's first page on a phone: six keys wide enough for a thumb. The rest, with the sticky Ctrl, sit behind `⋯`. */
+const FIRST = ["esc", "backtab", "interrupt", "up", "down", "enter"]
+
+/**
+ * The keys on the row's first page and behind `⋯`. At a menu the digits lead and Enter stays; what a key sends
+ * never depends on its page.
+ */
+export function keyPages(atMenu: boolean): { readonly first: readonly TermKey[]; readonly rest: readonly TermKey[] } {
+  const first = atMenu
+    ? [...MENU_KEYS.slice(0, -1), TERM_KEYS[0], ENTER]
+    : TERM_KEYS.filter((key) => FIRST.includes(key.id))
+  return { first, rest: TERM_KEYS.filter((key) => !first.includes(key)) }
+}
+
 const digit = (n: number): TermKey => ({ id: `option-${n}`, cap: String(n), bytes: () => String(n) })
 
 /**

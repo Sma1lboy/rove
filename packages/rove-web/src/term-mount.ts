@@ -21,7 +21,7 @@ import { attachDictationGuard } from "./term-dictation.ts"
 import { OverlayFitAddon } from "./term-fit.ts"
 import { attachKittyImages } from "./term-images.ts"
 import { SHIFT_ENTER, ctrlChord, isCopyChord, isShiftEnter } from "./term-keys.ts"
-import { FONT_FAMILY, XTERM_THEME } from "./term-look.ts"
+import { FONT_FAMILY, XTERM_THEME, followFontSize, termFontSize } from "./term-look.ts"
 import { osc52Text } from "./term-osc52.ts"
 import { createReplyGate } from "./term-replies.ts"
 import { linesFromBottom, viewportAfterWrite } from "./term-scroll.ts"
@@ -77,7 +77,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
   const { client, el, taskId, tabId } = o
   const term = new Terminal({
     fontFamily: FONT_FAMILY,
-    fontSize: 13,
+    fontSize: termFontSize(),
     lineHeight: 1.15,
     theme: terminalTheme.get() ?? XTERM_THEME,
     cursorBlink: true,
@@ -304,6 +304,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
       void attach()
     }
   }
+  const offNarrow = followFontSize(term, refit)
   const observer = new ResizeObserver(refit)
   observer.observe(el)
   const offMoving = layoutMoving.subscribe(refit)
@@ -448,6 +449,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
       disposed = true
       cover.lower()
       observer.disconnect()
+      offNarrow()
       detachWheel()
       detachTouch()
       smooth.dispose()

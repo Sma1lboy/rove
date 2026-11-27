@@ -1,9 +1,9 @@
-/** A touch screen's key row under the terminal: esc, tab, a sticky Ctrl, ^C, the arrows and Enter; at a menu, 1–4 first. */
+/** A touch screen's key row under the terminal: esc, ⇧tab, ^C, up, down and Enter, then `⋯` for a sticky Ctrl, tab, left and right; at a menu, 1–4 first. */
 
 import { useEffect, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
 import type { TermHandle } from "./term-contract.ts"
-import { MENU_KEYS, TERM_KEYS, type TermKey } from "./term-keys.ts"
+import { type TermKey, keyPages } from "./term-keys.ts"
 import { TERM_KEY_ROW, termKey } from "./ui/shell.ts"
 
 /** Keys whose cap is a symbol a screen reader can't say. */
@@ -19,6 +19,7 @@ const KEY_NAMES: Readonly<Record<string, string>> = {
 export function TermKeyRow({ handle, atMenu }: { handle: TermHandle; atMenu: boolean }) {
   useLocale()
   const [ctrl, setCtrl] = useState(false)
+  const [more, setMore] = useState(false)
   useEffect(() => {
     handle.armCtrl(ctrl ? () => setCtrl(false) : null)
   }, [handle, ctrl])
@@ -38,6 +39,7 @@ export function TermKeyRow({ handle, atMenu }: { handle: TermHandle; atMenu: boo
       {k.cap}
     </button>
   )
+  const pages = keyPages(atMenu)
   return (
     <div
       className={`mono ${TERM_KEY_ROW}`}
@@ -46,11 +48,22 @@ export function TermKeyRow({ handle, atMenu }: { handle: TermHandle; atMenu: boo
       // A tap must not take focus from xterm's textarea, or the soft keyboard closes.
       onPointerDown={(e) => e.preventDefault()}
     >
-      {atMenu && MENU_KEYS.map(key)}
-      <button type="button" className={termKey(ctrl)} aria-pressed={ctrl} onClick={() => setCtrl(!ctrl)}>
-        ctrl
+      {more && (
+        <button type="button" className={termKey(ctrl)} aria-pressed={ctrl} onClick={() => setCtrl(!ctrl)}>
+          ctrl
+        </button>
+      )}
+      {(more ? pages.rest : pages.first).map(key)}
+      {/* Lit while Ctrl is latched on the page behind it. */}
+      <button
+        type="button"
+        className={termKey(ctrl && !more)}
+        aria-expanded={more}
+        aria-label={t("layout.termKeyMore")}
+        onClick={() => setMore(!more)}
+      >
+        ⋯
       </button>
-      {TERM_KEYS.filter((k) => !(atMenu && MENU_KEYS.includes(k))).map(key)}
     </div>
   )
 }

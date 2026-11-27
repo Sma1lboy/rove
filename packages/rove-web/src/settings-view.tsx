@@ -29,7 +29,9 @@ import { useStore } from "./store.ts"
 import { closeDialog } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import { Chevron } from "./ui/chevron.tsx"
+import { NavButton } from "./ui/nav-button.tsx"
 import {
+  SETTINGS_BAR,
   SETTINGS_BODY,
   SETTINGS_CLOSE,
   SETTINGS_COLUMN,
@@ -44,7 +46,6 @@ import {
   SETTINGS_OVERLAY,
   SETTINGS_SCROLL,
   SETTINGS_TITLE,
-  settingsBackClass,
   settingsNavItemClass,
   settingsPageClass,
 } from "./ui/settings.ts"
@@ -86,7 +87,7 @@ const sectionName = (id: SettingsSection): string => {
 function SectionList(props: { current: SettingsSection; narrow: boolean; onPick: (id: SettingsSection) => void }) {
   return (
     <nav className={SETTINGS_NAV} aria-label={t("settings.title")}>
-      <h1 className={SETTINGS_NAV_TITLE}>{t("settings.title")}</h1>
+      {!props.narrow && <h1 className={SETTINGS_NAV_TITLE}>{t("settings.title")}</h1>}
       {SECTION_GROUPS.map((group) => (
         <div key={group.id} className={SETTINGS_NAV_GROUP}>
           <p className={SETTINGS_NAV_LABEL}>{t(`settings.groups.${group.id}`)}</p>
@@ -153,9 +154,14 @@ export function SettingsDialog({ model, section: opening }: { model: AppModel; s
         {/* A phone's way out is the top-left back, as on every other page. */}
         {narrow ? (
           showList && (
-            <Button variant="row" className={settingsBackClass(true)} onClick={closeDialog}>
-              {`‹ ${narrowPane.get() === "sidebar" ? workspaceText("narrowBack") : t("dialog.close")}`}
-            </Button>
+            <div className={SETTINGS_BAR}>
+              <NavButton
+                kind="back"
+                label={narrowPane.get() === "sidebar" ? workspaceText("narrowBack") : t("dialog.close")}
+                onClick={closeDialog}
+              />
+              <h1 className={SETTINGS_TITLE}>{t("settings.title")}</h1>
+            </div>
           )
         ) : (
           <Button
@@ -180,14 +186,15 @@ export function SettingsDialog({ model, section: opening }: { model: AppModel; s
         {showSection && (
           <div ref={narrow ? backPanel(back) : undefined} className={settingsPageClass(swiping)}>
             {narrow && (
-              <Button variant="row" className={settingsBackClass(false)} onClick={back}>
-                {`‹ ${t("settings.title")}`}
-              </Button>
+              <div className={SETTINGS_BAR}>
+                <NavButton kind="back" label={t("settings.title")} onClick={back} />
+                <h1 className={SETTINGS_TITLE}>{sectionName(view.section)}</h1>
+              </div>
             )}
             <div key={view.section} className={SETTINGS_SCROLL}>
               <div className={SETTINGS_COLUMN}>
                 <header className={SETTINGS_HEAD}>
-                  <h1 className={SETTINGS_TITLE}>{sectionName(view.section)}</h1>
+                  {!narrow && <h1 className={SETTINGS_TITLE}>{sectionName(view.section)}</h1>}
                   <p className={SETTINGS_DESC}>{t(`settings.pages.${view.section}`)}</p>
                 </header>
                 <div className={SETTINGS_BODY}>{BODY[view.section](model)}</div>

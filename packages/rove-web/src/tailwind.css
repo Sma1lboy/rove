@@ -74,6 +74,16 @@
   }
 }
 
+/* The phone layout (NARROW_QUERY, layout.ts) reads one step larger, near iOS's own sizes. On the root, not `.app`:
+   dialogs and menus sit outside it. */
+@media (max-width: 559px) {
+  :root {
+    --fs-meta: 13px;
+    --fs-body: 15px;
+    --fs-title: 16px;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -505,6 +515,16 @@ button:focus-visible {
 
 /* The phone layout (app.tsx `is-narrow`). */
 @custom-variant narrow (:where(.app.is-narrow) &);
+
+/* Where glass (ui/glass.ts) must be solid: the system asks for less transparency, or the browser cannot blur. */
+@custom-variant opaque {
+  @media (prefers-reduced-transparency: reduce) {
+    @slot;
+  }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    @slot;
+  }
+}
 
 /* The Routines page under 720px of its own width: list and detail stack (ui/routines.ts). */
 @custom-variant rt-narrow (@container (max-width: 720px));
