@@ -42,8 +42,8 @@ plus a day of the owner's corrections. Their SwiftUI / React Native code is not 
 - Fewer, bigger controls beat a full row of small ones: a key row shows ~6 and folds the rest behind `⋯`.
 
 ### 1.5 Glass (iOS 26 look)
-- Only on **controls that float over content**: bottom bars, round icon buttons (back, settings, new), the composer,
-  key rows, view switchers. Never on content, rows or cards.
+- Only on **controls that float over content**: bottom bars, rounded-square icon buttons (back, settings, new; same
+  shape family as Send), the composer, key rows, the session's single view button. Never on content, rows or cards.
 - Controls that belong together share one capsule, not a row of separate bubbles.
 - Primary action = accent-tinted glass; the rest neutral. Solid fill under reduced transparency / no backdrop-filter.
 - Glass needs something behind it: let content scroll under a floating bar instead of giving the bar its own band.
