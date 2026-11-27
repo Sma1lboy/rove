@@ -214,6 +214,22 @@ export function UpdateView({ client }: { client: BridgeClient }) {
     e.preventDefault()
   }
 
+  const [own, setOwn] = useState<ReleaseNotesRangeItem | null>(null)
+  useEffect(() => {
+    if (!phone || !upToDate || !current) return
+    let live = true
+    client
+      .request<{ notes: ReleaseNotesRangeItem | null }>("release.notes", {
+        version: current.replace(/-.*$/, ""),
+        locale: locale.get(),
+      })
+      .then((r) => live && setOwn(r.notes))
+      .catch(() => {})
+    return () => {
+      live = false
+    }
+  }, [client, phone, upToDate, current])
+
   const notesBody = (
     <>
       <p className={`mono ${UPDATE_VERSIONS}`}>
@@ -272,8 +288,24 @@ export function UpdateView({ client }: { client: BridgeClient }) {
   )
   if (phone)
     return (
-      <PhonePage title={t("rail.update")} rootRef={host} foot={actions}>
+      <PhonePage
+        title={t("rail.update")}
+        rootRef={host}
+        actions={[
+          installed
+            ? { label: u.webRestart, tone: "accent", disabled: restarting, onClick: () => activate("restart") }
+            : canUpdate
+              ? {
+                  label: t("pages.phone.updateTo", { version: latest }),
+                  tone: "accent",
+                  onClick: () => activate("update"),
+                }
+              : { label: t("pages.phone.viewNotes"), disabled: !url, onClick: () => activate("release") },
+        ]}
+      >
         {notesBody}
+        {/* Up to date: what the running version brought, the web's and the iPhone's entries first. */}
+        {own && <NotesRange notes={[own]} />}
       </PhonePage>
     )
   return (

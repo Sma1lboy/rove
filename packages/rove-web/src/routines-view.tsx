@@ -36,6 +36,7 @@ import { RoutineComposer } from "./routine-composer.tsx"
 import { RoutineDetail } from "./routine-detail.tsx"
 import { useRoutineRuns } from "./routine-run-log.tsx"
 import { TONE_CLASS, TONE_GLYPH, runTone } from "./routine-runs.tsx"
+import { RoutineSheet } from "./routine-sheet.tsx"
 import { type RoutinesReply, routineNeedsYou, whenText } from "./routines-data.ts"
 import { RoutinesPhoneList } from "./routines-phone.tsx"
 import { useStore } from "./store.ts"
@@ -54,7 +55,6 @@ import {
   rtNameClass,
   rtRowClass,
 } from "./ui/routines.ts"
-import { SHEET_LIST, Sheet } from "./ui/sheet.tsx"
 import { KICKER, LINK } from "./ui/text.ts"
 
 const POLL_MS = 5_000
@@ -342,23 +342,22 @@ export function RoutinesView({ model }: { model: AppModel }) {
           repo,
           listed.flatMap((r) => r.repo ?? []),
         )
-  const detailNode = selected && (
-    <RoutineDetail
-      routine={selected}
-      runs={runs}
-      busy={busy === selected.id}
-      project={repoName(selected.repo)}
-      engine={engineOf(selected)?.full ?? null}
-      targetTitle={selected.target ? titleOf(selected.target.taskId) : undefined}
-      now={now}
-      when={when}
-      openRun={openRun}
-      onRunNow={() => void runNow()}
-      onToggle={() => void toggleEnabled()}
-      onDelete={requestDelete}
-      onChangeEngine={changeEngine}
-    />
-  )
+  const detailProps = selected && {
+    routine: selected,
+    runs: runs,
+    busy: busy === selected.id,
+    project: repoName(selected.repo),
+    engine: engineOf(selected)?.full ?? null,
+    targetTitle: selected.target ? titleOf(selected.target.taskId) : undefined,
+    now: now,
+    when: when,
+    openRun: openRun,
+    onRunNow: () => void runNow(),
+    onToggle: () => void toggleEnabled(),
+    onDelete: requestDelete,
+    onChangeEngine: changeEngine,
+  }
+  const detailNode = detailProps && <RoutineDetail {...detailProps} />
   const cron = (routine: Automation) => describeCronWith(routine.schedule, cronT) ?? routine.schedule
   const body = (
     <>
@@ -457,11 +456,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
         primary={{ label: t("pages.newRoutine"), onClick: () => void createRoutine() }}
       >
         {body}
-        {sheet && selected && (
-          <Sheet label={selected.name} onClose={() => setSheet(false)}>
-            {() => <div className={`${SHEET_LIST} gap-1.5 px-5`}>{detailNode}</div>}
-          </Sheet>
-        )}
+        {sheet && detailProps && <RoutineSheet {...detailProps} onClose={() => setSheet(false)} />}
       </PhonePage>
     )
   return (

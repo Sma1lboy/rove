@@ -45,6 +45,21 @@ export function useRoutineRuns(c: BridgeClient, ids: readonly string[], tick: nu
   return runs
 }
 
+/** A run's status in the page's words; a blocked run names what blocked it. */
+export function useRunStatusText(): (run: AutomationRun) => string {
+  useLocale()
+  const { auto } = useCopy()
+  return (run) => {
+    if (run.status === "skipped_blocked") {
+      const reason = run.blocked?.reason
+      return reason
+        ? fill(t("runLog.blockedRun"), { reason: t(`runLog.blocked.${reason}`) })
+        : t("runLog.outcome.blocked")
+    }
+    return (auto.runStatus as Record<string, string>)[run.status] ?? run.status
+  }
+}
+
 export function RunLog(props: {
   /** The selected routine's runs: the page has one selection, and the log shows it. */
   runs: readonly AutomationRun[]
@@ -56,15 +71,7 @@ export function RunLog(props: {
   const { auto } = useCopy()
   const [outcome, setOutcome] = useState<Outcome | null>(null)
   const shown = filterRuns(props.runs, outcome)
-  const statusText = (run: AutomationRun): string => {
-    if (run.status === "skipped_blocked") {
-      const reason = run.blocked?.reason
-      return reason
-        ? fill(t("runLog.blockedRun"), { reason: t(`runLog.blocked.${reason}`) })
-        : t("runLog.outcome.blocked")
-    }
-    return (auto.runStatus as Record<string, string>)[run.status] ?? run.status
-  }
+  const statusText = useRunStatusText()
   const chip = (label: string, on: boolean, pick: () => void, key: string) => (
     <Button key={key} variant="pill" hit="tight" aria-current={on} className="max-w-40 truncate" onClick={pick}>
       {`[ ${label} ]`}
