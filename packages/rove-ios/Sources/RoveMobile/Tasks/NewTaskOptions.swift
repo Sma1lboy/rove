@@ -45,11 +45,14 @@ struct NewTaskOptions: View {
             .accessibilityIdentifier("optionsToggle")
             if draft.optionsOpen {
                 branchName
-                if !models.isEmpty { modelSection }
-                if !levels.isEmpty { effortSection }
-                countSection
-                agentsSection
-                Hint(text: String(localized: "count or agents, not both. fan-out needs a first prompt."))
+                if !draft.spawn.shell {
+                    startSection
+                    if !models.isEmpty { modelSection }
+                    if !levels.isEmpty { effortSection }
+                    countSection
+                    agentsSection
+                    Hint(text: String(localized: "count or agents, not both. fan-out needs a first prompt."))
+                }
             }
         }
     }
@@ -63,6 +66,27 @@ struct NewTaskOptions: View {
                     .accessibilityIdentifier("branchField")
             }
             .opacity(fanOut ? 0.5 : 1)
+        }
+    }
+
+    /// Now, or Later: the daemon holds the first prompt and creates the task at that time.
+    private var startSection: some View {
+        let later = Binding(get: { draft.spawn.startAt == nil ? "now" : "later" }, set: { pick in
+            draft.spawn.startAt = pick == "later" ? draft.spawn.startAt ?? Date().addingTimeInterval(3600) : nil
+        })
+        return FormSection(label: String(localized: "start"), trailing: fanOut ? String(localized: "single task only") : nil) {
+            ChoiceTiles(options: ["now", "later"], selection: later, label: { $0 == "now" ? String(localized: "now") : String(localized: "later") }, fill: false)
+                .disabled(fanOut)
+                .opacity(fanOut ? 0.5 : 1)
+                .accessibilityIdentifier("startPicker")
+            if let at = draft.spawn.startAt {
+                DatePicker(String(localized: "starts at"), selection: Binding(get: { at }, set: { draft.spawn.startAt = $0 }),
+                           in: Date()..., displayedComponents: [.date, .hourAndMinute])
+                    .font(Theme.mono(14))
+                    .foregroundStyle(Theme.ink)
+                    .tint(Theme.accent)
+                    .accessibilityIdentifier("startAtPicker")
+            }
         }
     }
 

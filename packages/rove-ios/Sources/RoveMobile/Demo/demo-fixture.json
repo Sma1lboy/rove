@@ -1591,6 +1591,16 @@
       }
     ]
   },
+  "pendingStart.list": {
+    "starts": [
+      {
+        "id": "ps-1",
+        "at": { "$in_min": 300 },
+        "title": "rerun the flaky checkout e2e",
+        "repo": "/work/storefront"
+      }
+    ]
+  },
   "routine.list": {
     "automations": [
       {
