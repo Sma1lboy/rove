@@ -31,13 +31,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rove scans the pairing QR code shown by your Mac."
+            "value" : "Rove scans the pairing QR code shown by your computer."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rove 用相机扫描 Mac 上显示的配对二维码。"
+            "value" : "Rove 用相机扫描电脑上显示的配对二维码。"
           }
         }
       }
@@ -48,13 +48,30 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rove connects to the rove-bridge running on your Mac over the local network."
+            "value" : "Rove opens the Rove page served by your computer over the local network."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rove 通过本地网络连接 Mac 上运行的 rove-bridge。"
+            "value" : "Rove 通过本地网络打开电脑提供的 Rove 页面。"
+          }
+        }
+      }
+    },
+    "NSMicrophoneUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rove records your voice while you hold the talk button, to type it into a session."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按住说话按钮时，Rove 录下你的声音并输入到会话里。"
           }
         }
       }

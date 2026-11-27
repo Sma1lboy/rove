@@ -77,6 +77,8 @@ enum Theme {
 
     /// UIKit backdrops that are not themed surfaces (the camera preview).
     static let cameraBackdropUI = UIColor(hex: 0x000000)
+    /// Behind the web shell while rove-web paints its first frame, so a launch doesn't flash white.
+    static let paperUI = UIColor { UIColor(hex: $0.userInterfaceStyle == .dark ? Hex.paperDark : Hex.paperLight) }
 
     static let radius: CGFloat = 8
     static let smallRadius: CGFloat = 6

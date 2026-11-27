@@ -1,7 +1,7 @@
 import Foundation
 import Security
 
-/// Stores the whole pairing (endpoint, token, preset, headers) as one JSON blob in one Keychain item.
+/// One JSON blob in one Keychain item: the native app's pairing, or the web shell's computers (`account`).
 struct KeychainStore {
     var service = "run.rove.mobile"
     var account = "pairing"
@@ -17,6 +17,13 @@ struct KeychainStore {
     @discardableResult
     func save(_ pairing: Pairing) -> Bool {
         guard let data = Self.encode(pairing) else { return false }
+        return saveData(data)
+    }
+
+    func load() -> Pairing? { loadData().flatMap(Self.decode) }
+
+    @discardableResult
+    func saveData(_ data: Data) -> Bool {
         delete()
         var q = query
         q[kSecValueData as String] = data
@@ -24,13 +31,13 @@ struct KeychainStore {
         return SecItemAdd(q as CFDictionary, nil) == errSecSuccess
     }
 
-    func load() -> Pairing? {
+    func loadData() -> Data? {
         var q = query
         q[kSecReturnData as String] = true
         q[kSecMatchLimit as String] = kSecMatchLimitOne
         var out: CFTypeRef?
-        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let data = out as? Data else { return nil }
-        return Self.decode(data)
+        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess else { return nil }
+        return out as? Data
     }
 
     func delete() { SecItemDelete(query as CFDictionary) }

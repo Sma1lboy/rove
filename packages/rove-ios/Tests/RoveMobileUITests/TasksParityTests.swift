@@ -60,7 +60,7 @@ final class TasksParityTests: XCTestCase {
         guard let url = env["ROVE_BRIDGE_URL"], !url.isEmpty else { throw XCTSkip("ROVE_BRIDGE_URL not set") }
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchArguments = ["-resetPairing"]
+        app.launchArguments = ["-nativeUI", "YES", "-resetPairing"]
         app.launch()
         let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Allow"]
         if allow.waitForExistence(timeout: 3) { allow.tap() }

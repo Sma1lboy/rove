@@ -44,7 +44,7 @@ final class PagesFixtureTests: XCTestCase {
     private func pair(_ url: String) {
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchArguments = ["-resetPairing"]
+        app.launchArguments = ["-nativeUI", "YES", "-resetPairing"]
         app.launch()
         let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Allow"]
         if allow.waitForExistence(timeout: 3) { allow.tap() }

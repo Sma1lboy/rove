@@ -39,7 +39,7 @@ final class RoundScreensTests: XCTestCase {
         }
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchArguments = ["-resetPairing"]
+        app.launchArguments = ["-nativeUI", "YES", "-resetPairing"]
         if let lang = env["ROVE_LANG"], !lang.isEmpty { app.launchArguments += ["-AppleLanguages", "(\(lang))"] }
         app.launch()
         // The notification prompt is springboard's, in the simulator's language.

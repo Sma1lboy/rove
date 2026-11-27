@@ -41,9 +41,11 @@
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>Rove scans the pairing QR code shown by your Mac.</string>
+	<string>Rove scans the pairing QR code shown by your computer.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Rove connects to the rove-bridge running on your Mac over the local network.</string>
+	<string>Rove opens the Rove page served by your computer over the local network.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Rove records your voice while you hold the talk button, to type it into a session.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>MapleMono-NF-Regular.ttf</string>

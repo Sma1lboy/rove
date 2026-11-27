@@ -98,17 +98,25 @@ enum Route: Hashable {
 
 @main
 struct RoveMobileApp: App {
-    @State private var model = AppModel()
-
     var body: some Scene {
         WindowGroup {
-            RootView()
-                .environment(model)
-                .tint(Theme.accent)
-                .onOpenURL { url in
-                    if (try? model.pair(text: url.absoluteString)) == nil { model.draftURL = url.absoluteString }
-                }
+            // The app is a shell around rove-web. The native screens stay reachable for one launch with `-nativeUI YES`.
+            if UserDefaults.standard.bool(forKey: "nativeUI") { NativeRoot() } else { ShellRoot().tint(Theme.accent) }
         }
+    }
+}
+
+/// The native app, from before the web shell. Owns `AppModel`, so the shell never opens its socket.
+struct NativeRoot: View {
+    @State private var model = AppModel()
+
+    var body: some View {
+        RootView()
+            .environment(model)
+            .tint(Theme.accent)
+            .onOpenURL { url in
+                if (try? model.pair(text: url.absoluteString)) == nil { model.draftURL = url.absoluteString }
+            }
     }
 }
 

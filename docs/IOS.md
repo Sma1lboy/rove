@@ -1,8 +1,30 @@
 # iOS client
 
-Rove Mobile is an iPhone app that drives the Rove on your Mac: see every task and what it is waiting on, watch an engine's terminal, type into it, read the diff, start, land and delete tasks. The Mac stays the only place state lives; the phone holds no copy of your tasks, files or sessions.
+Rove Mobile is a thin iPhone shell around the [web client](WEB.md): pair it with a computer once, and it opens that computer's `rove --web` page full screen. What you see and can do is the web client's phone layout, so task rows, terminals, diffs and settings are the same ones a browser shows; the app adds nothing of its own on top. The computer stays the only place state lives.
 
-The phone cannot reach the daemon's unix socket, so a small Mac-side process, `rove-bridge`, carries a fixed list of operations over one WebSocket. It is off unless you start it.
+Native in the app: the QR scanner, the list of paired computers (in the Keychain), the microphone permission hold-to-talk needs, and a screen for a computer that does not answer. Everything else is the page.
+
+## Pair and open
+
+1. On the computer run `rove --web` with a way for the phone to reach it: `--preset tailscale`, `--preset cf`, `--preset relay`, or `--host <LAN address>` ([WEB.md](WEB.md#security)).
+2. In the app, scan the QR code or paste a link. Any link the bridge prints works:
+
+   | Link | Opens |
+   | --- | --- |
+   | `http(s)://host[:port]/#token=…` (`open:`) | that page, as is; a bare address with no token signs in in the page (password, or `open` mode) |
+   | `https://<relay>/#code=…&token=…` (`--preset relay`) | that page, as is |
+   | `ws(s)://host[:port]/?token=…[&preset=…]` (`pair:`) | `http(s)://host[:port]/#token=…` on the same host |
+   | `rove://pair?url=<percent-encoded link>` | the wrapped link; opens the app from another app |
+
+3. The app keeps the link in the iOS Keychain and loads it on every launch. The page keeps its own storage between launches as well.
+
+Only `--preset relay` and `rove-bridge` (the `pair:` link) print a QR code today; for the other `rove --web` runs, paste the `open:` link. A `pair:` link from a plain `rove-bridge` has no page behind it: run `rove --web`.
+
+Pairing a second computer adds it to the list; pairing the same host and port again replaces its link. Hold two fingers on the page for the list of computers, where you open another, forget one, or pair a new one. A computer that does not answer shows a retry screen with the same list. A phone paired with the earlier native app keeps its computer.
+
+Links to another site open in Safari. Hold-to-talk asks for the microphone once; the page can only record on a secure address (https, a relay or tunnel link), so a plain `http://` LAN or tailnet address has no dictation, as in Safari. Notifications are not wired up yet: the page's Web Push needs a home-screen install, which a web view is not.
+
+The native screens the app had before are still in the source, unused. A debug launch argument, `-nativeUI YES`, starts them instead of the shell; their UI tests pass it. The rest of this page up to [Build the app](#build-the-app) describes the bridge and its protocol, which the web client, the Android app and those screens share.
 
 ## Start the bridge
 
@@ -38,16 +60,7 @@ Plain `ws://` on a LAN (`--host <LAN address>`) still works, but it is not a sup
 | `--list-devices`, `--revoke-device <name>` | List the per-device tokens, or revoke one without touching the others. See [WEB.md](WEB.md#security). |
 | `--no-qr` | Print the URL without the QR code. |
 
-## Pair the phone
-
-1. Build and run the app (below), open **Settings**.
-2. Scan the QR code, or paste the URL, for example `wss://rove.example.com/?token=…&preset=cf`. A `rove://pair?url=<percent-encoded URL>` link opens the app straight into pairing. The app's **network** picker has two choices: **direct** (same Wi-Fi or Tailscale, `100.x` or `*.ts.net`) and **cloudflare**. A URL with `preset=cf` selects cloudflare; any other URL, including the bridge's `preset=tailscale`, selects direct. Which address the bridge listens on is the bridge's preset, not the phone's.
-3. For **cloudflare**, also fill in `CF-Access-Client-Id` and `CF-Access-Client-Secret` from your Access service token. Either choice can carry additional request headers.
-4. The app stores the endpoint, token, preset and headers in the iOS Keychain and connects. It sends the token as `Authorization: Bearer …`, never in the URL. It reconnects by itself when the Mac or the bridge comes back.
-
-The token lives in `<ROVE_HOME>/.rove/bridge/token` (mode 0600) and survives bridge restarts, so a paired phone stays paired. `--rotate-token` is the revoke button.
-
-## What the app does
+## What the native screens do
 
 - **Tasks.** Every task across repos with its title, branch, engine and group — `waiting-on-you`, `landing`, `ready-for-review`, `working`, `idle`, `unknown` — sorted so what needs you is on top. The groups are computed by the same code as `rove api context`. A badge counts unread attention-inbox items. Pull to refresh; changes also arrive live.
 - **Terminal.** Each Terminal Tab of a task attaches to the hosted session in the PTY Host — the same session the TUI shows, so both see the output and both can type. A key row under the terminal (always visible, no keyboard needed) sends Esc, Tab, Shift-Tab, a sticky Ctrl, arrows, Enter and Ctrl-C, and leads with 1–4 and Enter while the tab waits at a menu; typing into the terminal goes through keystroke by keystroke; the composer sends an engine tab the whole message through `tab.send`, held until the turn ends when the engine is busy (held messages show above the field, each with a × that takes it back), and sends a shell tab a line, then Enter. **Fit** (default) resizes the shared session to the phone's screen, so the TUI pane re-wraps to the phone's width until it next resizes; **Watch** leaves the size alone and scales the font instead.
@@ -358,6 +371,8 @@ cd packages/rove-ios
 xcodegen generate
 xcodebuild -scheme RoveMobile -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build test
 ```
+
+The simulator has no camera: paste the link, or launch with `-pairLink <link>` (`xcrun simctl launch booted run.rove.mobile -pairLink 'http://127.0.0.1:7878/#token=…'`). `-resetPairing` forgets every computer first. `ShellFlowTests` drives the shell against a real `rove --web` when `TEST_RUNNER_ROVE_WEB_LINK` is set, and is skipped otherwise.
 
 Running on a physical iPhone needs your own signing team in Xcode; the repo ships no signing configuration.
 
