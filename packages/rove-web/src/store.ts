@@ -26,5 +26,5 @@ export function createStore<T>(initial: T): Store<T> {
 }
 
 export function useStore<T>(store: Store<T>): T {
-  return useSyncExternalStore(store.subscribe, store.get)
+  return useSyncExternalStore(store.subscribe, store.get, store.get)
 }

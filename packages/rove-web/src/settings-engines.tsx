@@ -7,13 +7,12 @@
  */
 
 import { type EngineHealthTone, engineHealth } from "@sma1lboy/rove/src/engine/engine-health.ts"
-import { useCallback, useEffect, useId, useState } from "react"
+import { useId, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
-import { lastReply, requestRemembered } from "./remembered.ts"
 import { ts } from "./settings-copy.ts"
-import { Group, Row } from "./settings-rows.tsx"
+import { Group, Row, SectionPending, useSectionReply } from "./settings-rows.tsx"
 import { installSkill } from "./skill-status.ts"
 import { toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
@@ -42,7 +41,7 @@ import {
   engNameClass,
   engStatusClass,
 } from "./ui/settings.ts"
-import { SETTINGS_ACTIONS, SETTINGS_GROUP_HINT, SETTINGS_STATUS } from "./ui/settings.ts"
+import { SETTINGS_ACTIONS, SETTINGS_GROUP_HINT } from "./ui/settings.ts"
 import { Switch } from "./ui/switch.tsx"
 import { INPUT_FRAME } from "./ui/text.ts"
 
@@ -91,27 +90,15 @@ const TONE: Record<EngineHealthTone, EngTone> = {
 }
 
 export function EnginesSection({ client }: { client: BridgeClient }) {
-  const [engines, setEngines] = useState<readonly EngineSetting[] | null>(
-    () => lastReply<{ engines: EngineSetting[] }>(client, "engines.settings")?.engines ?? null,
-  )
+  const { value, failed, reload: load } = useSectionReply<{ engines: EngineSetting[] }>(client, "engines.settings")
+  const engines = value?.engines
   const [open, setOpen] = useState<string | null>(null)
-  const load = useCallback(
-    () =>
-      requestRemembered<{ engines: EngineSetting[] }>(client, "engines.settings").then(
-        (r) => setEngines(r.engines),
-        (e) => toast(errorText(e), "error"),
-      ),
-    [client],
-  )
-  useEffect(() => {
-    void load()
-  }, [load])
   const run: Run = (op, args = {}) =>
     void client
       .request(op, args)
       .then(load)
       .catch((e) => toast(errorText(e), "error"))
-  if (!engines) return <p className={SETTINGS_STATUS}>{t("preview.loading")}</p>
+  if (!engines) return <SectionPending failed={failed} onRetry={load} />
   return (
     <>
       <section>

@@ -1,11 +1,11 @@
 /** Settings → Snippets: the saved `@name` prompts, one row each, with a small form to add or edit one. */
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
-import { Group, Row } from "./settings-rows.tsx"
+import { Group, Row, SectionPending } from "./settings-rows.tsx"
 import { SNIPPET_NAME, loadSnippets, removeSnippet, saveSnippet, useSnippets } from "./snippets.ts"
 import { toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
@@ -87,11 +87,23 @@ export function SnippetsSection({ model }: { model: AppModel }) {
   const snippets = useSnippets()
   // `null` = no form; "new" = a new snippet; otherwise the snippet being edited.
   const [form, setForm] = useState<{ name: string; text: string } | "new" | null>(null)
-  useEffect(() => void loadSnippets(client).catch(() => undefined), [client])
+  // Not "no snippets" until a read says so: one that failed shows why.
+  const [read, setRead] = useState<{ done: boolean; failed: string | null }>({ done: false, failed: null })
+  const reload = useCallback(
+    () =>
+      loadSnippets(client).then(
+        () => setRead({ done: true, failed: null }),
+        (err) => setRead((r) => ({ ...r, failed: errorText(err) })),
+      ),
+    [client],
+  )
+  useEffect(() => client.onOpen(() => void reload()), [client, reload])
   return (
     <div className="flex flex-col gap-4">
       <Group>
-        {snippets.length === 0 && form === null && <Row label={t("snippets.empty")} />}
+        {snippets.length === 0 &&
+          form === null &&
+          (read.done ? <Row label={t("snippets.empty")} /> : <SectionPending failed={read.failed} onRetry={reload} />)}
         {snippets.map((s) => (
           <Row key={s.name} label={<span className="font-mono">@{s.name}</span>} hint={firstLine(s.text)}>
             <Button onClick={() => setForm(s)}>{t("snippets.edit")}</Button>

@@ -1,6 +1,11 @@
 /** What every Settings section is built from: a group of rows, each a name and note beside its control. */
 
-import { type ReactNode, useId } from "react"
+import { type ReactNode, useCallback, useEffect, useId, useState } from "react"
+import type { BridgeClient } from "./bridge.ts"
+import { errorText } from "./dialogs.tsx"
+import { t } from "./i18n/index.ts"
+import { lastReply, requestRemembered } from "./remembered.ts"
+import { Button } from "./ui/button.tsx"
 import { Segmented } from "./ui/segmented.tsx"
 import { Select } from "./ui/select.tsx"
 import {
@@ -15,6 +20,7 @@ import {
   SETTINGS_ROW_INLINE,
   SETTINGS_ROW_STACK,
   SETTINGS_SAMPLE,
+  SETTINGS_STATUS,
   SETTINGS_TEXT,
   SETTINGS_VALUE,
 } from "./ui/settings.ts"
@@ -130,5 +136,34 @@ export function ReadOnlyRow(props: { label: string; value: string; note?: string
     <Row label={props.label} hint={props.note}>
       <span className={SETTINGS_VALUE}>{props.value}</span>
     </Row>
+  )
+}
+
+/** A section's data: the last reply at once, read again on every (re)connect. `failed` says why the latest read failed. */
+export function useSectionReply<T>(client: BridgeClient, op: string) {
+  const [value, setValue] = useState<T | undefined>(() => lastReply<T>(client, op))
+  const [failed, setFailed] = useState<string | null>(null)
+  const reload = useCallback(
+    () =>
+      requestRemembered<T>(client, op).then(
+        (reply) => {
+          setValue(reply)
+          setFailed(null)
+        },
+        (e) => setFailed(errorText(e)),
+      ),
+    [client, op],
+  )
+  useEffect(() => client.onOpen(() => void reload()), [client, reload])
+  return { value, failed, reload }
+}
+
+/** Where a section's content goes before its first reply: loading, or why it could not load. */
+export function SectionPending(props: { failed: string | null; onRetry: () => void }) {
+  if (props.failed === null) return <p className={SETTINGS_STATUS}>{t("preview.loading")}</p>
+  return (
+    <p className={SETTINGS_STATUS}>
+      {t("settings.loadFailed", { error: props.failed })} <Button onClick={props.onRetry}>{t("settings.retry")}</Button>
+    </p>
   )
 }
