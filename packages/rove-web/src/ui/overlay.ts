@@ -15,7 +15,7 @@ export const OVERLAY = `${OVERLAY_BASE} w-narrow:bottom-auto w-narrow:h-(--vvh,1
 
 /** `wide` for a form with two columns of fields. */
 export const dialogClass = (wide = false): string =>
-  `dialog static m-0 flex max-h-[76vh] ${wide ? "w-[min(620px,calc(100vw-32px))]" : "w-[min(440px,calc(100vw-32px))]"} flex-col gap-3 rounded-md border-hairline border-line bg-surface px-5 py-4.5 text-inherit shadow-dialog focus:outline-none motion-safe:animate-rise-in [.is-leaving_&]:animate-sink-out short:max-h-[calc(100dvh-24px)] short:px-4 short:py-3 keyboard:max-h-[calc(var(--vvh,100dvh)-24px)]`
+  `dialog static m-0 flex max-h-[76vh] ${wide ? "w-[min(620px,calc(100vw-32px))]" : "w-[min(440px,calc(100vw-32px))]"} flex-col gap-3 rounded-md border-hairline border-line bg-surface px-5 py-4.5 text-inherit shadow-dialog focus:outline-none motion-safe:animate-rise-in [.is-leaving_&]:animate-sink-out w-narrow:motion-safe:animate-sheet-in w-narrow:[.is-leaving_&]:animate-sheet-out short:max-h-[calc(100dvh-24px)] short:px-4 short:py-3 keyboard:max-h-[calc(var(--vvh,100dvh)-24px)]`
 
 export const DIALOG_HEAD = "flex items-center justify-between gap-3"
 

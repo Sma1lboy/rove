@@ -5,7 +5,7 @@ import { ShortcutBadge } from "./prefix-guide.tsx"
 import { ts } from "./settings-copy.ts"
 import { skillMissing } from "./skill-status.ts"
 import { useStore } from "./store.ts"
-import { GlassButton, PlusGlyph } from "./ui/nav-button.tsx"
+import { BarCapsule, GlassButton, PlusGlyph } from "./ui/nav-button.tsx"
 import {
   RAIL_BAR_ICON,
   RAIL_BOTTOM_BAR,
@@ -31,24 +31,34 @@ function Gear({ className }: { className: string }) {
 /**
  * The rail's foot, ruled off from the task list: the usage readings, then Settings, one left edge and one
  * quiet voice, so the readings never read as a line of the last task. On a phone it is a floating bar the list
- * scrolls under: a glass gear bottom left, the accent New task bottom right; the readings sit at the top of Settings. A missing Rove skill is named in words beside
+ * scrolls under: Settings and Inbox in one glass capsule bottom left, the accent New task bottom right; the readings sit at the top of Settings. A missing Rove skill is named in words beside
  * Settings (the engines on hover); installing it is in Settings › Engines.
  */
-export function RailFoot({ model, narrow, onSettings }: { model: AppModel; narrow: boolean; onSettings: () => void }) {
+export function RailFoot({
+  model,
+  narrow,
+  onSettings,
+  inbox,
+}: { model: AppModel; narrow: boolean; onSettings: () => void; inbox: { count: number; onClick: () => void } }) {
   useLocale()
   const gap = useStore(skillMissing)
   const hint = ts("engines.skill.bannerHintWeb", { engines: gap.join(", ") })
   if (narrow) {
     return (
       <div className={RAIL_BOTTOM_BAR} data-rail-bar>
-        <GlassButton
-          size="bar"
-          label={gap.length > 0 ? `${t("rail.settings")}, ${hint}` : t("rail.settings")}
-          onClick={onSettings}
-        >
-          <Gear className={RAIL_BAR_ICON} />
-          {gap.length > 0 && <span className={ICON_BUTTON_DOT} />}
-        </GlassButton>
+        <BarCapsule
+          settings={{
+            label: gap.length > 0 ? `${t("rail.settings")}, ${hint}` : t("rail.settings"),
+            onClick: onSettings,
+            glyph: (
+              <>
+                <Gear className={RAIL_BAR_ICON} />
+                {gap.length > 0 && <span className={ICON_BUTTON_DOT} />}
+              </>
+            ),
+          }}
+          inbox={{ label: t("rail.inbox", { count: inbox.count }), onClick: inbox.onClick, count: inbox.count }}
+        />
         <GlassButton size="primary" label={t("rail.newTask")} onClick={() => startNewTask()}>
           <PlusGlyph />
         </GlassButton>

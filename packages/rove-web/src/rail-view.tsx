@@ -45,7 +45,6 @@ import { type MenuItem, dialog, menu, page, tuckRare } from "./ui.ts"
 import { Chevron } from "./ui/chevron.tsx"
 import { EngineIcon, type EngineIconData } from "./ui/engine-icon.tsx"
 import { Legend } from "./ui/legend.tsx"
-import { CountBadge, GlassButton, TrayGlyph } from "./ui/nav-button.tsx"
 import { INBOX_CHIP } from "./ui/overlay.ts"
 import { GroupActions } from "./ui/project-actions.tsx"
 import {
@@ -127,6 +126,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const drag = useRowDrag(model, tasks, !filters.search.active && !byState, filters.sort === "default")
   const { place, dragging } = drag.places(rows)
   const openSettings = () => dialog.set(<SettingsDialog model={model} />)
+  const openInbox = () => dialog.set(<InboxDialog model={model} />)
   const keys = useRailKeys(model, rows, filters, { selectedId, onNewTask: startNewTask, onSettings: openSettings })
   const total = stops(build("").rows).length
   const rail = useRef<HTMLElement>(null)
@@ -152,22 +152,12 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         <span className={`${WORDMARK} mr-auto`}>
           <span className={BRACKET}>[</span> rove <span className={BRACKET}>]</span>
         </span>
-        {narrow ? (
-          <GlassButton
-            size="nav"
-            kind="inbox"
-            label={t("rail.inbox", { count: unread })}
-            onClick={() => dialog.set(<InboxDialog model={model} />)}
-          >
-            <TrayGlyph />
-            {unread > 0 && <CountBadge count={unread} />}
-          </GlassButton>
-        ) : (
+        {!narrow && (
           <span className="relative">
             <button
               type="button"
               className={`m-0 text-meta font-medium normal-nums inbox-chip relative ${INBOX_CHIP} ${HEAD_CHIP} ${unread > 0 ? "text-accent" : "text-muted"}`}
-              onClick={() => dialog.set(<InboxDialog model={model} />)}
+              onClick={openInbox}
             >
               {t("rail.inbox", { count: unread })}
             </button>
@@ -302,7 +292,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
           ),
         )}
       </div>
-      <RailFoot model={model} narrow={narrow} onSettings={openSettings} />
+      <RailFoot model={model} narrow={narrow} onSettings={openSettings} inbox={{ count: unread, onClick: openInbox }} />
       {!narrow && !folded && <RailGrip rail={rail} />}
     </nav>
   )

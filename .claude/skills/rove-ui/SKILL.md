@@ -385,9 +385,9 @@ Machines, Usage). Overlays (dialogs, menus, toasts, the inbox) are recipes in `s
 - **Scrollbars are thin or hidden:** thin token-coloured pills everywhere, and none on the rail.
 - Hover is a neutral wash; the accent is for selection and focus.
 - **Glass on the phone's session controls, and only there:** the composer bar, the terminal key row and the
-  session bar's view switch use `glass()` (`src/ui/glass.ts`), after iOS's glass buttons. Every back and close in
-  the phone layout is `NavButton` (`src/ui/nav-button.tsx`): a round glass chevron or ×, top left, its old words
-  kept as the label. §9's ban holds everywhere else.
+  session bar's view button use `glass()` (`src/ui/glass.ts`), after iOS's glass buttons. Every back and close in
+  the phone layout is `NavButton` (`src/ui/nav-button.tsx`): a rounded-square glass chevron or ×, top left, its old
+  words kept as the label; every phone button takes `SQUARE` from glass.ts, Send's shape. §9's ban holds everywhere else.
 - **Web ↔ TUI parity** is part of done. A working rove-web change goes onto the owner's live web
   (the 7890 bridge from `rove-local-test`) at once, merged or not, then the owner refreshes:
   `docs/agents/dev-loop.md` § Live web preview. Never cut a release just so the owner can look.

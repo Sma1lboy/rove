@@ -49,9 +49,12 @@ export const RAIL_FRAME = [
 ].join(" ")
 
 /** Out of flow, the folded rail no longer claims column 1. Expanded, the panel spans the terminal's column, which keeps its size underneath. */
-/** Mid back swipe it rides the finger (`--back-x`) over the list. */
+/**
+ * Mid back swipe it rides the finger (`--back-x`) over the list. It pushes in from the right when it opens; the swipe
+ * keeps the same animation, so springing back does not replay it.
+ */
 export const WORKSPACE_FRAME =
-  "rail-folded:col-2 panel-expanded:invisible panel-expanded:col-2 narrow-sidebar:hidden narrow-back:z-1 narrow-back:col-1 narrow-back:translate-x-(--back-x) narrow-back:bg-paper narrow-back:shadow-dialog"
+  "rail-folded:col-2 panel-expanded:invisible panel-expanded:col-2 narrow-sidebar:hidden narrow-content:motion-safe:animate-push-in narrow-back:motion-safe:animate-push-in narrow-back:z-1 narrow-back:col-1 narrow-back:translate-x-(--back-x) narrow-back:bg-paper narrow-back:shadow-dialog"
 export const SIDE_PANEL_FRAME =
   "rail-folded:col-3 panel-expanded:z-2 panel-expanded:col-[2/-1] panel-expanded:bg-paper panel-expanded:pl-2"
 
