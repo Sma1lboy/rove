@@ -192,7 +192,9 @@ const BAR_TONE: Readonly<Record<string, string>> = { ok: "text-success", warn: "
 export const usageBar = (tone: string): string =>
   `relative h-0.75 overflow-hidden rounded-full bg-[color-mix(in_srgb,currentColor_18%,transparent)] after:absolute after:inset-y-0 after:left-0 after:w-(--fill) after:rounded-full after:bg-current after:content-[''] ${BAR_TONE[tone] ?? BAR_TONE.ok}`
 
-export const WORDMARK = "font-mono text-title font-bold normal-nums tracking-[0.02em] whitespace-nowrap"
+/** On a phone it is the list's large title. */
+export const WORDMARK =
+  "font-mono text-title font-bold normal-nums tracking-[0.02em] whitespace-nowrap narrow:text-[22px]"
 export const BRACKET = "text-accent"
 
 /** The connect and login screens. */
