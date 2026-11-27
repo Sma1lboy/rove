@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { TERM_KEYS, ctrlChord, isShiftEnter } from "../src/term-keys.ts"
+import { TERM_KEYS, ctrlChord, isShiftEnter, keyPages } from "../src/term-keys.ts"
 
 test("Shift+Enter is the engine's newline, but not as an IME commit or with another modifier", () => {
   const press = {
@@ -34,4 +34,16 @@ test("arrow keys follow the app's cursor-key mode", () => {
   const up = TERM_KEYS.find((key) => key.id === "up")
   expect(up?.bytes(false)).toBe("\x1b[A")
   expect(up?.bytes(true)).toBe("\x1bOA")
+})
+
+test("the key row's first page is six keys, and every key is on exactly one page", () => {
+  const { first, rest } = keyPages(false)
+  expect(first.map((key) => key.cap)).toEqual(["esc", "⇧tab", "^C", "↑", "↓", "⏎"])
+  expect([...first, ...rest].map((key) => key.id).sort()).toEqual(TERM_KEYS.map((key) => key.id).sort())
+})
+
+test("at a menu the digits lead, with esc and Enter, and nothing else is lost", () => {
+  const { first, rest } = keyPages(true)
+  expect(first.map((key) => key.cap)).toEqual(["1", "2", "3", "4", "esc", "⏎"])
+  expect(rest.map((key) => key.cap)).toEqual(["tab", "⇧tab", "^C", "↑", "↓", "←", "→"])
 })

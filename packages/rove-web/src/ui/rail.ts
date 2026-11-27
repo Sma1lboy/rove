@@ -51,7 +51,7 @@ export const RAIL_SEARCH_FIELD =
 export const RAIL_EMPTY = "m-0 px-2 py-3 font-mono text-meta text-subtle"
 /** The rail scrolls without a visible bar (the owner's call: the list reads cleaner without one). */
 export const railBody = (sorting: boolean): string =>
-  `flex-1 overflow-y-auto px-1.5 pt-1 pb-3 scrollbar-none ${sorting ? "[&>[data-row]]:[transition:transform_150ms_ease-out,scale_150ms_ease-out,opacity_150ms_ease-out] motion-reduce:[&>[data-row]]:transition-none [&>[data-row]]:[box-shadow:none]! [&>[data-row]:not([data-lifted])]:opacity-45" : ""}`
+  `flex-1 overflow-y-auto px-1.5 pt-1 pb-3 narrow:pb-22 scrollbar-none ${sorting ? "[&>[data-row]]:[transition:transform_150ms_ease-out,scale_150ms_ease-out,opacity_150ms_ease-out] motion-reduce:[&>[data-row]]:transition-none [&>[data-row]]:[box-shadow:none]! [&>[data-row]:not([data-lifted])]:opacity-45" : ""}`
 /** Keyboard cursor: shown only while the rail has focus, as the TUI sidebar's. */
 export const RAIL_CURSOR = "group-focus-within/rail:[box-shadow:inset_0_0_0_1px_var(--focus)]"
 

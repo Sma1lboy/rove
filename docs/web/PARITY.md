@@ -137,7 +137,7 @@ Score: 206 / 231 rows at ✅ (7 🟡, 2 ↔, 5 🚫, 11 ❌). Regenerate from th
 | 95 | Copy selection or interrupt | Ctrl+C | ✅ | `tab.interrupt`, `term.input` | workspace: Ctrl+C with a selection copies (no ^C sent); without one it interrupts (`sleep 40` aborted, next command ran at once). |
 | 96 | Copy selection | Cmd+C / Ctrl+Shift+C | ✅ | local | workspace: Ctrl+Shift+C and Meta+C copy the selection. |
 | 97 | Reset active terminal | F5 + confirm | ✅ | `tab.split` (`reset`) | workspace: F5 -> confirm dialog -> shell respawned (exported var gone, checked via file written from the new shell); via `tab.split action=reset`. Engine panes refuse, as the TUI. |
-| 209 | Send Esc / Tab / Ctrl / arrows from a phone | on-screen key row (touch only) | ✅ | local | night r2 (#1447) + r8 (#1455): touch screens get a key row under the terminal (sticky ctrl, esc, tab, ⇧tab, ^C, ↑↓←→; arrows follow DECCKM); esc/↑/ctrl+c sent `\x1b`, `\x1b[A`, `\x03`. Row fits 390 with no scroll (370/370); at 768 labels stay whole (0 clipped). Shots r08-terminal-390/768, r08-keyrow-390-after. |
+| 209 | Send Esc / Tab / Ctrl / arrows from a phone | on-screen key row (touch only) | ✅ | local | night r2 (#1447) + r8 (#1455): touch screens get a key row under the terminal (esc, ⇧tab, ^C, ↑↓, ⏎, then `⋯` for sticky ctrl, tab, ←→; arrows follow DECCKM); esc/↑/ctrl+c sent `\x1b`, `\x1b[A`, `\x03`. Row fits 390 with no scroll (370/370); at 768 labels stay whole (0 clipped). Shots r08-terminal-390/768, r08-keyrow-390-after. |
 
 ## Files, previews and diff review
 
