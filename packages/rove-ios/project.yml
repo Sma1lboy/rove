@@ -24,6 +24,17 @@ targets:
     platform: iOS
     sources:
       - path: Sources/RoveMobile
+      # The demo's page from scripts/build-demo-web.sh, run by hand (the archive Mac has no bun); a folder so its
+      # assets/ keeps its paths.
+      - path: DemoWeb
+        type: folder
+        buildPhase: resources
+        optional: true
+    preBuildScripts:
+      - name: Check the demo page is built
+        script: |
+          [ -f "$SRCROOT/DemoWeb/demo.html" ] || { echo "error: DemoWeb/ is missing. Run packages/rove-ios/scripts/build-demo-web.sh on a Mac with bun, then build again."; exit 1; }
+        basedOnDependencyAnalysis: false
     dependencies:
       - package: SwiftTerm
     settings:
@@ -31,7 +42,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: run.rove.mobile
         PRODUCT_NAME: RoveMobile
         MARKETING_VERSION: "0.1.0"
-        CURRENT_PROJECT_VERSION: "2026112701"
+        CURRENT_PROJECT_VERSION: "2026112702"
         ENABLE_PREVIEWS: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     info:

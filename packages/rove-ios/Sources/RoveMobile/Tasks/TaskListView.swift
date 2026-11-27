@@ -278,7 +278,7 @@ struct TaskListView: View {
             Button { withAnimation(Theme.spring) { archivedOpen.toggle() } } label: {
                 HStack(spacing: 6) {
                     Image(systemName: archivedOpen ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 10, weight: .medium)).foregroundStyle(Theme.muted)
+                        .font(Theme.face(10, .medium)).foregroundStyle(Theme.muted)
                     Theme.kicker(String(localized: "archived · \(rows.count)"))
                     Spacer()
                 }

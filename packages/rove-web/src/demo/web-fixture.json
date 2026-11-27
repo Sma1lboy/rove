@@ -1,0 +1,4736 @@
+{
+  "hello": {
+    "protocol": 1,
+    "apiVersion": 3,
+    "roveVersion": "0.9.308",
+    "host": "demo-mac",
+    "peer": {
+      "surface": "phone",
+      "local": false
+    }
+  },
+  "github.repos": {
+    "repos": [],
+    "reason": "unauthenticated"
+  },
+  "update.check": {
+    "current": "0.9.308",
+    "info": {
+      "current": "0.9.308",
+      "latest": "0.9.308",
+      "hasUpdate": false,
+      "channel": "latest"
+    },
+    "notes": []
+  },
+  "worktree.legacyAdopted": {
+    "tasks": []
+  },
+  "keybindings.get": {
+    "path": "/Users/demo/.rove/settings/keybindings.yaml",
+    "exists": false,
+    "rows": [],
+    "prefix": {
+      "key": "ctrl+a",
+      "firstStrokes": ["ctrl+a"],
+      "timeoutMs": 5000
+    },
+    "plugins": [],
+    "applied": [],
+    "warnings": []
+  },
+  "prefs.get": {
+    "prefs": {
+      "locale": "en",
+      "theme": "claude",
+      "themeMode": "auto",
+      "transparent": true,
+      "focusAccent": "primary",
+      "splitStyle": "line",
+      "railFold": "glyphs",
+      "workingBorder": "flow",
+      "taskColors": "on",
+      "glyphSet": "braille",
+      "colorblind": "off",
+      "runningTitle": "shimmer",
+      "statusMark": "both",
+      "statusMarkNoticeSeen": true,
+      "railSort": "recent",
+      "railGroup": "project",
+      "toast": true,
+      "sound": true,
+      "soundVolume": 0.4,
+      "crossTask": true,
+      "finishedAlerts": true,
+      "keyHints": true,
+      "editorKind": "auto",
+      "worktreeBase": "default",
+      "scrollbackRows": 1000,
+      "tabStrip": "never",
+      "usageShow": "used",
+      "prefixTap": "local",
+      "remoteProjects": false,
+      "autoStatus": false,
+      "dispatcher": false,
+      "updateChannel": "latest",
+      "updateNotify": true
+    },
+    "options": {
+      "locale": ["en", "zh"],
+      "theme": ["claude", "conductor", "skylight", "tokyonight"],
+      "themeMode": ["dark", "light", "auto"],
+      "focusAccent": ["primary", "success", "info"],
+      "splitStyle": ["box", "line", "rail", "rule"],
+      "railFold": ["glyphs", "initials", "hairline"],
+      "workingBorder": ["flow", "still"],
+      "taskColors": ["on", "off"],
+      "glyphSet": ["braille", "starburst", "ascii"],
+      "colorblind": ["off", "on"],
+      "runningTitle": ["shimmer", "still"],
+      "statusMark": ["both", "engine", "dots"],
+      "railSort": ["default", "recent", "attention", "name"],
+      "railGroup": ["project", "state"],
+      "soundVolume": [0.1, 0.25, 0.4, 0.6, 0.8, 1],
+      "editorKind": ["auto", "vim", "nvim", "nano", "emacs", "custom"],
+      "worktreeBase": ["default", "nextToProject", "custom"],
+      "scrollbackRows": {
+        "min": 100,
+        "max": 100000
+      },
+      "tabStrip": ["always", "multipleOnly", "never"],
+      "usageShow": ["used", "left"],
+      "prefixTap": ["local", "guide"],
+      "updateChannel": ["latest", "next", "nightly"]
+    },
+    "info": {
+      "editorCustomSet": false,
+      "worktreeCustomPath": ""
+    },
+    "glyphSets": {
+      "braille": {
+        "spinner": ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
+        "idle": "○",
+        "unseen": "●",
+        "needsInput": "?",
+        "attention": "!",
+        "running": "●",
+        "done": "✓",
+        "rateLimited": "◷",
+        "dead": "†",
+        "routineFailed": "↻",
+        "subagent": "◇",
+        "remote": "⠮⠵"
+      },
+      "starburst": {
+        "spinner": ["✻", "✼", "❉", "❊", "✺", "✹", "✸", "✶"],
+        "idle": "✧",
+        "unseen": "✦",
+        "needsInput": "?",
+        "attention": "❢",
+        "running": "✻",
+        "done": "✔",
+        "rateLimited": "◷",
+        "dead": "✞",
+        "routineFailed": "↻",
+        "subagent": "❖",
+        "remote": "⠮⠵"
+      },
+      "ascii": {
+        "spinner": ["|", "/", "-", "\\"],
+        "idle": "o",
+        "unseen": "*",
+        "needsInput": "?",
+        "attention": "!",
+        "running": "*",
+        "done": "+",
+        "rateLimited": "~",
+        "dead": "x",
+        "routineFailed": "@",
+        "subagent": "&",
+        "remote": "@"
+      }
+    },
+    "themes": [
+      {
+        "name": "claude",
+        "bundled": true,
+        "dark": {
+          "text": "#eae7df",
+          "background": "#141413",
+          "textMuted": "#a9a39a",
+          "backgroundPanel": "#1a1917",
+          "backgroundElement": "#2b2a27",
+          "backgroundMenu": "#33312e",
+          "border": "#3a3835",
+          "borderActive": "#75706a",
+          "borderSubtle": "#2b2a27",
+          "primary": "#cc785c",
+          "secondary": "#d4967e",
+          "accent": "#cc785c",
+          "error": "#ec6f74",
+          "warning": "#e8c96b",
+          "success": "#9aca86",
+          "info": "#61aaf2",
+          "diffAdded": "#9aca86",
+          "diffRemoved": "#ec6f74",
+          "diffLineNumber": "#6b665f",
+          "syntaxType": "#9b87f5",
+          "diffAddedBg": "#1f2a1f",
+          "diffRemovedBg": "#2a1f1c",
+          "diffAddedColorblind": "#7ec9ca",
+          "diffAddedBgColorblind": "#1c292b"
+        },
+        "light": {
+          "text": "#1a1917",
+          "background": "#faf9f5",
+          "textMuted": "#5e5953",
+          "backgroundPanel": "#f0eee6",
+          "backgroundElement": "#eae7df",
+          "backgroundMenu": "#e2ded4",
+          "border": "#d9d5cc",
+          "borderActive": "#8d877d",
+          "borderSubtle": "#eae7df",
+          "primary": "#b5532f",
+          "secondary": "#b85f3d",
+          "accent": "#cc785c",
+          "error": "#ad2f36",
+          "warning": "#8a6220",
+          "success": "#2e7c4c",
+          "info": "#1b6cc0",
+          "diffAdded": "#2e7c4c",
+          "diffRemoved": "#ad2f36",
+          "diffLineNumber": "#8d877d",
+          "syntaxType": "#7b5bb6",
+          "diffAddedBg": "#e5eedf",
+          "diffRemovedBg": "#f5dad3",
+          "diffAddedColorblind": "#2a7685",
+          "diffAddedBgColorblind": "#dfeeed"
+        }
+      },
+      {
+        "name": "conductor",
+        "bundled": true,
+        "dark": {
+          "text": "#e8e8e8",
+          "background": "#0a0a0a",
+          "textMuted": "#909090",
+          "backgroundPanel": "#111111",
+          "backgroundElement": "#181818",
+          "backgroundMenu": "#1f1f1f",
+          "border": "#363636",
+          "borderActive": "#5a5a5a",
+          "borderSubtle": "#1f1f1f",
+          "primary": "#e8e8e8",
+          "secondary": "#9bc3e3",
+          "accent": "#7da5c8",
+          "error": "#e06c75",
+          "warning": "#d6a668",
+          "success": "#7fd88f",
+          "info": "#7da5c8",
+          "diffAdded": "#7fd88f",
+          "diffRemoved": "#e06c75",
+          "diffLineNumber": "#7a7a7a",
+          "syntaxType": "#7da5c8",
+          "diffAddedBg": "#15241a",
+          "diffRemovedBg": "#2a1518",
+          "diffAddedColorblind": "#6fd1e1",
+          "diffAddedBgColorblind": "#152326"
+        },
+        "light": {
+          "text": "#1a1a1a",
+          "background": "#fafafa",
+          "textMuted": "#6c6c6c",
+          "backgroundPanel": "#f3f3f3",
+          "backgroundElement": "#ececec",
+          "backgroundMenu": "#e2e2e2",
+          "border": "#bdbdbd",
+          "borderActive": "#7c7c7c",
+          "borderSubtle": "#e2e2e2",
+          "primary": "#1a1a1a",
+          "secondary": "#1a4f87",
+          "accent": "#3d6f9f",
+          "error": "#c9343a",
+          "warning": "#a06b1a",
+          "success": "#3d9a57",
+          "info": "#3d6f9f",
+          "diffAdded": "#3d9a57",
+          "diffRemoved": "#c9343a",
+          "diffLineNumber": "#5b5b5b",
+          "syntaxType": "#3d6f9f",
+          "diffAddedBg": "#d8efdc",
+          "diffRemovedBg": "#f5dadc",
+          "diffAddedColorblind": "#2a93a4",
+          "diffAddedBgColorblind": "#d6edf1"
+        }
+      },
+      {
+        "name": "skylight",
+        "bundled": true,
+        "dark": {
+          "text": "#e6ebf1",
+          "background": "#0b0d10",
+          "textMuted": "#95a0af",
+          "backgroundPanel": "#111419",
+          "backgroundElement": "#1a1f27",
+          "backgroundMenu": "#20262f",
+          "border": "#272d36",
+          "borderActive": "#5a6676",
+          "borderSubtle": "#1c2129",
+          "primary": "#2fc0ec",
+          "secondary": "#b08cff",
+          "accent": "#2fc0ec",
+          "error": "#ff6b5e",
+          "warning": "#efbc66",
+          "success": "#56cf8a",
+          "info": "#7c9bff",
+          "diffAdded": "#56cf8a",
+          "diffRemoved": "#ff6b5e",
+          "diffLineNumber": "#687384",
+          "syntaxType": "#2fc0ec",
+          "diffAddedBg": "#10241a",
+          "diffRemovedBg": "#2a1517",
+          "diffAddedColorblind": "#58c4de",
+          "diffAddedBgColorblind": "#122227"
+        },
+        "light": {
+          "text": "#16202c",
+          "background": "#fafbfc",
+          "textMuted": "#556174",
+          "backgroundPanel": "#f2f5f8",
+          "backgroundElement": "#e7ecf2",
+          "backgroundMenu": "#ffffff",
+          "border": "#d5dce4",
+          "borderActive": "#7f8c9d",
+          "borderSubtle": "#e4e9ef",
+          "primary": "#006f9e",
+          "secondary": "#7440d8",
+          "accent": "#006f9e",
+          "error": "#c22e29",
+          "warning": "#8f5c00",
+          "success": "#1a7746",
+          "info": "#2e58d4",
+          "diffAdded": "#1a7746",
+          "diffRemoved": "#c22e29",
+          "diffLineNumber": "#8591a1",
+          "syntaxType": "#006f9e",
+          "diffAddedBg": "#e2f2e8",
+          "diffRemovedBg": "#fbe4e2",
+          "diffAddedColorblind": "#1a7081",
+          "diffAddedBgColorblind": "#e3f0f4"
+        }
+      },
+      {
+        "name": "tokyonight",
+        "bundled": true,
+        "dark": {
+          "text": "#c8d3f5",
+          "background": "#1a1b26",
+          "textMuted": "#828bb8",
+          "backgroundPanel": "#1e2030",
+          "backgroundElement": "#222436",
+          "backgroundMenu": "#222436",
+          "border": "#737aa2",
+          "borderActive": "#9099b2",
+          "borderSubtle": "#545c7e",
+          "primary": "#82aaff",
+          "secondary": "#c099ff",
+          "accent": "#86e1fc",
+          "error": "#ff757f",
+          "warning": "#ff966c",
+          "success": "#c3e88d",
+          "info": "#82aaff",
+          "diffAdded": "#4fd6be",
+          "diffRemoved": "#c53b53",
+          "diffLineNumber": "#8f909a",
+          "syntaxType": "#ffc777",
+          "diffAddedBg": "#20303b",
+          "diffRemovedBg": "#37222c",
+          "diffAddedColorblind": "#88c5ee",
+          "diffAddedBgColorblind": "#2f2c37"
+        },
+        "light": {
+          "text": "#3760bf",
+          "background": "#e1e2e7",
+          "textMuted": "#8990a3",
+          "backgroundPanel": "#d5d6db",
+          "backgroundElement": "#c8c9ce",
+          "backgroundMenu": "#c8c9ce",
+          "border": "#737a8c",
+          "borderActive": "#5a607d",
+          "borderSubtle": "#9699a8",
+          "primary": "#2e7de9",
+          "secondary": "#9854f1",
+          "accent": "#007197",
+          "error": "#f52a65",
+          "warning": "#b15c00",
+          "success": "#587539",
+          "info": "#2e7de9",
+          "diffAdded": "#1e725c",
+          "diffRemoved": "#c53b53",
+          "diffLineNumber": "#59595b",
+          "syntaxType": "#8c6c3e",
+          "diffAddedBg": "#d5e5d5",
+          "diffRemovedBg": "#f7d8db",
+          "diffAddedColorblind": "#3c697f",
+          "diffAddedBgColorblind": "#d2e4e6"
+        }
+      }
+    ]
+  },
+  "snippets.get": {
+    "snippets": []
+  },
+  "skill.missing": {
+    "engines": []
+  },
+  "voice.status": {
+    "up": false,
+    "ready": false,
+    "model": null,
+    "warmMs": null,
+    "error": null,
+    "port": null,
+    "available": false,
+    "setup": {
+      "localSupported": false,
+      "uv": false,
+      "freeBytes": 0,
+      "localInstalled": false,
+      "install": {
+        "phase": "idle",
+        "line": null
+      },
+      "backend": "off",
+      "cloud": null,
+      "blocked": null
+    }
+  },
+  "update.status": {
+    "status": null
+  },
+  "push.status": {
+    "subscribed": false
+  },
+  "auth.status": {
+    "mode": "open",
+    "modes": ["open", "password", "token"],
+    "hasPassword": false,
+    "minPassword": 8
+  },
+  "theme.hosted": {
+    "themes": []
+  },
+  "context.usage": {
+    "meter": null
+  },
+  "review.queue": {
+    "prs": [],
+    "other": 0,
+    "reason": "unauthenticated"
+  },
+  "theme.taskColors": {
+    "colors": {
+      "T-WAIT": "#d38e67",
+      "T-LAND": "#77b6d6",
+      "T-REV": "#639aca",
+      "T-WORK": "#d16dc2",
+      "T-IDLE": "#a773d9",
+      "T-NIGHTLY": "#9779e2",
+      "T-OLD": "#a673da"
+    }
+  },
+  "engines.list": {
+    "engines": [
+      {
+        "id": "claude",
+        "name": "Claude",
+        "command": "claude",
+        "protocol": "claude",
+        "builtin": true,
+        "models": [
+          {
+            "id": "fable"
+          },
+          {
+            "id": "opus"
+          },
+          {
+            "id": "sonnet"
+          }
+        ],
+        "effortLevels": ["low", "medium", "high", "xhigh", "max"],
+        "acceptsModel": true,
+        "icon": {
+          "viewBox": "0 0 94 94",
+          "paths": [
+            {
+              "d": "M18.7657 62.4437L37.1822 52.1167L37.4857 51.2122L37.1822 50.7085H36.2715L33.1852 50.5208L22.6615 50.2391L13.5545 49.8636L4.70044 49.3942L2.47428 48.9248L0.399902 46.1553L0.602281 44.794L2.47428 43.5266L5.15579 43.7613L11.0754 44.1837L19.98 44.794L26.4055 45.1695L35.9679 46.1553H37.4857L37.6881 45.545L37.1822 45.1695L36.7774 44.794L27.5692 38.5508L17.6021 31.9791L12.3908 28.1769L9.60812 26.2524L8.19147 24.4686L7.58433 20.5256L10.1141 17.7091L13.5545 17.9438L14.4146 18.1785L17.9056 20.8542L25.343 26.6279L35.0572 33.7629L36.4739 34.9364L37.0443 34.5514L37.1316 34.2792L36.4739 33.1996L31.212 23.6706L25.596 13.9539L23.0663 9.91695L22.4086 7.52296C22.1538 6.51831 22.0038 5.68714 22.0038 4.65957L24.8877 0.716544L26.5067 0.200195L30.4025 0.716544L32.0215 2.12477L34.4501 7.66379L38.3458 16.3478L44.4172 28.1769L46.188 31.6975L47.1493 34.9364L47.5035 35.9222H48.1106V35.3589L48.6166 28.6933L49.5273 20.5256L50.438 10.0108L50.7415 7.05356L52.2088 3.48605L55.1433 1.56148L57.42 2.64112L59.292 5.31674L59.039 7.05356L57.926 14.2824L55.7504 25.5952L54.3337 33.1996H55.1433L56.1046 32.2138L59.9497 27.1442L66.3752 19.0704L69.2085 15.8784L72.5478 12.3579L74.6728 10.668H78.7203L81.6548 15.0804L80.3394 19.6337L76.1906 24.8911L72.7502 29.3504L67.8172 35.9595L64.7562 41.2734L65.0307 41.7118L65.7681 41.6489L76.8989 39.255L82.9197 38.1753L90.1041 36.9549L93.3422 38.457L93.6963 40.006L92.4315 43.151L84.7411 45.0287L75.7353 46.8594L62.3244 50.0164L62.1759 50.1358L62.3512 50.3958L68.399 50.9432L70.9794 51.084H77.3037L89.0922 51.9759L92.1785 53.9944L93.9999 56.4822L93.6963 58.4068L88.9404 60.8008L82.5655 59.2987L67.6401 55.7312L62.5301 54.4638H61.8217V54.8862L66.0717 59.064L73.9139 66.1051L83.6786 75.2116L84.1845 77.4648L82.9197 79.2485L81.6042 79.0608L73.0032 72.5829L69.6639 69.6726L62.1759 63.3356H61.67V63.9928L63.3902 66.5276L72.5478 80.2812L73.0032 84.5059L72.3454 85.8672L69.9675 86.7121L67.3871 86.2427L61.9735 78.6852L56.4587 70.2359L52.0064 62.6315L51.4687 62.971L48.8189 91.2654L47.6047 92.7206L44.7714 93.8002L42.3934 92.0164L41.1286 89.1061L42.3934 83.3324L43.9113 75.8219L45.1255 69.8604L46.2386 62.4437L46.9184 59.9661L46.8583 59.8003L46.3153 59.8916L40.7238 67.5603L32.2239 79.0608L25.4948 86.2427L23.8758 86.8999L21.0931 85.4447L21.3461 82.863L22.9145 80.5629L32.2239 68.7338L37.8399 61.3641L41.4594 57.1337L41.4242 56.5218L41.2244 56.5048L16.489 72.6299L12.0873 73.1932L10.1647 71.4094L10.4176 68.4991L11.3283 67.5603L18.7657 62.4437Z",
+              "fill": "#D97757"
+            }
+          ]
+        },
+        "ready": true,
+        "enabled": true
+      },
+      {
+        "id": "codex",
+        "name": "Codex",
+        "command": "codex",
+        "protocol": "codex",
+        "builtin": true,
+        "models": [
+          {
+            "id": "gpt-6-astra"
+          },
+          {
+            "id": "gpt-5.6-luna"
+          },
+          {
+            "id": "gpt-5.6-sol"
+          },
+          {
+            "id": "gpt-5.5"
+          }
+        ],
+        "effortLevels": ["none", "low", "medium", "high", "xhigh", "max"],
+        "acceptsModel": true,
+        "icon": {
+          "viewBox": "0 0 41 41",
+          "paths": [
+            {
+              "d": "M37.5324 16.8707C37.9808 15.5241 38.1363 14.0974 37.9886 12.6859C37.8409 11.2744 37.3934 9.91076 36.676 8.68622C35.6126 6.83404 33.9882 5.3676 32.0373 4.4985C30.0864 3.62941 27.9098 3.40259 25.8215 3.85078C24.8796 2.7893 23.7219 1.94125 22.4257 1.36341C21.1295 0.785575 19.7249 0.491269 18.3058 0.500197C16.1708 0.495044 14.0893 1.16803 12.3614 2.42214C10.6335 3.67624 9.34853 5.44666 8.6917 7.47815C7.30085 7.76286 5.98686 8.3414 4.8377 9.17505C3.68854 10.0087 2.73073 11.0782 2.02839 12.312C0.956464 14.1591 0.498905 16.2988 0.721698 18.4228C0.944492 20.5467 1.83612 22.5449 3.268 24.1293C2.81966 25.4759 2.66413 26.9026 2.81182 28.3141C2.95951 29.7256 3.40701 31.0892 4.12437 32.3138C5.18791 34.1659 6.8123 35.6322 8.76321 36.5013C10.7141 37.3704 12.8907 37.5973 14.9789 37.1492C15.9208 38.2107 17.0786 39.0587 18.3747 39.6366C19.6709 40.2144 21.0755 40.5087 22.4946 40.4998C24.6307 40.5054 26.7133 39.8321 28.4418 38.5772C30.1704 37.3223 31.4556 35.5506 32.1119 33.5179C33.5027 33.2332 34.8167 32.6547 35.9659 31.821C37.115 30.9874 38.0728 29.9178 38.7752 28.684C39.8458 26.8371 40.3023 24.6979 40.0789 22.5748C39.8556 20.4517 38.9639 18.4544 37.5324 16.8707ZM22.4978 37.8849C20.7443 37.8874 19.0459 37.2733 17.6994 36.1501C17.7601 36.117 17.8666 36.0586 17.936 36.0161L25.9004 31.4156C26.1003 31.3019 26.2663 31.137 26.3813 30.9378C26.4964 30.7386 26.5563 30.5124 26.5549 30.2825V19.0542L29.9213 20.998C29.9389 21.0068 29.9541 21.0198 29.9656 21.0359C29.977 21.052 29.9842 21.0707 29.9867 21.0902V30.3889C29.9842 32.375 29.1946 34.2791 27.7909 35.6841C26.3872 37.0892 24.4838 37.8806 22.4978 37.8849ZM6.39227 31.0064C5.51397 29.4888 5.19742 27.7107 5.49804 25.9832C5.55718 26.0187 5.66048 26.0818 5.73461 26.1244L13.699 30.7248C13.8975 30.8408 14.1233 30.902 14.3532 30.902C14.583 30.902 14.8088 30.8408 15.0073 30.7248L24.731 25.1103V28.9979C24.7321 29.0177 24.7283 29.0376 24.7199 29.0556C24.7115 29.0736 24.6988 29.0893 24.6829 29.1012L16.6317 33.7497C14.9096 34.7416 12.8643 35.0097 10.9447 34.4954C9.02506 33.9811 7.38785 32.7263 6.39227 31.0064ZM4.29707 13.6194C5.17156 12.0998 6.55279 10.9364 8.19885 10.3327C8.19885 10.4013 8.19491 10.5228 8.19491 10.6071V19.808C8.19351 20.0378 8.25334 20.2638 8.36823 20.4629C8.48312 20.6619 8.64893 20.8267 8.84863 20.9404L18.5723 26.5542L15.206 28.4979C15.1894 28.5089 15.1703 28.5155 15.1505 28.5173C15.1307 28.5191 15.1107 28.516 15.0924 28.5082L7.04046 23.8557C5.32135 22.8601 4.06716 21.2235 3.55289 19.3046C3.03862 17.3858 3.30624 15.3413 4.29707 13.6194ZM31.955 20.0556L22.2312 14.4411L25.5976 12.4981C25.6142 12.4872 25.6333 12.4805 25.6531 12.4787C25.6729 12.4769 25.6928 12.4801 25.7111 12.4879L33.7631 17.1364C34.9967 17.849 36.0017 18.8982 36.6606 20.1613C37.3194 21.4244 37.6047 22.849 37.4832 24.2684C37.3617 25.6878 36.8382 27.0432 35.9743 28.1759C35.1103 29.3086 33.9415 30.1717 32.6047 30.6641C32.6047 30.5947 32.6047 30.4733 32.6047 30.3889V21.188C32.6066 20.9586 32.5474 20.7328 32.4332 20.5338C32.319 20.3348 32.154 20.1698 31.955 20.0556ZM35.3055 15.0128C35.2464 14.9765 35.1431 14.9142 35.069 14.8717L27.1045 10.2712C26.906 10.1554 26.6803 10.0943 26.4504 10.0943C26.2206 10.0943 25.9948 10.1554 25.7963 10.2712L16.0726 15.8858V11.9982C16.0715 11.9783 16.0753 11.9585 16.0837 11.9405C16.0921 11.9225 16.1048 11.9068 16.1207 11.8949L24.1719 7.25025C25.4053 6.53903 26.8158 6.19376 28.2383 6.25482C29.6608 6.31589 31.0364 6.78077 32.2044 7.59508C33.3723 8.40939 34.2842 9.53945 34.8334 10.8531C35.3826 12.1667 35.5464 13.6095 35.3055 15.0128ZM14.2424 21.9419L10.8752 19.9981C10.8576 19.9893 10.8423 19.9763 10.8309 19.9602C10.8195 19.9441 10.8122 19.9254 10.8098 19.9058V10.6071C10.8107 9.18295 11.2173 7.78848 11.9819 6.58696C12.7466 5.38544 13.8377 4.42659 15.1275 3.82264C16.4173 3.21869 17.8524 2.99464 19.2649 3.1767C20.6775 3.35876 22.0089 3.93941 23.1034 4.85067C23.0427 4.88379 22.937 4.94215 22.8668 4.98473L14.9024 9.58517C14.7025 9.69878 14.5366 9.86356 14.4215 10.0626C14.3065 10.2616 14.2466 10.4877 14.2479 10.7175L14.2424 21.9419ZM16.071 17.9991L20.4018 15.4978L24.7325 17.9975V22.9985L20.4018 25.4983L16.071 22.9985V17.9991Z"
+            }
+          ]
+        },
+        "ready": true,
+        "enabled": true
+      },
+      {
+        "id": "copilot",
+        "name": "Copilot",
+        "command": "copilot",
+        "protocol": "copilot",
+        "builtin": true,
+        "models": null,
+        "effortLevels": [],
+        "acceptsModel": false,
+        "icon": {
+          "viewBox": "0 0 96 96",
+          "paths": [
+            {
+              "d": "M95.6877 67.9677C92.2446 73.9488 72.2522 88.0617 48 88.0617C23.7478 88.0617 3.75535 73.9488 0.312312 67.9677C0.0605215 67.5303 -0.0207525 67.031 -0.0207525 66.5263L-0.0207524 55.8787C-0.0207524 55.4373 0.0473833 54.9986 0.210699 54.5885C1.69959 50.8499 5.59895 45.4192 10.6313 43.9621C11.2985 42.2494 12.2867 39.7456 13.2087 37.8974C13.0543 36.4833 13 35.0248 13 33.5512C13 28.2274 14.1285 23.5576 17.5288 20.0801C19.117 18.4559 21.0876 17.21 23.4246 16.2735C29.0217 11.7264 36.992 7.90112 47.9136 7.90112C58.8352 7.90112 66.9783 11.7264 72.5754 16.2735C74.9124 17.21 76.883 18.4559 78.4712 20.0801C81.8715 23.5576 83 28.2274 83 33.5512C83 35.0248 82.9457 36.4833 82.7913 37.8974C83.7133 39.7456 84.7015 42.2494 85.3687 43.9621C90.401 45.4192 94.3004 50.8499 95.7893 54.5885C95.9526 54.9986 96.0208 55.4373 96.0208 55.8787L96.0208 66.5263C96.0208 67.031 95.9395 67.5303 95.6877 67.9677ZM51.253 32.2606C51.0828 30.9345 51.0018 29.747 50.9995 28.686L50.9995 28.6021C51.0048 25.5242 51.6776 23.5215 52.7524 22.2914C54.1172 20.7295 56.9379 19.5328 62.8829 20.1762C68.9059 20.828 72.2725 22.3229 74.1812 24.2749C76.0291 26.1648 76.9999 28.9922 76.9999 33.5512C76.9999 38.3951 76.3018 41.2568 74.767 42.9977C73.3075 44.6531 70.4335 46 64.1386 46C59.2994 46 56.5326 44.4261 54.7637 42.2493C52.8644 39.912 51.7955 36.4878 51.253 32.2606ZM44.747 32.2606C44.9172 30.9344 44.9982 29.747 45.0005 28.686L45.0005 28.6021C44.9952 25.5242 44.3224 23.5214 43.2476 22.2914C41.8828 20.7295 39.0621 19.5328 33.1171 20.1762C27.0941 20.828 23.7275 22.3229 21.8188 24.2749C19.9709 26.1647 19.0001 28.9922 19.0001 33.5512C19.0001 38.3951 19.6982 41.2568 21.233 42.9977C22.6925 44.6531 25.5665 46 31.8614 46C36.7006 46 39.4674 44.4261 41.2363 42.2493C43.1356 39.9119 44.2045 36.4878 44.747 32.2606ZM48.6889 43.9983C48.4592 43.9995 48.9185 43.9983 48.6889 43.9983C48.4594 43.9983 47.5408 43.9995 47.3111 43.9983C46.8877 44.7075 46.4168 45.3882 45.8926 46.0332C42.8139 49.8219 38.2182 52 31.8613 52C24.9615 52 19.9049 50.564 16.7324 46.9657C16.552 46.7611 16.3906 46.5469 16.3906 46.5469L16 46.9657L16 73.3023C21.7392 76.4213 34.0576 82.0184 48 82.0184C61.9424 82.0184 74.2608 76.4213 80 73.3023L80 46.9657L79.6094 46.5469C79.6094 46.5469 79.4772 46.728 79.2676 46.9657C76.0951 50.564 71.0385 52 64.1387 52C57.7818 52 53.1861 49.8219 50.1074 46.0332C49.5832 45.3882 49.1123 44.7075 48.6889 43.9983Z",
+              "evenodd": true
+            },
+            {
+              "d": "M58 57C60.2091 57 62 58.7909 62 61L62 69C62 71.2092 60.2091 73 58 73C55.7909 73 54 71.2092 54 69L54 61C54 58.7909 55.7909 57 58 57Z",
+              "evenodd": true
+            },
+            {
+              "d": "M38 57C40.2091 57 42 58.7909 42 61L42 69C42 71.2092 40.2091 73 38 73C35.7909 73 34 71.2092 34 69L34 61C34 58.7909 35.7909 57 38 57Z",
+              "evenodd": true
+            }
+          ]
+        },
+        "ready": true,
+        "enabled": true
+      },
+      {
+        "id": "kimi",
+        "name": "Kimi",
+        "command": "kimi",
+        "protocol": "kimi",
+        "builtin": true,
+        "models": null,
+        "effortLevels": [],
+        "acceptsModel": true,
+        "icon": {
+          "viewBox": "0 0 24 25",
+          "paths": [
+            {
+              "d": "M21.7202 0.939941C22.9502 0.939941 23.9502 1.93994 23.9502 3.16994C23.9502 4.39994 22.9502 5.39994 21.7202 5.39994H19.7502C19.6002 5.39994 19.4902 5.27994 19.4902 5.13994V3.16994C19.4902 1.93994 20.4902 0.939941 21.7202 0.939941Z",
+              "fill": "#1783FF"
+            },
+            {
+              "d": "M9.39 13.9501L17.82 5.59012C17.98 5.43012 17.89 5.12012 17.68 5.12012H13.14C13.14 5.12012 13.04 5.14012 13 5.18012L3.92 14.1901C3.78 14.3301 3.57 14.2101 3.57 13.9801V5.39012C3.57 5.24012 3.47 5.12012 3.35 5.12012H0.219999C0.0999993 5.12012 0 5.24012 0 5.39012V23.9201C0 24.0701 0.0999993 24.1901 0.219999 24.1901H3.35C3.47 24.1901 3.57 24.0701 3.57 23.9201V20.1401C3.57 20.0601 3.6 19.9801 3.65 19.9301L6.47 17.1401C6.54 17.0701 6.63 17.0601 6.71 17.1101L14.24 22.6501C15.47 23.4801 16.85 23.9901 18.25 24.1401C18.37 24.1501 18.48 24.0301 18.48 23.8701V20.3101C18.48 20.1701 18.4 20.0601 18.29 20.0501C17.47 19.9201 16.66 19.6001 15.94 19.1101L9.42 14.3901C9.28 14.3001 9.27 14.0701 9.39 13.9501Z"
+            }
+          ]
+        },
+        "ready": true,
+        "enabled": true
+      },
+      {
+        "id": "pi",
+        "name": "Pi",
+        "command": "pi",
+        "protocol": "pi",
+        "builtin": true,
+        "models": [
+          {
+            "id": "anthropic/claude-fable-5",
+            "label": "claude-fable-5"
+          },
+          {
+            "id": "anthropic/claude-fable-5-1",
+            "label": "claude-fable-5-1"
+          },
+          {
+            "id": "anthropic/claude-fable-5-2",
+            "label": "claude-fable-5-2"
+          },
+          {
+            "id": "anthropic/claude-haiku-4-5",
+            "label": "claude-haiku-4-5"
+          },
+          {
+            "id": "anthropic/claude-haiku-4-5-20251001",
+            "label": "claude-haiku-4-5-20251001"
+          },
+          {
+            "id": "anthropic/claude-haiku-5-5",
+            "label": "claude-haiku-5-5"
+          },
+          {
+            "id": "anthropic/claude-opus-4-5",
+            "label": "claude-opus-4-5"
+          },
+          {
+            "id": "anthropic/claude-opus-4-5-20251101",
+            "label": "claude-opus-4-5-20251101"
+          },
+          {
+            "id": "anthropic/claude-opus-4-6",
+            "label": "claude-opus-4-6"
+          },
+          {
+            "id": "anthropic/claude-opus-4-7",
+            "label": "claude-opus-4-7"
+          },
+          {
+            "id": "anthropic/claude-opus-4-8",
+            "label": "claude-opus-4-8"
+          },
+          {
+            "id": "anthropic/claude-opus-5",
+            "label": "claude-opus-5"
+          },
+          {
+            "id": "anthropic/claude-opus-5-5",
+            "label": "claude-opus-5-5"
+          },
+          {
+            "id": "anthropic/claude-sonnet-4-5",
+            "label": "claude-sonnet-4-5"
+          },
+          {
+            "id": "anthropic/claude-sonnet-4-5-20250929",
+            "label": "claude-sonnet-4-5-20250929"
+          },
+          {
+            "id": "anthropic/claude-sonnet-4-6",
+            "label": "claude-sonnet-4-6"
+          },
+          {
+            "id": "anthropic/claude-sonnet-5",
+            "label": "claude-sonnet-5"
+          },
+          {
+            "id": "anthropic/claude-sonnet-5-5",
+            "label": "claude-sonnet-5-5"
+          },
+          {
+            "id": "openrouter/~anthropic/claude-fable-latest",
+            "label": "~anthropic/claude-fable-latest"
+          },
+          {
+            "id": "openrouter/~anthropic/claude-haiku-latest",
+            "label": "~anthropic/claude-haiku-latest"
+          },
+          {
+            "id": "openrouter/~anthropic/claude-opus-latest",
+            "label": "~anthropic/claude-opus-latest"
+          },
+          {
+            "id": "openrouter/~anthropic/claude-sonnet-latest",
+            "label": "~anthropic/claude-sonnet-latest"
+          },
+          {
+            "id": "openrouter/~deepseek/deepseek-flash-latest",
+            "label": "~deepseek/deepseek-flash-latest"
+          },
+          {
+            "id": "openrouter/~deepseek/deepseek-pro-latest",
+            "label": "~deepseek/deepseek-pro-latest"
+          },
+          {
+            "id": "openrouter/~deepseek/deepseek-v4-flash-latest",
+            "label": "~deepseek/deepseek-v4-flash-latest"
+          },
+          {
+            "id": "openrouter/~google/gemini-flash-latest",
+            "label": "~google/gemini-flash-latest"
+          },
+          {
+            "id": "openrouter/~google/gemini-pro-latest",
+            "label": "~google/gemini-pro-latest"
+          },
+          {
+            "id": "openrouter/~moonshotai/kimi-latest",
+            "label": "~moonshotai/kimi-latest"
+          },
+          {
+            "id": "openrouter/~openai/gpt-astra-latest",
+            "label": "~openai/gpt-astra-latest"
+          },
+          {
+            "id": "openrouter/~openai/gpt-luna-latest",
+            "label": "~openai/gpt-luna-latest"
+          },
+          {
+            "id": "openrouter/~openai/gpt-mini-latest",
+            "label": "~openai/gpt-mini-latest"
+          },
+          {
+            "id": "openrouter/~openai/gpt-sol-latest",
+            "label": "~openai/gpt-sol-latest"
+          },
+          {
+            "id": "openrouter/~openai/gpt-terra-latest",
+            "label": "~openai/gpt-terra-latest"
+          },
+          {
+            "id": "openrouter/~unbiased/pareto-latest",
+            "label": "~unbiased/pareto-latest"
+          },
+          {
+            "id": "openrouter/~x-ai/grok-latest",
+            "label": "~x-ai/grok-latest"
+          },
+          {
+            "id": "openrouter/~z-ai/glm-flash-latest",
+            "label": "~z-ai/glm-flash-latest"
+          },
+          {
+            "id": "openrouter/~z-ai/glm-latest",
+            "label": "~z-ai/glm-latest"
+          },
+          {
+            "id": "openrouter/aion-labs/aion-2.0",
+            "label": "aion-labs/aion-2.0"
+          },
+          {
+            "id": "openrouter/aion-labs/aion-3.0",
+            "label": "aion-labs/aion-3.0"
+          },
+          {
+            "id": "openrouter/aion-labs/aion-3.0-mini",
+            "label": "aion-labs/aion-3.0-mini"
+          },
+          {
+            "id": "openrouter/aion-labs/aion-3.5",
+            "label": "aion-labs/aion-3.5"
+          },
+          {
+            "id": "openrouter/aion-labs/aion-3.5-mini",
+            "label": "aion-labs/aion-3.5-mini"
+          },
+          {
+            "id": "openrouter/amazon/nova-2-lite-v1",
+            "label": "amazon/nova-2-lite-v1"
+          },
+          {
+            "id": "openrouter/amazon/nova-lite-v1",
+            "label": "amazon/nova-lite-v1"
+          },
+          {
+            "id": "openrouter/amazon/nova-micro-v1",
+            "label": "amazon/nova-micro-v1"
+          },
+          {
+            "id": "openrouter/amazon/nova-premier-v1",
+            "label": "amazon/nova-premier-v1"
+          },
+          {
+            "id": "openrouter/amazon/nova-pro-v1",
+            "label": "amazon/nova-pro-v1"
+          },
+          {
+            "id": "openrouter/anthropic/claude-fable-5",
+            "label": "anthropic/claude-fable-5"
+          },
+          {
+            "id": "openrouter/anthropic/claude-fable-5:batch",
+            "label": "anthropic/claude-fable-5:batch"
+          },
+          {
+            "id": "openrouter/anthropic/claude-fable-5.1",
+            "label": "anthropic/claude-fable-5.1"
+          },
+          {
+            "id": "openrouter/anthropic/claude-fable-5.1:batch",
+            "label": "anthropic/claude-fable-5.1:batch"
+          },
+          {
+            "id": "openrouter/anthropic/claude-fable-5.2",
+            "label": "anthropic/claude-fable-5.2"
+          },
+          {
+            "id": "openrouter/anthropic/claude-fable-5.2:batch",
+            "label": "anthropic/claude-fable-5.2:batch"
+          },
+          {
+            "id": "openrouter/anthropic/claude-haiku-4.5",
+            "label": "anthropic/claude-haiku-4.5"
+          },
+          {
+            "id": "openrouter/anthropic/claude-haiku-4.5:batch",
+            "label": "anthropic/claude-haiku-4.5:batch"
+          },
+          {
+            "id": "openrouter/anthropic/claude-haiku-5.5",
+            "label": "anthropic/claude-haiku-5.5"
+          },
+          {
+            "id": "openrouter/anthropic/claude-haiku-5.5:batch",
+            "label": "anthropic/claude-haiku-5.5:batch"
+          },
+          {
+            "id": "openrouter/anthropic/claude-opus-4.1",
+            "label": "anthropic/claude-opus-4.1"
+          },
+          {
+            "id": "openrouter/anthropic/claude-opus-4.1:batch",
+            "label": "anthropic/claude-opus-4.1:batch"
+          },
+          {
+            "id": "openrouter/anthropic/claude-opus-4.5",
+            "label": "anthropic/claude-opus-4.5"
+          },
+          {
+            "id": "openrouter/anthropic/claude-opus-4.5:batch",
+            "label": "anthropic/claude-opus-4.5:batch"
+          },
+          {
+            "id": "openrouter/anthropic/claude-opus-4.6",
+            "label": "anthropic/claude-opus-4.6"
+          },
+          {
+            "id": "openrouter/anthropic/claude-opus-4.6:batch",
+            "label": "anthropic/claude-opus-4.6:batch"
+          },
+          {
+            "id": "openrouter/anthropic/claude-opus-4.7",
+            "label": "anthropic/claude-opus-4.7"
+          },
+          {
+            "id": "openrouter/anthropic/claude-opus-4.7:batch",
+            "label": "anthropic/claude-opus-4.7:batch"
+          },
+          {
+            "id": "openrouter/anthropic/claude-opus-4.8",
+            "label": "anthropic/claude-opus-4.8"
+          },
+          {
+            "id": "openrouter/anthropic/claude-opus-4.8:batch",
+            "label": "anthropic/claude-opus-4.8:batch"
+          },
+          {
+            "id": "openrouter/anthropic/claude-opus-5",
+            "label": "anthropic/claude-opus-5"
+          },
+          {
+            "id": "openrouter/anthropic/claude-opus-5:batch",
+            "label": "anthropic/claude-opus-5:batch"
+          },
+          {
+            "id": "openrouter/anthropic/claude-opus-5.5",
+            "label": "anthropic/claude-opus-5.5"
+          },
+          {
+            "id": "openrouter/anthropic/claude-opus-5.5:batch",
+            "label": "anthropic/claude-opus-5.5:batch"
+          },
+          {
+            "id": "openrouter/anthropic/claude-sonnet-4.5",
+            "label": "anthropic/claude-sonnet-4.5"
+          },
+          {
+            "id": "openrouter/anthropic/claude-sonnet-4.5:batch",
+            "label": "anthropic/claude-sonnet-4.5:batch"
+          },
+          {
+            "id": "openrouter/anthropic/claude-sonnet-4.6",
+            "label": "anthropic/claude-sonnet-4.6"
+          },
+          {
+            "id": "openrouter/anthropic/claude-sonnet-4.6:batch",
+            "label": "anthropic/claude-sonnet-4.6:batch"
+          },
+          {
+            "id": "openrouter/anthropic/claude-sonnet-5",
+            "label": "anthropic/claude-sonnet-5"
+          },
+          {
+            "id": "openrouter/anthropic/claude-sonnet-5:batch",
+            "label": "anthropic/claude-sonnet-5:batch"
+          },
+          {
+            "id": "openrouter/anthropic/claude-sonnet-5.5",
+            "label": "anthropic/claude-sonnet-5.5"
+          },
+          {
+            "id": "openrouter/anthropic/claude-sonnet-5.5:batch",
+            "label": "anthropic/claude-sonnet-5.5:batch"
+          },
+          {
+            "id": "openrouter/auto",
+            "label": "auto"
+          },
+          {
+            "id": "openrouter/baidu/ernie-5.5-flash-preview:free",
+            "label": "baidu/ernie-5.5-flash-preview:free"
+          },
+          {
+            "id": "openrouter/baidu/ernie-light-dt-1.0-intl",
+            "label": "baidu/ernie-light-dt-1.0-intl"
+          },
+          {
+            "id": "openrouter/bytedance-seed/seed-2-1-turbo",
+            "label": "bytedance-seed/seed-2-1-turbo"
+          },
+          {
+            "id": "openrouter/bytedance-seed/seed-2.0-lite",
+            "label": "bytedance-seed/seed-2.0-lite"
+          },
+          {
+            "id": "openrouter/bytedance-seed/seed-2.0-mini",
+            "label": "bytedance-seed/seed-2.0-mini"
+          },
+          {
+            "id": "openrouter/cohere/command-a",
+            "label": "cohere/command-a"
+          },
+          {
+            "id": "openrouter/cohere/command-a-plus",
+            "label": "cohere/command-a-plus"
+          },
+          {
+            "id": "openrouter/cohere/command-r-08-2024",
+            "label": "cohere/command-r-08-2024"
+          },
+          {
+            "id": "openrouter/cohere/command-r-plus-08-2024",
+            "label": "cohere/command-r-plus-08-2024"
+          },
+          {
+            "id": "openrouter/cohere/command-r7b-12-2024",
+            "label": "cohere/command-r7b-12-2024"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-chat",
+            "label": "deepseek/deepseek-chat"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-chat-v3-0324",
+            "label": "deepseek/deepseek-chat-v3-0324"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-chat-v3.1",
+            "label": "deepseek/deepseek-chat-v3.1"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-r1-0528",
+            "label": "deepseek/deepseek-r1-0528"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v3.1-terminus",
+            "label": "deepseek/deepseek-v3.1-terminus"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v3.2",
+            "label": "deepseek/deepseek-v3.2"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v3.2-exp",
+            "label": "deepseek/deepseek-v3.2-exp"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v4-flash",
+            "label": "deepseek/deepseek-v4-flash"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v4-flash-0731",
+            "label": "deepseek/deepseek-v4-flash-0731"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v4-flash-0731:batch",
+            "label": "deepseek/deepseek-v4-flash-0731:batch"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v4-flash-vision-exp",
+            "label": "deepseek/deepseek-v4-flash-vision-exp"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v4-pro",
+            "label": "deepseek/deepseek-v4-pro"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v4-pro-0813",
+            "label": "deepseek/deepseek-v4-pro-0813"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v4.1-flash",
+            "label": "deepseek/deepseek-v4.1-flash"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v4.1-flash-1017",
+            "label": "deepseek/deepseek-v4.1-flash-1017"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v4.1-flash-1017:batch",
+            "label": "deepseek/deepseek-v4.1-flash-1017:batch"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v4.1-flash:batch",
+            "label": "deepseek/deepseek-v4.1-flash:batch"
+          },
+          {
+            "id": "openrouter/elorian/glimpse",
+            "label": "elorian/glimpse"
+          },
+          {
+            "id": "openrouter/fireworks/ember-1",
+            "label": "fireworks/ember-1"
+          },
+          {
+            "id": "openrouter/google/gemini-2.5-flash",
+            "label": "google/gemini-2.5-flash"
+          },
+          {
+            "id": "openrouter/google/gemini-2.5-flash-lite",
+            "label": "google/gemini-2.5-flash-lite"
+          },
+          {
+            "id": "openrouter/google/gemini-2.5-pro",
+            "label": "google/gemini-2.5-pro"
+          },
+          {
+            "id": "openrouter/google/gemini-2.5-pro-preview",
+            "label": "google/gemini-2.5-pro-preview"
+          },
+          {
+            "id": "openrouter/google/gemini-3-flash-preview",
+            "label": "google/gemini-3-flash-preview"
+          },
+          {
+            "id": "openrouter/google/gemini-3-flash-preview:batch",
+            "label": "google/gemini-3-flash-preview:batch"
+          },
+          {
+            "id": "openrouter/google/gemini-3-pro-image",
+            "label": "google/gemini-3-pro-image"
+          },
+          {
+            "id": "openrouter/google/gemini-3.1-flash-lite",
+            "label": "google/gemini-3.1-flash-lite"
+          },
+          {
+            "id": "openrouter/google/gemini-3.1-flash-lite-preview",
+            "label": "google/gemini-3.1-flash-lite-preview"
+          },
+          {
+            "id": "openrouter/google/gemini-3.1-flash-lite:batch",
+            "label": "google/gemini-3.1-flash-lite:batch"
+          },
+          {
+            "id": "openrouter/google/gemini-3.1-pro-preview",
+            "label": "google/gemini-3.1-pro-preview"
+          },
+          {
+            "id": "openrouter/google/gemini-3.1-pro-preview-customtools",
+            "label": "google/gemini-3.1-pro-preview-customtools"
+          },
+          {
+            "id": "openrouter/google/gemini-3.1-pro-preview:batch",
+            "label": "google/gemini-3.1-pro-preview:batch"
+          },
+          {
+            "id": "openrouter/google/gemini-3.5-flash",
+            "label": "google/gemini-3.5-flash"
+          },
+          {
+            "id": "openrouter/google/gemini-3.5-flash-lite",
+            "label": "google/gemini-3.5-flash-lite"
+          },
+          {
+            "id": "openrouter/google/gemini-3.5-flash-lite:batch",
+            "label": "google/gemini-3.5-flash-lite:batch"
+          },
+          {
+            "id": "openrouter/google/gemini-3.5-flash:batch",
+            "label": "google/gemini-3.5-flash:batch"
+          },
+          {
+            "id": "openrouter/google/gemini-3.6-flash",
+            "label": "google/gemini-3.6-flash"
+          },
+          {
+            "id": "openrouter/google/gemini-3.6-flash:batch",
+            "label": "google/gemini-3.6-flash:batch"
+          },
+          {
+            "id": "openrouter/google/gemini-3.7-flash",
+            "label": "google/gemini-3.7-flash"
+          },
+          {
+            "id": "openrouter/google/gemini-3.7-flash:batch",
+            "label": "google/gemini-3.7-flash:batch"
+          },
+          {
+            "id": "openrouter/google/gemini-3.8-flash",
+            "label": "google/gemini-3.8-flash"
+          },
+          {
+            "id": "openrouter/google/gemini-3.8-flash:batch",
+            "label": "google/gemini-3.8-flash:batch"
+          },
+          {
+            "id": "openrouter/google/gemini-4-argon",
+            "label": "google/gemini-4-argon"
+          },
+          {
+            "id": "openrouter/google/gemini-4-argon:batch",
+            "label": "google/gemini-4-argon:batch"
+          },
+          {
+            "id": "openrouter/google/gemini-4-carbon",
+            "label": "google/gemini-4-carbon"
+          },
+          {
+            "id": "openrouter/google/gemini-4-carbon:batch",
+            "label": "google/gemini-4-carbon:batch"
+          },
+          {
+            "id": "openrouter/google/gemini-4-hydrogen",
+            "label": "google/gemini-4-hydrogen"
+          },
+          {
+            "id": "openrouter/google/gemini-4-hydrogen:batch",
+            "label": "google/gemini-4-hydrogen:batch"
+          },
+          {
+            "id": "openrouter/google/gemini-4-neon",
+            "label": "google/gemini-4-neon"
+          },
+          {
+            "id": "openrouter/google/gemini-4-neon:batch",
+            "label": "google/gemini-4-neon:batch"
+          },
+          {
+            "id": "openrouter/google/gemini-nano-banana-2.1",
+            "label": "google/gemini-nano-banana-2.1"
+          },
+          {
+            "id": "openrouter/google/gemma-3-12b-it",
+            "label": "google/gemma-3-12b-it"
+          },
+          {
+            "id": "openrouter/google/gemma-3-27b-it",
+            "label": "google/gemma-3-27b-it"
+          },
+          {
+            "id": "openrouter/google/gemma-4-26b-a4b-it",
+            "label": "google/gemma-4-26b-a4b-it"
+          },
+          {
+            "id": "openrouter/google/gemma-4-26b-a4b-it:free",
+            "label": "google/gemma-4-26b-a4b-it:free"
+          },
+          {
+            "id": "openrouter/google/gemma-4-31b-it",
+            "label": "google/gemma-4-31b-it"
+          },
+          {
+            "id": "openrouter/google/gemma-4-31b-it:free",
+            "label": "google/gemma-4-31b-it:free"
+          },
+          {
+            "id": "openrouter/ibm-granite/granite-4.2-8b",
+            "label": "ibm-granite/granite-4.2-8b"
+          },
+          {
+            "id": "openrouter/inclusionai/ling-3.0-flash",
+            "label": "inclusionai/ling-3.0-flash"
+          },
+          {
+            "id": "openrouter/inclusionai/ling-3.0-flash-vl",
+            "label": "inclusionai/ling-3.0-flash-vl"
+          },
+          {
+            "id": "openrouter/inclusionai/ling-3.0-tiny",
+            "label": "inclusionai/ling-3.0-tiny"
+          },
+          {
+            "id": "openrouter/inclusionai/ling-3.1-flash",
+            "label": "inclusionai/ling-3.1-flash"
+          },
+          {
+            "id": "openrouter/inclusionai/ling-3.2-flash:free",
+            "label": "inclusionai/ling-3.2-flash:free"
+          },
+          {
+            "id": "openrouter/kt/midm-k-3.0-pro",
+            "label": "kt/midm-k-3.0-pro"
+          },
+          {
+            "id": "openrouter/liquid/lfm-2.5-24b-a2b",
+            "label": "liquid/lfm-2.5-24b-a2b"
+          },
+          {
+            "id": "openrouter/liquid/lfm-3-1.7b",
+            "label": "liquid/lfm-3-1.7b"
+          },
+          {
+            "id": "openrouter/liquid/lfm-3-1.7b:free",
+            "label": "liquid/lfm-3-1.7b:free"
+          },
+          {
+            "id": "openrouter/meta-llama/llama-3.1-70b-instruct",
+            "label": "meta-llama/llama-3.1-70b-instruct"
+          },
+          {
+            "id": "openrouter/meta-llama/llama-3.1-8b-instruct",
+            "label": "meta-llama/llama-3.1-8b-instruct"
+          },
+          {
+            "id": "openrouter/meta-llama/llama-3.3-70b-instruct",
+            "label": "meta-llama/llama-3.3-70b-instruct"
+          },
+          {
+            "id": "openrouter/meta-llama/llama-4-maverick",
+            "label": "meta-llama/llama-4-maverick"
+          },
+          {
+            "id": "openrouter/meta-llama/llama-4-scout",
+            "label": "meta-llama/llama-4-scout"
+          },
+          {
+            "id": "openrouter/meta/muse-ember",
+            "label": "meta/muse-ember"
+          },
+          {
+            "id": "openrouter/meta/muse-glimmer-30b",
+            "label": "meta/muse-glimmer-30b"
+          },
+          {
+            "id": "openrouter/meta/muse-glimmer-30b:batch",
+            "label": "meta/muse-glimmer-30b:batch"
+          },
+          {
+            "id": "openrouter/meta/muse-spark-1.1",
+            "label": "meta/muse-spark-1.1"
+          },
+          {
+            "id": "openrouter/meta/muse-spark-1.2",
+            "label": "meta/muse-spark-1.2"
+          },
+          {
+            "id": "openrouter/meta/muse-spark-1.2-contributor",
+            "label": "meta/muse-spark-1.2-contributor"
+          },
+          {
+            "id": "openrouter/meta/muse-spark-1.3",
+            "label": "meta/muse-spark-1.3"
+          },
+          {
+            "id": "openrouter/meta/muse-spark-1.3-contributor",
+            "label": "meta/muse-spark-1.3-contributor"
+          },
+          {
+            "id": "openrouter/meta/muse-spark-open",
+            "label": "meta/muse-spark-open"
+          },
+          {
+            "id": "openrouter/meta/muse-wonder",
+            "label": "meta/muse-wonder"
+          },
+          {
+            "id": "openrouter/minimax/minimax-m2.5",
+            "label": "minimax/minimax-m2.5"
+          },
+          {
+            "id": "openrouter/minimax/minimax-m2.7",
+            "label": "minimax/minimax-m2.7"
+          },
+          {
+            "id": "openrouter/minimax/minimax-m3",
+            "label": "minimax/minimax-m3"
+          },
+          {
+            "id": "openrouter/minimax/minimax-m3:batch",
+            "label": "minimax/minimax-m3:batch"
+          },
+          {
+            "id": "openrouter/minimax/minimax-m3.1-flash",
+            "label": "minimax/minimax-m3.1-flash"
+          },
+          {
+            "id": "openrouter/mistralai/codestral-2508",
+            "label": "mistralai/codestral-2508"
+          },
+          {
+            "id": "openrouter/mistralai/devstral-2512",
+            "label": "mistralai/devstral-2512"
+          },
+          {
+            "id": "openrouter/mistralai/ministral-14b-2512",
+            "label": "mistralai/ministral-14b-2512"
+          },
+          {
+            "id": "openrouter/mistralai/ministral-3b-2512",
+            "label": "mistralai/ministral-3b-2512"
+          },
+          {
+            "id": "openrouter/mistralai/ministral-8b-2512",
+            "label": "mistralai/ministral-8b-2512"
+          },
+          {
+            "id": "openrouter/mistralai/mistral-large",
+            "label": "mistralai/mistral-large"
+          },
+          {
+            "id": "openrouter/mistralai/mistral-large-2407",
+            "label": "mistralai/mistral-large-2407"
+          },
+          {
+            "id": "openrouter/mistralai/mistral-large-2512",
+            "label": "mistralai/mistral-large-2512"
+          },
+          {
+            "id": "openrouter/mistralai/mistral-large-4-0",
+            "label": "mistralai/mistral-large-4-0"
+          },
+          {
+            "id": "openrouter/mistralai/mistral-medium-3-5",
+            "label": "mistralai/mistral-medium-3-5"
+          },
+          {
+            "id": "openrouter/mistralai/mistral-medium-3-5:batch",
+            "label": "mistralai/mistral-medium-3-5:batch"
+          },
+          {
+            "id": "openrouter/mistralai/mistral-nemo",
+            "label": "mistralai/mistral-nemo"
+          },
+          {
+            "id": "openrouter/mistralai/mistral-saba",
+            "label": "mistralai/mistral-saba"
+          },
+          {
+            "id": "openrouter/mistralai/mistral-small-2603",
+            "label": "mistralai/mistral-small-2603"
+          },
+          {
+            "id": "openrouter/mistralai/mistral-small-3.1-24b-instruct",
+            "label": "mistralai/mistral-small-3.1-24b-instruct"
+          },
+          {
+            "id": "openrouter/mistralai/mistral-small-3.2-24b-instruct",
+            "label": "mistralai/mistral-small-3.2-24b-instruct"
+          },
+          {
+            "id": "openrouter/mistralai/mixtral-8x22b-instruct",
+            "label": "mistralai/mixtral-8x22b-instruct"
+          },
+          {
+            "id": "openrouter/mistralai/voxtral-small-24b-2507",
+            "label": "mistralai/voxtral-small-24b-2507"
+          },
+          {
+            "id": "openrouter/moonshotai/kimi-k2.5",
+            "label": "moonshotai/kimi-k2.5"
+          },
+          {
+            "id": "openrouter/moonshotai/kimi-k2.6",
+            "label": "moonshotai/kimi-k2.6"
+          },
+          {
+            "id": "openrouter/moonshotai/kimi-k2.7-code",
+            "label": "moonshotai/kimi-k2.7-code"
+          },
+          {
+            "id": "openrouter/moonshotai/kimi-k3",
+            "label": "moonshotai/kimi-k3"
+          },
+          {
+            "id": "openrouter/moonshotai/kimi-k3:batch",
+            "label": "moonshotai/kimi-k3:batch"
+          },
+          {
+            "id": "openrouter/moonshotai/kimi-k3.1-pro",
+            "label": "moonshotai/kimi-k3.1-pro"
+          },
+          {
+            "id": "openrouter/moonshotai/kimi-k3.1-pro:batch",
+            "label": "moonshotai/kimi-k3.1-pro:batch"
+          },
+          {
+            "id": "openrouter/motif-technologies/motif-3",
+            "label": "motif-technologies/motif-3"
+          },
+          {
+            "id": "openrouter/nex-agi/nex-n2.5-pro",
+            "label": "nex-agi/nex-n2.5-pro"
+          },
+          {
+            "id": "openrouter/nex-agi/nex-n2.6",
+            "label": "nex-agi/nex-n2.6"
+          },
+          {
+            "id": "openrouter/nvidia/nemotron-3-nano-30b-a3b",
+            "label": "nvidia/nemotron-3-nano-30b-a3b"
+          },
+          {
+            "id": "openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+            "label": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+          },
+          {
+            "id": "openrouter/nvidia/nemotron-3-super-120b-a12b",
+            "label": "nvidia/nemotron-3-super-120b-a12b"
+          },
+          {
+            "id": "openrouter/nvidia/nemotron-3-ultra-550b-a55b",
+            "label": "nvidia/nemotron-3-ultra-550b-a55b"
+          },
+          {
+            "id": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+            "label": "nvidia/nemotron-3-ultra-550b-a55b:free"
+          },
+          {
+            "id": "openrouter/nvidia/nemotron-3.5-lightning",
+            "label": "nvidia/nemotron-3.5-lightning"
+          },
+          {
+            "id": "openrouter/nvidia/nemotron-3.5-lightning:free",
+            "label": "nvidia/nemotron-3.5-lightning:free"
+          },
+          {
+            "id": "openrouter/nvidia/nemotron-3.5-super-vl",
+            "label": "nvidia/nemotron-3.5-super-vl"
+          },
+          {
+            "id": "openrouter/nvidia/nemotron-3.5-super-vl:free",
+            "label": "nvidia/nemotron-3.5-super-vl:free"
+          },
+          {
+            "id": "openrouter/openai/gpt-3.5-turbo-0613",
+            "label": "openai/gpt-3.5-turbo-0613"
+          },
+          {
+            "id": "openrouter/openai/gpt-3.5-turbo-16k",
+            "label": "openai/gpt-3.5-turbo-16k"
+          },
+          {
+            "id": "openrouter/openai/gpt-4",
+            "label": "openai/gpt-4"
+          },
+          {
+            "id": "openrouter/openai/gpt-4-turbo:batch",
+            "label": "openai/gpt-4-turbo:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-4.1",
+            "label": "openai/gpt-4.1"
+          },
+          {
+            "id": "openrouter/openai/gpt-4.1-mini",
+            "label": "openai/gpt-4.1-mini"
+          },
+          {
+            "id": "openrouter/openai/gpt-4.1-mini:batch",
+            "label": "openai/gpt-4.1-mini:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-4.1-nano",
+            "label": "openai/gpt-4.1-nano"
+          },
+          {
+            "id": "openrouter/openai/gpt-4.1-nano:batch",
+            "label": "openai/gpt-4.1-nano:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-4.1:batch",
+            "label": "openai/gpt-4.1:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-4o",
+            "label": "openai/gpt-4o"
+          },
+          {
+            "id": "openrouter/openai/gpt-4o-2024-05-13",
+            "label": "openai/gpt-4o-2024-05-13"
+          },
+          {
+            "id": "openrouter/openai/gpt-4o-2024-08-06",
+            "label": "openai/gpt-4o-2024-08-06"
+          },
+          {
+            "id": "openrouter/openai/gpt-4o-2024-11-20",
+            "label": "openai/gpt-4o-2024-11-20"
+          },
+          {
+            "id": "openrouter/openai/gpt-4o-mini",
+            "label": "openai/gpt-4o-mini"
+          },
+          {
+            "id": "openrouter/openai/gpt-4o-mini-2024-07-18",
+            "label": "openai/gpt-4o-mini-2024-07-18"
+          },
+          {
+            "id": "openrouter/openai/gpt-4o-mini:batch",
+            "label": "openai/gpt-4o-mini:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-4o:batch",
+            "label": "openai/gpt-4o:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-5",
+            "label": "openai/gpt-5"
+          },
+          {
+            "id": "openrouter/openai/gpt-5-mini",
+            "label": "openai/gpt-5-mini"
+          },
+          {
+            "id": "openrouter/openai/gpt-5-mini:batch",
+            "label": "openai/gpt-5-mini:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-5-nano",
+            "label": "openai/gpt-5-nano"
+          },
+          {
+            "id": "openrouter/openai/gpt-5-nano:batch",
+            "label": "openai/gpt-5-nano:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-5-pro",
+            "label": "openai/gpt-5-pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-5-pro:batch",
+            "label": "openai/gpt-5-pro:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-5:batch",
+            "label": "openai/gpt-5:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.1",
+            "label": "openai/gpt-5.1"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.1-codex",
+            "label": "openai/gpt-5.1-codex"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.1-codex-max",
+            "label": "openai/gpt-5.1-codex-max"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.1-codex-mini",
+            "label": "openai/gpt-5.1-codex-mini"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.1:batch",
+            "label": "openai/gpt-5.1:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.2",
+            "label": "openai/gpt-5.2"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.2-chat",
+            "label": "openai/gpt-5.2-chat"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.2-codex",
+            "label": "openai/gpt-5.2-codex"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.2-pro",
+            "label": "openai/gpt-5.2-pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.2-pro:batch",
+            "label": "openai/gpt-5.2-pro:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.2:batch",
+            "label": "openai/gpt-5.2:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.3-codex",
+            "label": "openai/gpt-5.3-codex"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.4",
+            "label": "openai/gpt-5.4"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.4-mini",
+            "label": "openai/gpt-5.4-mini"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.4-mini:batch",
+            "label": "openai/gpt-5.4-mini:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.4-nano",
+            "label": "openai/gpt-5.4-nano"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.4-nano:batch",
+            "label": "openai/gpt-5.4-nano:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.4-pro",
+            "label": "openai/gpt-5.4-pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.4-pro:batch",
+            "label": "openai/gpt-5.4-pro:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.4:batch",
+            "label": "openai/gpt-5.4:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.5",
+            "label": "openai/gpt-5.5"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.5-pro",
+            "label": "openai/gpt-5.5-pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.5-pro:batch",
+            "label": "openai/gpt-5.5-pro:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.5:batch",
+            "label": "openai/gpt-5.5:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.6-luna",
+            "label": "openai/gpt-5.6-luna"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.6-luna-pro",
+            "label": "openai/gpt-5.6-luna-pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.6-luna-pro:batch",
+            "label": "openai/gpt-5.6-luna-pro:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.6-luna:batch",
+            "label": "openai/gpt-5.6-luna:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.6-sol",
+            "label": "openai/gpt-5.6-sol"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.6-sol-pro",
+            "label": "openai/gpt-5.6-sol-pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.6-sol-pro:batch",
+            "label": "openai/gpt-5.6-sol-pro:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.6-sol:batch",
+            "label": "openai/gpt-5.6-sol:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.6-terra",
+            "label": "openai/gpt-5.6-terra"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.6-terra-pro",
+            "label": "openai/gpt-5.6-terra-pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.6-terra-pro:batch",
+            "label": "openai/gpt-5.6-terra-pro:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.6-terra:batch",
+            "label": "openai/gpt-5.6-terra:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-6-astra",
+            "label": "openai/gpt-6-astra"
+          },
+          {
+            "id": "openrouter/openai/gpt-6-astra-pro",
+            "label": "openai/gpt-6-astra-pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-6-astra-pro:batch",
+            "label": "openai/gpt-6-astra-pro:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-6-astra:batch",
+            "label": "openai/gpt-6-astra:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-6-luna",
+            "label": "openai/gpt-6-luna"
+          },
+          {
+            "id": "openrouter/openai/gpt-6-luna-pro",
+            "label": "openai/gpt-6-luna-pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-6-luna-pro:batch",
+            "label": "openai/gpt-6-luna-pro:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-6-luna:batch",
+            "label": "openai/gpt-6-luna:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-6-sol",
+            "label": "openai/gpt-6-sol"
+          },
+          {
+            "id": "openrouter/openai/gpt-6-sol-pro",
+            "label": "openai/gpt-6-sol-pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-6-sol-pro:batch",
+            "label": "openai/gpt-6-sol-pro:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-6-sol:batch",
+            "label": "openai/gpt-6-sol:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.1-sol",
+            "label": "openai/gpt-6.1-sol"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.1-sol-pro",
+            "label": "openai/gpt-6.1-sol-pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.1-sol-pro:batch",
+            "label": "openai/gpt-6.1-sol-pro:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.1-sol:batch",
+            "label": "openai/gpt-6.1-sol:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.1-terra",
+            "label": "openai/gpt-6.1-terra"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.1-terra-pro",
+            "label": "openai/gpt-6.1-terra-pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.1-terra-pro:batch",
+            "label": "openai/gpt-6.1-terra-pro:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.1-terra:batch",
+            "label": "openai/gpt-6.1-terra:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.2-astra",
+            "label": "openai/gpt-6.2-astra"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.2-astra-pro",
+            "label": "openai/gpt-6.2-astra-pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.2-astra-pro:batch",
+            "label": "openai/gpt-6.2-astra-pro:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.2-astra:batch",
+            "label": "openai/gpt-6.2-astra:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.2-sol",
+            "label": "openai/gpt-6.2-sol"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.2-sol-pro",
+            "label": "openai/gpt-6.2-sol-pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.2-sol-pro:batch",
+            "label": "openai/gpt-6.2-sol-pro:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.2-sol:batch",
+            "label": "openai/gpt-6.2-sol:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-audio",
+            "label": "openai/gpt-audio"
+          },
+          {
+            "id": "openrouter/openai/gpt-audio-mini",
+            "label": "openai/gpt-audio-mini"
+          },
+          {
+            "id": "openrouter/openai/gpt-chat-latest",
+            "label": "openai/gpt-chat-latest"
+          },
+          {
+            "id": "openrouter/openai/gpt-oss-120b",
+            "label": "openai/gpt-oss-120b"
+          },
+          {
+            "id": "openrouter/openai/gpt-oss-120b:batch",
+            "label": "openai/gpt-oss-120b:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-oss-20b",
+            "label": "openai/gpt-oss-20b"
+          },
+          {
+            "id": "openrouter/openai/gpt-oss-20b:batch",
+            "label": "openai/gpt-oss-20b:batch"
+          },
+          {
+            "id": "openrouter/openai/gpt-oss-safeguard-20b",
+            "label": "openai/gpt-oss-safeguard-20b"
+          },
+          {
+            "id": "openrouter/openai/o3",
+            "label": "openai/o3"
+          },
+          {
+            "id": "openrouter/openai/o3-mini:batch",
+            "label": "openai/o3-mini:batch"
+          },
+          {
+            "id": "openrouter/openai/o3-pro",
+            "label": "openai/o3-pro"
+          },
+          {
+            "id": "openrouter/openai/o3:batch",
+            "label": "openai/o3:batch"
+          },
+          {
+            "id": "openrouter/openai/o4-mini:batch",
+            "label": "openai/o4-mini:batch"
+          },
+          {
+            "id": "openrouter/openrouter/auto",
+            "label": "openrouter/auto"
+          },
+          {
+            "id": "openrouter/openrouter/auto-beta",
+            "label": "openrouter/auto-beta"
+          },
+          {
+            "id": "openrouter/openrouter/auto-code",
+            "label": "openrouter/auto-code"
+          },
+          {
+            "id": "openrouter/openrouter/free",
+            "label": "openrouter/free"
+          },
+          {
+            "id": "openrouter/openrouter/fusion",
+            "label": "openrouter/fusion"
+          },
+          {
+            "id": "openrouter/openrouter/pareto-code",
+            "label": "openrouter/pareto-code"
+          },
+          {
+            "id": "openrouter/particle-ai/particle-1",
+            "label": "particle-ai/particle-1"
+          },
+          {
+            "id": "openrouter/particle-ai/particle-1:free",
+            "label": "particle-ai/particle-1:free"
+          },
+          {
+            "id": "openrouter/perceptron/perceptron-mk1.5",
+            "label": "perceptron/perceptron-mk1.5"
+          },
+          {
+            "id": "openrouter/prism-ml/ternary-bonsai-2-27b",
+            "label": "prism-ml/ternary-bonsai-2-27b"
+          },
+          {
+            "id": "openrouter/prism-ml/ternary-bonsai-2-9b",
+            "label": "prism-ml/ternary-bonsai-2-9b"
+          },
+          {
+            "id": "openrouter/qwen/qwen-2.5-72b-instruct",
+            "label": "qwen/qwen-2.5-72b-instruct"
+          },
+          {
+            "id": "openrouter/qwen/qwen-plus",
+            "label": "qwen/qwen-plus"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-14b",
+            "label": "qwen/qwen3-14b"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-235b-a22b-2507",
+            "label": "qwen/qwen3-235b-a22b-2507"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-235b-a22b-thinking-2507",
+            "label": "qwen/qwen3-235b-a22b-thinking-2507"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-30b-a3b",
+            "label": "qwen/qwen3-30b-a3b"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-30b-a3b-instruct-2507",
+            "label": "qwen/qwen3-30b-a3b-instruct-2507"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-32b",
+            "label": "qwen/qwen3-32b"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-coder",
+            "label": "qwen/qwen3-coder"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-coder-30b-a3b-instruct",
+            "label": "qwen/qwen3-coder-30b-a3b-instruct"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-coder-flash",
+            "label": "qwen/qwen3-coder-flash"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-coder-next",
+            "label": "qwen/qwen3-coder-next"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-next-80b-a3b-instruct",
+            "label": "qwen/qwen3-next-80b-a3b-instruct"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-vl-235b-a22b-instruct",
+            "label": "qwen/qwen3-vl-235b-a22b-instruct"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-vl-30b-a3b-instruct",
+            "label": "qwen/qwen3-vl-30b-a3b-instruct"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-vl-8b-instruct",
+            "label": "qwen/qwen3-vl-8b-instruct"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.5-122b-a10b",
+            "label": "qwen/qwen3.5-122b-a10b"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.5-27b",
+            "label": "qwen/qwen3.5-27b"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.5-35b-a3b",
+            "label": "qwen/qwen3.5-35b-a3b"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.5-397b-a17b",
+            "label": "qwen/qwen3.5-397b-a17b"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.5-9b",
+            "label": "qwen/qwen3.5-9b"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.5-flash-02-23",
+            "label": "qwen/qwen3.5-flash-02-23"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.5-plus-02-15",
+            "label": "qwen/qwen3.5-plus-02-15"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.5-plus-20260420",
+            "label": "qwen/qwen3.5-plus-20260420"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.6-27b",
+            "label": "qwen/qwen3.6-27b"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.6-35b-a3b",
+            "label": "qwen/qwen3.6-35b-a3b"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.6-flash",
+            "label": "qwen/qwen3.6-flash"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.6-plus",
+            "label": "qwen/qwen3.6-plus"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.7-flash",
+            "label": "qwen/qwen3.7-flash"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.7-max",
+            "label": "qwen/qwen3.7-max"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.7-plus",
+            "label": "qwen/qwen3.7-plus"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.7-plus:batch",
+            "label": "qwen/qwen3.7-plus:batch"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.8-2.4t-a95b",
+            "label": "qwen/qwen3.8-2.4t-a95b"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.8-27b",
+            "label": "qwen/qwen3.8-27b"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.8-27b:batch",
+            "label": "qwen/qwen3.8-27b:batch"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.8-flash",
+            "label": "qwen/qwen3.8-flash"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.8-max-0902",
+            "label": "qwen/qwen3.8-max-0902"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.8-max-0902:batch",
+            "label": "qwen/qwen3.8-max-0902:batch"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.8-max-prime",
+            "label": "qwen/qwen3.8-max-prime"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.8-omni-flash",
+            "label": "qwen/qwen3.8-omni-flash"
+          },
+          {
+            "id": "openrouter/qwen/qwen4-max",
+            "label": "qwen/qwen4-max"
+          },
+          {
+            "id": "openrouter/radixark/daisyrose-27b",
+            "label": "radixark/daisyrose-27b"
+          },
+          {
+            "id": "openrouter/recursive/flint-v1.0:free",
+            "label": "recursive/flint-v1.0:free"
+          },
+          {
+            "id": "openrouter/reflection/beam-1.0-501b-a23b",
+            "label": "reflection/beam-1.0-501b-a23b"
+          },
+          {
+            "id": "openrouter/rekaai/reka-edge",
+            "label": "rekaai/reka-edge"
+          },
+          {
+            "id": "openrouter/relace/relace-search",
+            "label": "relace/relace-search"
+          },
+          {
+            "id": "openrouter/ricursiveai/ripple-65b-preview",
+            "label": "ricursiveai/ripple-65b-preview"
+          },
+          {
+            "id": "openrouter/sakana/fugu-max",
+            "label": "sakana/fugu-max"
+          },
+          {
+            "id": "openrouter/sakana/fugu-ultra",
+            "label": "sakana/fugu-ultra"
+          },
+          {
+            "id": "openrouter/sakana/fugu-ultra-v2",
+            "label": "sakana/fugu-ultra-v2"
+          },
+          {
+            "id": "openrouter/sakana/sakana-namazu",
+            "label": "sakana/sakana-namazu"
+          },
+          {
+            "id": "openrouter/stepfun/step-3.7-flash",
+            "label": "stepfun/step-3.7-flash"
+          },
+          {
+            "id": "openrouter/stepfun/step-5-preview",
+            "label": "stepfun/step-5-preview"
+          },
+          {
+            "id": "openrouter/tencent/hy3",
+            "label": "tencent/hy3"
+          },
+          {
+            "id": "openrouter/tencent/hy4",
+            "label": "tencent/hy4"
+          },
+          {
+            "id": "openrouter/tencent/hy4-flash",
+            "label": "tencent/hy4-flash"
+          },
+          {
+            "id": "openrouter/tencent/hy4-preview",
+            "label": "tencent/hy4-preview"
+          },
+          {
+            "id": "openrouter/thinkingmachines/inkling",
+            "label": "thinkingmachines/inkling"
+          },
+          {
+            "id": "openrouter/thinkingmachines/inkling-2-mini",
+            "label": "thinkingmachines/inkling-2-mini"
+          },
+          {
+            "id": "openrouter/thinkingmachines/inkling-2-small",
+            "label": "thinkingmachines/inkling-2-small"
+          },
+          {
+            "id": "openrouter/thinkingmachines/inkling-small",
+            "label": "thinkingmachines/inkling-small"
+          },
+          {
+            "id": "openrouter/thinkingmachines/inkling-small:batch",
+            "label": "thinkingmachines/inkling-small:batch"
+          },
+          {
+            "id": "openrouter/typesafe/jev-router",
+            "label": "typesafe/jev-router"
+          },
+          {
+            "id": "openrouter/unbiased/pareto-26.10",
+            "label": "unbiased/pareto-26.10"
+          },
+          {
+            "id": "openrouter/unbiased/pareto-26.10-preview",
+            "label": "unbiased/pareto-26.10-preview"
+          },
+          {
+            "id": "openrouter/unbiased/pareto-26.9",
+            "label": "unbiased/pareto-26.9"
+          },
+          {
+            "id": "openrouter/upstage/solar-mini-4-5",
+            "label": "upstage/solar-mini-4-5"
+          },
+          {
+            "id": "openrouter/upstage/solar-mini4",
+            "label": "upstage/solar-mini4"
+          },
+          {
+            "id": "openrouter/upstage/solar-pro-4-contributor",
+            "label": "upstage/solar-pro-4-contributor"
+          },
+          {
+            "id": "openrouter/upstage/solar-pro4",
+            "label": "upstage/solar-pro4"
+          },
+          {
+            "id": "openrouter/x-ai/grok-4.20",
+            "label": "x-ai/grok-4.20"
+          },
+          {
+            "id": "openrouter/x-ai/grok-4.3",
+            "label": "x-ai/grok-4.3"
+          },
+          {
+            "id": "openrouter/x-ai/grok-4.3:batch",
+            "label": "x-ai/grok-4.3:batch"
+          },
+          {
+            "id": "openrouter/x-ai/grok-4.5",
+            "label": "x-ai/grok-4.5"
+          },
+          {
+            "id": "openrouter/x-ai/grok-4.6",
+            "label": "x-ai/grok-4.6"
+          },
+          {
+            "id": "openrouter/x-ai/grok-4.6:batch",
+            "label": "x-ai/grok-4.6:batch"
+          },
+          {
+            "id": "openrouter/x-ai/grok-4.7",
+            "label": "x-ai/grok-4.7"
+          },
+          {
+            "id": "openrouter/x-ai/grok-4.7:batch",
+            "label": "x-ai/grok-4.7:batch"
+          },
+          {
+            "id": "openrouter/xiaomi/mimo-v2.6-flash",
+            "label": "xiaomi/mimo-v2.6-flash"
+          },
+          {
+            "id": "openrouter/xiaomi/mimo-v2.6-flash-mopd",
+            "label": "xiaomi/mimo-v2.6-flash-mopd"
+          },
+          {
+            "id": "openrouter/xiaomi/mimo-v2.6-pro",
+            "label": "xiaomi/mimo-v2.6-pro"
+          },
+          {
+            "id": "openrouter/xiaomi/mimo-v2.6-pro-ultraspeed",
+            "label": "xiaomi/mimo-v2.6-pro-ultraspeed"
+          },
+          {
+            "id": "openrouter/z-ai/glm-4.5",
+            "label": "z-ai/glm-4.5"
+          },
+          {
+            "id": "openrouter/z-ai/glm-4.5-air",
+            "label": "z-ai/glm-4.5-air"
+          },
+          {
+            "id": "openrouter/z-ai/glm-4.5v",
+            "label": "z-ai/glm-4.5v"
+          },
+          {
+            "id": "openrouter/z-ai/glm-4.6",
+            "label": "z-ai/glm-4.6"
+          },
+          {
+            "id": "openrouter/z-ai/glm-4.6v",
+            "label": "z-ai/glm-4.6v"
+          },
+          {
+            "id": "openrouter/z-ai/glm-4.7",
+            "label": "z-ai/glm-4.7"
+          },
+          {
+            "id": "openrouter/z-ai/glm-4.7-flash",
+            "label": "z-ai/glm-4.7-flash"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5",
+            "label": "z-ai/glm-5"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5-turbo",
+            "label": "z-ai/glm-5-turbo"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5.1",
+            "label": "z-ai/glm-5.1"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5.2",
+            "label": "z-ai/glm-5.2"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5.2:batch",
+            "label": "z-ai/glm-5.2:batch"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5.3",
+            "label": "z-ai/glm-5.3"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5.3-flash",
+            "label": "z-ai/glm-5.3-flash"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5.3-flash:batch",
+            "label": "z-ai/glm-5.3-flash:batch"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5.3-flashx",
+            "label": "z-ai/glm-5.3-flashx"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5.3-flashx-legal",
+            "label": "z-ai/glm-5.3-flashx-legal"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5.3-prime",
+            "label": "z-ai/glm-5.3-prime"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5.3:batch",
+            "label": "z-ai/glm-5.3:batch"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5v-turbo",
+            "label": "z-ai/glm-5v-turbo"
+          }
+        ],
+        "effortLevels": ["off", "minimal", "low", "medium", "high", "xhigh", "max"],
+        "acceptsModel": true,
+        "ready": true,
+        "enabled": true
+      },
+      {
+        "id": "omp",
+        "name": "OMP",
+        "command": "omp",
+        "protocol": "omp",
+        "builtin": true,
+        "models": [
+          {
+            "id": "openrouter/~anthropic/claude-fable-latest",
+            "label": "Claude Fable Latest"
+          },
+          {
+            "id": "openrouter/~anthropic/claude-haiku-latest",
+            "label": "Claude Haiku Latest"
+          },
+          {
+            "id": "openrouter/~anthropic/claude-opus-latest",
+            "label": "Claude Opus Latest"
+          },
+          {
+            "id": "openrouter/~anthropic/claude-sonnet-latest",
+            "label": "Claude Sonnet Latest"
+          },
+          {
+            "id": "openrouter/~deepseek/deepseek-flash-latest",
+            "label": "DeepSeek Flash Latest"
+          },
+          {
+            "id": "openrouter/~deepseek/deepseek-pro-latest",
+            "label": "DeepSeek Pro Latest"
+          },
+          {
+            "id": "openrouter/~deepseek/deepseek-v4-flash-latest",
+            "label": "DeepSeek V4 Flash Latest"
+          },
+          {
+            "id": "openrouter/~google/gemini-flash-latest",
+            "label": "Gemini Flash Latest"
+          },
+          {
+            "id": "openrouter/~google/gemini-pro-latest",
+            "label": "Gemini Pro Latest"
+          },
+          {
+            "id": "openrouter/~moonshotai/kimi-latest",
+            "label": "Kimi Latest"
+          },
+          {
+            "id": "openrouter/~openai/gpt-astra-latest",
+            "label": "GPT Astra Latest"
+          },
+          {
+            "id": "openrouter/~openai/gpt-luna-latest",
+            "label": "GPT Luna Latest"
+          },
+          {
+            "id": "openrouter/~openai/gpt-mini-latest",
+            "label": "GPT Mini Latest"
+          },
+          {
+            "id": "openrouter/~openai/gpt-sol-latest",
+            "label": "GPT Sol Latest"
+          },
+          {
+            "id": "openrouter/~openai/gpt-terra-latest",
+            "label": "GPT Terra Latest"
+          },
+          {
+            "id": "openrouter/~x-ai/grok-latest",
+            "label": "Grok Latest"
+          },
+          {
+            "id": "openrouter/~z-ai/glm-flash-latest",
+            "label": "GLM Flash Latest"
+          },
+          {
+            "id": "openrouter/~z-ai/glm-latest",
+            "label": "GLM Latest"
+          },
+          {
+            "id": "openrouter/aion-labs/aion-2.0",
+            "label": "Aion-2.0"
+          },
+          {
+            "id": "openrouter/aion-labs/aion-3.0",
+            "label": "Aion-3.0"
+          },
+          {
+            "id": "openrouter/aion-labs/aion-3.0-mini",
+            "label": "Aion-3.0-Mini"
+          },
+          {
+            "id": "openrouter/aion-labs/aion-3.5",
+            "label": "Aion 3.5"
+          },
+          {
+            "id": "openrouter/aion-labs/aion-3.5-mini",
+            "label": "Aion 3.5 Mini"
+          },
+          {
+            "id": "openrouter/amazon/nova-2-lite-v1",
+            "label": "Nova 2 Lite"
+          },
+          {
+            "id": "openrouter/amazon/nova-lite-v1",
+            "label": "Nova Lite 1.0"
+          },
+          {
+            "id": "openrouter/amazon/nova-micro-v1",
+            "label": "Nova Micro 1.0"
+          },
+          {
+            "id": "openrouter/amazon/nova-premier-v1",
+            "label": "Nova Premier 1.0"
+          },
+          {
+            "id": "openrouter/amazon/nova-pro-v1",
+            "label": "Nova Pro 1.0"
+          },
+          {
+            "id": "openrouter/anthropic/claude-fable-5",
+            "label": "Claude Fable 5"
+          },
+          {
+            "id": "openrouter/anthropic/claude-fable-5.1",
+            "label": "Claude Fable 5.1"
+          },
+          {
+            "id": "openrouter/anthropic/claude-fable-5.1:batch",
+            "label": "Claude Fable 5.1 (batch)"
+          },
+          {
+            "id": "openrouter/anthropic/claude-fable-5.2",
+            "label": "Claude Fable 5.2"
+          },
+          {
+            "id": "openrouter/anthropic/claude-fable-5.2:batch",
+            "label": "Claude Fable 5.2 (batch)"
+          },
+          {
+            "id": "openrouter/anthropic/claude-haiku-4.5",
+            "label": "Claude Haiku 4.5"
+          },
+          {
+            "id": "openrouter/anthropic/claude-haiku-5.5",
+            "label": "Claude Haiku 5.5"
+          },
+          {
+            "id": "openrouter/anthropic/claude-haiku-5.5:batch",
+            "label": "Claude Haiku 5.5 (batch)"
+          },
+          {
+            "id": "openrouter/anthropic/claude-opus-4.1",
+            "label": "Claude Opus 4.1"
+          },
+          {
+            "id": "openrouter/anthropic/claude-opus-4.5",
+            "label": "Claude Opus 4.5"
+          },
+          {
+            "id": "openrouter/anthropic/claude-opus-4.6",
+            "label": "Claude Opus 4.6"
+          },
+          {
+            "id": "openrouter/anthropic/claude-opus-4.7",
+            "label": "Claude Opus 4.7"
+          },
+          {
+            "id": "openrouter/anthropic/claude-opus-4.8",
+            "label": "Claude Opus 4.8"
+          },
+          {
+            "id": "openrouter/anthropic/claude-opus-5",
+            "label": "Claude Opus 5"
+          },
+          {
+            "id": "openrouter/anthropic/claude-opus-5:batch",
+            "label": "Claude Opus 5 (batch)"
+          },
+          {
+            "id": "openrouter/anthropic/claude-opus-5.5",
+            "label": "Claude Opus 5.5"
+          },
+          {
+            "id": "openrouter/anthropic/claude-opus-5.5:batch",
+            "label": "Claude Opus 5.5 (batch)"
+          },
+          {
+            "id": "openrouter/anthropic/claude-sonnet-4.5",
+            "label": "Claude Sonnet 4.5"
+          },
+          {
+            "id": "openrouter/anthropic/claude-sonnet-4.6",
+            "label": "Claude Sonnet 4.6"
+          },
+          {
+            "id": "openrouter/anthropic/claude-sonnet-5",
+            "label": "Claude Sonnet 5"
+          },
+          {
+            "id": "openrouter/anthropic/claude-sonnet-5.5",
+            "label": "Claude Sonnet 5.5"
+          },
+          {
+            "id": "openrouter/anthropic/claude-sonnet-5.5:batch",
+            "label": "Claude Sonnet 5.5 (batch)"
+          },
+          {
+            "id": "openrouter/baidu/ernie-5.5-flash-preview:free",
+            "label": "ERNIE-5.5-Flash-Preview (free)"
+          },
+          {
+            "id": "openrouter/baidu/ernie-light-dt-1.0-intl",
+            "label": "ERNIE-Light-DT-1.0"
+          },
+          {
+            "id": "openrouter/bytedance-seed/seed-2-1-turbo",
+            "label": "Seed 2.1 Turbo"
+          },
+          {
+            "id": "openrouter/bytedance-seed/seed-2.0-lite",
+            "label": "Seed-2.0-Lite"
+          },
+          {
+            "id": "openrouter/bytedance-seed/seed-2.0-mini",
+            "label": "Seed-2.0-Mini"
+          },
+          {
+            "id": "openrouter/cohere/command-a",
+            "label": "Command A"
+          },
+          {
+            "id": "openrouter/cohere/command-a-plus",
+            "label": "Command A+"
+          },
+          {
+            "id": "openrouter/cohere/command-r-08-2024",
+            "label": "Command R (08-2024)"
+          },
+          {
+            "id": "openrouter/cohere/command-r-plus-08-2024",
+            "label": "Command R+ (08-2024)"
+          },
+          {
+            "id": "openrouter/cohere/command-r7b-12-2024",
+            "label": "Command R7B (12-2024)"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-chat",
+            "label": "DeepSeek V3"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-chat-v3-0324",
+            "label": "DeepSeek V3 0324"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-chat-v3.1",
+            "label": "DeepSeek V3.1"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-r1-0528",
+            "label": "R1 0528"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v3.1-terminus",
+            "label": "DeepSeek V3.1 Terminus"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v3.2",
+            "label": "DeepSeek V3.2"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v3.2-exp",
+            "label": "DeepSeek V3.2 Exp"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v4-flash",
+            "label": "DeepSeek V4 Flash 0423"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v4-flash-0731",
+            "label": "DeepSeek V4 Flash 0731"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v4-flash-0731:batch",
+            "label": "DeepSeek V4 Flash 0731 (batch)"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v4-flash-vision-exp",
+            "label": "DeepSeek V4 Flash Vision Exp"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v4-pro",
+            "label": "DeepSeek V4 Pro 0423"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v4-pro-0813",
+            "label": "DeepSeek V4 Pro 0813"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v4.1-flash",
+            "label": "DeepSeek V4.1 Flash"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v4.1-flash-1017",
+            "label": "DeepSeek V4.1 Flash 1017"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v4.1-flash-1017:batch",
+            "label": "DeepSeek V4.1 Flash 1017 (batch)"
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v4.1-flash:batch",
+            "label": "DeepSeek V4.1 Flash (batch)"
+          },
+          {
+            "id": "openrouter/elorian/glimpse",
+            "label": "Glimpse"
+          },
+          {
+            "id": "openrouter/fireworks/ember-1",
+            "label": "Ember-1"
+          },
+          {
+            "id": "openrouter/google/gemini-2.5-flash",
+            "label": "Gemini 2.5 Flash"
+          },
+          {
+            "id": "openrouter/google/gemini-2.5-flash-lite",
+            "label": "Gemini 2.5 Flash Lite"
+          },
+          {
+            "id": "openrouter/google/gemini-2.5-pro",
+            "label": "Gemini 2.5 Pro"
+          },
+          {
+            "id": "openrouter/google/gemini-2.5-pro-preview",
+            "label": "Gemini 2.5 Pro Preview 06-05"
+          },
+          {
+            "id": "openrouter/google/gemini-3-flash-preview",
+            "label": "Gemini 3 Flash Preview"
+          },
+          {
+            "id": "openrouter/google/gemini-3-flash-preview:batch",
+            "label": "Gemini 3 Flash Preview (batch)"
+          },
+          {
+            "id": "openrouter/google/gemini-3.1-flash-lite",
+            "label": "Gemini 3.1 Flash Lite"
+          },
+          {
+            "id": "openrouter/google/gemini-3.1-flash-lite-preview",
+            "label": "Gemini 3.1 Flash Lite Preview"
+          },
+          {
+            "id": "openrouter/google/gemini-3.1-flash-lite:batch",
+            "label": "Gemini 3.1 Flash Lite (batch)"
+          },
+          {
+            "id": "openrouter/google/gemini-3.1-pro-preview",
+            "label": "Gemini 3.1 Pro Preview"
+          },
+          {
+            "id": "openrouter/google/gemini-3.1-pro-preview-customtools",
+            "label": "Gemini 3.1 Pro Preview Custom Tools"
+          },
+          {
+            "id": "openrouter/google/gemini-3.1-pro-preview:batch",
+            "label": "Gemini 3.1 Pro Preview (batch)"
+          },
+          {
+            "id": "openrouter/google/gemini-3.5-flash",
+            "label": "Gemini 3.5 Flash"
+          },
+          {
+            "id": "openrouter/google/gemini-3.5-flash-lite",
+            "label": "Gemini 3.5 Flash Lite"
+          },
+          {
+            "id": "openrouter/google/gemini-3.5-flash-lite:batch",
+            "label": "Gemini 3.5 Flash Lite (batch)"
+          },
+          {
+            "id": "openrouter/google/gemini-3.5-flash:batch",
+            "label": "Gemini 3.5 Flash (batch)"
+          },
+          {
+            "id": "openrouter/google/gemini-3.6-flash",
+            "label": "Gemini 3.6 Flash"
+          },
+          {
+            "id": "openrouter/google/gemini-3.6-flash:batch",
+            "label": "Gemini 3.6 Flash (batch)"
+          },
+          {
+            "id": "openrouter/google/gemini-3.7-flash",
+            "label": "Gemini 3.7 Flash"
+          },
+          {
+            "id": "openrouter/google/gemini-3.7-flash:batch",
+            "label": "Gemini 3.7 Flash (batch)"
+          },
+          {
+            "id": "openrouter/google/gemini-3.8-flash",
+            "label": "Gemini 3.8 Flash"
+          },
+          {
+            "id": "openrouter/google/gemini-3.8-flash:batch",
+            "label": "Gemini 3.8 Flash (batch)"
+          },
+          {
+            "id": "openrouter/google/gemini-4-argon",
+            "label": "Gemini 4 Argon"
+          },
+          {
+            "id": "openrouter/google/gemini-4-argon:batch",
+            "label": "Gemini 4 Argon (batch)"
+          },
+          {
+            "id": "openrouter/google/gemini-4-carbon",
+            "label": "Gemini 4 Carbon"
+          },
+          {
+            "id": "openrouter/google/gemini-4-carbon:batch",
+            "label": "Gemini 4 Carbon (batch)"
+          },
+          {
+            "id": "openrouter/google/gemini-4-hydrogen",
+            "label": "Gemini 4 Hydrogen"
+          },
+          {
+            "id": "openrouter/google/gemini-4-hydrogen:batch",
+            "label": "Gemini 4 Hydrogen (batch)"
+          },
+          {
+            "id": "openrouter/google/gemini-4-neon",
+            "label": "Gemini 4 Neon"
+          },
+          {
+            "id": "openrouter/google/gemini-4-neon:batch",
+            "label": "Gemini 4 Neon (batch)"
+          },
+          {
+            "id": "openrouter/google/gemma-3-12b-it",
+            "label": "Gemma 3 12B"
+          },
+          {
+            "id": "openrouter/google/gemma-3-27b-it",
+            "label": "Gemma 3 27B"
+          },
+          {
+            "id": "openrouter/google/gemma-4-26b-a4b-it",
+            "label": "Gemma 4 26B A4B"
+          },
+          {
+            "id": "openrouter/google/gemma-4-26b-a4b-it:free",
+            "label": "Gemma 4 26B A4B (free)"
+          },
+          {
+            "id": "openrouter/google/gemma-4-31b-it",
+            "label": "Gemma 4 31B"
+          },
+          {
+            "id": "openrouter/google/gemma-4-31b-it:free",
+            "label": "Gemma 4 31B (free)"
+          },
+          {
+            "id": "openrouter/ibm-granite/granite-4.2-8b",
+            "label": "Granite 4.2 8B"
+          },
+          {
+            "id": "openrouter/inclusionai/ling-3.0-flash",
+            "label": "Ling 3.0 Flash"
+          },
+          {
+            "id": "openrouter/inclusionai/ling-3.0-flash-vl",
+            "label": "Ling 3.0 Flash VL"
+          },
+          {
+            "id": "openrouter/inclusionai/ling-3.0-tiny",
+            "label": "Ling 3.0 Tiny"
+          },
+          {
+            "id": "openrouter/inclusionai/ling-3.1-flash",
+            "label": "Ling 3.1 Flash"
+          },
+          {
+            "id": "openrouter/inclusionai/ling-3.2-flash",
+            "label": "Ling 3.2 Flash"
+          },
+          {
+            "id": "openrouter/inclusionai/lingsante-3.1-air-vl",
+            "label": "LingSante 3.1 Air VL"
+          },
+          {
+            "id": "openrouter/kt/midm-k-3.0-pro",
+            "label": "Mi:dm K 3.0 Pro"
+          },
+          {
+            "id": "openrouter/liquid/lfm-2.5-24b-a2b",
+            "label": "LFM2.5-24B-A2B"
+          },
+          {
+            "id": "openrouter/liquid/lfm-3-1.7b",
+            "label": "LFM3-1.7B"
+          },
+          {
+            "id": "openrouter/liquid/lfm-3-1.7b:free",
+            "label": "LFM3-1.7B (free)"
+          },
+          {
+            "id": "openrouter/meta-llama/llama-3.1-70b-instruct",
+            "label": "Llama 3.1 70B Instruct"
+          },
+          {
+            "id": "openrouter/meta-llama/llama-3.1-8b-instruct",
+            "label": "Llama 3.1 8B Instruct"
+          },
+          {
+            "id": "openrouter/meta-llama/llama-3.3-70b-instruct",
+            "label": "Llama 3.3 70B Instruct"
+          },
+          {
+            "id": "openrouter/meta-llama/llama-4-maverick",
+            "label": "Llama 4 Maverick"
+          },
+          {
+            "id": "openrouter/meta-llama/llama-4-scout",
+            "label": "Llama 4 Scout"
+          },
+          {
+            "id": "openrouter/meta/muse-ember",
+            "label": "Muse Ember"
+          },
+          {
+            "id": "openrouter/meta/muse-glimmer-30b",
+            "label": "Muse Glimmer 30B"
+          },
+          {
+            "id": "openrouter/meta/muse-glimmer-30b:batch",
+            "label": "Muse Glimmer 30B (batch)"
+          },
+          {
+            "id": "openrouter/meta/muse-spark-1.1",
+            "label": "Muse Spark 1.1"
+          },
+          {
+            "id": "openrouter/meta/muse-spark-1.2",
+            "label": "Muse Spark 1.2"
+          },
+          {
+            "id": "openrouter/meta/muse-spark-1.2-contributor",
+            "label": "Muse Spark 1.2 Contributor"
+          },
+          {
+            "id": "openrouter/meta/muse-spark-1.3",
+            "label": "Muse Spark 1.3"
+          },
+          {
+            "id": "openrouter/meta/muse-spark-1.3-contributor",
+            "label": "Muse Spark 1.3 Contributor"
+          },
+          {
+            "id": "openrouter/meta/muse-spark-open",
+            "label": "Muse Spark Open"
+          },
+          {
+            "id": "openrouter/meta/muse-wonder",
+            "label": "Muse Wonder"
+          },
+          {
+            "id": "openrouter/minimax/minimax-m2.5",
+            "label": "MiniMax M2.5"
+          },
+          {
+            "id": "openrouter/minimax/minimax-m2.7",
+            "label": "MiniMax M2.7"
+          },
+          {
+            "id": "openrouter/minimax/minimax-m3",
+            "label": "MiniMax M3"
+          },
+          {
+            "id": "openrouter/minimax/minimax-m3:batch",
+            "label": "MiniMax M3 (batch)"
+          },
+          {
+            "id": "openrouter/minimax/minimax-m3.1-flash",
+            "label": "MiniMax M3.1 Flash"
+          },
+          {
+            "id": "openrouter/mistralai/codestral-2508",
+            "label": "Codestral 2508"
+          },
+          {
+            "id": "openrouter/mistralai/codestral-2508:batch",
+            "label": "Codestral 2508 (batch)"
+          },
+          {
+            "id": "openrouter/mistralai/devstral-2512",
+            "label": "Devstral 2 2512"
+          },
+          {
+            "id": "openrouter/mistralai/ministral-14b-2512",
+            "label": "Ministral 3 14B 2512"
+          },
+          {
+            "id": "openrouter/mistralai/ministral-3b-2512",
+            "label": "Ministral 3 3B 2512"
+          },
+          {
+            "id": "openrouter/mistralai/ministral-8b-2512",
+            "label": "Ministral 3 8B 2512"
+          },
+          {
+            "id": "openrouter/mistralai/ministral-8b-2512:batch",
+            "label": "Ministral 3 8B 2512 (batch)"
+          },
+          {
+            "id": "openrouter/mistralai/mistral-large",
+            "label": "Mistral Large"
+          },
+          {
+            "id": "openrouter/mistralai/mistral-large-2407",
+            "label": "Mistral Large 2407"
+          },
+          {
+            "id": "openrouter/mistralai/mistral-large-2512",
+            "label": "Mistral Large 3 2512"
+          },
+          {
+            "id": "openrouter/mistralai/mistral-large-2512:batch",
+            "label": "Mistral Large 3 2512 (batch)"
+          },
+          {
+            "id": "openrouter/mistralai/mistral-large-4-0",
+            "label": "Mistral Large 4"
+          },
+          {
+            "id": "openrouter/mistralai/mistral-medium-3-5",
+            "label": "Mistral Medium 3.5"
+          },
+          {
+            "id": "openrouter/mistralai/mistral-medium-3-5:batch",
+            "label": "Mistral Medium 3.5 (batch)"
+          },
+          {
+            "id": "openrouter/mistralai/mistral-nemo",
+            "label": "Mistral Nemo"
+          },
+          {
+            "id": "openrouter/mistralai/mistral-saba",
+            "label": "Saba"
+          },
+          {
+            "id": "openrouter/mistralai/mistral-small-2603",
+            "label": "Mistral Small 4"
+          },
+          {
+            "id": "openrouter/mistralai/mistral-small-2603:batch",
+            "label": "Mistral Small 4 (batch)"
+          },
+          {
+            "id": "openrouter/mistralai/mistral-small-3.1-24b-instruct",
+            "label": "Mistral Small 3.1 24B"
+          },
+          {
+            "id": "openrouter/mistralai/mistral-small-3.2-24b-instruct",
+            "label": "Mistral Small 3.2 24B"
+          },
+          {
+            "id": "openrouter/mistralai/mixtral-8x22b-instruct",
+            "label": "Mixtral 8x22B Instruct"
+          },
+          {
+            "id": "openrouter/mistralai/voxtral-small-24b-2507",
+            "label": "Voxtral Small 24B 2507"
+          },
+          {
+            "id": "openrouter/moonshotai/kimi-k2",
+            "label": "Kimi K2 0711"
+          },
+          {
+            "id": "openrouter/moonshotai/kimi-k2-0905",
+            "label": "Kimi K2 0905"
+          },
+          {
+            "id": "openrouter/moonshotai/kimi-k2.5",
+            "label": "Kimi K2.5"
+          },
+          {
+            "id": "openrouter/moonshotai/kimi-k2.6",
+            "label": "Kimi K2.6"
+          },
+          {
+            "id": "openrouter/moonshotai/kimi-k2.7-code",
+            "label": "Kimi K2.7 Code"
+          },
+          {
+            "id": "openrouter/moonshotai/kimi-k3",
+            "label": "Kimi K3"
+          },
+          {
+            "id": "openrouter/moonshotai/kimi-k3:batch",
+            "label": "Kimi K3 (batch)"
+          },
+          {
+            "id": "openrouter/moonshotai/kimi-k3.1-pro",
+            "label": "Kimi K3.1 Pro"
+          },
+          {
+            "id": "openrouter/moonshotai/kimi-k3.1-pro:batch",
+            "label": "Kimi K3.1 Pro (batch)"
+          },
+          {
+            "id": "openrouter/motif-technologies/motif-3",
+            "label": "Motif 3"
+          },
+          {
+            "id": "openrouter/nex-agi/nex-n2.5-pro",
+            "label": "Nex-N2.5-Pro"
+          },
+          {
+            "id": "openrouter/nex-agi/nex-n2.6",
+            "label": "Nex-N2.6"
+          },
+          {
+            "id": "openrouter/nvidia/nemotron-3-nano-30b-a3b",
+            "label": "Nemotron 3 Nano 30B A3B"
+          },
+          {
+            "id": "openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+            "label": "Nemotron 3 Nano Omni (free)"
+          },
+          {
+            "id": "openrouter/nvidia/nemotron-3-super-120b-a12b",
+            "label": "Nemotron 3 Super"
+          },
+          {
+            "id": "openrouter/nvidia/nemotron-3-ultra-550b-a55b",
+            "label": "Nemotron 3 Ultra"
+          },
+          {
+            "id": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+            "label": "Nemotron 3 Ultra (free)"
+          },
+          {
+            "id": "openrouter/nvidia/nemotron-3.5-lightning",
+            "label": "Nemotron 3.5 Lightning"
+          },
+          {
+            "id": "openrouter/nvidia/nemotron-3.5-lightning:free",
+            "label": "Nemotron 3.5 Lightning (free)"
+          },
+          {
+            "id": "openrouter/nvidia/nemotron-3.5-super-vl",
+            "label": "Nemotron 3.5 Super VL"
+          },
+          {
+            "id": "openrouter/nvidia/nemotron-3.5-super-vl:free",
+            "label": "Nemotron 3.5 Super VL (free)"
+          },
+          {
+            "id": "openrouter/openai/gpt-3.5-turbo-0613",
+            "label": "GPT-3.5 Turbo (older v0613)"
+          },
+          {
+            "id": "openrouter/openai/gpt-3.5-turbo-16k",
+            "label": "GPT-3.5 Turbo 16k"
+          },
+          {
+            "id": "openrouter/openai/gpt-4",
+            "label": "GPT-4"
+          },
+          {
+            "id": "openrouter/openai/gpt-4.1",
+            "label": "GPT-4.1"
+          },
+          {
+            "id": "openrouter/openai/gpt-4.1-mini",
+            "label": "GPT-4.1 Mini"
+          },
+          {
+            "id": "openrouter/openai/gpt-4.1-nano",
+            "label": "GPT-4.1 Nano"
+          },
+          {
+            "id": "openrouter/openai/gpt-4o",
+            "label": "GPT-4o"
+          },
+          {
+            "id": "openrouter/openai/gpt-4o-2024-05-13",
+            "label": "GPT-4o (2024-05-13)"
+          },
+          {
+            "id": "openrouter/openai/gpt-4o-2024-08-06",
+            "label": "GPT-4o (2024-08-06)"
+          },
+          {
+            "id": "openrouter/openai/gpt-4o-2024-11-20",
+            "label": "GPT-4o (2024-11-20)"
+          },
+          {
+            "id": "openrouter/openai/gpt-4o-mini",
+            "label": "GPT-4o-mini"
+          },
+          {
+            "id": "openrouter/openai/gpt-4o-mini-2024-07-18",
+            "label": "GPT-4o-mini (2024-07-18)"
+          },
+          {
+            "id": "openrouter/openai/gpt-5",
+            "label": "GPT-5"
+          },
+          {
+            "id": "openrouter/openai/gpt-5-mini",
+            "label": "GPT-5 Mini"
+          },
+          {
+            "id": "openrouter/openai/gpt-5-nano",
+            "label": "GPT-5 Nano"
+          },
+          {
+            "id": "openrouter/openai/gpt-5-nano:batch",
+            "label": "GPT-5 Nano (batch)"
+          },
+          {
+            "id": "openrouter/openai/gpt-5-pro",
+            "label": "GPT-5 Pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.1",
+            "label": "GPT-5.1"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.1-codex",
+            "label": "GPT-5.1-Codex"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.1-codex-max",
+            "label": "GPT-5.1-Codex-Max"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.1-codex-mini",
+            "label": "GPT-5.1-Codex-Mini"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.2",
+            "label": "GPT-5.2"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.2-codex",
+            "label": "GPT-5.2-Codex"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.2-pro",
+            "label": "GPT-5.2 Pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.3-codex",
+            "label": "GPT-5.3-Codex"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.4",
+            "label": "GPT-5.4"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.4-mini",
+            "label": "GPT-5.4 Mini"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.4-nano",
+            "label": "GPT-5.4 Nano"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.4-pro",
+            "label": "GPT-5.4 Pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.5",
+            "label": "GPT-5.5"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.5-pro",
+            "label": "GPT-5.5 Pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.6-luna",
+            "label": "GPT-5.6 Luna"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.6-luna-pro",
+            "label": "GPT-5.6 Luna Pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.6-luna-pro:batch",
+            "label": "GPT-5.6 Luna Pro (batch)"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.6-luna:batch",
+            "label": "GPT-5.6 Luna (batch)"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.6-sol",
+            "label": "GPT-5.6 Sol"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.6-sol-pro",
+            "label": "GPT-5.6 Sol Pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.6-sol-pro:batch",
+            "label": "GPT-5.6 Sol Pro (batch)"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.6-sol:batch",
+            "label": "GPT-5.6 Sol (batch)"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.6-terra",
+            "label": "GPT-5.6 Terra"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.6-terra-pro",
+            "label": "GPT-5.6 Terra Pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.6-terra-pro:batch",
+            "label": "GPT-5.6 Terra Pro (batch)"
+          },
+          {
+            "id": "openrouter/openai/gpt-5.6-terra:batch",
+            "label": "GPT-5.6 Terra (batch)"
+          },
+          {
+            "id": "openrouter/openai/gpt-6-astra",
+            "label": "GPT-6 Astra"
+          },
+          {
+            "id": "openrouter/openai/gpt-6-astra-pro",
+            "label": "GPT-6 Astra Pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-6-astra-pro:batch",
+            "label": "GPT-6 Astra Pro (batch)"
+          },
+          {
+            "id": "openrouter/openai/gpt-6-astra:batch",
+            "label": "GPT-6 Astra (batch)"
+          },
+          {
+            "id": "openrouter/openai/gpt-6-luna",
+            "label": "GPT-6 Luna"
+          },
+          {
+            "id": "openrouter/openai/gpt-6-luna-pro",
+            "label": "GPT-6 Luna Pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-6-luna-pro:batch",
+            "label": "GPT-6 Luna Pro (batch)"
+          },
+          {
+            "id": "openrouter/openai/gpt-6-luna:batch",
+            "label": "GPT-6 Luna (batch)"
+          },
+          {
+            "id": "openrouter/openai/gpt-6-sol",
+            "label": "GPT-6 Sol"
+          },
+          {
+            "id": "openrouter/openai/gpt-6-sol-pro",
+            "label": "GPT-6 Sol Pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-6-sol-pro:batch",
+            "label": "GPT-6 Sol Pro (batch)"
+          },
+          {
+            "id": "openrouter/openai/gpt-6-sol:batch",
+            "label": "GPT-6 Sol (batch)"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.1-sol",
+            "label": "GPT-6.1 Sol"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.1-sol-pro",
+            "label": "GPT-6.1 Sol Pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.1-sol-pro:batch",
+            "label": "GPT-6.1 Sol Pro (batch)"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.1-sol:batch",
+            "label": "GPT-6.1 Sol (batch)"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.1-terra",
+            "label": "GPT-6.1 Terra"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.1-terra-pro",
+            "label": "GPT-6.1 Terra Pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.1-terra-pro:batch",
+            "label": "GPT-6.1 Terra Pro (batch)"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.1-terra:batch",
+            "label": "GPT-6.1 Terra (batch)"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.2-astra",
+            "label": "GPT-6.2 Astra"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.2-astra-pro",
+            "label": "GPT-6.2 Astra Pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.2-astra-pro:batch",
+            "label": "GPT-6.2 Astra Pro (batch)"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.2-astra:batch",
+            "label": "GPT-6.2 Astra (batch)"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.2-sol",
+            "label": "GPT-6.2 Sol"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.2-sol-pro",
+            "label": "GPT-6.2 Sol Pro"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.2-sol-pro:batch",
+            "label": "GPT-6.2 Sol Pro (batch)"
+          },
+          {
+            "id": "openrouter/openai/gpt-6.2-sol:batch",
+            "label": "GPT-6.2 Sol (batch)"
+          },
+          {
+            "id": "openrouter/openai/gpt-audio",
+            "label": "GPT Audio"
+          },
+          {
+            "id": "openrouter/openai/gpt-audio-mini",
+            "label": "GPT Audio Mini"
+          },
+          {
+            "id": "openrouter/openai/gpt-chat-latest",
+            "label": "GPT Chat Latest"
+          },
+          {
+            "id": "openrouter/openai/gpt-oss-120b",
+            "label": "gpt-oss-120b"
+          },
+          {
+            "id": "openrouter/openai/gpt-oss-120b:batch",
+            "label": "gpt-oss-120b (batch)"
+          },
+          {
+            "id": "openrouter/openai/gpt-oss-20b",
+            "label": "gpt-oss-20b"
+          },
+          {
+            "id": "openrouter/openai/gpt-oss-20b:batch",
+            "label": "gpt-oss-20b (batch)"
+          },
+          {
+            "id": "openrouter/openai/gpt-oss-safeguard-20b",
+            "label": "gpt-oss-safeguard-20b"
+          },
+          {
+            "id": "openrouter/openai/o3",
+            "label": "o3"
+          },
+          {
+            "id": "openrouter/openai/o3-pro",
+            "label": "o3 Pro"
+          },
+          {
+            "id": "openrouter/openrouter/auto",
+            "label": "Auto Router"
+          },
+          {
+            "id": "openrouter/openrouter/auto-beta",
+            "label": "Auto Router (Beta)"
+          },
+          {
+            "id": "openrouter/openrouter/auto-code",
+            "label": "Auto Code"
+          },
+          {
+            "id": "openrouter/openrouter/free",
+            "label": "Free Models Router"
+          },
+          {
+            "id": "openrouter/openrouter/pareto-code",
+            "label": "Pareto Code Router"
+          },
+          {
+            "id": "openrouter/particle-ai/particle-1",
+            "label": "Particle-1"
+          },
+          {
+            "id": "openrouter/particle-ai/particle-1:free",
+            "label": "Particle-1 (free)"
+          },
+          {
+            "id": "openrouter/perceptron/perceptron-mk1.5",
+            "label": "Perceptron Mk1.5"
+          },
+          {
+            "id": "openrouter/prism-ml/ternary-bonsai-2-27b",
+            "label": "Ternary Bonsai 2 27B"
+          },
+          {
+            "id": "openrouter/prism-ml/ternary-bonsai-2-9b",
+            "label": "Ternary Bonsai 2 9B"
+          },
+          {
+            "id": "openrouter/qwen/qwen-2.5-72b-instruct",
+            "label": "Qwen2.5 72B Instruct"
+          },
+          {
+            "id": "openrouter/qwen/qwen-plus",
+            "label": "Qwen-Plus"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-14b",
+            "label": "Qwen3 14B"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-235b-a22b-2507",
+            "label": "Qwen3 235B A22B Instruct 2507"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-30b-a3b",
+            "label": "Qwen3 30B A3B"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-30b-a3b-instruct-2507",
+            "label": "Qwen3 30B A3B Instruct 2507"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-32b",
+            "label": "Qwen3 32B"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-coder",
+            "label": "Qwen3 Coder 480B A35B"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-coder-30b-a3b-instruct",
+            "label": "Qwen3 Coder 30B A3B Instruct"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-coder-flash",
+            "label": "Qwen3 Coder Flash"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-coder-next",
+            "label": "Qwen3 Coder Next"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-next-80b-a3b-instruct",
+            "label": "Qwen3 Next 80B A3B Instruct"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-vl-235b-a22b-instruct",
+            "label": "Qwen3 VL 235B A22B Instruct"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-vl-30b-a3b-instruct",
+            "label": "Qwen3 VL 30B A3B Instruct"
+          },
+          {
+            "id": "openrouter/qwen/qwen3-vl-8b-instruct",
+            "label": "Qwen3 VL 8B Instruct"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.5-122b-a10b",
+            "label": "Qwen3.5-122B-A10B"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.5-27b",
+            "label": "Qwen3.5-27B"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.5-35b-a3b",
+            "label": "Qwen3.5-35B-A3B"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.5-397b-a17b",
+            "label": "Qwen3.5 397B A17B"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.5-9b",
+            "label": "Qwen3.5-9B"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.5-flash-02-23",
+            "label": "Qwen3.5-Flash"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.5-plus-02-15",
+            "label": "Qwen3.5 Plus 2026-02-15"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.5-plus-20260420",
+            "label": "Qwen3.5 Plus 2026-04-20"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.6-27b",
+            "label": "Qwen3.6 27B"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.6-35b-a3b",
+            "label": "Qwen3.6 35B A3B"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.6-flash",
+            "label": "Qwen3.6 Flash"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.6-plus",
+            "label": "Qwen3.6 Plus"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.7-flash",
+            "label": "Qwen3.7 Flash"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.7-max",
+            "label": "Qwen3.7 Max"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.7-plus",
+            "label": "Qwen3.7 Plus"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.7-plus:batch",
+            "label": "Qwen3.7 Plus (batch)"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.8-2.4t-a95b",
+            "label": "Qwen3.8 2.4T A95B"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.8-27b",
+            "label": "Qwen3.8 27B"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.8-27b:batch",
+            "label": "Qwen3.8 27B (batch)"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.8-flash",
+            "label": "Qwen3.8 Flash"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.8-max-0902",
+            "label": "Qwen3.8 Max (0902)"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.8-max-0902:batch",
+            "label": "Qwen3.8 Max (0902) (batch)"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.8-max-prime",
+            "label": "Qwen3.8 Max Prime"
+          },
+          {
+            "id": "openrouter/qwen/qwen3.8-omni-flash",
+            "label": "Qwen3.8 Omni Flash"
+          },
+          {
+            "id": "openrouter/qwen/qwen4-max",
+            "label": "Qwen4 Max"
+          },
+          {
+            "id": "openrouter/radixark/daisyrose-27b",
+            "label": "DaisyRose 27B"
+          },
+          {
+            "id": "openrouter/recursive/flint-v1.0:free",
+            "label": "Flint (free)"
+          },
+          {
+            "id": "openrouter/reflection/beam-1.0-501b-a23b",
+            "label": "Beam 1.0 501B A23B"
+          },
+          {
+            "id": "openrouter/rekaai/reka-edge",
+            "label": "Reka Edge"
+          },
+          {
+            "id": "openrouter/relace/relace-search",
+            "label": "Relace Search"
+          },
+          {
+            "id": "openrouter/ricursiveai/ripple-65b-preview",
+            "label": "Ripple 65B Preview"
+          },
+          {
+            "id": "openrouter/sakana/fugu-max",
+            "label": "Fugu Max"
+          },
+          {
+            "id": "openrouter/sakana/fugu-ultra",
+            "label": "Fugu Ultra"
+          },
+          {
+            "id": "openrouter/sakana/fugu-ultra-v2",
+            "label": "Fugu Ultra v2"
+          },
+          {
+            "id": "openrouter/sakana/sakana-namazu",
+            "label": "Sakana Namazu"
+          },
+          {
+            "id": "openrouter/stepfun/step-3.7-flash",
+            "label": "Step 3.7 Flash"
+          },
+          {
+            "id": "openrouter/stepfun/step-5-preview",
+            "label": "Step 5 Preview"
+          },
+          {
+            "id": "openrouter/tencent/hy3",
+            "label": "Hy3"
+          },
+          {
+            "id": "openrouter/tencent/hy4",
+            "label": "Hy4"
+          },
+          {
+            "id": "openrouter/tencent/hy4-flash",
+            "label": "Hy4 flash"
+          },
+          {
+            "id": "openrouter/tencent/hy4-preview",
+            "label": "Hy4 preview"
+          },
+          {
+            "id": "openrouter/thinkingmachines/inkling",
+            "label": "Inkling"
+          },
+          {
+            "id": "openrouter/thinkingmachines/inkling-2-mini",
+            "label": "Inkling 2 Mini"
+          },
+          {
+            "id": "openrouter/thinkingmachines/inkling-2-small",
+            "label": "Inkling 2 Small"
+          },
+          {
+            "id": "openrouter/thinkingmachines/inkling-small",
+            "label": "Inkling Small"
+          },
+          {
+            "id": "openrouter/thinkingmachines/inkling-small:batch",
+            "label": "Inkling Small (batch)"
+          },
+          {
+            "id": "openrouter/upstage/solar-mini-4-5",
+            "label": "Solar Mini 4.5 (Preview)"
+          },
+          {
+            "id": "openrouter/upstage/solar-mini4",
+            "label": "Solar Mini 4"
+          },
+          {
+            "id": "openrouter/upstage/solar-pro-4-contributor",
+            "label": "Solar Pro 4 Contributor"
+          },
+          {
+            "id": "openrouter/upstage/solar-pro4",
+            "label": "Solar Pro 4"
+          },
+          {
+            "id": "openrouter/x-ai/grok-4.20",
+            "label": "Grok 4.20"
+          },
+          {
+            "id": "openrouter/x-ai/grok-4.3",
+            "label": "Grok 4.3"
+          },
+          {
+            "id": "openrouter/x-ai/grok-4.3:batch",
+            "label": "Grok 4.3 (batch)"
+          },
+          {
+            "id": "openrouter/x-ai/grok-4.5",
+            "label": "Grok 4.5"
+          },
+          {
+            "id": "openrouter/x-ai/grok-4.6",
+            "label": "Grok 4.6"
+          },
+          {
+            "id": "openrouter/x-ai/grok-4.6:batch",
+            "label": "Grok 4.6 (batch)"
+          },
+          {
+            "id": "openrouter/x-ai/grok-4.7",
+            "label": "Grok 4.7"
+          },
+          {
+            "id": "openrouter/x-ai/grok-4.7:batch",
+            "label": "Grok 4.7 (batch)"
+          },
+          {
+            "id": "openrouter/xiaomi/mimo-v2.6-flash",
+            "label": "MiMo-V2.6-Flash"
+          },
+          {
+            "id": "openrouter/xiaomi/mimo-v2.6-flash-mopd",
+            "label": "MiMo-V2.6-Flash-MOPD"
+          },
+          {
+            "id": "openrouter/xiaomi/mimo-v2.6-pro",
+            "label": "MiMo-V2.6-Pro"
+          },
+          {
+            "id": "openrouter/xiaomi/mimo-v2.6-pro-ultraspeed",
+            "label": "MiMo-V2.6-Pro-UltraSpeed"
+          },
+          {
+            "id": "openrouter/z-ai/glm-4.5",
+            "label": "GLM 4.5"
+          },
+          {
+            "id": "openrouter/z-ai/glm-4.5-air",
+            "label": "GLM 4.5 Air"
+          },
+          {
+            "id": "openrouter/z-ai/glm-4.5v",
+            "label": "GLM 4.5V"
+          },
+          {
+            "id": "openrouter/z-ai/glm-4.6",
+            "label": "GLM 4.6"
+          },
+          {
+            "id": "openrouter/z-ai/glm-4.6v",
+            "label": "GLM 4.6V"
+          },
+          {
+            "id": "openrouter/z-ai/glm-4.7",
+            "label": "GLM 4.7"
+          },
+          {
+            "id": "openrouter/z-ai/glm-4.7-flash",
+            "label": "GLM 4.7 Flash"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5",
+            "label": "GLM 5"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5-turbo",
+            "label": "GLM 5 Turbo"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5.1",
+            "label": "GLM 5.1"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5.2",
+            "label": "GLM 5.2"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5.2:batch",
+            "label": "GLM 5.2 (batch)"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5.3",
+            "label": "GLM 5.3"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5.3-flash",
+            "label": "GLM 5.3 Flash"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5.3-flash:batch",
+            "label": "GLM 5.3 Flash (batch)"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5.3-flashx",
+            "label": "GLM 5.3 FlashX"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5.3-flashx-legal",
+            "label": "GLM 5.3 FlashX Legal"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5.3-prime",
+            "label": "GLM 5.3 Prime"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5.3:batch",
+            "label": "GLM 5.3 (batch)"
+          },
+          {
+            "id": "openrouter/z-ai/glm-5v-turbo",
+            "label": "GLM 5V Turbo"
+          }
+        ],
+        "effortLevels": ["off", "minimal", "low", "medium", "high", "xhigh", "max"],
+        "acceptsModel": true,
+        "icon": {
+          "viewBox": "10 8 100 74",
+          "paths": [
+            {
+              "d": "M10 8h100v12H10zM25 20h12v62H25zM75 20h12v45H75z"
+            },
+            {
+              "d": "M71 55h20v16H71zM76 59h3v8h-3zM82 59h3v8h-3z",
+              "evenodd": true,
+              "fill": "#f97316"
+            }
+          ]
+        },
+        "ready": true,
+        "enabled": true
+      },
+      {
+        "id": "bob",
+        "name": "IBM Bob",
+        "command": "bob chat --trust",
+        "protocol": "bob",
+        "builtin": true,
+        "models": null,
+        "effortLevels": [],
+        "acceptsModel": false,
+        "ready": true,
+        "enabled": true
+      },
+      {
+        "id": "opencode",
+        "name": "OpenCode",
+        "command": "opencode",
+        "protocol": "opencode",
+        "builtin": false,
+        "models": null,
+        "effortLevels": [],
+        "acceptsModel": false,
+        "ready": true,
+        "enabled": true
+      },
+      {
+        "id": "cursor",
+        "name": "Cursor Agent",
+        "command": "cursor-agent",
+        "protocol": "cursor",
+        "builtin": false,
+        "models": null,
+        "effortLevels": [],
+        "acceptsModel": false,
+        "ready": true,
+        "enabled": true
+      },
+      {
+        "id": "antigravity",
+        "name": "Antigravity",
+        "command": "agy",
+        "protocol": "antigravity",
+        "builtin": false,
+        "models": null,
+        "effortLevels": [],
+        "acceptsModel": false,
+        "icon": {
+          "viewBox": "0 0 24 24",
+          "paths": [
+            {
+              "d": "M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z",
+              "fill": "#3186FF"
+            },
+            {
+              "d": "M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z",
+              "fill": "#08B962",
+              "fade": [7, 15.5, 11, 12]
+            },
+            {
+              "d": "M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z",
+              "fill": "#F94543",
+              "fade": [8, 5.5, 11.5, 11]
+            },
+            {
+              "d": "M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z",
+              "fill": "#FABC12",
+              "fade": [3.5, 13.5, 9.94, 12.81]
+            }
+          ]
+        },
+        "ready": true,
+        "enabled": true
+      },
+      {
+        "id": "hermes",
+        "name": "Hermes Agent",
+        "command": "hermes",
+        "protocol": "hermes",
+        "builtin": false,
+        "models": null,
+        "effortLevels": [],
+        "acceptsModel": false,
+        "ready": true,
+        "enabled": true
+      }
+    ],
+    "preferred": "claude"
+  },
+  "daemon.info": {
+    "daemonVersion": "0.9.308",
+    "bridgeVersion": "0.9.308",
+    "stale": false,
+    "uptimeMs": 259200000,
+    "startedAt": {
+      "$ago_min": 4320
+    },
+    "taskCount": 5,
+    "attachedClients": 1,
+    "automationHold": false
+  },
+  "machines.list": {
+    "machines": []
+  },
+  "task.tabs": {
+    "$by": "taskId",
+    "T-NIGHTLY": {
+      "tabs": [
+        {
+          "id": "tab-1",
+          "kind": "engine",
+          "title": "claude",
+          "engineName": "Claude",
+          "alive": true,
+          "engineAlive": true,
+          "conversation": null,
+          "status": {
+            "kind": "idle",
+            "state": "idle",
+            "since": {
+              "$ago_min": 600,
+              "$as": "ms"
+            },
+            "alive": true,
+            "restored": false,
+            "tracked": true
+          }
+        }
+      ]
+    },
+    "T-WAIT": {
+      "tabs": [
+        {
+          "id": "tab-1",
+          "kind": "engine",
+          "title": "codex",
+          "engineName": "Codex",
+          "alive": true,
+          "engineAlive": true,
+          "conversation": null,
+          "status": {
+            "kind": "needs-input",
+            "state": "permission_needed",
+            "since": {
+              "$ago_min": 4,
+              "$as": "ms"
+            },
+            "alive": true,
+            "restored": false,
+            "tracked": true
+          }
+        },
+        {
+          "id": "tab-2",
+          "kind": "shell",
+          "title": "shell",
+          "alive": true,
+          "conversation": null,
+          "status": {
+            "kind": "idle",
+            "since": 0,
+            "alive": true,
+            "restored": false,
+            "tracked": false
+          }
+        }
+      ]
+    },
+    "T-LAND": {
+      "tabs": [
+        {
+          "id": "tab-1",
+          "kind": "engine",
+          "title": "codex",
+          "engineName": "Codex",
+          "alive": true,
+          "engineAlive": true,
+          "conversation": null,
+          "status": {
+            "kind": "idle",
+            "state": "turn_complete",
+            "since": {
+              "$ago_min": 12,
+              "$as": "ms"
+            },
+            "alive": true,
+            "restored": false,
+            "tracked": true
+          }
+        }
+      ]
+    },
+    "T-REV": {
+      "tabs": [
+        {
+          "id": "tab-1",
+          "kind": "engine",
+          "title": "claude",
+          "engineName": "Claude",
+          "alive": true,
+          "engineAlive": true,
+          "conversation": null,
+          "status": {
+            "kind": "unseen",
+            "state": "turn_complete",
+            "since": {
+              "$ago_min": 22,
+              "$as": "ms"
+            },
+            "alive": true,
+            "restored": false,
+            "tracked": true
+          }
+        }
+      ]
+    },
+    "T-WORK": {
+      "tabs": [
+        {
+          "id": "tab-1",
+          "kind": "engine",
+          "title": "codex",
+          "engineName": "Codex",
+          "alive": true,
+          "engineAlive": true,
+          "conversation": null,
+          "status": {
+            "kind": "running",
+            "state": "running",
+            "since": {
+              "$ago_min": 2,
+              "$as": "ms"
+            },
+            "alive": true,
+            "restored": false,
+            "tracked": true
+          }
+        }
+      ]
+    },
+    "T-IDLE": {
+      "tabs": [
+        {
+          "id": "tab-1",
+          "kind": "engine",
+          "title": "claude",
+          "engineName": "Claude",
+          "alive": true,
+          "engineAlive": true,
+          "conversation": null,
+          "status": {
+            "kind": "idle",
+            "state": "turn_complete",
+            "since": {
+              "$ago_min": 180,
+              "$as": "ms"
+            },
+            "alive": true,
+            "restored": false,
+            "tracked": true
+          }
+        },
+        {
+          "id": "tab-3",
+          "kind": "shell",
+          "title": "dev server",
+          "alive": false,
+          "conversation": null,
+          "status": {
+            "kind": "idle",
+            "since": 0,
+            "alive": false,
+            "restored": false,
+            "tracked": false
+          }
+        }
+      ]
+    },
+    "*": {
+      "tabs": [
+        {
+          "id": "tab-1",
+          "kind": "engine",
+          "title": "codex",
+          "engineName": "Codex",
+          "alive": true,
+          "engineAlive": true,
+          "conversation": null,
+          "status": {
+            "kind": "needs-input",
+            "state": "permission_needed",
+            "since": {
+              "$ago_min": 4,
+              "$as": "ms"
+            },
+            "alive": true,
+            "restored": false,
+            "tracked": true
+          }
+        },
+        {
+          "id": "tab-2",
+          "kind": "shell",
+          "title": "shell",
+          "alive": true,
+          "conversation": null,
+          "status": {
+            "kind": "idle",
+            "since": 0,
+            "alive": true,
+            "restored": false,
+            "tracked": false
+          }
+        }
+      ]
+    }
+  },
+  "tasks.subscribe": {
+    "tasks": [
+      {
+        "id": "T-WAIT",
+        "kind": "task",
+        "status": "in_progress",
+        "repo": "/work/payments-api",
+        "deleting": false,
+        "pinned": false,
+        "pr": null,
+        "report": null,
+        "title": "Verify refund webhook signatures",
+        "branch": "fix/refund-webhook-sig",
+        "group": "waiting-on-you",
+        "rank": 0,
+        "order": 0,
+        "activity": {
+          "state": "permission_needed",
+          "forMs": 240000,
+          "since": {
+            "$ago_min": 4,
+            "$as": "ms"
+          }
+        },
+        "engine": {
+          "id": "codex",
+          "name": "Codex"
+        },
+        "changes": {
+          "added": 39,
+          "deleted": 7,
+          "ahead": 1,
+          "behind": 0
+        },
+        "createdAt": {
+          "$ago_min": 95
+        },
+        "updatedAt": {
+          "$ago_min": 4
+        },
+        "label": "Verify refund webhook signatures",
+        "rowStatus": {
+          "kind": "needs-input",
+          "state": "permission_needed",
+          "since": {
+            "$ago_min": 4,
+            "$as": "ms"
+          }
+        },
+        "tabStatus": {
+          "tab-1": {
+            "kind": "needs-input",
+            "state": "permission_needed",
+            "since": {
+              "$ago_min": 4,
+              "$as": "ms"
+            },
+            "alive": true,
+            "restored": false,
+            "tracked": true
+          },
+          "tab-2": {
+            "kind": "idle",
+            "since": 0,
+            "alive": true,
+            "restored": false,
+            "tracked": false
+          }
+        },
+        "prChip": null,
+        "prChipStale": false
+      },
+      {
+        "id": "T-LAND",
+        "kind": "task",
+        "status": "in_progress",
+        "repo": "/work/payments-api",
+        "deleting": false,
+        "pinned": false,
+        "pr": {
+          "number": 231,
+          "url": "https://github.com/acme/payments-api/pull/231",
+          "lifecycle": "open",
+          "checkState": "passing",
+          "reviewDecision": "APPROVED",
+          "mergeable": "MERGEABLE"
+        },
+        "report": null,
+        "title": "Retry failed charges",
+        "branch": "fix/retry-failed-charges",
+        "group": "landing",
+        "rank": 1,
+        "order": 1,
+        "activity": {
+          "state": "turn_complete",
+          "forMs": 720000,
+          "since": {
+            "$ago_min": 12,
+            "$as": "ms"
+          }
+        },
+        "engine": {
+          "id": "codex",
+          "name": "Codex"
+        },
+        "changes": {
+          "added": 19,
+          "deleted": 2,
+          "ahead": 3,
+          "behind": 0
+        },
+        "createdAt": {
+          "$ago_min": 300
+        },
+        "updatedAt": {
+          "$ago_min": 12
+        },
+        "label": "Retry failed charges",
+        "rowStatus": {
+          "kind": "idle",
+          "state": "turn_complete",
+          "since": {
+            "$ago_min": 12,
+            "$as": "ms"
+          }
+        },
+        "tabStatus": {
+          "tab-1": {
+            "kind": "idle",
+            "state": "turn_complete",
+            "since": {
+              "$ago_min": 12,
+              "$as": "ms"
+            },
+            "alive": true,
+            "restored": false,
+            "tracked": true
+          }
+        },
+        "prChip": "passing",
+        "prChipStale": false
+      },
+      {
+        "id": "T-REV",
+        "kind": "task",
+        "status": "in_review",
+        "repo": "/work/payments-api",
+        "deleting": false,
+        "pinned": false,
+        "pr": {
+          "number": 229,
+          "url": "https://github.com/acme/payments-api/pull/229",
+          "lifecycle": "open",
+          "checkState": "pending",
+          "reviewDecision": null
+        },
+        "report": {
+          "summary": "Added an Idempotency keys section to docs/api.md: the header, the 24 hour replay window and the 422 on a mismatched reuse.",
+          "at": {
+            "$ago_min": 22
+          }
+        },
+        "title": "Document idempotency keys",
+        "branch": "docs/idempotency-keys",
+        "group": "ready-for-review",
+        "rank": 2,
+        "order": 2,
+        "activity": {
+          "state": "turn_complete",
+          "forMs": 1320000,
+          "since": {
+            "$ago_min": 22,
+            "$as": "ms"
+          }
+        },
+        "engine": {
+          "id": "claude",
+          "name": "Claude"
+        },
+        "changes": {
+          "added": 10,
+          "deleted": 0,
+          "ahead": 1,
+          "behind": 2
+        },
+        "createdAt": {
+          "$ago_min": 1560
+        },
+        "updatedAt": {
+          "$ago_min": 22
+        },
+        "label": "Document idempotency keys",
+        "rowStatus": {
+          "kind": "unseen",
+          "state": "turn_complete",
+          "since": {
+            "$ago_min": 22,
+            "$as": "ms"
+          }
+        },
+        "tabStatus": {
+          "tab-1": {
+            "kind": "unseen",
+            "state": "turn_complete",
+            "since": {
+              "$ago_min": 22,
+              "$as": "ms"
+            },
+            "alive": true,
+            "restored": false,
+            "tracked": true
+          }
+        },
+        "prChip": null,
+        "prChipStale": false
+      },
+      {
+        "id": "T-WORK",
+        "kind": "task",
+        "status": "in_progress",
+        "repo": "/work/payments-api",
+        "deleting": false,
+        "pinned": false,
+        "pr": null,
+        "report": null,
+        "title": "Add pagination to invoices",
+        "branch": "feat/invoice-pagination",
+        "group": "working",
+        "rank": 3,
+        "order": 3,
+        "activity": {
+          "state": "running",
+          "forMs": 102000,
+          "since": {
+            "$ago_min": 2,
+            "$as": "ms"
+          }
+        },
+        "engine": {
+          "id": "codex",
+          "name": "Codex"
+        },
+        "changes": {
+          "added": 27,
+          "deleted": 3,
+          "ahead": 2,
+          "behind": 0
+        },
+        "createdAt": {
+          "$ago_min": 48
+        },
+        "updatedAt": {
+          "$ago_min": 1
+        },
+        "label": "Add pagination to invoices",
+        "rowStatus": {
+          "kind": "running",
+          "state": "running",
+          "since": {
+            "$ago_min": 2,
+            "$as": "ms"
+          }
+        },
+        "tabStatus": {
+          "tab-1": {
+            "kind": "running",
+            "state": "running",
+            "since": {
+              "$ago_min": 2,
+              "$as": "ms"
+            },
+            "alive": true,
+            "restored": false,
+            "tracked": true
+          }
+        },
+        "prChip": null,
+        "prChipStale": false
+      },
+      {
+        "id": "T-IDLE",
+        "kind": "task",
+        "status": "in_progress",
+        "repo": "/work/marketing-site",
+        "deleting": false,
+        "pinned": false,
+        "pr": null,
+        "report": null,
+        "title": "Fix layout shift on the pricing page",
+        "branch": "fix/pricing-cls",
+        "group": "idle",
+        "rank": 4,
+        "order": 4,
+        "activity": {
+          "state": "turn_complete",
+          "forMs": 10800000,
+          "since": {
+            "$ago_min": 180,
+            "$as": "ms"
+          }
+        },
+        "engine": {
+          "id": "claude",
+          "name": "Claude"
+        },
+        "changes": {
+          "added": 2,
+          "deleted": 1,
+          "ahead": 1,
+          "behind": 0
+        },
+        "createdAt": {
+          "$ago_min": 1620
+        },
+        "updatedAt": {
+          "$ago_min": 180
+        },
+        "label": "Fix layout shift on the pricing page",
+        "rowStatus": {
+          "kind": "idle",
+          "state": "turn_complete",
+          "since": {
+            "$ago_min": 180,
+            "$as": "ms"
+          }
+        },
+        "tabStatus": {
+          "tab-1": {
+            "kind": "idle",
+            "state": "turn_complete",
+            "since": {
+              "$ago_min": 180,
+              "$as": "ms"
+            },
+            "alive": true,
+            "restored": false,
+            "tracked": true
+          },
+          "tab-3": {
+            "kind": "idle",
+            "since": 0,
+            "alive": false,
+            "restored": false,
+            "tracked": false
+          }
+        },
+        "prChip": null,
+        "prChipStale": false
+      },
+      {
+        "id": "T-NIGHTLY",
+        "kind": "task",
+        "status": "in_progress",
+        "repo": "/work/nightly-runs",
+        "routine": true,
+        "deleting": false,
+        "pinned": false,
+        "pr": null,
+        "report": null,
+        "title": "Nightly dependency sweep",
+        "branch": "routine/nightly-deps",
+        "group": "idle",
+        "rank": 5,
+        "order": 5,
+        "label": "Nightly dependency sweep",
+        "rowStatus": {
+          "kind": "idle",
+          "state": "idle",
+          "since": {
+            "$ago_min": 600,
+            "$as": "ms"
+          }
+        },
+        "tabStatus": {
+          "tab-1": {
+            "kind": "idle",
+            "state": "idle",
+            "since": {
+              "$ago_min": 600,
+              "$as": "ms"
+            },
+            "alive": true,
+            "restored": false,
+            "tracked": true
+          }
+        },
+        "prChip": null,
+        "prChipStale": false
+      }
+    ],
+    "archived": [
+      {
+        "id": "T-OLD",
+        "kind": "task",
+        "status": "done",
+        "repo": "/work/payments-api",
+        "archived": true,
+        "deleting": false,
+        "pinned": false,
+        "pr": null,
+        "report": null,
+        "title": "Spike a ledger rewrite",
+        "branch": "spike/ledger",
+        "group": "idle",
+        "rank": 6,
+        "order": 6,
+        "label": "Spike a ledger rewrite",
+        "rowStatus": {
+          "kind": "idle",
+          "state": "idle",
+          "since": {
+            "$ago_min": 600,
+            "$as": "ms"
+          }
+        },
+        "tabStatus": {},
+        "prChip": null,
+        "prChipStale": false
+      }
+    ],
+    "attention": [
+      {
+        "taskId": "T-WAIT",
+        "tabId": "tab-1",
+        "state": "permission_needed",
+        "unread": true,
+        "at": {
+          "$ago_min": 4,
+          "$as": "ms"
+        }
+      },
+      {
+        "taskId": "T-REV",
+        "tabId": "tab-1",
+        "state": "turn_complete",
+        "unread": true,
+        "at": {
+          "$ago_min": 22,
+          "$as": "ms"
+        }
+      },
+      {
+        "state": "routine_failed",
+        "automationId": "r-bad",
+        "label": "flaky test hunter",
+        "unread": true,
+        "at": {
+          "$ago_min": 50,
+          "$as": "ms"
+        }
+      }
+    ],
+    "gates": [],
+    "rev": 1
+  },
+  "tasks.list": {
+    "$same_as": "tasks.subscribe"
+  },
+  "routine.list": {
+    "automations": [
+      {
+        "id": "r-ok",
+        "name": "nightly dependency audit",
+        "repo": "/work/payments-api",
+        "prompt": "Run the nightly dependency audit checks and report anything surprising.",
+        "schedule": "0 3 * * *",
+        "enabled": true,
+        "nextRunAt": {
+          "$in_min": 1200
+        },
+        "missedRunGraceMinutes": 60,
+        "persistentSession": false
+      },
+      {
+        "id": "r-skip",
+        "name": "docs link check",
+        "repo": "/work/payments-api",
+        "prompt": "Run the docs link check checks and report anything surprising.",
+        "schedule": "0 9 * * MON-FRI",
+        "enabled": true,
+        "nextRunAt": {
+          "$in_min": 1200
+        },
+        "missedRunGraceMinutes": 60,
+        "persistentSession": false,
+        "precheck": {
+          "command": "git diff --quiet origin/main -- docs",
+          "timeoutSeconds": 60
+        }
+      },
+      {
+        "id": "r-miss",
+        "name": "weekly changelog digest",
+        "repo": "/work/payments-api",
+        "prompt": "Run the weekly changelog digest checks and report anything surprising.",
+        "schedule": "0 8 * * MON",
+        "enabled": true,
+        "nextRunAt": {
+          "$in_min": 1200
+        },
+        "missedRunGraceMinutes": 60,
+        "persistentSession": false,
+        "baseRef": "main"
+      },
+      {
+        "id": "r-bad",
+        "name": "flaky test hunter",
+        "repo": "/work/payments-api",
+        "prompt": "Run the flaky test hunter checks and report anything surprising.",
+        "schedule": "*/30 * * * *",
+        "enabled": true,
+        "nextRunAt": {
+          "$in_min": 1200
+        },
+        "missedRunGraceMinutes": 60,
+        "persistentSession": false
+      },
+      {
+        "id": "r-off",
+        "name": "stale branch sweep",
+        "repo": "/work/payments-api",
+        "prompt": "Run the stale branch sweep checks and report anything surprising.",
+        "schedule": "0 6 * * SUN",
+        "enabled": false,
+        "nextRunAt": {
+          "$in_min": 1200
+        },
+        "missedRunGraceMinutes": 60,
+        "persistentSession": false
+      }
+    ],
+    "lastRunStatus": {
+      "r-ok": "dispatched",
+      "r-skip": "skipped_precheck",
+      "r-miss": "skipped_missed",
+      "r-bad": "dispatch_failed"
+    },
+    "keepsDaemonAlive": true,
+    "lastFailure": {}
+  },
+  "pendingStart.list": {
+    "starts": []
+  },
+  "connectors.chat": {
+    "connectors": []
+  },
+  "github.status": {
+    "status": {
+      "git": "2.50.1",
+      "gh": null,
+      "account": null,
+      "host": "github.com",
+      "protocol": null,
+      "scopes": [],
+      "gitUsesGh": false,
+      "ssh": {
+        "ok": false,
+        "user": null
+      },
+      "login": null
+    }
+  },
+  "plugin.panes": {
+    "panes": []
+  },
+  "pr.checks": {
+    "outcome": "none"
+  },
+  "repo.probe": {
+    "ok": true,
+    "repo": "/work/payments-api",
+    "branches": ["main", "fix/refund-webhook-sig"],
+    "current": "main"
+  },
+  "diff.refs": {
+    "branches": ["main", "fix/refund-webhook-sig"],
+    "remotes": [],
+    "tags": [],
+    "commits": [
+      {
+        "sha": "4b8814e",
+        "subject": "Verify refund webhook signatures"
+      }
+    ]
+  },
+  "fs.subdirs": {
+    "base": "/work/",
+    "home": "/Users/demo",
+    "names": ["marketing-site", "payments-api"]
+  },
+  "browser.ports": {
+    "ports": []
+  }
+}

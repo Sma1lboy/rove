@@ -22,6 +22,9 @@ struct WebShellView: UIViewRepresentable {
             const m = document.querySelector('meta[name=viewport]');
             if (m) m.content += ', maximum-scale=1, user-scalable=no';
             """, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        config.setURLSchemeHandler(DemoSchemeHandler(), forURLScheme: DemoWeb.scheme)
+        // rove-web's `haptic.ts`: a press in the page is felt like one on a native control.
+        config.userContentController.add(context.coordinator, name: "haptic")
         let web = WKWebView(frame: .zero, configuration: config)
         web.navigationDelegate = context.coordinator
         web.uiDelegate = context.coordinator
@@ -53,7 +56,7 @@ struct WebShellView: UIViewRepresentable {
         if changed { c.load(web) }
     }
 
-    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, UIGestureRecognizerDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, UIGestureRecognizerDelegate {
         var parent: WebShellView
 
         init(_ parent: WebShellView) { self.parent = parent }
@@ -63,6 +66,10 @@ struct WebShellView: UIViewRepresentable {
             // Always the paired link, fragment included: rove-web re-reads the token from it, so a page whose
             // storage was cleared signs back in without the user re-pairing.
             web.load(URLRequest(url: parent.computer.url))
+        }
+
+        func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+            if let kind = message.body as? String { Haptic.play(kind) }
         }
 
         private func sameOrigin(_ url: URL) -> Bool {

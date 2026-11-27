@@ -1,6 +1,7 @@
 import { type ComponentProps, type ReactNode, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { reducedMotion } from "../ui.ts"
+import { haptic } from "./haptic.ts"
 
 /** Inside the part of the screen the soft keyboard leaves (`--vvh`), so a sheet with a field rises above it. */
 const SCRIM = "fixed inset-x-0 top-0 z-50 flex h-(--vvh,100dvh) items-end bg-[var(--scrim)]"
@@ -131,6 +132,7 @@ export function PickSheet<T extends string | number>(props: {
                 ref={on ? current : undefined}
                 aria-pressed={on}
                 onClick={() => {
+                  haptic()
                   close()
                   if (!on) props.onPick(pick.value)
                 }}

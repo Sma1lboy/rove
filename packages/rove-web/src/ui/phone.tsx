@@ -5,6 +5,7 @@
 
 import type { MouseEvent, ReactNode, Ref } from "react"
 import { PRESS, SQUARE_BAR, glass } from "./glass.ts"
+import { haptic } from "./haptic.ts"
 import { NavButton, PlusGlyph } from "./nav-button.tsx"
 
 const BAR = {
@@ -97,7 +98,10 @@ export function PhoneActions({ actions }: { actions: readonly PhoneAction[] }) {
           disabled={action.disabled}
           aria-label={action.glyph ? action.label : undefined}
           className={`grid h-13 cursor-pointer place-items-center px-3 font-sans text-body font-semibold disabled:opacity-50 ${SQUARE_BAR} ${PRESS} ${action.glyph ? "w-13 flex-none" : "min-w-0 flex-1"} ${action.tone === "accent" ? "bg-accent text-paper shadow-popover" : `${glass()} text-ink`}`}
-          onClick={action.onClick}
+          onClick={() => {
+            haptic()
+            action.onClick()
+          }}
         >
           {action.glyph ?? <span className="max-w-full truncate">{action.label}</span>}
         </button>
@@ -136,7 +140,10 @@ export function BottomBar(props: {
           type="button"
           className={`pointer-events-auto flex h-13 min-w-0 flex-1 cursor-pointer items-center gap-2 px-3.5 font-mono ${SQUARE_BAR} ${glass()} ${PRESS}`}
           data-new-task-bar
-          onClick={props.wide.onClick}
+          onClick={() => {
+            haptic()
+            props.wide?.onClick()
+          }}
         >
           <span className="flex flex-none text-accent">
             <PlusGlyph />
