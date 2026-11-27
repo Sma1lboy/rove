@@ -14,6 +14,11 @@ const TONE = {
 
 export const glass = (tone: keyof typeof TONE = "neutral"): string => `${BLUR} ${TONE[tone]}`
 
+/** The phone's button shape: a rounded square, radius 12 at 44px (the composer's Send, the keys, back, ×). */
+export const SQUARE = "rounded-[12px]"
+/** The same shape at the bottom bar's 52px. */
+export const SQUARE_BAR = "rounded-[14px]"
+
 /** A pressed control gives a little under the finger; no motion when the system asks for none. */
 export const PRESS =
   "transition-transform duration-100 active:scale-94 motion-reduce:transition-none motion-reduce:active:scale-none"

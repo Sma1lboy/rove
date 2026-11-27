@@ -1,20 +1,20 @@
 import type { ReactNode } from "react"
 import { t } from "../i18n/index.ts"
 import { useNarrow } from "../layout.ts"
-import { PRESS, glass } from "./glass.ts"
+import { PRESS, SQUARE, SQUARE_BAR, glass } from "./glass.ts"
 import { DIALOG_CLOSE } from "./overlay.ts"
 
 /** Literal class names, so Tailwind finds them. The two in a bottom bar are one size. */
 const SIZE = {
-  nav: "size-11",
-  bar: "size-13",
-  primary: "size-13",
+  nav: `size-11 ${SQUARE}`,
+  bar: `size-13 ${SQUARE_BAR}`,
+  primary: `size-13 ${SQUARE_BAR}`,
 } as const
 const ICON = "fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round]"
 
 /**
- * The phone's round button, after iOS's: glass for `nav` beside a title and `bar` in a floating bottom bar; `primary`,
- * the screen's one action, is a solid accent disc of the bar's size with a shadow and no glass. `label` names it for a screen reader; the caller passes the glyph.
+ * The phone's rounded-square button, after iOS's: glass for `nav` beside a title and `bar` in a floating bottom bar; `primary`,
+ * the screen's one action, is a solid accent square of the bar's size, like Send, with a shadow and no glass. `label` names it for a screen reader; the caller passes the glyph.
  */
 export function GlassButton(props: {
   size: keyof typeof SIZE
@@ -27,7 +27,7 @@ export function GlassButton(props: {
   return (
     <button
       type="button"
-      className={`pointer-events-auto relative grid flex-none cursor-pointer place-items-center rounded-full ${SIZE[props.size]} ${primary ? "bg-accent text-paper shadow-popover" : `${glass()} text-ink`} ${PRESS}`}
+      className={`pointer-events-auto relative grid flex-none cursor-pointer place-items-center ${SIZE[props.size]} ${primary ? "bg-accent text-paper shadow-popover" : `${glass()} text-ink`} ${PRESS}`}
       data-nav={props.kind}
       aria-label={props.label}
       title={props.label}
@@ -79,7 +79,7 @@ export function PlusGlyph() {
   )
 }
 
-/** A dialog's ×: the glass disc on a phone, the quiet glyph elsewhere. */
+/** A dialog's ×: the glass square on a phone, the quiet glyph elsewhere. */
 export function DialogClose({ onClick }: { onClick: () => void }) {
   const narrow = useNarrow()
   const label = t("dialog.close")

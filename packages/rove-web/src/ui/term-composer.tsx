@@ -9,7 +9,7 @@ import {
   useState,
 } from "react"
 import type { DictationFace } from "../voice/dictation-button.tsx"
-import { PRESS, glass } from "./glass.ts"
+import { PRESS, SQUARE, glass } from "./glass.ts"
 
 /**
  * The bar under an engine terminal on a touch screen. Talking comes first: with no draft it is attach, one wide
@@ -33,10 +33,10 @@ const FIELD =
 const PRESS_WIDE =
   "transition-[scale,background-color,color] duration-150 active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-none"
 /** A control inside the capsule: a 44px square with the keys' corners. */
-const KEY = `flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-[12px] touch-manipulation active:bg-[color-mix(in_srgb,var(--ink)_14%,transparent)] disabled:opacity-60 has-[:disabled]:opacity-60 ${PRESS}`
+const KEY = `flex size-11 shrink-0 cursor-pointer items-center justify-center ${SQUARE} touch-manipulation active:bg-[color-mix(in_srgb,var(--ink)_14%,transparent)] disabled:opacity-60 has-[:disabled]:opacity-60 ${PRESS}`
 /** The session's primary action, at the capsule's right end: solid accent once there is something to send. */
 const send = (ready: boolean): string =>
-  `flex size-11 shrink-0 items-center justify-center rounded-[12px] touch-manipulation ${PRESS} ${ready ? "bg-accent text-paper" : "text-muted opacity-60"}`
+  `flex size-11 shrink-0 items-center justify-center ${SQUARE} touch-manipulation ${PRESS} ${ready ? "bg-accent text-paper" : "text-muted opacity-60"}`
 const GLYPH =
   "size-4.5 narrow:size-5.5 flex-none fill-none stroke-current stroke-[1.5] [stroke-linecap:round] [stroke-linejoin:round]"
 
