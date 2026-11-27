@@ -205,7 +205,7 @@ async function updateTask(ctx: VerbContext): Promise<unknown> {
     })
   }
   if (command === "") throw new ApiError("--command cannot be empty", "BAD_FLAG")
-  if (progress !== undefined && progress.length > PROGRESS_MAX) {
+  if (progress !== undefined && progress.replace(/\s+/g, " ").trim().length > PROGRESS_MAX) {
     throw new ApiError(`--progress is one line of at most ${PROGRESS_MAX} characters`, "BAD_FLAG", {
       hint: "Say what is happening now; the full account belongs in the final report.",
     })

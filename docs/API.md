@@ -1811,7 +1811,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
     replaces the last, and `--progress ''` clears it. It is passive: it types
     into no tab, raises no Inbox row, and leaves `status` and `.report`
     alone, so a worker can leave a progress line without interrupting its
-    dispatcher. `context --text` shows it until the worker reports. Daemon
+    dispatcher. `context --text` shows it until the worker's next report. Daemon
     RPC: `task.progress`.
 
   The old per-field verbs are gone (no aliases): calling one returns

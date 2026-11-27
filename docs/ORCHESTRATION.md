@@ -118,7 +118,7 @@ fields (`group`, `rank`, `checkState`, `report`) rather than read them.
 A long-running worker can leave a line there without messaging anyone:
 `rove api update --progress "running the e2e suite"` replaces its previous
 line, and `context --text` shows it on the worker's row
-(`now: “running the e2e suite” 3m ago`) until the worker reports. It types
+(`now: “running the e2e suite” 3m ago`) until the worker's next report. It types
 into no tab and changes neither the status nor the report, so the dispatcher
 reads it when it looks instead of being woken for it.
 

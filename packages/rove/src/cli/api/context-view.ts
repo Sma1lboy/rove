@@ -150,12 +150,11 @@ export function renderContext(payload: ContextPayload): string {
     if (task.activity) bits.push(`${task.activity.state} ${age(task.activity.forMs)}`)
     if (task.checkState) bits.push(`ci:${task.checkState}`)
     if (task.pr !== undefined) bits.push(`PR#${task.pr}`)
-    if (task.report?.summary) bits.push(`“${task.report.summary}”`)
-    else if (task.report) bits.push("reported")
-    // A report is the newer, final word; the progress line only fills the silence before it.
-    else if (task.progress) {
+    // Reports are never cleared, so progress shows whenever it is newer than the last report.
+    if (task.progress && (!task.report || Date.parse(task.progress.at) > Date.parse(task.report.at))) {
       bits.push(`now: “${task.progress.note}” ${age(Math.max(0, now - Date.parse(task.progress.at)))} ago`)
-    }
+    } else if (task.report?.summary) bits.push(`“${task.report.summary}”`)
+    else if (task.report) bits.push("reported")
     lines.push(
       `  ${task.group.padEnd(16)} ${shortId(task.taskId)}  ${task.title}${task.branch ? ` [${task.branch}]` : ""}${
         bits.length > 0 ? ` — ${bits.join(" · ")}` : ""

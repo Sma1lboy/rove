@@ -137,6 +137,11 @@ describe("renderContext", () => {
     )
     expect(reported).toContain("“suite green”")
     expect(reported).not.toContain("e2e suite")
+    const earlier = new Date(NOW - 600_000).toISOString()
+    const nextRound = renderContext(
+      base({ tasks: [serialized({ id: "t1", progress, report: { summary: "round one", at: earlier } })] }),
+    )
+    expect(nextRound).toContain("now: “running the e2e suite” 3m ago")
   })
 })
 
