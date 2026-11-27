@@ -92,8 +92,14 @@ export function useGithubConnector(model: AppModel) {
 
   const probe = useCallback(
     async (key: string): Promise<void> => {
+      // A request that failed (a bridge mid-restart) keeps the last answer rather than reading as signed out.
       const next = await requestRemembered<Probe>(client, "github.status", argsOf(key)).catch(
-        (e): Probe => ({ status: null, reason: "failed", message: errorText(e) }),
+        (e): Probe =>
+          lastReply<Probe>(client, "github.status", argsOf(key)) ?? {
+            status: null,
+            reason: "failed",
+            message: errorText(e),
+          },
       )
       setProbes((p) => ({ ...p, [key]: next }))
     },
@@ -109,9 +115,8 @@ export function useGithubConnector(model: AppModel) {
     }
   }, [probe, online])
 
-  useEffect(() => {
-    void refresh()
-  }, [refresh])
+  // On open, not on mount: asked before the socket is up, every probe fails.
+  useEffect(() => client.onOpen(() => void refresh()), [client, refresh])
 
   // Poll only the machines mid sign-in. One that just finished may have signed others in: look at all again.
   useEffect(() => {
