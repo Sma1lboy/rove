@@ -8,7 +8,7 @@ export type Tone = "accent" | "muted" | "attention" | "warning" | "success" | "i
 export type { DotLook }
 
 /** The colour of each look, as ELYTerminal's session row picks it (`src/sessions.rs`). */
-const LOOK_TONE: Readonly<Record<DotLook, Tone>> = {
+export const LOOK_TONE: Readonly<Record<DotLook, Tone>> = {
   working: "info",
   waiting: "warning",
   error: "attention",

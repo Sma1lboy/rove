@@ -22,25 +22,6 @@ export function sessionAge(task: Pick<TaskRow, "activity">, now: number): string
   return compactAge(activity.since !== undefined ? now - activity.since : activity.forMs)
 }
 
-/** The short word beside a row's status glyph: a `rail.rowStatus` key, by the same split `row-status-glyph.ts` tones by. */
-export function statusWord(
-  status: TaskRow["rowStatus"],
-): "running" | "needsInput" | "rateLimited" | "error" | "done" | "idle" {
-  switch (status?.kind) {
-    case "busy":
-    case "running":
-      return "running"
-    case "needs-input":
-      return "needsInput"
-    case "attention":
-      return status.reason === "rate_limited" ? "rateLimited" : "error"
-    case "unseen":
-      return "done"
-    default:
-      return "idle"
-  }
-}
-
 export interface ExtPage {
   /** Stable across reloads: what "last opened" remembers. */
   readonly id: string

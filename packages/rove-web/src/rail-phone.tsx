@@ -6,9 +6,8 @@ import { openPage } from "./layout.ts"
 import { CloudMark } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { useCopy, useReload } from "./pages-kit.ts"
-import { extPages, lastExtPage, rememberExtPage, sessionAge, sessionLine2, statusWord } from "./phone-rows.ts"
+import { extPages, lastExtPage, rememberExtPage, sessionAge, sessionLine2 } from "./phone-rows.ts"
 import { PrChip } from "./pr-chip.tsx"
-import { usePrefs } from "./prefs.ts"
 import type { RailRowProps } from "./rail-view.tsx"
 import type { NavRow } from "./rail.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
@@ -17,23 +16,14 @@ import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
 import { dialog } from "./ui.ts"
 import { EngineIcon } from "./ui/engine-icon.tsx"
-import { ExtensionsButton, PhoneGroupHead, PhoneStatusRow, RoutinesButton, StatusTag } from "./ui/phone-rows.tsx"
+import { ExtensionsButton, PhoneGroupHead, PhoneStatusRow, RoutinesButton } from "./ui/phone-rows.tsx"
 import { CHILD_INDENT, guideClass, projectHead } from "./ui/rail.ts"
 import { SHEET_LIST, SHEET_SEP, Sheet, SheetRow } from "./ui/sheet.tsx"
+import { StatusDots } from "./ui/status-dots.tsx"
 import { SwipeRow } from "./ui/swipe-row.tsx"
-
-/** Until the bridge's glyph sets arrive: its default set's marks. */
-const GLYPHS = {
-  spinner: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
-  idle: "○",
-  unseen: "●",
-  needsInput: "?",
-  attention: "!",
-}
 
 export function PhoneRailRow(props: RailRowProps) {
   const { row } = props
-  const { prefs, glyphSets } = usePrefs()
   if (row.kind === "project" || row.kind === "state") {
     // Another machine's project has no checkout here, so no actions of its own.
     const hasMenu = row.kind === "project" && row.machine === undefined
@@ -84,13 +74,7 @@ export function PhoneRailRow(props: RailRowProps) {
           {props.cloud && <CloudMark label={props.cloud} />}
         </>
       }
-      top={
-        <StatusTag
-          status={status}
-          glyphs={glyphSets[prefs.glyphSet] ?? GLYPHS}
-          word={t(`rail.rowStatus.${statusWord(status)}`)}
-        />
-      }
+      top={<StatusDots status={status} />}
       bottom={sessionAge(task, Date.now())}
       onClick={props.onClick}
       onContextMenu={props.onMenu}
