@@ -1,5 +1,5 @@
 /** @jsxImportSource @opentui/react */
-/** The Files button, set into the right end of the panes' top border (`──── Files ─┐`), as the web's panel launcher. */
+/** The window's top row: the Files button at its right end, as the web's panel launcher. */
 
 import { TextAttributes } from "@opentui/core"
 import { ShortcutRevealBadge } from "../component/shortcut-reveal"
@@ -9,12 +9,11 @@ import { useHoverFill } from "../ui/use-hover-fill"
 
 export type FilesToggle = { readonly open: boolean; readonly toggle: () => void }
 
-/** `files` is null where there is no Files pane to show (a rail page). Over the border, not a row of its own: a row held only this button. */
+/** `files` is null where there is no Files pane to show (a rail page); the row stays, so the panes do not jump. */
 export function TopBar(props: { readonly files: FilesToggle | null }) {
-  if (!props.files) return null
   return (
-    <box position="absolute" top={0} right={2} zIndex={1} height={1} flexDirection="row">
-      <FilesButton files={props.files} />
+    <box flexDirection="row" flexShrink={0} height={1} paddingRight={1} justifyContent="flex-end">
+      {props.files ? <FilesButton files={props.files} /> : null}
     </box>
   )
 }
@@ -26,7 +25,8 @@ function FilesButton(props: { readonly files: FilesToggle }) {
   return (
     <box
       flexShrink={0}
-      flexDirection="row"
+      paddingLeft={1}
+      paddingRight={1}
       // On is the stronger fill; a hover only washes a button that is off.
       backgroundColor={props.files.open ? theme.backgroundElement : hover.fill}
       {...hover.handlers}
@@ -40,8 +40,7 @@ function FilesButton(props: { readonly files: FilesToggle }) {
         attributes={props.files.open ? TextAttributes.BOLD : undefined}
         wrapMode="none"
       >
-        {/* No-break spaces, not padding or " ": over a transparent background a blank cell keeps the border's dash under it. */}
-        {`\u00a0${t("keys.category.Files")}\u00a0`}
+        {t("keys.category.Files")}
       </text>
       <ShortcutRevealBadge bindingId="workspace.filesToggle" />
     </box>
