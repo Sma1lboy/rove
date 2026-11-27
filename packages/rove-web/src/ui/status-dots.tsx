@@ -7,7 +7,7 @@
 import { useLayoutEffect, useRef, useState } from "react"
 import type { RowStatus } from "rove-bridge/protocol"
 import { STEP_MS, dotLevels, dotsMove } from "../dot-levels.ts"
-import { type DotLook, type Tone, statusMark } from "../rail-glyphs.ts"
+import { type DotLook, LOOK_TONE, type Tone, statusMark } from "../rail-glyphs.ts"
 import { TONE } from "./tone.ts"
 
 /** Work and waiting under reduced motion run this many times slower instead of freezing. */
@@ -66,6 +66,11 @@ function track(el: HTMLElement, look: DotLook, since: number): () => void {
 export function StatusDots({ status }: { status: RowStatus | undefined }) {
   const { look, tone } = statusMark(status)
   return <Dots key={look} look={look} tone={tone} since={status?.since ?? 0} />
+}
+
+/** A look on its own, for a row whose state is not a daemon row status (a routine's last run). */
+export function LookDots({ look }: { look: DotLook }) {
+  return <Dots key={look} look={look} tone={LOOK_TONE[look]} since={0} />
 }
 
 // An idle mark is the muted ink, as ELYTerminal's `fg_muted`: one step stronger than the muted tone elsewhere.

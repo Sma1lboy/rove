@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import type { TaskRow } from "rove-bridge/protocol"
-import { extPages, sessionAge, sessionLine2, statusWord } from "../src/phone-rows.ts"
-import { routineNeedsYou, routineWord } from "../src/routines-data.ts"
+import { extPages, sessionAge, sessionLine2 } from "../src/phone-rows.ts"
+import { routineLook, routineNeedsYou } from "../src/routines-data.ts"
 
 const names = { kanban: "Kanban", issues: "Issues" }
 const pane = { plugin: "examples.counter-mod", id: "counter", title: "Counter", tree: { type: "text", text: "" } }
@@ -52,30 +52,16 @@ describe("the phone's Routines button count", () => {
   })
 })
 
-describe("the word beside a phone session row's status glyph", () => {
-  const at = (status: object) => ({ since: 0, ...status }) as TaskRow["rowStatus"]
-  test.each<[string, TaskRow["rowStatus"], ReturnType<typeof statusWord>]>([
-    ["a working engine", at({ kind: "running" }), "running"],
-    ["a question", at({ kind: "needs-input" }), "needsInput"],
-    ["a rate limit, which clears itself", at({ kind: "attention", reason: "rate_limited" }), "rateLimited"],
-    ["a failure", at({ kind: "attention", reason: "error" }), "error"],
-    ["an unread finished turn", at({ kind: "unseen" }), "done"],
-    ["no reading yet", undefined, "idle"],
-  ])("names %s", (_, status, word) => {
-    expect(statusWord(status)).toBe(word)
-  })
-})
-
-describe("the word at a phone routine row's right edge", () => {
-  test.each<[string, Parameters<typeof routineWord>[0], boolean, ReturnType<typeof routineWord>]>([
-    ["a run that worked", "ran", true, "ok"],
-    ["a failed command", "script_failed", true, "failed"],
-    ["a failure on a paused routine", "dispatch_failed", false, "failed"],
-    ["an engine that is not there", "skipped_unavailable", true, "needsYou"],
-    ["a tick that was refused", "skipped_blocked", true, "skipped"],
-    ["a paused routine whose last run worked", "ran", false, "paused"],
-    ["a routine that never ran", undefined, true, "notRun"],
-  ])("names %s", (_, status, enabled, word) => {
-    expect(routineWord(status, enabled)).toBe(word)
+describe("a phone routine row's status dots", () => {
+  test.each<[string, Parameters<typeof routineLook>[0], boolean, ReturnType<typeof routineLook>]>([
+    ["a run that worked", "ran", true, "done"],
+    ["a failed command", "script_failed", true, "error"],
+    ["a failure on a paused routine", "dispatch_failed", false, "error"],
+    ["an engine that is not there", "skipped_unavailable", true, "waiting"],
+    ["a tick that was refused", "skipped_blocked", true, "idle"],
+    ["a paused routine whose last run worked", "ran", false, "idle"],
+    ["a routine that never ran", undefined, true, "idle"],
+  ])("draw %s", (_, status, enabled, look) => {
+    expect(routineLook(status, enabled)).toBe(look)
   })
 })

@@ -1,48 +1,11 @@
 /**
  * The phone's list rows, after the old iPhone app's task list: a mark, two lines, and a right column. A session row
- * leads with its engine's mark and ends with its status over its age; a routine row leads with its last run's mark.
+ * leads with its engine's mark and ends with its status dots over its age; a routine row does the same for its last run.
  */
 
-import { type RowGlyphSet, type RowTone, rowStatusGlyph } from "@sma1lboy/rove/src/lib/row-status-glyph.ts"
-import { type ComponentProps, type MouseEvent, type ReactNode, useEffect, useState } from "react"
-import type { RowStatus } from "rove-bridge/protocol"
-import { reducedMotion } from "../ui.ts"
+import type { ComponentProps, MouseEvent, ReactNode } from "react"
 import { Chevron } from "./chevron.tsx"
 import { CountBadge, GlassButton } from "./nav-button.tsx"
-
-const TONE: Readonly<Record<RowTone, string>> = {
-  accent: "text-accent",
-  warning: "text-warning",
-  error: "text-error",
-  muted: "text-subtle",
-}
-const SPINNER_MS = 80
-
-/** A row's daemon status as `row-status-glyph.ts` maps it, glyph then `word` in one tone; the spinner steps only while the row runs. */
-export function StatusTag(props: { status: RowStatus | undefined; glyphs: RowGlyphSet; word: string }) {
-  const { status, glyphs } = props
-  const [frame, setFrame] = useState(0)
-  const mark = rowStatusGlyph(status, glyphs, frame)
-  const spins = mark.spinning && !reducedMotion()
-  useEffect(() => {
-    if (!spins) return
-    const timer = window.setInterval(() => setFrame((n) => n + 1), SPINNER_MS)
-    return () => window.clearInterval(timer)
-  }, [spins])
-  return <PhoneTag tone={TONE[mark.tone]} glyph={mark.glyph} word={props.word} status={status?.kind ?? "none"} />
-}
-
-/** A row's state at its right edge: a glyph and a short word in one tone (a text-colour class). */
-export function PhoneTag(props: { tone: string; glyph: string; word: string; status?: string }) {
-  return (
-    <span className={`flex items-center gap-1.5 ${props.tone}`} data-status={props.status}>
-      <span className="w-[1ch] flex-none text-center" aria-hidden="true">
-        {props.glyph}
-      </span>
-      {props.word}
-    </span>
-  )
-}
 
 /** In the engine mark's cell, for a routine that runs a command and no engine: a terminal prompt. */
 export function ScriptMark() {

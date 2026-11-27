@@ -1,5 +1,6 @@
 /** What `routine.list` answers, as the Routines page reads it. */
 
+import type { DotLook } from "@sma1lboy/rove/src/lib/status-dots.ts"
 import {
   type Automation,
   type AutomationRunStatus,
@@ -21,18 +22,15 @@ export function routineNeedsYou(reply: Pick<RoutinesReply, "lastRunStatus"> | nu
   return status !== undefined && automationRunNeedsAttention(status)
 }
 
-/** A routine row's word at its right edge, a `rail.routineStatus` key: what its last run came to, or that it is paused. */
-export function routineWord(
-  status: AutomationRunStatus | undefined,
-  enabled: boolean,
-): "needsYou" | "failed" | "paused" | "skipped" | "ok" | "notRun" {
-  if (status === "dispatch_failed" || status === "script_failed") return "failed"
-  if (status !== undefined && automationRunNeedsAttention(status)) return "needsYou"
-  if (!enabled) return "paused"
-  if (status === undefined) return "notRun"
-  return status === "skipped_blocked" || status === "skipped_missed" || status === "skipped_cancelled"
-    ? "skipped"
-    : "ok"
+/**
+ * A routine row's status dots, as one of the rail's looks: a failed run is the cross, one waiting on a person blinks,
+ * a run that worked is the tick; paused, skipped and never run are the quiet ring.
+ */
+export function routineLook(status: AutomationRunStatus | undefined, enabled: boolean): DotLook {
+  if (status === "dispatch_failed" || status === "script_failed") return "error"
+  if (status !== undefined && automationRunNeedsAttention(status)) return "waiting"
+  if (!enabled || status === undefined || status.startsWith("skipped_")) return "idle"
+  return "done"
 }
 
 type WhenCopy = Record<"now" | "justNow" | "inMinutes" | "minutesAgo" | "inHours" | "hoursAgo", string>
