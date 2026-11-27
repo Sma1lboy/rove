@@ -5,3 +5,4 @@ DerivedData/
 xcuserdata/
 *.xcworkspace
 .swiftpm/
+DemoWeb/

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rove: privacy</title>
+<link rel="icon" href="/assets/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="/assets/favicon.png">
+<meta name="description" content="What the Rove iPhone app keeps, what it sends and where: no account, no analytics, and traffic only to your own computer.">
+<link rel="canonical" href="https://rove.run/privacy">
+<meta property="og:title" content="Rove: privacy">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://rove.run/privacy">
+<meta property="og:image" content="https://rove.run/assets/og-card.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/base.css">
+<style>
+.intro{padding:24px 0 0}
+.body{min-width:0}
+.body>p,.body>ul{max-width:64ch;margin:0 0 16px}
+.body>ul{padding-left:1.2em}
+.body li{margin-bottom:8px}
+.note{padding-top:64px}
+</style>
+</head>
+<body>
+<a class="skip" href="#main" data-s="skip">Skip to content</a>
+
+<div class="sheet">
+
+  <header class="head">
+    <a class="brand" href="/">
+      <svg viewBox="0 0 64 64" width="28" height="28" aria-hidden="true" class="mark"><rect x="1" y="1" width="62" height="62" rx="13"/><path d="M19 13H12V51h7" stroke-width="7"/><path d="M12 13V51" stroke-width="4"/><g transform="translate(19.811 45) scale(.01745 -.01745)"><path class="r" d="M111 0H419V521H689C690 521 691 521 692 521L956 0H1286L987 579C1154 656 1253 804 1253 1001C1253 1301 1043 1490 707 1490H111ZM419 768V1234H688C851 1234 952 1143 952 1001C952 859 851 768 689 768Z"/></g><path d="M45 13h7V51h-7" stroke-width="7"/><path d="M52 13V51" stroke-width="4"/></svg>
+      <span class="wm">Rove</span>
+    </a>
+    <span class="spacer"></span>
+    <nav aria-label="Primary">
+      <a href="https://docs.rove.run" data-s="nav.docs">Docs</a>
+      <a href="/plugins" data-s="nav.plugins">Plugins</a>
+      <a href="/themes" data-s="nav.themes">Themes</a>
+      <a href="/changelog" data-s="nav.changelog">Changelog</a>
+      <a href="https://github.com/Sma1lboy/rove">GitHub</a>
+    </nav>
+    <button id="langToggle" class="lang-btn" type="button">中文</button>
+  </header>
+
+  <main id="main">
+  <section class="intro dotfield">
+    <h1 data-s="h1">Privacy</h1>
+    <p class="lede" data-s="lede">The Rove iPhone app opens the Rove page served by your own computer. It has no account, no analytics and no ads, and it sends nothing to the people who make Rove.</p>
+  </section>
+
+  <section class="note wide">
+    <h2 data-s="where.h">Where your data goes</h2>
+    <div class="body">
+      <p data-s="where.p1">The app talks only to the computer you paired it with, over your local network, Tailscale, or a tunnel you set up yourself, such as a Cloudflare Tunnel or a relay on your own Cloudflare account. Nothing passes through a server run by Rove. What you type, the tasks you open and the terminal output you read travel between your phone and your computer and nowhere else.</p>
+      <p data-s="where.p2">The coding agents on your computer may send your prompts to the AI providers you set them up with. That happens on your computer, under those providers' own policies, not through the app.</p>
+    </div>
+  </section>
+
+  <section class="note wide">
+    <h2 data-s="keep.h">What stays on your phone</h2>
+    <div class="body">
+      <ul>
+        <li data-s="keep.l1">The pairing link of each computer, with its token, kept in the iOS Keychain. <b>forget</b> on the computers screen deletes one.</li>
+        <li data-s="keep.l2">What the Rove page remembers between visits, such as the token it signs in with, the last task you opened and which panels were open, in the app's web storage.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="note wide">
+    <h2 data-s="perm.h">Camera and microphone</h2>
+    <div class="body">
+      <ul>
+        <li data-s="perm.l1"><b>Camera</b>: only to scan the pairing QR code your computer shows. Nothing is recorded or kept. Pasting the link works without it.</li>
+        <li data-s="perm.l2"><b>Microphone</b>: records only while you hold the talk button. The audio goes to your computer, which turns it into text. If you set your computer up to use a speech-to-text service, your computer sends the audio there.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="note wide">
+    <h2 data-s="demo.h">Demo</h2>
+    <div class="body">
+      <p data-s="demo.p1"><b>try a demo</b> runs on sample data built into the app. It makes no network requests and saves nothing.</p>
+    </div>
+  </section>
+
+  <section class="note wide">
+    <h2 data-s="contact.h">Questions</h2>
+    <div class="body">
+      <p data-s="contact.p1">The app is a developer tool and is not aimed at children. If this page changes, its history is public in the <a href="https://github.com/Sma1lboy/rove/commits/main/packages/rove-landing/privacy.html">repository</a>. Questions go to <a href="https://github.com/Sma1lboy/rove/issues">GitHub issues</a>.</p>
+      <p class="t-note" data-s="updated">Last updated 27 November 2026.</p>
+    </div>
+  </section>
+  </main>
+
+  <footer>
+    <a href="https://github.com/Sma1lboy/rove">GitHub</a>
+    <a href="https://docs.rove.run" data-s="footer.docs">docs.rove.run</a>
+    <a href="/plugins" data-s="nav.plugins">Plugins</a>
+    <a href="/themes" data-s="nav.themes">Themes</a>
+    <a href="/changelog" data-s="nav.changelog">Changelog</a>
+    <span class="sp"></span>
+    <span class="c"><span data-s="footer.colophon">© 2026 Sma1lboy. MIT license.</span></span>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+  // same resolution order as index.js: ?lang= → stored pref → browser
+  var lang = 'en';
+  try {
+    var fromUrl = new URLSearchParams(location.search).get('lang');
+    var stored = localStorage.getItem('rove_lang');
+    var nav = (navigator.language || '').toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en';
+    lang = fromUrl === 'zh' || fromUrl === 'en' ? fromUrl : stored === 'zh' || stored === 'en' ? stored : nav;
+  } catch (e) {}
+
+  // English is what the HTML already says; this is the other language.
+  var ZH = {
+    'meta.title': 'Rove：隐私',
+    'skip': '跳到正文',
+    'nav.docs': '文档', 'nav.plugins': '插件', 'nav.themes': '主题', 'nav.changelog': '更新日志',
+    'h1': '隐私',
+    'lede': 'Rove 的 iPhone app 打开的是你自己电脑上的 Rove 页面。它没有账号、没有统计、没有广告，也不会把任何东西发给做 Rove 的人。',
+    'where.h': '数据去了哪里',
+    'where.p1': 'app 只和你配对的那台电脑通信，走你的局域网、Tailscale，或你自己搭的隧道（比如 Cloudflare Tunnel，或部署在你自己 Cloudflare 账号上的中继）。中间不经过任何 Rove 运营的服务器。你输入的内容、打开的任务、看到的终端输出，只在手机和你的电脑之间来回。',
+    'where.p2': '你电脑上的 coding agent 可能会把你的提示词发给你给它们配置的 AI 服务商。这发生在你的电脑上，适用那些服务商自己的政策，不经过这个 app。',
+    'keep.h': '留在手机上的东西',
+    'keep.l1': '每台电脑的配对链接和其中的 token，存在 iOS 钥匙串里。在电脑列表里点 <b>forget</b> 就删掉那一台。',
+    'keep.l2': 'Rove 页面在两次打开之间记住的东西，比如它登录用的 token、你上次打开的任务、哪些面板开着，存在 app 的网页存储里。',
+    'perm.h': '相机和麦克风',
+    'perm.l1': '<b>相机</b>：只用来扫电脑上显示的配对二维码，不录制也不保存。不给相机权限，粘贴链接也能配对。',
+    'perm.l2': '<b>麦克风</b>：只在你按住说话按钮时录音。音频发到你的电脑，由电脑转成文字。如果你给电脑配了语音转文字服务，电脑会把音频发到那里。',
+    'demo.h': '演示',
+    'demo.p1': '<b>try a demo</b> 用的是 app 里自带的示例数据，不发任何网络请求，也不保存任何东西。',
+    'contact.h': '有问题',
+    'contact.p1': '这个 app 是开发者工具，不面向儿童。这一页的修改记录公开在<a href="https://github.com/Sma1lboy/rove/commits/main/packages/rove-landing/privacy.html">仓库</a>里。有问题请提 <a href="https://github.com/Sma1lboy/rove/issues">GitHub issue</a>。',
+    'updated': '最后更新：2026 年 11 月 27 日。',
+    'footer.docs': '文档',
+    'footer.colophon': '© 2026 Sma1lboy。MIT 许可。'
+  };
+
+  var EN = {};
+  document.querySelectorAll('[data-s]').forEach(function (el) { EN[el.getAttribute('data-s')] = el.innerHTML; });
+  EN['meta.title'] = document.title;
+
+  function apply() {
+    var zh = lang === 'zh';
+    document.documentElement.lang = zh ? 'zh-CN' : 'en';
+    document.title = zh ? ZH['meta.title'] : EN['meta.title'];
+    document.querySelectorAll('[data-s]').forEach(function (el) {
+      var k = el.getAttribute('data-s');
+      el.innerHTML = zh && ZH[k] ? ZH[k] : EN[k];
+    });
+    document.getElementById('langToggle').textContent = zh ? 'EN' : '中文';
+  }
+
+  document.getElementById('langToggle').addEventListener('click', function () {
+    lang = lang === 'zh' ? 'en' : 'zh';
+    try { localStorage.setItem('rove_lang', lang); } catch (e) {}
+    apply();
+  });
+  apply();
+})();
+</script>
+<script src="/dots.js" defer></script>
+</body>
+</html>

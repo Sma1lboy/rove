@@ -47,6 +47,8 @@ struct ShellRoot: View {
     @State private var failure: String?
     @State private var reload = 0
     @State private var switching = false
+    /// Not kept: a relaunch is back on pairing.
+    @State private var demo = false
 
     var body: some View {
         Group {
@@ -60,8 +62,15 @@ struct ShellRoot: View {
                         ComputersSheet(model: model) { switching = false }
                             .presentationDetents([.medium, .large])
                     }
+            } else if demo {
+                VStack(spacing: 0) {
+                    DemoStrip(status: String(localized: "demo · not connected to a computer"),
+                              action: String(localized: "connect a computer")) { demo = false }
+                    WebShellView(computer: DemoWeb.computer, reloadToken: 0, onFail: { _ in }, onSwitch: {})
+                        .ignoresSafeArea(edges: [.horizontal, .bottom])
+                }
             } else {
-                ShellPairingView(model: model, onDone: nil)
+                ShellPairingView(model: model, onDone: nil, onDemo: { demo = true })
             }
         }
         .background(Theme.paper.ignoresSafeArea())
@@ -76,7 +85,7 @@ struct ShellRoot: View {
             ErrorLine(text: message)
             Spacer()
             PrimaryBar(label: String(localized: "retry"), identifier: "retryButton") { reload += 1 }
-            Button { switching = true } label: { TileLabel(text: String(localized: "computers")) }
+            Button { Haptic.play(); switching = true } label: { TileLabel(text: String(localized: "computers")) }
                 .buttonStyle(.pressable)
                 .accessibilityIdentifier("computersButton")
         }
@@ -99,7 +108,7 @@ struct ComputersSheet: View {
                     Theme.kicker(String(localized: "computers"))
                     ForEach(model.computers) { c in
                         HStack {
-                            Button { model.use(c); close() } label: {
+                            Button { Haptic.play(); model.use(c); close() } label: {
                                 HStack {
                                     Text(c.display).font(Theme.mono(14, .medium)).foregroundStyle(Theme.ink).lineLimit(1)
                                     Spacer()
@@ -108,13 +117,13 @@ struct ComputersSheet: View {
                                 .padding(.horizontal, 14).frame(minHeight: 48)
                             }
                             .buttonStyle(.pressable)
-                            Button { model.forget(c) } label: { TileLabel(text: String(localized: "forget"), tint: Theme.error) }
+                            Button { Haptic.play("medium"); model.forget(c) } label: { TileLabel(text: String(localized: "forget"), tint: Theme.error) }
                                 .buttonStyle(.pressable)
                                 .padding(.trailing, 8)
                         }
                         .tile()
                     }
-                    Button { adding = true } label: { TileLabel(text: String(localized: "+ pair another computer")) }
+                    Button { Haptic.play(); adding = true } label: { TileLabel(text: String(localized: "+ pair another computer")) }
                         .buttonStyle(.pressable)
                         .accessibilityIdentifier("pairAnotherButton")
                     Hint(text: String(localized: "Hold two fingers on the page to come back here."))
@@ -122,7 +131,7 @@ struct ComputersSheet: View {
                 .padding(20)
             }
             .background(Theme.paper.ignoresSafeArea())
-            .navigationDestination(isPresented: $adding) { ShellPairingView(model: model) { adding = false; close() } }
+            .navigationDestination(isPresented: $adding) { ShellPairingView(model: model, onDone: { adding = false; close() }) }
             .toolbar(.hidden, for: .navigationBar)
         }
     }
@@ -132,10 +141,13 @@ struct ComputersSheet: View {
 struct ShellPairingView: View {
     var model: ShellModel
     var onDone: (() -> Void)?
+    /// First launch only: the way in without a computer.
+    var onDemo: (() -> Void)?
     @State private var text = ""
     @State private var error: String?
     @State private var scanning = false
 
+    private static let privacyPolicy = URL(string: "https://rove.run/privacy")!
     private var cameraAvailable: Bool { AVCaptureDevice.default(for: .video) != nil }
 
     var body: some View {
@@ -151,7 +163,7 @@ struct ShellPairingView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     if cameraAvailable {
-                        Button { scanning = true } label: {
+                        Button { Haptic.play(); scanning = true } label: {
                             Label(String(localized: "scan qr code"), systemImage: "qrcode.viewfinder")
                                 .font(Theme.mono(15, .semibold)).foregroundStyle(Theme.ink)
                                 .frame(maxWidth: .infinity, minHeight: 56).tile()
@@ -167,7 +179,7 @@ struct ShellPairingView: View {
                                 .accessibilityIdentifier("pairingField")
                         }
                         HStack {
-                            Button { text = UIPasteboard.general.string ?? text } label: { TileLabel(text: String(localized: "paste")) }
+                            Button { Haptic.play(); text = UIPasteboard.general.string ?? text } label: { TileLabel(text: String(localized: "paste")) }
                                 .buttonStyle(.pressable)
                             Spacer()
                         }
@@ -182,6 +194,19 @@ struct ShellPairingView: View {
                 PrimaryBar(label: String(localized: "connect"),
                            enabled: !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                            identifier: "connectButton") { pair(text) }
+                if let onDemo {
+                    Button { Haptic.play(); onDemo() } label: {
+                        Text("try a demo").font(Theme.mono(15, .semibold)).foregroundStyle(Theme.ink)
+                            .frame(maxWidth: .infinity, minHeight: 48).tile()
+                    }
+                    .buttonStyle(.pressable)
+                    .accessibilityIdentifier("demoButton")
+                }
+                Link(destination: Self.privacyPolicy) {
+                    Text("privacy policy").font(Theme.mono(13)).foregroundStyle(Theme.muted)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .accessibilityIdentifier("privacyPolicyLink")
             }
             .padding(.horizontal, 16).padding(.vertical, 8)
         }
@@ -197,9 +222,13 @@ struct ShellPairingView: View {
     private func pair(_ link: String) {
         do {
             try model.pair(link)
+            Haptic.play("success")
             error = nil
             text = ""
             onDone?()
-        } catch { self.error = error.localizedDescription }
+        } catch {
+            Haptic.play("warning")
+            self.error = error.localizedDescription
+        }
     }
 }

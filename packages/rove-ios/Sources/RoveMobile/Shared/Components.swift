@@ -92,7 +92,7 @@ struct PrimaryBar: View {
     var action: () -> Void
 
     var body: some View {
-        Button(action: action) {
+        Button { Haptic.play(); action() } label: {
             HStack(spacing: 10) {
                 Text(label).font(Theme.mono(16, .semibold))
                 Spacer()

@@ -89,11 +89,25 @@ enum Theme {
     }
 
     static func mono(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        .system(size: scaled(size), weight: weight, design: .monospaced)
+        dynamic(.monospacedSystemFont(ofSize: size, weight: uiWeight(weight)), size)
     }
 
     static func face(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        .system(size: scaled(size), weight: weight)
+        dynamic(.systemFont(ofSize: size, weight: uiWeight(weight)), size)
+    }
+
+    /// The pinned size as a Dynamic Type font: it follows the Larger Text setting, up to `scaled`'s cap.
+    private static func dynamic(_ font: UIFont, _ size: CGFloat) -> Font {
+        Font(UIFontMetrics(forTextStyle: .body).scaledFont(for: font, maximumPointSize: size * 1.6))
+    }
+
+    private static func uiWeight(_ weight: Font.Weight) -> UIFont.Weight {
+        switch weight {
+        case .medium: .medium
+        case .semibold: .semibold
+        case .bold: .bold
+        default: .regular
+        }
     }
 
     static func kicker(_ text: String, color: Color = muted) -> some View {
@@ -242,7 +256,7 @@ struct ScreenHeader<Title: View, Trailing: View>: View {
             if let back {
                 Button(action: back) {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(Theme.face(17, .semibold))
                         .foregroundStyle(Theme.ink)
                         .frame(width: 36, height: 36)
                 }
@@ -267,7 +281,7 @@ struct HeaderIcon: View {
 
     var body: some View {
         Image(systemName: systemName)
-            .font(.system(size: 17, weight: .regular))
+            .font(Theme.face(17))
             .foregroundStyle(tint)
             .frame(width: 36, height: 36)
     }

@@ -1,4 +1,5 @@
 import { type ReactNode, useRef, useState } from "react"
+import { haptic } from "./haptic.ts"
 
 /** The screen's left edge belongs to the system's back swipe: a touch starting this close to it never moves a row. */
 const EDGE_PX = 24
@@ -69,7 +70,10 @@ export function SwipeRow(props: {
         drag.current = null
         if (!was?.on) return
         swallow.current = true
-        if (Math.abs(dx) >= COMMIT_PX) action?.run()
+        if (action && Math.abs(dx) >= COMMIT_PX) {
+          haptic("medium")
+          action.run()
+        }
         setDx(0)
       }}
       onTouchCancel={() => {

@@ -11,6 +11,7 @@ import { t, useLocale } from "../i18n/index.ts"
 import { isTouch } from "../key-hints.ts"
 import { type Store, createStore, useStore } from "../store.ts"
 import * as C from "../ui/composer.ts"
+import { type HapticKind, haptic } from "../ui/haptic.ts"
 import { Dictation, type DictationPhase, type DictationResult, type DictationScope } from "./dictation.ts"
 
 const clock = (seconds: number) => `0:${String(Math.floor(seconds)).padStart(2, "0")}`
@@ -18,8 +19,11 @@ const clock = (seconds: number) => `0:${String(Math.floor(seconds)).padStart(2, 
 const HOLD_MS = 300
 /** How far up a held press slides before letting go edits instead of sending. */
 const SLIDE_PX = 48
-/** A short tick where the platform has one (Android); iOS Safari has no vibration. */
-const tick = () => navigator.vibrate?.(8)
+/** A short tick: the iPhone app's haptics, else a vibration where the platform has one (Android). */
+const tick = (kind?: HapticKind) => {
+  haptic(kind)
+  navigator.vibrate?.(8)
+}
 
 interface Press {
   readonly y: number
@@ -155,7 +159,7 @@ export function DictationButton(props: {
         // A held take streams, so the words show while they are said; a tapped one is sent once.
         p.started = dictation.current?.start(true) ?? null
         setHold({ armed: false })
-        tick()
+        tick("medium")
       }, HOLD_MS)
     }
     press.current = p
@@ -177,6 +181,7 @@ export function DictationButton(props: {
     // With `onTap` the click that follows is the tap; the one after a hold is not.
     afterHold.current = p.held
     if (!p.held) return latest.current.onTap ? undefined : toggle()
+    tick()
     setHold(null)
     await p.started
     deliver((await dictation.current?.stop()) ?? null, !p.armed)

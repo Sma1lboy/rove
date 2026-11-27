@@ -3640,6 +3640,16 @@
         }
       }
     },
+    "connect a computer" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接电脑"
+          }
+        }
+      }
+    },
     "connected" : {
       "localizations" : {
         "zh-Hans" : {
@@ -4016,6 +4026,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "演示 · 未连接 mac"
+          }
+        }
+      }
+    },
+    "demo · not connected to a computer" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "演示 · 未连接电脑"
           }
         }
       }
@@ -6536,6 +6556,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "粘贴"
+          }
+        }
+      }
+    },
+    "privacy policy" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐私政策"
           }
         }
       }
