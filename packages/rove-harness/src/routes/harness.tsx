@@ -50,6 +50,9 @@ function PtyHarness() {
   const replayScale = Number(
     new URLSearchParams(window.location.search).get("scale") ?? "1",
   )
+  // A page someone opens by hand gets a terminal window's inner margin, so the TUI's edge rows do not touch the
+  // browser's. Captures name their run (`?run=`) or replay a take, and keep the bare grid their baselines were shot on.
+  const framed = !namedRun && !replay
   const [status, setStatus] = useState<WsStatus>("connecting")
   const [buffer, setBuffer] = useState("")
   // An unnamed session can never be reattached, so end its TUI with the page
@@ -72,6 +75,7 @@ function PtyHarness() {
       style={{
         position: "fixed",
         inset: 0,
+        padding: framed ? 10 : 0,
         // `?wallpaper=<url>` paints behind the terminal. The TUI defaults to a
         // transparent background (`transparentBackground`, persisted-ui-prefs),
         // so whatever sits here shows through the cells the product does not
