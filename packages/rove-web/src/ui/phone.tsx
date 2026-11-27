@@ -3,7 +3,7 @@
  * no `narrow:` variants. Glass and the rounded-square buttons are `glass.ts` and `nav-button.tsx`; sheets `sheet.tsx`.
  */
 
-import type { MouseEvent, ReactNode } from "react"
+import type { MouseEvent, ReactNode, Ref } from "react"
 import { GlassButton, NavButton, PlusGlyph } from "./nav-button.tsx"
 
 const BAR = {
@@ -115,5 +115,33 @@ export function PhoneListRow(props: {
       </span>
       {props.subtitle && <span className="w-full truncate font-sans text-meta text-muted">{props.subtitle}</span>}
     </button>
+  )
+}
+
+/**
+ * A page on a phone (Routines, Kanban, Issues, Update): the large title, a muted line of status under it, the page's
+ * content scrolling under the bottom bar, and its one action as the bar's accent +. The way back is the session bar's.
+ */
+export function PhonePage(props: {
+  title: string
+  note?: ReactNode
+  primary?: { label: string; onClick: () => void }
+  /** Actions that stay at the foot instead of a +: Update's buttons. */
+  foot?: ReactNode
+  rootRef?: Ref<HTMLDivElement>
+  children: ReactNode
+}) {
+  return (
+    <div ref={props.rootRef} tabIndex={-1} className="relative flex min-h-0 flex-1 flex-col focus:outline-none">
+      <div className={`${PHONE_LIST} ${props.primary ? "pb-20" : ""}`}>
+        <div className="flex flex-col gap-1">
+          <PhoneTitle>{props.title}</PhoneTitle>
+          {props.note && <p className="m-0 font-sans text-meta text-muted">{props.note}</p>}
+        </div>
+        {props.children}
+      </div>
+      {props.foot && <div className="flex-none px-4 pt-2 pb-3">{props.foot}</div>}
+      {props.primary && <BottomBar primary={props.primary} />}
+    </div>
   )
 }

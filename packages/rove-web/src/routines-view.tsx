@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react"
 import { ConfirmDialog } from "./dialogs.tsx"
 import { ChangeEngineDialog } from "./engine-dialog.tsx"
 import { t } from "./i18n/index.ts"
+import { useNarrow } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import {
   errorMessage,
@@ -38,6 +39,7 @@ import type { RoutinesReply } from "./routines-data.ts"
 import { useStore } from "./store.ts"
 import { dialog, page, routineFocus, toast } from "./ui.ts"
 import { PAGE, PAGE_TITLE, PG_ACTIONS, PG_ACTION_LINK, PG_LIST, PG_NOTICE, PG_TOP } from "./ui/page.ts"
+import { PhonePage } from "./ui/phone.tsx"
 import {
   RT_BODY,
   RT_DETAIL,
@@ -57,7 +59,8 @@ const POLL_MS = 5_000
 type EngineName = { readonly id: string; readonly name: string }
 
 export function RoutinesView({ model }: { model: AppModel }) {
-  const { auto, common } = useCopy()
+  const { auto, common, nav } = useCopy()
+  const phone = useNarrow()
   const c = model.client
   const [tick, reload] = useReload(POLL_MS)
   const payload = useStore(model.tasks)
@@ -347,25 +350,8 @@ export function RoutinesView({ model }: { model: AppModel }) {
           repo,
           listed.flatMap((r) => r.repo ?? []),
         )
-  return (
-    // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
-    <div className={`${PAGE} ${RT_PAGE}`} tabIndex={0} ref={root}>
-      <div className={PG_TOP}>
-        <h1 className={PAGE_TITLE}>{auto.title}</h1>
-        <span className={`mono ${PG_ACTIONS}`}>
-          {needAttention > 0 && (
-            <span className="text-error">
-              {fill(auto.needAttention, { count: String(needAttention), total: String(rows.length) })}
-            </span>
-          )}
-          <span className="text-muted">{reply?.keepsDaemonAlive ? auto.holdingDaemon : auto.notHolding}</span>
-          {/* Every page key has a click target too: a phone has no n/e/d. */}
-          <button type="button" className={`${LINK} ${PG_ACTION_LINK.header}`} onClick={() => void createRoutine()}>
-            {t("pages.new")}
-          </button>
-        </span>
-      </div>
-
+  const body = (
+    <>
       <PendingStarts client={c} tick={tick} reload={reload} />
 
       {reply === null ? (
@@ -458,6 +444,39 @@ export function RoutinesView({ model }: { model: AppModel }) {
         </div>
       )}
       {notice && <p className={`text-muted ${PG_NOTICE}`}>{notice}</p>}
+    </>
+  )
+  if (phone)
+    return (
+      <PhonePage
+        title={nav.automations}
+        rootRef={root}
+        note={`${needAttention > 0 ? fill(auto.needAttention, { count: String(needAttention), total: String(rows.length) }) : ""} ${reply?.keepsDaemonAlive ? auto.holdingDaemon : auto.notHolding}`.trim()}
+        primary={{ label: t("pages.newRoutine"), onClick: () => void createRoutine() }}
+      >
+        {body}
+      </PhonePage>
+    )
+  return (
+    // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
+    <div className={`${PAGE} ${RT_PAGE}`} tabIndex={0} ref={root}>
+      <div className={PG_TOP}>
+        <h1 className={PAGE_TITLE}>{auto.title}</h1>
+        <span className={`mono ${PG_ACTIONS}`}>
+          {needAttention > 0 && (
+            <span className="text-error">
+              {fill(auto.needAttention, { count: String(needAttention), total: String(rows.length) })}
+            </span>
+          )}
+          <span className="text-muted">{reply?.keepsDaemonAlive ? auto.holdingDaemon : auto.notHolding}</span>
+          {/* Every page key has a click target too: a phone has no n/e/d. */}
+          <button type="button" className={`${LINK} ${PG_ACTION_LINK.header}`} onClick={() => void createRoutine()}>
+            {t("pages.new")}
+          </button>
+        </span>
+      </div>
+
+      {body}
     </div>
   )
 }
