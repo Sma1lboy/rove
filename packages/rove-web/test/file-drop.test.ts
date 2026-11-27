@@ -20,7 +20,10 @@ const drag = (types: string[], files: File[] = [], at = { x: 10, y: 10 }) => {
 test("a photo dropped on the composer reaches the attach path; a text drag does not", () => {
   const attached: File[][] = []
   const over: boolean[] = []
-  const { drop } = fileTargets((files) => attached.push(files), (on) => over.push(on))
+  const { drop } = fileTargets(
+    (files) => attached.push(files),
+    (on) => over.push(on),
+  )
   const photo = new File([new Uint8Array([0xff, 0xd8, 0xff])], "IMG_0001.jpg", { type: "image/jpeg" })
 
   const hover = drag(["Files"], [photo])
@@ -42,7 +45,10 @@ test("a photo dropped on the composer reaches the attach path; a text drag does 
 
 test("the drop ring stays while the finger crosses the box's children and goes when it leaves the box", () => {
   const over: boolean[] = []
-  const { drop } = fileTargets(() => {}, (on) => over.push(on))
+  const { drop } = fileTargets(
+    () => {},
+    (on) => over.push(on),
+  )
   drop.onDragLeave(drag(["Files"], [], { x: 50, y: 25 }).event)
   expect(over).toEqual([])
   drop.onDragLeave(drag(["Files"], [], { x: 150, y: 25 }).event)

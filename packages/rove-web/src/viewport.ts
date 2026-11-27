@@ -19,7 +19,8 @@ export function followVisualViewport(): void {
     root.toggleAttribute("data-keyboard", keyboard)
     if (dialog && from !== undefined && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       const dy = from - dialog.getBoundingClientRect().top
-      if (dy) dialog.animate({ translate: [`0 ${dy}px`, "0 0"] }, { duration: 240, easing: "cubic-bezier(0.2, 0, 0, 1)" })
+      if (dy)
+        dialog.animate({ translate: [`0 ${dy}px`, "0 0"] }, { duration: 240, easing: "cubic-bezier(0.2, 0, 0, 1)" })
     }
     // iOS scrolls the layout viewport to show the focused field; the page already fits, so undo it.
     if (vv.scale === 1 && window.scrollY !== 0) window.scrollTo(0, 0)
