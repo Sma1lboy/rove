@@ -298,6 +298,12 @@ only last.
 - Sentence case, no filler, no marketing verbs (unlock, seamless, supercharge). For
   user-facing prose outside the app (docs, release notes), run the `unslop` skill.
 
+## 10a. Phone
+
+Any change to the phone layout (`narrow`, touch; also the iPhone app's WKWebView) follows [`phone.md`](phone.md):
+actions where the thumb reaches, one primary action bottom-right, bottom sheets over popovers, gestures, glass only on
+floating controls.
+
 ## 11. Multi-client parity
 
 - **The daemon decides; clients draw.** Status comes from the daemon's `rowStatus` and is mapped
