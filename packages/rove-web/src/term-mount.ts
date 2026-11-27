@@ -11,7 +11,6 @@ import { WebLinksAddon } from "@xterm/addon-web-links"
 import { Terminal } from "@xterm/xterm"
 import "@xterm/xterm/css/xterm.css"
 import { type BridgeClient, BridgeRequestError } from "./bridge.ts"
-import { isNarrow, onNarrowChange } from "./layout.ts"
 import { terminalTheme } from "./prefs-theme.ts"
 import { prefsStore } from "./prefs.ts"
 import { markScrolling } from "./scroll-reveal.ts"
@@ -22,7 +21,7 @@ import { attachDictationGuard } from "./term-dictation.ts"
 import { OverlayFitAddon } from "./term-fit.ts"
 import { attachKittyImages } from "./term-images.ts"
 import { SHIFT_ENTER, ctrlChord, isCopyChord, isShiftEnter } from "./term-keys.ts"
-import { FONT_FAMILY, XTERM_THEME } from "./term-look.ts"
+import { FONT_FAMILY, XTERM_THEME, followFontSize, termFontSize } from "./term-look.ts"
 import { osc52Text } from "./term-osc52.ts"
 import { createReplyGate } from "./term-replies.ts"
 import { linesFromBottom, viewportAfterWrite } from "./term-scroll.ts"
@@ -74,14 +73,11 @@ function withReset(bytes: Uint8Array): Uint8Array {
   return out
 }
 
-/** The phone layout reads a step larger: 45 columns on a 390px screen. */
-const fontSize = (): number => (isNarrow() ? 14 : 13)
-
 export function mountTerminal(o: MountOpts): TermHandle {
   const { client, el, taskId, tabId } = o
   const term = new Terminal({
     fontFamily: FONT_FAMILY,
-    fontSize: fontSize(),
+    fontSize: termFontSize(),
     lineHeight: 1.15,
     theme: terminalTheme.get() ?? XTERM_THEME,
     cursorBlink: true,
@@ -308,10 +304,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
       void attach()
     }
   }
-  const offNarrow = onNarrowChange(() => {
-    term.options.fontSize = fontSize()
-    refit()
-  })
+  const offNarrow = followFontSize(term, refit)
   const observer = new ResizeObserver(refit)
   observer.observe(el)
   const offMoving = layoutMoving.subscribe(refit)

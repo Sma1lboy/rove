@@ -35,7 +35,8 @@ import {
   kbPlaceClass,
 } from "./ui/kanban.ts"
 import { Legend } from "./ui/legend.tsx"
-import { DIALOG_BODY, DIALOG_CLOSE, DIALOG_HEAD, OVERLAY, dialogClass } from "./ui/overlay.ts"
+import { DialogClose } from "./ui/nav-button.tsx"
+import { DIALOG_BODY, DIALOG_HEAD, OVERLAY, dialogClass } from "./ui/overlay.ts"
 import { ACTIONS, INPUT, KICKER, LINK } from "./ui/text.ts"
 
 export const ISSUE_STATUSES = ["open", "doing", "hold", "done"] as const
@@ -261,15 +262,7 @@ export function IssueDrawer(props: {
             </h1>
           )}
           {/* Esc's twin for a touch screen: saves an open story, drops a new one. */}
-          <button
-            type="button"
-            className={DIALOG_CLOSE}
-            aria-label={t("dialog.close")}
-            title={t("dialog.close")}
-            onClick={() => latest.current.close()}
-          >
-            ×
-          </button>
+          <DialogClose onClick={() => latest.current.close()} />
         </div>
         <div className={DIALOG_BODY}>
           <label className={FIELD}>

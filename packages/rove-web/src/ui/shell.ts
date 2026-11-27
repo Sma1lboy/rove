@@ -58,11 +58,10 @@ export const SIDE_PANEL_FRAME =
 /** The rail head's chips: a fingertip target on touch. */
 export const HEAD_CHIP = `${HIT} touch:after:-inset-x-1.5 touch:after:-inset-y-3`
 
-/** Narrow layout, content panel: back to the list, and the terminal/panel switch. */
-export const NARROW_BAR = "flex items-center gap-2"
-export const NARROW_BACK = `flex min-w-0 items-baseline gap-1.5 px-1.5 py-0.5 text-meta font-bold ${HIT} touch:after:-inset-2.5 touch:after:-bottom-1`
-/** The open task's name in the back button: a single tab has no strip to say which task this is. */
-export const NARROW_TITLE = "truncate font-sans text-body font-normal text-ink"
+/** Narrow layout, content panel: the glass back button (ui/nav-button.tsx), the open task's name, and the terminal/panel switch. */
+export const NARROW_BAR = "flex items-center gap-2.5 px-1"
+/** A single tab has no strip to say which task this is. */
+export const NARROW_TITLE = "min-w-0 truncate font-sans text-body font-normal text-ink"
 /** The terminal/panel switch: one glass capsule, the view on screen lit inside it. */
 export const NARROW_SWITCH = `ml-auto flex flex-none gap-0.5 rounded-full p-0.5 ${glass()}`
 export const NARROW_TAB = `flex h-8 w-9 items-center justify-center rounded-full text-muted aria-selected:bg-[color-mix(in_srgb,var(--ink)_14%,transparent)] aria-selected:text-ink [&_svg]:size-4 ${PRESS} ${HIT} touch:after:-inset-x-px touch:after:-top-2 touch:after:-bottom-1.5`
