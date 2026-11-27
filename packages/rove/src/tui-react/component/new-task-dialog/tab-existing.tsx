@@ -9,6 +9,7 @@ import { useT } from "../../i18n"
 import { ChipRow, DialogField, DialogSection } from "../../ui/dialog-parts"
 import { INPUT_SCROLL } from "../../ui/input-scroll"
 import { PickerList } from "./picker-list"
+import { NO_FOLDER } from "./use-repo-field"
 import type { NewTaskVm } from "./view-model"
 
 /** Cells the repo input claims (a long name plus room to type); the muted
@@ -21,6 +22,9 @@ export function ExistingTab({ vm, only }: { vm: NewTaskVm; only?: boolean }) {
   const t = useT()
 
   const repoRows = vm.activeWindow.items.map((name, i) => {
+    if (name === NO_FOLDER) {
+      return { key: `${vm.activeWindow.start + i}:`, body: t("newTask.noFolder"), accent: vm.noFolder }
+    }
     const isCurrentDir = vm.mode === "saved" && name === vm.defaultRepo
     const tag = isCurrentDir ? `  ${t("newTask.hint.currentDir")}` : ""
     // Browse mode lists SUBDIRECTORY NAMES under the typed path, not full
@@ -68,12 +72,11 @@ export function ExistingTab({ vm, only }: { vm: NewTaskVm; only?: boolean }) {
               <input
                 {...INPUT_SCROLL}
                 value={vm.repo}
-                placeholder={splitRepoRow(vm.defaultRepo).base}
+                placeholder={t("newTask.noFolder")}
                 focused={vm.field === "repo"}
                 onMouseUp={() => vm.setField("repo")}
                 onInput={(v: string) => vm.setRepoText(v)}
-                // Every Enter routes through onRepoSubmit — it handles the
-                // empty-input pick-first case too.
+                // Every Enter routes through onRepoSubmit.
                 onSubmit={() => vm.onRepoSubmit()}
                 // NAME: fixed column, the directory beside it gives way. NOT
                 // `flexGrow` — the directory would squeeze the input below its
@@ -161,7 +164,7 @@ export function ExistingTab({ vm, only }: { vm: NewTaskVm; only?: boolean }) {
       ) : null}
       {/* Opening the project has no branch to fork from — it enters the
           repo's own checkout — so the field goes away with the verb. */}
-      {(vm.intent === "project" && vm.canOpenProject) || (only && vm.field !== "baseRef") ? null : (
+      {(vm.intent === "project" && vm.canOpenProject) || vm.noFolder || (only && vm.field !== "baseRef") ? null : (
         <DialogSection
           label={t("newTask.field.fromBranch")}
           focused={vm.field === "baseRef"}

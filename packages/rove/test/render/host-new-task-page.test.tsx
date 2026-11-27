@@ -3,7 +3,7 @@
 
 import { afterAll, afterEach, beforeAll, expect, test } from "bun:test"
 import { mkdtempSync } from "node:fs"
-import { tmpdir } from "node:os"
+import { homedir, tmpdir } from "node:os"
 import { join } from "node:path"
 import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 import { createStateCell } from "../../src/lib/external-store"
@@ -84,4 +84,34 @@ test("clicking New task from a running task clears the task's title and takes th
   expect(opened).not.toContain("· running")
   await mockInput.typeText("hello there")
   expect(await frame()).toContain("hello there")
+})
+
+test("the global New task opens on No folder and starts a no-folder session with the message", async () => {
+  let opened: (input: unknown) => void = () => {}
+  const openCall = new Promise((resolve) => {
+    opened = resolve
+  })
+  const orch = {
+    ...orchestrator,
+    // Never settles: the session's own entry is not what this pins.
+    openDirectoryTask: (input: unknown) => {
+      opened(input)
+      return new Promise(() => {})
+    },
+  } as unknown as RemoteOrchestrator
+  const { frame, mockMouse, mockInput } = await renderComponent(<WorkspaceRoot orchestrator={orch} />, {
+    width: 120,
+    height: 40,
+    providers: { kv: true, focus: true, dialog: true, notifications: true },
+  })
+  const before = await waitForFrameText(frame, "Fix the flaky login · running")
+  // The selected task's project is not guessed: the page opens on No folder.
+  await mockMouse.click(
+    3,
+    before.split("\n").findIndex((line) => line.includes("New task")),
+  )
+  await waitForFrameText(frame, "No folder")
+  await mockInput.typeText("hello there")
+  mockInput.pressEnter()
+  expect(await openCall).toEqual({ dir: homedir(), scratch: true, vendor: expect.any(String) })
 })

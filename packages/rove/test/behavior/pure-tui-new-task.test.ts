@@ -32,7 +32,6 @@ describe("pure-TUI new-task auto-materialization (behavior)", () => {
       confirm: async () => true,
       promptText: async () => undefined,
       promptNewTask: async () => ({ mode: "create", repo: "/repo", baseRef: "main", vendor: "claude" }),
-      cursorRepo: () => "/repo",
       lastVendor: () => "claude",
       rememberVendor: vi.fn(),
       logger: console,

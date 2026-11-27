@@ -146,7 +146,7 @@ test("saved mode: Tab finishes the name, the NEXT Tab leaves the field", async (
   await pressTab(h)
   await commit(h)
   expect(h.submitted).toHaveLength(1)
-  expect(h.submitted[0]?.repo).toBe(zephyr)
+  expect(h.submitted[0]).toMatchObject({ repo: zephyr })
   act(() => h.destroy())
 })
 

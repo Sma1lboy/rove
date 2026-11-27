@@ -29,8 +29,11 @@ import {
 import { expandHome, joinPicked, stripTrailingSlash } from "../../../tui/lib/path-helpers"
 import { useDerivedDir } from "./use-derived-dir"
 
+/** The picker row and field value for No folder: an empty field means a session in no project. */
+export const NO_FOLDER = ""
+
 export type RepoFieldOpts = {
-  /** The caller's cwd — seeds the field and heads the saved list. */
+  /** Seeds the field and heads the saved list; `NO_FOLDER` opens on No folder. */
   defaultRepo: string
   /** User-curated repo list (`/add-repo`). */
   savedRepos: readonly string[]
@@ -47,7 +50,7 @@ export function useRepoField(opts: RepoFieldOpts) {
   // basename shared with another saved repo would be ambiguous, so that case
   // keeps the path.
   const [repo, setRepo] = useState(() =>
-    nameOrPath(opts.defaultRepo, computeRepoOptions(opts.defaultRepo, opts.savedRepos)),
+    opts.defaultRepo ? nameOrPath(opts.defaultRepo, computeRepoOptions(opts.defaultRepo, opts.savedRepos)) : NO_FOLDER,
   )
   const [repoCursor, setRepoCursor] = useState(0)
   // "Selected, not drilled" latch — collapses the suggestion dropdown after
@@ -67,7 +70,11 @@ export function useRepoField(opts: RepoFieldOpts) {
       ? splitRepoInput(repoResolution.path, true).dir
       : ""
   const { split: subdirSplit, filtered: subdirFiltered } = useDerivedDir(repo)
-  const savedFiltered = useMemo(() => filterRepos(repoOptions, repo), [repoOptions, repo])
+  // No folder heads the list until a query narrows it to projects.
+  const savedFiltered = useMemo(
+    () => (repo.trim() ? filterRepos(repoOptions, repo) : [NO_FOLDER, ...repoOptions]),
+    [repoOptions, repo],
+  )
   const activeList = mode === "browse" ? subdirFiltered : savedFiltered
   const activeWindow: PickerWindow = windowAround(activeList, repoCursor, opts.pickerRows)
 
@@ -86,7 +93,7 @@ export function useRepoField(opts: RepoFieldOpts) {
   /** Every pick route funnels here: the picker deals in paths, the field in
    *  names. */
   function pickRepo(path: string): void {
-    changeRepo(nameOrPath(path, repoOptions))
+    changeRepo(path === NO_FOLDER ? NO_FOLDER : nameOrPath(path, repoOptions))
   }
 
   function setRepoText(v: string): void {
@@ -119,14 +126,6 @@ export function useRepoField(opts: RepoFieldOpts) {
 
   // Enter on the repo field — pure selection, never commits.
   function onRepoSubmit(): void {
-    if (!repo.trim() && mode === "saved") {
-      const picked = activeList[0]
-      if (picked) {
-        pickRepo(picked)
-        opts.onAnswered()
-        return
-      }
-    }
     if (mode === "browse") {
       const picked = subdirFiltered[repoCursor]
       if (picked) {
@@ -145,7 +144,7 @@ export function useRepoField(opts: RepoFieldOpts) {
 
   function selectRepoAt(absoluteIndex: number): void {
     const picked = activeList[absoluteIndex]
-    if (!picked) return
+    if (picked === undefined) return
     if (mode === "browse") {
       pickRepo(joinPicked(repo, subdirSplit.base, picked))
       setRepoPicked(true)

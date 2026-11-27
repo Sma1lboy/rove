@@ -31,12 +31,6 @@ export interface CreateTaskContext extends TaskActionContext {
     repos: readonly string[],
     opts: NewTaskDialogOptions,
   ) => Promise<NewTaskInput | undefined>
-  /**
-   * DIVERGENCE — default repo: the outer monitor uses the active task's; the
-   * Tasks pane the cursor row's (else the first task's). Both then fall back
-   * to `savedRepos[0]`, then `process.cwd()`.
-   */
-  readonly cursorRepo: () => string | undefined
   /** Vendor preference — see state/vendor-prefs.ts. */
   readonly lastVendor: () => VendorId | undefined
   readonly rememberVendor: (vendor: VendorId) => void
@@ -60,6 +54,8 @@ export interface CreateTaskContext extends TaskActionContext {
   readonly startWithPrompt?: (repo: string, start: FirstPromptStart) => void
   /** Open the created task's engine tab before it is entered. Absent → the pane spawns it on mount. */
   readonly openEngine?: (taskId: string) => Promise<void>
+  /** No folder: open a session in no project on `vendor`, seeded with `prompt`. Absent → the pick is dropped. */
+  readonly openScratch?: (vendor: VendorId, prompt?: string) => void
 }
 
 /** "Creating task…" and the failure that ends it share one toast slot, so a failure never sits under a ✓. */
@@ -89,8 +85,8 @@ export interface CreateTaskSeed {
 /** Default repo → dialog → persist vendor + repo → create / adopt / open → select and enter. */
 export async function createTaskFlow(ctx: CreateTaskContext, seed?: CreateTaskSeed): Promise<void> {
   const repos = getSavedRepos()
-  // With no saved repos, cwd lets the user pick a path in-TUI instead of a shell `add`.
-  const defaultRepo = seed?.repo ?? ctx.cursorRepo() ?? repos[0] ?? process.cwd()
+  // Without a seed the page opens on No folder (""), never on a guess from the selected task.
+  const defaultRepo = seed?.repo ?? ""
   const defaultVendor = ctx.lastVendor() ?? DEFAULT_TASK_VENDOR
   const availableVendors = await availableEngineIds()
   // No engine at all: otherwise the missing binary surfaces only as a raw shell
@@ -108,6 +104,11 @@ export async function createTaskFlow(ctx: CreateTaskContext, seed?: CreateTaskSe
     ...(seed?.baseRef ? { initialBaseRef: seed.baseRef } : {}),
   })
   if (!result) return
+  if (result.mode === "scratch") {
+    ctx.rememberVendor(result.vendor)
+    ctx.openScratch?.(result.vendor, result.prompt)
+    return
+  }
   // Auto-save keeps `add` optional. Use the returned git toplevel so a
   // subdirectory entry is keyed under the same root the task record gets.
   const repo = addSavedRepo(result.repo).path

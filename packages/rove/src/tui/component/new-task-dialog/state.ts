@@ -64,6 +64,12 @@ export type NewTaskInput =
       repo: string
       vendor: VendorId
     }
+  /** No folder: a session in no project (Ungrouped), started on the first message when there is one. */
+  | {
+      mode: "scratch"
+      vendor: VendorId
+      prompt?: string
+    }
 
 /**
  * Options for opening the dialog. Framework-free so `lib/task-actions.ts` can

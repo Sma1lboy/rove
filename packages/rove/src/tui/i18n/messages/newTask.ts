@@ -14,6 +14,8 @@ export const en = {
   hero: "Pick a project and an engine, then describe the task. It starts with your first message.",
   chipWorktree: "Worktree",
   chipProject: "Project",
+  /** The repo picker's first row: a session in no project, listed under Ungrouped. */
+  noFolder: "No folder",
   /** Enter's caption at every other stop, where it advances the form */
   enterNext: "enter next field",
 
@@ -132,6 +134,7 @@ export const zh: typeof en = {
   hero: "选好项目和引擎，再描述任务。任务从你的第一条消息开始。",
   chipWorktree: "工作树",
   chipProject: "项目",
+  noFolder: "无文件夹",
   enterNext: "enter 下一个字段",
 
   tabs: {

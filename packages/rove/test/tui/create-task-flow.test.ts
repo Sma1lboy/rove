@@ -80,7 +80,6 @@ function makeCreateCtx(opts: {
     reload,
     selectTask,
     enterTask,
-    cursorRepo: () => "/repo",
     lastVendor: () => "claude" as never,
     rememberVendor,
     promptNewTask:
@@ -388,5 +387,32 @@ describe("createTaskFlow — create mode + guards", () => {
     // Never reaches the "Creating task…" toast — that's gated on `orch`.
     expect(notifyInfo).not.toHaveBeenCalledWith(expect.stringContaining("Creating task"))
     expect(reload).not.toHaveBeenCalled()
+  })
+})
+
+describe("createTaskFlow — No folder", () => {
+  test("opens on No folder without a seed, on the seed's project with one", async () => {
+    const promptNewTask = vi.fn<CreateTaskContext["promptNewTask"]>(async () => undefined)
+    const { ctx } = makeCreateCtx({ promptNewTask })
+
+    await createTaskFlow(ctx)
+    await createTaskFlow(ctx, { repo: "/repo" })
+
+    expect(promptNewTask.mock.calls.map((call) => call[0])).toEqual(["", "/repo"])
+  })
+
+  test("a No folder pick opens a no-project session with the message, creating no task", async () => {
+    mockAddSavedRepo.mockClear()
+    const openScratch = vi.fn()
+    const { ctx, createTask, rememberVendor } = makeCreateCtx({
+      promptNewTask: async () => ({ mode: "scratch", vendor: "codex", prompt: "hello" }),
+    })
+
+    await createTaskFlow({ ...ctx, openScratch })
+
+    expect(openScratch).toHaveBeenCalledWith("codex", "hello")
+    expect(rememberVendor).toHaveBeenCalledWith("codex")
+    expect(mockAddSavedRepo).not.toHaveBeenCalled()
+    expect(createTask).not.toHaveBeenCalled()
   })
 })

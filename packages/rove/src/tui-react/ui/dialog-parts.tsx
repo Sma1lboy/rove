@@ -208,7 +208,13 @@ export function DialogFooter(props: { children?: ReactNode; paddingBottom?: numb
  * Focus adds a `▸ ` caret too, for terminals with colour off. A dialog that
  * commits from any field states the verb in its legend instead.
  */
-export function DialogActions(props: { label: string; focused: boolean; onPress: () => void; paddingTop?: number }) {
+export function DialogActions(props: {
+  label: string
+  focused: boolean
+  onPress: () => void
+  paddingTop?: number
+  paddingBottom?: number
+}) {
   const { theme } = useTheme()
   return (
     <box
@@ -216,7 +222,7 @@ export function DialogActions(props: { label: string; focused: boolean; onPress:
       justifyContent="flex-end"
       alignItems="center"
       paddingTop={props.paddingTop ?? 1}
-      paddingBottom={1}
+      paddingBottom={props.paddingBottom ?? 1}
       flexShrink={0}
     >
       <text
