@@ -36,15 +36,12 @@ export const CHIP_WORD = "narrow:sr-only"
 /** A chip narrows to its glyph and no further: in a full bar the words shorten, an icon-only chip keeps its shape. */
 const CHIP_FLOOR = "min-w-8.5"
 
-/**
- * A pill in the bar; `on` is the Worktree toggle while it is on. Hover applies on touch too, as the sheet's did.
- * Quieter than the field above it (the owner's call): a step under the meta size, in the subtle grey until hovered.
- */
+/** A pill in the bar; `on` is the Worktree toggle while it is on. Hover applies on touch too, as the sheet's did. */
 export const chipClass = (on = false): string =>
-  `inline-flex max-w-[28ch] ${CHIP_FLOOR} items-center gap-1.5 text-[11px] overflow-hidden rounded-full border-hairline px-2.5 py-0.75 text-ellipsis whitespace-nowrap touch:py-1.75 [&:hover]:bg-hover [&:hover]:text-ink aria-expanded:bg-hover aria-expanded:text-ink ${
+  `inline-flex max-w-[28ch] ${CHIP_FLOOR} items-center gap-1.5 overflow-hidden rounded-full border-hairline px-2.5 py-0.75 text-ellipsis whitespace-nowrap touch:py-1.75 [&:hover]:bg-hover [&:hover]:text-ink aria-expanded:bg-hover aria-expanded:text-ink ${
     on
       ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-accent-soft text-accent"
-      : "border-line text-subtle"
+      : "border-line text-muted"
   }`
 /** Only the toggle dims when disabled. */
 export const TOGGLE_DISABLED = "disabled:cursor-default disabled:opacity-60"
