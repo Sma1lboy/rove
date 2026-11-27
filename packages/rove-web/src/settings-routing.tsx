@@ -5,13 +5,12 @@
  * a destination and a secret the Mac would use.
  */
 
-import { useCallback, useEffect, useState } from "react"
+import { useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
-import { lastReply, requestRemembered } from "./remembered.ts"
 import { ts, tt } from "./settings-copy.ts"
-import { Choice, Group, ReadOnlyRow, Row } from "./settings-rows.tsx"
+import { Choice, Group, ReadOnlyRow, Row, SectionPending, useSectionReply } from "./settings-rows.tsx"
 import { toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import { Segmented } from "./ui/segmented.tsx"
@@ -20,7 +19,6 @@ import {
   SETTINGS_INPUT,
   SETTINGS_NAME,
   SETTINGS_NOTE,
-  SETTINGS_STATUS,
   TIER_EDITOR,
   TIER_HEAD,
   TIER_ROW,
@@ -123,21 +121,14 @@ function TierEditor(props: {
 }
 
 export function RoutingSection({ client }: { client: BridgeClient }) {
-  const [routing, setRouting] = useState<Routing | null>(() => lastReply<Routing>(client, "autoRouting.get") ?? null)
+  const { value: routing, failed, reload: load } = useSectionReply<Routing>(client, "autoRouting.get")
   const [editing, setEditing] = useState<Tier["tier"] | null>(null)
-  const load = useCallback(
-    () => requestRemembered<Routing>(client, "autoRouting.get").then(setRouting, (e) => toast(errorText(e), "error")),
-    [client],
-  )
-  useEffect(() => {
-    void load()
-  }, [load])
   const write = (op: string, args: Record<string, unknown>) =>
     client
       .request(op, args)
       .then(load)
       .catch((e) => toast(errorText(e), "error"))
-  if (!routing) return <p className={SETTINGS_STATUS}>{t("preview.loading")}</p>
+  if (!routing) return <SectionPending failed={failed} onRetry={load} />
   const c = routing.classifier
   const modes: { value: Classifier["mode"]; label: string }[] = [
     { value: "off", label: ts("autoRouting.classifierOff") },

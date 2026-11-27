@@ -3,12 +3,11 @@
  * registry with an on/off switch each. Manifest settings and the marketplace stay Mac-side.
  */
 
-import { useCallback, useEffect, useState } from "react"
+import { useEffect } from "react"
 import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
-import { lastReply, requestRemembered } from "./remembered.ts"
-import { Group, Row } from "./settings-rows.tsx"
+import { Group, Row, SectionPending, useSectionReply } from "./settings-rows.tsx"
 import { useStore } from "./store.ts"
 import { type PageId, page, toast } from "./ui.ts"
 import { SETTINGS_STATUS } from "./ui/settings.ts"
@@ -33,17 +32,18 @@ const MOD_PAGE: Readonly<Record<string, PageId>> = { kanban: "kanban", issues: "
 
 function BuiltinMods({ model }: { model: AppModel }) {
   const installed = useStore(model.installedMods)
-  const [mods, setMods] = useState<readonly ModRow[] | null>(
-    () => lastReply<{ mods: ModRow[] }>(model, "builtinMods.list")?.mods ?? null,
-  )
+  const { value, failed, reload } = useSectionReply<{ mods: ModRow[] }>(model.client, "builtinMods.list")
+  const mods = value?.mods
   useEffect(() => {
-    void requestRemembered<{ mods: ModRow[] }>(model, "builtinMods.list").then(
-      (r) => setMods(r.mods),
-      () => setMods([]),
-    )
     void model.refreshMods()
   }, [model])
-  if (!mods || mods.length === 0) return null
+  if (!mods)
+    return failed === null ? null : (
+      <Group title={t("settings.plugins.builtIn")}>
+        <SectionPending failed={failed} onRetry={reload} />
+      </Group>
+    )
+  if (mods.length === 0) return null
   const flip = (mod: ModRow) => {
     const next = !installed.has(mod.id)
     void model.client
@@ -71,26 +71,14 @@ function BuiltinMods({ model }: { model: AppModel }) {
 
 export function PluginsSection({ model }: { model: AppModel }) {
   const { client } = model
-  const [plugins, setPlugins] = useState<readonly PluginRow[] | null>(
-    () => lastReply<{ plugins: PluginRow[] }>(client, "plugins.list")?.plugins ?? null,
-  )
-  const load = useCallback(
-    () =>
-      requestRemembered<{ plugins: PluginRow[] }>(client, "plugins.list").then(
-        (r) => setPlugins(r.plugins),
-        (e) => toast(errorText(e), "error"),
-      ),
-    [client],
-  )
-  useEffect(() => {
-    void load()
-  }, [load])
+  const { value, failed, reload: load } = useSectionReply<{ plugins: PluginRow[] }>(client, "plugins.list")
+  const plugins = value?.plugins
   return (
     <>
       <BuiltinMods model={model} />
       <Group title={t("settings.plugins.registered")}>
         {!plugins ? (
-          <p className={SETTINGS_STATUS}>{t("preview.loading")}</p>
+          <SectionPending failed={failed} onRetry={load} />
         ) : plugins.length === 0 ? (
           <p className={SETTINGS_STATUS}>{t("settings.plugins.empty")}</p>
         ) : (

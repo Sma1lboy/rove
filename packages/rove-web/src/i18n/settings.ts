@@ -29,6 +29,8 @@ export const en = {
       dev: "Experimental switches, restarts and resets.",
       snippets: "Prompt text you reuse. Type @name in a prompt to insert it.",
     },
+    loadFailed: "Couldn't load this: {error}",
+    retry: "Retry",
     connectors: connectorsEn,
     general: {
       groupInterface: "Interface",
@@ -239,6 +241,8 @@ export const zh: typeof en = {
       dev: "实验开关、重启和重置。",
       snippets: "常用的提示词文本。在提示词里输入 @名称 即可插入。",
     },
+    loadFailed: "没能读取：{error}",
+    retry: "重试",
     connectors: connectorsZh,
     general: {
       groupInterface: "界面",
