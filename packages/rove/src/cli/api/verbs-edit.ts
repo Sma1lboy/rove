@@ -1,7 +1,7 @@
 /**
  * The `edit` verb group: `update`, the one verb that changes a task's
  * METADATA — title, branch, engine command/model/effort, pin, status + worker
- * report — or with `--tab` one Terminal Tab's name. Each spec's own `group`
+ * report, progress line — or with `--tab` one Terminal Tab's name. Each spec's own `group`
  * field, not this file, decides where it lists; specs spread into {@link VERBS}.
  */
 
@@ -34,8 +34,10 @@ const TASK_FIELDS = [
   "require-report",
   "auto-fix-ci",
   "status",
+  "progress",
 ] as const
 const REPORT_FLAGS = ["report-branch", "report-pr", "report-summary"] as const
+const PROGRESS_MAX = 300
 
 /**
  * `--tab` renames through the daemon's tab store (`tabs.apply`), which every
@@ -180,13 +182,15 @@ async function updateTask(ctx: VerbContext): Promise<unknown> {
   const requireReport = ctx.args.enumOf<"on" | "off">("require-report")
   const autoFixCi = ctx.args.enumOf<"on" | "off">("auto-fix-ci")
   const status = ctx.args.enumOf<TaskStatus>("status")
+  // `--progress ''` clears, so it counts as present even though `str` folds it to absent.
+  const progress = ctx.args.present("progress") ? (ctx.args.str("progress") ?? "") : undefined
   const report = {
     reportBranch: ctx.args.str("report-branch"),
     reportPr: ctx.args.int("report-pr"),
     reportSummary: ctx.args.str("report-summary"),
   }
   const reporting = Object.values(report).some((v) => v !== undefined)
-  if (TASK_FIELDS.every((f) => ctx.args.str(f) === undefined) && !reporting) {
+  if (TASK_FIELDS.every((f) => ctx.args.str(f) === undefined) && progress === undefined && !reporting) {
     throw new ApiError(
       `nothing to update — pass at least one of ${TASK_FIELDS.map((f) => `--${f}`).join(", ")}`,
       "BAD_FLAG",
@@ -201,6 +205,11 @@ async function updateTask(ctx: VerbContext): Promise<unknown> {
     })
   }
   if (command === "") throw new ApiError("--command cannot be empty", "BAD_FLAG")
+  if (progress !== undefined && progress.length > PROGRESS_MAX) {
+    throw new ApiError(`--progress is one line of at most ${PROGRESS_MAX} characters`, "BAD_FLAG", {
+      hint: "Say what is happening now; the full account belongs in the final report.",
+    })
+  }
   if (parent === "")
     throw new ApiError("--parent cannot be empty — pass a task id, or `none` for top level", "BAD_FLAG")
 
@@ -271,6 +280,7 @@ async function updateTask(ctx: VerbContext): Promise<unknown> {
   }
   if (autoFixCi !== undefined) await step(["auto-fix-ci"], "task.autoFixCi", { enabled: autoFixCi === "on" })
   if (status !== undefined) await step(["status"], "task.status", { status, ...report })
+  if (progress !== undefined) await step(["progress"], "task.progress", { note: progress.trim() || null })
 
   return {
     ok: true,
@@ -296,7 +306,7 @@ export const EDIT_VERBS: readonly VerbSpec[] = [
     name: "update",
     group: "edit",
     summary:
-      "Change a task's metadata — any combination of title, branch (git branch -m if materialized, else recorded), parent, engine --command / --model / --effort (take effect on the next session rebuild), pin, and status + worker report — in one call. The flags are checked before anything is written; then they apply in order parent → branch → engine → title/pin/status, and a refusal mid-way names what already applied (`applied`). --parent ID re-parents the task without touching its engine, tabs, worktree or branch: the stored parent is ID's top-level ancestor (children never nest, as with `add` from a child; the task's own children come along, listed in `.parent.moved`) and the task's reply address becomes ID itself, so its bare `send` reaches ID (the caller's own tab when run from inside ID, else ID's live engine tab, else tab-1). `--parent none` makes the task top level and drops a reply address that pointed into its old tree. A parent must live on the same machine as the task. Archiving the stored parent, or `delete --cascade` on it, takes the task along. --group G --parent ID moves a whole fan-out round instead and takes nothing else. With --tab, renames that Terminal Tab instead (the API twin of the TUI's f2) and takes only --title. The status is a cosmetic LABEL: `--status canceled` closes, stops and cleans up nothing — `delete` ends a task. The --report-* fields record what the WORKER CLAIMS it delivered (`.report` on `get-task` / `collect`), deliberately apart from `.prStatus`, which the daemon polled from the forge; they merge onto any previous report and need --status. Returns { updated } — the fields written, in order.",
+      "Change a task's metadata — any combination of title, branch (git branch -m if materialized, else recorded), parent, engine --command / --model / --effort (take effect on the next session rebuild), pin, and status + worker report — in one call. The flags are checked before anything is written; then they apply in order parent → branch → engine → title/pin/status, and a refusal mid-way names what already applied (`applied`). --parent ID re-parents the task without touching its engine, tabs, worktree or branch: the stored parent is ID's top-level ancestor (children never nest, as with `add` from a child; the task's own children come along, listed in `.parent.moved`) and the task's reply address becomes ID itself, so its bare `send` reaches ID (the caller's own tab when run from inside ID, else ID's live engine tab, else tab-1). `--parent none` makes the task top level and drops a reply address that pointed into its old tree. A parent must live on the same machine as the task. Archiving the stored parent, or `delete --cascade` on it, takes the task along. --group G --parent ID moves a whole fan-out round instead and takes nothing else. With --tab, renames that Terminal Tab instead (the API twin of the TUI's f2) and takes only --title. The status is a cosmetic LABEL: `--status canceled` closes, stops and cleans up nothing — `delete` ends a task. The --report-* fields record what the WORKER CLAIMS it delivered (`.report` on `get-task` / `collect`), deliberately apart from `.prStatus`, which the daemon polled from the forge; they merge onto any previous report and need --status. --progress records what the worker is doing now as `.progress` ({ note, at }), shown by `context`: it is delivered to no tab, raises no Inbox row, and leaves the status and report alone, so it is the way to leave a progress line without interrupting the dispatcher. Returns { updated } — the fields written, in order.",
     flags: [
       {
         ...F.taskId(false),
@@ -412,6 +422,13 @@ export const EDIT_VERBS: readonly VerbSpec[] = [
           "The PR number the worker says it opened (a CLAIM — `.prStatus.number` is what the daemon read from the forge).",
       },
       { name: "report-summary", type: "string", placeholder: "TEXT", description: "One line of what was delivered." },
+      {
+        name: "progress",
+        type: "string",
+        placeholder: "TEXT",
+        description:
+          "One line (at most 300 characters) of what the worker is doing now, replacing the previous one; '' clears it. Passive: read by `context` and `get-task`, delivered to no one.",
+      },
     ],
     handler: updateTask,
   },

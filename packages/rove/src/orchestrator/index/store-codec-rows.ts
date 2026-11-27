@@ -21,6 +21,7 @@ import type {
   TaskExtraRepo,
   TaskLinkedWorkItem,
   TaskPRStatus,
+  TaskProgress,
   TaskQuotaResumeState,
   TaskRoutineLink,
   TaskScheduledStart,
@@ -74,6 +75,7 @@ export function coerceTask(value: unknown): Task | null {
   const autoFixCi = coerceAutoFix(v.autoFixCi)
 
   const report = coerceWorkerReport(v.report)
+  const progress = coerceProgress(v.progress)
   return {
     id: toTaskId(v.id),
     title: v.title,
@@ -132,6 +134,8 @@ export function coerceTask(value: unknown): Task | null {
     ...(sessionPrs ? { sessionPrs } : {}),
     // Worker's outcome claim, read by `collect` long after the fact.
     ...(report ? { report } : {}),
+    // The worker's latest progress line; lost, `context` reads the task as silent until the next note.
+    ...(progress ? { progress } : {}),
     // Every send to this task owes a `rove api report`; lost, a loop quietly stops being held to it.
     ...(v.requireReport === true ? { requireReport: true } : {}),
     // Unlisted under its parent; dropped, every checkout an agent cut for itself would show as a child session.
@@ -205,6 +209,14 @@ function coerceWorkerReport(value: unknown): TaskWorkerReport | undefined {
     ...(typeof v.pr === "number" && Number.isFinite(v.pr) ? { pr: v.pr } : {}),
     ...(typeof v.summary === "string" && v.summary.length > 0 ? { summary: v.summary } : {}),
   }
+}
+
+function coerceProgress(value: unknown): TaskProgress | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
+  const v = value as Record<string, unknown>
+  if (typeof v.note !== "string" || v.note.length === 0 || typeof v.at !== "string" || v.at.length === 0)
+    return undefined
+  return { note: v.note, at: v.at }
 }
 
 function coerceDispatcher(value: unknown): TaskDispatcher | undefined {

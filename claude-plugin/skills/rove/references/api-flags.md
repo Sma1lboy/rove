@@ -264,7 +264,7 @@ update          --task-id --title --tab --branch --parent --project --group --co
                 --model --effort --pinned --kept --connector --require-report{on|off}
                 --auto-fix-ci{on|off}
                 --status{backlog|in_progress|in_review|done|canceled|error}
-                --report-branch --report-pr --report-summary
+                --report-branch --report-pr --report-summary --progress
 todo            --task-id --add --check --uncheck --edit --text --remove --notes
                 --clear-notes
 land            --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delete-branch

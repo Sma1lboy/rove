@@ -343,10 +343,10 @@ export class Orchestrator {
     this.editor.moveProject(repo, target, side)
   setStatus = (id: TaskId | string, status: TaskStatus): Promise<void> => this.editor.setStatus(id, status)
 
-  /** Record the worker's own account of what it delivered — see
-   *  {@link TaskEditor.setWorkerReport}. */
+  /** Record the worker's own account of what it delivered — see {@link TaskEditor.setWorkerReport}. */
   setWorkerReport = (id: TaskId | string, report: Omit<TaskWorkerReport, "at">): Promise<void> =>
     this.editor.setWorkerReport(id, report)
+  setProgress = (id: TaskId | string, note: string | null): Promise<void> => this.editor.setProgress(id, note)
   setPRStatus = (id: TaskId | string, prStatus: TaskPRStatus | null, repoName?: string): Promise<void> =>
     this.editor.setPRStatus(id, prStatus, repoName)
   addSessionPr = (id: TaskId | string, url: string): Promise<void> => this.editor.addSessionPr(id, url)

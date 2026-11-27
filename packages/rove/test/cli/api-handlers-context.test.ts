@@ -12,7 +12,7 @@ import type { AttentionInboxItem } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { describe, expect, it } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
-import { type ContextPayload, buildContext } from "../../src/cli/api/context-view.ts"
+import { type ContextPayload, buildContext, renderContext } from "../../src/cli/api/context-view.ts"
 import { FakeClient, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 const NOW = 1_800_000_000_000
@@ -123,6 +123,20 @@ describe("buildContext", () => {
       activity: { t1: { state: "idle", at: NOW } },
     })
     expect(payload.tasks[0]).toMatchObject({ checkState: "failing", pr: 77 })
+  })
+})
+
+describe("renderContext", () => {
+  const progress = { note: "running the e2e suite", at: new Date(NOW - 180_000).toISOString() }
+
+  it("shows a worker's progress line and its age until the worker reports", () => {
+    const quiet = renderContext(base({ tasks: [serialized({ id: "t1", progress })] }))
+    expect(quiet).toContain("now: “running the e2e suite” 3m ago")
+    const reported = renderContext(
+      base({ tasks: [serialized({ id: "t1", progress, report: { summary: "suite green", at: progress.at } })] }),
+    )
+    expect(reported).toContain("“suite green”")
+    expect(reported).not.toContain("e2e suite")
   })
 })
 

@@ -130,6 +130,7 @@ const TASK_FIELDS = {
   extraRepos: true,
   sessionPrs: true,
   report: true,
+  progress: true,
   origin: true,
   repoId: true,
   createdAt: true,

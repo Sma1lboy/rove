@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 135 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 136 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -691,6 +691,11 @@ Before `send`, ask: does this unblock or change work now? If not, include it
 in the final report. If a handoff contract has already been agreed, do not
 reconfirm it. Avoid status pings; use a bounded read-only `get-task` or
 `collect` when an actual coordination decision needs current state.
+
+A long run that wants to leave a trail writes it with
+`update --progress "<what you are doing now>"`: one line, each call replacing
+the last, read by `context` and `get-task` and delivered to no one. It never
+wakes the dispatcher, so it is the place for progress that `send` is not.
 
 The dispatcher gives the user concise milestone updates; workers need not
 relay those updates back to the dispatcher. Do not create another task

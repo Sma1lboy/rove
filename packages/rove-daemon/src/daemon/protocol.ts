@@ -148,6 +148,7 @@ export type DaemonRequestName =
   | "task.ensureWorktree"
   | "task.setActive"
   | "task.requireReport"
+  | "task.progress"
   | "task.worktreeOnly"
   | "issue.list"
   // Repo roots the issue store holds a record for — a board section means
@@ -480,14 +481,12 @@ export interface SerializedTask {
   readonly workspace?: WireWorkspace
   /** PRs the session opened from any directory (`rove api pr-attach`); omitted when none. */
   readonly sessionPrs?: DaemonTask["sessionPrs"]
-  /** The worker's own outcome claim (`update --report-*`) — a CLAIM,
-   *  where `prStatus` is the daemon's own observation of the forge. */
+  /** The worker's own outcome claim (`update --report-*`), where `prStatus` is the daemon's observation. */
   readonly report?: DaemonTask["report"]
-  /**
-   * Which machine served this task. NEVER set by a daemon: the merging client
-   * stamps it after deserializing. Declared here so CLI and client types agree
-   * without casts.
-   */
+  /** The worker's latest progress line (`update --progress`): stored only, delivered to no tab. */
+  readonly progress?: DaemonTask["progress"]
+  /** Which machine served this task. NEVER set by a daemon: the merging client stamps it after deserializing.
+   *  Declared here so CLI and client types agree without casts. */
   readonly origin?: { readonly machineId: string; readonly hostLabel: string }
   /** The repo across machines (`repo-id.ts`): `host/owner/name`, else `root:<sha>`; absent outside a repo. */
   readonly repoId?: string

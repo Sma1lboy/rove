@@ -1805,6 +1805,15 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   An `update --status` with no `--report-*` flag writes no report at all — an
   empty one would restamp `at` and claim the worker reported again.
 
+  - `--progress TEXT`: what the worker is doing now, as `.progress`
+    (`{ note, at }`) on `list` / `get-task` and on its `context` row. One line
+    of at most 300 characters (whitespace folds to single spaces); each call
+    replaces the last, and `--progress ''` clears it. It is passive: it types
+    into no tab, raises no Inbox row, and leaves `status` and `.report`
+    alone, so a worker can leave a progress line without interrupting its
+    dispatcher. `context --text` shows it until the worker reports. Daemon
+    RPC: `task.progress`.
+
   The old per-field verbs are gone (no aliases): calling one returns
   `UNKNOWN_VERB` with the `update` form in `nextCommandArgs`.
 
