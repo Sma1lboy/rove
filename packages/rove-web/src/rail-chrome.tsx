@@ -4,7 +4,7 @@
  * (TUI `sidebar-resize-grip`, `collapse-button`, `narrow-back-bar`).
  */
 
-import { type PointerEvent, useRef } from "react"
+import { type PointerEvent, useRef, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { tasksText, workspaceText } from "./keymap-text.ts"
@@ -12,19 +12,20 @@ import { backToTasks, enterWorkspace } from "./layout.ts"
 import { macHost, useMacToolbar } from "./mac-host.ts"
 import type { AppModel } from "./model.ts"
 import { type NavPlace, go, isLive, navState, step } from "./nav-history.ts"
-import { LAUNCHED_KINDS, narrowView } from "./panel-layout.ts"
+import { LAUNCHED_KINDS, type NarrowView, narrowView } from "./panel-layout.ts"
 import { showPanel } from "./panel-state.ts"
-import { ICONS, Icon } from "./panel-tabs.tsx"
+import { ICONS } from "./panel-tabs.tsx"
 import { needsPerson } from "./rail-glyphs.ts"
 import { clampRailWidth, peekRail, railFolded, railPeek, railWidth } from "./rail-layout.ts"
 import { useStore } from "./store.ts"
 import { dragLayout } from "./ui.ts"
-import { NavButton } from "./ui/nav-button.tsx"
+import { GlassButton, NavButton } from "./ui/nav-button.tsx"
 import { ICON_BUTTON_DOT, RAIL_BAR, iconButton } from "./ui/panel.ts"
 import { RefreshRoveButton } from "./ui/refresh-rove-button.tsx"
 import { ResizeGrip } from "./ui/resize-grip.tsx"
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
-import { NARROW_BAR, NARROW_SWITCH, NARROW_TAB, NARROW_TITLE } from "./ui/shell.ts"
+import { NARROW_BAR, NARROW_TITLE, NARROW_VIEW_ICON } from "./ui/shell.ts"
+import { PickSheet } from "./ui/sheet.tsx"
 
 /** Two releases closer together than this are one double-click. */
 const DOUBLE_CLICK_MS = 400
@@ -160,37 +161,37 @@ const TERMINAL_ICON = (
   <path d="M3 3.5h10a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1zM4.5 6.5 6.5 8l-2 1.5M8 10h3" />
 )
 
+const VIEWS = ["terminal", ...LAUNCHED_KINDS] as const
+const viewName = (id: NarrowView): string =>
+  id === "terminal" ? t("layout.narrowTerminal") : t(`panel.${id}`)
+
 /**
  * Narrow layout, content panel: the way back to the list the viewport has no room to show beside it.
- * In a task it names the task and switches between the terminal and the side panel's views, the desktop's right column.
+ * In a task it names the task; one button shows the view on screen and opens a sheet of the others (the terminal and the desktop's right-column panels).
  */
 export function NarrowBackBar({ client, taskId, title }: { client: BridgeClient; taskId?: string; title?: string }) {
   useLocale()
   const view = useStore(narrowView)
+  const [picking, setPicking] = useState(false)
   return (
     <div className={NARROW_BAR}>
       <NavButton kind="back" label={workspaceText("narrowBack")} onClick={backToTasks} />
       {title && <span className={NARROW_TITLE}>{title}</span>}
       {taskId && (
-        <span className={`mono ${NARROW_SWITCH}`} role="tablist">
-          {(["terminal", ...LAUNCHED_KINDS] as const).map((id) => {
-            const name = id === "terminal" ? t("layout.narrowTerminal") : t(`panel.${id}`)
-            return (
-              <button
-                type="button"
-                role="tab"
-                key={id}
-                aria-selected={view === id}
-                aria-label={name}
-                title={name}
-                className={NARROW_TAB}
-                onClick={() => (id === "terminal" ? narrowView.set(id) : showPanel(taskId, id))}
-              >
-                <Icon>{id === "terminal" ? TERMINAL_ICON : ICONS[id]}</Icon>
-              </button>
-            )
-          })}
-        </span>
+        <GlassButton size="nav" kind="view" label={`${t("layout.narrowViews")}: ${viewName(view)}`} onClick={() => setPicking(true)}>
+          <svg className={NARROW_VIEW_ICON} viewBox="0 0 16 16" aria-hidden="true">
+            {view === "terminal" ? TERMINAL_ICON : ICONS[view]}
+          </svg>
+        </GlassButton>
+      )}
+      {taskId && picking && (
+        <PickSheet
+          title={t("layout.narrowViews")}
+          value={view}
+          picks={VIEWS.map((id) => ({ value: id, label: viewName(id) }))}
+          onPick={(id) => (id === "terminal" ? narrowView.set(id) : showPanel(taskId, id))}
+          onClose={() => setPicking(false)}
+        />
       )}
       <RefreshRoveButton client={client} />
     </div>
