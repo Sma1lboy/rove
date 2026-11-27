@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.9.306
+
+### Patch Changes
+
+- [#2230](https://github.com/Sma1lboy/rove/pull/2230) [`3abdace`](https://github.com/Sma1lboy/rove/commit/3abdacef279f96b62ea092c594141f2d37f7ef1e) Settings → Connectors → Chat cards can now be used, not just read. A connected card shows the bot's name with Open agent and Disconnect, lists who may message it (you plus anyone added by id, each removable), and for Lark edits the agent's tone. Lark connects with one click when lark-cli is already set up; otherwise the card says which command to run. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2224](https://github.com/Sma1lboy/rove/pull/2224) [`9fea1a3`](https://github.com/Sma1lboy/rove/commit/9fea1a341a4c266808d9ec41828dbf0b64467580) A repository Rove cloned into `~/.rove/repos` (web New session, `add --clone`) can be opened as a project again, instead of failing with "inside Rove's own state directory". — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2228](https://github.com/Sma1lboy/rove/pull/2228) [`6165050`](https://github.com/Sma1lboy/rove/commit/61650502ba5799aee70cb1001db1dc2ccbeb9199) A chat connector's session (the WeChat agent, or a plugin's such as Lark) now sits at the bottom of the sidebar and the web rail, below every project, so a project you add later lands above it. The WeChat connector marks its session on its own; a plugin marks its session with `rove api update --connector <id>`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2227](https://github.com/Sma1lboy/rove/pull/2227) [`ada7afe`](https://github.com/Sma1lboy/rove/commit/ada7afec8776202ff02784b055e1a71d391e99b7) Press `/` in the TUI's Files pane to search the worktree: one query lists the files whose name matches, then the files whose text does (marked `≡`), and `enter` opens the highlighted one. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2229](https://github.com/Sma1lboy/rove/pull/2229) [`ce2e1a9`](https://github.com/Sma1lboy/rove/commit/ce2e1a90e589dd3ab8d5f9a51ee271c59b97b024) Lark (飞书) is a built-in chat connector. `rove lark connect` sets up lark-cli's app if there is none, checks its bot and allows you; after that, DM the bot or @ it in a group to talk to your own agent, which answers in the thread and starts tasks for real work. Each message gets OnIt, then DONE when the agent's turn ends. The agent sits at the bottom of the sidebar, and Settings → Connectors → Chat shows Lark beside WeChat. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2220](https://github.com/Sma1lboy/rove/pull/2220) [`e7812f3`](https://github.com/Sma1lboy/rove/commit/e7812f3246021945d1e12e354667f59522a84b33) The engine a new task or conversation opens on is now the one you picked last in any project, instead of one remembered per project. Pick Codex in one repo and the next session in another repo opens on Codex too. Setting the default in Settings → Engines counts as a pick, so it takes effect right away. Per-project entries already in `state.json` (`lastActiveVendor.<repo>`) are no longer read. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2225](https://github.com/Sma1lboy/rove/pull/2225) [`81afd66`](https://github.com/Sma1lboy/rove/commit/81afd66726302139c684cb836eb7ab1bf5ae040b) The daemon and the PTY host forget the agent session they were started from, so a restart run from inside Claude Code can no longer stop the sessions Rove starts from saving their transcripts. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2236](https://github.com/Sma1lboy/rove/pull/2236) [`3957b66`](https://github.com/Sma1lboy/rove/commit/3957b6617b8682f73481e366566beae431e34591) The TUI's New task opens on No folder instead of guessing a project from the selected task, like the web. No folder is the first choice in the project picker and starts a session outside any project, listed under Ungrouped; a project's own `+` still opens on that project. The Create button now sits at the bottom-right of the message box. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2219](https://github.com/Sma1lboy/rove/pull/2219) [`079ac81`](https://github.com/Sma1lboy/rove/commit/079ac81a0ede1bcab75306565ce5b9e613329f80) In the web client, a task that lives on another machine is now marked with a small outlined cloud icon instead of a cloud made of dots. The terminal keeps its braille cloud. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2222](https://github.com/Sma1lboy/rove/pull/2222) [`929a9c2`](https://github.com/Sma1lboy/rove/commit/929a9c2b43ddee8d919c8420e8564ed3adfd8895) In the web client, hovering the cloud on a task that lives on another machine now shows where it runs at once, beside the mark, the same side the pull request list opens on. It used to appear above the row after a pause. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2217](https://github.com/Sma1lboy/rove/pull/2217) [`fc323c0`](https://github.com/Sma1lboy/rove/commit/fc323c0a53ad7ab93da67b60caa01dbc70e5ed58) Settings → Connectors in the web client now lists WeChat under a new Chat group, showing whether it is connected and since when. Connecting still happens in a terminal with `rove weixin login`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2226](https://github.com/Sma1lboy/rove/pull/2226) [`fd39d33`](https://github.com/Sma1lboy/rove/commit/fd39d332a497d8810eb7154fd9c5ca724c370d8a) The web's project picker finds your GitHub repositories by name alone as soon as it opens: the list is read as soon as the page connects, and while it is still loading the picker says so instead of "No matching project". — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2234](https://github.com/Sma1lboy/rove/pull/2234) [`681aa1e`](https://github.com/Sma1lboy/rove/commit/681aa1e3175e4513d2b87a1bec85f7ffaaa0a2b9) On the web, the New task row at the top of the task list (and its shortcut) opens the composer on No folder instead of guessing the project of whatever task is selected. A project's own + still opens in that project. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2216](https://github.com/Sma1lboy/rove/pull/2216) [`4a95bcc`](https://github.com/Sma1lboy/rove/commit/4a95bcce902c2aafa8ef338a483451f2b81d3e9e) The web shows one alert when a session keeps hitting the same error (a rate-limited engine retrying), instead of stacking a copy each time. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2235](https://github.com/Sma1lboy/rove/pull/2235) [`f7d8836`](https://github.com/Sma1lboy/rove/commit/f7d8836e4ba974667018b719547744970efc2f4b) On a phone, hold-to-talk now works like WeChat: let go and what you said is sent at once. Slide up before letting go to put it in the field instead and edit it first. The control says "Slide up to edit" while you hold it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.305
 
 ### Patch Changes
