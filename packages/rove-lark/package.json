@@ -1,6 +1,6 @@
 {
   "name": "rove-lark",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Lark (飞书) chat connector for Rove over lark-cli. Bundled into the rove CLI; not published on its own.",
   "private": true,
   "type": "module",
