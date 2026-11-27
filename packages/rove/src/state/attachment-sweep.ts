@@ -14,6 +14,8 @@ const DEFAULT_KEEP_DAYS = 30
 const DAY_MS = 24 * 60 * 60 * 1000
 /** Where a prompt outlives the composer: task prompts, issue bodies, routines and starts scheduled for later. */
 const REFERENCE_FILES = ["tasks.json", "issues.json", "automations.json", "pending-starts.json"]
+/** Names Rove gives the files it saves: `attach-` from web/phone uploads, `paste-` from a TUI image paste. */
+const OWN_FILE = /^(?:attach|paste)-/
 
 /** A whole number of days, 0 for "never delete"; anything else is the default. */
 export function normalizeKeepDays(value: unknown): number {
@@ -23,7 +25,7 @@ export function normalizeKeepDays(value: unknown): number {
 }
 
 /**
- * Delete Rove's own `attach-*` files older than `keepDays` that `references` does not name; returns what it
+ * Delete Rove's own `attach-*`/`paste-*` files older than `keepDays` that `references` does not name; returns what it
  * removed. Anything else in the directory is somebody else's and is left alone.
  */
 export function sweepAttachments(opts: {
@@ -42,7 +44,7 @@ export function sweepAttachments(opts: {
   }
   const removed: string[] = []
   for (const name of names) {
-    if (!name.startsWith("attach-") || opts.references.includes(name)) continue
+    if (!OWN_FILE.test(name) || opts.references.includes(name)) continue
     const path = join(opts.dir, name)
     try {
       const stat = statSync(path)
