@@ -1,5 +1,7 @@
 /** Directory tree for the file-tree pane; git-independent. */
 
+import { compareFileEntries } from "../../../lib/file-order"
+
 export type TreeNode = {
   /** Path segment (last component). Empty for the root. */
   name: string
@@ -49,9 +51,6 @@ export function buildTree(paths: readonly string[]): TreeNode {
 }
 
 function sortTree(node: TreeNode): void {
-  node.children.sort((a, b) => {
-    if (a.isDir !== b.isDir) return a.isDir ? -1 : 1
-    return a.name.localeCompare(b.name)
-  })
+  node.children.sort((a, b) => compareFileEntries({ name: a.name, dir: a.isDir }, { name: b.name, dir: b.isDir }))
   for (const c of node.children) sortTree(c)
 }

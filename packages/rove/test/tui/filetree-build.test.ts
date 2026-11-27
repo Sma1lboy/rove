@@ -21,3 +21,26 @@ it("builds a wide directory with all unique leaves and stable sorted output", ()
   expect(tree.children).toHaveLength(1)
   expect(tree.children[0]?.children.map((node) => node.path)).toEqual(paths)
 })
+
+it("orders a directory as GitHub does: folders first, then by code unit, so capitals lead and numbers are not numeric", () => {
+  const root = buildTree([
+    "package.json",
+    "README.md",
+    "src/a.ts",
+    "d2",
+    "d10",
+    "3sum.py",
+    "3sum-closest.py",
+    ".github/x",
+  ])
+  expect(root.children.map(({ name }) => name)).toEqual([
+    ".github",
+    "src",
+    "3sum-closest.py",
+    "3sum.py",
+    "README.md",
+    "d10",
+    "d2",
+    "package.json",
+  ])
+})
