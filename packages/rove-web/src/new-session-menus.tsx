@@ -2,6 +2,7 @@
 
 import { Fragment, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { t } from "./i18n/index.ts"
+import { useNarrow } from "./layout.ts"
 import { type Choice, digitRow } from "./new-session.ts"
 import {
   BRANCHES,
@@ -23,6 +24,7 @@ import {
   chipWrap,
   rowClass,
 } from "./ui/composer.ts"
+import { Sheet } from "./ui/sheet.tsx"
 import { PALETTE_INPUT } from "./ui/shell.ts"
 import { INPUT, KICKER } from "./ui/text.ts"
 
@@ -39,6 +41,7 @@ export function ChipPopover(props: {
   children: (close: () => void) => ReactNode
 }) {
   const [open, setOpen] = useState(false)
+  const narrow = useNarrow()
   const onClose = useRef(props.onClose)
   onClose.current = props.onClose
   useEffect(() => {
@@ -61,13 +64,14 @@ export function ChipPopover(props: {
     button.current?.focus()
   }
   useEffect(() => {
-    if (!open) return
+    // A phone's sheet closes on a tap outside itself.
+    if (!open || narrow) return
     const away = (e: MouseEvent) => {
       if (!root.current?.contains(e.target as Node)) setOpen(false)
     }
     window.addEventListener("mousedown", away)
     return () => window.removeEventListener("mousedown", away)
-  }, [open])
+  }, [open, narrow])
   return (
     // Escape is caught here from the popover's own fields.
     <span
@@ -93,11 +97,17 @@ export function ChipPopover(props: {
       >
         {typeof props.label === "string" ? <span className={CLIP}>{props.label}</span> : props.label}
       </button>
-      {open && (
-        <div ref={pop} className={POP}>
-          {props.children(close)}
-        </div>
-      )}
+      {open &&
+        (narrow ? (
+          // The list names itself (a heading, a search field), so the sheet carries no title of its own.
+          <Sheet label={props.title} onClose={close}>
+            {(slide) => <div className="flex min-h-0 flex-col px-1.5">{props.children(slide)}</div>}
+          </Sheet>
+        ) : (
+          <div ref={pop} className={POP}>
+            {props.children(close)}
+          </div>
+        ))}
     </span>
   )
 }
@@ -191,7 +201,7 @@ export function SearchList(props: {
           </Fragment>
         ))}
       </div>
-      {props.hint && <p className={`${HINT} text-subtle`}>{props.hint}</p>}
+      {props.hint && <p className={`${HINT} text-subtle touch:hidden`}>{props.hint}</p>}
     </div>
   )
 }
@@ -226,7 +236,7 @@ function OptionRow(props: {
       <span className={CHECK}>{props.checked ? "✓" : ""}</span>
       <span>{props.option.label}</span>
       {!props.checked && props.digit !== undefined && !props.option.disabled && (
-        <span className={`${DIM} text-muted`}>{props.digit}</span>
+        <span className={`${DIM} keys-only text-muted`}>{props.digit}</span>
       )}
     </button>
   )

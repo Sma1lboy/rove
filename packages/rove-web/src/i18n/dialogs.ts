@@ -24,6 +24,7 @@ export const en = {
     keys: "q / esc",
   },
   menu: {
+    cancel: "Cancel",
     closeTab: "Close tab",
     newChat: "New conversation",
     newChatPick: "New conversation with…",
@@ -229,6 +230,7 @@ export const zh: typeof en = {
     keys: "q / esc",
   },
   menu: {
+    cancel: "取消",
     closeTab: "关闭该标签页",
     newChat: "新建会话",
     newChatPick: "选择引擎新建会话…",

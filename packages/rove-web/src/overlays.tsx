@@ -1,6 +1,8 @@
 /** The one open menu or dialog, and the toast stack. Esc / outside click dismisses a menu (TUI tree menu). */
 
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react"
+import { useNarrow } from "./layout.ts"
+import { MenuSheet } from "./menu-sheet.tsx"
 import { useStore } from "./store.ts"
 import { type MenuItem, dialog, dismissToast, menu, toasts } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
@@ -236,9 +238,11 @@ function ContextMenu() {
 export function Overlays() {
   const current = useStore(dialog)
   const list = useStore(toasts)
+  const open = useStore(menu)
+  const narrow = useNarrow()
   return (
     <>
-      <ContextMenu />
+      {narrow && open ? <MenuSheet state={open} /> : <ContextMenu />}
       {current}
       <div className={TOASTS} aria-live="polite">
         {list.map((item) => {
