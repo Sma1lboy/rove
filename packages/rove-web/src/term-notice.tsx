@@ -22,19 +22,24 @@ export interface EngineExit {
   readonly since: number
 }
 
-function noticeText(notice: Notice): string {
+export function noticeText(notice: Notice): string {
   switch (notice.kind) {
     case "restored":
       return t("workspace.restored")
     case "notLive":
       return t("workspace.tabNotLive")
     case "exited":
-      return t("workspace.exited", { code: notice.code ?? "?" })
+      return notice.code === null ? t("workspace.exitedNoCode") : t("workspace.exited", { code: notice.code })
     case "failed":
       return t("workspace.attachFailed", { message: notice.message })
     case "none":
       return ""
   }
+}
+
+/** A code the daemon never learned (the engine ran under a shell) is left out, as the TUI's banner does. */
+export function engineExitText(code: number | null): string {
+  return code === null ? t("workspace.engineExitedNoCode") : t("workspace.engineExited", { code })
 }
 
 export function TermNotice(props: {
@@ -70,7 +75,7 @@ export function TermNotice(props: {
   const text = revive.error
     ? t("workspace.reopenFailed", { message: revive.error })
     : lostEngine
-      ? t("workspace.engineExited", { code: lostEngine.code ?? "?" })
+      ? engineExitText(lostEngine.code)
       : limited
         ? resumeAt
           ? t("workspace.usageLimitUntil", {
