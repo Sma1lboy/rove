@@ -21,7 +21,8 @@ export interface EngineIconData {
 }
 
 // 1px below the box centre: the title's lowercase sits 1.5px under it, its capitals 0.3px.
-const CELL = "block size-4 flex-none translate-y-px"
+/** 18px in the phone layout. */
+const CELL = "block size-4 flex-none translate-y-px narrow:size-4.5"
 
 /** Reduced motion slows the breath instead of freezing it, as the dots do. */
 const BREATH = "animate-mark-pulse motion-reduce:[animation-duration:4.8s]"

@@ -87,7 +87,7 @@ function Dots({ look, tone, since }: { look: DotLook; tone: Tone; since: number 
   return (
     <span
       ref={ref}
-      className={`inline-grid flex-none grid-cols-[repeat(3,3px)] auto-rows-[3px] gap-px self-center ${DOT_TONE(tone)}`}
+      className={`inline-grid flex-none grid-cols-[repeat(3,3px)] auto-rows-[3px] gap-px self-center narrow:auto-rows-[4px] narrow:grid-cols-[repeat(3,4px)] narrow:gap-0.5 ${DOT_TONE(tone)}`}
       aria-hidden="true"
     >
       {Array.from({ length: 9 }, (_, dot) => (

@@ -118,8 +118,8 @@ Probe: `viewport-stress` for overflow; the rect snippets above for edges.
 - **The scale is the four tokens in `tailwind.css`:** 12px `--fs-meta` (secondary text, lists, chips,
   hints, buttons), 13px `--fs-body` (body, menu items), 14px `--fs-title` (rail task titles, the
   wordmark, dialog titles), and 16px `--fs-display` (the dialog close glyph, fields on touch). Nothing
-  new below 12px for readable text. The phone layout (under 560px) moves the first three up a step, to 13/15/16px,
-  in one `:root` override; rows there are 44px and the terminal's font 14px (45 columns at 390px). Check:
+  new below 12px for readable text. The phone layout (under 560px) moves the first three up a step, to 14/16/17px,
+  in one `:root` override; session rows there are 52px and the terminal's font 14px (45 columns at 390px). Check:
   `getComputedStyle(el).fontSize`.
 - **Hierarchy by weight and tone, not new sizes.** Use 700 for the wordmark, 600 for project
   heads (12px, `--subtle`: they label a group, the task rows at 14px read first), 500 for kickers,

@@ -35,7 +35,7 @@ export const SETTINGS_CARD =
   "flex flex-col gap-0.5 w-narrow:gap-0 w-narrow:overflow-hidden w-narrow:rounded-[12px] w-narrow:bg-surface w-narrow:[&>*+*]:[border-top:var(--hairline)_solid_var(--line)]"
 /** Sections in ink, the group names under them faint; the quiet group (About, Feedback, Dev) reads a step lighter, except on a phone, where every row weighs the same. */
 export const settingsNavItemClass = (active: boolean, quiet: boolean): string =>
-  `flex items-center rounded-sm px-2 py-1.25 text-left font-sans text-body touch:min-h-10 w-narrow:min-h-12 w-narrow:gap-3 w-narrow:rounded-none w-narrow:px-3 w-narrow:text-ink ${
+  `flex items-center rounded-sm px-2 py-1.25 text-left font-sans text-body touch:min-h-10 w-narrow:min-h-13 w-narrow:gap-3 w-narrow:text-title w-narrow:rounded-none w-narrow:px-3 w-narrow:text-ink ${
     active ? "bg-menu text-ink" : `${quiet ? "text-muted" : "text-ink"} [&:hover]:bg-hover`
   }`
 export const SETTINGS_NAV_CHEVRON = "ml-auto hidden text-subtle w-narrow:block"
@@ -51,7 +51,7 @@ const TILE_TONE = {
 } as const
 export type TileTone = keyof typeof TILE_TONE
 export const settingsTile = (tone: TileTone): string =>
-  `hidden size-7 flex-none place-items-center rounded-[7px] w-narrow:grid ${TILE_TONE[tone]} [&_svg]:size-4 [&_svg]:fill-none [&_svg]:stroke-current [&_svg]:[stroke-linecap:round] [&_svg]:[stroke-linejoin:round] [&_svg]:[stroke-width:1.4]`
+  `hidden size-7.5 flex-none place-items-center rounded-[8px] w-narrow:grid ${TILE_TONE[tone]} [&_svg]:size-4.5 [&_svg]:fill-none [&_svg]:stroke-current [&_svg]:[stroke-linecap:round] [&_svg]:[stroke-linejoin:round] [&_svg]:[stroke-width:1.4]`
 /** The usage readings on a phone: a card of their own at the list's end. */
 export const SETTINGS_USAGE_CARD = "rounded-[12px] bg-surface px-3 py-1"
 
@@ -88,7 +88,7 @@ export const SETTINGS_ROW_INLINE = "flex items-center justify-between gap-x-6 py
 /** A wide control (a picker, a form) under the row's text. */
 export const SETTINGS_ROW_STACK = "flex flex-col gap-3 py-3"
 export const SETTINGS_TEXT = "flex min-w-0 flex-1 flex-col gap-0.5"
-export const SETTINGS_NAME = "text-body text-ink"
+export const SETTINGS_NAME = "text-body text-ink w-narrow:text-title"
 export const SETTINGS_NOTE = "text-meta text-muted [&_a]:text-accent"
 export const SETTINGS_CONTROL = "flex min-w-0 flex-none items-center justify-end gap-2 w-narrow:max-w-[50%]"
 /** A path, command or value the Mac holds: the one place a row's text is mono. */

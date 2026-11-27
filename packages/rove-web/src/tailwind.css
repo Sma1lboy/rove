@@ -78,9 +78,9 @@
    dialogs and menus sit outside it. */
 @media (max-width: 559px) {
   :root {
-    --fs-meta: 13px;
-    --fs-body: 15px;
-    --fs-title: 16px;
+    --fs-meta: 14px;
+    --fs-body: 16px;
+    --fs-title: 17px;
   }
 }
 

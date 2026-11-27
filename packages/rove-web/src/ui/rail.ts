@@ -43,7 +43,8 @@ export const CLOUD_ICON =
 /** The rail itself; `rail` stays as the hook focus and pane code find it by. */
 export const RAIL = `group/rail rail @container row-1 flex min-h-0 flex-col focus:outline-none ${RAIL_FRAME}`
 /** One line, whatever the rail's width: the wordmark left, the inbox count and the update arrow right. */
-export const RAIL_HEAD = "flex min-w-0 items-center gap-2.5 overflow-hidden px-3.5 pt-3.5 pb-2.5 whitespace-nowrap"
+export const RAIL_HEAD =
+  "flex min-w-0 items-center gap-2.5 overflow-hidden px-3.5 pt-3.5 pb-2.5 whitespace-nowrap narrow:px-4"
 export const RAIL_SEARCH = "flex gap-1 px-3.5 pb-2 text-meta"
 export const RAIL_SEARCH_FIELD =
   "min-w-0 flex-1 border-none bg-transparent p-0 text-ink [font:inherit] outline-none placeholder:text-subtle"
@@ -51,7 +52,7 @@ export const RAIL_SEARCH_FIELD =
 export const RAIL_EMPTY = "m-0 px-2 py-3 font-mono text-meta text-subtle"
 /** The rail scrolls without a visible bar (the owner's call: the list reads cleaner without one). */
 export const railBody = (sorting: boolean): string =>
-  `flex-1 overflow-y-auto px-1.5 pt-1 pb-3 narrow:pb-22 scrollbar-none ${sorting ? "[&>[data-row]]:[transition:transform_150ms_ease-out,scale_150ms_ease-out,opacity_150ms_ease-out] motion-reduce:[&>[data-row]]:transition-none [&>[data-row]]:[box-shadow:none]! [&>[data-row]:not([data-lifted])]:opacity-45" : ""}`
+  `flex-1 overflow-y-auto px-1.5 pt-1 pb-3 narrow:px-2 narrow:pb-24 scrollbar-none ${sorting ? "[&>[data-row]]:[transition:transform_150ms_ease-out,scale_150ms_ease-out,opacity_150ms_ease-out] motion-reduce:[&>[data-row]]:transition-none [&>[data-row]]:[box-shadow:none]! [&>[data-row]:not([data-lifted])]:opacity-45" : ""}`
 /** Keyboard cursor: shown only while the rail has focus, as the TUI sidebar's. */
 export const RAIL_CURSOR = "group-focus-within/rail:[box-shadow:inset_0_0_0_1px_var(--focus)]"
 
@@ -68,4 +69,4 @@ export const PROJECT_TOGGLE = `group/toggle ${PROJECT_BUTTON}`
 export const projectChevron = (folded: boolean): string =>
   folded ? "" : "opacity-0 group-hover/head:opacity-100 group-focus-visible/toggle:opacity-100 touch:opacity-100"
 /** The 20px + overhangs by 4.5px to centre on the task rows' 11px status dots. */
-export const PROJECT_ADD = `-mr-[4.5px] ml-auto size-5 shrink-0 cursor-pointer rounded-xs border-none bg-transparent text-muted opacity-0 [font:400_var(--fs-display)/1_var(--sans)] group-hover/head:opacity-100 hover:bg-hover hover:text-ink focus-visible:opacity-100 touch:opacity-100 ${HIT}`
+export const PROJECT_ADD = `-mr-[4.5px] ml-auto size-5 shrink-0 narrow:-mr-0.5 cursor-pointer rounded-xs border-none bg-transparent text-muted opacity-0 [font:400_var(--fs-display)/1_var(--sans)] group-hover/head:opacity-100 hover:bg-hover hover:text-ink focus-visible:opacity-100 touch:opacity-100 ${HIT}`

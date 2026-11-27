@@ -6,8 +6,8 @@
 export type RowSize = "row" | "file" | "file-narrow" | "pane"
 
 const SIZE: Readonly<Record<RowSize, string>> = {
-  // A fingertip is ~40px: rows grow to it on touch screens, and to iOS's 44px in the phone layout, with its larger type.
-  row: "min-h-6.5 touch:min-h-10 narrow:min-h-11",
+  // A fingertip is ~40px: rows grow to it on touch screens; the phone layout's session rows are 52px, with its larger type.
+  row: "min-h-6.5 touch:min-h-10 narrow:min-h-13",
   file: "min-h-6 font-mono text-meta touch:min-h-10 narrow:min-h-11",
   // The phone's full-panel file list: sized for a finger already.
   "file-narrow": "min-h-9 font-mono text-meta",

@@ -64,7 +64,7 @@ export const NARROW_BAR = "flex items-center gap-2.5 px-1"
 export const NARROW_TITLE = "min-w-0 truncate font-sans text-body font-normal text-ink"
 /** The terminal/panel switch: one glass capsule, the view on screen lit inside it. */
 export const NARROW_SWITCH = `ml-auto flex flex-none gap-0.5 rounded-full p-0.5 ${glass()}`
-export const NARROW_TAB = `flex h-8 w-9 items-center justify-center rounded-full text-muted aria-selected:bg-[color-mix(in_srgb,var(--ink)_14%,transparent)] aria-selected:text-ink [&_svg]:size-4 ${PRESS} ${HIT} touch:after:-inset-x-px touch:after:-top-2 touch:after:-bottom-1.5`
+export const NARROW_TAB = `flex size-11 items-center justify-center rounded-full text-muted aria-selected:bg-[color-mix(in_srgb,var(--ink)_14%,transparent)] aria-selected:text-ink [&_svg]:size-5.5 ${PRESS}`
 
 export const HINT_BAR =
   "inline-flex shrink-0 items-baseline gap-3 whitespace-nowrap text-meta text-muted *:relative [&_.link:disabled]:cursor-default [&_.link:disabled]:opacity-50"
@@ -104,8 +104,8 @@ export const TERM_SCROLLED =
 export const TERM_QUOTE = "absolute top-2.5 right-2.5 z-4"
 
 /** What a soft keyboard lacks; touch screens only. A narrower column keeps each label whole, then scrolls the row. */
-/** One glass capsule holding the keys, each a thumb wide (44px) and 8px from the next; more than fit scroll sideways. */
-export const TERM_KEY_ROW = `mx-0.5 mb-1.5 hidden gap-2 overflow-x-auto scrollbar-none rounded-[14px] p-0.5 touch:flex ${glass()}`
+/** One glass capsule holding the keys, each a thumb wide (44px) and 8px from the next; more than fit scroll sideways. A pixel of side padding: seven keys just fit a 375px screen. */
+export const TERM_KEY_ROW = `mx-0.5 mb-1.5 hidden gap-2 overflow-x-auto scrollbar-none rounded-[14px] px-px py-0.5 touch:flex ${glass()}`
 const KEY_LOOK = {
   off: "bg-transparent text-ink",
   on: "bg-accent-soft text-accent",
@@ -113,7 +113,7 @@ const KEY_LOOK = {
   hint: "relative bg-transparent text-accent after:absolute after:top-2 after:right-2 after:size-1.5 after:rounded-full after:bg-accent after:content-['']",
 } as const
 export const termKey = (look: keyof typeof KEY_LOOK): string =>
-  `h-11 min-w-11 touch-manipulation [flex:1_1_0] rounded-[12px] px-0.5 py-0 font-mono text-meta ${FONT_RESET} ${PRESS} active:bg-[color-mix(in_srgb,var(--ink)_14%,transparent)] ${KEY_LOOK[look]}`
+  `h-11 min-w-11 touch-manipulation [flex:1_1_0] rounded-[12px] px-0.5 py-0 font-mono text-[15px] ${FONT_RESET} ${PRESS} active:bg-[color-mix(in_srgb,var(--ink)_14%,transparent)] ${KEY_LOOK[look]}`
 
 /** The which-key map, above the rail's last row so that row's keycap badge stays clickable. */
 /** `prefix-guide` stays: leave.ts copies it into a ghost that sinks out, and prefix.tsx keeps clicks on it from cancelling the prefix. */
