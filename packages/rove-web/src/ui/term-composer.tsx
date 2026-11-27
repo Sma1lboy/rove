@@ -32,7 +32,9 @@ const FIELD =
 const PRESS_WIDE =
   "transition-[scale,background-color,border-color,color] duration-150 active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-none"
 const ROUND = `flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full touch-manipulation ${PRESS}`
-const SEND = `${ROUND} ${glass()} text-accent disabled:text-muted disabled:opacity-60`
+/** The session's primary action: accent-tinted once there is something to send. */
+const send = (ready: boolean): string =>
+  `${ROUND} ${ready ? `${glass("primary")} text-accent` : `${glass()} text-muted opacity-60`}`
 /** A bare glyph on a 44px hit area: the mic inside the field. */
 const KEY = `${ROUND} active:bg-inset disabled:opacity-60 has-[:disabled]:opacity-60`
 const GLYPH = "size-4.5 flex-none fill-none stroke-current stroke-[1.5] [stroke-linecap:round] [stroke-linejoin:round]"
@@ -75,7 +77,7 @@ export function ClipGlyph() {
 
 export function SendButton(props: { label: string; disabled: boolean }) {
   return (
-    <button type="submit" className={SEND} title={props.label} disabled={props.disabled}>
+    <button type="submit" className={send(!props.disabled)} title={props.label} disabled={props.disabled}>
       <span className="sr-only">{props.label}</span>
       <Glyph d={UP} />
     </button>

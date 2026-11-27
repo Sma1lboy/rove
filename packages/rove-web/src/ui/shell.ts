@@ -104,9 +104,10 @@ export const TERM_SCROLLED =
 export const TERM_QUOTE = "absolute top-2.5 right-2.5 z-4"
 
 /** What a soft keyboard lacks; touch screens only. A narrower column keeps each label whole, then scrolls the row. */
-export const TERM_KEY_ROW = "hidden gap-1 overflow-x-auto scrollbar-none px-1.5 pt-0.5 pb-1.5 touch:flex"
+/** One glass capsule holding the keys, not a row of separate bubbles. */
+export const TERM_KEY_ROW = `mx-1.5 mb-1.5 hidden gap-0.5 overflow-x-auto scrollbar-none rounded-[14px] p-0.5 touch:flex ${glass()}`
 export const termKey = (on: boolean): string =>
-  `h-10 min-w-max touch-manipulation [flex:1_1_0] rounded-[12px] px-0.5 py-0 font-mono text-meta ${FONT_RESET} ${PRESS} ${glass(on)} ${on ? "text-accent" : "text-ink"}`
+  `h-10 min-w-max touch-manipulation [flex:1_1_0] rounded-[12px] px-0.5 py-0 font-mono text-meta ${FONT_RESET} ${PRESS} active:bg-[color-mix(in_srgb,var(--ink)_14%,transparent)] ${on ? "bg-accent-soft text-accent" : "bg-transparent text-ink"}`
 
 /** The which-key map, above the rail's last row so that row's keycap badge stays clickable. */
 /** `prefix-guide` stays: leave.ts copies it into a ghost that sinks out, and prefix.tsx keeps clicks on it from cancelling the prefix. */
