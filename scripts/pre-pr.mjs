@@ -16,6 +16,7 @@ import { createWriteStream, existsSync, mkdtempSync, readFileSync, readdirSync, 
 import { availableParallelism, tmpdir } from "node:os"
 import { basename, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
+import { CLIENTS, leadingClientTags } from "../.changeset/changelog.mjs"
 import { validateUiEvidence } from "./ui-evidence.mjs"
 import { wslDistro, wslScript } from "./pre-pr-wsl.mjs"
 
@@ -31,6 +32,16 @@ export function missingChangeset(changedFiles, addedFiles) {
   const userFacing = changedFiles.some((f) => /^packages\/(rove|rove-daemon)\/src\//.test(f))
   const added = addedFiles.some((f) => /^\.changeset\/[^/]+\.md$/.test(f) && !f.endsWith("README.md"))
   return userFacing && !added
+}
+
+/** Added changesets whose body does not open with client tags (`[web][ios] …`); empty ones version nothing. */
+export function untaggedChangesets(addedFiles, read) {
+  return addedFiles
+    .filter((f) => /^\.changeset\/[^/]+\.md$/.test(f) && !f.endsWith("README.md"))
+    .filter((f) => {
+      const body = read(f).replace(/^---\n[\s\S]*?\n?---\n?/, "")
+      return body.trim() !== "" && leadingClientTags(body) === null
+    })
 }
 
 /**
@@ -297,6 +308,13 @@ async function main() {
     return false
   })
   step("changeset frontmatter", () => run("bun", ["scripts/check-changeset.mjs"]))
+  step("changeset client tags", () => {
+    const untagged = untaggedChangesets(added, (f) => readFileSync(join(ROOT, f), "utf8"))
+    if (untagged.length === 0) return true
+    for (const f of untagged) console.error(`  ${f}`)
+    console.error(`An added changeset's body must open with the clients it is for, e.g. '[web][ios] On a phone, …'. Tags: ${CLIENTS.map((c) => `[${c}]`).join(" ")}. See docs/RELEASING.md.`)
+    return false
+  })
   step("lint", () => run("bun", ["run", "lint"]))
   step("no AI attribution", () => {
     const hits = aiAttribution(`${git(["log", "--format=%B", `origin/${opts.base}..HEAD`]).join("\n")}\n${body ?? ""}`)

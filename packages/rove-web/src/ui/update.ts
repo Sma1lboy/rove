@@ -10,6 +10,8 @@ export const UPDATE_SCROLL = "min-h-0 flex-1 overflow-y-auto"
 export const UPDATE_OUTPUT =
   "my-2 max-h-[40vh] overflow-auto whitespace-pre-wrap wrap-anywhere rounded-sm bg-inset p-2 font-mono text-[length:var(--fs-meta)]"
 export const RELEASE_NOTES = "[&_h2]:mx-0 [&_h2]:mt-3.5 [&_h2]:mb-1 [&_h2]:text-[length:var(--fs-body)]"
+/** The fold for entries tagged for other clients, under a release's own. */
+export const RELEASE_OTHER = "mt-2 [&>summary]:cursor-pointer [&>summary]:text-muted [&>summary]:text-meta"
 export const WHATS_NEW_BODY = "max-h-[55vh] overflow-x-hidden overflow-y-auto"
 export const WHATS_NEW_KEYS = "mr-auto text-[length:var(--fs-meta)]"
 /** Changelog markdown (release-notes.tsx): wrapped, never a sideways scroll. */

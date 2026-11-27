@@ -739,6 +739,11 @@ upgrade that crossed six releases is readable all the way down.
 A fresh install never sees it; there is no earlier version to have changed
 from. Neither does a downgrade.
 
+Each release lists the changes for the terminal first: entries tagged `tui`,
+`cli` or `daemon`, and untagged ones. Changes tagged only for other clients
+(the web, the phone apps) fold under one "Also in this release" line; click it
+to expand them. The Update and Versions pages show notes the same way.
+
 The dialog chrome follows your UI language (Settings → Appearance → Language).
 The release notes themselves are whatever was published to the
 [GitHub release](https://github.com/Sma1lboy/rove/releases), which today is

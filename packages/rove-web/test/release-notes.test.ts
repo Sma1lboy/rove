@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test"
-import { parseReleaseNotes } from "../src/release-notes.tsx"
+import { createElement } from "react"
+import { renderToStaticMarkup } from "react-dom/server"
+import { ReleaseNotes, parseReleaseNotes } from "../src/release-notes.tsx"
 
 const body = `### Patch Changes
 
@@ -25,4 +27,20 @@ describe("release notes", () => {
       "[#1340](https://github.com/Sma1lboy/rove/pull/1340) Dispatching refuses an unpushed base.",
     )
   })
+})
+
+test("the web's own entries come first; the rest fold under one line", () => {
+  const tagged = `### Patch Changes
+
+- [#1](https://github.com/Sma1lboy/rove/pull/1) **tui** Files search in the TUI.
+
+- [#2](https://github.com/Sma1lboy/rove/pull/2) **web · ios** Phone glass.
+
+- [#3](https://github.com/Sma1lboy/rove/pull/3) Untagged change.`
+  const html = renderToStaticMarkup(createElement(ReleaseNotes, { body: tagged }))
+  const fold = html.indexOf("<details")
+  expect(fold).toBeGreaterThan(html.indexOf("Phone glass."))
+  expect(fold).toBeGreaterThan(html.indexOf("Untagged change."))
+  expect(html.indexOf("Files search in the TUI.")).toBeGreaterThan(fold)
+  expect(html).toContain("Also in this release: 1 for other clients")
 })
