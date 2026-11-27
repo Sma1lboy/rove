@@ -2,10 +2,10 @@
  * Settings: a dialog holding a grouped section list beside one section, its rows, and the sections' own parts.
  * One type rule: sans for every word the user reads; mono only for paths, commands, chords and codes.
  */
-import { OVERLAY } from "./overlay.ts"
+import { OVERLAY_BASE } from "./overlay.ts"
 
 /** On a phone the dialog is the whole screen. */
-export const SETTINGS_OVERLAY = `${OVERLAY} w-narrow:pt-0`
+export const SETTINGS_OVERLAY = `${OVERLAY_BASE} w-narrow:pt-0`
 /** A fixed height, so switching sections never moves the box; the section scrolls inside it. */
 export const SETTINGS_DIALOG =
   "dialog relative m-0 flex h-[min(640px,80vh)] w-[min(880px,calc(100vw-32px))] overflow-hidden rounded-md border-hairline border-line bg-surface text-inherit shadow-dialog focus:outline-none motion-safe:animate-rise-in [.is-leaving_&]:animate-sink-out w-narrow:bg-paper w-narrow:h-dvh w-narrow:w-screen w-narrow:flex-col w-narrow:rounded-none w-narrow:border-0 w-narrow:pt-[env(safe-area-inset-top)] w-narrow:translate-x-[var(--back-x,0px)] w-narrow:pb-[env(safe-area-inset-bottom)] short:h-[calc(100dvh-24px)]"

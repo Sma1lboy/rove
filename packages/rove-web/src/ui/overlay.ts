@@ -4,13 +4,18 @@
  * motion nothing rises in, but a ghost still fades, as before.
  */
 
-/** A short screen (a phone on its side) lends a dialog nearly all its height. */
-export const OVERLAY =
+/** A short screen (a phone on its side) lends a dialog nearly all its height. Settings builds on this one: it fills a phone's screen. */
+export const OVERLAY_BASE =
   "overlay fixed inset-0 z-20 grid justify-items-center [align-items:start] bg-(--scrim) pt-[12vh] motion-safe:animate-fade-in [&.is-leaving]:pointer-events-none [&.is-leaving]:animate-fade-out short:pt-3"
+/**
+ * On a phone a dialog sits in the lower half, where the thumb is, inside the part of the screen the soft keyboard
+ * leaves (`--vvh`, viewport.ts); with the keyboard up it rests just above it.
+ */
+export const OVERLAY = `${OVERLAY_BASE} w-narrow:bottom-auto w-narrow:h-(--vvh,100%) w-narrow:[align-items:end] w-narrow:pt-3 w-narrow:pb-(--dialog-lift,18vh) keyboard:[--dialog-lift:12px]`
 
 /** `wide` for a form with two columns of fields. */
 export const dialogClass = (wide = false): string =>
-  `dialog static m-0 flex max-h-[76vh] ${wide ? "w-[min(620px,calc(100vw-32px))]" : "w-[min(440px,calc(100vw-32px))]"} flex-col gap-3 rounded-md border-hairline border-line bg-surface px-5 py-4.5 text-inherit shadow-dialog focus:outline-none motion-safe:animate-rise-in [.is-leaving_&]:animate-sink-out short:max-h-[calc(100dvh-24px)] short:px-4 short:py-3`
+  `dialog static m-0 flex max-h-[76vh] ${wide ? "w-[min(620px,calc(100vw-32px))]" : "w-[min(440px,calc(100vw-32px))]"} flex-col gap-3 rounded-md border-hairline border-line bg-surface px-5 py-4.5 text-inherit shadow-dialog focus:outline-none motion-safe:animate-rise-in [.is-leaving_&]:animate-sink-out short:max-h-[calc(100dvh-24px)] short:px-4 short:py-3 keyboard:max-h-[calc(var(--vvh,100dvh)-24px)]`
 
 export const DIALOG_HEAD = "flex items-center justify-between gap-3"
 
