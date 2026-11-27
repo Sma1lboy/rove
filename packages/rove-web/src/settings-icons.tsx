@@ -25,8 +25,8 @@ const ICON: Readonly<Record<SettingsSection, readonly [tone: TileTone, path: str
 export function SectionIcon({ id }: { id: SettingsSection }) {
   const [tone, path] = ICON[id]
   return (
-    <span className={settingsTile(tone)} aria-hidden="true">
-      <svg viewBox="0 0 16 16">
+    <span className={settingsTile(tone)}>
+      <svg viewBox="0 0 16 16" aria-hidden="true">
         <path d={path} />
       </svg>
     </span>
