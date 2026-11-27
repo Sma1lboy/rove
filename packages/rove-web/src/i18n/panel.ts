@@ -65,6 +65,7 @@ export const en = {
     },
     landTodos: "{count} todo(s) on this task are still unchecked.",
     emptyAll: "(empty worktree)",
+    truncated: "Only the first {count} files are listed.",
     state: {
       conflict: "conflict",
       deleted: "deleted",
@@ -251,6 +252,7 @@ export const zh: typeof en = {
     },
     landTodos: "此任务还有 {count} 条待办未完成。",
     emptyAll: "（空工作区）",
+    truncated: "只列出了前 {count} 个文件。",
     state: {
       conflict: "有冲突",
       deleted: "已删除",

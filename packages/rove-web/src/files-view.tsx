@@ -46,6 +46,8 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
   )
   // The worktree's absolute path; absent for a task on another machine.
   const [root, setRoot] = useState<string | null>(null)
+  // The bridge sends at most MAX_FILES names; the rest of a huge worktree is not in `files`.
+  const [truncated, setTruncated] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
   const [cursor, setCursor] = useState(0)
@@ -60,9 +62,12 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
   useEffect(() => {
     let live = true
     const failed = (err: unknown) => live && setError(requestErrorText(err))
-    requestRemembered<{ files: string[]; root?: string }>(model, "files.list", { taskId: task.id }).then((r) => {
+    requestRemembered<{ files: string[]; truncated?: boolean; root?: string }>(model, "files.list", {
+      taskId: task.id,
+    }).then((r) => {
       if (!live) return
       setFiles(r.files)
+      setTruncated(r.truncated === true)
       setRoot(r.root ?? null)
       setError(null)
     }, failed)
@@ -209,6 +214,9 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
             )}
           </button>
         ))}
+        {!error && truncated && (
+          <p className={PLACEHOLDER_LINE}>{t("files.truncated", { count: (files?.length ?? 0).toLocaleString() })}</p>
+        )}
       </div>
     </div>
   )
