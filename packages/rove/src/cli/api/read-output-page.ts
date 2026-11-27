@@ -200,9 +200,13 @@ export interface TerminalTail {
   readonly truncated: boolean
 }
 
-/** Bounded tail: at most `maxLines` (≤ {@link TERMINAL_TAIL_LINES}) lines / {@link TERMINAL_TAIL_BYTES} bytes. */
+/**
+ * Bounded tail: at most `maxLines` (≤ {@link TERMINAL_TAIL_LINES}) lines / {@link TERMINAL_TAIL_BYTES} bytes.
+ * Blank rows below the last text don't count: an engine screen can end in a screenful of them.
+ */
 export function boundedTail(text: string, maxLines: number = TERMINAL_TAIL_LINES): TerminalTail {
   const lines = terminalLines(text)
+  while (lines.length > 0 && lines[lines.length - 1]?.trim() === "") lines.pop()
   let start = Math.max(0, lines.length - Math.min(maxLines, TERMINAL_TAIL_LINES))
   let bytes = 0
   for (let i = lines.length - 1; i >= start; i--) {
