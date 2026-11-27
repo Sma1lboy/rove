@@ -18,10 +18,11 @@ You do not need a computer to review it. The app has a demo built in:
 
 What to try in the demo:
 
-- The list shows six sample sessions in two projects. Tap **Verify refund webhook signatures**.
+- The list shows sample coding sessions in two projects. Tap **Verify refund webhook signatures**.
 - The session opens on its terminal: a recorded agent conversation, ending on a question the agent asks.
 - The button at the top right switches views. **Diff** shows the files the agent changed, line by line.
-- Back on the list, the inbox button at the bottom left lists what needs a reply; the gear opens settings.
+- Back on the list, the tray icon at the bottom left lists what needs a reply; the gear beside it opens
+  settings.
 - **new task** at the bottom right opens the form for starting a session.
 
 Actions such as sending a message or starting a session answer "done" and change nothing. **connect a
@@ -47,8 +48,7 @@ does what a web page cannot:
 - The demo, served from inside the app.
 
 **Microphone.** Recording runs only while the talk button is held. The audio goes to the user's own
-computer, which turns it into text. Nothing is recorded in the demo, and the app never records in the
-background.
+computer, which turns it into text. The app never records in the background.
 
 **Camera.** Only to scan the pairing QR code. Nothing is recorded or kept. Pasting the link works without it.
 
