@@ -43,10 +43,14 @@ test("only Rove's own files past the keep time go, and never one something still
     "attach-old.png": 40,
     "attach-old-named.png": 40,
     "attach-recent.png": 5,
+    "paste-20261001-ab12cd34.png": 40,
     "notes.txt": 400,
   })
   const references = '{"prompt":"look\\n\\nimages[0]: /home/.rove/attachments/attach-old-named.png"}'
-  expect(sweepAttachments({ dir, keepDays: 30, now: NOW, references })).toEqual(["attach-old.png"])
+  expect(sweepAttachments({ dir, keepDays: 30, now: NOW, references }).sort()).toEqual([
+    "attach-old.png",
+    "paste-20261001-ab12cd34.png",
+  ])
   expect(readdirSync(dir).sort()).toEqual(["attach-old-named.png", "attach-recent.png", "notes.txt"])
 })
 
