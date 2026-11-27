@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.307
+
+### Patch Changes
+
+- [#2237](https://github.com/Sma1lboy/rove/pull/2237) [`db9b931`](https://github.com/Sma1lboy/rove/commit/db9b931401617960f56a27cf7bcf39fc083c0150) In the TUI, pressing a project's + while the New task page is already open now moves the page to that project, as the web does. Before, the page stayed on the project (or No folder) it was first opened with. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.306
 
 ### Patch Changes

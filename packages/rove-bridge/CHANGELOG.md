@@ -1,5 +1,12 @@
 # rove-bridge
 
+## 0.0.68
+
+### Patch Changes
+
+- Updated dependencies [[`db9b931`](https://github.com/Sma1lboy/rove/commit/db9b931401617960f56a27cf7bcf39fc083c0150)]:
+  - @sma1lboy/rove@0.9.307
+
 ## 0.0.67
 
 ### Patch Changes
