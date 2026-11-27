@@ -370,6 +370,7 @@ export function deserializeTask(s: SerializedTask): Task {
     worktreeName: s.worktreeName,
     ...(s.gitRepo ? { gitRepo: s.gitRepo } : {}),
     report: s.report,
+    ...(s.progress ? { progress: s.progress } : {}),
     ...(s.repoId ? { repoId: s.repoId } : {}),
     createdAt: s.createdAt,
     updatedAt: s.updatedAt,

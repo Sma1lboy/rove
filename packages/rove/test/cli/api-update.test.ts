@@ -72,6 +72,33 @@ describe("update", () => {
     expect(on).toMatchObject({ updated: ["kept"] })
   })
 
+  it("--progress writes only the progress line, and '' clears it", async () => {
+    const client = new FakeClient({ "task.progress": ok })
+    const out = await invokeVerb("update", ["--task-id", "t1", "--progress", " running the e2e suite "], {
+      client,
+      runtime: stubRuntime(),
+    })
+    await invokeVerb("update", ["--task-id", "t1", "--progress", ""], { client, runtime: stubRuntime() })
+    expect(client.requests).toEqual([
+      { name: "task.progress", payload: { taskId: "t1", note: "running the e2e suite" } },
+      { name: "task.progress", payload: { taskId: "t1", note: null } },
+    ])
+    expect(out).toMatchObject({ updated: ["progress"] })
+  })
+
+  it("refuses a progress line past the cap and writes nothing", async () => {
+    const client = new FakeClient({ "task.progress": ok, ...writes })
+    await expectApiError(
+      () =>
+        invokeVerb("update", ["--task-id", "t1", "--title", "New", "--progress", "x".repeat(301)], {
+          client,
+          runtime: stubRuntime(),
+        }),
+      "BAD_FLAG",
+    )
+    expect(client.requests).toEqual([])
+  })
+
   it("writes nothing when any field is invalid", async () => {
     const client = new FakeClient({ "task.get": () => ({ task: { id: "t1", vendor: "gemini" } }), ...writes })
     await expectApiError(

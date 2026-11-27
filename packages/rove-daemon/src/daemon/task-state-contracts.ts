@@ -40,3 +40,10 @@ export interface TaskWorkerReport {
   /** ISO-8601 time the report was written. */
   readonly at: string
 }
+
+/** A worker's passive progress line (`update --progress`): read by `context`, delivered to nobody. */
+export interface TaskProgress {
+  readonly note: string
+  /** ISO-8601 time the note was written. */
+  readonly at: string
+}

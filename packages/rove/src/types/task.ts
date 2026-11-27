@@ -24,6 +24,7 @@ import type {
 } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type {
   TaskDeletionState,
+  TaskProgress,
   TaskQuotaResumeState,
   TaskScheduledStart,
   TaskWorkerReport,
@@ -38,6 +39,7 @@ export type {
   TaskDispatcher,
   TaskLinkedWorkItem,
   TaskPRStatus,
+  TaskProgress,
   TaskPtyAlias,
   TaskQuotaResumeState,
   TaskScheduledStart,
@@ -276,6 +278,8 @@ export interface Task {
    * report a PR that doesn't exist; only `prStatus.checkState` is observed.
    */
   readonly report?: TaskWorkerReport
+  /** The worker's latest passive progress line (`update --progress`); a claim, delivered to nobody. */
+  readonly progress?: TaskProgress
   /**
    * PRs this task's session opened, from any directory (`rove api pr-attach`),
    * newest last; each carries its last polled forge status. Independent of

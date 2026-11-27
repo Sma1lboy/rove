@@ -10,6 +10,7 @@ import type { MigratedChildInput, SpawnChildInput, SpawnChildResult, TaskDeleteO
 import type { LandPreflightResult, LandResult } from "./land-contracts.ts"
 import type {
   TaskDeletionState,
+  TaskProgress,
   TaskQuotaResumeState,
   TaskScheduledStart,
   TaskWorkerReport,
@@ -268,6 +269,8 @@ export interface DaemonTask {
   /** The WORKER's own account of what it delivered (`update --report-*`).
    *  A claim, unlike `prStatus`, which the daemon observed from the forge. */
   readonly report?: TaskWorkerReport
+  /** The worker's latest passive progress line (`update --progress`). */
+  readonly progress?: TaskProgress
   /** PRs the task's session opened anywhere (`rove api pr-attach`), newest last. */
   readonly sessionPrs?: readonly TaskSessionPr[]
   readonly createdAt: string
@@ -372,6 +375,8 @@ export interface DaemonOrchestrator extends CheckpointOrchestrator {
   /** What the worker says it delivered (`update --report-*`). Apart from `setStatus`, which returns
    *  early on an unchanged status: a report on an already-`done` task is ordinary. */
   setWorkerReport(id: string, report: Omit<TaskWorkerReport, "at">): Promise<void>
+  /** Replace the worker's progress line; `null` clears it. Wakes no one. */
+  setProgress(id: string, note: string | null): Promise<void>
   setPRStatus(id: string, status: TaskPRStatus | null, repoName?: string): Promise<void>
   /** Attach a PR the session opened (dedup by `url`, newest last, oldest dropped past a cap). */
   addSessionPr(id: string, url: string): Promise<void>

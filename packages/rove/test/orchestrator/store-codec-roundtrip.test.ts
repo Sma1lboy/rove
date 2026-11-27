@@ -183,6 +183,7 @@ const FULL_TASK: DeepRequired<Omit<Task, "origin" | "repoId" | "workspace">> & {
     summary: "worker's own account of what it delivered",
     at: "2026-08-27T00:00:00.000Z",
   },
+  progress: { note: "running the e2e suite", at: "2026-05-13T00:00:00.000Z" },
   createdAt: "2026-08-27T00:00:00.000Z",
   updatedAt: "2026-08-27T00:00:00.000Z",
 }

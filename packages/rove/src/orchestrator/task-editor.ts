@@ -387,6 +387,14 @@ export class TaskEditor {
     await this.store.update(task.id, { report: next })
   }
 
+  /** The worker's progress line, folded to one line; blank or `null` clears. Status and report stay. */
+  async setProgress(id: TaskId | string, note: string | null): Promise<void> {
+    const task = this.requireTask(id)
+    const text = (note ?? "").replace(/\s+/g, " ").trim()
+    if (text.length === 0 && !task.progress) return
+    await this.store.update(task.id, { progress: text ? { note: text, at: new Date().toISOString() } : undefined })
+  }
+
   /**
    * From `pr-status-collector`; `null` clears. On the Task so the snapshot push
    * fans it out and it survives restarts. No-op when nothing rendered changed.

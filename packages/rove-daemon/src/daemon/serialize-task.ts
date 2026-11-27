@@ -61,6 +61,7 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     worktreeName: task.worktreeName,
     ...(task.gitRepo ? { gitRepo: task.gitRepo } : {}),
     report: task.report,
+    ...(task.progress ? { progress: task.progress } : {}),
     ...(repoId ? { repoId } : {}),
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,

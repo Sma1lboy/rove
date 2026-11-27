@@ -367,6 +367,16 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
+    // Stored only: no tab is typed into, no Inbox row raised, the status label untouched.
+    name: "task.progress",
+    async handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      if (payload.note !== null && typeof payload.note !== "string") throw new Error("note must be a string or null")
+      await ctx.orch.setProgress(taskId, payload.note)
+      return {}
+    },
+  },
+  {
     name: "task.requireReport",
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
