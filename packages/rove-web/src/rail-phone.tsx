@@ -13,7 +13,9 @@ import type { RailRowProps } from "./rail-view.tsx"
 import type { NavRow } from "./rail.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { type RoutinesReply, routineNeedsYou } from "./routines-data.ts"
+import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
+import { dialog } from "./ui.ts"
 import { ExtensionsButton, PhoneGroupHead, PhoneStatusRow, RoutinesButton, StatusGlyph } from "./ui/phone-rows.tsx"
 import { CHILD_INDENT, guideClass, projectHead } from "./ui/rail.ts"
 import { SHEET_LIST, SHEET_SEP, Sheet, SheetRow } from "./ui/sheet.tsx"
@@ -149,7 +151,7 @@ export function PhoneRoutines({ model }: { model: AppModel }) {
  * Top right of the list: a sheet of the pages extensions add, the one opened last first, then the way to add one.
  * Shown with none installed too: the sheet is then that one row.
  */
-export function PhoneExtensions({ model, onAdd }: { model: AppModel; onAdd: () => void }) {
+export function PhoneExtensions({ model }: { model: AppModel }) {
   const { nav } = useCopy()
   const [open, setOpen] = useState(false)
   const last = useStore(lastExtPage)
@@ -184,7 +186,7 @@ export function PhoneExtensions({ model, onAdd }: { model: AppModel; onAdd: () =
                 data-ext-row="add"
                 onClick={() => {
                   close()
-                  onAdd()
+                  dialog.set(<SettingsDialog model={model} section="plugins" />)
                 }}
               >
                 <span className="w-4 flex-none text-center text-accent">+</span>

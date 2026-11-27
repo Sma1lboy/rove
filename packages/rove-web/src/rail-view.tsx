@@ -171,9 +171,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         <UpdateChip />
         <RefreshRoveButton client={model.client} railBar={!narrow} />
         {narrow && <PhoneRoutines model={model} />}
-        {narrow && (
-          <PhoneExtensions model={model} onAdd={() => dialog.set(<SettingsDialog model={model} section="plugins" />)} />
-        )}
+        {narrow && <PhoneExtensions model={model} />}
       </header>
       {narrow && payload && <PhoneRailNote model={model} count={tasks.length + remoteTasks.length} />}
       {moving && (
