@@ -48,7 +48,6 @@ vi.mock("../../src/tui-react/ui/task-dialog-adapters", () => ({
     notifyError: opts.notifyError,
     notifyInfo: opts.notifyInfo,
   })),
-  selectNextAfterDelete: vi.fn(() => vi.fn()),
 }))
 
 import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"

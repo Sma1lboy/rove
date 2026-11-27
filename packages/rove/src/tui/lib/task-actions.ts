@@ -91,8 +91,8 @@ export interface TaskActionContext {
   readonly reload?: () => Promise<void>
   /** Publish shared active-task focus after delete. Tasks pane only; the outer monitor keeps not doing it. */
   readonly updateActiveTask?: boolean
-  /** Post-delete cursor move; selection is host-owned. The Tasks pane uses `nextTask`, the monitor recomputes. */
-  readonly onTaskDeleted?: (taskId: string, nextTask: Task | undefined) => void
+  /** After the delete; the host's selection moves off a removed task on its own. */
+  readonly onTaskDeleted?: (taskId: string) => void
   /** `worktree.deleteBranch` opt-in; absent → a deleted task's branch always stays. */
   readonly deleteBranchOnDelete?: () => boolean
   /**
@@ -103,7 +103,7 @@ export interface TaskActionContext {
   readonly pickChildren?: (prompt: ChildrenPrompt) => Promise<"promote" | "cascade" | undefined>
 }
 
-export { deleteTaskFlow, finishDeletedTaskFlow, forgetProjectFlow, nextActiveTask } from "./task-actions-delete"
+export { deleteTaskFlow, finishDeletedTaskFlow, forgetProjectFlow } from "./task-actions-delete"
 
 /**
  * The branch follows the title only for not-yet-materialised tasks; an

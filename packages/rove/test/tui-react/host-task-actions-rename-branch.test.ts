@@ -32,7 +32,6 @@ vi.mock("../../src/tui-react/component/status-picker-dialog", () => ({
 }))
 vi.mock("../../src/tui-react/ui/task-dialog-adapters", () => ({
   buildBaseCreateTaskContext: vi.fn(() => ({})),
-  selectNextAfterDelete: vi.fn(() => vi.fn()),
 }))
 
 import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"

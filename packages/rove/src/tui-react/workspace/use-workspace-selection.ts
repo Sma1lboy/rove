@@ -54,6 +54,8 @@ export function useWorkspaceSelection(args: {
   readonly notifyWorktreeGone?: (event: WorktreeGoneEvent) => void
   /** Refused activation (mid-delete, non-git project, worktree failure); the on-screen half of `reportError`. */
   readonly notifyError?: (message: string) => void
+  /** The selected task was archived, deleted or went away: the host shows the global New task in its place. */
+  readonly onSelectedLeft?: () => void
 }): WorkspaceSelection {
   const { orch, tasks, activeTaskId, kv } = args
   const t = useT()
@@ -68,6 +70,9 @@ export function useWorkspaceSelection(args: {
   const liveSelectedRef = useRef<string | null>(null)
   // The task the USER left for the current one; automatic moves (archive, delete) don't record.
   const previousIdRef = useRef<string | null>(null)
+  // Nothing selected on purpose (the selected task left): no fallback pick until the user selects one.
+  const parkedRef = useRef(false)
+  const onSelectedLeftRef = useLatest(args.onSelectedLeft)
   // Adopt the daemon's first restored focus, but never let later sibling-client
   // events yank a task the local user already selected.
   useEffect(() => {
@@ -85,27 +90,28 @@ export function useWorkspaceSelection(args: {
       bootFocusRef.current = true
       args.focusWorkspace()
     }
-    // Archiving the open task moves off it, as a delete does. Opening an
-    // archived task from the fold is no change, so that one stays open.
+    if (selectedId !== null) parkedRef.current = false
+    // The open task archived, deleting or gone: nothing selected, and New task in its place. Opening an
+    // archived task from the fold is no change, so that one stays open. A deleting task must not stay
+    // selected: its mounted Terminal answers the sweep's kill with a dead-on-attach RESUME.
     const selected = selectedId ? tasks.find((task) => task.id === selectedId) : undefined
     const wasLive = selectedId !== null && liveSelectedRef.current === selectedId
-    liveSelectedRef.current = selected && selected.archived !== true && !selected.deletion ? selectedId : null
-    if (wasLive && selected?.archived === true) {
-      setSelectedId(
-        firstSelectableTask(
-          tasks.filter((task) => task.archived !== true),
-          null,
-        )?.id ?? null,
-      )
+    const live = selected !== undefined && selected.archived !== true && !selected.deletion
+    liveSelectedRef.current = live ? selectedId : null
+    if (wasLive && !live) {
+      parkedRef.current = true
+      setSelectedId(null)
+      // silent-catch-ok: focus bookkeeping; the task is gone either way.
+      if (orch.activeTaskSignal()() === selectedId) void orch.setActiveTask(null).catch(() => {})
+      onSelectedLeftRef.current?.()
       return
     }
-    // A deleting task is NOT selectable: keeping it selected keeps its
-    // Terminal mounted, which answers the sweep's kill with a dead-on-attach RESUME.
     if (selectedId && tasks.some((task) => task.id === selectedId && !task.deletion)) return
+    if (selectedId === null && parkedRef.current) return
     // Pass lastActive too: a stale or respawned daemon can replay a null focus
     // while disk knows the real one.
     setSelectedId(firstSelectableTask(tasks, activeTaskId, readLastActiveTaskId())?.id ?? null)
-  }, [tasks, activeTaskId, selectedId, args.focusWorkspace])
+  }, [orch, tasks, activeTaskId, selectedId, args.focusWorkspace])
 
   // The one place tab shells die with their task: tab PTYs are keyed
   // `taskId::tabId` in the default registry, invisible once the pane unmounts,
