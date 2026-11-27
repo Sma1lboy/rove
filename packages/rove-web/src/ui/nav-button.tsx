@@ -7,14 +7,14 @@ import { DIALOG_CLOSE } from "./overlay.ts"
 /** Literal class names, so Tailwind finds them. The 36px disc grows its hit area to 44px. */
 const SIZE = {
   nav: "size-9 after:absolute after:-inset-1 after:content-['']",
-  bar: "size-11",
-  primary: "size-14",
+  bar: "size-12",
+  primary: "size-12",
 } as const
 const ICON = "fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round]"
 
 /**
- * The phone's round glass button, after iOS's: `nav` beside a title, `bar` in a floating bottom bar, `primary` the
- * screen's one accent-tinted action. `label` names it for a screen reader; the caller passes the glyph.
+ * The phone's round button, after iOS's: glass for `nav` beside a title and `bar` in a floating bottom bar; `primary`,
+ * the screen's one action, is a solid accent disc of the bar's size with a shadow and no glass. `label` names it for a screen reader; the caller passes the glyph.
  */
 export function GlassButton(props: {
   size: keyof typeof SIZE
@@ -27,7 +27,7 @@ export function GlassButton(props: {
   return (
     <button
       type="button"
-      className={`pointer-events-auto relative grid flex-none cursor-pointer place-items-center rounded-full ${SIZE[props.size]} ${primary ? `${glass("primary")} text-accent` : `${glass()} text-ink`} ${PRESS}`}
+      className={`pointer-events-auto relative grid flex-none cursor-pointer place-items-center rounded-full ${SIZE[props.size]} ${primary ? "bg-accent text-paper shadow-popover" : `${glass()} text-ink`} ${PRESS}`}
       data-nav={props.kind}
       aria-label={props.label}
       title={props.label}
