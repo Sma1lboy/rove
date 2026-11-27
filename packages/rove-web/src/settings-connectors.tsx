@@ -249,9 +249,11 @@ function GithubCard({ model }: { model: AppModel }) {
                 {c("disconnect")}
               </Button>
             </>
-          ) : !local ? (
-            // Not known yet: say so, rather than offer Connect to someone who may be signed in.
-            <span className="text-meta text-muted">{c("loading")}</span>
+          ) : !local?.status ? (
+            // Not known (still asking, or the ask failed): say so, rather than offer Connect to someone who may be signed in.
+            <span className="text-meta text-muted" title={local?.message}>
+              {local ? markText(markOf(local, null, null), null) : c("loading")}
+            </span>
           ) : (
             !flowing && (
               <Button variant="filled" disabled={busy !== null} onClick={() => void login(LOCAL)}>
@@ -274,7 +276,7 @@ function GithubCard({ model }: { model: AppModel }) {
         {!rove && local?.status?.login && <DeviceFlow login={local.status.login} onCancel={() => void cancel(LOCAL)} />}
       </div>
       {/* Listed from the start, each card "checking…", so nothing jumps in when the answers land; gone only once this machine is known to be signed out. */}
-      {(rove || !local) && (
+      {(rove || !local?.status) && (
         <section className="col-span-2 flex flex-col pt-4 w-narrow:col-span-1">
           <div className={BENTO_TITLE}>
             <h2 className={SETTINGS_GROUP_LABEL}>{c("machines")}</h2>
