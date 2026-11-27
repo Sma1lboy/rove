@@ -48,11 +48,11 @@ export const SETTINGS_USAGE_CARD = "rounded-[12px] bg-surface px-3 py-1"
 export const SETTINGS_SCROLL = "min-h-0 min-w-0 flex-1 overflow-y-auto scrollbar-none"
 /** The section: its title, then groups spaced twice as far as their rows. */
 export const SETTINGS_COLUMN =
-  "flex w-full flex-col gap-7 px-8 pt-7 pb-10 w-narrow:gap-5 w-narrow:px-4 w-narrow:pt-0 w-narrow:pb-10"
+  "flex w-full flex-col gap-7 px-8 pt-7 pb-10 w-narrow:gap-4 w-narrow:px-3 w-narrow:pt-0 w-narrow:pb-10"
 export const SETTINGS_HEAD = "flex flex-col gap-1 pr-8 w-narrow:pr-0"
 export const SETTINGS_TITLE = "m-0 font-sans text-display font-semibold normal-nums text-ink"
-export const SETTINGS_DESC = "m-0 text-body text-muted w-narrow:px-4 w-narrow:text-meta"
-export const SETTINGS_BODY = "flex flex-col gap-7 w-narrow:gap-6"
+export const SETTINGS_DESC = "m-0 text-body text-muted w-narrow:px-3 w-narrow:text-meta"
+export const SETTINGS_BODY = "flex flex-col gap-7 w-narrow:gap-4"
 
 /** A group: an optional name and note, then its rows between hairlines. */
 export const SETTINGS_GROUP = "flex flex-col"
@@ -60,27 +60,35 @@ export const SETTINGS_GROUP = "flex flex-col"
 export const SETTINGS_SAMPLE = "mt-1.5 flex min-w-0"
 export const SETTINGS_SAMPLE_ROWS = "flex min-w-0 flex-wrap gap-x-4 text-meta"
 export const SETTINGS_SAMPLE_ROW = "inline-flex min-h-6.5 min-w-0 items-center gap-2"
-export const SETTINGS_SAMPLE_PANE = "block h-7 w-36 rounded-md border-hairline border-line bg-paper"
+/** A phone drops it: unless the border flows, it is an empty box. */
+export const SETTINGS_SAMPLE_PANE = "block h-7 w-36 rounded-md border-hairline border-line bg-paper w-narrow:hidden"
 /** On a phone: a caption above the group's card. */
 export const SETTINGS_GROUP_LABEL =
-  "m-0 pb-1.5 font-sans text-meta font-medium normal-nums text-muted w-narrow:px-4 w-narrow:font-normal w-narrow:text-subtle"
+  "m-0 pb-1.5 font-sans text-meta font-medium normal-nums text-muted w-narrow:px-3 w-narrow:font-normal w-narrow:text-subtle"
 /** On a phone: a footnote under the card. */
 export const SETTINGS_GROUP_HINT =
-  "m-0 pb-2 text-meta text-subtle w-narrow:order-last w-narrow:px-4 w-narrow:pt-1.5 w-narrow:pb-0"
+  "m-0 pb-2 text-meta text-subtle w-narrow:order-last w-narrow:px-3 w-narrow:pt-1.5 w-narrow:pb-0"
 /** On a phone the rows share one rounded card, a hairline between them and none around. */
 export const SETTINGS_ROWS =
-  "flex flex-col border-t-hairline border-t-line [&>*]:border-b-hairline [&>*]:border-b-line w-narrow:overflow-hidden w-narrow:rounded-[12px] w-narrow:border-t-0 w-narrow:bg-surface w-narrow:[&>*]:px-4 w-narrow:[&>*:last-child]:border-b-0"
+  "flex flex-col border-t-hairline border-t-line [&>*]:border-b-hairline [&>*]:border-b-line w-narrow:overflow-hidden w-narrow:rounded-[12px] w-narrow:border-t-0 w-narrow:bg-surface w-narrow:[&>*]:px-3 w-narrow:[&>*:last-child]:border-b-0"
 
-/** A row: name and note on the left, the control on the right, on a phone too. */
-export const SETTINGS_ROW = "flex items-center justify-between gap-x-6 gap-y-2 py-3 w-narrow:min-h-11 w-narrow:gap-x-3"
-/** A switch stays beside its text on a phone: it is small. */
-export const SETTINGS_ROW_INLINE = "flex items-center justify-between gap-x-6 py-3"
+/**
+ * A row: name and note on the left, the control on the right. On a phone the name and control share the first line
+ * and the note and sample run full width under them (`ROW_*` place the parts; `SETTINGS_TEXT` dissolves into the grid).
+ */
+const ROW_GRID = "w-narrow:grid w-narrow:grid-cols-[minmax(0,1fr)_auto] w-narrow:items-center w-narrow:gap-x-3 w-narrow:gap-y-0.5"
+export const SETTINGS_ROW = `flex items-center justify-between gap-x-6 gap-y-2 py-3 w-narrow:min-h-11 ${ROW_GRID}`
+/** A switch: its row never wraps on a desktop. */
+export const SETTINGS_ROW_INLINE = `flex items-center justify-between gap-x-6 py-3 ${ROW_GRID}`
+export const ROW_NAME = "w-narrow:col-start-1 w-narrow:row-start-1 w-narrow:line-clamp-2"
+export const ROW_UNDER = "w-narrow:col-span-2"
 /** A wide control (a picker, a form) under the row's text. */
 export const SETTINGS_ROW_STACK = "flex flex-col gap-3 py-3"
-export const SETTINGS_TEXT = "flex min-w-0 flex-1 flex-col gap-0.5"
+export const SETTINGS_TEXT = "flex min-w-0 flex-1 flex-col gap-0.5 w-narrow:contents"
 export const SETTINGS_NAME = "text-body text-ink w-narrow:text-title"
 export const SETTINGS_NOTE = "text-meta text-muted [&_a]:text-accent"
-export const SETTINGS_CONTROL = "flex min-w-0 flex-none items-center justify-end gap-2 w-narrow:max-w-[50%]"
+export const SETTINGS_CONTROL =
+  "flex min-w-0 flex-none items-center justify-end gap-2 w-narrow:col-start-2 w-narrow:row-start-1 w-narrow:max-w-[55vw]"
 /** A path, command or value the Mac holds: the one place a row's text is mono. */
 export const SETTINGS_VALUE = "max-w-90 min-w-0 truncate font-mono text-meta text-muted [overflow-wrap:anywhere]"
 
