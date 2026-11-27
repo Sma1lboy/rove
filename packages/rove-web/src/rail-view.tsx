@@ -3,23 +3,22 @@
 import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
 import type { MouseEvent } from "react"
 import { useRef } from "react"
-import type { RowStatus, TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
+import type { TasksPayload } from "rove-bridge/protocol"
 import { useEngineIcons } from "./engine-icons.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
 import { enterWorkspace } from "./layout.ts"
-import { CloudMark, rowCloud, useMachines } from "./machines-view.tsx"
+import { rowCloud, useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { moveMode } from "./move-mode.ts"
 import { startNewTask, startNewUngrouped } from "./new-session-view.tsx"
 import { PageNav } from "./pages-host.tsx"
-import { PrChip } from "./pr-chip.tsx"
 import { ShortcutBadge } from "./prefix-guide.tsx"
-import { type TreeGuide, treeGuides } from "./rail-blocks.ts"
+import { treeGuides } from "./rail-blocks.ts"
 import { RailGrip, RecentRow } from "./rail-chrome.tsx"
-import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
+import { useRowDrag } from "./rail-drag.ts"
 import { RailFoot } from "./rail-foot.tsx"
-import { mostUrgentStatus, statusMark } from "./rail-glyphs.ts"
+import { mostUrgentStatus } from "./rail-glyphs.ts"
 import { railGroup } from "./rail-group.ts"
 import { openTaskRow, useRailFilters, useRailKeys } from "./rail-keys.ts"
 import { repoLabel } from "./rail-labels.ts"
@@ -27,44 +26,24 @@ import { peekRail, railFolded, railPeek } from "./rail-layout.ts"
 import { PaneRowView, openPane } from "./rail-pane-row.tsx"
 import { withPanes } from "./rail-panes.ts"
 import { PhoneExtensions, PhoneRailNote, PhoneRailRow, PhoneRoutines, groupCounts } from "./rail-phone.tsx"
+import { pickClick, pickEscape, pickRowMenu, railPick } from "./rail-pick.tsx"
 import { RoundRowView } from "./rail-round-row.tsx"
+import { RailRow } from "./rail-row.tsx"
 import { SearchChip } from "./rail-search.tsx"
 import { railStateRows, rowRepo, withStateCounts } from "./rail-states.ts"
 import { type NavRow, type RowFold, foldProjects, railRows } from "./rail.ts"
 import { type ProjectInfo, projectMenu, rowSwipe, taskMenu, ungroupedMenu } from "./row-actions.tsx"
-import { useRowTip } from "./row-tip.tsx"
-import { RowTokens } from "./row-tokens.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import { paneEdits, taskSplitItems } from "./split-actions.tsx"
-import { StartsChip } from "./starts-chip.tsx"
 import { useStatusMarkNotice } from "./status-mark-notice.ts"
-import { useStatusMarkStyle } from "./status-mark.ts"
 import { useStore } from "./store.ts"
-import { todoCount } from "./task-todos.ts"
 import { tc } from "./tui-copy.ts"
 import { type MenuItem, dialog, menu, page, tuckRare } from "./ui.ts"
-import { Chevron } from "./ui/chevron.tsx"
-import { EngineIcon, type EngineIconData } from "./ui/engine-icon.tsx"
 import { Legend } from "./ui/legend.tsx"
 import { INBOX_CHIP } from "./ui/overlay.ts"
-import { GroupActions } from "./ui/project-actions.tsx"
-import {
-  CHILD_INDENT,
-  FOLD_TOGGLE,
-  RAIL,
-  RAIL_CURSOR,
-  RAIL_EMPTY,
-  RAIL_HEAD,
-  RAIL_SEARCH,
-  guideClass,
-  projectHead,
-  railBody,
-} from "./ui/rail.ts"
+import { RAIL, RAIL_EMPTY, RAIL_HEAD, RAIL_SEARCH, railBody } from "./ui/rail.ts"
 import { RefreshRoveButton } from "./ui/refresh-rove-button.tsx"
-import { CHIPS, ROW_TITLE_RAIL, ROW_TITLE_RUNNING, rowClass } from "./ui/row.ts"
 import { BRACKET, HEAD_CHIP, WORDMARK } from "./ui/shell.ts"
-import { StatusDots } from "./ui/status-dots.tsx"
-import { type SwipeAction, SwipeRow } from "./ui/swipe-row.tsx"
 import { UpdateChip } from "./update-view.tsx"
 import { WelcomePane } from "./welcome-view.tsx"
 
@@ -92,6 +71,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
 
   const filters = useRailFilters()
   const moving = useStore(moveMode)
+  const picked = useStore(railPick).ids
   const byState = useStore(railGroup) === "state"
   const build = (query: string) =>
     (byState ? railStateRows : railRows)({
@@ -150,7 +130,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
       onMouseLeave={folded ? () => peekRail(false) : undefined}
       // biome-ignore lint/a11y/noNoninteractiveTabindex: the rail takes the TUI sidebar's keys while focused
       tabIndex={0}
-      onKeyDown={keys.onKeyDown}
+      onKeyDown={(e) => pickEscape(e) || keys.onKeyDown(e)}
     >
       <header className={RAIL_HEAD}>
         <span className={`${WORDMARK} mr-auto`}>
@@ -255,7 +235,10 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
                     : () => startNewTask(row.repo, row.machine)
                   : undefined
               }
-              moving={moving && row.machine === undefined && row.kind !== "project" && row.id === keys.cursor}
+              moving={
+                picked.has(row.id) ||
+                (moving && row.machine === undefined && row.kind !== "project" && row.id === keys.cursor)
+              }
               prTasks={
                 row.kind === "task"
                   ? [row.task, ...(row.fold?.descendantIds ?? []).flatMap((id) => byId.get(id) ?? [])]
@@ -269,7 +252,8 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
               onToggleFold={() => {
                 if (row.kind === "task") filters.toggleTaskFold(row.id, row.fold?.collapsed === true)
               }}
-              onClick={() => {
+              onClick={(e) => {
+                if (row.kind === "task" && e && pickClick(e, row.id, rows, activeTaskId)) return
                 keys.setCursor(row.id)
                 if (row.kind === "project" || row.kind === "state") filters.toggleProject(row.id)
                 if (row.kind === "task") openTaskRow(model, row.task.id)
@@ -289,6 +273,8 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
                 }
                 if (row.kind !== "task") return
                 keys.setCursor(row.id)
+                const many = pickRowMenu(model, row.id, rows)
+                if (many) return openMenu(e, many)
                 openMenu(
                   e,
                   tuckRare(
@@ -313,171 +299,6 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
 }
 
 export type RailRowProps = Parameters<typeof RailRow>[0]
-
-function RailRow(props: {
-  row: Exclude<NavRow, { kind: "pane" | "round" }>
-  /** A phone's group header: the tasks under it. */
-  count?: number | undefined
-  /** A child task's indent columns, outermost first. */
-  guides?: readonly TreeGuide[]
-  /** The task's project, named on a top-level row of the by-state list, which has no project headers. */
-  repo?: string
-  /** A task on another machine: its cloud mark's text (`on mac · offline`); null for this machine's rows. */
-  cloud: string | null
-  /** A task row's tabs: the engine's own name for its conversation shows in place of the task title. */
-  tabs?: readonly TabRow[]
-  /** The task's engine's brand mark; absent = a neutral ring. */
-  engineIcon?: EngineIconData | undefined
-  selected: boolean
-  cursor: boolean
-  moving: boolean
-  /** Its machine is unreachable: the last known state, greyed (TUI `task.origin.stale`). */
-  stale: boolean
-  /** Drag-to-reorder handlers, on a row that can move. */
-  drag?: DragProps
-  /** This row is being dragged; the rows around it already show where it lands. */
-  dragging: boolean
-  /** Its id for the drag's measure, and its shift while a drag previews the new order. */
-  place: RowPlace
-  /** A project header whose rows are folded away. */
-  collapsed?: boolean
-  /** A project header's +: a new task in that project. */
-  onNewTask?: () => void
-  onClick: () => void
-  onMenu: (e: MouseEvent) => void
-  /** A task row's task, then its descendants: their PRs roll up into its PR mark. */
-  prTasks?: readonly TaskRow[]
-  /** A folded task: the most urgent state of it and its hidden descendants, drawn in its one status mark. */
-  rollup?: RowStatus | undefined
-  onToggleFold: () => void
-  /** A phone's swipe actions on a task row. */
-  swipe?: { left: SwipeAction; right: SwipeAction }
-}) {
-  const { row } = props
-  const tip = useRowTip(row.kind === "task" ? row.task.label : "", props.cursor && row.kind === "task")
-  const cursor = props.cursor ? RAIL_CURSOR : ""
-  if (row.kind === "project" || row.kind === "state") {
-    return (
-      <h2
-        className={projectHead({ moving: props.moving, dragging: props.dragging, grab: props.drag !== undefined })}
-        onContextMenu={props.onMenu}
-        onKeyDown={(e) => {
-          // Let the focused header button activate before the rail handles the current task's keys.
-          if (e.key === "Enter" || e.key === " ") e.stopPropagation()
-        }}
-        {...props.place}
-        {...props.drag}
-      >
-        <GroupActions
-          label={row.label}
-          repo={row.kind === "project" && !row.noProject ? row.repo : undefined}
-          count={row.kind === "state" ? row.count : undefined}
-          collapsed={!!props.collapsed}
-          onToggle={props.onClick}
-          onNewTask={props.onNewTask}
-        />
-      </h2>
-    )
-  }
-  const task = row.task
-  const running = task.rowStatus?.kind === "running"
-  const count = todoCount(task)
-  const markStyle = useStatusMarkStyle()
-  const byEngine = markStyle === "engine"
-  const status = row.fold?.collapsed ? props.rollup : task.rowStatus
-  const button = (
-    <button
-      type="button"
-      ref={tip.ref}
-      className={`${rowClass({ selected: props.selected, moving: props.moving, lifted: props.dragging, grab: props.drag !== undefined })} ${cursor}`}
-      onClick={props.onClick}
-      onContextMenu={props.onMenu}
-      onPointerEnter={tip.onPointerEnter}
-      onPointerLeave={tip.onPointerLeave}
-      {...props.place}
-      {...props.drag}
-    >
-      {props.guides && (
-        <span className={CHILD_INDENT} aria-hidden="true">
-          {props.guides.map((guide, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: a column's place is its identity
-            <span key={i} className={guideClass(guide)} />
-          ))}
-        </span>
-      )}
-      {markStyle !== "dots" && (
-        <EngineIcon
-          icon={props.engineIcon}
-          name={task.engine?.name}
-          status={byEngine ? statusMark(status) : undefined}
-        />
-      )}
-      <span className={`${ROW_TITLE_RAIL} ${props.stale ? "text-subtle" : ""} ${running ? ROW_TITLE_RUNNING : ""}`}>
-        {row.attempt ?? task.label}
-      </span>
-      <span className={`${CHIPS} ml-auto items-center`}>
-        <RowTokens tokens={task.rowTokens} />
-        {props.repo && <span className="max-w-24 truncate text-subtle">{props.repo}</span>}
-        {row.level !== undefined && <span className="text-subtle">{row.level}</span>}
-        {(task.extraRepoCount ?? 0) > 0 && (
-          <span className="text-subtle" title={t("rail.extraRepos", { count: task.extraRepoCount ?? 0 })}>
-            +{task.extraRepoCount}
-          </span>
-        )}
-        {count && (
-          <span className="text-subtle tabular-nums" title={t("rail.todos", count)}>
-            {count.done}/{count.total}
-          </span>
-        )}
-        {row.fold?.collapsed && <FoldCount count={row.fold.count} onUnfold={props.onToggleFold} />}
-        {task.kept && (
-          <span className="text-accent" title={t("compare.kept")}>
-            ✓
-          </span>
-        )}
-        {task.pinned && <span className="text-subtle">▴</span>}
-        {task.startsAt && <StartsChip at={task.startsAt} />}
-        {/* The PR list opens where the title tip sits; only one card at a time. */}
-        <PrChip tasks={props.prTasks ?? [task]} onOpen={tip.hide} />
-        {/* The cloud of a task elsewhere sits before the row's state, so the state column lines up down the rail. */}
-        {props.cloud && <CloudMark label={props.cloud} onOpen={tip.hide} />}
-        {!byEngine && <StatusDots status={status} />}
-      </span>
-    </button>
-  )
-  return props.swipe ? (
-    <SwipeRow left={props.swipe.left} right={props.swipe.right} ground="paper">
-      {button}
-    </SwipeRow>
-  ) : (
-    button
-  )
-}
-
-/** `3 ›` on a folded task: how many descendants it hides; a click unfolds. An open parent shows nothing; the menu and the keyboard fold it. */
-function FoldCount(props: { count: number; onUnfold: () => void }) {
-  const label = tc("tasks", "menu.expandChildren")
-  return (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: a button cannot nest in the row's button; the row's menu entry is the keyboard path
-    // biome-ignore lint/a11y/useSemanticElements: same reason: the row is itself a button
-    <span
-      role="button"
-      tabIndex={-1}
-      aria-label={label}
-      aria-expanded={false}
-      className={`chip text-muted ${FOLD_TOGGLE}`}
-      title={label}
-      onClick={(e) => {
-        e.stopPropagation()
-        props.onUnfold()
-      }}
-    >
-      {props.count}
-      {/* The project header's folded chevron, so a folded task reads the same way. */}
-      <Chevron right />
-    </span>
-  )
-}
 
 /** The fold entry sits with what opens the task, ahead of the edit and danger sections. */
 function withFoldEntry(items: MenuItem[], fold: RowFold | undefined, toggle: () => void): MenuItem[] {
