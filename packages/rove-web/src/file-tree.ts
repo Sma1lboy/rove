@@ -1,5 +1,7 @@
 /** Flat worktree paths → the visible rows of a collapsible tree (TUI Files › All). */
 
+import { compareFileEntries } from "@sma1lboy/rove/src/lib/file-order.ts"
+
 export interface TreeRow {
   /** Directory paths end in `/`, the TUI's combined-pathspec spelling. */
   readonly path: string
@@ -30,12 +32,12 @@ export function visibleTree(files: readonly string[], expanded: ReadonlySet<stri
   }
   const rows: TreeRow[] = []
   const walk = (node: Node, prefix: string, depth: number) => {
-    // Directories first, then files, each alphabetical: the TUI tree's order.
-    const entries = [...node.children].sort(([a, x], [b, y]) => {
-      const ad = x.children.size > 0 && !x.file
-      const bd = y.children.size > 0 && !y.file
-      return ad === bd ? a.localeCompare(b) : ad ? -1 : 1
-    })
+    const entries = [...node.children].sort(([a, x], [b, y]) =>
+      compareFileEntries(
+        { name: a, dir: x.children.size > 0 && !x.file },
+        { name: b, dir: y.children.size > 0 && !y.file },
+      ),
+    )
     for (const [name, child] of entries) {
       const dir = child.children.size > 0 && !child.file
       const path = dir ? `${prefix}${name}/` : `${prefix}${name}`
