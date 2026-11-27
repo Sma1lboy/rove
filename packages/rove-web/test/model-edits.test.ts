@@ -85,6 +85,24 @@ test("an archived row leaves when clicked, stays gone through a push read before
   expect(ids()).toEqual(["C", "D"])
 })
 
+test("a done archive stays hidden through pushes that still list the row, as another machine's list arrives late", async () => {
+  const { archiveEdit } = await import("../src/optimistic.ts")
+  const { model, calls, push } = modelHarness()
+  const stale = { tasks: [{ id: "far", machine: { id: "win", label: "win" } }, { id: "C" }], attention: [] }
+  calls[0].resolve(stale)
+  await flush()
+  const shown = () => [...(model.tasks.get()?.tasks ?? []), ...model.remote.get()].map((task) => task.id)
+
+  await model.optimistic(archiveEdit("far", true), async () => {})
+  push("tasks", stale)
+  push("tasks", stale)
+  expect(shown()).toEqual(["C"])
+  push("tasks", { tasks: [{ id: "C" }], attention: [] })
+  // Back on the daemon's own list: a row listed again later is drawn.
+  push("tasks", stale)
+  expect(shown()).toEqual(["C", "far"])
+})
+
 test("archiving a row alone leaves its children listed, one level up", async () => {
   const { archiveEdit } = await import("../src/optimistic.ts")
   const edited = archiveEdit(

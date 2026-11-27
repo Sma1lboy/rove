@@ -344,7 +344,6 @@ export class AppModel {
     if (this.served) this.acceptTasks(this.served, true)
     try {
       const result = await request()
-      // ponytail: a push read before the daemon applied the change undoes the edit until the next one; track a revision if that flicker shows.
       if (this.edits.has(edit)) this.edits.set(edit, true)
       return result
     } catch (err) {
@@ -361,8 +360,10 @@ export class AppModel {
     this.served = served
     let payload = served
     for (const [edit, confirmed] of this.edits) {
-      if (confirmed && !redraw) this.edits.delete(edit)
-      else payload = edit(payload)
+      const next = edit(payload)
+      // A done archive/delete stays drawn until the list leaves the row out: another machine's list arrives later.
+      if (confirmed && !redraw && next.tasks.length === payload.tasks.length) this.edits.delete(edit)
+      else payload = next
     }
     const before = [...(this.tasks.get()?.tasks ?? []), ...this.remote.get()]
     this.remote.set(payload.tasks.filter((task) => task.machine))
