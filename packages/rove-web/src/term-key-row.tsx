@@ -29,7 +29,7 @@ export function TermKeyRow({ handle, atMenu }: { handle: TermHandle; atMenu: boo
     <button
       key={k.id}
       type="button"
-      className={termKey(false)}
+      className={termKey("off")}
       aria-label={KEY_NAMES[k.id] ? t(KEY_NAMES[k.id]) : undefined}
       onClick={() => {
         setCtrl(false)
@@ -49,15 +49,20 @@ export function TermKeyRow({ handle, atMenu }: { handle: TermHandle; atMenu: boo
       onPointerDown={(e) => e.preventDefault()}
     >
       {more && (
-        <button type="button" className={termKey(ctrl)} aria-pressed={ctrl} onClick={() => setCtrl(!ctrl)}>
+        <button
+          type="button"
+          className={termKey(ctrl ? "on" : "off")}
+          aria-pressed={ctrl}
+          onClick={() => setCtrl(!ctrl)}
+        >
           ctrl
         </button>
       )}
       {(more ? pages.rest : pages.first).map(key)}
-      {/* Lit while Ctrl is latched on the page behind it. */}
+      {/* Marked while Ctrl is latched on the page behind it. */}
       <button
         type="button"
-        className={termKey(ctrl && !more)}
+        className={termKey(ctrl && !more ? "hint" : "off")}
         aria-expanded={more}
         aria-label={t("layout.termKeyMore")}
         onClick={() => setMore(!more)}

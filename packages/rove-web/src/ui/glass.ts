@@ -10,9 +10,6 @@ const TONE = {
     "border-[color-mix(in_srgb,var(--ink)_12%,transparent)] bg-[color-mix(in_srgb,var(--inset)_60%,transparent)] opaque:bg-inset",
   /** The control is on (a sticky key): its edge takes the accent. */
   on: "border-accent bg-[color-mix(in_srgb,var(--inset)_60%,transparent)] opaque:bg-inset",
-  /** The screen's one primary action: accent-tinted. */
-  primary:
-    "border-accent bg-[color-mix(in_srgb,var(--accent)_24%,transparent)] opaque:bg-[color-mix(in_srgb,var(--accent)_24%,var(--inset))]",
 } as const
 
 export const glass = (tone: keyof typeof TONE = "neutral"): string => `${BLUR} ${TONE[tone]}`
