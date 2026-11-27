@@ -15,18 +15,19 @@ export const CARD =
   "flex flex-col gap-2 rounded-md border-hairline border-line bg-surface px-3 py-2.5 focus-within:border-line-active"
 export const CARD_ACTIONS = "flex flex-wrap items-center justify-end gap-1.5"
 export const PROMPT = "max-h-[40vh] min-h-[4.5em] w-full bg-transparent text-ink [border:0] [outline:0]"
-export const BAR = "flex items-center gap-1.5 px-1"
+/** On a phone the chips start and end on the card's own edges. */
+export const BAR = "flex items-center gap-1.5 px-1 narrow:px-0"
 /**
- * Where the task runs, then how: one row, never wrapped. A phone drops each chip's word instead (`CHIP_WORD`), and
- * lays every chip in the bar itself, so a full row is shared out between chips rather than between the two groups.
+ * Where the task runs (left), then how (right): one row, never wrapped. A phone drops each chip's word instead
+ * (`CHIP_WORD`); in a full row the left group gives up its room first, so the right-hand chips keep their shape.
  */
-export const BAR_GROUP = "flex min-w-0 items-center gap-1.5 narrow:contents"
+export const BAR_GROUP = "flex min-w-0 items-center gap-1.5 narrow:flex-1"
 /** `group/end`: the right-hand chips, whose last popover opens leftward. */
-export const BAR_GROUP_END = `${BAR_GROUP} group/end ml-auto narrow:ml-0`
+export const BAR_GROUP_END = "group/end ml-auto flex min-w-0 flex-none items-center gap-1.5"
 export const GROW = "flex-1"
-/** The card's own small controls (attach, dictate) left of Start; `on` while attached or recording. */
+/** The card's own small controls (attach, dictate) left of Start; `on` while attached or recording. On a phone the first one's glyph sits as far from the card's edge as Start does from the other. */
 export const cardIcon = (on = false): string =>
-  `flex h-7 min-w-7 cursor-pointer items-center justify-center rounded-sm px-1 has-[:disabled]:opacity-60 disabled:opacity-60 [&:hover]:bg-hover [&:hover]:text-ink ${on ? "text-accent" : "text-muted"}`
+  `flex h-7 min-w-7 cursor-pointer items-center justify-center rounded-sm px-1 narrow:first:-ml-1.25 has-[:disabled]:opacity-60 disabled:opacity-60 [&:hover]:bg-hover [&:hover]:text-ink ${on ? "text-accent" : "text-muted"}`
 export const ICON =
   "size-3.25 flex-none fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:1.3]"
 
