@@ -82,8 +82,6 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   const effortLevels = engineEntry(vendor).effortLevels ?? []
   const [effortPick, setEffortPick] = useState("")
   const effort = effortLevels.includes(effortPick) ? effortPick : ""
-  const effortChoices = effortLevels.length > 0 ? ["", ...effortLevels] : []
-  const modelVisible = engineAcceptsModel(vendor)
   // Auto-routing tier; table read once per open (state.json), row shown only
   // while configured. The tier reads "manual" once any filled field differs —
   // the label recorded on the task must describe what actually launches, or
@@ -133,6 +131,10 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     onAnswered: () => setField(advanceField("repo")),
   })
   const expandedRepo = repoField.expandedRepo
+  // No folder opens a bare engine session: no branch, extra repos, model or effort to carry.
+  const noFolder = tab === "existing" && repoField.repo.trim() === ""
+  const effortChoices = effortLevels.length > 0 && !noFolder ? ["", ...effortLevels] : []
+  const modelVisible = engineAcceptsModel(vendor) && !noFolder
   // Offered against the EXPANDED path: `mainRepos` holds absolute repo roots,
   // and a `~/`-typed entry would otherwise never match its own project.
   const canOpenProject = offersProjectIntent(expandedRepo, props.mainRepos ?? EMPTY_MAIN_REPOS)
@@ -176,6 +178,11 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   /* ── Commit paths ── */
 
   function commitExisting(): void {
+    if (noFolder) {
+      const firstMessage = prompt.trim()
+      props.onSubmit({ mode: "scratch", vendor, ...(firstMessage ? { prompt: firstMessage } : {}) })
+      return
+    }
     // Two saved repos can share a basename; reopen the picker (directories
     // visible) rather than opening the alphabetically-first one.
     if (repoField.repoResolution.kind === "ambiguous") {
@@ -266,7 +273,10 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       intentVisible: forTab === "existing" && canOpenProject,
       // Opening the project has no extras either: it enters the repo's own checkout.
       extrasVisible:
-        forTab === "existing" && extras.extraCandidates.length > 0 && !(intent === "project" && canOpenProject),
+        forTab === "existing" &&
+        !noFolder &&
+        extras.extraCandidates.length > 0 &&
+        !(intent === "project" && canOpenProject),
       effortVisible: effortChoices.length > 0,
       modelVisible,
       tierVisible: false,
@@ -275,6 +285,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
 
   function advanceField(from: Field): Field {
     const next = nextField(from, tab, focusStopsFor(tab))
+    if (noFolder && next === "baseRef") return "confirm"
     // The "project" intent hides the first-message and branch fields; walk past each.
     if (tab !== "existing" || intent !== "project" || !canOpenProject) return next
     if (next === "prompt") return nextField("prompt", tab, focusStopsFor(tab))
@@ -428,6 +439,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     /** The focus walk without moving focus — observes THIS dialog's stops
      *  (shares `focusStopsFor` with `advanceField`). */
     advanceFieldFor: (from: Field, forTab: DialogTab = tab) => nextField(from, forTab, focusStopsFor(forTab)),
+    noFolder,
     intent,
     setIntent,
     canOpenProject,

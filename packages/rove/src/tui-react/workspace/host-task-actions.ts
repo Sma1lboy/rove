@@ -57,11 +57,12 @@ export type WorkspaceTaskActionDeps = {
   forgetTaskTabs: (taskId: string) => void
   /** New-task dialog with a first message: create the task and run its engine on it. */
   startWithPrompt?: CreateTaskContext["startWithPrompt"]
+  openScratch?: CreateTaskContext["openScratch"]
   promptNewTask: CreateTaskContext["promptNewTask"]
 }
 
 export type WorkspaceTaskActions = {
-  /** The new-task page; `repo` starts it in that project, else on the cursor's. */
+  /** The new-task page; `repo` starts it in that project, else on No folder. */
   createTask: (repo?: string) => Promise<void>
   /** The new-task dialog seeded with a task's repo and branch as the base. */
   createTaskFromBranch: (id: string) => Promise<void>
@@ -123,6 +124,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     pickProject: (projects) => ProjectPickerDialog.show(dialog, { projects }),
     pickEngine: (opts) => EnginePickerDialog.show(dialog, opts),
     startWithPrompt: deps.startWithPrompt,
+    openScratch: deps.openScratch,
     // Local pipe + OSC52 (the half that reaches the user's machine over SSH).
     copyText: (text) => copyTextToSystemClipboard(text, (payload) => renderer?.copyToClipboardOSC52(payload)),
     onTaskDeleted: (() => {

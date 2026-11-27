@@ -139,7 +139,7 @@ test("a resolved repo shows its NAME, not its path, and still submits the path",
   await pressTab(h, TO_BASE_REF - TO_REPO)
   await commit(h)
   expect(h.submitted).toHaveLength(1)
-  expect(h.submitted[0]?.repo).toBe(dir)
+  expect(h.submitted[0]).toMatchObject({ repo: dir })
   act(() => h.destroy())
 })
 
@@ -159,8 +159,7 @@ test("a basename shared by two saved repos keeps the PATH — it identifies noth
   // The other `app` is offered as an extra, a stop before the branch field.
   await pressTab(h, stopsTo("baseRef", true) - TO_REPO)
   await commit(h)
-  expect(h.submitted[0]?.repo).toBe(a)
-  expect(h.submitted[0]?.repo).not.toBe(b)
+  expect(h.submitted[0]).toMatchObject({ repo: a })
   act(() => h.destroy())
 })
 
@@ -222,7 +221,7 @@ test("a path being typed renders VERBATIM — the field does not rewrite mid-key
   await settle()
   await pressTab(h, 2)
   await commit(h)
-  expect(h.submitted[0]?.repo).toBe(dir)
+  expect(h.submitted[0]).toMatchObject({ repo: dir })
   act(() => h.destroy())
 })
 

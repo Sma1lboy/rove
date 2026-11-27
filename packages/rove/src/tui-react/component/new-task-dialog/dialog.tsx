@@ -141,6 +141,7 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
   const create = (
     <DialogActions
       paddingTop={0}
+      paddingBottom={composer && !(vm.intent === "project" && vm.canOpenProject) ? 0 : 1}
       label={vm.cloneInFlight ? t("newTask.button.cloning") : t("newTask.button.create")}
       focused={vm.field === "confirm"}
       onPress={() => vm.commit()}
@@ -182,19 +183,20 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
               onInput={(v: string) => vm.setPrompt(v)}
               onSubmit={() => vm.commitExisting()}
             />
-            <box height={1} flexShrink={0} />
+            {/* Create sits on the box's last row, under a two-row gap. */}
+            <box height={2} flexShrink={0} />
             {create}
           </DialogField>
         )}
         {/* Wraps by whole groups: a long repo name pushes the engine chips to a second row rather than off the edge. */}
         <box flexDirection="row" flexWrap="wrap" justifyContent="space-between" columnGap={1} flexShrink={0}>
           <box flexDirection="row" columnGap={1} flexShrink={0}>
-            {chip("repo", splitRepoRow(vm.repo.trim() || vm.defaultRepo).base)}
-            {vm.extraCandidates.length > 0 && !project
+            {chip("repo", vm.noFolder ? t("newTask.noFolder") : splitRepoRow(vm.repo.trim()).base)}
+            {vm.extraCandidates.length > 0 && !project && !vm.noFolder
               ? chip("extras", vm.extraPicked.length > 0 ? `+${vm.extraPicked.length}` : "+")
               : null}
             {vm.canOpenProject ? chip("intent", t(project ? "newTask.chipProject" : "newTask.chipWorktree")) : null}
-            {project ? null : chip("baseRef", vm.baseRef.trim() || DEFAULT_BASE_REF)}
+            {project || vm.noFolder ? null : chip("baseRef", vm.baseRef.trim() || DEFAULT_BASE_REF)}
           </box>
           <box flexDirection="row" columnGap={1} flexShrink={0}>
             {chip("engine", vm.vendor)}

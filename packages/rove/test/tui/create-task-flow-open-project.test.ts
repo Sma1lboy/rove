@@ -54,7 +54,6 @@ function makeCtx(opts: { submit: NewTaskInput | undefined; ensureProject?: (repo
     reload,
     selectTask,
     enterTask,
-    cursorRepo: () => "/repos/codefox",
     lastVendor: () => "claude" as never,
     rememberVendor: vi.fn(),
     promptNewTask: async (_repo, _repos, options) => {

@@ -93,11 +93,6 @@ export function buildBaseCreateTaskContext(deps: BaseCreateTaskContextDeps): Cre
     updateActiveTask: true,
     onTaskDeleted: selectNextAfterDelete(deps),
     deleteBranchOnDelete: isDeleteBranchOnTaskDeleteEnabled,
-    // Default repo: the cursor task's, else the first listed task's.
-    cursorRepo: () => {
-      const list = deps.tasks()
-      return (list.find((t) => t.id === deps.selectedId()) ?? list[0])?.repo
-    },
     // Land the cursor on the new task so Enter / click enters it next.
     selectTask: (id) => deps.setSelectedId(id),
     // Then enter it: `n` lands in the new task's engine pane.
