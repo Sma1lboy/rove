@@ -248,7 +248,9 @@ Three related limits are easy to confuse:
     carries `vendor`, the engine's own pid, `parentAlive: true`, and an exit
     code read from the `Engine exited (code N)` banner when the shell
     printed one. Recorded whether or not the engine exited cleanly — an
-    engine that vanishes without explanation is the case worth keeping.
+    engine that vanishes without explanation is the case worth keeping. A
+    record with no code is a quit (the banner prints for every non-zero
+    exit), so it never marks the tab dead or reaches the Inbox.
 - **How far you can scroll.** `terminal.scrollbackRows` in Settings →
   General → Terminal, default 1000 rows. Applies to terminals started after
   the change.

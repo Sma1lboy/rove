@@ -268,6 +268,15 @@ conversation with another engine, or **Continue in another engine** (the
 same directory, with the old conversation's context in the new engine's first
 prompt). The same action sits on the tab menu and the task row menu.
 
+Quitting the engine on purpose (`/exit`, Ctrl+D, Ctrl+C twice: anything that
+exits with code 0) is not a failure. The tab turns into a shell in the same
+folder with a dim "Engine ended" line, and nothing is flagged: the row shows
+no error, nothing goes to the Inbox, and a delivery waiting on that tab is not
+marked missing. Run the engine again in that shell to keep going (Claude and
+Codex print the resume command as they quit), or press F5 in the TUI to
+relaunch the tab. A crash, a kill, or a non-zero exit still gets the banner
+and the actions above.
+
 The launch command runs through your interactive login shell (`-ilc`), so a
 command that is a shell function or alias, such as `claudecpa`, works the
 same on the first launch and on every relaunch. When `$SHELL` is unset, every

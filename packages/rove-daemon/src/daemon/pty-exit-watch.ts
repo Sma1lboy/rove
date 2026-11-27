@@ -118,9 +118,12 @@ export function startPtyExitWatch(opts: PtyExitWatchOptions): () => void {
 }
 
 /**
- * Null when the key names no tab, or the timestamp is unparseable — guessing
- * `now` would let an OLD record bury a live engine. Shared with the boot
- * reconciler so both caption the same death the same way.
+ * Null when the key names no tab, the timestamp is unparseable — guessing
+ * `now` would let an OLD record bury a live engine — or the record is a quit,
+ * not a death: an engine gone from a live session with no exit code means
+ * keepAlive printed no banner, which it does for every nonzero exit (signals
+ * as 128+N), so the engine exited 0. Shared with the boot reconciler so both
+ * caption the same death the same way.
  */
 export function engineDeathOf(record: PtyExitRecord): {
   taskId: string
@@ -128,6 +131,7 @@ export function engineDeathOf(record: PtyExitRecord): {
   exit: { code: number | null; signal: string | null; lastLine?: string }
   at: number
 } | null {
+  if (isEngineQuit(record)) return null
   const match = KEY_RE.exec(record.key)
   const taskId = match?.[1]
   const tabId = match?.[2]
@@ -136,6 +140,11 @@ export function engineDeathOf(record: PtyExitRecord): {
   if (!Number.isFinite(at)) return null
   const lastLine = lastErrorLine(record.tail)
   return { taskId, tabId, exit: { code: record.code, signal: record.signal, ...(lastLine ? { lastLine } : {}) }, at }
+}
+
+/** The user quit the engine on purpose (code 0) and keepAlive left a shell in the tab. */
+function isEngineQuit(record: PtyExitRecord): boolean {
+  return record.layer === "engine" && record.code === null && record.signal === null
 }
 
 /**
