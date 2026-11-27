@@ -13,12 +13,14 @@ import { type BridgeClient, BridgeRequestError } from "./bridge.ts"
 import { DialogShell } from "./dialogs.tsx"
 import { locale, t, useLocale } from "./i18n/index.ts"
 import { openPage } from "./layout.ts"
+import { useNarrow } from "./layout.ts"
 import { usePrefs } from "./prefs.ts"
 import { ReleaseNotes } from "./release-notes.tsx"
 import { createStore, useStore } from "./store.ts"
 import { dialog, page } from "./ui.ts"
 import { Button, buttonClass } from "./ui/button.tsx"
 import { PAGE_TITLE } from "./ui/page.ts"
+import { PhonePage } from "./ui/phone.tsx"
 import { HEAD_CHIP } from "./ui/shell.ts"
 import { ACTIONS, LINK } from "./ui/text.ts"
 import {
@@ -143,6 +145,7 @@ export function UpdateView({ client }: { client: BridgeClient }) {
   const [status, setStatus] = useState<string | null>(null)
   const { run, setRun, poll } = useUpdateRun(client)
   const host = useRef<HTMLDivElement>(null)
+  const phone = useNarrow()
   useEffect(() => {
     host.current?.focus()
     void checkForUpdate(client).finally(() => setChecked(true))
@@ -211,64 +214,75 @@ export function UpdateView({ client }: { client: BridgeClient }) {
     e.preventDefault()
   }
 
+  const notesBody = (
+    <>
+      <p className={`mono ${UPDATE_VERSIONS}`}>
+        <span className="text-muted">{u.current}</span> <b>v{current}</b> <span className="text-muted">{u.latest}</span>{" "}
+        {latestUnknown ? (
+          <b className="text-muted">{u.latestUnknown}</b>
+        ) : checked ? (
+          <b className={hasUpdate ? "text-warning" : "text-success"}>v{latest}</b>
+        ) : (
+          <span className="text-muted">…</span>
+        )}
+      </p>
+      {latestUnknown && <p className="text-muted">{u.registryRetry}</p>}
+      {upToDate && <p className="text-success">{u.upToDate}</p>}
+      {status && <p className="mono text-accent">{status}</p>}
+      {run && (
+        <>
+          {run.output && <pre className={UPDATE_OUTPUT}>{run.output}</pre>}
+          <p className={`mono ${run.running ? "text-muted" : run.code === 0 ? "text-success" : "text-error"}`}>
+            {run.running
+              ? fill(u.webRunning, { command: run.command })
+              : run.code === 0
+                ? restarting
+                  ? u.webRestarting
+                  : fill(u.webInstalled, { latest })
+                : fill(u.updateFailed, { code: String(run.code) })}
+          </p>
+        </>
+      )}
+      {hasUpdate && <p className="mono text-muted">{fill(u.changesSectionHeader, { from: current, to: latest })}</p>}
+      {!checked && <p className="text-muted">{u.loadingNotes}</p>}
+      {checked && hasUpdate && notes.length === 0 && <p className="text-muted">{u.notesUnavailable}</p>}
+      <NotesRange notes={notes} />
+    </>
+  )
+  const actions = (
+    <div className={`${ACTIONS} pt-2.5`}>
+      {url ? (
+        <a className={LINK} href={url} target="_blank" rel="noopener noreferrer" aria-keyshortcuts="r">
+          {u.actions.openRelease}
+        </a>
+      ) : (
+        <span className="text-muted">{u.releaseUrlUnavailable}</span>
+      )}
+      {installed && (
+        <Button variant="filled" disabled={restarting} onClick={() => activate("restart")}>
+          {u.webRestart}
+        </Button>
+      )}
+      {canUpdate && (
+        <Button variant="filled" aria-keyshortcuts="u" onClick={() => activate("update")}>
+          {u.actions.updateNow}
+        </Button>
+      )}
+    </div>
+  )
+  if (phone)
+    return (
+      <PhonePage title={t("rail.update")} rootRef={host} foot={actions}>
+        {notesBody}
+      </PhonePage>
+    )
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
     <div className={UPDATE_PAGE} tabIndex={0} ref={host} onKeyDown={onKey}>
       <h1 className={PAGE_TITLE}>{t("rail.update")}</h1>
-      <div className={UPDATE_SCROLL}>
-        <p className={`mono ${UPDATE_VERSIONS}`}>
-          <span className="text-muted">{u.current}</span> <b>v{current}</b>{" "}
-          <span className="text-muted">{u.latest}</span>{" "}
-          {latestUnknown ? (
-            <b className="text-muted">{u.latestUnknown}</b>
-          ) : checked ? (
-            <b className={hasUpdate ? "text-warning" : "text-success"}>v{latest}</b>
-          ) : (
-            <span className="text-muted">…</span>
-          )}
-        </p>
-        {latestUnknown && <p className="text-muted">{u.registryRetry}</p>}
-        {upToDate && <p className="text-success">{u.upToDate}</p>}
-        {status && <p className="mono text-accent">{status}</p>}
-        {run && (
-          <>
-            {run.output && <pre className={UPDATE_OUTPUT}>{run.output}</pre>}
-            <p className={`mono ${run.running ? "text-muted" : run.code === 0 ? "text-success" : "text-error"}`}>
-              {run.running
-                ? fill(u.webRunning, { command: run.command })
-                : run.code === 0
-                  ? restarting
-                    ? u.webRestarting
-                    : fill(u.webInstalled, { latest })
-                  : fill(u.updateFailed, { code: String(run.code) })}
-            </p>
-          </>
-        )}
-        {hasUpdate && <p className="mono text-muted">{fill(u.changesSectionHeader, { from: current, to: latest })}</p>}
-        {!checked && <p className="text-muted">{u.loadingNotes}</p>}
-        {checked && hasUpdate && notes.length === 0 && <p className="text-muted">{u.notesUnavailable}</p>}
-        <NotesRange notes={notes} />
-      </div>
+      <div className={UPDATE_SCROLL}>{notesBody}</div>
       {/* Bottom right, primary last, as the update prompt's. */}
-      <div className={`${ACTIONS} pt-2.5`}>
-        {url ? (
-          <a className={LINK} href={url} target="_blank" rel="noopener noreferrer" aria-keyshortcuts="r">
-            {u.actions.openRelease}
-          </a>
-        ) : (
-          <span className="text-muted">{u.releaseUrlUnavailable}</span>
-        )}
-        {installed && (
-          <Button variant="filled" disabled={restarting} onClick={() => activate("restart")}>
-            {u.webRestart}
-          </Button>
-        )}
-        {canUpdate && (
-          <Button variant="filled" aria-keyshortcuts="u" onClick={() => activate("update")}>
-            {u.actions.updateNow}
-          </Button>
-        )}
-      </div>
+      {actions}
     </div>
   )
 }

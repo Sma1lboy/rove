@@ -186,6 +186,10 @@ export const en = {
   pages: {
     attachTooLarge: "{name} is larger than 500 MB",
     new: "[ new ]",
+    /** A phone's bottom-bar + on that page, named for a screen reader. */
+    newRoutine: "New routine",
+    newCard: "New issue",
+    deleteIssue: "Delete issue",
     routinePause: "[ pause ]",
     routineEnable: "[ enable ]",
     delete: "[ delete ]",
@@ -393,6 +397,9 @@ export const zh: typeof en = {
   pages: {
     attachTooLarge: "{name} 超过 500 MB",
     new: "[ 新建 ]",
+    newRoutine: "新建例行任务",
+    newCard: "新建议题",
+    deleteIssue: "删除议题",
     routinePause: "[ 暂停 ]",
     routineEnable: "[ 启用 ]",
     delete: "[ 删除 ]",

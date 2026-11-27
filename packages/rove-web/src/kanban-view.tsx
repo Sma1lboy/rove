@@ -29,10 +29,12 @@ import {
   useSelectedRepo,
 } from "./pages-kit.ts"
 import { useStore } from "./store.ts"
-import { dialog, menu, page, toast } from "./ui.ts"
+import { type MenuItem, dialog, menu, page, toast } from "./ui.ts"
 
 import { type Board, Card, TONE, useBoards, useEngines } from "./kanban-parts.tsx"
+import { useNarrow } from "./layout.ts"
 import { PAGE, PAGE_TITLE, PG_ACTIONS, PG_ACTION_LINK } from "./ui/page.ts"
+import { PhonePage } from "./ui/phone.tsx"
 const POLL_MS = 5_000
 /** Four lanes need about this much width before a card stops being readable. */
 const MIN_BOARD_PX = 760
@@ -54,7 +56,8 @@ import {
 import { LINK } from "./ui/text.ts"
 
 export function KanbanView({ model }: { model: AppModel }) {
-  const { kanban, group, common } = useCopy()
+  const { kanban, group, common, nav } = useCopy()
+  const phone = useNarrow()
   const [tick, reload] = useReload(POLL_MS)
   const boards = useBoards(model, tick)
   const { engines, defaultEngine } = useEngines(model)
@@ -245,8 +248,7 @@ export function KanbanView({ model }: { model: AppModel }) {
     )
   }
 
-  const requestDelete = () => {
-    const issue = board?.issues.find((entry) => entry.id === selectedId)
+  const requestDelete = (issue = board?.issues.find((entry) => entry.id === selectedId)) => {
     if (!board || !issue) return
     const repo = board.repoRoot
     dialog.set(
@@ -338,10 +340,19 @@ export function KanbanView({ model }: { model: AppModel }) {
     menu.set({
       x,
       y,
-      items: ISSUE_STATUSES.filter((status) => status !== issue.status).map((status) => ({
-        label: fill(kanban.menu.setStatus, { status: kanban.detail.status[status] }),
-        run: () => void setStatus(issue, status),
-      })),
+      items: ISSUE_STATUSES.filter((status) => status !== issue.status)
+        .map(
+          (status): MenuItem => ({
+            label: fill(kanban.menu.setStatus, { status: kanban.detail.status[status] }),
+            run: () => void setStatus(issue, status),
+          }),
+        )
+        .concat(
+          // A phone has no Delete link at the top: the card's own menu carries it, last and red.
+          phone
+            ? [{ label: t("pages.deleteIssue"), danger: true, section: "danger", run: () => requestDelete(issue) }]
+            : [],
+        ),
     })
   }
 
@@ -391,13 +402,68 @@ export function KanbanView({ model }: { model: AppModel }) {
     </section>
   )
 
+  const body =
+    boards === null ? (
+      <p className="text-muted">{kanban.loading}</p>
+    ) : !board ? (
+      <p className="text-muted">{kanban.noRepos}</p>
+    ) : (
+      <>
+        <div className={KB_PROJECT}>
+          <button type="button" className={KB_PROJECT_NAME} onClick={() => cycleProject(1)}>
+            {projectLabel(board.repoRoot, repoRoots)}
+            {list.length > 1 && <span className="text-muted">{` ${index + 1}/${list.length}`}</span>}
+          </button>
+          {!narrow && <span className={`mono text-muted ${KB_PROJECT_PATH}`}>{board.repoRoot}</span>}
+          {board.issues.length === 0 && !board.readError && (
+            <span className={`text-muted ${KB_EMPTY}`}>{kanban.empty}</span>
+          )}
+        </div>
+        {board.readError ? (
+          <p className="text-error">{fill(kanban.readFailed, { error: board.readError })}</p>
+        ) : narrow && activeLane ? (
+          <div className={KB_SINGLE} ref={scroller}>
+            <div className={`mono ${KB_STRIP}`}>
+              {columns.map((col) => (
+                <button
+                  type="button"
+                  key={col.key}
+                  className={kbStripTabClass(col.key === activeLane.key)}
+                  onClick={() => {
+                    const first = col.issues[0]
+                    if (first) setSelectedId(first.id)
+                  }}
+                >
+                  {laneTitle(col, true)}
+                </button>
+              ))}
+            </div>
+            {lane(activeLane, false)}
+          </div>
+        ) : (
+          <div className={KB_BOARD} ref={scroller}>
+            {columns.map((col) => lane(col, true))}
+          </div>
+        )}
+      </>
+    )
+  if (phone)
+    return (
+      <PhonePage
+        title={nav.kanban}
+        rootRef={root}
+        primary={board ? { label: t("pages.newCard"), onClick: openIntake } : undefined}
+      >
+        {body}
+      </PhonePage>
+    )
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
     <div className={`${PAGE} ${KB_PAGE}`} tabIndex={0} ref={root}>
       <div className="kb-top">
         <h1 className={PAGE_TITLE}>{kanban.title}</h1>
         <span className="mono keys-only text-muted">{kanban.hint}</span>
-        {/* A phone has no n/d: the same verbs as buttons. Delete acts on the selected card. */}
+        {/* Touch without a phone's layout has no n/d either: the same verbs as buttons. Delete acts on the selected card. */}
         <span className={`mono ${PG_ACTIONS}`}>
           <button type="button" className={`${LINK} ${PG_ACTION_LINK.kanban}`} disabled={!board} onClick={openIntake}>
             {t("pages.new")}
@@ -406,56 +472,13 @@ export function KanbanView({ model }: { model: AppModel }) {
             type="button"
             className={`${LINK} ${PG_ACTION_LINK.kanban}`}
             disabled={!board?.issues.some((entry) => entry.id === selectedId)}
-            onClick={requestDelete}
+            onClick={() => requestDelete()}
           >
             {t("pages.delete")}
           </button>
         </span>
       </div>
-      {boards === null ? (
-        <p className="text-muted">{kanban.loading}</p>
-      ) : !board ? (
-        <p className="text-muted">{kanban.noRepos}</p>
-      ) : (
-        <>
-          <div className={KB_PROJECT}>
-            <button type="button" className={KB_PROJECT_NAME} onClick={() => cycleProject(1)}>
-              {projectLabel(board.repoRoot, repoRoots)}
-              {list.length > 1 && <span className="text-muted">{` ${index + 1}/${list.length}`}</span>}
-            </button>
-            {!narrow && <span className={`mono text-muted ${KB_PROJECT_PATH}`}>{board.repoRoot}</span>}
-            {board.issues.length === 0 && !board.readError && (
-              <span className={`text-muted ${KB_EMPTY}`}>{kanban.empty}</span>
-            )}
-          </div>
-          {board.readError ? (
-            <p className="text-error">{fill(kanban.readFailed, { error: board.readError })}</p>
-          ) : narrow && activeLane ? (
-            <div className={KB_SINGLE} ref={scroller}>
-              <div className={`mono ${KB_STRIP}`}>
-                {columns.map((col) => (
-                  <button
-                    type="button"
-                    key={col.key}
-                    className={kbStripTabClass(col.key === activeLane.key)}
-                    onClick={() => {
-                      const first = col.issues[0]
-                      if (first) setSelectedId(first.id)
-                    }}
-                  >
-                    {laneTitle(col, true)}
-                  </button>
-                ))}
-              </div>
-              {lane(activeLane, false)}
-            </div>
-          ) : (
-            <div className={KB_BOARD} ref={scroller}>
-              {columns.map((col) => lane(col, true))}
-            </div>
-          )}
-        </>
-      )}
+      {body}
     </div>
   )
 }

@@ -7,6 +7,7 @@
 
 import { relativeAge } from "@sma1lboy/rove/src/lib/relative-time.ts"
 import { useEffect, useRef, useState } from "react"
+import { useNarrow } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import {
   errorMessage,
@@ -38,6 +39,7 @@ import {
   pgHintClass,
   pgIssueClass,
 } from "./ui/page.ts"
+import { PhonePage } from "./ui/phone.tsx"
 
 const LIMIT = 30
 
@@ -68,7 +70,8 @@ function useErrorHint() {
 }
 
 function IssueList({ model }: { model: AppModel }) {
-  const { items: copy, common } = useCopy()
+  const { items: copy, common, nav } = useCopy()
+  const phone = useNarrow()
   const hint = useErrorHint()
   const c = model.client
   const payload = useStore(model.tasks)
@@ -213,17 +216,8 @@ function IssueList({ model }: { model: AppModel }) {
   })
 
   const now = Date.now()
-  return (
-    // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
-    <div className={PAGE_SCROLL} tabIndex={0} ref={root}>
-      <div className={PG_TOP}>
-        <h1 className={PAGE_TITLE}>{copy.title}</h1>
-        <SourceSwitch />
-        <span className={`mono touch:empty:hidden! text-muted ${pgHintClass(true)}`}>
-          {repo ? projectLabel(repo, repos) : copy.noRepo}
-          {mine ? `  ${copy.assignedFilter}` : ""}
-        </span>
-      </div>
+  const body = (
+    <>
       {error ? (
         <div className={PG_LIST}>
           <p className="text-error">{error}</p>
@@ -263,6 +257,27 @@ function IssueList({ model }: { model: AppModel }) {
         </div>
       )}
       {notice && <p className={`text-muted ${PG_NOTICE}`}>{notice}</p>}
+    </>
+  )
+  if (phone)
+    return (
+      <PhonePage title={nav.issues} rootRef={root} note={repo ? projectLabel(repo, repos) : copy.noRepo}>
+        <SourceSwitch />
+        {body}
+      </PhonePage>
+    )
+  return (
+    // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
+    <div className={PAGE_SCROLL} tabIndex={0} ref={root}>
+      <div className={PG_TOP}>
+        <h1 className={PAGE_TITLE}>{copy.title}</h1>
+        <SourceSwitch />
+        <span className={`mono touch:empty:hidden! text-muted ${pgHintClass(true)}`}>
+          {repo ? projectLabel(repo, repos) : copy.noRepo}
+          {mine ? `  ${copy.assignedFilter}` : ""}
+        </span>
+      </div>
+      {body}
     </div>
   )
 }
