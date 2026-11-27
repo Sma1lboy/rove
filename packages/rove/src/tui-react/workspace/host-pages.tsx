@@ -5,7 +5,7 @@
  * can't silently shadow one.
  */
 
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react"
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { WelcomeRequest } from "../../cli/welcome.ts"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import type { TaskEngineState } from "../../client/remote-orchestrator-payloads"
@@ -122,6 +122,8 @@ const NEW_TASK_NAV = "new-task"
 
 /** One open New task page and the caller awaiting its answer. */
 interface NewTaskRequest {
+  /** Fresh per request: a `+` pressed while the page is open re-mounts it on the new project. */
+  readonly id: number
   readonly defaultRepo: string
   readonly savedRepos: readonly string[]
   readonly options: NewTaskDialogOptions
@@ -146,6 +148,7 @@ export function useNewTaskPage(
   focusContent: () => void,
 ): NewTaskPageState {
   const [request, setRequest] = useState<NewTaskRequest | null>(null)
+  const nextId = useRef(0)
   const open = request !== null
   // An effect, so it lands after the sidebar click that opened the page has claimed focus.
   // biome-ignore lint/correctness/useExhaustiveDependencies: focusContent is a fresh closure each render
@@ -163,7 +166,7 @@ export function useNewTaskPage(
     prompt: (defaultRepo, savedRepos, options) =>
       new Promise((resolve) => {
         request?.resolve(undefined)
-        setRequest({ defaultRepo, savedRepos, options, resolve })
+        setRequest({ id: ++nextId.current, defaultRepo, savedRepos, options, resolve })
         pages.goToNav(NEW_TASK_NAV)
       }),
     finish: (value) => {
@@ -218,6 +221,7 @@ export function renderContentPage(deps: HostPageDeps): ReactNode | null {
   if (newTask && deps.nav === NEW_TASK_NAV) {
     return (
       <NewTaskPage
+        key={newTask.id}
         defaultRepo={newTask.defaultRepo}
         savedRepos={newTask.savedRepos}
         options={newTask.options}
