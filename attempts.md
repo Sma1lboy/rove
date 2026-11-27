@@ -569,3 +569,15 @@ Run 1 (patched) exited 0, nothing past tolerance: firstFrame 416.1, boot.ready 1
 **No optimization attempted** (the routine does not optimize on a regression night). Owner calls: accept the hover cost and move commit.root/sidebar in the baseline (6 → ~7, 2 → ~3), or have perf-measure switch tasks by keyboard so pointer hover stays out of the switch count. The 11-13 to 11-25 calls still stand (idle phase that waits for quiet; tonight's run 1 is that false ✗ again).
 
 **Sandbox:** as 11-25.
+
+## 2026-11-27 — switch.perOp.commit.root / .sidebar, hover painted without React state (main c43c80a)
+
+**No regression.** One run, exit 0; only typing.echo 130.3 → 46.8 ✓ past tolerance (the fast sandbox, as 11-25/11-26, so the baseline was not moved). Switch commit.root 6.7 / sidebar 2.7 sit just inside tolerance; paintRow/styled 2.2. 54 commits since e67be33. No open `perf:` issues. Tonight's history line is that run.
+
+**Approach.** Took 11-26's bisect at its word (#2173 `useHoverFill` state re-renders the sidebar on every pointer crossing). In `RowShell`, hover moved to a `useRef`; `onMouseOver`/`onMouseOut` painted `backgroundColor` on the row box and `content` on the marker `<text>` directly, and render read the same ref so React's next diff matched. Typecheck and biome passed.
+
+**Why it did not count.** switch commit.root/sidebar read 7 / 3 (vs 6.7 / 2.7 on unchanged main). A debug run with `profileTick` in the row's hover setter read 1.9 hover calls per switch and **zero** hover-caused commits, yet commit.sidebar stayed 2.8; `useHoverFill` in the other sidebar controls never fired. So the +0.7 sidebar commit per switch is **not** hover state, and 11-26's attribution to #2173 was single-sample noise. The extra commit moves with switch.perOp.feed (bash output landing in the window, 0.7–1.1 tonight); likely a sidebar activity update from a shell writing, not a code change. Do not retry hover-as-ref for this metric.
+
+**Owner calls:** as 11-26, minus the hover question: move commit.root/sidebar in the baseline to ~7/~3, or keep bash quiet in the switch window (e.g. wait for feed to settle) so the count stops wobbling. Still open: idle phase that waits for quiet, wider timing tolerance, whether to move the baseline on a timing-only ✓ (fourth fast-sandbox night in a row).
+
+**Sandbox:** bun 1.3.14 from npm, `ELECTRON_SKIP_BINARY_DOWNLOAD=1`; per-file symlinks of `/opt/pw-browsers/chromium_headless_shell-1243/chrome-headless-shell-linux64/*` into `/tmp/pwshim/chromium_headless_shell-{1228,1243}/...`.
