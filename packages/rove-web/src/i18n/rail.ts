@@ -43,6 +43,7 @@ export const en = {
     send: "[ send ]",
     openTab: "[ open ]",
     noOutput: "no output yet",
+    outputUnreadable: "couldn't read this tab's output",
     replyPlaceholder: "reply to this session",
     gateKept: "Saved; the engine isn't running and will get it with its next message.",
     state: {
@@ -98,6 +99,7 @@ export const zh: typeof en = {
     send: "[ 发送 ]",
     openTab: "[ 打开 ]",
     noOutput: "还没有输出",
+    outputUnreadable: "读不到这个标签页的输出",
     replyPlaceholder: "回复这个会话",
     gateKept: "已记下；引擎没在运行，下次发消息时一并送达。",
     state: {

@@ -82,6 +82,15 @@ export function nextAttention(
 
 export const PEEK_LINES = 12
 
+/** What a peek shows: `null` while the first read is out, `"unreadable"` when it failed before any read landed. */
+export type PeekTail = string[] | null | "unreadable"
+
+/** A failed poll keeps the lines already shown; only a peek that never read anything says it can't. */
+export function nextPeekTail(cur: PeekTail, read: string[] | "failed"): PeekTail {
+  if (read !== "failed") return read
+  return Array.isArray(cur) ? cur : "unreadable"
+}
+
 /** The slice of an `output.read` reply a peek draws. */
 export interface TerminalReply {
   readonly terminal?: { readonly tail?: readonly string[] }
