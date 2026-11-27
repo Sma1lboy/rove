@@ -21,4 +21,4 @@ export const SQUARE_BAR = "rounded-[14px]"
 
 /** A pressed control gives a little under the finger; no motion when the system asks for none. */
 export const PRESS =
-  "transition-transform duration-100 active:scale-94 motion-reduce:transition-none motion-reduce:active:scale-none"
+  "transition-transform duration-120 active:scale-95 motion-reduce:transition-none motion-reduce:active:scale-none"

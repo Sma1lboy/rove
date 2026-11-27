@@ -54,7 +54,10 @@ export function NavButton(props: { kind: keyof typeof PATH; label: string; onCli
 /** A count on a glass button's shoulder (unread items); the caller hides it at zero. */
 export function CountBadge({ count }: { count: number }) {
   return (
-    <span className="absolute -top-1 -right-1.5 z-1 grid h-4.5 min-w-4.5 place-items-center rounded-full bg-accent px-1 font-sans text-[12px] leading-none font-semibold text-paper normal-nums">
+    <span
+      key={count}
+      className="absolute -top-1 -right-1.5 z-1 grid h-4.5 min-w-4.5 place-items-center rounded-full bg-accent px-1 font-sans text-[12px] leading-none font-semibold text-paper normal-nums motion-safe:animate-pop"
+    >
       {count > 99 ? "99+" : count}
     </span>
   )

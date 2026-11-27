@@ -46,7 +46,7 @@ export function DropHint({ label }: { label: string }) {
 const KEY = `flex size-11 shrink-0 cursor-pointer items-center justify-center ${SQUARE} touch-manipulation active:bg-[color-mix(in_srgb,var(--ink)_14%,transparent)] disabled:opacity-60 has-[:disabled]:opacity-60 ${PRESS}`
 /** The session's primary action, at the capsule's right end: solid accent once there is something to send. */
 const send = (ready: boolean): string =>
-  `flex size-11 shrink-0 items-center justify-center ${SQUARE} touch-manipulation ${PRESS} ${ready ? "bg-accent text-paper" : "text-muted opacity-60"}`
+  `flex size-11 shrink-0 items-center justify-center ${SQUARE} touch-manipulation ${PRESS} ${ready ? "bg-accent text-paper motion-safe:animate-menu-in" : "text-muted opacity-60"}`
 const GLYPH =
   "size-4.5 narrow:size-5.5 flex-none fill-none stroke-current stroke-[1.5] [stroke-linecap:round] [stroke-linejoin:round]"
 

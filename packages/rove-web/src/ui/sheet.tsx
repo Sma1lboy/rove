@@ -1,9 +1,10 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
+import { reducedMotion } from "../ui.ts"
 
-const SCRIM = "fixed inset-0 z-50 flex items-end bg-[var(--scrim)] motion-safe:animate-fade-in"
+const SCRIM = "fixed inset-0 z-50 flex items-end bg-[var(--scrim)]"
 const PANEL =
-  "static m-0 flex max-h-[70dvh] w-full max-w-none flex-col rounded-t-[16px] border-0 p-0 text-inherit bg-surface pb-[max(env(safe-area-inset-bottom),12px)] shadow-dialog focus:outline-none motion-safe:animate-rise-in"
+  "static m-0 flex max-h-[70dvh] w-full max-w-none flex-col rounded-t-[16px] border-0 p-0 text-inherit bg-surface pb-[max(env(safe-area-inset-bottom),12px)] shadow-dialog focus:outline-none"
 /** The whole head is the grip: a swipe down on it closes the sheet. */
 const HEAD = "flex flex-none touch-none flex-col"
 const HANDLE = "mx-auto mt-2 h-1 w-9 rounded-full bg-line-active"
@@ -18,7 +19,7 @@ const SWIPE_PX = 48
 
 /**
  * A phone's one-of-N picker: rows rising from the bottom edge, the current one checked. A tap outside, Esc or a
- * swipe down on its head closes it without picking.
+ * swipe down on its head closes it without picking. It slides up over a fading scrim and back down when it closes.
  */
 export function PickSheet<T extends string | number>(props: {
   title: string
@@ -29,20 +30,28 @@ export function PickSheet<T extends string | number>(props: {
 }) {
   const current = useRef<HTMLButtonElement>(null)
   const startY = useRef<number | null>(null)
+  const [leaving, setLeaving] = useState(false)
+  const close = () => (reducedMotion() ? props.onClose() : setLeaving(true))
   useEffect(() => current.current?.focus(), [])
   return createPortal(
     <div
-      className={SCRIM}
-      onPointerDown={(e) => e.target === e.currentTarget && props.onClose()}
+      className={`${SCRIM} ${leaving ? "pointer-events-none animate-fade-out" : "motion-safe:animate-fade-in"}`}
+      onPointerDown={(e) => e.target === e.currentTarget && close()}
       onKeyDown={(e) => {
         if (e.key !== "Escape") return
         // Esc closes the sheet alone, not the dialog it opened from.
         e.stopPropagation()
         e.nativeEvent.stopImmediatePropagation()
-        props.onClose()
+        close()
       }}
     >
-      <dialog open aria-modal="true" aria-label={props.title} className={PANEL}>
+      <dialog
+        open
+        aria-modal="true"
+        aria-label={props.title}
+        className={`${PANEL} ${leaving ? "animate-sheet-out" : "motion-safe:animate-sheet-in"}`}
+        onAnimationEnd={(e) => leaving && e.target === e.currentTarget && props.onClose()}
+      >
         <div
           className={HEAD}
           onTouchStart={(e) => {
@@ -51,7 +60,7 @@ export function PickSheet<T extends string | number>(props: {
           onTouchEnd={(e) => {
             const from = startY.current
             startY.current = null
-            if (from !== null && (e.changedTouches[0]?.clientY ?? from) - from > SWIPE_PX) props.onClose()
+            if (from !== null && (e.changedTouches[0]?.clientY ?? from) - from > SWIPE_PX) close()
           }}
         >
           <span className={HANDLE} aria-hidden="true" />
@@ -68,7 +77,7 @@ export function PickSheet<T extends string | number>(props: {
                 aria-pressed={on}
                 className={ROW}
                 onClick={() => {
-                  props.onClose()
+                  close()
                   if (!on) props.onPick(pick.value)
                 }}
               >

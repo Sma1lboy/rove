@@ -8,14 +8,17 @@ import { OVERLAY_BASE } from "./overlay.ts"
 export const SETTINGS_OVERLAY = `${OVERLAY_BASE} w-narrow:pt-0`
 /** A fixed height, so switching sections never moves the box; the section scrolls inside it. */
 export const SETTINGS_DIALOG =
-  "dialog relative m-0 flex h-[min(640px,80vh)] w-[min(880px,calc(100vw-32px))] overflow-hidden rounded-md border-hairline border-line bg-surface text-inherit shadow-dialog focus:outline-none motion-safe:animate-rise-in [.is-leaving_&]:animate-sink-out w-narrow:bg-paper w-narrow:h-dvh w-narrow:w-screen w-narrow:flex-col w-narrow:rounded-none w-narrow:border-0 w-narrow:pt-[env(safe-area-inset-top)] w-narrow:translate-x-[var(--back-x,0px)] w-narrow:px-0 w-narrow:pb-[env(safe-area-inset-bottom)] short:h-[calc(100dvh-24px)]"
+  "dialog relative m-0 flex h-[min(640px,80vh)] w-[min(880px,calc(100vw-32px))] overflow-hidden rounded-md border-hairline border-line bg-surface text-inherit shadow-dialog focus:outline-none motion-safe:animate-rise-in [.is-leaving_&]:animate-sink-out w-narrow:motion-safe:animate-push-in w-narrow:[.is-leaving_&]:animate-push-out w-narrow:bg-paper w-narrow:h-dvh w-narrow:w-screen w-narrow:flex-col w-narrow:rounded-none w-narrow:border-0 w-narrow:pt-[env(safe-area-inset-top)] w-narrow:translate-x-[var(--back-x,0px)] w-narrow:px-0 w-narrow:pb-[env(safe-area-inset-bottom)] short:h-[calc(100dvh-24px)]"
 export const SETTINGS_CLOSE =
   "absolute top-3 right-3 z-1 grid size-7 place-items-center rounded-sm text-display leading-none text-muted hover:bg-inset hover:text-ink focus-visible:bg-inset focus-visible:text-ink touch:size-10"
 /** A phone's top bar: the glass back button (out of Settings from the list, to the list from a section) and the title beside it. */
 export const SETTINGS_BAR = "flex flex-none items-center gap-3 px-3 py-2"
-/** The open section. Mid back swipe it rides the finger (`--back-x`) over the list, inside the dialog's own padding. */
+/**
+ * The open section. Mid back swipe it rides the finger (`--back-x`) over the list, inside the dialog's own padding.
+ * On a phone it pushes in from the right; swiping keeps that animation, so springing back does not replay it.
+ */
 export const settingsPageClass = (swiping: boolean): string =>
-  `flex min-h-0 min-w-0 flex-1 flex-col ${
+  `flex min-h-0 min-w-0 flex-1 flex-col w-narrow:motion-safe:animate-push-in ${
     swiping
       ? "absolute inset-0 z-1 translate-x-(--back-x) bg-surface [padding:inherit] shadow-dialog w-narrow:bg-paper"
       : ""

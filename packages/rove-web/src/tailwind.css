@@ -472,6 +472,39 @@ button:focus-visible {
     }
   }
 
+  /* The phone: sheets and dialogs come up from the bottom edge and go back down; a page pushes in from the right
+     and pops back out (the leaving ones fit leave.ts's ghost, gone after LEAVE_MS + 60). A count pops when it changes. */
+  --animate-sheet-in: sheet-in 260ms cubic-bezier(0.2, 0, 0, 1);
+  --animate-sheet-out: sheet-out 180ms ease-in forwards;
+  --animate-push-in: push-in 260ms cubic-bezier(0.2, 0, 0, 1);
+  --animate-push-out: push-out 180ms ease-in forwards;
+  --animate-pop: pop 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  @keyframes sheet-in {
+    from {
+      translate: 0 100%;
+    }
+  }
+  @keyframes sheet-out {
+    to {
+      translate: 0 100%;
+    }
+  }
+  @keyframes push-in {
+    from {
+      translate: 100% 0;
+    }
+  }
+  @keyframes push-out {
+    to {
+      translate: 100% 0;
+    }
+  }
+  @keyframes pop {
+    40% {
+      scale: 1.3;
+    }
+  }
+
   --shadow-*: initial;
   --shadow-popover: var(--shadow-popover);
   --shadow-dialog: var(--shadow-dialog);
