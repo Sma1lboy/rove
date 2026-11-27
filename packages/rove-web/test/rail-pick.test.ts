@@ -6,7 +6,8 @@ import type { NavRow } from "../src/rail.ts"
 const head = (id: string) => ({ kind: "project", id }) as NavRow
 const task = (id: string) => ({ kind: "task", id, task: { id } }) as NavRow
 const rows = [head("p1"), task("a"), task("b"), head("p2"), task("c"), task("d")]
-const click = (mods: Partial<MouseEvent> = {}) => ({ shiftKey: false, metaKey: false, ctrlKey: false, ...mods }) as MouseEvent
+const click = (mods: Partial<MouseEvent> = {}) =>
+  ({ shiftKey: false, metaKey: false, ctrlKey: false, ...mods }) as MouseEvent
 const picked = () => [...railPick.get().ids].sort()
 
 beforeEach(() => railPick.set({ ids: new Set(), anchor: null }))
