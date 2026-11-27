@@ -120,7 +120,13 @@ try {
         await page.reload()
         await loaded()
         // A row's text can carry a key hint after its label.
-        if (click) await page.getByText(new RegExp(`^${click}`)).first().click()
+        // A phone's bottom bar names its buttons only for a screen reader.
+        if (click)
+          await page
+            .getByText(new RegExp(`^${click}`))
+            .or(page.getByRole("button", { name: new RegExp(`^${click}`) }))
+            .first()
+            .click()
         if (railKey) await page.locator(".rail").press(railKey)
       } catch (err) {
         // What the page showed instead, for whoever reads the failure.

@@ -79,6 +79,10 @@ animation unless the product already has them.
 - **rove-web's phone layout** is the `narrow` variant (`.app.is-narrow`, under 560px) plus `touch:`; phone type is a
   token override in `src/tailwind.css`. Glass is one recipe, `src/ui/glass.ts`; round nav buttons are
   `src/ui/nav-button.tsx`. Arbitrary values stay inside `src/ui/` (rove-ui §0).
+- **A phone screen composes `src/ui/phone.tsx`** (`PhoneBar` back + title + trailing controls, `PhoneTitle`,
+  `PHONE_LIST`, `PhoneGroup` + `PHONE_ROW` grouped cards, `BottomBar` capsule + accent primary) and `src/ui/sheet.tsx`.
+  The page branches once (`useNarrow()`) into a phone tree and a desktop tree; don't thread `w-narrow:` variants
+  through a desktop recipe for a new phone screen.
 - **The iPhone app** (`packages/rove-ios`) is a native shell around rove-web: native only for pairing (scan or paste
   the bridge's link, Keychain, several computers), mic and camera permission, the unreachable page, external links to
   Safari. Everything users see of tasks is the web, so its rows, states and actions match the web by construction;

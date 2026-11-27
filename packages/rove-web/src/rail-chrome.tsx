@@ -19,13 +19,14 @@ import { needsPerson } from "./rail-glyphs.ts"
 import { clampRailWidth, peekRail, railFolded, railPeek, railWidth } from "./rail-layout.ts"
 import { useStore } from "./store.ts"
 import { dragLayout } from "./ui.ts"
-import { GlassButton, NavButton } from "./ui/nav-button.tsx"
+import { GlassButton } from "./ui/nav-button.tsx"
 import { ICON_BUTTON_DOT, RAIL_BAR, iconButton } from "./ui/panel.ts"
+import { PhoneBar } from "./ui/phone.tsx"
 import { RefreshRoveButton } from "./ui/refresh-rove-button.tsx"
 import { ResizeGrip } from "./ui/resize-grip.tsx"
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { PickSheet } from "./ui/sheet.tsx"
-import { NARROW_BAR, NARROW_TITLE, NARROW_VIEW_ICON } from "./ui/shell.ts"
+import { NARROW_VIEW_ICON } from "./ui/shell.ts"
 
 /** Two releases closer together than this are one double-click. */
 const DOUBLE_CLICK_MS = 400
@@ -173,9 +174,7 @@ export function NarrowBackBar({ client, taskId, title }: { client: BridgeClient;
   const view = useStore(narrowView)
   const [picking, setPicking] = useState(false)
   return (
-    <div className={NARROW_BAR}>
-      <NavButton kind="back" label={workspaceText("narrowBack")} onClick={backToTasks} />
-      {title && <span className={NARROW_TITLE}>{title}</span>}
+    <PhoneBar back={{ label: workspaceText("narrowBack"), onClick: backToTasks }} title={title}>
       {taskId && (
         <GlassButton
           size="nav"
@@ -198,7 +197,7 @@ export function NarrowBackBar({ client, taskId, title }: { client: BridgeClient;
         />
       )}
       <RefreshRoveButton client={client} />
-    </div>
+    </PhoneBar>
   )
 }
 

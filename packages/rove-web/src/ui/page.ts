@@ -33,9 +33,6 @@ export const RAIL_NAV = "flex flex-col px-1.5 pb-2 narrow:px-2"
 /** A hairline above it: the usage readings and Settings are one group, apart from the task list. Padded as the rail's sides are, so a hovered Settings row keeps the same clear band from the rule above and the window's edge below. */
 export const RAIL_FOOT = "flex flex-col border-t-hairline border-t-line px-1.5 py-1.5"
 export const RAIL_FOOT_ROW = "relative flex flex-col"
-/** The phone's foot: two glass buttons floating over the list's end, which shows between and under them. */
-export const RAIL_BOTTOM_BAR =
-  "pointer-events-none absolute inset-x-0 bottom-0 z-2 flex items-end justify-between px-4 pb-3"
 export const RAIL_BAR_ICON =
   "size-5.5 fill-none stroke-current stroke-[1.5] [stroke-linecap:round] [stroke-linejoin:round]"
 /** `:hover` without the hover-capable media gate, as the sheet had: a tap leaves the row washed on a phone. */
