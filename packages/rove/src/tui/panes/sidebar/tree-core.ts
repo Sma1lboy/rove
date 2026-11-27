@@ -64,6 +64,8 @@ export type TreeRow =
       readonly id: string
       readonly repo: string
       readonly label: string
+      /** A chat connector's project: the renderer names the app. */
+      readonly connector?: string
       /** The home checkout's machine (what the header's actions act on); `"local"` for this computer. */
       readonly machineId: string
       readonly depth: number
@@ -246,6 +248,7 @@ export function buildRowsFromGroups(input: TreeRowsInput): TreeRow[] {
       label: group.label,
       machineId: group.machineId,
       depth: 0,
+      ...(group.connector ? { connector: group.connector } : {}),
     })
     if (input.collapsedProjects?.has(group.key)) continue
     for (const task of top) pushTask(rows, task, 0, ctx)

@@ -24,11 +24,13 @@ import { buildSidebarRowView, rowIsLoading, withSpinnerFrame } from "../../../tu
 import { type ChildMarker, buildRowsFromGroups, childMarkerOf } from "../../../tui/panes/sidebar/tree-core"
 import { toneColor } from "../../../tui/panes/sidebar/view-core"
 import { useTheme } from "../../context/theme"
+import { useT } from "../../i18n"
 import { useGlyphs } from "../../lib/use-glyphs"
 import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"
 import { taskRowStatus, useRowStatusMap } from "../../workspace/row-status-sync"
 import { CollapseButton } from "./collapse-button"
 import { useSpinnerFrame } from "./row-cards"
+import { projectHeaderLabel } from "./tree-panel"
 import { SHARED_MARK, WORKTREE_MARK } from "./tree-rows"
 
 export type CollapsedRailStyle = "hairline" | "glyphs" | "initials"
@@ -80,6 +82,7 @@ function useRailSections(props: {
   groups: readonly SidebarGroup[]
   selectedId: string | null
 }): readonly RailSection[] {
+  const t = useT()
   // The tree's own rows, so the rail nests exactly as the tree does. Routine
   // sessions take no cell: the fold has no room for the tree's count row, and a
   // daily schedule would make the folded rail the longer surface. Their rows
@@ -95,7 +98,7 @@ function useRailSections(props: {
   const sections: { key: string; label: string; rows: RailRow[] }[] = []
   for (const row of treeRows) {
     if (row.kind === "project") {
-      sections.push({ key: row.id, label: row.label, rows: [] })
+      sections.push({ key: row.id, label: projectHeaderLabel(row, t), rows: [] })
       continue
     }
     if (row.kind !== "worktree") continue

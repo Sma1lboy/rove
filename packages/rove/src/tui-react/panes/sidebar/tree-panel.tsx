@@ -16,6 +16,13 @@ import { SectionHeader } from "./chrome"
 import type { TreeRowShared } from "./tree-row-shell"
 import { RecentJumpRow, WorktreeTreeRow } from "./tree-rows"
 
+/** A project header's text: Ungrouped and the built-in chat connectors by name, any other project by its folder. */
+export function projectHeaderLabel(row: Extract<TreeRow, { kind: "project" }>, t: ReturnType<typeof useT>): string {
+  if (row.id === SCRATCH_SECTION_ID) return t("tasks.header.scratch")
+  if (row.connector === "weixin" || row.connector === "lark") return t(`tasks.header.connector.${row.connector}`)
+  return row.label
+}
+
 export function SidebarTreeBody(props: {
   readonly rows: readonly TreeRow[]
   /** Row id → index in the tree's navigable flat id list. */
@@ -51,7 +58,7 @@ export function SidebarTreeBody(props: {
             return (
               <SectionHeader
                 key={row.id}
-                label={isScratch ? t("tasks.header.scratch") : row.label}
+                label={projectHeaderLabel(row, t)}
                 suffix={props.movingProjectId === row.id ? t("tasks.moveChip") : undefined}
                 collapsed={props.onToggleProject ? props.collapsedProjects?.has(row.id) === true : undefined}
                 onPress={() => props.onToggleProject?.(row.id)}
