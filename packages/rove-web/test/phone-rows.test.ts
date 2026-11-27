@@ -30,7 +30,7 @@ describe("a phone session row's age", () => {
 })
 
 describe("the phone's Extensions list", () => {
-  test("is empty with no extension installed, which hides its button", () => {
+  test("is empty with no extension installed: the sheet is then only Add extension", () => {
     expect(extPages(new Set(), [], names)).toEqual([])
   })
 

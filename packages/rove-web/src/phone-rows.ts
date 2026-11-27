@@ -33,7 +33,7 @@ export interface ExtPage {
   readonly pane?: string
 }
 
-/** The pages extensions add: the installed first-party mods' own pages, then every open mod pane. None = no way in is shown. */
+/** The pages extensions add: the installed first-party mods' own pages, then every open mod pane. */
 export function extPages(
   installed: ReadonlySet<string>,
   panes: readonly ModPaneView[],

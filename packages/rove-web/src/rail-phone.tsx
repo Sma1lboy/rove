@@ -6,7 +6,7 @@ import { openPage } from "./layout.ts"
 import { CloudMark } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { useCopy, useReload } from "./pages-kit.ts"
-import { extPages, sessionAge, sessionLine2 } from "./phone-rows.ts"
+import { extPages, lastExtPage, rememberExtPage, sessionAge, sessionLine2 } from "./phone-rows.ts"
 import { PrChip } from "./pr-chip.tsx"
 import { usePrefs } from "./prefs.ts"
 import type { RailRowProps } from "./rail-view.tsx"
@@ -16,6 +16,7 @@ import { type RoutinesReply, routineNeedsYou } from "./routines-data.ts"
 import { useStore } from "./store.ts"
 import { ExtensionsButton, PhoneGroupHead, PhoneStatusRow, RoutinesButton, StatusGlyph } from "./ui/phone-rows.tsx"
 import { CHILD_INDENT, guideClass, projectHead } from "./ui/rail.ts"
+import { SHEET_LIST, SHEET_SEP, Sheet, SheetRow } from "./ui/sheet.tsx"
 import { SwipeRow } from "./ui/swipe-row.tsx"
 
 /** Until the bridge's glyph sets arrive: its default set's marks. */
@@ -144,12 +145,57 @@ export function PhoneRoutines({ model }: { model: AppModel }) {
   return <RoutinesButton label={nav.automations} count={count} onClick={() => openPage("routines")} />
 }
 
-/** Top right of the list: the pages extensions add. Hidden while none is installed. */
-export function PhoneExtensions({ model }: { model: AppModel }) {
+/**
+ * Top right of the list: a sheet of the pages extensions add, the one opened last first, then the way to add one.
+ * Shown with none installed too: the sheet is then that one row.
+ */
+export function PhoneExtensions({ model, onAdd }: { model: AppModel; onAdd: () => void }) {
   const { nav } = useCopy()
+  const [open, setOpen] = useState(false)
+  const last = useStore(lastExtPage)
   const pages = extPages(useStore(model.installedMods), useStore(model.mods), nav)
-  if (pages.length === 0) return null
-  return <ExtensionsButton label={t("rail.extensions")} onClick={() => openPage("extensions")} />
+  const ordered = [...pages].sort((a, b) => Number(b.id === last) - Number(a.id === last))
+  const title = t("rail.extensions")
+  return (
+    <>
+      <ExtensionsButton label={title} onClick={() => setOpen(true)} />
+      {open && (
+        <Sheet label={title} title={title} onClose={() => setOpen(false)}>
+          {(close) => (
+            <div className={SHEET_LIST}>
+              {ordered.map((entry) => (
+                <SheetRow
+                  key={entry.id}
+                  data-ext-row={entry.id}
+                  onClick={() => {
+                    close()
+                    rememberExtPage(entry)
+                    openPage(entry.page)
+                  }}
+                >
+                  <span className="min-w-0 flex-1 truncate">{entry.title}</span>
+                  <span className="flex-none font-mono text-meta text-subtle">
+                    {entry.id === last ? t("rail.lastOpened") : entry.note}
+                  </span>
+                </SheetRow>
+              ))}
+              {ordered.length > 0 && <hr className={SHEET_SEP} />}
+              <SheetRow
+                data-ext-row="add"
+                onClick={() => {
+                  close()
+                  onAdd()
+                }}
+              >
+                <span className="w-4 flex-none text-center text-accent">+</span>
+                <span className="min-w-0 flex-1 truncate">{t("rail.addExtension")}</span>
+              </SheetRow>
+            </div>
+          )}
+        </Sheet>
+      )}
+    </>
+  )
 }
 
 /** How many tasks each project header holds, folded or not. */

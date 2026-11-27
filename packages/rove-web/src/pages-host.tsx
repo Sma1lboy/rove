@@ -6,7 +6,6 @@
  */
 
 import { CompareView } from "./compare-view.tsx"
-import { ExtensionsView } from "./extensions-view.tsx"
 import { t } from "./i18n/index.ts"
 import { IssuesView } from "./issues-view.tsx"
 import { KanbanView } from "./kanban-view.tsx"
@@ -79,8 +78,6 @@ export function PagesHost({ model, page: current }: { model: AppModel; page: Pag
     <UsageView model={model} />
   ) : current === "sessions" ? (
     <SessionsView model={model} />
-  ) : current === "extensions" ? (
-    <ExtensionsView model={model} />
   ) : current === "update" ? (
     <UpdateView client={model.client} />
   ) : null

@@ -139,7 +139,7 @@ export function RoutinesButton(props: { label: string; count: number; onClick: (
   )
 }
 
-/** Beside the wordmark, at the right edge: the way in to the pages extensions add. */
+/** Beside the wordmark, at the right edge: opens the sheet of pages extensions add. */
 export function ExtensionsButton(props: { label: string; onClick: () => void }) {
   return (
     <GlassButton size="nav" kind="extensions" label={props.label} onClick={props.onClick}>
