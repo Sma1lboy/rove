@@ -4,11 +4,11 @@ import { useNarrow } from "../layout.ts"
 import { PRESS, glass } from "./glass.ts"
 import { DIALOG_CLOSE } from "./overlay.ts"
 
-/** Literal class names, so Tailwind finds them. The 36px disc grows its hit area to 44px. */
+/** Literal class names, so Tailwind finds them. The two in a bottom bar are one size. */
 const SIZE = {
-  nav: "size-9 after:absolute after:-inset-1 after:content-['']",
-  bar: "size-12",
-  primary: "size-12",
+  nav: "size-11",
+  bar: "size-13",
+  primary: "size-13",
 } as const
 const ICON = "fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round]"
 
@@ -44,7 +44,7 @@ const PATH = { back: "M10 3 5 8l5 5", close: "M4 4l8 8M12 4 4 12" } as const
 export function NavButton(props: { kind: keyof typeof PATH; label: string; onClick: () => void }) {
   return (
     <GlassButton size="nav" kind={props.kind} label={props.label} onClick={props.onClick}>
-      <svg viewBox="0 0 16 16" className={`size-4 ${ICON} [stroke-width:1.75]`} aria-hidden="true">
+      <svg viewBox="0 0 16 16" className={`size-5.5 ${ICON} [stroke-width:1.5]`} aria-hidden="true">
         <path d={PATH[props.kind]} />
       </svg>
     </GlassButton>
@@ -54,7 +54,7 @@ export function NavButton(props: { kind: keyof typeof PATH; label: string; onCli
 /** A count on a glass button's shoulder (unread items); the caller hides it at zero. */
 export function CountBadge({ count }: { count: number }) {
   return (
-    <span className="absolute -top-1.5 -right-2 z-1 grid h-4.5 min-w-4.5 place-items-center rounded-full bg-accent px-1 font-sans text-[12px] leading-none font-semibold text-paper normal-nums">
+    <span className="absolute -top-1 -right-1.5 z-1 grid h-4.5 min-w-4.5 place-items-center rounded-full bg-accent px-1 font-sans text-[12px] leading-none font-semibold text-paper normal-nums">
       {count > 99 ? "99+" : count}
     </span>
   )
@@ -63,7 +63,7 @@ export function CountBadge({ count }: { count: number }) {
 /** Lucide `inbox` (ISC). */
 export function TrayGlyph() {
   return (
-    <svg viewBox="0 0 24 24" className={`size-4.5 ${ICON} [stroke-width:1.75]`} aria-hidden="true">
+    <svg viewBox="0 0 24 24" className={`size-5.5 ${ICON} [stroke-width:1.6]`} aria-hidden="true">
       <path d="M22 12h-6l-2 3h-4l-2-3H2" />
       <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
     </svg>
@@ -73,7 +73,7 @@ export function TrayGlyph() {
 /** The primary action's +. */
 export function PlusGlyph() {
   return (
-    <svg viewBox="0 0 16 16" className={`size-6 ${ICON} [stroke-width:1.5]`} aria-hidden="true">
+    <svg viewBox="0 0 16 16" className={`size-5.5 ${ICON} [stroke-width:1.5]`} aria-hidden="true">
       <path d="M8 3v10M3 8h10" />
     </svg>
   )

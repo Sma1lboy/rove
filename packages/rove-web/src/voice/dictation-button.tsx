@@ -57,9 +57,13 @@ function availableStore(client: BridgeClient): Store<boolean | null> {
   return store
 }
 
+/** A page off HTTPS or localhost has no microphone API: a mic there could only fail, so none is shown. */
+const canRecord = (): boolean =>
+  typeof navigator !== "undefined" && typeof navigator.mediaDevices?.getUserMedia === "function"
+
 /** Settings → Voice after an install or a saved endpoint: the mic shows (or hides) without a reload. */
 export function setVoiceAvailable(client: BridgeClient, available: boolean): void {
-  availableStore(client).set(available)
+  availableStore(client).set(available && canRecord())
 }
 
 /** The slice of a `voice.status` reply that says whether the mic belongs on the page. */
@@ -83,7 +87,7 @@ export function useVoiceHosted(client: BridgeClient): boolean | null {
     // On open, not on mount: asked before the socket is up, the request fails and the mic would stay hidden.
     client.onOpen(() => {
       client.request<VoiceStatusReply>("voice.status").then(
-        (status) => store.set(isAvailable(status)),
+        (status) => store.set(isAvailable(status) && canRecord()),
         () => store.set(false),
       )
     })

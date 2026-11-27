@@ -4,6 +4,7 @@ import { type ReactNode, useCallback, useEffect, useId, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
+import { useNarrow } from "./layout.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { Button } from "./ui/button.tsx"
 import { Segmented } from "./ui/segmented.tsx"
@@ -106,14 +107,17 @@ const SEGMENT_CHARS = 36
 /** A CJK or full-width character takes two Latin widths. */
 const WIDE = /[\u2e80-\u9fff\uac00-\ud7af\uf900-\ufaff\uff00-\uffef]/
 
-/** Whether the options are few and short enough to show joined instead of in a drop-down. */
-export function fitsJoined(picks: readonly { readonly label: string }[]): boolean {
+/** A phone joins only a pair, and only one this short: the row's name keeps the rest of the line. */
+const PHONE_SEGMENT_CHARS = 20
+
+/** Whether the options are few and short enough to show joined instead of in a drop-down (a phone: a bottom sheet). */
+export function fitsJoined(picks: readonly { readonly label: string }[], phone = false): boolean {
   let width = 0
   for (const pick of picks) for (const ch of pick.label) width += WIDE.test(ch) ? 2 : 1
-  return picks.length <= 4 && width <= SEGMENT_CHARS
+  return phone ? picks.length === 2 && width <= PHONE_SEGMENT_CHARS : picks.length <= 4 && width <= SEGMENT_CHARS
 }
 
-/** One of several: joined options when they are few and short, a drop-down otherwise. */
+/** One of several: joined options when they are few and short, a drop-down (a phone: a bottom sheet) otherwise. */
 export function Choice<T extends string | number>(props: {
   label: string
   hint?: string
@@ -122,7 +126,7 @@ export function Choice<T extends string | number>(props: {
   picks: readonly Pick<T>[]
   onPick: (next: T) => void
 }) {
-  const Control = fitsJoined(props.picks) ? Segmented : Select
+  const Control = fitsJoined(props.picks, useNarrow()) ? Segmented : Select
   return (
     <Row label={props.label} hint={props.hint} sample={props.sample}>
       <Control label={props.label} value={props.value} picks={props.picks} onPick={props.onPick} />

@@ -19,6 +19,7 @@ import { DevSection } from "./settings-dev.tsx"
 import { EnginesSection } from "./settings-engines.tsx"
 import { FeedbackSection } from "./settings-feedback.tsx"
 import { GeneralSection } from "./settings-general.tsx"
+import { SectionIcon } from "./settings-icons.tsx"
 import { KeysSection } from "./settings-keys.tsx"
 import { NotificationsSection } from "./settings-notifications.tsx"
 import { PluginsSection } from "./settings-plugins.tsx"
@@ -33,6 +34,7 @@ import { NavButton } from "./ui/nav-button.tsx"
 import {
   SETTINGS_BAR,
   SETTINGS_BODY,
+  SETTINGS_CARD,
   SETTINGS_CLOSE,
   SETTINGS_COLUMN,
   SETTINGS_DESC,
@@ -46,6 +48,7 @@ import {
   SETTINGS_OVERLAY,
   SETTINGS_SCROLL,
   SETTINGS_TITLE,
+  SETTINGS_USAGE_CARD,
   settingsNavItemClass,
   settingsPageClass,
 } from "./ui/settings.ts"
@@ -84,27 +87,37 @@ const sectionName = (id: SettingsSection): string => {
   return tui ? ts(tui) : t(`settings.sections.${id}`)
 }
 
-function SectionList(props: { current: SettingsSection; narrow: boolean; onPick: (id: SettingsSection) => void }) {
+function SectionList(props: {
+  current: SettingsSection
+  narrow: boolean
+  onPick: (id: SettingsSection) => void
+  /** Under the last group (a phone's usage readings). */
+  foot?: ReactNode
+}) {
   return (
     <nav className={SETTINGS_NAV} aria-label={t("settings.title")}>
-      {!props.narrow && <h1 className={SETTINGS_NAV_TITLE}>{t("settings.title")}</h1>}
+      <h1 className={SETTINGS_NAV_TITLE}>{t("settings.title")}</h1>
       {SECTION_GROUPS.map((group) => (
         <div key={group.id} className={SETTINGS_NAV_GROUP}>
           <p className={SETTINGS_NAV_LABEL}>{t(`settings.groups.${group.id}`)}</p>
-          {group.sections.map((id) => (
-            <Button
-              key={id}
-              variant="row"
-              className={settingsNavItemClass(!props.narrow && props.current === id, group.id === "more")}
-              aria-current={!props.narrow && props.current === id ? "page" : undefined}
-              onClick={() => props.onPick(id)}
-            >
-              {sectionName(id)}
-              <Chevron right className={SETTINGS_NAV_CHEVRON} />
-            </Button>
-          ))}
+          <div className={SETTINGS_CARD}>
+            {group.sections.map((id) => (
+              <Button
+                key={id}
+                variant="row"
+                className={settingsNavItemClass(!props.narrow && props.current === id, group.id === "more")}
+                aria-current={!props.narrow && props.current === id ? "page" : undefined}
+                onClick={() => props.onPick(id)}
+              >
+                <SectionIcon id={id} />
+                {sectionName(id)}
+                <Chevron right className={SETTINGS_NAV_CHEVRON} />
+              </Button>
+            ))}
+          </div>
         </div>
       ))}
+      {props.foot}
     </nav>
   )
 }
@@ -160,7 +173,6 @@ export function SettingsDialog({ model, section: opening }: { model: AppModel; s
                 label={narrowPane.get() === "sidebar" ? workspaceText("narrowBack") : t("dialog.close")}
                 onClick={closeDialog}
               />
-              <h1 className={SETTINGS_TITLE}>{t("settings.title")}</h1>
             </div>
           )
         ) : (
@@ -179,10 +191,16 @@ export function SettingsDialog({ model, section: opening }: { model: AppModel; s
             current={view.section}
             narrow={narrow}
             onPick={(id) => setView({ section: id, drilled: true })}
+            // The rail's foot has no room for them on a phone: the quota readings are the list's last card, and open Usage.
+            foot={
+              narrow && (
+                <div className={SETTINGS_USAGE_CARD}>
+                  <UsageChips client={model.client} inset={false} />
+                </div>
+              )
+            }
           />
         )}
-        {/* The rail's foot has no room for them on a phone: the quota readings sit under the section list, and open Usage. */}
-        {narrow && showList && <UsageChips client={model.client} inset={false} />}
         {showSection && (
           <div ref={narrow ? backPanel(back) : undefined} className={settingsPageClass(swiping)}>
             {narrow && (
