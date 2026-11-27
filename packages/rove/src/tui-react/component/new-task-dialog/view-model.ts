@@ -35,7 +35,7 @@ import { useAdoptState } from "./use-adopt-state"
 import { useBranchField } from "./use-branch-field"
 import { useCloneState } from "./use-clone-state"
 import { useExtraRepos } from "./use-extra-repos"
-import { useRepoField } from "./use-repo-field"
+import { NO_FOLDER, useRepoField } from "./use-repo-field"
 
 /** Prop surface of the dialog view. */
 export type NewTaskDialogProps = {
@@ -128,13 +128,13 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     // Intent is per-repo; reset so the row doesn't describe the previous path.
     // Safety is `commitExisting`'s own `canOpenProject` guard.
     onChanged: () => setIntent("task"),
-    onAnswered: () => setField(advanceField("repo")),
+    onAnswered: (answer) => setField(advanceField("repo", answer.trim() === NO_FOLDER)),
   })
   const expandedRepo = repoField.expandedRepo
-  // No folder opens a bare engine session: no branch, extra repos, model or effort to carry.
+  // No folder opens a session in no project: no branch or extra repos to carry.
   const noFolder = tab === "existing" && repoField.repo.trim() === ""
-  const effortChoices = effortLevels.length > 0 && !noFolder ? ["", ...effortLevels] : []
-  const modelVisible = engineAcceptsModel(vendor) && !noFolder
+  const effortChoices = effortLevels.length > 0 ? ["", ...effortLevels] : []
+  const modelVisible = engineAcceptsModel(vendor)
   // Offered against the EXPANDED path: `mainRepos` holds absolute repo roots,
   // and a `~/`-typed entry would otherwise never match its own project.
   const canOpenProject = offersProjectIntent(expandedRepo, props.mainRepos ?? EMPTY_MAIN_REPOS)
@@ -178,9 +178,16 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   /* ── Commit paths ── */
 
   function commitExisting(): void {
+    const model = modelVisible ? modelField.value.trim() : ""
     if (noFolder) {
       const firstMessage = prompt.trim()
-      props.onSubmit({ mode: "scratch", vendor, ...(firstMessage ? { prompt: firstMessage } : {}) })
+      props.onSubmit({
+        mode: "scratch",
+        vendor,
+        ...(firstMessage ? { prompt: firstMessage } : {}),
+        ...(model ? { model } : {}),
+        ...(effort ? { modelEffort: effort } : {}),
+      })
       return
     }
     // Two saved repos can share a basename; reopen the picker (directories
@@ -214,7 +221,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       baseRef: b,
       vendor,
       ...(effort ? { modelEffort: effort } : {}),
-      ...(modelVisible && modelField.value.trim() ? { model: modelField.value.trim() } : {}),
+      ...(model ? { model } : {}),
       ...(tier !== "manual" ? { tier } : {}),
       ...(firstMessage ? { prompt: firstMessage } : {}),
       ...(extras.extraPicked.length > 0 ? { extraRepos: extras.extraPicked } : {}),
@@ -283,9 +290,10 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     }
   }
 
-  function advanceField(from: Field): Field {
+  function advanceField(from: Field, toNoFolder = noFolder): Field {
+    // No folder hides every stop between the repo and Create.
+    if (toNoFolder && from === "repo") return "confirm"
     const next = nextField(from, tab, focusStopsFor(tab))
-    if (noFolder && next === "baseRef") return "confirm"
     // The "project" intent hides the first-message and branch fields; walk past each.
     if (tab !== "existing" || intent !== "project" || !canOpenProject) return next
     if (next === "prompt") return nextField("prompt", tab, focusStopsFor(tab))

@@ -177,7 +177,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     forgetTaskTabs: (id) => forgetTaskTabs(kv, id),
     // `quickFork` is declared below; the dialog only calls this after the first render.
     startWithPrompt: (repo, start) => quickFork.onQuickFork(repo, { ...start, attachments: [], attempts: 1 }),
-    openScratch: (vendor, prompt) => scratch.openScratchShell(vendor, prompt),
+    openScratch: (vendor, prompt, pick) => scratch.openScratchShell(vendor, prompt, pick),
     // `newTaskPage` is built below; this only runs on a later user action.
     promptNewTask: (repo, repos, opts) => newTaskPage.prompt(repo, repos, opts),
   })
