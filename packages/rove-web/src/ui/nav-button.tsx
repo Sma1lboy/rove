@@ -4,29 +4,23 @@ import { useNarrow } from "../layout.ts"
 import { PRESS, SQUARE, SQUARE_BAR, glass } from "./glass.ts"
 import { DIALOG_CLOSE } from "./overlay.ts"
 
-/** Literal class names, so Tailwind finds them. `primary` is the bottom bar's height, as the capsule beside it. */
-const SIZE = {
-  nav: `size-11 ${SQUARE}`,
-  primary: `size-13 ${SQUARE_BAR}`,
-} as const
 const ICON = "fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round]"
 
 /**
- * The phone's rounded-square button, after iOS's: glass for `nav` beside a title; `primary`,
- * the screen's one action, is a solid accent square of the bar's size, like Send, with a shadow and no glass. `label` names it for a screen reader; the caller passes the glyph.
+ * The phone's rounded-square glass button, after iOS's, beside a title. `label` names it for a screen reader; the
+ * caller passes the glyph.
  */
 export function GlassButton(props: {
-  size: keyof typeof SIZE
+  size: "nav"
   label: string
   onClick: () => void
   kind?: string
   children: ReactNode
 }) {
-  const primary = props.size === "primary"
   return (
     <button
       type="button"
-      className={`pointer-events-auto relative grid flex-none cursor-pointer place-items-center ${SIZE[props.size]} ${primary ? "bg-accent text-paper shadow-popover" : `${glass()} text-ink`} ${PRESS}`}
+      className={`pointer-events-auto relative grid flex-none cursor-pointer place-items-center size-11 ${SQUARE} ${glass()} text-ink ${PRESS}`}
       data-nav={props.kind}
       aria-label={props.label}
       title={props.label}
@@ -95,7 +89,7 @@ export function NavButton(props: { kind: keyof typeof PATH; label: string; onCli
 }
 
 /** A count on a glass button's shoulder (unread items); the caller hides it at zero. */
-function CountBadge({ count }: { count: number }) {
+export function CountBadge({ count }: { count: number }) {
   return (
     <span
       key={count}
@@ -116,7 +110,7 @@ function TrayGlyph() {
   )
 }
 
-/** The primary action's +. */
+/** A screen's action bar's +. */
 export function PlusGlyph() {
   return (
     <svg viewBox="0 0 16 16" className={`size-5.5 ${ICON} [stroke-width:1.5]`} aria-hidden="true">

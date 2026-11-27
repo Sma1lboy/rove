@@ -18,8 +18,10 @@ import {
 } from "@sma1lboy/rove/src/tui/panes/mods/mods-core.ts"
 import { type ReactNode, useRef, useState } from "react"
 import { useLocale } from "./i18n/index.ts"
+import { useNarrow } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { usePageFocus, usePageKeys } from "./pages-kit.ts"
+import { modPane } from "./phone-rows.ts"
 import { useStore } from "./store.ts"
 import { page, toast } from "./ui.ts"
 import {
@@ -34,6 +36,7 @@ import {
   modTextClass,
 } from "./ui/mods.ts"
 import { PAGE_SCROLL, PAGE_TITLE, PG_TOP, pgHintClass } from "./ui/page.ts"
+import { PhonePage } from "./ui/phone.tsx"
 import { INPUT } from "./ui/text.ts"
 
 const SPACE_PX = [0, 6, 12, 20] as const
@@ -135,7 +138,12 @@ function ModTree(props: TreeProps): ReactNode {
 export function ModsView({ model }: { model: AppModel }) {
   // The TUI's own copy, as the other rail pages share it.
   const copy = useLocale() === "zh" ? modsZh : modsEn
-  const panes = useStore(model.mods)
+  const phone = useNarrow()
+  const only = useStore(modPane)
+  const open = useStore(model.mods)
+  // A phone opens one pane from its Extensions list; a pane that has since closed falls back to all of them.
+  const picked = phone ? open.filter((pane) => `${pane.plugin}/${pane.id}` === only) : []
+  const panes = picked.length > 0 ? picked : open
   const controls = modControls(panes)
   const [rawCursor, setCursor] = useState<ModControlRef | null>(null)
   const cursor = resolveModCursor(controls, rawCursor)
@@ -189,6 +197,31 @@ export function ModsView({ model }: { model: AppModel }) {
     }
   })
 
+  const body =
+    panes.length === 0 ? (
+      <div className={MODS_EMPTY}>
+        <p>{copy.empty}</p>
+        <p className="text-muted">{copy.emptyHint}</p>
+      </div>
+    ) : (
+      panes.map((pane) => (
+        <section className={MOD_PANE} key={`${pane.plugin}/${pane.id}`}>
+          {/* A phone showing one pane names it in the page's title. */}
+          {picked.length === 0 && (
+            <header className={MOD_PANE_TITLE}>
+              {pane.title} <span className="text-muted">{pane.plugin}</span>
+            </header>
+          )}
+          <ModTree node={pane.tree} pane={pane} cursor={cursor} onPress={press} onSubmit={submit} onFocus={setCursor} />
+        </section>
+      ))
+    )
+  if (phone)
+    return (
+      <PhonePage title={picked[0]?.title ?? copy.title} note={picked[0]?.plugin} rootRef={root}>
+        {body}
+      </PhonePage>
+    )
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
     <div className={`${PAGE_SCROLL} ${MODS_PAGE}`} tabIndex={0} ref={root}>
@@ -196,28 +229,7 @@ export function ModsView({ model }: { model: AppModel }) {
         <h1 className={PAGE_TITLE}>{copy.title}</h1>
         <span className={`keys-only touch:empty:hidden! text-muted ${pgHintClass(false)}`}>{copy.keys}</span>
       </div>
-      {panes.length === 0 ? (
-        <div className={MODS_EMPTY}>
-          <p>{copy.empty}</p>
-          <p className="text-muted">{copy.emptyHint}</p>
-        </div>
-      ) : (
-        panes.map((pane) => (
-          <section className={MOD_PANE} key={`${pane.plugin}/${pane.id}`}>
-            <header className={MOD_PANE_TITLE}>
-              {pane.title} <span className="text-muted">{pane.plugin}</span>
-            </header>
-            <ModTree
-              node={pane.tree}
-              pane={pane}
-              cursor={cursor}
-              onPress={press}
-              onSubmit={submit}
-              onFocus={setCursor}
-            />
-          </section>
-        ))
-      )}
+      {body}
     </div>
   )
 }

@@ -9,7 +9,7 @@ import { CompareView } from "./compare-view.tsx"
 import { t } from "./i18n/index.ts"
 import { IssuesView } from "./issues-view.tsx"
 import { KanbanView } from "./kanban-view.tsx"
-import { openPage, useNarrow } from "./layout.ts"
+import { openPage } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { ModsView } from "./mods-view.tsx"
 import { startNewTask } from "./new-session-view.tsx"
@@ -42,7 +42,6 @@ const NAV: readonly NavItem[] = [
 export function PageNav({ model }: { model: AppModel }) {
   const { nav } = useCopy()
   const open = useStore(page)
-  const narrow = useNarrow()
   // As the TUI rail: Mods is a destination only while some mod has a pane open.
   const hasMods = useStore(model.mods).length > 0
   const installed = useStore(model.installedMods)
@@ -50,12 +49,10 @@ export function PageNav({ model }: { model: AppModel }) {
   const items = [...shown, ...(hasMods ? [MODS_NAV] : [])]
   return (
     <div className={RAIL_NAV}>
-      {/* Starting a task is the first destination, drawn like the pages under it; a phone has it in its bottom bar. */}
-      {!narrow && (
-        <RailNavRow plus onSelect={() => startNewTask()}>
-          {t("rail.newTask")}
-        </RailNavRow>
-      )}
+      {/* Starting a task is the first destination, drawn like the pages under it. */}
+      <RailNavRow plus onSelect={() => startNewTask()}>
+        {t("rail.newTask")}
+      </RailNavRow>
       {items.map((item) => (
         <RailNavRow key={item.id} active={open === item.id} onSelect={() => openPage(item.id)}>
           {nav[item.label]}
