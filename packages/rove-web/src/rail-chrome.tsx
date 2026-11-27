@@ -24,8 +24,8 @@ import { ICON_BUTTON_DOT, RAIL_BAR, iconButton } from "./ui/panel.ts"
 import { RefreshRoveButton } from "./ui/refresh-rove-button.tsx"
 import { ResizeGrip } from "./ui/resize-grip.tsx"
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
-import { NARROW_BAR, NARROW_TITLE, NARROW_VIEW_ICON } from "./ui/shell.ts"
 import { PickSheet } from "./ui/sheet.tsx"
+import { NARROW_BAR, NARROW_TITLE, NARROW_VIEW_ICON } from "./ui/shell.ts"
 
 /** Two releases closer together than this are one double-click. */
 const DOUBLE_CLICK_MS = 400
@@ -162,8 +162,7 @@ const TERMINAL_ICON = (
 )
 
 const VIEWS = ["terminal", ...LAUNCHED_KINDS] as const
-const viewName = (id: NarrowView): string =>
-  id === "terminal" ? t("layout.narrowTerminal") : t(`panel.${id}`)
+const viewName = (id: NarrowView): string => (id === "terminal" ? t("layout.narrowTerminal") : t(`panel.${id}`))
 
 /**
  * Narrow layout, content panel: the way back to the list the viewport has no room to show beside it.
@@ -178,7 +177,12 @@ export function NarrowBackBar({ client, taskId, title }: { client: BridgeClient;
       <NavButton kind="back" label={workspaceText("narrowBack")} onClick={backToTasks} />
       {title && <span className={NARROW_TITLE}>{title}</span>}
       {taskId && (
-        <GlassButton size="nav" kind="view" label={`${t("layout.narrowViews")}: ${viewName(view)}`} onClick={() => setPicking(true)}>
+        <GlassButton
+          size="nav"
+          kind="view"
+          label={`${t("layout.narrowViews")}: ${viewName(view)}`}
+          onClick={() => setPicking(true)}
+        >
           <svg className={NARROW_VIEW_ICON} viewBox="0 0 16 16" aria-hidden="true">
             {view === "terminal" ? TERMINAL_ICON : ICONS[view]}
           </svg>

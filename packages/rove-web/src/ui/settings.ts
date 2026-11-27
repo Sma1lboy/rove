@@ -76,7 +76,8 @@ export const SETTINGS_ROWS =
  * A row: name and note on the left, the control on the right. On a phone the name and control share the first line
  * and the note and sample run full width under them (`ROW_*` place the parts; `SETTINGS_TEXT` dissolves into the grid).
  */
-const ROW_GRID = "w-narrow:grid w-narrow:grid-cols-[minmax(0,1fr)_auto] w-narrow:items-center w-narrow:gap-x-3 w-narrow:gap-y-0.5"
+const ROW_GRID =
+  "w-narrow:grid w-narrow:grid-cols-[minmax(0,1fr)_auto] w-narrow:items-center w-narrow:gap-x-3 w-narrow:gap-y-0.5"
 export const SETTINGS_ROW = `flex items-center justify-between gap-x-6 gap-y-2 py-3 w-narrow:min-h-11 ${ROW_GRID}`
 /** A switch: its row never wraps on a desktop. */
 export const SETTINGS_ROW_INLINE = `flex items-center justify-between gap-x-6 py-3 ${ROW_GRID}`

@@ -63,7 +63,8 @@ export const NARROW_BAR = "flex items-center gap-2.5 px-1"
 /** A single tab has no strip to say which task this is. */
 export const NARROW_TITLE = "min-w-0 flex-1 truncate font-sans text-body font-normal text-ink"
 /** The view button's glyph: the panel icons drawn at the phone's icon size. */
-export const NARROW_VIEW_ICON = "size-5.5 fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:1.2]"
+export const NARROW_VIEW_ICON =
+  "size-5.5 fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:1.2]"
 
 export const HINT_BAR =
   "inline-flex shrink-0 items-baseline gap-3 whitespace-nowrap text-meta text-muted *:relative [&_.link:disabled]:cursor-default [&_.link:disabled]:opacity-50"
