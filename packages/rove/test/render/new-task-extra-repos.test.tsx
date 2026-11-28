@@ -77,6 +77,9 @@ test("picks submit as extraRepos in pick order; the primary is never offered as 
   expect(frame).toContain("beta-docs")
   // The primary appears once, in the repo field, not as a candidate row.
   expect(frame.match(/primary-app/g)).toHaveLength(1)
+  // Enter toggles a row here, and the footer says so.
+  expect(frame).toContain("enter select")
+  expect(frame).not.toContain("enter next field")
 
   // Pick docs first, then api: the order of picking is the order sent.
   await press(h, "down")
@@ -87,6 +90,7 @@ test("picks submit as extraRepos in pick order; the primary is never offered as 
 
   // Tab to the branch field, Enter walks to the message, Enter creates.
   await press(h, "tab")
+  expect(await h.frame()).toContain("enter next field")
   await press(h, "enter", 2)
   expect(h.submitted).toHaveLength(1)
   expect(h.submitted[0]).toMatchObject({ repo: primary, extraRepos: [docs, api] })

@@ -88,7 +88,7 @@ test("the tab lists the discovered worktrees behind a framed, capitalised filter
 
 test("enter on the cursor row selects it, and the hint counts what is selected", async () => {
   const { frame, mockInput } = await onAdoptTab(repo())
-  await frame()
+  expect(await frame()).toContain("enter select")
   await act(async () => {
     mockInput.pressEnter()
   })

@@ -130,11 +130,17 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
     </box>
   ) : null
   // Enter's caption follows the focused stop: it commits on the first message
-  // and on Create, and walks the form everywhere else.
+  // and on Create, toggles the row on a pick list, and walks the form elsewhere.
   const legend = (
     <DialogFooter paddingBottom={0}>
       {t("newTask.legend", {
-        enter: t(vm.field === "confirm" || vm.field === "prompt" ? "newTask.enterCreate" : "newTask.enterNext"),
+        enter: t(
+          vm.field === "confirm" || vm.field === "prompt"
+            ? "newTask.enterCreate"
+            : vm.field === "extras" || vm.field === "adoptFilter"
+              ? "newTask.enterSelect"
+              : "newTask.enterNext",
+        ),
       })}
     </DialogFooter>
   )
