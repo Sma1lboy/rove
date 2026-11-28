@@ -6,8 +6,8 @@
 
 import type { KeyEvent } from "@opentui/core"
 
-import { defaultChordsOf } from "../../context/keybindings.ts"
-import { isKittyModifierKeyEvent } from "../../lib/modifier-keys.ts"
+import { defaultChordsOf } from "../../../keys/keybindings.ts"
+import { isKittyModifierKeyEvent } from "../../../keys/modifier-keys.ts"
 
 /**
  * Kitty CSI-u sequence (ctrl+c = `\x1b[99;5u`, esc = `\x1b[27u`). The host

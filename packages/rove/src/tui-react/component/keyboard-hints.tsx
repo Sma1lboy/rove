@@ -12,14 +12,14 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { formatChord } from "../../tui/lib/chord-glyphs"
+import { formatChord } from "../../keys/chord-glyphs"
+import { currentPrefixConfiguration } from "../../keys/keymap-dispatch"
 import {
   KEY_HINTS_ENABLED_KEY,
   type StatusHintToken,
   keyHintsEnabled,
   statusHintTokens,
 } from "../../tui/lib/keyboard-hints"
-import { currentPrefixConfiguration } from "../../tui/lib/keymap-dispatch"
 import { useOptionalFocus } from "../context/focus"
 import { useKeymapVersion } from "../context/keybindings"
 import { useOptionalKV } from "../context/kv"

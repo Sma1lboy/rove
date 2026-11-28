@@ -6,13 +6,13 @@
  * name a binding carry a keycap with its real chord (`ShortcutBadge`).
  */
 
-import { RoveKeymap } from "@sma1lboy/rove/src/tui/context/keybindings-table.ts"
-import { guideCategory } from "@sma1lboy/rove/src/tui/lib/help-groups.ts"
+import { guideCategory } from "@sma1lboy/rove/src/keys/help-groups.ts"
+import { RoveKeymap } from "@sma1lboy/rove/src/keys/keybindings-table.ts"
 import {
   DIRECT_GUIDE_PREFIX_ACTION_ID,
   directGuideOptions,
   shortcutCaption,
-} from "@sma1lboy/rove/src/tui/lib/shortcut-reveal.ts"
+} from "@sma1lboy/rove/src/keys/shortcut-reveal.ts"
 import { type CSSProperties, type ReactNode, useEffect, useState } from "react"
 import { strokeText } from "./chord.ts"
 import { allCommands, appliesOn, currentSurface, reachability, specificity } from "./commands.ts"

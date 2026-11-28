@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
+import { keymapVersion } from "../../src/keys/keybindings"
 import { bumpKeymapVersion, subscribeKeymapVersion } from "../../src/tui-react/context/keybindings"
-import { keymapVersion } from "../../src/tui/context/keybindings"
 
 describe("keymap version subscription (React side)", () => {
   it("bump notifies subscribers and advances the counter they snapshot", () => {

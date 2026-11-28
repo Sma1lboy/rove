@@ -5,8 +5,9 @@
  */
 
 import { useRenderer } from "@opentui/react"
+import { type WorkspacePageState, nextFocusedPane, workspacePagesClosed } from "../../keys/keybinding-gates"
+import { prefixAction } from "../../keys/keymap-dispatch"
 import { restoreTerminal } from "../../lib/restore-terminal"
-import { prefixAction } from "../../tui/lib/keymap-dispatch"
 import { redrawScreen } from "../../tui/lib/screen-refresh"
 import { CommandPalette } from "../component/command-palette"
 import { HelpDialog } from "../component/help-dialog"
@@ -19,7 +20,6 @@ import { usePageEntries } from "../pages/registry"
 import type { DialogContext } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import type { HostPagesState } from "./host-pages"
-import { type WorkspacePageState, nextFocusedPane, workspacePagesClosed } from "./keybinding-gates"
 import { usePluginKeybindings } from "./use-plugin-keybindings"
 
 // The host's real panes, NOT PANE_ORDER: its "terminal" is never mounted here.
@@ -95,7 +95,7 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
     if (next) focus.setFocused(next as PaneId)
   }
 
-  // Page gating, unit-tested in test/tui-react/keybinding-gates.test.ts.
+  // Page gating, unit-tested in test/keys/keybinding-gates.test.ts.
   const pages: WorkspacePageState = {
     dialogOpen: deps.dialog.stack.length > 0,
     settingsOpen: deps.pages.settingsOpen,

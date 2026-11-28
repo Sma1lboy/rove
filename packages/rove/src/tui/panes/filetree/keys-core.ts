@@ -4,8 +4,8 @@
  * dispatch that makes these chords rebindable.
  */
 
-import { bindByIds } from "../../context/keybindings"
-import type { Binding } from "../../lib/keymap-dispatch"
+import { bindByIds } from "../../../keys/keybindings"
+import type { Binding } from "../../../keys/keymap-dispatch"
 
 /** Here, not in the component, to avoid a view ↔ bindings-hook import cycle. */
 export type FileTreeTab = "all" | "changes"

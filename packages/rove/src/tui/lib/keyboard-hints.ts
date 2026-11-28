@@ -10,9 +10,9 @@
  * instead of teaching a dead key.
  */
 
-import { formatChord } from "./chord-glyphs"
-import { legendCap } from "./help-groups"
-import type { BindingReachability } from "./keymap-reachability"
+import { formatChord } from "../../keys/chord-glyphs"
+import { legendCap } from "../../keys/help-groups"
+import type { BindingReachability } from "../../keys/keymap-reachability"
 
 /** Master toggle (Settings → General → Keyboard hints). Default ON. */
 export const KEY_HINTS_ENABLED_KEY = "hints.keyboard.enabled"

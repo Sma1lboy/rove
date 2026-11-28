@@ -5,8 +5,8 @@
  * is a click target, and advertises the chord the keymap currently binds to it.
  */
 
-import { currentPrefixConfiguration } from "../../../tui/lib/keymap-dispatch"
-import { shortcutCaption } from "../../../tui/lib/shortcut-reveal"
+import { currentPrefixConfiguration } from "../../../keys/keymap-dispatch"
+import { shortcutCaption } from "../../../keys/shortcut-reveal"
 import { useKeymapVersion } from "../../context/keybindings"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"

@@ -10,7 +10,7 @@
  * any pane (a split's `w`) competes by focus like the TUI's binding stack.
  */
 
-import { CTRL_HOLD_THRESHOLD_MS } from "@sma1lboy/rove/src/tui/lib/ctrl-hold.ts"
+import { CTRL_HOLD_THRESHOLD_MS } from "@sma1lboy/rove/src/keys/ctrl-hold.ts"
 import { useEffect } from "react"
 import { chordCandidates, strokeText } from "./chord.ts"
 import { type WebCommand, allCommands, appliesOn, currentSurface, registerCommands, specificity } from "./commands.ts"

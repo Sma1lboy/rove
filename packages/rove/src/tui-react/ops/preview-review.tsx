@@ -13,7 +13,7 @@
 import type { DiffRenderable, RGBA } from "@opentui/core"
 import { CodeRenderable } from "@opentui/core"
 import { type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react"
-import { bindByIds, findBinding } from "../../tui/context/keybindings"
+import { bindByIds, findBinding } from "../../keys/keybindings"
 import {
   type DiffReviewApi,
   type DiffRow,

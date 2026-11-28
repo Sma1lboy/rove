@@ -3,6 +3,8 @@
 
 import { afterEach, describe, expect, it } from "bun:test"
 import { useState } from "react"
+import { resetPrefixState } from "../../src/keys/keymap-dispatch"
+import { resetPrefixHud } from "../../src/keys/prefix-hud"
 import { FocusProvider, type PaneId, useFocus } from "../../src/tui-react/context/focus"
 import { useBindings } from "../../src/tui-react/lib/keymap"
 import { SidebarBrandHeader, SidebarSearchInput } from "../../src/tui-react/panes/sidebar/chrome"
@@ -11,8 +13,6 @@ import { useTerminalBindings } from "../../src/tui-react/panes/terminal/keys"
 import { useDialog } from "../../src/tui-react/ui/dialog"
 import { useWorkspaceKeybindings } from "../../src/tui-react/workspace/host-keybindings"
 import type { HostPagesState } from "../../src/tui-react/workspace/host-pages"
-import { resetPrefixState } from "../../src/tui/lib/keymap-dispatch"
-import { resetPrefixHud } from "../../src/tui/lib/prefix-hud"
 import { act, renderComponent, waitForFrameText } from "./harness"
 
 // The HUD feed is process-global: these chords would print `→ New task` into a later file's frames.

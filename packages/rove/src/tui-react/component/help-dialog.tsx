@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Scope-aware keybinding reference and filter, grouped by `src/tui/lib/help-groups.ts`.
+ * Scope-aware keybinding reference and filter, grouped by `src/keys/help-groups.ts`.
  *
  * keybindings.yaml reloads mutate the keymap in place, invisible to React:
  * `useKeymapVersion()` invalidates the rows, and `useT()` re-runs the
@@ -9,17 +9,17 @@
 
 import { type ScrollBoxRenderable, TextAttributes } from "@opentui/core"
 import { useMemo, useRef, useState } from "react"
-import { formatChord } from "../../tui/lib/chord-glyphs"
-import { glyphLegendSections } from "../../tui/lib/glyph-legend"
+import { formatChord } from "../../keys/chord-glyphs"
 import {
   type HelpGrammarSection,
   type HelpSurface,
   grammarHelpSections,
   matchesHelpAction,
   scopeCategory,
-} from "../../tui/lib/help-groups"
-import { currentPrefixConfiguration } from "../../tui/lib/keymap-dispatch"
-import type { BindingReachability } from "../../tui/lib/keymap-reachability"
+} from "../../keys/help-groups"
+import { currentPrefixConfiguration } from "../../keys/keymap-dispatch"
+import type { BindingReachability } from "../../keys/keymap-reachability"
+import { glyphLegendSections } from "../../tui/lib/glyph-legend"
 import { RoveKeymap, useKeymapVersion } from "../context/keybindings"
 import { useTheme } from "../context/theme"
 import { tKeys, useT } from "../i18n"

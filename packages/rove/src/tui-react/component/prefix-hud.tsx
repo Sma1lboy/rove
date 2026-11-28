@@ -4,17 +4,17 @@
  * with the engine's status line). Armed prefix → live `ctrl+a ⋯`; held Ctrl →
  * direct-shortcut guide; each resolved sequence → `ctrl+a + t → tab.new` (or
  * `∅`). The last three lines flush PREFIX_HUD_TTL_MS after landing. Timers
- * live HERE so the feed (src/tui/lib/prefix-hud.ts) and headless dispatch
+ * live HERE so the feed (src/keys/prefix-hud.ts) and headless dispatch
  * stay timer-free.
  */
 
 import { useEffect, useState } from "react"
+import { guideCategory } from "../../keys/help-groups"
+import { RoveKeymap, findBinding } from "../../keys/keybindings"
+import { currentPrefixConfiguration } from "../../keys/keymap-dispatch"
+import { PREFIX_GUIDE_DELAY_MS, PREFIX_HUD_TTL_MS, prefixHudClock, prefixHudState } from "../../keys/prefix-hud"
+import { DIRECT_GUIDE_PREFIX_ACTION_ID } from "../../keys/shortcut-reveal"
 import { charWidth, displayWidth } from "../../lib/display-width"
-import { RoveKeymap, findBinding } from "../../tui/context/keybindings"
-import { guideCategory } from "../../tui/lib/help-groups"
-import { currentPrefixConfiguration } from "../../tui/lib/keymap-dispatch"
-import { PREFIX_GUIDE_DELAY_MS, PREFIX_HUD_TTL_MS, prefixHudClock, prefixHudState } from "../../tui/lib/prefix-hud"
-import { DIRECT_GUIDE_PREFIX_ACTION_ID } from "../../tui/lib/shortcut-reveal"
 import { truncateEndCells } from "../../tui/lib/truncate"
 import { useTheme } from "../context/theme"
 import { tKeys, useT } from "../i18n"

@@ -1,0 +1,49 @@
+/**
+ * `resetKeymapToDefaults` (KOB — live keybinding propagation). The
+ * load-bearing half of the live-reload path: on a keybindings.yaml edit the
+ * pane resets `RoveKeymap` to its boot-time defaults THEN re-applies the
+ * re-read file, so a REMOVED override returns to its default instead of the
+ * stale chord sticking around. `applyKeymapOverrides` mutates in place and
+ * is additive — without a reset, "defaults + every override ever applied"
+ * would pile up. These tests pin the reset (keys AND the cosmetic hint).
+ */
+
+import { afterEach, describe, expect, test } from "vitest"
+import { RoveKeymap, findBinding, resetKeymapToDefaults } from "../../src/keys/keybindings"
+import { applyKeymapOverrides } from "../../src/keys/keymap-overrides"
+
+const ID = "sidebar.rename" // overridable, default ["r"], carries a hint
+
+describe("resetKeymapToDefaults", () => {
+  afterEach(() => resetKeymapToDefaults())
+
+  test("restores a row's chords + hint after an override", () => {
+    const row = findBinding(ID)
+    expect(row).toBeDefined()
+    const defaultKeys = [...row!.keys]
+    const defaultHintKeys = row!.hint?.keys
+
+    applyKeymapOverrides(RoveKeymap, [{ id: ID, keys: ["ctrl+r"] }])
+    expect([...findBinding(ID)!.keys]).toEqual(["ctrl+r"])
+    expect(findBinding(ID)!.hint?.keys).toBe("ctrl+r")
+
+    resetKeymapToDefaults()
+    expect([...findBinding(ID)!.keys]).toEqual(defaultKeys)
+    expect(findBinding(ID)!.hint?.keys).toBe(defaultHintKeys)
+  })
+
+  test("reset between applies yields defaults+latest, never stacked overrides", () => {
+    const defaultKeys = [...findBinding(ID)!.keys]
+
+    applyKeymapOverrides(RoveKeymap, [{ id: ID, keys: ["ctrl+r"] }])
+    resetKeymapToDefaults()
+    applyKeymapOverrides(RoveKeymap, [{ id: ID, keys: ["ctrl+e"] }])
+    // Only the latest override survives — the first didn't accumulate.
+    expect([...findBinding(ID)!.keys]).toEqual(["ctrl+e"])
+
+    // And resetting with NO re-apply returns to the pristine default —
+    // the "removed override" case the live reload depends on.
+    resetKeymapToDefaults()
+    expect([...findBinding(ID)!.keys]).toEqual(defaultKeys)
+  })
+})

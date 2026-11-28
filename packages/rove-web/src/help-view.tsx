@@ -4,14 +4,14 @@
  * `grammarHelpSections`, fed only the bindings the web handles.
  */
 
-import { formatChord } from "@sma1lboy/rove/src/tui/lib/chord-glyphs.ts"
+import { formatChord } from "@sma1lboy/rove/src/keys/chord-glyphs.ts"
 import {
   type HelpGrammarSection,
   type HelpSurface,
   grammarHelpSections,
   matchesHelpAction,
   scopeCategory,
-} from "@sma1lboy/rove/src/tui/lib/help-groups.ts"
+} from "@sma1lboy/rove/src/keys/help-groups.ts"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { type Surface, boundKeymap, currentSurface, reachability } from "./commands.ts"
 import { DialogShell } from "./dialogs.tsx"

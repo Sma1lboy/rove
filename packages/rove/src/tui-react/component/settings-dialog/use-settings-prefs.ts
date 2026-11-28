@@ -7,6 +7,11 @@
 import { accessSync, constants as fsConstants, mkdirSync } from "node:fs"
 import { errorMessage } from "@/lib/error-message"
 import {
+  PREFIX_TAP_PRESENTATION_KEY,
+  type PrefixTapPresentation,
+  normalizePrefixTapPresentation,
+} from "../../../keys/prefix-tap-presentation"
+import {
   DEFAULT_EDITOR_KIND,
   EDITOR_CUSTOM_KEY,
   EDITOR_KINDS,
@@ -66,11 +71,6 @@ import {
   worktreeBaseKindOf,
 } from "../../../state/worktree-base"
 import { FINISHED_ALERTS_KEY } from "../../../tui/lib/notify-state"
-import {
-  PREFIX_TAP_PRESENTATION_KEY,
-  type PrefixTapPresentation,
-  normalizePrefixTapPresentation,
-} from "../../../tui/lib/prefix-tap-presentation"
 import { channelOf } from "../../../version"
 import type { KVContext } from "../../context/kv"
 import { useT } from "../../i18n"

@@ -8,7 +8,8 @@
  */
 
 import { afterEach, describe, expect, test } from "vitest"
-import { findBinding, resetKeymapToDefaults } from "../../src/tui/context/keybindings.ts"
+import { findBinding, resetKeymapToDefaults } from "../../src/keys/keybindings.ts"
+import type { BindingReachability } from "../../src/keys/keymap-reachability.ts"
 import {
   KEY_HINTS_ENABLED_KEY,
   keyHintsToggleOn,
@@ -16,7 +17,6 @@ import {
   toggleKeyHints,
   wizardKeyLines,
 } from "../../src/tui/lib/keyboard-hints.ts"
-import type { BindingReachability } from "../../src/tui/lib/keymap-reachability.ts"
 
 afterEach(() => resetKeymapToDefaults())
 

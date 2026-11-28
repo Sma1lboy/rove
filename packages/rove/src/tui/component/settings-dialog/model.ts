@@ -20,10 +20,10 @@ import { AUTO_ROUTING_TIERS, type AutoRoutingTier } from "../../../engine/auto-r
 // theme-core (not ../../context/theme): this module is shared with the
 // React port, which must not reference the Solid .tsx even type-only.
 import { LOCALES, type LocaleId } from "../../../i18n/catalog"
+import { PREFIX_KEY_ID } from "../../../keys/chord-recorder"
+import { editableBindings } from "../../../keys/editable-bindings"
+import { PREFIX_TAP_PRESENTATIONS, type PrefixTapPresentation } from "../../../keys/prefix-tap-presentation"
 import type { VendorId } from "../../../types/vendor"
-import { PREFIX_KEY_ID } from "../../lib/chord-recorder"
-import { editableBindings } from "../../lib/editable-bindings"
-import { PREFIX_TAP_PRESENTATIONS, type PrefixTapPresentation } from "../../lib/prefix-tap-presentation"
 import { APPEARANCE_SETTINGS, type AppearanceSetting } from "./appearance"
 
 export type NavLevel = "sidebar" | "body"

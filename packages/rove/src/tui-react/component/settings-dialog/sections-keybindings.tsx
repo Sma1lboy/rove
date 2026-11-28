@@ -8,6 +8,17 @@
 
 import { TextAttributes } from "@opentui/core"
 import { tKeys } from "../../../i18n"
+import { PREFIX_KEY_ID } from "../../../keys/chord-recorder"
+import { editableBindings } from "../../../keys/editable-bindings"
+import { groupBindings } from "../../../keys/help-groups"
+import { findBinding } from "../../../keys/keybindings"
+import {
+  DEFAULT_PREFIX_CONFIGURATION,
+  currentPrefixConfiguration,
+  prefixFirstStrokes,
+} from "../../../keys/keymap-dispatch"
+import { recordSlotLabels } from "../../../keys/keymap-overrides"
+import { PREFIX_TAP_PRESENTATIONS } from "../../../keys/prefix-tap-presentation"
 import { tildify } from "../../../lib/path-home"
 import {
   keybindingRowId,
@@ -15,18 +26,7 @@ import {
   prefixTapPresentationRowId,
   rowIndex,
 } from "../../../tui/component/settings-dialog/model"
-import { findBinding } from "../../../tui/context/keybindings"
 import { userKeybindingsReport } from "../../../tui/context/keybindings-user"
-import { PREFIX_KEY_ID } from "../../../tui/lib/chord-recorder"
-import { editableBindings } from "../../../tui/lib/editable-bindings"
-import { groupBindings } from "../../../tui/lib/help-groups"
-import {
-  DEFAULT_PREFIX_CONFIGURATION,
-  currentPrefixConfiguration,
-  prefixFirstStrokes,
-} from "../../../tui/lib/keymap-dispatch"
-import { recordSlotLabels } from "../../../tui/lib/keymap-overrides"
-import { PREFIX_TAP_PRESENTATIONS } from "../../../tui/lib/prefix-tap-presentation"
 import { useKeymapVersion } from "../../context/keybindings"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"

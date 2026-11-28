@@ -1,10 +1,10 @@
 /** @jsxImportSource @opentui/react */
 import { expect, test } from "bun:test"
 import { useState } from "react"
+import { resetPrefixState } from "../../src/keys/keymap-dispatch"
 import { Terminal } from "../../src/tui-react/panes/terminal/Terminal"
 import { useDialog } from "../../src/tui-react/ui/dialog"
 import { DialogConfirm } from "../../src/tui-react/ui/dialog-confirm"
-import { resetPrefixState } from "../../src/tui/lib/keymap-dispatch"
 import { createScriptedPtyRegistry } from "../../src/tui/panes/terminal/pty-scripted"
 import { type RenderHandle, act, renderComponent, settle } from "./harness"
 

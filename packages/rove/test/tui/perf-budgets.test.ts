@@ -21,9 +21,9 @@ beforeAll(() => {
   vi.stubEnv("ROVE_DEV", "0")
   return () => vi.unstubAllEnvs()
 })
+import { type Binding, type RegisteredBinding, dispatchKeyEvent } from "../../src/keys/keymap-dispatch"
 import { computeNextAllowedAt, shouldPoll } from "../../src/lib/poll-scheduling"
 import { breathGlyph } from "../../src/tui/lib/breathe"
-import { type Binding, type RegisteredBinding, dispatchKeyEvent } from "../../src/tui/lib/keymap-dispatch"
 import { buildSidebarRowView, withSpinnerFrame } from "../../src/tui/panes/sidebar/row-view"
 import {
   MIN_POLL_INTERVAL_MS,

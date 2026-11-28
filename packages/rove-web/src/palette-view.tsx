@@ -6,8 +6,8 @@
  * task's conversations.
  */
 
-import { matchesHelpAction } from "@sma1lboy/rove/src/tui/lib/help-groups.ts"
-import { fuzzyMatch } from "@sma1lboy/rove/src/tui/panes/sidebar/fuzzy.ts"
+import { matchesHelpAction } from "@sma1lboy/rove/src/keys/help-groups.ts"
+import { fuzzyMatch } from "@sma1lboy/rove/src/lib/fuzzy.ts"
 import { useEffect, useMemo, useRef, useState } from "react"
 import type { TaskRow } from "rove-bridge/protocol"
 import { type Surface, type WebCommand, allCommands, appliesOn, currentSurface } from "./commands.ts"

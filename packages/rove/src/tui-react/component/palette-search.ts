@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { type SearchResult, searchTasks } from "../../engine/session-search"
-import { fuzzyMatch } from "../../tui/panes/sidebar/fuzzy"
+import { fuzzyMatch } from "../../lib/fuzzy"
 import { isNamedDir } from "../../tui/panes/sidebar/tree-labels"
 import type { Task } from "../../types/task"
 

@@ -90,7 +90,7 @@ const SUBPROCESS_ONLY_EXCLUSIONS = new Set([
 // never imports/runs them, so v8 reports 0% here. This is the .ts analog of
 // excluding .tsx: the render gate selects them alongside .tsx files. Scoped
 // to tui-react/ so a pure-logic file living
-// there (e.g. workspace/keybinding-gates.ts — no react import) stays gated;
+// there (no react import) stays gated;
 // a VALUE import is the signal, since `import type … from "react"` is erased
 // at compile time and does not block vitest from executing the module.
 const RENDER_VALUE_IMPORT = /^\s*import\s+(?!type\b)[^;]*?\bfrom\s+["'](?:react|@opentui\/react)["']/m
