@@ -14,6 +14,9 @@ asar: true
 # No version in the name: the landing page links to these files on the rolling `desktop` release.
 artifactName: Rove-${os}-${arch}.${ext}
 npmRebuild: false
+# No auto-update feed: without it electron-builder guesses a GitHub publish target from .git, and on CI
+# the guess comes back empty and crashes the dmg build.
+publish: null
 mac:
   category: public.app-category.developer-tools
   # Ad-hoc, not none: skipping signing leaves Electron's own signature, which no longer matches the bundle
