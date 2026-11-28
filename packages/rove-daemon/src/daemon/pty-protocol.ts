@@ -24,6 +24,13 @@ export interface PtyDataEventPayload {
   readonly offset?: number
 }
 
+/** Targeted `pty.size` event payload — another client resized the session. */
+export interface PtySizeEventPayload {
+  readonly key: string
+  readonly cols: number
+  readonly rows: number
+}
+
 /** Targeted `pty.exit` event payload — the session's child ended. */
 export interface PtyExitEventPayload {
   readonly key: string
@@ -61,6 +68,9 @@ export interface PtyOpenResult {
    *  the client may restore its serialized screen and apply it. False/absent =
    *  full ring (offset trimmed, or an old host). */
   readonly sinceValid?: boolean
+  /** The PTY's size once this open is done; a size-less open adopts it. Absent from pre-size hosts. */
+  readonly cols?: number
+  readonly rows?: number
 }
 
 /** `pty.openChecked` either opens against the counted inventory or asks for a recount. */

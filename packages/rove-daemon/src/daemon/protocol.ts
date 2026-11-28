@@ -16,6 +16,7 @@ export type {
   PtyOpenResult,
   PtyPeekResult,
   PtySessionExit,
+  PtySizeEventPayload,
 } from "./pty-protocol.ts"
 
 export { attentionInboxItemKey, isAttentionInboxState, isRoutineInboxState } from "./contracts.ts"
@@ -395,7 +396,13 @@ export type SubscribeRole = "gui" | "pane"
  * (v4) — also not channels: written only to attached connections, an ordered
  * byte stream (drop/replay corrupts VT state), never via the event bus.
  */
-export type DaemonEventName = ChannelName | "daemon.stopping" | "pty.data" | "pty.exit" | "pty.programStatus"
+export type DaemonEventName =
+  | ChannelName
+  | "daemon.stopping"
+  | "pty.data"
+  | "pty.exit"
+  | "pty.size"
+  | "pty.programStatus"
 
 export interface DaemonError {
   readonly message: string

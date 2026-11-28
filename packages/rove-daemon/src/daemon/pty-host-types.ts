@@ -45,6 +45,9 @@ export interface PtyAttachResult {
   readonly offset: number
   /** `replay` is the exact delta since the request's `sinceOffset` — see `PtyOpenResult.sinceValid`. */
   readonly sinceValid: boolean
+  /** The PTY's size once this open is done — see `PtyOpenResult.cols`. */
+  readonly cols: number
+  readonly rows: number
 }
 
 /** Writes one event frame to an attached connection. */

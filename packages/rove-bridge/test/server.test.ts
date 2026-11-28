@@ -242,10 +242,14 @@ describe("terminal forwarding", () => {
       stream: "T1::tab-1",
       alive: true,
       replay: Buffer.from("hello").toString("base64"),
+      cols: 80,
+      rows: 24,
     })
-    // Size-less attach must not resize the session the TUI is also drawing.
+    // Size-less attach must not resize the session the TUI is also drawing; it follows its size instead.
     const open = h.pty.calls.find(([n]) => n === "pty.open")?.[1] as Record<string, unknown>
     expect(open.cols).toBeUndefined()
+    h.pty.emit("pty.size", { key: "T1::tab-1", cols: 200, rows: 50 })
+    h.pty.emit("pty.size", { key: "OTHER::tab-1", cols: 10, rows: 5 })
 
     h.pty.emit("pty.data", { key: "T1::tab-1", data: "AAA=" })
     h.pty.emit("pty.data", { key: "OTHER::tab-1", data: "BBB=" })
@@ -253,6 +257,9 @@ describe("terminal forwarding", () => {
     expect(h.pty.calls).toContainEqual(["pty.write", { key: "T1::tab-1", data: "yes\r" }])
     expect(c.pushes.filter((p) => p.event === "term.data")).toEqual([
       { event: "term.data", data: { stream: "T1::tab-1", data: "AAA=" } },
+    ])
+    expect(c.pushes.filter((p) => p.event === "term.size")).toEqual([
+      { event: "term.size", data: { stream: "T1::tab-1", cols: 200, rows: 50 } },
     ])
 
     await c.call("term.detach", { stream: "T1::tab-1" })
