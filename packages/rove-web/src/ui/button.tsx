@@ -19,12 +19,16 @@ export const buttonClass = ({ danger = false }: { danger?: boolean } = {}): stri
  * row of links. A class the caller passes must not set what the variant or hit already sets (position, colour,
  * padding): with no class merging, which one wins is the stylesheet's order, not the prop's.
  */
+const ACTION =
+  "rounded-sm border-hairline border-line bg-inset px-3 py-1.5 font-sans text-meta hover:border-line-active hover:bg-menu active:scale-97 motion-reduce:active:scale-none disabled:cursor-default disabled:opacity-50 touch:min-h-10 focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-focus"
+
 const VARIANT = {
   link: "text-accent hover:underline",
   filled: buttonClass(),
   danger: buttonClass({ danger: true }),
-  action:
-    "rounded-sm border-hairline border-line bg-inset px-3 py-1.5 font-sans text-meta text-ink hover:border-line-active hover:bg-menu active:scale-97 motion-reduce:active:scale-none disabled:cursor-default disabled:opacity-50 touch:min-h-10 focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-focus",
+  action: `${ACTION} text-ink`,
+  /** The quiet action that deletes something, beside its Cancel and Save. */
+  actionDanger: `${ACTION} text-error`,
   floating:
     "whitespace-nowrap rounded-sm border-hairline border-line-active bg-surface px-2 py-0.5 font-mono text-meta text-ink shadow-popover",
   row: "",

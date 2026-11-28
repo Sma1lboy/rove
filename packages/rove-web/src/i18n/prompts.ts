@@ -19,6 +19,8 @@ export const en = {
     remove: "[ remove ]",
     removed: "Removed @{name}",
     badName: "A name is letters, digits, - or _, up to 32.",
+    /** A phone's buttons and rows, without the terminal's brackets. */
+    phone: { add: "Add snippet", save: "Save", cancel: "Cancel", remove: "Delete snippet" },
   },
 }
 
@@ -42,5 +44,6 @@ export const zh: typeof en = {
     remove: "[ 删除 ]",
     removed: "已删除 @{name}",
     badName: "名称只能是字母、数字、- 或 _，最长 32 位。",
+    phone: { add: "添加片段", save: "保存", cancel: "取消", remove: "删除片段" },
   },
 }

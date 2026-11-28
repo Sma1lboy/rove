@@ -58,6 +58,8 @@ export function useNarrow(): boolean {
       return () => query.removeEventListener("change", notify)
     },
     () => narrowMedia().matches,
+    // A server render (the tests') draws the desktop.
+    () => false,
   )
 }
 

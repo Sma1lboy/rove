@@ -10,6 +10,7 @@
 import { type ReactNode, useEffect, useState } from "react"
 import { askAgent } from "./ask-agent.ts"
 import { t } from "./i18n/index.ts"
+import { useNarrow } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { type Mode, type PreviewTheme, themePreview } from "./prefs-theme.ts"
 import { type ThemeEntry, loadPrefs, setPref } from "./prefs.ts"
@@ -18,7 +19,9 @@ import { createStore, useStore } from "./store.ts"
 import { Button } from "./ui/button.tsx"
 import { Chevron } from "./ui/chevron.tsx"
 import {
+  SETTINGS_NAV_CHEVRON,
   SETTINGS_NOTE,
+  THEME_BROWSE_PHONE,
   THEME_CARD_NAME,
   THEME_GRID,
   THEME_GROUP_LABEL,
@@ -117,6 +120,7 @@ export function ThemeGallery(props: {
   const [failed, setFailed] = useState<string | null>(null)
   const [askFailed, setAskFailed] = useState(false)
   const [browsing, setBrowsing] = useState(false)
+  const narrow = useNarrow()
   // A preview must not outlive the page: leaving Settings mid-hover would keep painting it.
   useEffect(() => () => themePreview.set(null), [])
   // A theme written under themes/ while the page kept focus (an agent's, a hand edit) shows on reopening.
@@ -172,12 +176,13 @@ export function ThemeGallery(props: {
       {more.length > 0 && (
         <div>
           <Button
-            className="inline-flex items-center gap-1.5"
+            className={narrow ? THEME_BROWSE_PHONE : "inline-flex items-center gap-1.5"}
             aria-expanded={browsing}
             onClick={() => setBrowsing(!browsing)}
           >
-            <Chevron right={!browsing} />
+            {!narrow && <Chevron right={!browsing} />}
             {browsing ? t("prefs.themeHide") : t("prefs.themeBrowse", { count: more.length })}
+            {narrow && <Chevron right={!browsing} className={SETTINGS_NAV_CHEVRON} />}
           </Button>
           {browsing && (
             <>
