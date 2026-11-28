@@ -218,10 +218,35 @@ describe("routine ops", () => {
     await expect(run("routine.create", { ...base, schedule: "*/15 * * * *" })).resolves.toBeDefined()
   })
 
+  test("create supports event-driven routines without a schedule", async () => {
+    const { calls } = await run("routine.create", {
+      repo: REPO,
+      name: "ci watcher",
+      prompt: "fix failing checks",
+      event: "ci_failed",
+      eventBranch: "main",
+    })
+    expect(calls[0]?.payload).toEqual([
+      `--repo=${REPO}`,
+      "--name=ci watcher",
+      "--prompt=fix failing checks",
+      "--event=ci_failed",
+      "--event-branch=main",
+    ])
+    await expect(run("routine.create", { repo: REPO, name: "n", prompt: "p" })).rejects.toThrow(
+      "needs schedule, event or webhook",
+    )
+    await expect(run("routine.create", { repo: REPO, name: "n", prompt: "p", event: "bogus" })).rejects.toThrow(
+      "must be from",
+    )
+  })
+
   test("update sends only the given fields, and not nothing", async () => {
     const { calls } = await run("routine.update", { id: "r-1", prompt: "new prompt", schedule: "5 4 * * *" })
     expect(calls[0]?.payload).toEqual(["--id=r-1", "--prompt=new prompt", "--schedule=5 4 * * *"])
-    await expect(run("routine.update", { id: "r-1" })).rejects.toThrow("needs name, prompt and/or schedule")
+    const cleared = await run("routine.update", { id: "r-1", schedule: "", event: "local", eventName: "deploy.done" })
+    expect(cleared.calls[0]?.payload).toEqual(["--id=r-1", "--schedule=", "--event=local", "--event-name=deploy.done"])
+    await expect(run("routine.update", { id: "r-1" })).rejects.toThrow("needs name, prompt, schedule and/or event")
     await expect(run("routine.update", { id: "--x", name: "n" })).rejects.toThrow("not a task id")
   })
 

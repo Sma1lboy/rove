@@ -55,9 +55,11 @@ export function runGlyph(status: string): string {
   return "·"
 }
 
-/** `·` cron fired it, `▸` a human did (both glyphs already in the sidebar's font coverage). */
+/** `·` cron fired it, `▸` a human did, `◆` an event or webhook did. */
 function triggerGlyph(trigger: AutomationRun["trigger"]): string {
-  return trigger === "manual" ? "▸" : "·"
+  if (trigger === "manual") return "▸"
+  if (trigger === "webhook" || trigger === "event") return "◆"
+  return "·"
 }
 
 /** Last ~10 lines of a captured stream, trailing blanks trimmed. Truncated at
@@ -148,7 +150,7 @@ export function RunHistory(props: {
               }}
             >
               <text fg={pending === "missing" ? theme.warning : runToneColor(run.status, theme)}>
-                {`${triggerGlyph(run.trigger)} #${run.runNumber} ${formatRunStatus(run.status, t)}${run.tabId ? ` · ${run.tabId}` : ""}${run.error ? ` \u2014 ${run.error}` : ""}${note}  ${formatWhen(run.at, props.now)}`}
+                {`${triggerGlyph(run.trigger)} #${run.runNumber} ${formatRunStatus(run.status, t)}${run.tabId ? ` · ${run.tabId}` : ""}${run.event ? ` · ${run.event}` : ""}${run.error ? ` \u2014 ${run.error}` : ""}${note}  ${formatWhen(run.at, props.now)}`}
               </text>
             </box>
           )

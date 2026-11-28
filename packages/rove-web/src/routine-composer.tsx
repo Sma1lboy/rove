@@ -7,9 +7,12 @@
  */
 
 import {
+  AUTOMATION_EVENT_KINDS,
+  type AutomationEventKind,
   type ComposerDraft,
   EMPTY_DRAFT,
   canSubmitDraft,
+  draftTriggerMode,
   firstIncompleteField,
 } from "@sma1lboy/rove-core/automations/automation-composer-core.ts"
 import {
@@ -33,6 +36,7 @@ import { KB_DRAWER, KB_HINT, KB_LABEL, KB_LEGEND, KB_PLACES, kbPlaceClass } from
 import { Legend } from "./ui/legend.tsx"
 import { DIALOG_BODY, OVERLAY, dialogClass } from "./ui/overlay.ts"
 import { RT_CRON, RT_CRON_STEP, RT_CRON_STEP_BUTTON, rtCronCellClass } from "./ui/routines.ts"
+import { Segmented } from "./ui/segmented.tsx"
 import { ACTIONS, INPUT, KICKER, LINK } from "./ui/text.ts"
 
 export interface TargetTask {
@@ -81,6 +85,14 @@ export function RoutineComposer(props: {
     return () => window.removeEventListener("keydown", onKey, { capture: true })
   }, [])
 
+  const triggerMode = draftTriggerMode(draft)
+  const eventKind: AutomationEventKind = draft.eventKind ?? "ci_failed"
+  const stepEventKind = (delta: number) => {
+    const idx = AUTOMATION_EVENT_KINDS.indexOf(eventKind)
+    const next = AUTOMATION_EVENT_KINDS[(idx + delta + AUTOMATION_EVENT_KINDS.length) % AUTOMATION_EVENT_KINDS.length]
+    if (next) patch({ eventKind: next })
+  }
+
   const commit = () => {
     if (canSubmitDraft(draft)) {
       closeDialog()
@@ -88,7 +100,10 @@ export function RoutineComposer(props: {
         name: draft.name.trim(),
         repo: draft.repo === null ? null : draft.repo.trim(),
         prompt: draft.prompt.trim(),
+        triggerMode,
         schedule: draft.schedule.trim(),
+        eventKind,
+        eventFilter: (draft.eventFilter ?? "").trim(),
         ...(draft.target ? { target: draft.target } : {}),
       })
       return
@@ -226,67 +241,111 @@ export function RoutineComposer(props: {
               placeholder={auto.promptPlaceholder}
               value={draft.prompt}
               onChange={(e) => patch({ prompt: e.target.value })}
-              onKeyDown={nextOnEnter("schedule")}
+              onKeyDown={nextOnEnter(triggerMode === "event" ? "eventKind" : "schedule")}
             />
           </label>
           <div className={FIELD}>
-            <span className={`${FIELD_LABEL} ${KB_LABEL}`}>
-              {auto.fieldSchedule}
-              <span className={`keys-only text-muted ${KB_HINT}`}>←/→ ↑/↓</span>
-            </span>
-            <SelectorField
-              fieldRef={at("schedule")}
-              kind="cells"
-              label={auto.fieldSchedule}
-              className={RT_CRON}
-              onKeyDown={scheduleKeys}
-            >
-              {CRON_SEGMENTS.map((segment, index) => (
-                <button
-                  type="button"
-                  key={segment}
-                  tabIndex={-1}
-                  className={rtCronCellClass(index === cell)}
-                  onClick={() => {
-                    setCell(index)
-                    refs.current.schedule?.focus()
-                  }}
-                >
-                  {segments[index] ?? "*"}
-                  <span>{auto.cronField[segment]}</span>
-                </button>
-              ))}
-            </SelectorField>
-            {/* A soft keyboard has no arrows: on touch the picked field steps with these instead. */}
-            <div className={RT_CRON_STEP}>
-              {([-1, 1] as const).map((delta) => {
-                const field = auto.cronField[CRON_SEGMENTS[cell] ?? "minute"] ?? ""
-                return (
+            <span className={`${FIELD_LABEL}`}>{auto.fieldTrigger}</span>
+            <Segmented
+              label={auto.fieldTrigger}
+              value={triggerMode}
+              picks={[
+                { value: "schedule" as const, label: auto.triggerSchedule },
+                { value: "event" as const, label: auto.triggerEvent },
+              ]}
+              onPick={(next) => patch({ triggerMode: next })}
+            />
+          </div>
+          {triggerMode === "schedule" ? (
+            <div className={FIELD}>
+              <span className={`${FIELD_LABEL} ${KB_LABEL}`}>
+                {auto.fieldSchedule}
+                <span className={`keys-only text-muted ${KB_HINT}`}>←/→ ↑/↓</span>
+              </span>
+              <SelectorField
+                fieldRef={at("schedule")}
+                kind="cells"
+                label={auto.fieldSchedule}
+                className={RT_CRON}
+                onKeyDown={scheduleKeys}
+              >
+                {CRON_SEGMENTS.map((segment, index) => (
                   <button
                     type="button"
-                    key={delta}
+                    key={segment}
                     tabIndex={-1}
-                    className={RT_CRON_STEP_BUTTON}
-                    aria-label={t(delta < 0 ? "pages.cronDown" : "pages.cronUp", { field })}
+                    className={rtCronCellClass(index === cell)}
                     onClick={() => {
-                      stepCell(delta)
+                      setCell(index)
                       refs.current.schedule?.focus()
                     }}
                   >
-                    {delta < 0 ? "−" : "+"}
+                    {segments[index] ?? "*"}
+                    <span>{auto.cronField[segment]}</span>
                   </button>
-                )
-              })}
+                ))}
+              </SelectorField>
+              {/* A soft keyboard has no arrows: on touch the picked field steps with these instead. */}
+              <div className={RT_CRON_STEP}>
+                {([-1, 1] as const).map((delta) => {
+                  const field = auto.cronField[CRON_SEGMENTS[cell] ?? "minute"] ?? ""
+                  return (
+                    <button
+                      type="button"
+                      key={delta}
+                      tabIndex={-1}
+                      className={RT_CRON_STEP_BUTTON}
+                      aria-label={t(delta < 0 ? "pages.cronDown" : "pages.cronUp", { field })}
+                      onClick={() => {
+                        stepCell(delta)
+                        refs.current.schedule?.focus()
+                      }}
+                    >
+                      {delta < 0 ? "−" : "+"}
+                    </button>
+                  )
+                })}
+              </div>
+              {preview.kind === "ok" ? (
+                <p className="mono text-success">
+                  {described ? `${described}, ` : ""}
+                  {preview.relative}, {preview.absolute}
+                </p>
+              ) : (
+                <p className="mono text-error">{preview.kind === "never" ? auto.cronNever : auto.cronInvalid}</p>
+              )}
             </div>
-            {preview.kind === "ok" ? (
-              <p className="mono text-success">
-                {described ? `${described}, ` : ""}
-                {preview.relative}, {preview.absolute}
-              </p>
-            ) : (
-              <p className="mono text-error">{preview.kind === "never" ? auto.cronNever : auto.cronInvalid}</p>
-            )}
-          </div>
+          ) : (
+            <>
+              <div className={FIELD}>
+                <span className={`${FIELD_LABEL} ${KB_LABEL}`}>
+                  {auto.fieldEventKind}
+                  <span className={`keys-only text-muted ${KB_HINT}`}>↑/↓</span>
+                </span>
+                <SelectorField
+                  fieldRef={at("eventKind")}
+                  kind="list"
+                  label={auto.fieldEventKind}
+                  onKeyDown={lists(stepEventKind)}
+                  onClick={() => stepEventKind(1)}
+                >
+                  {auto.eventKind[eventKind]}
+                </SelectorField>
+              </div>
+              <label className={FIELD}>
+                <span className={`${FIELD_LABEL}`}>{auto.fieldEventFilter}</span>
+                <input
+                  ref={at("eventFilter")}
+                  className={INPUT}
+                  spellCheck={false}
+                  placeholder={auto.eventFilterPlaceholder[eventKind]}
+                  value={draft.eventFilter ?? ""}
+                  onChange={(e) => patch({ eventFilter: e.target.value })}
+                  onKeyDown={nextOnEnter("confirm")}
+                />
+              </label>
+            </>
+          )}
           {error && <p className="text-error">※ {error}</p>}
           <p className={`touch:empty:hidden! text-muted ${KB_LEGEND}`}>
             <Legend text={deviceHint(auto.composerLegend)} />

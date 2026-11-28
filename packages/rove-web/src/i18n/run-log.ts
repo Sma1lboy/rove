@@ -4,7 +4,7 @@ export const en = {
     title: "Runs",
     all: "all",
     outcome: { ok: "ok", blocked: "blocked", failed: "failed", skipped: "skipped" },
-    source: { schedule: "schedule", manual: "manual", webhook: "webhook" },
+    source: { schedule: "schedule", manual: "manual", webhook: "webhook", event: "event" },
     blocked: {
       "task-missing": "task is gone",
       "awaiting-owner": "waiting on a decision",
@@ -26,7 +26,7 @@ export const zh: typeof en = {
     title: "运行记录",
     all: "全部",
     outcome: { ok: "成功", blocked: "受阻", failed: "失败", skipped: "跳过" },
-    source: { schedule: "定时", manual: "手动", webhook: "Webhook" },
+    source: { schedule: "定时", manual: "手动", webhook: "Webhook", event: "事件" },
     blocked: {
       "task-missing": "任务已不存在",
       "awaiting-owner": "等你做决定",

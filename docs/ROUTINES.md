@@ -1,7 +1,12 @@
 # Routines
 
-Work that runs without you. A **Routine** is a cron rule + a prompt + a repo (or no repo),
-owned by the daemon. By default every firing creates a fresh [task](CONCEPTS.md)
+Work that runs without you. A **Routine** is a trigger + a prompt (or script) + a repo (or no repo),
+owned by the daemon. A routine can run in two modes — or both together:
+
+- **Scheduled (cron)** — fires on a five-field cron expression in the daemon host's local time, with missed-run grace windows, prechecks, and standing sessions.
+- **Event-driven (automation)** — stands on its own with no cron schedule, firing when a bound event arrives: daemon PR poller transitions (`ci_failed`, `pr_review_requested`), GitHub issue events (`issue_opened`), signed webhooks (`webhook`), or local hooks (`local` via `rove api routine-emit`).
+
+By default every firing creates a fresh [task](CONCEPTS.md)
 with its own worktree, its own branch, and its own engine session, carrying the
 prompt as that session's first message. A routine that needs to remember what it
 said yesterday can instead keep [one standing session](#one-standing-session-instead-of-a-task-per-run), or deliver into [an existing task and tab](#deliver-into-an-existing-conversation).
@@ -22,12 +27,9 @@ The example throughout this page is the one in the screenshot: *every morning at
 
 1. `ctrl+a` `2` (or click **Routines** in the sidebar rail) opens the page.
 2. `n` opens the composer. `tab` / `shift+tab` walk the fields: **name**,
-   **repo** (a scrolling picker over your projects), **deliver to** (new task or an existing task in that repo), the existing **engine tab** when selected, **prompt**, and
-   **schedule**, five labelled cells (min / hour / day / month / weekday)
-   where `←`/`→` picks a cell and `↑`/`↓` changes it. The composer restates
-   the next fire time in your own clock as you type ("weekdays at 12:00 · in
-   2d · Mon 12:00"), so a cron expression you got wrong is visible before you
-   save it.
+   **repo** (a scrolling picker over your projects), **deliver to** (new task or an existing task in that repo), the existing **engine tab** when selected, **prompt**, **trigger** (**Schedule (cron)** or **Event (automation)**), and either
+   **schedule** (five labelled cells min / hour / day / month / weekday
+   where `←`/`→` picks a cell and `↑`/`↓` changes it, with live next-fire preview) or **event source** + optional **event filter**.
 3. `s` runs it once, right now. **Do this.** It is how you find out the prompt
    works without waiting a day for the schedule, and it does not shift the next
    scheduled run.
@@ -514,11 +516,58 @@ it. The detail's "Delivers to" line says which of the two a routine does.
 If the standing task is deleted, the routine simply builds a new one on its next
 firing rather than failing forever.
 
+## Event-driven routines (no cron required)
+
+A routine does not need `--schedule`. Pass `--event` (or `--webhook`) on its own to create an event-driven routine, or combine `--schedule` and `--event` for a hybrid routine that runs both on a clock and on demand when an event fires.
+
+| Event source | How it fires | Optional filters |
+|---|---|---|
+| `ci_failed` | Daemon PR poller observes a repo PR's checks transition to `failing` (or fail on a new head commit), or a failing `check_run` / `check_suite` / `workflow_run` / `status` webhook | `--event-branch GLOB` (e.g. `main`, `release/*`) |
+| `pr_review_requested` | Daemon PR poller observes a repo PR enter `REVIEW_REQUIRED` or `CHANGES_REQUESTED`, or a `pull_request.review_requested` / `pull_request_review` webhook | `--event-branch GLOB` |
+| `issue_opened` | GitHub `issues.opened` webhook on `/hooks/routines/<id>` (secret auto-generated on save) or `rove api routine-emit --event issue_opened` | `--event-action ACTION` (default `opened`), `--event-branch GLOB` |
+| `webhook` | Any signed POST to `/hooks/routines/<id>` (secret auto-generated on save) | `--event-name`, `--event-action`, `--event-branch` |
+| `local` | Local hook / script / agent calling `rove api routine-emit` | `--event-name`, `--event-action`, `--event-branch` |
+
+Examples:
+
+```bash
+# Pure event-driven: triage CI failures on main and release branches (reuses daemon PR poller)
+rove api routine-create --repo . \
+  --name "Fix red CI" \
+  --event ci_failed --event-branch "release/*" \
+  --prompt "Inspect the failing PR checks and open a fix."
+
+# Pure event-driven: react to local hooks (git post-merge, CI scripts, another agent)
+rove api routine-create --repo . \
+  --name "Post-deploy smoke check" \
+  --event local --event-name "deploy.finished" \
+  --prompt "Run smoke checks for the latest deployment."
+
+# Fire matching local / custom event routines from a shell or hook
+rove api routine-emit --repo . --event deploy.finished --branch main --detail "v1.4.2"
+
+# Filter routine-list by trigger mode
+rove api routine-list --mode event
+rove api routine-list --mode schedule
+```
+
+Switch a routine between modes with `routine-update`: `--schedule ''` clears the cron schedule (as long as an event trigger or webhook stays configured), and `--event ''` clears event triggers (as long as a schedule or webhook stays configured).
+
+Enabled `ci_failed` and `pr_review_requested` routines keep the daemon's PR poller awake even when no GUI is attached. On daemon startup, existing PR states are seeded as the baseline so restarting the daemon never replays old failures. Every event-driven firing runs the routine's `--precheck` (and `--script`) with `ROVE_EVENT_KIND`, `ROVE_EVENT_NAME`, `ROVE_EVENT_ACTION`, `ROVE_EVENT_BRANCH`, `ROVE_EVENT_URL` and `ROVE_EVENT_SUMMARY` in its environment, records `trigger: "event"` (or `"webhook"`) plus the one-line `event` summary in run history, and prefixes the prompt with what fired it.
+
 ## Fire it from a webhook
 
 A schedule finds a new issue up to fifteen minutes late. A webhook finds it
-straight away. Turn the trigger on and the routine also fires when a signed POST
+straight away. Enable `--webhook` (standalone, with `--event webhook` / `--event issue_opened`, or alongside `--schedule`) and the routine fires when a signed POST
 reaches the web server (`rove --web`):
+
+```bash
+rove api routine-create --repo . --name "Issue triage" \
+  --event issue_opened --persistent-session \
+  --prompt "Triage the newly opened issue."
+```
+
+Or add a webhook to an existing scheduled routine:
 
 ```bash
 rove api routine-update --id <id> --webhook --persistent-session
@@ -534,11 +583,13 @@ webhook with:
 
 The daemon checks GitHub's `X-Hub-Signature-256` against the secret. It
 answers 202 at once and runs in the background, so GitHub's 10-second limit
-never matters. GitHub's `ping` gets a 200 and runs nothing. A bad signature
-gets a 401, an unknown id a 404, and a paused routine a 409.
+never matters. GitHub's `ping` gets a 200 and runs nothing. When `--event` filters
+are configured and the incoming delivery does not match them, it answers 200
+`ignored` without spawning a run. A bad signature gets a 401, an unknown id a
+404, and a paused routine a 409.
 
 A webhook run still goes through the precheck, with `ROVE_WEBHOOK_EVENT` and
-`ROVE_WEBHOOK_ACTION` set, so the precheck can filter. Triage only opened and
+`ROVE_WEBHOOK_ACTION` (plus `ROVE_EVENT_*`) set, so the precheck can filter. Triage only opened and
 reopened issues:
 
 ```bash
@@ -553,7 +604,7 @@ The prompt starts with the event, for example
 `--persistent-session`, every firing lands in the same conversation. The run's
 history records `trigger: "webhook"` and that same line as `event`.
 
-`--webhook false` forgets the secret. Turning it back on makes a new one.
+`--webhook false` forgets the secret (refused if no schedule or other event trigger remains). Turning it back on makes a new one.
 
 ## Restarts, and runs you missed
 

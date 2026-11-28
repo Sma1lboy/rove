@@ -1912,24 +1912,28 @@ An enabled routine keeps the daemon alive so schedules fire with no TUI
 attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
 [design/automations.md](./design/automations.md).
 
-- `routine-list`: every routine with its next run time.
-- `routine-create (--repo PATH | --no-repo) --name N (--prompt TEXT | --prompt-file PATH | --script CMD [--script-timeout SEC]) --schedule CRON
+- `routine-list [--mode schedule|event|hybrid]`: every routine (or only those matching `--mode`) with its triggers and next run time.
+- `routine-create (--repo PATH | --no-repo) --name N (--prompt TEXT | --prompt-file PATH | --script CMD [--script-timeout SEC]) [--schedule CRON] [--event KIND[,KIND…]] [--event-branch GLOB] [--event-name NAME] [--event-action ACTION]
   [--vendor V] [--model M] [--effort LEVEL] [--base-branch B] [--precheck CMD] [--precheck-timeout SEC]
   [--grace MIN] [--persistent-session [--new-conversation]] [--disabled] [--target-task ID --target-tab TAB]
-  [--notify] [--webhook]`: schedule a prompt (or, with `--script`, a shell command
+  [--notify] [--webhook]`: create a scheduled and/or event-driven routine (pass at least one of `--schedule`, `--event`, or `--webhook`). With `--script`, runs a shell command
   with no engine: [Script routines](./ROUTINES.md#script-routines-no-engine-at-all); `--notify` hands each run's
-  response to the bound chat agent). Script routines cannot set `--vendor`, `--model`, `--effort`,
+  response to the bound chat agent. Script routines cannot set `--vendor`, `--model`, `--effort`,
   `--base-branch`, `--persistent-session`, `--target-task`, or `--target-tab`. Pass exactly one
   of `--repo` and `--no-repo` (neither is `MISSING_FLAG`, both is `CONFLICTING_FLAGS`). `--no-repo` makes a
   routine with no project: every run works in `<home>/.rove/routines/<id>/` as a directory session, and it takes
   no `--base-branch`. `--schedule` is five-field
-  cron in the daemon host's local time (`"0 9 * * MON-FRI"`). `--model` / `--effort`
+  cron in the daemon host's local time (`"0 9 * * MON-FRI"`), optional when `--event` or `--webhook` is set.
+  `--event` binds one or more event trigger kinds (`ci_failed`, `pr_review_requested`, `issue_opened`, `webhook`, `local`),
+  optionally narrowed with `--event-branch`, `--event-name`, and `--event-action` (which require `--event`).
+  `--event webhook` and `--event issue_opened` auto-generate `.webhook.secret` for `/hooks/routines/<id>`. `--model` / `--effort`
   pin every run's engine, validated at save time with the same `BAD_MODEL` /
   `BAD_EFFORT` as `add` against `--vendor`, else the repo's default engine, else
   the built-in default; a pinned routine stores that vendor, so runs launch the
   engine the pins were checked against. Without pins or `--vendor`, runs launch
   the built-in default. The daemon refuses model/effort without a vendor.
-- `routine-update --id ID [...]`: change any field (including `--script`, `--script-timeout`, `--notify`).
+- `routine-update --id ID [...]`: change any field (including `--schedule`, `--event`, `--event-*`, `--script`, `--script-timeout`, `--notify`, `--webhook`).
+  Pass `--schedule ''` to clear the cron schedule (if an event trigger or webhook remains), or `--event ''` to clear event triggers (if a schedule or webhook remains).
   To turn a script routine back into a prompt routine, pass `--script ''` and `--prompt TEXT` in the same update.
   Changing `--script-timeout` requires repeating `--script CMD`, even for an existing script routine.
   `--enabled true|false` pauses / resumes. A new `--schedule`
@@ -1939,6 +1943,8 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
   Changing or clearing vendor/model/effort while a routine retains a standing task
   lets go of that task (returned as `releasedSessionTaskId`, never deleted); the next
   run builds a new one on the new pins. Unchanged pins keep it.
+- `routine-emit --event NAME [--kind ci_failed|pr_review_requested|issue_opened|webhook|local] [--repo PATH] [--id ID] [--action A] [--branch B] [--url URL] [--detail TEXT]`:
+  emit a local or custom event into the daemon to fire matching enabled event-driven routines (runs each routine's precheck with `ROVE_EVENT_*` env vars). Returns `{ matched, fired }`.
 - `routine-run-now --id ID`: run immediately, skipping the precheck. Does
   not shift the schedule.
 - `routine-respond --run RUN_ID (--text T | --prompt-file PATH|-)`: store the

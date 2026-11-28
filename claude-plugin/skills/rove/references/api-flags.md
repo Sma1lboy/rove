@@ -365,19 +365,24 @@ it fires with no TUI attached.
 
 <!-- generated:begin routine -->
 ```text
-routine-list     (none)
-routine-create   --repo --no-repo --name(REQ) --prompt|--prompt-file --schedule(REQ)
+routine-list     --mode{schedule|event|hybrid}
+routine-create   --repo --no-repo --name(REQ) --prompt|--prompt-file --schedule
+                 --event <KIND[,KIND…]> --event-branch --event-name --event-action
                  --vendor{claude|codex|copilot|kimi|pi|omp|bob} --model --effort
                  --base-branch --precheck --precheck-timeout(120) --script
                  --script-timeout(120) --notify --webhook --grace(60) --persistent-session
                  --new-conversation --target-task --target-tab --disabled
-routine-update   --id(REQ) --name --prompt|--prompt-file --schedule --vendor --model
-                 --effort --base-branch --precheck --precheck-timeout(120) --script
+routine-update   --id(REQ) --name --prompt|--prompt-file --schedule --event <KIND[,KIND…]>
+                 --event-branch --event-name --event-action --vendor --model --effort
+                 --base-branch --precheck --precheck-timeout(120) --script
                  --script-timeout(120) --notify --webhook --grace(60) --persistent-session
                  --new-conversation --target-task --target-tab --enabled
 routine-delete   --id(REQ)
 routine-run-now  --id(REQ)
 routine-respond  --run(REQ) --text --prompt-file
+routine-emit     --event(REQ)
+                 --kind{ci_failed|pr_review_requested|issue_opened|webhook|local} --repo
+                 --id --action --branch --url --detail
 routine-runs     --id(REQ)
 ```
 <!-- generated:end -->

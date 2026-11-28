@@ -24,7 +24,7 @@ export function outcomeOf(run: Pick<AutomationRun, "status">): Outcome {
 }
 
 /** The daemon records what fired a run as `trigger`; the page names it the way the CLI and docs do. */
-export const SOURCES = { scheduled: "schedule", manual: "manual", webhook: "webhook" } as const
+export const SOURCES = { scheduled: "schedule", manual: "manual", webhook: "webhook", event: "event" } as const
 
 /**
  * How long the run took, when the daemon recorded an end: a precheck skip has the command's own duration,

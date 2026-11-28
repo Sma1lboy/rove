@@ -50,12 +50,19 @@ omit `repo`.
 Two records, both in `<ROVE_HOME>/.rove/automations.json` (daemon is the only
 writer). Types in [`contracts.ts`](../../packages/rove-daemon/src/daemon/contracts.ts).
 
-- **`Automation`** — the rule. `schedule` (five-field cron), `prompt`, optional `repo`
+- **`Automation`** — the rule. Optional `schedule` (five-field cron) + `nextRunAt`,
+  optional `eventTriggers` (`ci_failed`, `pr_review_requested`, `issue_opened`, `webhook`, `local`, each with optional `filter: { branch?, event?, action? }`),
+  optional `webhook` (`{ secret }`), `prompt`, optional `repo`
   (absent = no project, see [above](#routines-with-no-project)),
-  optional `vendor` / `baseRef` / `precheck`, `enabled`, `nextRunAt`,
+  optional `vendor` / `baseRef` / `precheck`, `enabled`,
   `missedRunGraceMinutes`, and the standing-session pair `persistentSession` /
-  `sessionTaskId` (issue #91). Types in
-  [`automation-contracts.ts`](../../packages/rove-daemon/src/daemon/automation-contracts.ts).
+  `sessionTaskId` (issue #91). Every rule requires at least one trigger (`schedule`,
+  `eventTriggers`, or `webhook`); `automationTriggerMode` derives `schedule` vs `event` vs `hybrid`.
+  PR-backed triggers (`ci_failed`, `pr_review_requested`) reuse the daemon PR poller's
+  `TaskPRStatus` updates via `automation-events.ts` (`startAutomationEventWatcher`), seeded on
+  boot so existing PR states do not replay on restart. Types in
+  [`automation-contracts.ts`](../../packages/rove-daemon/src/daemon/automation-contracts.ts) and
+  [`automation-event-contracts.ts`](../../packages/rove-daemon/src/daemon/automation-event-contracts.ts).
 - **`AutomationRun`** — one firing. `scheduledFor` (when it *should* have run),
   `status`, `trigger`, and the `taskId` it produced. A delivered run also
   carries `deliveryId`: its prompt arms a delivery

@@ -13,6 +13,7 @@ import { detailFragment } from "@sma1lboy/rove-client/lib/issue-events-core.ts"
 import { roveApiInvocation } from "@sma1lboy/rove-core/engine/interactive-command.ts"
 import { issueChatTaskTitle, issueProjectPrompt, issueWorktreePrompt } from "@sma1lboy/rove-core/state/issue-chat.ts"
 import { ALL_VENDORS } from "@sma1lboy/rove-core/types/vendor.ts"
+import { AUTOMATION_EVENT_KINDS } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { Issue } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { BridgeError, optBool, optInt, optStr } from "../protocol.ts"
@@ -40,6 +41,33 @@ function cron(args: Args, name: string): string {
   if (!/^[0-9A-Za-z*/,\-?#LW]+(?: [0-9A-Za-z*/,\-?#LW]+){4}$/.test(v)) {
     throw new BridgeError("BAD_ARGS", `${name} must be five space-separated cron fields`)
   }
+  return v
+}
+
+/** Validate comma-separated event trigger kinds; empty clears on update. */
+function eventKinds(args: Args, name: string, allowEmpty = false): string {
+  const raw = args[name]
+  if (typeof raw !== "string") throw new BridgeError("BAD_ARGS", `${name} must be a string`)
+  const trimmed = raw.trim()
+  if (trimmed === "") {
+    if (allowEmpty) return ""
+    throw new BridgeError("BAD_ARGS", `${name} must name an event kind`)
+  }
+  const parts = trimmed
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean)
+  if (parts.length === 0 || parts.some((p) => !(AUTOMATION_EVENT_KINDS as readonly string[]).includes(p))) {
+    throw new BridgeError("BAD_ARGS", `${name} must be from ${AUTOMATION_EVENT_KINDS.join(", ")}`)
+  }
+  return parts.join(",")
+}
+
+/** Short single-line event filter token (branch, event name, or action). */
+function optEventFilter(args: Args, name: string): string | undefined {
+  const v = optText(args, name, 120)?.trim()
+  if (!v) return undefined
+  if (/[\r\n\0]/.test(v)) throw new BridgeError("BAD_ARGS", `${name} must be one line`)
   return v
 }
 
@@ -175,16 +203,30 @@ export const pagesOps: OpTable = {
     kind: "write",
     destructive: false,
     wraps:
-      "rove api routine-create (name, optional repo — absent = no project, prompt, schedule, optional existing conversation targetTask+targetTab; never a precheck)",
+      "rove api routine-create (name, optional repo — absent = no project, prompt, schedule and/or event trigger, optional existing conversation targetTask+targetTab; never a precheck)",
     run: (args, { api }) => {
       // No repo = a routine with no project; the CLI wants that said, not implied.
       const repo = optStr(args, "repo") === undefined ? "--no-repo" : flag("repo", absPath(args, "repo"))
+      const schedule = optStr(args, "schedule") === undefined ? undefined : cron(args, "schedule")
+      const event = optStr(args, "event") === undefined ? undefined : eventKinds(args, "event")
+      const webhook = optBool(args, "webhook")
+      if (!schedule && !event && webhook !== true) {
+        throw new BridgeError("BAD_ARGS", "routine.create needs schedule, event or webhook")
+      }
       const argv = [
         repo,
         flag("name", text(args, "name", NAME_MAX).trim()),
         flag("prompt", text(args, "prompt", PROMPT_MAX)),
-        flag("schedule", cron(args, "schedule")),
       ]
+      if (schedule !== undefined) argv.push(flag("schedule", schedule))
+      if (event !== undefined) argv.push(flag("event", event))
+      const eventBranch = optEventFilter(args, "eventBranch")
+      const eventName = optEventFilter(args, "eventName")
+      const eventAction = optEventFilter(args, "eventAction")
+      if (eventBranch) argv.push(flag("event-branch", eventBranch))
+      if (eventName) argv.push(flag("event-name", eventName))
+      if (eventAction) argv.push(flag("event-action", eventAction))
+      if (webhook === true) argv.push("--webhook")
       // Delivers into one existing engine tab instead of a fresh task per run: ids only, both or neither.
       const hasTask = optStr(args, "targetTask") !== undefined
       const hasTab = optStr(args, "targetTab") !== undefined
@@ -197,18 +239,28 @@ export const pagesOps: OpTable = {
   "routine.update": {
     kind: "write",
     destructive: false,
-    wraps: "rove api routine-update (name, prompt, schedule; never a precheck)",
+    wraps: "rove api routine-update (name, prompt, schedule, event; never a precheck)",
     run: (args, { api }) => {
       const name = optText(args, "name", NAME_MAX)
       const prompt = optText(args, "prompt", PROMPT_MAX)
-      const schedule = optStr(args, "schedule") === undefined ? undefined : cron(args, "schedule")
-      if (name === undefined && prompt === undefined && schedule === undefined) {
-        throw new BridgeError("BAD_ARGS", "routine.update needs name, prompt and/or schedule")
+      const rawSchedule = args.schedule
+      const schedule = rawSchedule === "" ? "" : rawSchedule === undefined ? undefined : cron(args, "schedule")
+      const rawEvent = args.event
+      const event = rawEvent === undefined ? undefined : eventKinds(args, "event", true)
+      if (name === undefined && prompt === undefined && schedule === undefined && event === undefined) {
+        throw new BridgeError("BAD_ARGS", "routine.update needs name, prompt, schedule and/or event")
       }
       const argv = [flag("id", taskId(args, "id"))]
-      setIfPresent(argv, "name", name?.trim())
-      setIfPresent(argv, "prompt", prompt)
-      setIfPresent(argv, "schedule", schedule)
+      if (name !== undefined) argv.push(flag("name", name.trim()))
+      if (prompt !== undefined) argv.push(flag("prompt", prompt))
+      if (schedule !== undefined) argv.push(flag("schedule", schedule))
+      if (event !== undefined) argv.push(flag("event", event))
+      const eventBranch = optEventFilter(args, "eventBranch")
+      const eventName = optEventFilter(args, "eventName")
+      const eventAction = optEventFilter(args, "eventAction")
+      if (eventBranch) argv.push(flag("event-branch", eventBranch))
+      if (eventName) argv.push(flag("event-name", eventName))
+      if (eventAction) argv.push(flag("event-action", eventAction))
       return api.verb("routine-update", argv)
     },
   },

@@ -1,8 +1,8 @@
 import { currentLang, setLocaleLang } from "@sma1lboy/rove-core/i18n/index.ts"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
 import {
-  COMPOSER_FIELDS,
   type ComposerDraft,
+  buildEventTriggerFromDraft,
   canSubmitDraft,
   firstIncompleteField,
   nextComposerField,
@@ -38,16 +38,61 @@ describe("field order", () => {
     expect(nextComposerField("bogus" as never)).toBe("name")
   })
 
-  test("with a bound target, every field is reachable by tabbing once around", () => {
-    expect(COMPOSER_FIELDS.map((field) => nextComposerField(field, 1, true))).toEqual([
+  test("with a bound target, every schedule-mode field is reachable by tabbing once around", () => {
+    const scheduleFields = [
+      "name",
       "repo",
       "target",
       "targetTab",
       "prompt",
+      "triggerMode",
+      "schedule",
+      "confirm",
+    ] as const
+    expect(scheduleFields.map((field) => nextComposerField(field, 1, true, false, "schedule"))).toEqual([
+      "repo",
+      "target",
+      "targetTab",
+      "prompt",
+      "triggerMode",
       "schedule",
       "confirm",
       "name",
     ])
+  })
+
+  test("event mode swaps schedule for eventKind and eventFilter in tab order", () => {
+    expect(nextComposerField("triggerMode", 1, false, false, "event")).toBe("eventKind")
+    expect(nextComposerField("eventKind", 1, false, false, "event")).toBe("eventFilter")
+    expect(nextComposerField("eventFilter", 1, false, false, "event")).toBe("confirm")
+  })
+})
+
+describe("event-driven composer drafts", () => {
+  test("event mode submits without a cron schedule and builds typed triggers", () => {
+    const draft: ComposerDraft = {
+      name: "fix ci",
+      repo: "/x/rove",
+      prompt: "Fix failing checks",
+      triggerMode: "event",
+      schedule: "not-a-cron",
+      eventKind: "ci_failed",
+      eventFilter: "release/*",
+    }
+    expect(canSubmitDraft(draft)).toBe(true)
+    expect(firstIncompleteField(draft)).toBeNull()
+    expect(buildEventTriggerFromDraft("ci_failed", "release/*")).toEqual({
+      kind: "ci_failed",
+      filter: { branch: "release/*" },
+    })
+    expect(buildEventTriggerFromDraft("webhook", "issues.opened")).toEqual({
+      kind: "webhook",
+      filter: { event: "issues", action: "opened" },
+    })
+    expect(buildEventTriggerFromDraft("local", "deploy.finished")).toEqual({
+      kind: "local",
+      filter: { event: "deploy.finished" },
+    })
   })
 })
 

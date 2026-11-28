@@ -1,8 +1,7 @@
 /** The text a routine firing delivers: a run header, then the routine's prompt (or a pointer back to it). */
 
 import { createHash } from "node:crypto"
-import type { WebhookEvent } from "./automation-webhook.ts"
-import type { Automation, AutomationRun } from "./contracts.ts"
+import type { Automation, AutomationRun, AutomationTriggerEvent } from "./contracts.ts"
 
 /** Identifies the prompt text a run delivered, so a standing session can tell when it changed. */
 export function routinePromptHash(prompt: string): string {
@@ -44,10 +43,14 @@ export function withRoutineRunHeader(
   run: { runNumber: number },
   api: string,
   deliveryId: string,
-  event?: WebhookEvent,
+  event?: AutomationTriggerEvent,
   promptHeld = false,
 ): string {
-  const fired = event ? `Fired by webhook: ${event.summary}\n\n` : ""
+  const fired = event
+    ? event.kind && event.kind !== "webhook"
+      ? `Fired by event (${event.kind}): ${event.summary}\n\n`
+      : `Fired by webhook: ${event.summary}\n\n`
+    : ""
   const body = promptHeld
     ? "Instructions unchanged from this routine's earlier run in this conversation: follow them again."
     : automation.prompt

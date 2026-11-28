@@ -9,201 +9,27 @@
  */
 
 import { randomUUID } from "node:crypto"
-import { readFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { ROVE_STATE_DIR_BASENAME, readRoveHomeDirEnv } from "../compat-env.ts"
+import { assertAutomationTargetOptions, mergeAutomationTargetOptions } from "./automation-target.ts"
 import {
-  assertAutomationTargetOptions,
-  mergeAutomationTargetOptions,
-  readAutomationTarget,
-} from "./automation-target.ts"
-import type { Automation, AutomationPatch, AutomationPrecheck, AutomationRun } from "./contracts.ts"
+  MAX_RUNS_PER_AUTOMATION,
+  nonEmptyString,
+  pruneRuns,
+  readAutomationsStoreFile,
+  writeAutomationsStoreFile,
+} from "./automations-store-codec.ts"
+import { type Automation, type AutomationPatch, type AutomationRun, hasAutomationEventTrigger } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { nextCronAfter } from "./cron.ts"
 import type { Delivery } from "./delivery-contracts.ts"
-import { serialized, writeJsonAtomic } from "./json-file.ts"
-import { parseSkipVerdict } from "./runnability-contracts.ts"
-import { salvageUnreadable } from "./store-salvage.ts"
+import { serialized } from "./json-file.ts"
 
-/** Per-automation run history cap; every write re-serializes the whole document. */
-export const MAX_RUNS_PER_AUTOMATION = 100
-
-interface AutomationsFile {
-  readonly version: 1
-  readonly automations: Automation[]
-  readonly runs: AutomationRun[]
-}
+export { MAX_RUNS_PER_AUTOMATION, pruneRuns }
 
 export function defaultAutomationsPath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   return join(homeDir, ROVE_STATE_DIR_BASENAME, "automations.json")
-}
-
-function str(value: unknown): string | undefined {
-  return typeof value === "string" && value.length > 0 ? value : undefined
-}
-
-/** A precheck or script `{command, timeoutSeconds}`; a missing or bad timeout reads as 120. */
-function readTimedCommand(value: unknown): AutomationPrecheck | undefined {
-  if (!value || typeof value !== "object") return undefined
-  const raw = value as Partial<AutomationPrecheck>
-  const command = str(raw.command)
-  if (!command) return undefined
-  const timeoutSeconds = typeof raw.timeoutSeconds === "number" && raw.timeoutSeconds > 0 ? raw.timeoutSeconds : 120
-  return { command, timeoutSeconds }
-}
-
-function normalizeAutomation(value: unknown): Automation | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null
-  const raw = value as Partial<Automation>
-  const id = str(raw.id)
-  const name = str(raw.name)
-  const repo = str(raw.repo)
-  const prompt = str(raw.prompt)
-  const schedule = str(raw.schedule)
-  const nextRunAt = str(raw.nextRunAt)
-  const script = readTimedCommand(raw.script)
-  if (!id || !name || !(prompt || script) || !schedule || !nextRunAt) return null
-  if (!Number.isFinite(Date.parse(nextRunAt))) return null
-
-  let target: Automation["target"]
-  try {
-    target = raw.target === undefined ? undefined : (readAutomationTarget(raw.target) ?? undefined)
-    assertAutomationTargetOptions({ ...raw, target })
-  } catch {
-    return null
-  }
-  const precheck = readTimedCommand(raw.precheck)
-  // `lastRunAt` is the legacy on-disk spelling; read it so existing files keep the value.
-  const lastOccurrenceAt = str(raw.lastOccurrenceAt ?? (value as { lastRunAt?: unknown }).lastRunAt)
-  const grace = raw.missedRunGraceMinutes
-  const now = new Date().toISOString()
-  return {
-    id,
-    name,
-    ...(repo ? { repo } : {}),
-    prompt: prompt ?? "",
-    schedule,
-    nextRunAt,
-    ...(target ? { target } : {}),
-    enabled: raw.enabled !== false,
-    missedRunGraceMinutes: typeof grace === "number" && Number.isFinite(grace) && grace >= 0 ? grace : 60,
-    ...(raw.vendor ? { vendor: raw.vendor } : {}),
-    ...(str(raw.model) ? { model: raw.model } : {}),
-    ...(str(raw.modelEffort) ? { modelEffort: raw.modelEffort } : {}),
-    ...(precheck ? { precheck } : {}),
-    ...(script ? { script } : {}),
-    ...(raw.notify === true ? { notify: true } : {}),
-    ...(str(raw.webhook?.secret) ? { webhook: { secret: raw.webhook?.secret as string } } : {}),
-    ...(str(raw.baseRef) ? { baseRef: raw.baseRef } : {}),
-    ...(raw.persistentSession === true ? { persistentSession: true } : {}),
-    ...(raw.newConversation === true ? { newConversation: true } : {}),
-    ...(str(raw.sessionTaskId) ? { sessionTaskId: raw.sessionTaskId } : {}),
-    ...(lastOccurrenceAt ? { lastOccurrenceAt } : {}),
-    createdAt: str(raw.createdAt) ?? now,
-    updatedAt: str(raw.updatedAt) ?? now,
-  }
-}
-
-function normalizeRun(value: unknown): AutomationRun | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null
-  const raw = value as Partial<AutomationRun>
-  const id = str(raw.id)
-  const automationId = str(raw.automationId)
-  const scheduledFor = str(raw.scheduledFor)
-  const at = str(raw.at)
-  if (!id || !automationId || !scheduledFor || !at) return null
-  if (
-    raw.status !== "dispatched" &&
-    raw.status !== "revived" &&
-    raw.status !== "skipped_cancelled" &&
-    raw.status !== "skipped_precheck" &&
-    raw.status !== "skipped_blocked" &&
-    raw.status !== "skipped_missed" &&
-    raw.status !== "skipped_unavailable" &&
-    raw.status !== "dispatch_failed" &&
-    raw.status !== "ran" &&
-    raw.status !== "script_failed"
-  ) {
-    return null
-  }
-  const blocked = parseSkipVerdict(raw.blocked)
-  return {
-    id,
-    automationId,
-    runNumber: typeof raw.runNumber === "number" && raw.runNumber > 0 ? raw.runNumber : 1,
-    scheduledFor,
-    status: raw.status,
-    trigger: raw.trigger === "manual" || raw.trigger === "webhook" ? raw.trigger : "scheduled",
-    ...(str(raw.event) ? { event: raw.event } : {}),
-    ...(str(raw.taskId) ? { taskId: raw.taskId } : {}),
-    ...(str(raw.tabId) ? { tabId: raw.tabId } : {}),
-    ...(raw.precheckResult ? { precheckResult: raw.precheckResult } : {}),
-    ...(blocked ? { blocked } : {}),
-    ...(str(raw.error) ? { error: raw.error } : {}),
-    ...(str(raw.deliveryId) ? { deliveryId: raw.deliveryId } : {}),
-    ...(str(raw.promptHash) ? { promptHash: raw.promptHash } : {}),
-    ...(raw.promptElided === true ? { promptElided: true as const } : {}),
-    ...(str(raw.compactedAt) ? { compactedAt: raw.compactedAt } : {}),
-    ...(typeof raw.response?.text === "string" && str(raw.response.at)
-      ? { response: { text: raw.response.text, at: raw.response.at } }
-      : {}),
-    ...(raw.deliveryStatus === "reported" || raw.deliveryStatus === "quiet"
-      ? { deliveryStatus: raw.deliveryStatus }
-      : {}),
-    at,
-  }
-}
-
-async function readStore(path: string): Promise<{ automations: Automation[]; runs: AutomationRun[] }> {
-  try {
-    const parsed = JSON.parse(await readFile(path, "utf8")) as Partial<AutomationsFile>
-    const automations = Array.isArray(parsed.automations)
-      ? parsed.automations.map(normalizeAutomation).filter((a): a is Automation => a !== null)
-      : []
-    const runs = Array.isArray(parsed.runs)
-      ? parsed.runs.map(normalizeRun).filter((r): r is AutomationRun => r !== null)
-      : []
-    return { automations, runs }
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return { automations: [], runs: [] }
-    // Unreadable is not empty: keep the bytes aside before any later write.
-    salvageUnreadable(path, "automations-load", err)
-    return { automations: [], runs: [] }
-  }
-}
-
-async function writeStore(path: string, automations: readonly Automation[], runs: readonly AutomationRun[]) {
-  const body: AutomationsFile = { version: 1, automations: [...automations], runs: [...runs] }
-  await writeJsonAtomic(path, body)
-}
-
-/**
- * Keep the newest {@link MAX_RUNS_PER_AUTOMATION} runs per automation (by
- * `at`, ties by `runNumber`).
- *
- * `deletedAutomationIds` is opt-IN, not "keep only live ids": the runner writes
- * runs while the store may be mid-mutation, so an unknown id is not garbage.
- */
-export function pruneRuns(
-  runs: readonly AutomationRun[],
-  deletedAutomationIds: ReadonlySet<string> = new Set(),
-  maxPer = MAX_RUNS_PER_AUTOMATION,
-): AutomationRun[] {
-  const byAutomation = new Map<string, AutomationRun[]>()
-  for (const run of runs) {
-    if (deletedAutomationIds.has(run.automationId)) continue
-    const list = byAutomation.get(run.automationId)
-    if (list) list.push(run)
-    else byAutomation.set(run.automationId, [run])
-  }
-  const kept = new Set<string>()
-  for (const list of byAutomation.values()) {
-    list.sort((a, b) => Date.parse(b.at) - Date.parse(a.at) || b.runNumber - a.runNumber)
-    for (const run of list.slice(0, Math.max(0, maxPer))) kept.add(run.id)
-  }
-  // Survivors keep their original append order — callers read this as a log.
-  return runs.filter((run) => kept.has(run.id))
 }
 
 type Pins = Pick<Automation, "vendor" | "model" | "modelEffort">
@@ -225,7 +51,7 @@ export class AutomationsStore {
 
   async init(): Promise<void> {
     await this.enqueue(async () => {
-      const loaded = await readStore(this.path)
+      const loaded = await readAutomationsStoreFile(this.path)
       this.automations = loaded.automations
       this.runs = loaded.runs
     })
@@ -257,14 +83,21 @@ export class AutomationsStore {
   ): Promise<Automation> {
     return await this.enqueue(async () => {
       assertAutomationTargetOptions(input)
+      const schedule = nonEmptyString(input.schedule)
+      const eventTriggers = input.eventTriggers?.length ? input.eventTriggers : undefined
+      if (!schedule && !hasAutomationEventTrigger({ eventTriggers, webhook: input.webhook })) {
+        throw new Error("a routine needs a schedule, an event trigger, or a webhook")
+      }
       const nowMs = this.now()
       const iso = new Date(nowMs).toISOString()
+      const { schedule: _s, eventTriggers: _e, ...rest } = input
       const automation: Automation = {
-        ...input,
+        ...rest,
         id: randomUUID(),
         enabled: input.enabled !== false,
         // Throws on an expression that parses but never fires.
-        nextRunAt: new Date(nextCronAfter(input.schedule, nowMs)).toISOString(),
+        ...(schedule ? { schedule, nextRunAt: new Date(nextCronAfter(schedule, nowMs)).toISOString() } : {}),
+        ...(eventTriggers ? { eventTriggers } : {}),
         createdAt: iso,
         updatedAt: iso,
       }
@@ -287,21 +120,32 @@ export class AutomationsStore {
         targetOptions.sessionTaskId === current.sessionTaskId &&
         !samePins(current, targetOptions)
       const nowMs = this.now()
-      const schedule = patch.schedule ?? current.schedule
-      // A paused routine's nextRunAt froze when it was paused (the sweep skips
-      // disabled ones); left as is, resuming reads the pause as missed runs.
-      const reanchor = patch.schedule !== undefined || (patch.enabled === true && !current.enabled)
+      const schedule = patch.schedule === null ? undefined : (patch.schedule ?? current.schedule)
+      const eventTriggers =
+        patch.eventTriggers === null
+          ? undefined
+          : patch.eventTriggers !== undefined
+            ? patch.eventTriggers.length > 0
+              ? patch.eventTriggers
+              : undefined
+            : current.eventTriggers
+      const webhook = patch.webhook === null ? undefined : (patch.webhook ?? current.webhook)
+      if (!schedule && !hasAutomationEventTrigger({ eventTriggers, webhook })) {
+        throw new Error("a routine needs a schedule, an event trigger, or a webhook")
+      }
+      const reanchor =
+        schedule !== undefined &&
+        (patch.schedule !== undefined || (patch.enabled === true && !current.enabled) || !current.nextRunAt)
       const next: Automation = {
         ...current,
         ...(patch.name !== undefined ? { name: patch.name } : {}),
         ...(patch.prompt !== undefined ? { prompt: patch.prompt } : {}),
         ...targetOptions,
-        // The standing task keeps the engine it launched with: new pins get a new one on the next firing.
         ...(repinned ? { sessionTaskId: undefined } : {}),
         ...(patch.enabled !== undefined ? { enabled: patch.enabled } : {}),
         ...(patch.missedRunGraceMinutes !== undefined ? { missedRunGraceMinutes: patch.missedRunGraceMinutes } : {}),
-        schedule,
-        // `null` deletes the field rather than storing a null.
+        ...(schedule ? { schedule } : { schedule: undefined, nextRunAt: undefined }),
+        ...(eventTriggers ? { eventTriggers } : { eventTriggers: undefined }),
         ...(patch.precheck === null
           ? { precheck: undefined }
           : patch.precheck !== undefined
@@ -309,8 +153,7 @@ export class AutomationsStore {
             : {}),
         ...(patch.script === null ? { script: undefined } : patch.script !== undefined ? { script: patch.script } : {}),
         ...(patch.notify !== undefined ? { notify: patch.notify } : {}),
-        ...(patch.webhook === null ? { webhook: undefined } : patch.webhook ? { webhook: patch.webhook } : {}),
-        // Re-anchor, else a stale nextRunAt fires on the replaced rule.
+        ...(webhook ? { webhook } : { webhook: undefined }),
         ...(reanchor ? { nextRunAt: new Date(nextCronAfter(schedule, nowMs)).toISOString() } : {}),
         updatedAt: new Date(nowMs).toISOString(),
       }
@@ -357,14 +200,13 @@ export class AutomationsStore {
       const index = this.automations.findIndex((a) => a.id === id)
       if (index === -1) return null
       const current = this.automations[index] as Automation
+      if (!current.schedule) return null
       if (expectedNextRunAt !== undefined && (!current.enabled || current.nextRunAt !== expectedNextRunAt)) return null
       const iso = new Date(afterMs).toISOString()
       let nextRunAt: string
       try {
         nextRunAt = new Date(nextCronAfter(current.schedule, afterMs)).toISOString()
       } catch (err) {
-        // An unresolvable schedule (hand edit, past once-only date) must not
-        // wedge the sweep on a permanently-due row: disable it, surfaced in `automation-list`.
         logDaemonError("automations-advance", err)
         const disabled: Automation = { ...current, enabled: false, lastOccurrenceAt: iso, updatedAt: iso }
         this.automations = this.automations.map((a, i) => (i === index ? disabled : a))
@@ -383,7 +225,6 @@ export class AutomationsStore {
    * name the run it belongs to. Pass the result to {@link recordRun}.
    */
   reserveRun(automationId: string): { id: string; runNumber: number } {
-    // From the highest number, NOT the retained count, or pruning reissues numbers.
     const recorded = this.runs.reduce(
       (n, run) => (run.automationId === automationId ? Math.max(n, run.runNumber) : n),
       0,
@@ -467,7 +308,7 @@ export class AutomationsStore {
 
   private async commit(deletedAutomationIds?: ReadonlySet<string>): Promise<void> {
     this.runs = pruneRuns(this.runs, deletedAutomationIds)
-    await writeStore(this.path, this.automations, this.runs)
+    await writeAutomationsStoreFile(this.path, this.automations, this.runs)
   }
 
   /** Serialize mutations so concurrent RPC/sweep writes cannot clobber the file. */

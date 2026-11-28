@@ -17,23 +17,7 @@ import type {
 } from "./task-state-contracts.ts"
 
 // Re-exported so importers keep naming them through `contracts.ts`.
-export type {
-  Automation,
-  AutomationPatch,
-  AutomationPrecheck,
-  AutomationPrecheckResult,
-  AutomationRun,
-  AutomationRunResponse,
-  AutomationRunStatus,
-  AutomationTrigger,
-  TaskRoutineLink,
-} from "./automation-contracts.ts"
-export {
-  ROUTINE_RESPONSE_MAX_CHARS,
-  ROUTINE_RESPONSE_WINDOW_MS,
-  automationRunNeedsAttention,
-  routineRunResponseState,
-} from "./automation-contracts.ts"
+export * from "./automation-contracts.ts"
 
 // Engine activity + the attention Inbox, likewise.
 export type {

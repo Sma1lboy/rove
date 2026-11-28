@@ -1,5 +1,6 @@
 /** Automation CRUD + manual-trigger RPC handlers. */
 
+import { dispatchAutomationEvent, webhookMatchesTriggers } from "./automation-events.ts"
 import { assertRoutineBaseRef, assertRoutineRepo } from "./automation-repo-check.ts"
 import { type RunnerDeps, runAutomationOnce } from "./automation-runner.ts"
 import {
@@ -10,10 +11,17 @@ import {
 } from "./automation-target.ts"
 import { newWebhookSecret, readWebhookEvent, webhookSignatureValid } from "./automation-webhook.ts"
 import {
+  type AutomationEventKind,
   type AutomationPatch,
   type AutomationPrecheck,
   type AutomationRunStatus,
+  type AutomationTriggerMode,
   ROUTINE_RESPONSE_MAX_CHARS,
+  automationTriggerMode,
+  hasAutomationEventTrigger,
+  isAutomationEventKind,
+  parseEventTriggers,
+  triggersWantWebhook,
 } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { isValidCron } from "./cron.ts"
@@ -36,13 +44,25 @@ function runnerDepsOf(ctx: DaemonHandlerContext): RunnerDeps {
 }
 
 /** Why a webhook POST did or did not fire; the web server maps it to an HTTP status. */
-export type WebhookVerdict = "fired" | "pong" | "not_found" | "bad_signature" | "disabled"
+export type WebhookVerdict = "fired" | "pong" | "ignored" | "not_found" | "bad_signature" | "disabled"
 
-/** A persisted bad schedule never fires and is only discoverable by its silence. */
-function requireSchedule(payload: Record<string, unknown>, key: string): string {
+/** Validate a cron expression when present; `null` / empty clears on update. */
+function optionalSchedule(payload: Record<string, unknown>, key: string): string | null | undefined {
+  if (!(key in payload)) return undefined
+  const raw = payload[key]
+  if (raw === null || raw === "") return null
   const schedule = requireString(payload, key)
   if (!isValidCron(schedule)) throw new Error(`invalid cron expression: ${schedule}`)
   return schedule
+}
+
+function readModeFilter(payload: Record<string, unknown>): AutomationTriggerMode | undefined {
+  const mode = optionalString(payload, "mode")
+  if (!mode) return undefined
+  if (mode !== "schedule" && mode !== "event" && mode !== "hybrid") {
+    throw new Error("mode must be schedule, event or hybrid")
+  }
+  return mode
 }
 
 /** `null` clears the precheck (or script); absent leaves it untouched. */
@@ -103,8 +123,10 @@ const FAILURE_LOOKBACK_RUNS = 50
 export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "automation.list",
-    async handle(_payload, ctx) {
-      const automations = ctx.automations.list()
+    async handle(payload, ctx) {
+      const mode = readModeFilter(payload)
+      const all = ctx.automations.list()
+      const automations = mode ? all.filter((a) => automationTriggerMode(a) === mode) : all
       // Latest run status so the list shows broken routines, and the newest failure among the
       // recent runs so a stalled or self-healed routine still says why. Details stay behind `automation.runs`.
       const lastRunStatus: Record<string, AutomationRunStatus> = {}
@@ -151,6 +173,16 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       const script = readPrecheck(payload, "script") ?? undefined
       const prompt = optionalString(payload, "prompt") ?? ""
       assertScriptOptions({ ...targetOptions, script, prompt })
+      const schedule = optionalSchedule(payload, "schedule") ?? undefined
+      const eventTriggers =
+        "eventTriggers" in payload ? (parseEventTriggers(payload.eventTriggers) ?? undefined) : undefined
+      const wantWebhook = optionalBoolean(payload, "webhook") === true || triggersWantWebhook(eventTriggers)
+      if (
+        !schedule &&
+        !hasAutomationEventTrigger({ eventTriggers, webhook: wantWebhook ? { secret: "x" } : undefined })
+      ) {
+        throw new Error("a routine needs a schedule, an event trigger, or a webhook")
+      }
       await assertAutomationTargetTask({ repo, target: target ?? undefined }, ctx.orch)
       const automation = await ctx.automations.create({
         name: requireString(payload, "name"),
@@ -159,8 +191,9 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
         prompt: script ? "" : prompt,
         ...(script ? { script } : {}),
         ...(optionalBoolean(payload, "notify") === true ? { notify: true } : {}),
-        ...(optionalBoolean(payload, "webhook") === true ? { webhook: { secret: newWebhookSecret() } } : {}),
-        schedule: requireSchedule(payload, "schedule"),
+        ...(wantWebhook ? { webhook: { secret: newWebhookSecret() } } : {}),
+        ...(schedule ? { schedule } : {}),
+        ...(eventTriggers?.length ? { eventTriggers } : {}),
         missedRunGraceMinutes: readGraceMinutes(payload) ?? 60,
         ...(optionalVendor(payload, "vendor") ? { vendor: optionalVendor(payload, "vendor") } : {}),
         ...(model ? { model } : {}),
@@ -178,7 +211,7 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
           throw error
         })
       }
-      // A new enabled schedule may be the daemon's only reason to stay up.
+      // A new enabled routine (scheduled or event-driven) may be the daemon's only reason to stay up.
       ctx.daemon.reevaluateIdle()
       return { automation }
     },
@@ -194,6 +227,8 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       const currentRepo = ctx.automations.get(id)?.repo
       if (nextBaseRef && ctx.automations.get(id) && !currentRepo) throw new Error(NO_PROJECT_BASE_REF)
       if (nextBaseRef && currentRepo) await assertRoutineBaseRef(currentRepo, nextBaseRef)
+      const nextSchedule = optionalSchedule(payload, "schedule")
+      const nextEvents = "eventTriggers" in payload ? parseEventTriggers(payload.eventTriggers) : undefined
       let patch: AutomationPatch = {
         ...(optionalString(payload, "name") !== undefined ? { name: optionalString(payload, "name") } : {}),
         ...(optionalString(payload, "prompt") !== undefined ? { prompt: optionalString(payload, "prompt") } : {}),
@@ -206,7 +241,8 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
         ...("model" in payload ? { model: optionalString(payload, "model") ?? null } : {}),
         ...("effort" in payload ? { modelEffort: optionalString(payload, "effort") ?? null } : {}),
         ...("target" in payload ? { target: readAutomationTarget(payload.target) } : {}),
-        ...("schedule" in payload ? { schedule: requireSchedule(payload, "schedule") } : {}),
+        ...(nextSchedule !== undefined ? { schedule: nextSchedule } : {}),
+        ...(nextEvents !== undefined ? { eventTriggers: nextEvents && nextEvents.length > 0 ? nextEvents : null } : {}),
         ...(readPrecheck(payload) !== undefined ? { precheck: readPrecheck(payload) } : {}),
         ...(readPrecheck(payload, "script") !== undefined ? { script: readPrecheck(payload, "script") } : {}),
         ...(optionalBoolean(payload, "notify") !== undefined ? { notify: optionalBoolean(payload, "notify") } : {}),
@@ -226,6 +262,8 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       const webhook = optionalBoolean(payload, "webhook")
       if (webhook !== undefined) {
         patch = { ...patch, webhook: webhook ? (current.webhook ?? { secret: newWebhookSecret() }) : null }
+      } else if (nextEvents && triggersWantWebhook(nextEvents) && !current.webhook) {
+        patch = { ...patch, webhook: { secret: newWebhookSecret() } }
       }
       const targetOptions = mergeAutomationTargetOptions(current, patch)
       assertAutomationTargetOptions(targetOptions)
@@ -321,12 +359,53 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       if (name === "ping") return { verdict: "pong" satisfies WebhookVerdict }
       if (!automation.enabled) return { verdict: "disabled" satisfies WebhookVerdict }
       const event = readWebhookEvent(name, body)
+      if (automation.eventTriggers?.length && !webhookMatchesTriggers(automation.eventTriggers, event, body)) {
+        return { verdict: "ignored" satisfies WebhookVerdict, event: event.summary }
+      }
       void runAutomationOnce(runnerDepsOf(ctx), automation, {
         scheduledFor: Date.now(),
         trigger: "webhook",
         event,
       }).catch((err: unknown) => logDaemonError("automation-webhook", err))
       return { verdict: "fired" satisfies WebhookVerdict, event: event.summary }
+    },
+  },
+  {
+    name: "automation.emitEvent",
+    blocking: true,
+    async handle(payload, ctx) {
+      const eventName = requireString(payload, "event")
+      const rawKind = optionalString(payload, "kind")
+      if (rawKind && !isAutomationEventKind(rawKind)) {
+        throw new Error(`invalid event kind: ${rawKind}`)
+      }
+      const kind: AutomationEventKind =
+        (rawKind as AutomationEventKind | undefined) ??
+        (isAutomationEventKind(eventName) && eventName !== "webhook" ? eventName : "local")
+      const action = optionalString(payload, "action")
+      const branch = optionalString(payload, "branch")
+      const repo = optionalString(payload, "repo")
+      const url = optionalString(payload, "url")
+      const detail = optionalString(payload, "detail")
+      const targetId = optionalString(payload, "id")
+      const summary = [action ? `${eventName}.${action}` : eventName, branch ? `on ${branch}` : undefined, detail, url]
+        .filter(Boolean)
+        .join(" ")
+      const fired = await dispatchAutomationEvent(
+        runnerDepsOf(ctx),
+        {
+          kind,
+          name: eventName,
+          ...(action ? { action } : {}),
+          ...(branch ? { branch } : {}),
+          ...(repo ? { repo } : {}),
+          ...(url ? { url } : {}),
+          ...(detail ? { detail } : {}),
+          summary,
+        },
+        targetId ? { automationId: targetId } : undefined,
+      )
+      return { matched: fired.length, fired }
     },
   },
 ]

@@ -97,7 +97,9 @@ export function RunLog(props: {
             <>
               <span>{TONE_GLYPH[tone]}</span>
               <span>{`#${run.runNumber}`}</span>
-              <span className={RT_GROW}>{`${statusText(run)}${run.tabId ? `, ${run.tabId}` : ""}${note}`}</span>
+              <span className={RT_GROW} title={run.event}>
+                {`${statusText(run)}${run.tabId ? `, ${run.tabId}` : ""}${run.event ? ` · ${run.event}` : ""}${note}`}
+              </span>
               <span className="text-subtle">{t(`runLog.source.${SOURCES[run.trigger]}`)}</span>
               {duration !== null && <span className="text-muted">{formatDuration(duration)}</span>}
               <span className="text-muted">{props.when(run.at)}</span>

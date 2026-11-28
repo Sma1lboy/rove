@@ -1,7 +1,23 @@
 /**
- * The run-health rules the Routines page reads, re-exported from the daemon contracts so the web
- * client takes them through `@sma1lboy/rove` (it has no direct dependency on the daemon package).
+ * The run-health and trigger rules the Routines page reads, re-exported from the daemon contracts
+ * so the web client takes them through `@sma1lboy/rove-core` (it has no direct dependency on the daemon package).
  */
 
-export { automationRunNeedsAttention, routineRunResponseState } from "@sma1lboy/rove-daemon/daemon/contracts"
-export type { Automation, AutomationRun, AutomationRunStatus } from "@sma1lboy/rove-daemon/daemon/contracts"
+export {
+  AUTOMATION_EVENT_KINDS,
+  automationRunNeedsAttention,
+  automationTriggerMode,
+  formatEventTrigger,
+  formatEventTriggers,
+  hasAutomationEventTrigger,
+  routineRunResponseState,
+} from "@sma1lboy/rove-daemon/daemon/contracts"
+export type {
+  Automation,
+  AutomationEventFilter,
+  AutomationEventKind,
+  AutomationEventTrigger,
+  AutomationRun,
+  AutomationRunStatus,
+  AutomationTriggerMode,
+} from "@sma1lboy/rove-daemon/daemon/contracts"

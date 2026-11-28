@@ -144,6 +144,7 @@
     "./daemon/alias-keeper": "./src/daemon/alias-keeper.ts",
     "./daemon/attention-contracts": "./src/daemon/attention-contracts.ts",
     "./daemon/automation-dispatch": "./src/daemon/automation-dispatch.ts",
+    "./daemon/automation-events": "./src/daemon/automation-events.ts",
     "./daemon/automation-repo-check": "./src/daemon/automation-repo-check.ts",
     "./daemon/automation-webhook": "./src/daemon/automation-webhook.ts",
     "./daemon/channels": "./src/daemon/channels.ts",
