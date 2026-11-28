@@ -10,8 +10,8 @@
 const savedTz = process.env.TZ
 process.env.TZ = "America/New_York"
 
+import { latestCronAtOrBefore, nextCronAfter } from "@sma1lboy/rove-daemon/daemon/cron"
 import { afterAll, describe, expect, it } from "vitest"
-import { latestCronAtOrBefore, nextCronAfter } from "../../../rove-daemon/src/daemon/cron.ts"
 
 // Forked workers are reused across files: hand the next one its timezone back.
 afterAll(() => {

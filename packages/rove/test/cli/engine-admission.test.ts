@@ -1,9 +1,9 @@
 import { Socket } from "node:net"
+import { ClientWriter } from "@sma1lboy/rove-daemon/daemon/client-writer"
 import { PtyHost } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
+import { type PtyRequest, dispatchPtyRequest } from "@sma1lboy/rove-daemon/daemon/pty-server-verbs"
 import { describe, expect, it } from "vitest"
-import { ClientWriter } from "../../../rove-daemon/src/daemon/client-writer.ts"
-import { type PtyRequest, dispatchPtyRequest } from "../../../rove-daemon/src/daemon/pty-server-verbs.ts"
 import { countLiveEngineSessions, openAdmittedEngine } from "../../src/cli/api/engine-admission.ts"
 import { normalizeWindowsArgs } from "../../src/engine/win-process-snapshot.ts"
 

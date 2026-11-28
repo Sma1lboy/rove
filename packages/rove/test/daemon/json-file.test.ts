@@ -1,8 +1,8 @@
 import { mkdtemp, readFile, readdir, stat } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { writeJsonAtomic } from "@sma1lboy/rove-daemon/daemon/json-file"
 import { describe, expect, it } from "vitest"
-import { writeJsonAtomic } from "../../../rove-daemon/src/daemon/json-file.ts"
 
 describe("writeJsonAtomic", () => {
   it("creates parent dirs, writes pretty JSON with trailing newline, leaves no tmp", async () => {

@@ -7,18 +7,18 @@ import { mkdtempSync } from "node:fs"
 import { rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterEach, describe, expect, it, vi } from "vitest"
-import type { DaemonTask, EngineActivityDetail, TaskActivityState } from "../../../rove-daemon/src/daemon/contracts.ts"
-import { DeliveriesStore } from "../../../rove-daemon/src/daemon/deliveries-store.ts"
-import { GatesStore } from "../../../rove-daemon/src/daemon/gates-store.ts"
-import { runnabilityDepsOf } from "../../../rove-daemon/src/daemon/handlers-runnability.ts"
+import type { DaemonTask, EngineActivityDetail, TaskActivityState } from "@sma1lboy/rove-daemon/daemon/contracts"
+import { DeliveriesStore } from "@sma1lboy/rove-daemon/daemon/deliveries-store"
+import { GatesStore } from "@sma1lboy/rove-daemon/daemon/gates-store"
 import {
   type DaemonHandlerContext,
   createDaemonHandlerRegistry,
   dispatchDaemonRequest,
-} from "../../../rove-daemon/src/daemon/handlers.ts"
-import { startQuotaResumeRunner } from "../../../rove-daemon/src/daemon/quota-resume.ts"
-import { evaluateRunnability } from "../../../rove-daemon/src/daemon/runnability.ts"
+} from "@sma1lboy/rove-daemon/daemon/handlers"
+import { runnabilityDepsOf } from "@sma1lboy/rove-daemon/daemon/handlers-runnability"
+import { startQuotaResumeRunner } from "@sma1lboy/rove-daemon/daemon/quota-resume"
+import { evaluateRunnability } from "@sma1lboy/rove-daemon/daemon/runnability"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { NOW, REPO } from "./automation-runner-fixtures.ts"
 
 const FUTURE = new Date(NOW + 3_600_000).toISOString()

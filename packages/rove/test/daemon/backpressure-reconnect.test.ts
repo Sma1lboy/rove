@@ -2,13 +2,13 @@ import { createServer } from "node:net"
 import { join } from "node:path"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { ClientWriter } from "@sma1lboy/rove-daemon/daemon/client-writer"
+import { LineReceiver } from "@sma1lboy/rove-daemon/daemon/line-receiver"
 import {
   DAEMON_PROTOCOL_VERSION,
   MIN_COMPATIBLE_PROTOCOL_VERSION,
   frameToLine,
 } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { expect, it } from "vitest"
-import { LineReceiver } from "../../../rove-daemon/src/daemon/line-receiver.ts"
 import { RemoteOrchestrator } from "../../src/client/remote-orchestrator.ts"
 import { bootDaemonHarness, waitFor } from "./harness.ts"
 

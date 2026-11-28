@@ -8,25 +8,25 @@
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { describe, expect, it } from "vitest"
-import { AttentionInboxStore } from "../../../rove-daemon/src/daemon/attention-inbox.ts"
-import { runAutomationOnce } from "../../../rove-daemon/src/daemon/automation-runner.ts"
-import { AutomationsStore } from "../../../rove-daemon/src/daemon/automations-store.ts"
-import { DeliveriesStore } from "../../../rove-daemon/src/daemon/deliveries-store.ts"
-import { DELIVERY_STALL_MS } from "../../../rove-daemon/src/daemon/delivery-contracts.ts"
+import { AttentionInboxStore } from "@sma1lboy/rove-daemon/daemon/attention-inbox"
+import { runAutomationOnce } from "@sma1lboy/rove-daemon/daemon/automation-runner"
+import { AutomationsStore } from "@sma1lboy/rove-daemon/daemon/automations-store"
+import { DeliveriesStore } from "@sma1lboy/rove-daemon/daemon/deliveries-store"
+import { DELIVERY_STALL_MS } from "@sma1lboy/rove-daemon/daemon/delivery-contracts"
 import {
   type DeliveryDeps,
   markDeliveryMissing,
   reportDelivery,
   sweepStalledDeliveries,
   trackDeliveryTurn,
-} from "../../../rove-daemon/src/daemon/delivery-ops.ts"
-import { DaemonEventBus } from "../../../rove-daemon/src/daemon/event-bus.ts"
+} from "@sma1lboy/rove-daemon/daemon/delivery-ops"
+import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import {
   type DaemonHandlerContext,
   createDaemonHandlerRegistry,
   dispatchDaemonRequest,
-} from "../../../rove-daemon/src/daemon/handlers.ts"
+} from "@sma1lboy/rove-daemon/daemon/handlers"
+import { describe, expect, it } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, recordingDelivery, stubRuntime } from "../cli/api-handler-fixtures.ts"
 import { NOW, automation, fakeDeps } from "./automation-runner-fixtures.ts"

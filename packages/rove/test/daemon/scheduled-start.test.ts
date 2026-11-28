@@ -1,10 +1,10 @@
-import { describe, expect, it, vi } from "vitest"
-import type { DaemonTask } from "../../../rove-daemon/src/daemon/contracts.ts"
+import type { DaemonTask } from "@sma1lboy/rove-daemon/daemon/contracts"
 import {
   type ScheduledStartDeps,
   dueScheduledStarts,
   startScheduledNow,
-} from "../../../rove-daemon/src/daemon/scheduled-start.ts"
+} from "@sma1lboy/rove-daemon/daemon/scheduled-start"
+import { describe, expect, it, vi } from "vitest"
 
 const NOW = Date.parse("2026-11-06T22:00:00.000Z")
 const PAST = new Date(NOW - 1000).toISOString()

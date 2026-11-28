@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest"
 import {
   cronMatches,
   isValidCron,
   latestCronAtOrBefore,
   nextCronAfter,
   parseCron,
-} from "../../../rove-daemon/src/daemon/cron.ts"
+} from "@sma1lboy/rove-daemon/daemon/cron"
+import { describe, expect, it } from "vitest"
 
 /** Local-time helper — the parser is local-time by design, so tests must be too. */
 function at(y: number, mo: number, d: number, h = 0, mi = 0): number {

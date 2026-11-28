@@ -6,11 +6,11 @@ import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { DaemonActivityRegistry } from "@sma1lboy/rove-daemon/daemon/activity-registry"
 import { AttentionInboxStore } from "@sma1lboy/rove-daemon/daemon/attention-inbox"
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
+import { programStatusActivity } from "@sma1lboy/rove-daemon/daemon/program-status-activity"
+import { watchProgramStatus } from "@sma1lboy/rove-daemon/daemon/program-status-watch"
 import { nodePtyDriver } from "@sma1lboy/rove-daemon/daemon/pty-driver"
 import { startPtyHostServer } from "@sma1lboy/rove-daemon/daemon/pty-server"
 import { expect, it, vi } from "vitest"
-import { programStatusActivity } from "../../../rove-daemon/src/daemon/program-status-activity"
-import { watchProgramStatus } from "../../../rove-daemon/src/daemon/program-status-watch"
 
 it("delivers every transition from a real PTY without polling and replays completion after daemon reconnect", async () => {
   const home = await mkdtemp(join(tmpdir(), "rove-osc-wire-"))

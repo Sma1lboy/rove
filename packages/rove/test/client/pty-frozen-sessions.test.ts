@@ -1,10 +1,10 @@
 import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { hasFrozenPtySessions } from "@sma1lboy/rove-daemon/client/pty-process"
+import { defaultPtyFreezeDir } from "@sma1lboy/rove-daemon/daemon/paths"
+import { FREEZE_TTL_MS } from "@sma1lboy/rove-daemon/daemon/pty-freeze-store"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { hasFrozenPtySessions } from "../../../rove-daemon/src/client/pty-process.ts"
-import { defaultPtyFreezeDir } from "../../../rove-daemon/src/daemon/paths.ts"
-import { FREEZE_TTL_MS } from "../../../rove-daemon/src/daemon/pty-freeze-store.ts"
 
 let home: string
 beforeEach(() => {

@@ -3,11 +3,11 @@
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import type { DaemonTask } from "@sma1lboy/rove-daemon/daemon/contracts"
+import { PendingStartsStore } from "@sma1lboy/rove-daemon/daemon/pending-starts-store"
 import type { ApiParams } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { type ScheduledStartDeps, startScheduledStartRunner } from "@sma1lboy/rove-daemon/daemon/scheduled-start"
 import { describe, expect, it } from "vitest"
-import type { DaemonTask } from "../../../rove-daemon/src/daemon/contracts.ts"
-import { PendingStartsStore } from "../../../rove-daemon/src/daemon/pending-starts-store.ts"
-import { type ScheduledStartDeps, startScheduledStartRunner } from "../../../rove-daemon/src/daemon/scheduled-start.ts"
 
 const NOW = Date.parse("2026-11-11T09:00:00.000Z")
 const later = { at: "2026-11-11T08:00:00.000Z", prompt: "nightly sweep", title: "nightly sweep", repo: "/w/app" }

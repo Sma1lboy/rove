@@ -1,8 +1,8 @@
 import { splitPathForDirSuggest } from "@sma1lboy/rove-core/lib/path-helpers.ts"
 import { tildify } from "@sma1lboy/rove-core/lib/path-home.ts"
 import { matchTaskByCwd, tasksAtWorktreePath } from "@sma1lboy/rove-daemon/daemon/cwd-task"
+import { isForeignDaemonHome } from "@sma1lboy/rove-daemon/daemon/protocol-compat"
 import { expect, it } from "vitest"
-import { isForeignDaemonHome } from "../../../rove-daemon/src/daemon/protocol-compat"
 import { sameHistoryWorktree } from "../../src/engine/history-worktree"
 import { relativeToWorktree } from "../../src/lib/editor-launch"
 

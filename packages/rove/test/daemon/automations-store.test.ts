@@ -1,9 +1,9 @@
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { AutomationsStore, pruneRuns } from "@sma1lboy/rove-daemon/daemon/automations-store"
+import type { AutomationRun } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { afterEach, describe, expect, it } from "vitest"
-import { AutomationsStore, pruneRuns } from "../../../rove-daemon/src/daemon/automations-store.ts"
-import type { AutomationRun } from "../../../rove-daemon/src/daemon/contracts.ts"
 
 const NOW = new Date(2026, 6, 31, 10, 0, 0).getTime() // 2026-07-31 10:00 local
 

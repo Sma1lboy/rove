@@ -7,13 +7,9 @@ import { AttentionInboxStore } from "@sma1lboy/rove-daemon/daemon/attention-inbo
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import type { PtyChild, PtyExit } from "@sma1lboy/rove-daemon/daemon/pty-driver"
 import { PtyHost } from "@sma1lboy/rove-daemon/daemon/pty-host"
+import { type PtyClientState, type PtyRequest, dispatchPtyRequest } from "@sma1lboy/rove-daemon/daemon/pty-server-verbs"
 import { createDaemonHandlerRegistry, dispatchDaemonRequest } from "@sma1lboy/rove-daemon/daemon/server"
 import { expect, it, vi } from "vitest"
-import {
-  type PtyClientState,
-  type PtyRequest,
-  dispatchPtyRequest,
-} from "../../../rove-daemon/src/daemon/pty-server-verbs"
 
 const bridge = vi.hoisted(() => ({
   daemon: async (_name: string, _payload?: unknown): Promise<unknown> => {

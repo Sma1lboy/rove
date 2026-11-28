@@ -1,12 +1,8 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { acquireHomeClaim, daemonHomeOwnerPath, parseHomeOwnerClaim } from "@sma1lboy/rove-daemon/daemon/home-owner"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import {
-  acquireHomeClaim,
-  daemonHomeOwnerPath,
-  parseHomeOwnerClaim,
-} from "../../../rove-daemon/src/daemon/home-owner.ts"
 
 const absent = async () => "absent" as const
 

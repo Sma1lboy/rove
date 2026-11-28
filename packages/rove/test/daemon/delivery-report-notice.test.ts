@@ -6,15 +6,15 @@
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { describe, expect, it } from "vitest"
-import { AttentionInboxStore } from "../../../rove-daemon/src/daemon/attention-inbox.ts"
-import { DeliveriesStore } from "../../../rove-daemon/src/daemon/deliveries-store.ts"
-import { DaemonEventBus } from "../../../rove-daemon/src/daemon/event-bus.ts"
+import { AttentionInboxStore } from "@sma1lboy/rove-daemon/daemon/attention-inbox"
+import { DeliveriesStore } from "@sma1lboy/rove-daemon/daemon/deliveries-store"
+import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import {
   type DaemonHandlerContext,
   createDaemonHandlerRegistry,
   dispatchDaemonRequest,
-} from "../../../rove-daemon/src/daemon/handlers.ts"
+} from "@sma1lboy/rove-daemon/daemon/handlers"
+import { describe, expect, it } from "vitest"
 
 const WORKER = { id: "w1", title: "fix login", branch: "auth/login-fix", dispatcher: { taskId: "m1", tabId: "tab-2" } }
 const SEAT = { id: "m1", kind: "dir", worktreePath: "/repo", vendor: "claude" }

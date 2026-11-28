@@ -1,9 +1,9 @@
+import type { MigratedChildInput } from "@sma1lboy/rove-daemon/daemon/child-contracts"
+import type { DaemonOrchestrator, DaemonTask } from "@sma1lboy/rove-daemon/daemon/contracts"
+import { migrateEngineTabs } from "@sma1lboy/rove-daemon/daemon/engine-tab-migration"
+import type { SharedTabs, TabRow } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
+import { TabsStore } from "@sma1lboy/rove-daemon/daemon/tabs-store"
 import { describe, expect, it } from "vitest"
-import type { MigratedChildInput } from "../../../rove-daemon/src/daemon/child-contracts.ts"
-import type { DaemonOrchestrator, DaemonTask } from "../../../rove-daemon/src/daemon/contracts.ts"
-import { migrateEngineTabs } from "../../../rove-daemon/src/daemon/engine-tab-migration.ts"
-import type { SharedTabs, TabRow } from "../../../rove-daemon/src/daemon/tabs-ops.ts"
-import { TabsStore } from "../../../rove-daemon/src/daemon/tabs-store.ts"
 
 const engine = (id: string, extra: Record<string, unknown> = {}): TabRow => ({
   id,

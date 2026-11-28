@@ -9,17 +9,17 @@ import { mkdtempSync } from "node:fs"
 import { rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterEach, describe, expect, it } from "vitest"
-import type { DaemonTask, EngineActivityDetail, TaskActivityState } from "../../../rove-daemon/src/daemon/contracts.ts"
-import { DeliveriesStore } from "../../../rove-daemon/src/daemon/deliveries-store.ts"
-import { type DeliveryDeps, trackDeliveryTurn } from "../../../rove-daemon/src/daemon/delivery-ops.ts"
-import { GatesStore } from "../../../rove-daemon/src/daemon/gates-store.ts"
+import type { DaemonTask, EngineActivityDetail, TaskActivityState } from "@sma1lboy/rove-daemon/daemon/contracts"
+import { DeliveriesStore } from "@sma1lboy/rove-daemon/daemon/deliveries-store"
+import { type DeliveryDeps, trackDeliveryTurn } from "@sma1lboy/rove-daemon/daemon/delivery-ops"
+import { GatesStore } from "@sma1lboy/rove-daemon/daemon/gates-store"
 import {
   type DaemonHandlerContext,
   createDaemonHandlerRegistry,
   dispatchDaemonRequest,
-} from "../../../rove-daemon/src/daemon/handlers.ts"
-import { type RunnabilityDeps, evaluateRunnability } from "../../../rove-daemon/src/daemon/runnability.ts"
+} from "@sma1lboy/rove-daemon/daemon/handlers"
+import { type RunnabilityDeps, evaluateRunnability } from "@sma1lboy/rove-daemon/daemon/runnability"
+import { afterEach, describe, expect, it } from "vitest"
 import { NOW, REPO } from "./automation-runner-fixtures.ts"
 
 const TASK_ID = "t1"

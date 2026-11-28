@@ -15,9 +15,9 @@
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { AutomationsStore } from "@sma1lboy/rove-daemon/daemon/automations-store"
+import type { Automation, AutomationPatch } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { describe, expect, it } from "vitest"
-import { AutomationsStore } from "../../../rove-daemon/src/daemon/automations-store.ts"
-import type { Automation, AutomationPatch } from "../../../rove-daemon/src/daemon/contracts.ts"
 
 type DeepRequired<T> = {
   [K in keyof T]-?: NonNullable<T[K]> extends string | number | boolean

@@ -1,5 +1,5 @@
+import { assertRoutineBaseRef, assertRoutineRepo } from "@sma1lboy/rove-daemon/daemon/automation-repo-check"
 import { describe, expect, it } from "vitest"
-import { assertRoutineBaseRef, assertRoutineRepo } from "../../../rove-daemon/src/daemon/automation-repo-check.ts"
 
 // The local paths are proved end to end against a real daemon (`routine-create
 // --repo /nonexistent` errors, a real repo still works). What no end-to-end run

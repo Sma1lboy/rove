@@ -1,14 +1,14 @@
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { DaemonActivityRegistry } from "@sma1lboy/rove-daemon/daemon/activity-registry"
+import { AliasKeeper } from "@sma1lboy/rove-daemon/daemon/alias-keeper"
+import type { DaemonOrchestrator, DaemonTask, TaskPtyAlias } from "@sma1lboy/rove-daemon/daemon/contracts"
+import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
+import { recordPtyExit } from "@sma1lboy/rove-daemon/daemon/pty-exit-store"
+import { startPtyExitWatch } from "@sma1lboy/rove-daemon/daemon/pty-exit-watch"
+import { TabsStore } from "@sma1lboy/rove-daemon/daemon/tabs-store"
 import { describe, expect, it, vi } from "vitest"
-import { DaemonActivityRegistry } from "../../../rove-daemon/src/daemon/activity-registry.ts"
-import { AliasKeeper } from "../../../rove-daemon/src/daemon/alias-keeper.ts"
-import type { DaemonOrchestrator, DaemonTask, TaskPtyAlias } from "../../../rove-daemon/src/daemon/contracts.ts"
-import { DaemonEventBus } from "../../../rove-daemon/src/daemon/event-bus.ts"
-import { recordPtyExit } from "../../../rove-daemon/src/daemon/pty-exit-store.ts"
-import { startPtyExitWatch } from "../../../rove-daemon/src/daemon/pty-exit-watch.ts"
-import { TabsStore } from "../../../rove-daemon/src/daemon/tabs-store.ts"
 
 function rig(deps: { now?: () => number } = {}) {
   const child = {

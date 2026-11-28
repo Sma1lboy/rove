@@ -1,15 +1,11 @@
 import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
+import type { DaemonTask } from "@sma1lboy/rove-daemon/daemon/contracts"
+import { buildWorkItemPrompt, startWorkItem, workItemTaskTitle } from "@sma1lboy/rove-daemon/daemon/work-item-start"
+import { type WorkItem, WorkItemCache, fetchWorkItems } from "@sma1lboy/rove-daemon/daemon/work-items"
 import { describe, expect, it, vi } from "vitest"
-import type { DaemonRpcClient } from "../../../rove-daemon/src/client/rpc.ts"
-import type { DaemonTask } from "../../../rove-daemon/src/daemon/contracts.ts"
-import {
-  buildWorkItemPrompt,
-  startWorkItem,
-  workItemTaskTitle,
-} from "../../../rove-daemon/src/daemon/work-item-start.ts"
-import { type WorkItem, WorkItemCache, fetchWorkItems } from "../../../rove-daemon/src/daemon/work-items.ts"
 
 function item(overrides: Partial<WorkItem> = {}): WorkItem {
   return {

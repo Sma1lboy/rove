@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest"
 import {
   applyProgramStatus,
   clearTransientStatuses,
   createOscSignals,
   scanOscSignals,
   statusActivity,
-} from "../../../rove-daemon/src/daemon/osc-signals"
+} from "@sma1lboy/rove-daemon/daemon/osc-signals"
+import { describe, expect, it } from "vitest"
 
 /** Feeds `raw` to a fresh parser in two chunks cut at `split`; the anonymous record it leaves. */
 function statusAfterSplit(raw: string, split: number) {
@@ -60,8 +60,8 @@ describe("OSC signals", () => {
 })
 
 it("process exit drops transient status while preserving completion", async () => {
-  const { PtyChildController } = await import("../../../rove-daemon/src/daemon/pty-child-controller")
-  const { freshSessionState } = await import("../../../rove-daemon/src/daemon/pty-host-types")
+  const { PtyChildController } = await import("@sma1lboy/rove-daemon/daemon/pty-child-controller")
+  const { freshSessionState } = await import("@sma1lboy/rove-daemon/daemon/pty-host-types")
   const session = freshSessionState("task::tab-1", { cwd: "/fixture", cols: 80, rows: 24 }, ["sh"])
   session.alive = true
   session.oscSignals = createOscSignals()
@@ -72,7 +72,7 @@ it("process exit drops transient status while preserving completion", async () =
 })
 
 it("answers the program-status query before a DA1 support-detection sentinel", async () => {
-  const { PtyChildController } = await import("../../../rove-daemon/src/daemon/pty-child-controller")
+  const { PtyChildController } = await import("@sma1lboy/rove-daemon/daemon/pty-child-controller")
   let output: (data: string) => void = () => {}
   const writes: string[] = []
   const controller = new PtyChildController({

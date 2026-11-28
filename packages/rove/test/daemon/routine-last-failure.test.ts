@@ -4,10 +4,10 @@
  * ended with no report is.
  */
 
+import type { AutomationRun } from "@sma1lboy/rove-daemon/daemon/contracts"
+import type { Delivery } from "@sma1lboy/rove-daemon/daemon/delivery-contracts"
+import { lastRoutineFailure } from "@sma1lboy/rove-daemon/daemon/delivery-ops"
 import { describe, expect, it } from "vitest"
-import type { AutomationRun } from "../../../rove-daemon/src/daemon/contracts.ts"
-import type { Delivery } from "../../../rove-daemon/src/daemon/delivery-contracts.ts"
-import { lastRoutineFailure } from "../../../rove-daemon/src/daemon/delivery-ops.ts"
 
 const run = (n: number, fields: Partial<AutomationRun>): AutomationRun => ({
   id: `r${n}`,

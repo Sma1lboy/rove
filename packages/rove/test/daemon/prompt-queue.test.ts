@@ -5,11 +5,11 @@
  */
 
 import assert from "node:assert"
+import type { TaskActivityState } from "@sma1lboy/rove-daemon/daemon/attention-contracts"
+import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
+import { heldBack } from "@sma1lboy/rove-daemon/daemon/handlers-queue"
+import { PromptQueue, type QueuedPrompt } from "@sma1lboy/rove-daemon/daemon/prompt-queue"
 import { describe, expect, it, vi } from "vitest"
-import type { TaskActivityState } from "../../../rove-daemon/src/daemon/attention-contracts.ts"
-import { DaemonEventBus } from "../../../rove-daemon/src/daemon/event-bus.ts"
-import { heldBack } from "../../../rove-daemon/src/daemon/handlers-queue.ts"
-import { PromptQueue, type QueuedPrompt } from "../../../rove-daemon/src/daemon/prompt-queue.ts"
 
 /** `deliver` behaves as `pasteQueued`: it re-reads the tab and holds back while it is at a menu or busy. */
 function harness(initial: TaskActivityState | undefined, opts: { landed?: () => boolean; gated?: boolean } = {}) {

@@ -7,9 +7,9 @@
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { DeliveriesStore } from "@sma1lboy/rove-daemon/daemon/deliveries-store"
+import { evaluateRunnability } from "@sma1lboy/rove-daemon/daemon/runnability"
 import { describe, expect, it, vi } from "vitest"
-import { DeliveriesStore } from "../../../rove-daemon/src/daemon/deliveries-store.ts"
-import { evaluateRunnability } from "../../../rove-daemon/src/daemon/runnability.ts"
 import { dispatch, fakeCtx } from "./handler-test-context.ts"
 
 const TASK = "t1"

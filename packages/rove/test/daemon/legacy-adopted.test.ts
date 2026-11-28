@@ -1,5 +1,5 @@
+import { legacyAdoptedTasks } from "@sma1lboy/rove-daemon/daemon/legacy-adopted"
 import { expect, it } from "vitest"
-import { legacyAdoptedTasks } from "../../../rove-daemon/src/daemon/legacy-adopted"
 
 const ghost = { id: "ghost", title: "agent-a1", worktreePath: "/repo/.claude/worktrees/agent-a1", status: "backlog" }
 

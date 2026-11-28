@@ -1,11 +1,7 @@
+import type { DaemonTask } from "@sma1lboy/rove-daemon/daemon/contracts"
+import { type DiskReading, LOW_DISK_REPEAT_MS, createLowDiskCheck } from "@sma1lboy/rove-daemon/daemon/low-disk-watch"
+import type { NoticeEventPayload } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { describe, expect, it } from "vitest"
-import type { DaemonTask } from "../../../rove-daemon/src/daemon/contracts.ts"
-import {
-  type DiskReading,
-  LOW_DISK_REPEAT_MS,
-  createLowDiskCheck,
-} from "../../../rove-daemon/src/daemon/low-disk-watch.ts"
-import type { NoticeEventPayload } from "../../../rove-daemon/src/daemon/protocol.ts"
 
 const GIB = 1024 ** 3
 

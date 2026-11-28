@@ -7,14 +7,14 @@
 import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { describe, expect, it } from "vitest"
-import { runAutomationOnce } from "../../../rove-daemon/src/daemon/automation-runner.ts"
-import { AutomationsStore } from "../../../rove-daemon/src/daemon/automations-store.ts"
+import { runAutomationOnce } from "@sma1lboy/rove-daemon/daemon/automation-runner"
+import { AutomationsStore } from "@sma1lboy/rove-daemon/daemon/automations-store"
 import {
   type AutomationRun,
   ROUTINE_RESPONSE_WINDOW_MS,
   routineRunResponseState,
-} from "../../../rove-daemon/src/daemon/contracts.ts"
+} from "@sma1lboy/rove-daemon/daemon/contracts"
+import { describe, expect, it } from "vitest"
 import { NOW, REPO, automation, fakeDeps, tempStore } from "./automation-runner-fixtures.ts"
 
 const STANDING_TASK = { id: "standing", repo: REPO, worktreePath: REPO } as never

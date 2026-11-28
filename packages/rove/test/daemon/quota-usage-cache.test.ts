@@ -1,13 +1,13 @@
-import { describe, expect, it, vi } from "vitest"
-import type { EngineQuotaUsage } from "../../../rove-daemon/src/daemon/contracts.ts"
-import type { DaemonEventBus } from "../../../rove-daemon/src/daemon/event-bus.ts"
+import type { EngineQuotaUsage } from "@sma1lboy/rove-daemon/daemon/contracts"
+import type { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import {
   FRESH_POLL_MS,
   MIN_FETCH_INTERVAL_MS,
   QuotaUsageCache,
   RETRY_BASE_MS,
-} from "../../../rove-daemon/src/daemon/quota-usage-cache.ts"
-import type { DaemonRuntimeAdapter } from "../../../rove-daemon/src/daemon/runtime.ts"
+} from "@sma1lboy/rove-daemon/daemon/quota-usage-cache"
+import type { DaemonRuntimeAdapter } from "@sma1lboy/rove-daemon/daemon/runtime"
+import { describe, expect, it, vi } from "vitest"
 
 const usageAt = (capturedAt: number): EngineQuotaUsage => ({
   windows: [{ kind: "session", label: "5h", percent: 40, resetsAt: capturedAt + 1000 }],
