@@ -5,6 +5,8 @@
  */
 
 import { useEffect } from "react"
+import { applyAppearanceTokens } from "./appearance/apply.ts"
+import { loadAppearances, useActiveAppearancePack } from "./appearance/runtime.ts"
 import type { AppModel } from "./model.ts"
 import { useCrossTaskNotices } from "./notify.ts"
 import { cssVars, paletteFor, terminalTheme, themePreview, xtermTheme } from "./prefs-theme.ts"
@@ -20,6 +22,7 @@ export function usePrefsApply(model: AppModel): void {
   const state = usePrefs()
   const mode = useMode()
   const preview = useStore(themePreview)
+  const pack = useActiveAppearancePack()
   useTaskColorFeed(model)
   useCrossTaskNotices(model)
 
@@ -27,6 +30,7 @@ export function usePrefsApply(model: AppModel): void {
     const load = () => {
       void loadPrefs(client).catch(() => undefined)
       void loadSnippets(client).catch(() => undefined)
+      void loadAppearances(client).catch(() => undefined)
     }
     // A phone back on the tab fires visibilitychange, not always focus; the TUI may have changed a pref.
     const shown = () => document.visibilityState === "visible" && load()
@@ -42,9 +46,11 @@ export function usePrefsApply(model: AppModel): void {
 
   useEffect(() => {
     const root = document.documentElement
-    const palette = preview ? preview[mode] : paletteFor(state.themes, state.prefs.theme, mode)
+    const themeName = pack?.manifest.theme ?? state.prefs.theme
+    const palette = preview ? preview[mode] : paletteFor(state.themes, themeName, mode)
     const vars = palette ? cssVars(palette, state.prefs) : {}
     for (const [name, value] of Object.entries(vars)) root.style.setProperty(name, value)
+    applyAppearanceTokens(root, preview ? null : (pack?.manifest ?? null), mode, vars)
     root.style.colorScheme = mode
     for (const key of ATTRS) root.dataset[key] = String(state.prefs[key])
     terminalTheme.set(palette ? xtermTheme(palette) : null)
@@ -56,5 +62,5 @@ export function usePrefsApply(model: AppModel): void {
       document.head.append(meta)
     }
     meta.content = getComputedStyle(document.body).backgroundColor
-  }, [state, mode, preview])
+  }, [state, mode, preview, pack])
 }

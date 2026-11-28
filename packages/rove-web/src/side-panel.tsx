@@ -7,6 +7,7 @@
 
 import { type PointerEvent, type RefObject, useEffect, useRef } from "react"
 import type { TaskRow } from "rove-bridge/protocol"
+import { useActiveAppearancePack } from "./appearance/runtime.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { openMachines } from "./machines-dialog.tsx"
 import { RemoteNotice } from "./machines-view.tsx"
@@ -18,6 +19,7 @@ import { editPanel, usePanelShown, useTaskPanel } from "./panel-state.ts"
 import { RAIL_DEFAULT_PX, clampRailWidth, railFolded, railWidth } from "./rail-layout.ts"
 import { useStore } from "./store.ts"
 import { dragLayout } from "./ui.ts"
+import { apPaneCardClass } from "./ui/appearance.ts"
 import { SIDE_BODY, SIDE_COLUMN, sidePanelClass } from "./ui/panel.ts"
 import { ResizeGrip } from "./ui/resize-grip.tsx"
 
@@ -78,8 +80,11 @@ function TaskPanel({ model, task, narrow }: { model: AppModel; task: TaskRow; na
   // Columns on screen when the panel first drew were restored, not opened: they leave the keyboard alone.
   const restored = useRef(visible.map(viewKey))
 
+  const pack = useActiveAppearancePack()
+  const card = !narrow ? apPaneCardClass(pack?.manifest.layout?.frame) : ""
+
   return (
-    <aside className={sidePanelClass(narrow)} ref={aside}>
+    <aside className={`${sidePanelClass(narrow)} ${card}`} ref={aside}>
       {!narrow && !expanded && <PanelGrip panel={aside} />}
       <div className={SIDE_BODY} ref={body} style={{ gridTemplateColumns: tracks }}>
         {visible.map((col) => (

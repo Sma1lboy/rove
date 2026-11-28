@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react"
 import { useEffect } from "react"
+import { useActiveAppearancePack } from "./appearance/runtime.ts"
 import { ArchivedPane } from "./archived-pane.tsx"
 import { AttemptsStrip } from "./attempts-strip.tsx"
 import { t } from "./i18n/index.ts"
@@ -24,6 +25,7 @@ import { TermComposer } from "./term-composer.tsx"
 import { streamKey } from "./term-contract.ts"
 import { TermKeyRow } from "./term-key-row.tsx"
 import { dialog, newSession, page, toast } from "./ui.ts"
+import { apPaneCardClass } from "./ui/appearance.ts"
 import { Button } from "./ui/button.tsx"
 import { PANE, PANE_WORKING, PLACEHOLDER, PLACEHOLDER_BOX, WORKSPACE, WORKSPACE_FRAME } from "./ui/shell.ts"
 import { WelcomePane } from "./welcome-view.tsx"
@@ -44,6 +46,8 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
   const taskInk = useTaskColor(task?.id)
   const working = task?.rowStatus?.kind === "running"
   const composing = useStore(newSession)
+  const pack = useActiveAppearancePack()
+  const paneCard = !narrow ? apPaneCardClass(pack?.manifest.layout?.frame) : ""
   const view = useStore(narrowView)
   const panelOn = view !== "terminal" && narrow && !!task
   const selectedTab = tabs.find((tab) => tab.id === selection.tabId)
@@ -100,7 +104,7 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
     )
   }
   return (
-    <main className={`${WORKSPACE} ${WORKSPACE_FRAME}`}>
+    <main className={`${WORKSPACE} ${WORKSPACE_FRAME} ${paneCard}`}>
       {narrow && <NarrowBackBar client={model.client} taskId={task?.id} tabId={selection.tabId} title={task?.title} />}
       {task && <TabStrip model={model} task={task} tabs={tabs} narrow={narrow} />}
       {task && !task.groupId && <StackStrip model={model} taskId={task.id} />}

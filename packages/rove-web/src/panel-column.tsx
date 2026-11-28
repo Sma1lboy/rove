@@ -5,6 +5,9 @@
 
 import { type PointerEvent, type RefObject, useRef } from "react"
 import type { TaskRow } from "rove-bridge/protocol"
+import { engineColorForPack } from "./appearance/apply.ts"
+import { AppearanceSlot } from "./appearance/declarative.tsx"
+import { useActiveAppearancePack } from "./appearance/runtime.ts"
 import { type BrowserColumn, browserUrl, mountedTabs, navigate, stepTab } from "./browser-tabs.ts"
 import { BrowserView } from "./browser-view.tsx"
 import { ContextView } from "./context-view.tsx"
@@ -25,6 +28,8 @@ import { closeBrowserTab, closePanelColumn, editBrowserColumn, editPanel } from 
 import { BrowserTabStrip } from "./panel-tabs.tsx"
 import { PreviewHost } from "./preview-host.tsx"
 import { useStore } from "./store.ts"
+import { useMode } from "./task-colors.ts"
+import { todoCount } from "./task-todos.ts"
 import { TranscriptView } from "./transcript-view.tsx"
 import { COLUMN_TITLE, SIDE_DIVIDER, SIDE_VIEW, iconButton, sideHeadClass } from "./ui/panel.ts"
 
@@ -88,23 +93,56 @@ function WindowButtons({ taskId, kind, expand }: { taskId: string; kind: PanelKi
  */
 export function ColumnHead({ taskId, column, narrow }: { taskId: string; column: Column; narrow: boolean }) {
   useLocale()
+  const expanded = useStore(panelExpanded)
   if (column.kind === "browser") {
-    return (
+    const head = (
       <div className={sideHeadClass(narrow)}>
         <BrowserTabStrip taskId={taskId} column={column} />
         {!narrow && <WindowButtons taskId={taskId} kind="browser" expand />}
       </div>
     )
+    return (
+      <AppearanceSlot
+        slot="panel.tabs"
+        data={{
+          taskId,
+          kind: "browser",
+          title: t("panel.browser"),
+          hint: t("panel.browser"),
+          tabCount: column.tabs.length,
+          expanded,
+          onToggleExpand: narrow ? undefined : () => panelExpanded.set(!expanded),
+          onClose: () => closePanelColumn(taskId, "browser"),
+        }}
+        fallback={head}
+      />
+    )
   }
   if (narrow && column.kind !== "diff") return null
   const { text, hint } = title(column)
-  return (
+  const head = (
     <div className={sideHeadClass(narrow)}>
       <span className={COLUMN_TITLE} title={hint}>
         {text}
       </span>
       <WindowButtons taskId={taskId} kind={column.kind} expand={!narrow} />
     </div>
+  )
+  return (
+    <AppearanceSlot
+      slot="panel.tabs"
+      data={{
+        taskId,
+        kind: column.kind,
+        title: text,
+        hint,
+        tabCount: 1,
+        expanded,
+        onToggleExpand: narrow ? undefined : () => panelExpanded.set(!expanded),
+        onClose: () => closePanelColumn(taskId, column.kind),
+      }}
+      fallback={head}
+    />
   )
 }
 
@@ -148,23 +186,52 @@ export function ColumnView({
   narrow,
   restored,
 }: { model: AppModel; task: TaskRow; column: Column; narrow: boolean; restored: boolean }) {
-  if (column.kind === "browser") return <BrowserTabs model={model} task={task} column={column} restored={restored} />
+  const pack = useActiveAppearancePack()
+  const mode = useMode()
+  const defaultBody =
+    column.kind === "browser" ? (
+      <BrowserTabs model={model} task={task} column={column} restored={restored} />
+    ) : (
+      <div className={SIDE_VIEW}>
+        {column.kind === "files" && <FilesView model={model} task={task} narrow={narrow} />}
+        {column.kind === "chat" && <TranscriptView model={model} task={task} active />}
+        {column.kind === "quota" && <ContextView model={model} task={task} active />}
+        {column.kind === "diff" && (
+          <PreviewHost
+            key={`${task.id}:${column.path}:${column.scope}:${column.at ?? ""}`}
+            model={model}
+            view={{ taskId: task.id, path: column.path, scope: column.scope }}
+            active
+            restored={restored}
+            onClose={() => closePanelColumn(task.id, "diff")}
+          />
+        )}
+      </div>
+    )
+  const diffStats =
+    task.changes && !("unreadable" in task.changes)
+      ? { files: 0, added: task.changes.added, removed: task.changes.deleted }
+      : undefined
+  const todos = todoCount(task) ?? undefined
   return (
-    <div className={SIDE_VIEW}>
-      {column.kind === "files" && <FilesView model={model} task={task} narrow={narrow} />}
-      {column.kind === "chat" && <TranscriptView model={model} task={task} active />}
-      {column.kind === "quota" && <ContextView model={model} task={task} active />}
-      {column.kind === "diff" && (
-        <PreviewHost
-          key={`${task.id}:${column.path}:${column.scope}:${column.at ?? ""}`}
-          model={model}
-          view={{ taskId: task.id, path: column.path, scope: column.scope }}
-          active
-          restored={restored}
-          onClose={() => closePanelColumn(task.id, "diff")}
-        />
-      )}
-    </div>
+    <AppearanceSlot
+      slot="panel.section"
+      data={{
+        taskId: task.id,
+        kind: column.kind,
+        title: task.label,
+        branch: task.branch || undefined,
+        repo: task.repo ? task.repo.split("/").pop() : undefined,
+        engineId: task.engine?.id ?? undefined,
+        engineName: task.engine?.name,
+        engineColor: engineColorForPack(pack?.manifest, task.engine?.id ?? undefined, mode),
+        statusKind: task.rowStatus?.kind ?? "idle",
+        diffStats,
+        todos,
+        pr: task.pr?.number ? { number: task.pr.number, state: task.pr.lifecycle, url: task.pr.url } : undefined,
+      }}
+      fallback={defaultBody}
+    />
   )
 }
 

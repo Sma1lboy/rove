@@ -14,6 +14,7 @@ export default defineConfig({
       "/ws": { target: bridge, ws: true },
       "/login": { target: bridgeHttp },
       "/logout": { target: bridgeHttp },
+      "/appearances": { target: bridgeHttp },
     },
   },
   plugins: [react(), tailwindcss()],

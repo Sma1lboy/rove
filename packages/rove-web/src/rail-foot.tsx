@@ -1,3 +1,4 @@
+import { AppearanceSlot } from "./appearance/declarative.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { newTaskMode } from "./new-session-draft.ts"
@@ -65,7 +66,7 @@ export function RailFoot({
       : null,
   )
   if (narrow) return null
-  return (
+  const defaultFoot = (
     <div className={RAIL_FOOT}>
       {!narrow && <UsageChips client={model.client} />}
       <div className={RAIL_FOOT_ROW}>
@@ -82,5 +83,19 @@ export function RailFoot({
         <ShortcutBadge model={model} bindingId="settings.open" />
       </div>
     </div>
+  )
+  return (
+    <AppearanceSlot
+      slot="rail.footer"
+      data={{
+        unreadCount: inbox.count,
+        settingsLabel: t("rail.settings"),
+        usage: [],
+        usageSummary: "",
+        onOpenSettings: onSettings,
+        onOpenInbox: inbox.onClick,
+      }}
+      fallback={defaultFoot}
+    />
   )
 }

@@ -5,6 +5,7 @@
  */
 
 import type { ReactNode } from "react"
+import { AppearancePacksSection } from "./appearance/settings-packs.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { type PrefKey, type Prefs, choicesOf, setPref, usePrefs } from "./prefs.ts"
@@ -86,6 +87,7 @@ export function AppearanceSection({ model }: { model: AppModel }) {
   return (
     <>
       <Group>
+        <AppearancePacksSection model={model} />
         <ThemeGallery
           model={model}
           label={ts("general.theme")}
