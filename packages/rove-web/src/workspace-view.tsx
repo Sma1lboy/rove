@@ -46,36 +46,18 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
   const view = useStore(narrowView)
   const panelOn = view !== "terminal" && narrow && !!task
   const selectedTab = tabs.find((tab) => tab.id === selection.tabId)
-  // Picking a task or tab leaves the composer and the narrow panel view, as it leaves a page; a tab sweep
-  // that rewrites the same selection does not.
+  // Picking a task or tab leaves the composer and a page, and opens the phone on that tab's own view; a tab
+  // sweep that rewrites the same selection does not.
   useEffect(() => {
     let last = model.selection.get()
-    // The phone's opening view waits until the selected tab is known: an engine tab may open on Chat.
-    let undecided = true
-    const decide = () => {
-      const { taskId, tabId } = model.selection.get()
-      const tab = taskId ? model.tabs.get()[taskId]?.find((row) => row.id === tabId) : undefined
-      if (!undecided || !taskId || !tab) return
-      undecided = false
-      openNarrowView(taskId, tab.id, tab.kind === "engine")
-    }
-    const offSelection = model.selection.subscribe(() => {
+    openNarrowView(last.taskId, last.tabId)
+    return model.selection.subscribe(() => {
       page.set(null)
       newSession.set(null)
       const next = model.selection.get()
-      if (next.taskId !== last.taskId || next.tabId !== last.tabId) {
-        narrowView.set("terminal")
-        undecided = true
-        decide()
-      }
+      if (next.taskId !== last.taskId || next.tabId !== last.tabId) openNarrowView(next.taskId, next.tabId)
       last = next
     })
-    const offTabs = model.tabs.subscribe(decide)
-    decide()
-    return () => {
-      offSelection()
-      offTabs()
-    }
   }, [model])
   useEffect(() => trackNav(model), [model])
   if (pageOn === "worktrees") {

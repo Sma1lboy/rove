@@ -28,33 +28,19 @@ function phoneViews(): Record<string, NarrowView> {
   }
 }
 
-/** The opened view came from no pick: a transcript that turns out unreadable may hand it to the terminal. */
-let openedByDefault = false
-
-/**
- * The phone opening a session tab: the view last picked there, else an engine's Chat (its transcript reflows
- * to the phone's width, where the shared terminal's older output hard-wraps), else the terminal.
- */
-export function openNarrowView(taskId: string, tabId: string | null, engineTab: boolean): void {
-  const picked = tabId ? phoneViews()[`${taskId}::${tabId}`] : undefined
-  openedByDefault = picked === undefined
-  narrowView.set(picked ?? (engineTab ? "chat" : "terminal"))
+/** The phone opening a session tab: the view last picked there, else the terminal. */
+export function openNarrowView(taskId: string | null, tabId: string | null): void {
+  narrowView.set((taskId && tabId && phoneViews()[`${taskId}::${tabId}`]) || "terminal")
 }
 
 /** A pick in the phone's view sheet, remembered for that session tab. */
 export function pickNarrowView(taskId: string, tabId: string | null, view: NarrowView): void {
-  openedByDefault = false
   narrowView.set(view)
   if (!tabId) return
   const key = `${taskId}::${tabId}`
   const { [key]: _old, ...rest } = phoneViews()
   const kept = Object.entries({ ...rest, [key]: view }).slice(-PHONE_VIEW_KEPT)
   localStorage.setItem(PHONE_VIEW_KEY, JSON.stringify(Object.fromEntries(kept)))
-}
-
-/** Chat has no conversation to show (no history reader, or nothing said yet): a default Chat gives way to the terminal. */
-export function chatUnreadable(): void {
-  if (openedByDefault && narrowView.get() === "chat") narrowView.set("terminal")
 }
 
 /** The side panel's own minimum; the terminal keeps `MIN_WORKSPACE_WIDTH` of what is left. */
