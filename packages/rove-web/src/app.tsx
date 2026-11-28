@@ -161,8 +161,8 @@ function Shell({ model }: { model: AppModel }) {
         )}
         <RailView model={model} narrow={narrow} />
         <Workspace model={model} narrow={narrow} />
-        {/* One bar over both panels: the list's, the open page's, or none. A back swipe hands it to the list as it starts. */}
-        {surface && <PhoneBarHost show={surface === "sidebar" || backing ? "list" : "page"} />}
+        {/* One bar over both panels: the list's, the open page's, or none. A back swipe keeps the page's until it lands. */}
+        {surface && <PhoneBarHost show={surface === "sidebar" ? "list" : "page"} />}
         {!narrow && <SidePanel model={model} task={task} remoteHost={remoteTask?.machine?.label} />}
         <StatusBar model={model} />
         <Overlays />

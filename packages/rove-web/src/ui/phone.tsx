@@ -139,10 +139,47 @@ export function usePhoneBar(slot: BarSlot, spec: PhoneBarSpec | null): void {
   useLayoutEffect(() => () => barSlots.set({ ...barSlots.get(), [slot]: null }), [slot])
 }
 
-const SLIDE: KeyframeAnimationOptions = { duration: 220, easing: "cubic-bezier(0.2, 0, 0, 1)" }
-const MORPH = "duration-220 ease-snap motion-reduce:transition-none"
+const SINK = "duration-220 ease-snap motion-reduce:transition-none"
+const FADE_OUT_MS = 80
+const MELT_MS = 300
+const FADE_IN_MS = 120
+/** The bar's corner radius: two blobs lapped this far hide their corners in each other. */
+const LAP_PX = 14
+/** Under this blur two blobs bridge once they are closer than ~8px: apart at the bar's 10px gap, a neck just inside it. */
+const GOO_BLUR = 6
+/** The goo rounds a corner further: a blob this square comes out at the bar's own radius. */
+const BLOB = "rounded-[10px]"
 const contentKey = (spec: PhoneBarSpec): string =>
-  spec.wide ? `w${spec.wide.label}\0${spec.wide.note ?? ""}` : `a${spec.action?.label}\0${spec.action?.tone ?? ""}`
+  `${spec.capsule ? "c" : ""}${spec.wide ? `w${spec.wide.label}\0${spec.wide.note ?? ""}` : `a${spec.action?.label}\0${spec.action?.tone ?? ""}`}`
+
+interface Span {
+  left: number
+  width: number
+}
+interface BarFrame {
+  capsule: Span | null
+  main: Span
+}
+const gapCentre = (f: BarFrame): number | null =>
+  f.capsule ? (f.capsule.left + f.capsule.width + f.main.left) / 2 : null
+
+/** The bar's outline as two blobs: the capsule and the bar, or the one bar cut at `seam` with the halves lapped. */
+export const barBlobs = (f: BarFrame, seam: number): [Span, Span] =>
+  f.capsule
+    ? [f.capsule, f.main]
+    : [
+        { left: f.main.left, width: seam + LAP_PX - f.main.left },
+        { left: seam - LAP_PX, width: f.main.left + f.main.width - seam + LAP_PX },
+      ]
+
+const span = (el: HTMLElement): Span => ({ left: el.offsetLeft, width: el.offsetWidth })
+const frameOf = (capsule: HTMLElement | null, main: HTMLElement): BarFrame => ({
+  capsule: capsule && span(capsule),
+  main: span(main),
+})
+/** What fades: the labels and the capsule's buttons, not the glass under them. */
+const contentsOf = (capsule: HTMLElement | null, content: HTMLElement | null): Element[] =>
+  [content, ...(capsule?.firstElementChild?.children ?? [])].filter((el) => !!el)
 
 function BarContent({ spec }: { spec: PhoneBarSpec }) {
   if (spec.wide)
@@ -169,99 +206,169 @@ function BarContent({ spec }: { spec: PhoneBarSpec }) {
 
 /**
  * The phone's one floating foot, after iOS's: what the screen does sits where the thumb is, and it stays put while
- * pages push and pop under it. `show` picks whose bar is up. A change morphs: the + bar's glass slides and stretches
- * to its new frame (FLIP on a transform), the contents cross-fade, the capsule fades in or out; with none, the bar
- * sinks away. The content scrolls under it.
+ * pages push and pop under it. `show` picks whose bar is up; the bar follows only once the page has landed. A change
+ * runs in turn, never two labels at once: the old contents fade, the glass melts to its new outline (two pieces
+ * flow into one through a neck, one splits in two), the new contents fade in. With none, the bar sinks away.
  */
 export function PhoneBarHost({ show }: { show: BarSlot | null }) {
   const slots = useStore(barSlots)
-  const spec = show ? slots[show] : null
-  // Hidden, the bar keeps what it last showed, so that sinks away instead of blanking first.
-  const last = useRef<PhoneBarSpec | null>(null)
-  if (spec) last.current = spec
-  const drawn = spec ?? last.current
-  const capsule = useRef<ReactNode>(null)
-  if (spec?.capsule) capsule.current = spec.capsule
-  const main = useRef<HTMLButtonElement>(null)
-  const glassLayer = useRef<HTMLSpanElement>(null)
-  const content = useRef<HTMLSpanElement>(null)
-  const ghost = useRef<HTMLSpanElement>(null)
-  const was = useRef<{ rect: DOMRect; key: string; spec: PhoneBarSpec } | null>(null)
   const bar = useRef<HTMLDivElement>(null)
-  const [leaving, setLeaving] = useState<{ spec: PhoneBarSpec; left: number; width: number; key: string } | null>(null)
-  const key = drawn ? contentKey(drawn) : ""
+  const [slot, setSlot] = useState(show)
+  useLayoutEffect(() => {
+    if (show === slot) return
+    let live = true
+    // A page with no bar lets it sink as the page comes in: left up, it would lie over the page's own foot.
+    const panel = show && barSlots.get()[show] ? bar.current?.parentElement?.querySelector(":scope > main") : null
+    const landed = (panel?.getAnimations() ?? []).map((a) => a.finished)
+    Promise.allSettled(landed).then(() => live && setSlot(show))
+    return () => {
+      live = false
+    }
+  }, [show, slot])
+
+  const want = slot ? slots[slot] : null
+  const wantKey = want ? contentKey(want) : null
+  // What the bar draws: the wanted bar once the melt reaches it, and its last one while sunk away.
+  const [key, setKey] = useState(wantKey)
+  const keep = useRef<PhoneBarSpec | null>(null)
+  const next = useRef<PhoneBarSpec | null>(null)
+  if (want) next.current = want
+  if (want && wantKey === key) keep.current = want
+  const drawn = keep.current
+  const capsule = useRef<HTMLDivElement>(null)
+  const main = useRef<HTMLButtonElement>(null)
+  const content = useRef<HTMLSpanElement>(null)
+  const goo = useRef<HTMLSpanElement>(null)
+  const blur = useRef<HTMLSpanElement>(null)
+  const busy = useRef(false)
+  /** The outline the melt starts from, while it runs. */
+  const [from, setFrom] = useState<BarFrame | null>(null)
+  const melted = useRef(false)
 
   useLayoutEffect(() => {
-    const el = main.current
-    if (!el || !spec) return
-    const rect = el.getBoundingClientRect()
-    const before = was.current
-    was.current = { rect, key, spec }
-    // A bar still up morphs from what it showed; one coming back from sunk away just rises. A page mounting after
-    // the switch leaves its slot empty for one render, which must not count as gone.
-    const up = Number(getComputedStyle(bar.current ?? el).opacity) > 0.5
-    if (!before || !up || matchMedia("(prefers-reduced-motion: reduce)").matches) return
-    if (before.key !== key)
-      setLeaving({ spec: before.spec, left: before.rect.left - rect.left, width: before.rect.width, key: before.key })
-    const dx = before.rect.left - rect.left
-    const sx = before.rect.width / rect.width
-    if (Math.abs(dx) < 0.5 && Math.abs(sx - 1) < 0.005) return
-    glassLayer.current?.animate([{ transform: `translateX(${dx}px) scaleX(${sx})` }, { transform: "none" }], SLIDE)
-    // The labels ride the glass's left edge.
-    content.current?.animate([{ transform: `translateX(${dx}px)` }, { transform: "none" }], SLIDE)
+    if (!want || wantKey === key || busy.current) return
+    const swap = () => {
+      keep.current = next.current
+      setKey(next.current ? contentKey(next.current) : null)
+    }
+    // A bar coming back from sunk away just rises with its new contents.
+    const up = bar.current && Number(getComputedStyle(bar.current).opacity) > 0.5
+    if (!up || matchMedia("(prefers-reduced-motion: reduce)").matches) return swap()
+    busy.current = true
+    const fades = contentsOf(capsule.current, content.current).map(
+      (el) => el.animate({ opacity: [1, 0] }, { duration: FADE_OUT_MS, fill: "forwards" }).finished,
+    )
+    Promise.allSettled(fades).then(() => {
+      if (main.current) setFrom(frameOf(capsule.current, main.current))
+      else busy.current = false
+      swap()
+    })
   })
   useLayoutEffect(() => {
-    if (leaving) ghost.current?.animate([{ transform: "none" }, { transform: `translateX(${-leaving.left}px)` }], SLIDE)
-  }, [leaving])
+    if (!from) {
+      if (melted.current)
+        for (const el of contentsOf(capsule.current, content.current))
+          el.animate({ opacity: [0, 1] }, { duration: FADE_IN_MS, easing: "ease-out" })
+      melted.current = false
+      return
+    }
+    melted.current = true
+    const to = frameOf(capsule.current, main.current as HTMLElement)
+    const seam = gapCentre(from) ?? gapCentre(to) ?? to.main.left + to.main.width / 2
+    const a = barBlobs(from, seam)
+    const b = barBlobs(to, seam)
+    const still = a.every((s, i) => s.left === b[i].left && s.width === b[i].width)
+    const left = Math.min(a[0].left, b[0].left)
+    const right = Math.max(a[1].left + a[1].width, b[1].left + b[1].width)
+    blur.current?.style.setProperty("left", `${left}px`)
+    blur.current?.style.setProperty("width", `${right - left}px`)
+    const moves = Array.from(goo.current?.children ?? [], (el, i) => {
+      const blob = el as HTMLElement
+      blob.style.left = `${b[i].left}px`
+      blob.style.width = `${b[i].width}px`
+      return blob.animate(
+        [
+          { transform: `translateX(${a[i].left - b[i].left}px) scaleX(${a[i].width / b[i].width})` },
+          { transform: "none" },
+        ],
+        { duration: still ? 0 : MELT_MS, easing: "cubic-bezier(0.45, 0, 0.3, 1)" },
+      ).finished
+    })
+    Promise.allSettled(moves).then(() => {
+      busy.current = false
+      setFrom(null)
+    })
+  }, [from])
+
   if (!drawn) return null
-  const hasCapsule = !!spec?.capsule || (!spec && !!drawn.capsule)
   const accent = drawn.action?.tone === "accent"
   const onPress = drawn.wide?.onClick ?? drawn.action?.onClick
+  const piece = from ? "invisible" : ""
   return (
     <div
       // Alone on a page, the bar meets the cards' edges.
-      className={`pointer-events-none absolute inset-x-0 bottom-0 z-2 col-1 row-1 flex items-end gap-2.5 pb-3 transition-[translate,opacity] ${MORPH} ${hasCapsule ? "px-4" : "px-3"} ${spec ? "" : "translate-y-4 opacity-0"}`}
+      className={`pointer-events-none absolute inset-x-0 bottom-0 z-2 col-1 row-1 flex items-end gap-2.5 pb-3 transition-[translate,opacity] ${SINK} ${drawn.capsule ? "px-4" : "px-3"} ${want ? "" : "translate-y-4 opacity-0"}`}
       ref={bar}
-      inert={!spec}
+      inert={!want}
       data-bottom-bar
     >
-      {capsule.current && (
-        <div
-          className={`flex-none transition-opacity ${MORPH} ${hasCapsule ? "" : "absolute bottom-3 left-4 opacity-0"}`}
-          inert={!hasCapsule}
-        >
-          {capsule.current}
+      {from && (
+        // The melt: the outline as solid blobs under a goo filter (blur, then an alpha threshold), which bridges
+        // blobs that come close. A filter cannot carry the glass's backdrop blur, so that sits behind, and only
+        // for the melt: at rest the bar is the crisp glass.
+        <span aria-hidden="true" className="absolute inset-0" data-bar-melt>
+          <span
+            ref={blur}
+            className={`absolute bottom-3 h-13 backdrop-blur-md backdrop-saturate-150 opaque:hidden ${SQUARE_BAR}`}
+          />
+          <span
+            ref={goo}
+            className={`absolute inset-0 [filter:url(#phone-bar-goo)] ${accent ? "" : "opacity-60 opaque:opacity-100"}`}
+          >
+            <span className={`absolute bottom-3 h-13 origin-left bg-inset ${BLOB}`} />
+            <span className={`absolute bottom-3 h-13 origin-left ${BLOB} ${accent ? "bg-accent" : "bg-inset"}`} />
+          </span>
+          <svg className="absolute size-0" role="presentation">
+            <filter id="phone-bar-goo" x="-10%" y="-50%" width="120%" height="200%" colorInterpolationFilters="sRGB">
+              <feGaussianBlur in="SourceGraphic" stdDeviation={GOO_BLUR} />
+              <feColorMatrix values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -9.5" result="shape" />
+              {/* The glass's hairline edge, around the melted outline. */}
+              <feMorphology in="shape" operator="erode" radius="1" result="inner" />
+              <feFlood floodColor="var(--ink)" floodOpacity="0.12" />
+              <feComposite in2="shape" operator="in" />
+              <feComposite in2="inner" operator="out" result="rim" />
+              {/* Its soft shadow, outside the outline only: the fill is see-through. */}
+              <feGaussianBlur in="shape" stdDeviation="4" />
+              <feOffset dy="2" />
+              <feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.4 0" />
+              <feComposite in2="shape" operator="out" result="shadow" />
+              <feMerge>
+                <feMergeNode in="shadow" />
+                <feMergeNode in="shape" />
+                <feMergeNode in="rim" />
+              </feMerge>
+            </filter>
+          </svg>
+        </span>
+      )}
+      {drawn.capsule && (
+        <div key={key} ref={capsule} className={`flex-none ${piece}`}>
+          {drawn.capsule}
         </div>
       )}
       <button
         ref={main}
         type="button"
         disabled={drawn.action?.disabled}
-        className={`pointer-events-auto relative h-13 min-w-0 flex-1 cursor-pointer disabled:opacity-50 ${PRESS}`}
+        className={`pointer-events-auto relative h-13 min-w-0 flex-1 cursor-pointer disabled:opacity-50 ${PRESS} ${piece}`}
         data-new-task-bar={drawn.wide ? "" : undefined}
         onClick={() => {
           haptic()
           onPress?.()
         }}
       >
-        <span ref={glassLayer} className={`absolute inset-0 origin-left ${SQUARE_BAR} ${glass()}`}>
-          <span
-            className={`absolute -inset-px ${SQUARE_BAR} bg-accent shadow-popover transition-opacity ${MORPH} ${accent ? "" : "opacity-0"}`}
-          />
-        </span>
-        {leaving && (
-          <span
-            key={leaving.key}
-            ref={ghost}
-            aria-hidden="true"
-            className="absolute inset-y-0 motion-safe:animate-fade-out motion-reduce:hidden"
-            style={{ left: leaving.left, width: leaving.width }}
-            onAnimationEnd={() => setLeaving(null)}
-          >
-            <BarContent spec={leaving.spec} />
-          </span>
-        )}
-        <span key={key} ref={content} className="relative block h-full motion-safe:animate-[fade-in_220ms_ease-out]">
+        <span className={`absolute inset-0 ${SQUARE_BAR} ${accent ? "bg-accent shadow-popover" : glass()}`} />
+        <span key={key} ref={content} className="relative block h-full">
           <BarContent spec={drawn} />
         </span>
       </button>
