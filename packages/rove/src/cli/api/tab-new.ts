@@ -16,9 +16,9 @@ import { launchReposOf, repoEnv, trustExtraRepos } from "../../engine/multi-repo
 import { buildEngineSessionLaunch } from "../../engine/session-launch.ts"
 import { trustEngineWorktree } from "../../engine/trust-worktree.ts"
 import { persistedMaxLiveEngines } from "../../state/engine-limit.ts"
+import { shellTabInput } from "../../tabs/terminal-tab-spawn.ts"
+import type { TerminalTab } from "../../tabs/terminal-tabs-core.ts"
 import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
-import { shellTabInput } from "../../tui/workspace/terminal-tab-spawn.ts"
-import type { TerminalTab } from "../../tui/workspace/terminal-tabs-core.ts"
 import { openAdmittedEngine } from "./engine-admission.ts"
 import { ensureHostFor, sessionFailed } from "./session-failed.ts"
 import {

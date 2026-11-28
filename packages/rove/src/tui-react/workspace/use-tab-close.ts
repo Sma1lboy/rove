@@ -11,8 +11,6 @@
  *   - `handleActiveExit`: policy above `closeExited`: resume, close, or recycle in place.
  */
 
-import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
-import { noteClosedPtyKey } from "../../tui/workspace/closed-tab-suppress"
 import {
   type TabsState,
   type TerminalTab,
@@ -22,7 +20,9 @@ import {
   tabExitAction,
   tabPtyKey,
   tabPtyKeyFor,
-} from "../../tui/workspace/terminal-tabs-core"
+} from "../../tabs/terminal-tabs-core"
+import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
+import { noteClosedPtyKey } from "../../tui/workspace/closed-tab-suppress"
 import type { VendorId } from "../../types/vendor"
 import { releaseSplitLeaves } from "./TerminalSplit"
 import { releaseClosedTabPtys } from "./terminal-tabs-close"

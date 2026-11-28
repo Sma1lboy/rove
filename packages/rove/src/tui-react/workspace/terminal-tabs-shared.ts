@@ -13,7 +13,7 @@ import {
   type TabsState,
   type TerminalTab,
   reopenTabs,
-} from "../../tui/workspace/terminal-tabs-core"
+} from "../../tabs/terminal-tabs-core"
 import type { VendorId } from "../../types/vendor"
 import {
   commitTaskTabs,

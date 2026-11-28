@@ -4,7 +4,7 @@
  */
 
 import { isHostedTaskKey, sessionArgvNamesEngine } from "../../engine/hosted-session.ts"
-import type { TabsState } from "../../tui/workspace/terminal-tabs-core.ts"
+import type { TabsState } from "../../tabs/terminal-tabs-core.ts"
 import type { TaskSessionRow } from "./tab-snapshot.ts"
 
 /**

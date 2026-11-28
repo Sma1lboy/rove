@@ -15,7 +15,7 @@ import {
   setTabEngineCommand,
   setTabForkFrom,
   setTabInitialPrompt,
-} from "../../tui/workspace/terminal-tabs-core"
+} from "../../tabs/terminal-tabs-core"
 
 /**
  * New tab that LAUNCHES `pick` but speaks `protocol`, forking `sourceSessionId`.

@@ -10,10 +10,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { engineEntry, stripEngineStatusPrefix } from "../../engine/registry"
+import type { TabsState } from "../../tabs/terminal-tabs-core"
 import { startTurnStatusPoll } from "../../tui/ops/activity-monitor"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { getDefaultLiveEngines } from "../../tui/workspace/live-engine"
-import type { TabsState } from "../../tui/workspace/terminal-tabs-core"
 import type { HookTabState } from "../../tui/workspace/turn-state-merge"
 import { soloKey, targetFor } from "../../tui/workspace/turn-target"
 import type { VendorId } from "../../types/vendor"

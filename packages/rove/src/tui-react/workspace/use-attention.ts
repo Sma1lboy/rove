@@ -17,9 +17,9 @@
 
 import { useEffect, useRef } from "react"
 import type { AttentionInboxItem, TaskEngineState } from "../../client/remote-orchestrator"
+import { tabTitleStable } from "../../tabs/terminal-tabs-core"
 import { attentionEdges, attentionKindFor } from "../../tui/lib/notify-state"
 import { sidebarProjectLabel } from "../../tui/panes/sidebar/groups"
-import { tabTitleStable } from "../../tui/workspace/terminal-tabs-core"
 import { DEFAULT_TASK_VENDOR, type Task } from "../../types/task"
 import type { KVContext } from "../context/kv"
 import type { NotificationsContext } from "../context/notifications"

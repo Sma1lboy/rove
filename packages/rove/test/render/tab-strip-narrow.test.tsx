@@ -12,10 +12,10 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { TAB_STRIP_MODE_KEY } from "../../src/state/tab-strip"
+import type { TerminalTab } from "../../src/tabs/terminal-tabs-core"
 import { resetRowStatusForTests } from "../../src/tui-react/workspace/row-status-sync"
 import { TabStrip } from "../../src/tui-react/workspace/tab-strip"
 import { DEFAULT_GLYPHS } from "../../src/tui/lib/glyphs"
-import type { TerminalTab } from "../../src/tui/workspace/terminal-tabs-core"
 import { renderComponent } from "./harness"
 
 const priorHome = process.env.ROVE_HOME_DIR

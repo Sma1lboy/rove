@@ -17,7 +17,7 @@ import type { RowStatusPayload } from "@sma1lboy/rove-daemon/daemon/row-status-s
 import type { TabsChangedPayload } from "@sma1lboy/rove-daemon/daemon/tabs-store"
 import type { ModPaneView } from "@sma1lboy/rove-daemon/plugins/mod-tree"
 import type { ReadableState } from "../lib/external-store.ts"
-import type { CommandTab, EngineTab } from "../tui/workspace/terminal-tabs-core.ts"
+import type { CommandTab, EngineTab } from "../tabs/terminal-tabs-core.ts"
 import type { Task } from "../types/task.ts"
 import type { UpdateInfo } from "../version.ts"
 import type {

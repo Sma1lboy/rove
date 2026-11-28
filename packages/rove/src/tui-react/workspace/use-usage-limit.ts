@@ -7,7 +7,7 @@
  */
 
 import { useState } from "react"
-import type { TerminalTab } from "../../tui/workspace/terminal-tabs-core"
+import type { TerminalTab } from "../../tabs/terminal-tabs-core"
 import type { UsageLimit } from "../panes/terminal/engine-exit-banner"
 import { useTabRowStatus } from "./row-status-sync"
 import type { NewChatPreset } from "./use-tab-dialogs"

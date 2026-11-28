@@ -9,9 +9,7 @@
  */
 
 import { useEffect } from "react"
-import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
-import { closePluginPanes, openPluginPane } from "../../tui/workspace/pane-split"
-import { absorbTab, adoptTabs } from "../../tui/workspace/tabs-adopt"
+import { absorbTab, adoptTabs } from "../../tabs/tabs-adopt"
 import {
   type TabsState,
   moveTab,
@@ -19,7 +17,9 @@ import {
   setTabTitle,
   splitLeafPtyKey,
   tabPtyKeyFor,
-} from "../../tui/workspace/terminal-tabs-core"
+} from "../../tabs/terminal-tabs-core"
+import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
+import { closePluginPanes, openPluginPane } from "../../tui/workspace/pane-split"
 import {
   tabActivationListeners,
   takeNewTab,

@@ -8,7 +8,7 @@
 import * as fs from "node:fs"
 import * as os from "node:os"
 import { pathSyntax } from "@sma1lboy/rove-daemon/path-identity"
-import { tildify } from "../../lib/path-home"
+import { tildify } from "./path-home"
 
 /**
  * Last path segment — the shared leaf-name extractor (history header, Ops

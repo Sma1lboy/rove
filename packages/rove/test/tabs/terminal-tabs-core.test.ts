@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { initialSplit, removeLeaf, splitActive } from "../../src/tui/workspace/split-core"
-import { meaningfulAutoTitle, tabTitle } from "../../src/tui/workspace/terminal-tab-split"
+import { initialSplit, removeLeaf, splitActive } from "../../src/tabs/split-core"
+import { meaningfulAutoTitle, tabTitle } from "../../src/tabs/terminal-tab-split"
 import {
   type EngineTab,
   type TabsState,
@@ -29,7 +29,7 @@ import {
   shellIdentityInput,
   shellSpawn,
   tabExitAction,
-} from "../../src/tui/workspace/terminal-tabs-core"
+} from "../../src/tabs/terminal-tabs-core"
 
 describe("terminal tabs state", () => {
   it("addTab inserts after the active tab, focuses it, never reuses ids", () => {

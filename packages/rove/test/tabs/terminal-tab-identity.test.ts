@@ -9,8 +9,8 @@
  */
 
 import { describe, expect, it } from "vitest"
-import { createTabIdentityObserver, demoteExitedEngine } from "../../src/tui/workspace/terminal-tab-identity"
-import type { TerminalTab } from "../../src/tui/workspace/terminal-tabs-core"
+import { createTabIdentityObserver, demoteExitedEngine } from "../../src/tabs/terminal-tab-identity"
+import type { TerminalTab } from "../../src/tabs/terminal-tabs-core"
 
 const SHELL = ["/bin/zsh"]
 const engineTab = (over: Partial<TerminalTab> = {}): TerminalTab =>

@@ -20,12 +20,12 @@ import {
   resolveTabStripMode,
   tabStripVisible,
 } from "../../state/tab-strip"
+import { type TerminalTab, tabTitle, visibleNativeStatus } from "../../tabs/terminal-tabs-core"
 import { breathGlyph } from "../../tui/lib/breathe"
 import type { GlyphSet } from "../../tui/lib/glyphs"
 import { truncateEndCells } from "../../tui/lib/truncate"
 import { DONE_PULSE_MS, sidebarTone } from "../../tui/panes/sidebar/row-view"
 import { toneColor } from "../../tui/panes/sidebar/view-core"
-import { type TerminalTab, tabTitle, visibleNativeStatus } from "../../tui/workspace/terminal-tabs-core"
 import type { VendorId } from "../../types/vendor"
 import { useKV } from "../context/kv"
 import { type Theme, useTheme } from "../context/theme"

@@ -14,7 +14,7 @@ import { describe, expect, it } from "vitest"
 import { joinTaskTabs } from "../../src/cli/api/tab-snapshot.ts"
 import { hasLiveEngineTab } from "../../src/cli/api/task-running.ts"
 import { findHostedEngineKey } from "../../src/engine/hosted-session.ts"
-import type { TabsState } from "../../src/tui/workspace/terminal-tabs-core.ts"
+import type { TabsState } from "../../src/tabs/terminal-tabs-core.ts"
 
 describe("hasLiveEngineTab (the get-task/collect .running rule)", () => {
   const snapshot = (tabs: unknown[]): TabsState =>

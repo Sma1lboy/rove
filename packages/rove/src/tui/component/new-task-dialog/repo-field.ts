@@ -13,7 +13,7 @@
  */
 
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
-import { joinDrill } from "../../lib/path-helpers"
+import { joinDrill } from "../../../lib/path-helpers"
 import { type PickerMode, isRepoPathInput, splitRepoRow } from "./state"
 
 /**

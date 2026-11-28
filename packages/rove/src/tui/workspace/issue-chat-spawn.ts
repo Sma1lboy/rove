@@ -15,8 +15,6 @@ import { interactiveEngineCommand } from "@/engine/interactive-command"
 import type { VendorId } from "@/types/vendor"
 import type { Issue } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import { issueWorktreePrompt } from "../../state/issue-chat"
-import { terminalDrawsKitty } from "../lib/terminal-graphics"
-import { defaultShell } from "../panes/terminal/pty-types"
 import {
   type EngineTab,
   type TabsState,
@@ -24,7 +22,9 @@ import {
   initialTabs,
   setTabSpawned,
   tabPtyKey,
-} from "./terminal-tabs-core"
+} from "../../tabs/terminal-tabs-core"
+import { terminalDrawsKitty } from "../lib/terminal-graphics"
+import { defaultShell } from "../panes/terminal/pty-types"
 
 export interface IssueChatBackgroundSpawn {
   /** Registry key for the task's first engine tab (`taskId::tab-1`). */

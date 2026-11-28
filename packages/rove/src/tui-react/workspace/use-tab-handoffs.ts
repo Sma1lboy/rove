@@ -6,7 +6,6 @@
  */
 
 import { useEffect } from "react"
-import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import {
   type EngineTab,
   type TabSpawn,
@@ -15,7 +14,8 @@ import {
   openContentTab,
   openEditorTab,
   tabPtyKey,
-} from "../../tui/workspace/terminal-tabs-core"
+} from "../../tabs/terminal-tabs-core"
+import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { releaseSplitLeaves } from "./TerminalSplit"
 
 export interface TabHandoffIO {

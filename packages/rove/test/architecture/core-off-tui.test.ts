@@ -16,23 +16,16 @@ const UI_ROOTS = ["tui", "tui-react"].map((dir) => join(SRC, dir))
 /** Shrink-only: files that still import the TUI, waiting to be moved off it. */
 const NOT_YET_MOVED = new Set([
   "cli/api/exact-tab-delivery.ts",
-  "cli/api/handlers-inspect.ts",
   "cli/api/pty-delivery.ts",
-  "cli/api/runtime.ts",
-  "cli/api/split-wire.ts",
   "cli/api/tab-launch.ts",
   "cli/api/tab-new.ts",
-  "cli/api/tab-respawn.ts",
   "cli/api/tab-revive.ts",
-  "cli/api/tab-snapshot.ts",
   "cli/api/tab-split.ts",
-  "cli/api/task-running.ts",
-  "client/remote-orchestrator-contract.ts",
-  "client/remote-orchestrator-events.ts",
   "engine/hosted-session.ts",
   "lib/failure-hint.ts",
   "machines/hub-singleton.ts",
   "machines/remote-worktree.ts",
+  "tabs/terminal-tab-split.ts",
   "worktree/review-read.ts",
 ])
 

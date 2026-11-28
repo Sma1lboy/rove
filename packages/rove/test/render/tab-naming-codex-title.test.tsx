@@ -23,8 +23,8 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import type { ReactNode } from "react"
+import type { EngineTab, TabsState } from "../../src/tabs/terminal-tabs-core"
 import { type TabLifecycleIO, useTabHydration, useTabNaming } from "../../src/tui-react/workspace/use-tab-lifecycle"
-import type { EngineTab, TabsState } from "../../src/tui/workspace/terminal-tabs-core"
 import { renderComponent } from "./harness"
 
 /** A codex thread id, exactly as codex writes it into its OSC title. */

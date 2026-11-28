@@ -8,8 +8,8 @@
 import type { SharedTabs } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import { type TabsChangedPayload, TabsStore } from "@sma1lboy/rove-daemon/daemon/tabs-store"
 import type { TabsTransport } from "../../src/client/remote-orchestrator-tabs"
+import type { TabsState } from "../../src/tabs/terminal-tabs-core"
 import { attachTabsTransport } from "../../src/tui-react/workspace/tabs-sync"
-import type { TabsState } from "../../src/tui/workspace/terminal-tabs-core"
 
 export interface TabsSyncDaemon {
   readonly store: TabsStore

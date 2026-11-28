@@ -21,7 +21,7 @@ import { buildEngineSessionLaunch } from "../../engine/session-launch.ts"
 import { trustEngineWorktree } from "../../engine/trust-worktree.ts"
 import { persistedMaxLiveEngines } from "../../state/engine-limit.ts"
 import { inspectRepo, isGitRepo, isRemoteRepoKey, isValidBranchName, resolveMainRepoRoot } from "../../state/repos.ts"
-import { type TerminalTab, tabPtyKeyFor } from "../../tui/workspace/terminal-tabs-core.ts"
+import { type TerminalTab, tabPtyKeyFor } from "../../tabs/terminal-tabs-core.ts"
 import { type DaemonRpc, resolveActiveTaskId } from "../daemon-session.ts"
 
 // New callers: import from daemon-session.ts directly.

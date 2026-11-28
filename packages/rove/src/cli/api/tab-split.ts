@@ -13,9 +13,8 @@
 import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { PtyOpenResult } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { HostedSessionRpc } from "../../engine/hosted-session.ts"
-import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
-import { initialSplit, leaves, removeLeaf, renameLeaf, splitActive } from "../../tui/workspace/split-core.ts"
-import { shellIdentityInput } from "../../tui/workspace/terminal-tab-spawn.ts"
+import { initialSplit, leaves, removeLeaf, renameLeaf, splitActive } from "../../tabs/split-core.ts"
+import { shellIdentityInput } from "../../tabs/terminal-tab-spawn.ts"
 import {
   type PersistedSplit,
   type TabsState,
@@ -23,7 +22,8 @@ import {
   collapseSplit,
   splitLeafPtyKey,
   tabPtyKeyFor,
-} from "../../tui/workspace/terminal-tabs-core.ts"
+} from "../../tabs/terminal-tabs-core.ts"
+import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
 import { killTaskSessions } from "./pty-delivery.ts"
 import { ensureHostFor, sessionFailed } from "./session-failed.ts"
 import { type TabsRpc, patchTabSplit, readDaemonTabs } from "./tab-snapshot.ts"

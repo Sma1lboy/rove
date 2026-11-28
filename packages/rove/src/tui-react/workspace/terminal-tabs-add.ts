@@ -10,8 +10,8 @@
  */
 
 import { loadStateFile } from "../../state/store"
-import { absorbTab } from "../../tui/workspace/tabs-adopt"
-import type { CommandTab, EngineTab, TabsState } from "../../tui/workspace/terminal-tabs-core"
+import { absorbTab } from "../../tabs/tabs-adopt"
+import type { CommandTab, EngineTab, TabsState } from "../../tabs/terminal-tabs-core"
 import { type TabsSnapshotKv, terminalTabsKey } from "./terminal-tabs-persist"
 import {
   knownTabsState,

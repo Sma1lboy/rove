@@ -6,7 +6,7 @@
  */
 
 import type { TabStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
-import type { TerminalTab } from "./terminal-tabs-core"
+import type { TerminalTab } from "../../tabs/terminal-tabs-core"
 import type { HookTabState } from "./turn-state-merge"
 
 export interface EngineExitView {

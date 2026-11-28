@@ -8,7 +8,7 @@ import type { TaskRepoView } from "@sma1lboy/rove-daemon/task-tree"
 import { describe, expect, test } from "vitest"
 import { repoEnv } from "../../src/engine/multi-repo-launch.ts"
 import { buildEngineSessionLaunch } from "../../src/engine/session-launch.ts"
-import { shellIdentityInput } from "../../src/tui/workspace/terminal-tab-spawn.ts"
+import { shellIdentityInput } from "../../src/tabs/terminal-tab-spawn.ts"
 import type { VendorId } from "../../src/types/vendor.ts"
 
 const repos: TaskRepoView[] = [

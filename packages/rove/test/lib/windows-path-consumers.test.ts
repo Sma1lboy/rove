@@ -2,9 +2,9 @@ import { matchTaskByCwd, tasksAtWorktreePath } from "@sma1lboy/rove-daemon/daemo
 import { expect, it } from "vitest"
 import { isForeignDaemonHome } from "../../../rove-daemon/src/daemon/protocol-compat"
 import { sameHistoryWorktree } from "../../src/engine/history-worktree"
+import { splitPathForDirSuggest } from "../../src/lib/path-helpers"
 import { tildify } from "../../src/lib/path-home"
 import { relativeToWorktree } from "../../src/tui/lib/editor-launch"
-import { splitPathForDirSuggest } from "../../src/tui/lib/path-helpers"
 
 it("attributes Windows hooks to the most specific saved worktree", () => {
   const tasks = [

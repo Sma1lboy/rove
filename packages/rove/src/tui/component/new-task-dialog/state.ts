@@ -6,7 +6,7 @@
  *
  *   - sync git snapshots (branch, branch list, repo validation) →
  *     `src/tui/lib/git-snapshot.ts` (its sync-guard whitelist entry lives there).
- *   - path/dir suggestion plumbing → `src/tui/lib/path-helpers.ts`.
+ *   - path/dir suggestion plumbing → `src/lib/path-helpers.ts`.
  *   - clone-tab fs/spawn helpers → `./clone.ts`.
  *
  * Wired to component state by `src/tui-react/component/new-task-dialog/`.

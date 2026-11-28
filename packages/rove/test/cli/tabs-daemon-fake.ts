@@ -10,7 +10,7 @@ import type { SharedTabs, TabOp } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import { TabsStore } from "@sma1lboy/rove-daemon/daemon/tabs-store"
 import { type TabsRpc, allocateTab } from "../../src/cli/api/tab-snapshot.ts"
 import type { DaemonRpc } from "../../src/cli/daemon-session.ts"
-import type { TabsState } from "../../src/tui/workspace/terminal-tabs-core.ts"
+import type { TabsState } from "../../src/tabs/terminal-tabs-core.ts"
 import type { VendorId } from "../../src/types/vendor.ts"
 
 /** Open another engine tab through the daemon's counter; resolves its id. */

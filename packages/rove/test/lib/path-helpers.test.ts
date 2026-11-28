@@ -1,5 +1,5 @@
 /**
- * Unit tests for `src/tui/lib/path-helpers.ts` — the path/dir
+ * Unit tests for `src/lib/path-helpers.ts` — the path/dir
  * suggestion plumbing behind the new-task dialog's browse-mode picker
  * and `rove quick-task`'s repo resolution.
  *
@@ -21,7 +21,7 @@ import {
   joinPicked,
   splitPathForDirSuggest,
   stripTrailingSlash,
-} from "@/tui/lib/path-helpers"
+} from "@/lib/path-helpers"
 import { describe, expect, it } from "vitest"
 
 describe("expandHome", () => {

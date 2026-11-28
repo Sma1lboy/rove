@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react"
+import { expandHome } from "../../../lib/path-helpers"
 import {
   type PickerWindow,
   clampCursor,
@@ -17,7 +18,6 @@ import {
   windowAround,
 } from "../../../tui/component/new-task-dialog/state"
 import { DEFAULT_BASE_REF, getCurrentBranch, listLocalBranches } from "../../../tui/lib/git-snapshot"
-import { expandHome } from "../../../tui/lib/path-helpers"
 
 export type BranchFieldOpts = {
   /** Absolute repo path the branch list is read from; "" while unresolved. */

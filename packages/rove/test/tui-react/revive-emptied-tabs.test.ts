@@ -18,10 +18,10 @@
 
 import type { SharedTabs } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import type { TabsState } from "../../src/tabs/terminal-tabs-core.ts"
 import { resetTabsSyncForTests } from "../../src/tui-react/workspace/tabs-sync.ts"
 import { terminalTabsKey } from "../../src/tui-react/workspace/terminal-tabs-persist.ts"
 import { reviveEmptiedTabs, tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared.ts"
-import type { TabsState } from "../../src/tui/workspace/terminal-tabs-core.ts"
 import { type TabsSyncDaemon, attachTabsDaemon, flushTabs } from "./tabs-sync-daemon.ts"
 
 /** The `TabsSnapshotKv` surface, backed by a plain object; records every write. */

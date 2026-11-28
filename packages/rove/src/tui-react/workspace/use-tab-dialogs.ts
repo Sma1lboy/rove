@@ -33,10 +33,6 @@ import { defaultDaemonSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import { type PaneLaunch, listPaneLaunches } from "@sma1lboy/rove-daemon/plugins/pane-command"
 import { SHELL_TASK_TITLE } from "../../orchestrator/title.ts"
 import { ROVE_PRODUCT_NAME } from "../../product.ts"
-import { getCurrentBranch } from "../../tui/lib/git-snapshot"
-import { defaultShell } from "../../tui/panes/terminal/pty-types"
-import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
-import { openPluginPane } from "../../tui/workspace/pane-split"
 import {
   type TabsState,
   type TerminalTab,
@@ -45,7 +41,11 @@ import {
   openCommandTab,
   renameActiveTab,
   tabPtyKeyFor,
-} from "../../tui/workspace/terminal-tabs-core"
+} from "../../tabs/terminal-tabs-core"
+import { getCurrentBranch } from "../../tui/lib/git-snapshot"
+import { defaultShell } from "../../tui/panes/terminal/pty-types"
+import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
+import { openPluginPane } from "../../tui/workspace/pane-split"
 import {
   type NewChatChoice,
   type NewChatContext,

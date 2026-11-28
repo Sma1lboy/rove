@@ -16,10 +16,10 @@ import os from "node:os"
 import path from "node:path"
 import type { SharedTabs } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { type EngineTab, initialTabs, tabCwdFor, tabPtyKeyFor } from "../../src/tabs/terminal-tabs-core.ts"
 import { resetTabsSyncForTests } from "../../src/tui-react/workspace/tabs-sync.ts"
 import { appendBackgroundEngineTab, tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared.ts"
 import { buildIssueTabSpawn } from "../../src/tui/workspace/issue-chat-spawn.ts"
-import { type EngineTab, initialTabs, tabCwdFor, tabPtyKeyFor } from "../../src/tui/workspace/terminal-tabs-core.ts"
 import { type TabsSyncDaemon, attachTabsDaemon } from "../tui-react/tabs-sync-daemon.ts"
 
 let tmpHome: string

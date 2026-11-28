@@ -21,7 +21,7 @@ import { type SharedTabs, type TabOp, diffTabs } from "@sma1lboy/rove-daemon/dae
 import { engineLaunchArgv } from "../../engine/engine-presets.ts"
 import { loadStateFile } from "../../state/store.ts"
 import { terminalTabsKey } from "../../state/tabs-persistence.ts"
-import { splitLeafPtyKey } from "../../tui/workspace/terminal-tab-split.ts"
+import { splitLeafPtyKey } from "../../tabs/terminal-tab-split.ts"
 import {
   type TabsState,
   type TerminalTab,
@@ -30,7 +30,7 @@ import {
   initialTabs,
   setTabTitle,
   tabPtyKeyFor,
-} from "../../tui/workspace/terminal-tabs-core.ts"
+} from "../../tabs/terminal-tabs-core.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { type WireSplit, wireSplit } from "./split-wire.ts"

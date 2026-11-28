@@ -6,8 +6,14 @@
  * leaf's size, depth cap when unknown) made it a no-op.
  */
 
-import { initialSplit, leaves, removeLeaf, renameLeaf, splitActive } from "./split-core"
-import { type PersistedSplit, type TabsState, collapseSplit, openCommandTab, setTabSplit } from "./terminal-tabs-core"
+import { initialSplit, leaves, removeLeaf, renameLeaf, splitActive } from "../../tabs/split-core"
+import {
+  type PersistedSplit,
+  type TabsState,
+  collapseSplit,
+  openCommandTab,
+  setTabSplit,
+} from "../../tabs/terminal-tabs-core"
 
 export type PanePlacement = "split" | "tab"
 export type PaneDirection = "right" | "down"

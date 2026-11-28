@@ -5,7 +5,7 @@
  * array (`rehydrateTabs` keeps it), so moves survive restart.
  */
 
-import { moveTab } from "../../tui/workspace/terminal-tabs-core"
+import { moveTab } from "../../tabs/terminal-tabs-core"
 import type { TabsSnapshotKv } from "./terminal-tabs-persist"
 import { knownTabsState, requestTabMove, setTaskTabs, takeUnclaimedTabMove } from "./terminal-tabs-shared"
 

@@ -21,7 +21,7 @@ import {
   renameActiveTab,
   setTabAutoTitle,
   setTabSessionId,
-} from "../../src/tui/workspace/terminal-tabs-core"
+} from "../../src/tabs/terminal-tabs-core"
 
 describe("terminal tabs lifecycle", () => {
   // Why: rehydrateTabs is the restart contract — a tab is a TERMINAL, so

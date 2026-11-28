@@ -3,8 +3,8 @@
  * "usage limit" (its activity is `rate_limited`). The dead strip outranks the limit.
  */
 
+import type { TerminalTab } from "../../tabs/terminal-tabs-core"
 import type { SectionId } from "../../tui/component/settings-dialog/model"
-import type { TerminalTab } from "../../tui/workspace/terminal-tabs-core"
 import type { HookTabState } from "../../tui/workspace/turn-state-merge"
 import type { EngineExit, UsageLimit } from "../panes/terminal/engine-exit-banner"
 import { useEngineExit } from "./use-engine-exit"

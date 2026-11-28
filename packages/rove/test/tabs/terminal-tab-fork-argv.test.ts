@@ -11,7 +11,7 @@
 import { engineCanFork, engineForkArgv } from "@/engine/engine-presets"
 import { buildHandoffPrompt } from "@/engine/session-handoff"
 import { planChatContinuation } from "@/engine/session-handoff-plan"
-import { type EngineTab, type TabsState, engineTabArgv, engineTabSpawnFor } from "@/tui/workspace/terminal-tabs-core"
+import { type EngineTab, type TabsState, engineTabArgv, engineTabSpawnFor } from "@/tabs/terminal-tabs-core"
 import { describe, expect, it } from "vitest"
 
 const tab = (over: Partial<EngineTab>): EngineTab => ({
