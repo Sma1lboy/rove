@@ -18,8 +18,8 @@ export const CARD =
   "relative flex flex-col gap-2 rounded-md border-hairline border-line bg-surface px-3 py-2.5 focus-within:border-line-active"
 export const CARD_ACTIONS = "flex flex-wrap items-center justify-end gap-1.5"
 export const PROMPT = `${GROWS} min-h-[4.5em] w-full bg-transparent text-ink [border:0] [outline:0]`
-/** On a phone the chips sit above the card, starting and ending on its edges, so the card itself rests on the keyboard. */
-export const BAR = "flex items-center gap-1.5 px-1 narrow:order-first narrow:px-0"
+/** The chips start and end on the card's edges; on a phone they sit above it, so the card itself rests on the keyboard. */
+export const BAR = "flex items-center gap-1.5 narrow:order-first"
 /**
  * Where the task runs (left), then how (right): one row, never wrapped. A phone drops each chip's word instead
  * (`CHIP_WORD`); in a full row the left group gives up its room first, so the right-hand chips keep their shape.
