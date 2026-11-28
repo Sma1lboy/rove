@@ -107,8 +107,8 @@ export function mountTerminal(o: MountOpts): TermHandle {
   if (o.focusOnMount) term.focus()
 
   // The phone never sizes the shared PTY: a narrower width hard-wraps wide output for every viewer. It takes the
-  // size the PTY has (another viewer's, or the spawn default) and fits its font to the box (`term-zoom.ts`).
-  const zoom = attachZoom(el, term)
+  // size the PTY has (another viewer's, or the spawn default) at a readable font (`term-zoom.ts`).
+  const zoom = attachZoom(el, term, streamKey(taskId, tabId, o.leafId))
   let ptySize: { cols: number; rows: number } | null = null
   const following = () => isNarrow() && ptySize !== null
   const adopt = (size: { cols?: number; rows?: number }) => {

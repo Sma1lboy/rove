@@ -17,6 +17,7 @@ import { streamKey } from "./term-contract.ts"
 import { draftKey, getDraft, setDraft, subscribeDrafts } from "./term-drafts.ts"
 import { liveHandle } from "./term-pool.ts"
 import { toast } from "./ui.ts"
+import { GROW_MS } from "./ui/grow.ts"
 import {
   ClipGlyph,
   HoldFace,
@@ -92,7 +93,8 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
       }
       setDraft(key, "")
       clear()
-      setTyping(false)
+      // The emptied field shrinks back to one line first, then gives way to the hold control.
+      window.setTimeout(() => setTyping(false), GROW_MS)
       if (heard.current) void learnFromSend(model.client, heard.current, draft)
       heard.current = null
       return true

@@ -62,7 +62,11 @@ export function PhoneStackLine(props: {
       className="flex min-w-0 flex-none items-center gap-3 px-2 font-sans text-meta text-muted"
       aria-label={t("compare.stackLabel")}
     >
-      <div ref={props.scroller} className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto scrollbar-none">
+      {/* Fades out before Land, and ends on a spacer so the last title can scroll clear of the fade. */}
+      <div
+        ref={props.scroller}
+        className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto scrollbar-none mask-r-from-[calc(100%-1.5rem)]"
+      >
         {props.stack.base && <span className="flex-none text-subtle">{props.stack.base} ←</span>}
         {props.stack.path.map((node) => (
           <span key={node.id} className="flex flex-none items-center gap-2">
@@ -71,6 +75,7 @@ export function PhoneStackLine(props: {
           </span>
         ))}
         {group(props.stack.level, link)}
+        <span className="w-4 flex-none" aria-hidden="true" />
       </div>
       {props.onLand && (
         <button type="button" className={`${LINK} text-accent`} onClick={props.onLand}>
