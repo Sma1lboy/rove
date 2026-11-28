@@ -25,6 +25,9 @@ export const en = {
      *  machine, and the PTY host only spawns locally. Said here rather than
      *  letting the launch guard throw through the render path. */
     remoteUnsupported: "Hosted engine launch over SSH is not implemented — this task's worktree is on {host}",
+    /** An archived task: its sessions were stopped and opening it starts none. The second line is a click target. */
+    archived: "Archived — no live terminal",
+    unarchive: "[ Unarchive ]",
   },
   /** Zero-tasks welcome panel (first launch) */
   welcome: {
@@ -104,6 +107,8 @@ export const zh: typeof en = {
     noSessions: "这里没有会话——按 ⏎ 启动 {engine}，或按 ctrl+e 另选一个",
     noSessionsShell: "这里没有会话——按 ⏎ 启动 shell，或按 ctrl+e 另选一个",
     remoteUnsupported: "尚未实现通过 SSH 启动托管引擎——该任务的 worktree 在 {host} 上",
+    archived: "已归档——没有在运行的终端",
+    unarchive: "[ 取消归档 ]",
   },
   welcome: {
     title: "欢迎使用 Rove",

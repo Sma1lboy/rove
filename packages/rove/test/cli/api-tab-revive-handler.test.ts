@@ -47,3 +47,24 @@ describe("tab-revive --restart-exited", () => {
     expect(await revive([], [tab({ engineAlive: false })])).toEqual([{ replaceExited: false }])
   })
 })
+
+describe("tab-revive on an archived task", () => {
+  it("is refused with TASK_ARCHIVED and starts nothing", async () => {
+    let revived = 0
+    const client = new FakeClient({
+      "task.get": () => ({ task: { ...taskFixture(), archived: true } }),
+      "task.list": () => ({ tasks: [{ ...taskFixture(), archived: true }] }),
+    })
+    const run = invokeVerb("tab-revive", ["--task-id", "t1", "--tab", "tab-1"], {
+      client,
+      runtime: stubRuntime({
+        reviveTab: async () => {
+          revived++
+          return { revived: true, resumed: false }
+        },
+      }),
+    })
+    await expect(run).rejects.toMatchObject({ code: "TASK_ARCHIVED" })
+    expect(revived).toBe(0)
+  })
+})
