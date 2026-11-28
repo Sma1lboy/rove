@@ -128,6 +128,14 @@ Claude Code accepts `low`, `medium`, `high`, `xhigh`, `max`, passed as
 `medium`, `high`, `xhigh`, `max` as `--effort <level>`. The remaining engines have no effort flag Rove
 can drive; a selected effort is ignored there rather than passed through.
 
+Antigravity's model ids carry their own tier (`gemini-4-neon-high`). When a
+pinned model's tier and the effort disagree, the model wins: agy 1.5.17 starts
+on `Gemini 4 Neon (High)` and prints `--model gemini-4-neon-high conflicts
+with --effort=low`. (Its one-shot `-p` mode refuses the pair instead, but Rove
+does not launch that.) To choose the tier with the effort control, pin the
+model without one, such as `gemini-4-neon`. `agy models` does not list those
+ids, but agy accepts them.
+
 Three places select one:
 
 - `rove api add --effort LEVEL` (with `--command codex` for Codex), which is the only one that
