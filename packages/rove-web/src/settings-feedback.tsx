@@ -9,6 +9,7 @@ import { toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import { useGrow } from "./ui/grow.ts"
 import {
+  FEEDBACK_FOOTNOTE,
   SETTINGS_ACTIONS,
   SETTINGS_FIELD,
   SETTINGS_FIELD_LABEL,
@@ -55,7 +56,8 @@ export function FeedbackSection({ model }: { model: AppModel }) {
           .finally(() => setBusy(false))
       }}
     >
-      <p className={`m-0 ${SETTINGS_NOTE}`}>{t("settings.feedback.hint")}</p>
+      {/* On a phone the page's line is its one intro; this becomes the footnote under File issue. */}
+      <p className={`m-0 ${SETTINGS_NOTE} ${FEEDBACK_FOOTNOTE}`}>{t("settings.feedback.hint")}</p>
       <div className="flex flex-col gap-1">
         <div className={SETTINGS_ACTIONS}>
           <Button

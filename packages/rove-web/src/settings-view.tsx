@@ -60,7 +60,7 @@ const BODY: Record<SettingsSection, (model: AppModel) => ReactNode> = {
   notifications: (m) => <NotificationsSection model={m} />,
   snippets: (m) => <SnippetsSection model={m} />,
   keys: (m) => <KeysSection model={m} />,
-  engines: (m) => <EnginesSection client={m.client} />,
+  engines: (m) => <EnginesSection model={m} />,
   autoRouting: (m) => <RoutingSection client={m.client} />,
   voice: (m) => <VoiceSection client={m.client} />,
   connectors: (m) => <ConnectorsSection model={m} />,

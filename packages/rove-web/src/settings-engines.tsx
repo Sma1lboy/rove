@@ -2,16 +2,20 @@
  * Settings → Engines: one row per engine (name, a plain-language status, whether it is the
  * default, whether it is offered), the detection facts and rename/reset in a detail area that
  * opens under its row, one section for Rove's engine integrations (the activity hooks) and one
- * for the Rove agent skill.
+ * for the Rove agent skill. A phone shows the engines as a grouped card instead (`settings-engines-phone.tsx`).
  * Launch commands stay a Mac-side edit.
  */
 
-import { type EngineHealthTone, engineHealth } from "@sma1lboy/rove/src/engine/engine-health.ts"
 import { useId, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { errorText } from "./dialogs.tsx"
+import { useEngineIcons } from "./engine-icons.ts"
 import { t } from "./i18n/index.ts"
+import { useNarrow } from "./layout.ts"
+import type { AppModel } from "./model.ts"
 import { ts } from "./settings-copy.ts"
+import { EngineFacts, EngineRename, type EngineSetting, type Run, TONE, health } from "./settings-engine-detail.tsx"
+import { EnginesPhone } from "./settings-engines-phone.tsx"
 import { Group, Row, SectionPending, useSectionReply } from "./settings-rows.tsx"
 import { installSkill } from "./skill-status.ts"
 import { toast } from "./ui.ts"
@@ -21,75 +25,28 @@ import {
   ENG_ACTIONS,
   ENG_DEFAULT,
   ENG_DETAIL_AREA,
-  ENG_FACTS,
-  ENG_FACT_TERM,
   ENG_ITEM,
   ENG_LIST,
   ENG_LIST_HEAD,
   ENG_MAKE_DEFAULT,
   ENG_PILL,
-  ENG_RENAME_INPUT,
   ENG_ROW,
   ENG_SUB,
   ENG_SUMMARY,
   ENG_TITLE,
   ENG_UPTODATE,
-  type EngTone,
   engChevronClass,
   engDotClass,
-  engFactClass,
   engNameClass,
   engStatusClass,
 } from "./ui/settings.ts"
 import { SETTINGS_ACTIONS, SETTINGS_GROUP_HINT } from "./ui/settings.ts"
 import { Switch } from "./ui/switch.tsx"
-import { INPUT_FRAME } from "./ui/text.ts"
 
-/** `engines.settings` row, trimmed to what the page shows. */
-interface EngineSetting {
-  readonly id: string
-  readonly name: string
-  readonly custom: boolean
-  readonly enabled: boolean
-  readonly isDefault: boolean
-  readonly canBeDefault: boolean
-  readonly binary: string
-  readonly customized: boolean
-  /** The registry's name when the user renamed the engine. */
-  readonly renamedFrom?: string | null
-  readonly protocol?: string | null
-  readonly binaryFound: boolean | null
-  readonly binaryPath?: string | null
-  readonly login: "yes" | "no" | "unknown"
-  readonly hooks: "installed" | "outdated" | "not-installed" | "unsupported"
-  readonly markers: boolean
-  readonly screen: boolean
-  readonly configIssue?: string
-  /** The Rove agent skill copy; "unsupported" when the engine isn't set up here or takes none. */
-  readonly skill: "installed" | "outdated" | "not-installed" | "unsupported"
-}
-
-type Run = (op: string, args?: Record<string, unknown>) => void
-
-function health(e: EngineSetting) {
-  return engineHealth({
-    binaryFound: e.binaryFound,
-    login: e.login,
-    hooks: e.hooks,
-    configIssue: e.configIssue,
-    commandChosen: e.custom || e.customized,
-  })
-}
-
-const TONE: Record<EngineHealthTone, EngTone> = {
-  ready: "ready",
-  attention: "attention",
-  error: "error",
-  absent: "absent",
-  unknown: "absent",
-}
-
-export function EnginesSection({ client }: { client: BridgeClient }) {
+export function EnginesSection({ model }: { model: AppModel }) {
+  const { client } = model
+  const narrow = useNarrow()
+  const icons = useEngineIcons(model)
   const { value, failed, reload: load } = useSectionReply<{ engines: EngineSetting[] }>(client, "engines.settings")
   const engines = value?.engines
   const [open, setOpen] = useState<string | null>(null)
@@ -101,25 +58,29 @@ export function EnginesSection({ client }: { client: BridgeClient }) {
   if (!engines) return <SectionPending failed={failed} onRetry={load} />
   return (
     <>
-      <section>
-        <p className={SETTINGS_GROUP_HINT}>{ts("engines.hint")}</p>
-        <div className={ENG_LIST}>
-          <div className={ENG_LIST_HEAD} aria-hidden="true">
-            <span />
-            <span>{ts("engines.defaultMark")}</span>
-            <span>{ts("engines.available")}</span>
+      {narrow ? (
+        <EnginesPhone engines={engines} icons={icons} run={run} />
+      ) : (
+        <section>
+          <p className={SETTINGS_GROUP_HINT}>{ts("engines.hint")}</p>
+          <div className={ENG_LIST}>
+            <div className={ENG_LIST_HEAD} aria-hidden="true">
+              <span />
+              <span>{ts("engines.defaultMark")}</span>
+              <span>{ts("engines.available")}</span>
+            </div>
+            {engines.map((e) => (
+              <EngineItem
+                key={e.id}
+                engine={e}
+                open={open === e.id}
+                onToggleOpen={() => setOpen(open === e.id ? null : e.id)}
+                run={run}
+              />
+            ))}
           </div>
-          {engines.map((e) => (
-            <EngineItem
-              key={e.id}
-              engine={e}
-              open={open === e.id}
-              onToggleOpen={() => setOpen(open === e.id ? null : e.id)}
-              run={run}
-            />
-          ))}
-        </div>
-      </section>
+        </section>
+      )}
       <Integrations engines={engines} run={run} />
       <SkillSection engines={engines} client={client} reload={load} />
     </>
@@ -184,120 +145,24 @@ function EngineItem(props: { engine: EngineSetting; open: boolean; onToggleOpen:
   )
 }
 
-function hooksSentence(e: EngineSetting): string {
-  if (e.configIssue) return ts("engines.detail.hooksBlockedHere", { reason: e.configIssue })
-  switch (e.hooks) {
-    case "installed":
-      return ts("engines.detail.hooksInstalled")
-    case "outdated":
-      return ts("engines.detail.hooksOutdated")
-    case "not-installed":
-      return e.binaryFound === false ? ts("engines.detail.hooksAwaitEngine") : ts("engines.detail.hooksMissing")
-    default:
-      return ts("engines.detail.hooksUnsupported")
-  }
-}
-
 function EngineDetail(props: { id: string; engine: EngineSetting; run: Run }) {
   const { engine: e, run } = props
-  const [renaming, setRenaming] = useState<string | null>(null)
-  const program =
-    e.binaryFound === true
-      ? ts("engines.detail.programFound", { binary: e.binary, path: e.binaryPath ?? e.binary })
-      : e.binaryFound === false
-        ? ts("engines.detail.programMissing", { binary: e.binary })
-        : ts("engines.detail.programUnknown", { binary: e.binary })
-  const signIn =
-    e.login === "yes"
-      ? ts("engines.detail.signedIn")
-      : e.login === "no"
-        ? ts("engines.detail.signedOut")
-        : ts("engines.detail.signInUnknown")
-  const reporting = [
-    hooksSentence(e),
-    ts(e.markers ? "engines.detail.markersYes" : "engines.detail.markersNo"),
-    ts(
-      e.screen
-        ? "engines.detail.screenYes"
-        : e.hooks === "installed"
-          ? "engines.detail.screenNotNeeded"
-          : "engines.detail.screenNo",
-    ),
-  ]
+  const [renaming, setRenaming] = useState(false)
   return (
     <div id={props.id} className={ENG_DETAIL_AREA}>
-      <dl className={ENG_FACTS}>
-        <dt className={ENG_FACT_TERM}>{ts("engines.detail.program")}</dt>
-        <dd className={engFactClass(e.binaryFound === false)}>{program}</dd>
-        <dt className={ENG_FACT_TERM}>{ts("engines.detail.signIn")}</dt>
-        <dd className={engFactClass(e.login === "no")}>{signIn}</dd>
-        <dt className={ENG_FACT_TERM}>{ts("engines.detail.reporting")}</dt>
-        <dd className={engFactClass(false)}>
-          {reporting.map((line) => (
-            <span key={line} className="block">
-              {line}
-            </span>
-          ))}
-        </dd>
-        {e.skill !== "unsupported" ? (
-          <>
-            <dt className={ENG_FACT_TERM}>{ts("engines.detail.skill")}</dt>
-            <dd className={engFactClass(e.skill !== "installed")}>
-              {ts(
-                e.skill === "installed"
-                  ? "engines.detail.skillInstalledHere"
-                  : e.skill === "outdated"
-                    ? "engines.detail.skillOutdated"
-                    : "engines.detail.skillMissing",
-              )}
-            </dd>
-          </>
-        ) : null}
-        {e.custom ? (
-          <>
-            <dt className={ENG_FACT_TERM}>{ts("engines.detail.adapter")}</dt>
-            <dd className={engFactClass(false)}>
-              {e.protocol
-                ? ts("engines.detail.adapterDeclared", { protocol: e.protocol })
-                : ts("engines.detail.adapterGeneric")}
-            </dd>
-          </>
-        ) : null}
-      </dl>
-      {renaming !== null ? (
-        <form
-          className={ENG_ACTIONS}
-          onSubmit={(ev) => {
-            ev.preventDefault()
-            run("engine.rename", { id: e.id, name: renaming })
-            setRenaming(null)
+      <EngineFacts engine={e} />
+      {renaming ? (
+        <EngineRename
+          name={e.name}
+          onCancel={() => setRenaming(false)}
+          onSave={(name) => {
+            run("engine.rename", { id: e.id, name })
+            setRenaming(false)
           }}
-        >
-          <input
-            className={`${INPUT_FRAME} w-full ${ENG_RENAME_INPUT}`}
-            // biome-ignore lint/a11y/noAutofocus: the rename field just opened
-            autoFocus
-            value={renaming}
-            aria-label={t("settings.engines.rename")}
-            placeholder={t("settings.engines.namePlaceholder")}
-            onChange={(ev) => setRenaming(ev.target.value)}
-            onKeyDown={(ev) => {
-              if (ev.key === "Escape") {
-                ev.stopPropagation()
-                setRenaming(null)
-              }
-            }}
-          />
-          <Button variant="filled" type="submit">
-            {t("settings.engines.save")}
-          </Button>
-          <Button variant="action" onClick={() => setRenaming(null)}>
-            {t("settings.engines.cancel")}
-          </Button>
-        </form>
+        />
       ) : (
         <div className={ENG_ACTIONS}>
-          <Button variant="action" onClick={() => setRenaming(e.name)}>
+          <Button variant="action" onClick={() => setRenaming(true)}>
             {t("settings.engines.rename")}
           </Button>
           {e.custom || e.customized ? (

@@ -91,6 +91,17 @@ export const SETTINGS_CONTROL =
 /** A path, command or value the Mac holds: the one place a row's text is mono. */
 export const SETTINGS_VALUE = "max-w-90 min-w-0 truncate font-mono text-meta text-muted [overflow-wrap:anywhere]"
 
+/** A phone row that opens or unfolds something (a snippet, a tier): its text, then `›` at the right. */
+export const SETTINGS_OPEN_ROW = "flex min-h-13 w-full items-center gap-3 py-2 text-left active:bg-hover"
+/** An open row's name over its note. */
+export const SETTINGS_TEXT_STACK = "flex min-w-0 flex-1 flex-col gap-0.5"
+/** A phone group's last row that adds one more (Add snippet), in the accent. */
+export const SETTINGS_ADD_ROW =
+  "flex min-h-11 w-full items-center py-2 text-left font-sans text-title text-accent active:bg-hover"
+
+/** Feedback's note on where an issue goes: under the page's intro on a desktop, a footnote under its button on a phone. */
+export const FEEDBACK_FOOTNOTE = "w-narrow:order-last"
+
 /** A line of status text in a section (loading, empty, a verdict). */
 export const SETTINGS_STATUS = "m-0 py-3 text-body text-muted"
 
@@ -141,6 +152,21 @@ export const ENG_PILL =
 export const ENG_MAKE_DEFAULT =
   "rounded-full border-hairline border-line px-2.5 py-0.5 text-meta leading-[inherit] whitespace-nowrap text-muted opacity-0 transition-opacity duration-120 ease-[ease] group-hover/eng:opacity-100 group-focus-within/eng:opacity-100 hover:border-line-active hover:text-ink motion-reduce:transition-none touch:opacity-100"
 
+/**
+ * A phone's engine row (in a `PhoneGroup`): logo, name over status, then its switch and `›`. The whole row opens the
+ * engine's sheet (`ENG_PHONE_OPEN` stretches over it); the switch sits above that.
+ */
+export const ENG_PHONE_ROW = "relative flex min-h-13 items-center gap-3 px-3 py-2"
+export const ENG_PHONE_OPEN =
+  "flex min-w-0 flex-1 items-center gap-3 text-left after:absolute after:inset-0 after:content-[''] active:after:bg-hover focus-visible:outline-none focus-visible:after:bg-hover"
+export const ENG_PHONE_NAME = "truncate font-sans text-title text-ink"
+export const ENG_PHONE_TRAIL = "relative z-1 flex flex-none items-center"
+export const ENG_PHONE_CHEVRON = "block text-subtle"
+/** The default engine's word on its status line: quiet, in the accent. */
+export const ENG_PHONE_DEFAULT = "text-accent capitalize"
+/** An engine sheet's facts, inset to the sheet rows' text. */
+export const ENG_SHEET_FACTS = "px-2 pt-1 pb-3"
+
 /** Open details: indented under the name, no fill of their own; the row's hairlines frame them. */
 export const ENG_DETAIL_AREA = "mt-0 mr-1 mb-3 ml-7 flex flex-col gap-2.5 px-1.5 py-1"
 export const ENG_FACTS = "m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3.5 gap-y-1.5 text-meta leading-[1.5]"
@@ -158,12 +184,15 @@ export const lineDetailClass = (wrap = false): string =>
   `overflow-hidden text-ellipsis text-meta text-muted ${wrap ? "whitespace-normal" : "whitespace-nowrap"}`
 
 /** Auto routing: a tier is a row whose editor opens under it. */
-export const TIER_ROW = "flex flex-col gap-1 py-3"
+/** On a phone the row's open button carries the padding. */
+export const TIER_ROW = "flex flex-col gap-1 py-3 w-narrow:py-0"
 export const TIER_HEAD = "flex items-baseline gap-3"
-export const TIER_EDITOR = "flex flex-col gap-2.5 pt-2"
+export const TIER_EDITOR = "flex flex-col gap-2.5 pt-2 w-narrow:pb-3"
 
 /** Appearance → Theme: small tiles, each a miniature window in that theme's own colours. */
 export const THEME_GRID = "grid grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-2"
+/** A phone's "Browse more" disclosure: the whole line, `›` at its right turning down while open. */
+export const THEME_BROWSE_PHONE = "flex min-h-11 w-full items-center gap-3 text-left"
 export const THEME_GROUP_LABEL = "m-0 pb-1.5 text-meta font-medium text-subtle"
 /** With `<Button variant="card">`: the picked card's border and fill. */
 export const themeCardClass = (active: boolean): string =>
@@ -179,8 +208,9 @@ export const THEME_CARD_NAME = "flex min-w-0 items-baseline gap-1.5 font-sans te
 
 /** Connectors: one card per account and per machine, two across; a card's state sits in its top-right corner. */
 export const BENTO = "grid grid-cols-2 gap-2.5 w-narrow:grid-cols-1"
+/** On a phone a card is a grouped list's card: no border, the same corners and inset. */
 export const bentoCardClass = (wide = false): string =>
-  `flex min-w-0 flex-col gap-2.5 rounded-md border-hairline border-line bg-surface p-3.5 ${wide ? "col-span-2 w-narrow:col-span-1" : ""}`
+  `flex min-w-0 flex-col gap-2.5 rounded-md border-hairline border-line bg-surface p-3.5 w-narrow:rounded-[12px] w-narrow:border-0 w-narrow:p-3 ${wide ? "col-span-2 w-narrow:col-span-1" : ""}`
 export const BENTO_HEAD = "flex min-w-0 items-center gap-3"
 /** A connector card's head: mark, name and note, then its value and buttons, which drop to a line of their own when the card is too narrow for both. */
 export const CARD_HEAD = "flex min-w-0 flex-wrap items-center justify-end gap-x-3 gap-y-2"
