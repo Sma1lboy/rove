@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { parsePorcelain, pickPushedChanges, sameWorktreeChanges } from "../../src/tui/panes/sidebar/worktree-changes"
+import { parsePorcelain, pickPushedChanges, sameWorktreeChanges } from "../../src/worktree/worktree-changes"
 
 describe("parsePorcelain", () => {
   test("returns zeros for empty input", () => {

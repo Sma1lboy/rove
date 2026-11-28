@@ -12,7 +12,7 @@ import {
   formatDiffComments,
   unsentComments,
 } from "@sma1lboy/rove/src/tui/ops/diff-comments.ts"
-import { listFiles } from "@sma1lboy/rove/src/tui/panes/filetree/git.ts"
+import { listFiles } from "@sma1lboy/rove/src/worktree/git-status.ts"
 import { BridgeError, optInt } from "../protocol.ts"
 import { absPath, bool, flag, optText, sendReason, tabId, taskId, text } from "./args.ts"
 import type { Args, BridgeApi, OpSpec, OpTable } from "./types.ts"

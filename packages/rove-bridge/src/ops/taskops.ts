@@ -12,6 +12,11 @@ import { homedir } from "node:os"
 import { dirname, extname, join, sep } from "node:path"
 import type { SharedTabs, TabOp } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import {
+  type CIFailingCheck,
+  type CIFailingChecksRead,
+  buildCIPromptForWorktree,
+} from "@sma1lboy/rove/src/github/ci-prompt.ts"
+import {
   expandHome,
   filterSubdirs,
   listSubdirs,
@@ -19,11 +24,6 @@ import {
   stripTrailingSlash,
 } from "@sma1lboy/rove/src/tui/lib/path-helpers.ts"
 import { type WorktreeOpener, detectWorktreeOpener, openWorktree } from "@sma1lboy/rove/src/tui/lib/worktree-opener.ts"
-import {
-  type CIFailingCheck,
-  type CIFailingChecksRead,
-  buildCIPromptForWorktree,
-} from "@sma1lboy/rove/src/tui/ops/ci-prompt.ts"
 import { buildPRPrompt } from "@sma1lboy/rove/src/tui/ops/pr-prompt.ts"
 import { openExternally, revealInFileManager } from "@sma1lboy/rove/src/tui/panes/filetree/open-external.ts"
 import type { TabsState } from "@sma1lboy/rove/src/tui/workspace/terminal-tab-shapes.ts"

@@ -214,6 +214,10 @@ this capability refuse capped launches rather than opening without admission.
   not attach to or replace standalone-host sessions.
 - React components render and wire events; reusable policy/state belongs in
   framework-free `src/tui/**` modules.
+- Core code (`src/**` outside `tui/`, `tui-react/`, `bundled-plugins/` and the
+  `cli/*.ts` entry files) never imports `src/tui*`, so it can split into its own
+  package; `test/architecture/core-off-tui.test.ts` holds the shrink-only list
+  of files not yet moved off it.
 
 ## 6. State
 

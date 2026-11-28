@@ -1,5 +1,5 @@
 /**
- * Unit tests for the file tree's git wrappers (`filetree/git.ts`).
+ * Unit tests for the file tree's git wrappers (`worktree/git-status.ts`).
  *
  * Focus: `parseNumstat` rename handling. `git diff --numstat -z` renders
  * renames as NUL-delimited old/new path pairs. The Changes tab merges these
@@ -29,6 +29,7 @@ vi.mock("../../src/worktree/content", async (importOriginal) => {
   }
 })
 
+import { readLocalWorktreeHead, readWorktreeFile, runWorktreeGit } from "../../src/worktree/content"
 import {
   attachUntrackedChildren,
   listFiles,
@@ -39,8 +40,7 @@ import {
   resolveBase,
   statusFiles,
   statusFilesBranch,
-} from "../../src/tui/panes/filetree/git"
-import { readLocalWorktreeHead, readWorktreeFile, runWorktreeGit } from "../../src/worktree/content"
+} from "../../src/worktree/git-status"
 
 const runGit = vi.mocked(runWorktreeGit)
 const readFile = vi.mocked(readWorktreeFile)

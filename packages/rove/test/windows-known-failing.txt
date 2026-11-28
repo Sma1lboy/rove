@@ -83,7 +83,7 @@ test/state/repos.test.ts
 test/tui-react/file-open-actions.test.ts
 test/tui-react/ops-preview-core.test.ts
 test/tui-react/ops-preview-paths.test.ts
-test/tui/lib/attachments.test.ts
+test/lib/attachments.test.ts
 test/tui/pty-dispatch-budget.test.ts
 test/tui/render-path-sync-guard.test.ts
 test/tui/terminal-pipe-env.test.ts

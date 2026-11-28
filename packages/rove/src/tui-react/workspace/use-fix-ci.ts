@@ -14,7 +14,7 @@
  */
 
 import type { MutableRefObject } from "react"
-import { type CIFailingChecksRead, buildCIPromptForWorktree } from "../../tui/ops/ci-prompt"
+import { type CIFailingChecksRead, buildCIPromptForWorktree } from "../../github/ci-prompt"
 import { useT } from "../i18n"
 
 /** The row facts the prompt names — read at call time, not captured. */

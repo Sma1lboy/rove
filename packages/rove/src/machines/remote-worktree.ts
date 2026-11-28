@@ -7,7 +7,7 @@
 
 import type { ApiParams } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { PreviewData } from "../tui/ops/preview-core.ts"
-import type { StatusEntry } from "../tui/panes/filetree/git.ts"
+import type { StatusEntry } from "../worktree/git-status.ts"
 import type { DiffScope, WorktreeDiff } from "../worktree/review-read.ts"
 import { forwardVerb, requireMachine } from "./forward.ts"
 

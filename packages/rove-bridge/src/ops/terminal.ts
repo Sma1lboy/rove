@@ -417,7 +417,7 @@ export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
       kind: "write",
       destructive: false,
       wraps:
-        "writes ~/.rove/attachments/<generated name>-<the file's own name> (tui/lib/attachments.ts layout); with `task` on another machine, copies it into that machine's attachments and answers with the path there",
+        "writes ~/.rove/attachments/<generated name>-<the file's own name> (lib/attachments.ts layout); with `task` on another machine, copies it into that machine's attachments and answers with the path there",
       async run(a, { api }) {
         const target = attachmentTarget(a, deps)
         const bytes = attachmentBytes(a)

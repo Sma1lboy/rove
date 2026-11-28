@@ -15,7 +15,7 @@
 import { randomBytes } from "node:crypto"
 import { existsSync, mkdirSync, writeFileSync } from "node:fs"
 import { isAbsolute, join } from "node:path"
-import { promptAttachmentsDir } from "../../env.ts"
+import { promptAttachmentsDir } from "../env.ts"
 
 /** Extensions the engines can ingest as prompt attachments. */
 const ATTACHMENT_EXTENSION_REGEX = /\.(png|jpe?g|gif|webp|pdf)$/i

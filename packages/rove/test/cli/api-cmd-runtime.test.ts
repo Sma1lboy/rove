@@ -39,7 +39,7 @@ vi.mock("../../src/state/repos.ts", async (importOriginal) => {
   }
 })
 
-vi.mock("../../src/tui/panes/sidebar/worktree-changes.ts", () => ({
+vi.mock("../../src/worktree/worktree-changes.ts", () => ({
   readWorktreeChanges: mocks.readWorktreeChanges,
 }))
 

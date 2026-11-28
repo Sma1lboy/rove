@@ -10,7 +10,7 @@
  *
  * ⚠️ SYNC — one-shot CLI use ONLY (`rove api` task queries). `git status` is
  * O(repo size); on a render path it froze the Tasks pane for a 30GB repo's
- * walk every tick. Render paths go through `worktree-changes-poller.ts` (async,
+ * walk every tick. Render paths go through `tui/panes/sidebar/worktree-changes-poller.ts` (async,
  * deduped, timeout/backoff); only `parsePorcelain` is shared.
  *
  * Not `orchestrator/worktree/manager.ts#isDirty`: that one is async,

@@ -19,8 +19,8 @@
 
 import { readOnlyGitProcessEnv } from "@/lib/git-env"
 import { recordSpawn } from "@/lib/spawn-profile"
+import { type WorktreeChanges, parsePorcelain, sameWorktreeChanges } from "../../../worktree/worktree-changes"
 import { computeNextAllowedAt, createBackgroundPoller, spawnCapture } from "../../lib/background-poll"
-import { type WorktreeChanges, parsePorcelain, sameWorktreeChanges } from "./worktree-changes"
 
 export { shouldPoll } from "../../lib/background-poll"
 

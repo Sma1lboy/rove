@@ -2,8 +2,8 @@
 /** File tree header: All / Changes tabs, Changes legend. Pure render. */
 
 import { TextAttributes } from "@opentui/core"
-import type { GitScope } from "../../../tui/panes/filetree/git"
 import { type FileTreeTab, TAB_ORDER, tabLabelKey } from "../../../tui/panes/filetree/keys-core"
+import type { GitScope } from "../../../worktree/git-status"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { useHoverFill } from "../../ui/use-hover-fill"

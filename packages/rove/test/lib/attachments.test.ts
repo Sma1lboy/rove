@@ -20,7 +20,7 @@ import {
   asAttachmentPaths,
   attachmentLabel,
   captureClipboardAttachment,
-} from "../../../src/tui/lib/attachments"
+} from "../../src/lib/attachments"
 
 const exists = (known: string[]) => (p: string) => known.includes(p)
 

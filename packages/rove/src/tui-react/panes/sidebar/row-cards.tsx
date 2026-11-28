@@ -14,8 +14,8 @@ import { sidebarPollClockSnapshot, subscribeSidebarPollClock } from "../../../tu
 import { spinnerFrameSnapshot, subscribeSpinnerFrame } from "../../../tui/lib/spinner-frame-store"
 import type { SidebarRow } from "../../../tui/panes/sidebar/groups"
 import { DONE_PULSE_MS } from "../../../tui/panes/sidebar/row-view"
-import { type WorktreeChanges, pickPushedChanges } from "../../../tui/panes/sidebar/worktree-changes"
 import { pollWorktreeChanges, worktreeChanges } from "../../../tui/panes/sidebar/worktree-changes-poller"
+import { type WorktreeChanges, pickPushedChanges } from "../../../worktree/worktree-changes"
 import { useDiffInks } from "../../context/diff-inks"
 import { useTheme } from "../../context/theme"
 
