@@ -130,7 +130,8 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
       onKeyDown={(e) => pickEscape(e) || keys.onKeyDown(e)}
     >
       <header className={RAIL_HEAD}>
-        <span className={`${WORDMARK} mr-auto`}>
+        {/* `data-wordmark`: where the relay loader's logo lands (`relay-shell.ts`). */}
+        <span className={`${WORDMARK} mr-auto`} data-wordmark>
           <span className={BRACKET}>[</span> rove <span className={BRACKET}>]</span>
         </span>
         {!narrow && (

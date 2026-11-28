@@ -76,6 +76,20 @@ export const en = {
     offline:
       "your computer is not answering on this relay. Is `rove --web --preset relay` still running? After `--rotate-relay`, open the new link. Reload to retry.",
     failed: "can't reach your computer through the relay ({error}). Reload to retry.",
+    switchComputer: "switch computer or pair again",
+    details: "details",
+    copy: "copy details",
+    copied: "copied",
+    detail: {
+      relay: "relay",
+      code: "pairing code",
+      error: "error",
+      close: "closed with",
+      hint: "likely cause",
+      at: "failed at",
+      lastOk: "last connected",
+      never: "never on this device",
+    },
   },
   login: {
     title: "sign in",
@@ -200,6 +214,20 @@ export const zh: typeof en = {
     offline:
       "你的电脑没有在这个 relay 上应答。`rove --web --preset relay` 还在运行吗？用过 `--rotate-relay` 的话，请打开新的链接。刷新重试。",
     failed: "无法通过 relay 连到你的电脑（{error}）。刷新重试。",
+    switchComputer: "换一台电脑或重新配对",
+    details: "详情",
+    copy: "复制详情",
+    copied: "已复制",
+    detail: {
+      relay: "relay",
+      code: "配对码",
+      error: "错误",
+      close: "关闭码",
+      hint: "可能原因",
+      at: "失败时间",
+      lastOk: "上次连上",
+      never: "这台设备从未连上",
+    },
   },
   login: {
     title: "登录",
