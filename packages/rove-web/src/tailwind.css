@@ -97,6 +97,8 @@ body {
   height: 100%;
   margin: 0;
   overscroll-behavior: none;
+  /* Controls draw their own press (`active:`); WebKit's grey tap box would paint over the whole row. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Edge to edge (`viewport-fit=cover`): a Home Screen app runs under the status bar and the home indicator, so
