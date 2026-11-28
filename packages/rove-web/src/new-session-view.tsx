@@ -66,7 +66,6 @@ export function startNewUngrouped(): void {
 }
 
 export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSessionStart }) {
-  const initialRepo = seed.repo
   useLocale()
   const selected = useStore(model.selection).taskId
   const fallback = model.tasks.get()?.tasks.find((task) => task.id === selected)?.repo
@@ -74,7 +73,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   // The starting project, known now when the opener or the selection names one; else the first saved, once read.
   const lastSaved = lastReply<{ repos: string[] }>(model, "repos.list")?.repos
   const startOf = (list?: readonly string[]) =>
-    seed.ungrouped ? undefined : ((seed.machine ? undefined : initialRepo) ?? fallback ?? list?.[0])
+    seed.ungrouped ? undefined : ((seed.machine ? undefined : seed.repo) ?? fallback ?? list?.[0])
   const [saved, setSaved] = useState<readonly string[]>(lastSaved ?? [])
   const [home, setHome] = useState(() => lastReply<{ home: string }>(model, "fs.subdirs", { path: "~/" })?.home ?? "")
   const [repos, setRepos] = useState<readonly string[]>(() => {
@@ -141,7 +140,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     })
   }
   // Another registered machine ("" = this one): its project list, the pick there, and the ref to branch from.
-  const at_ = useRemoteTarget(model, { machine: seed.machine, repo: initialRepo }, choice)
+  const at_ = useRemoteTarget(model, { machine: seed.machine, repo: seed.repo }, choice)
   const { machines, machine, remote, machineName, remoteList, engineThere, shown } = at_
   const { pick: remotePick, setPick: setRemotePick, base: remoteBase, setBase: setRemoteBase } = at_
   const sh = useShellPick(shown, !remote)
@@ -169,7 +168,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         })
         .catch(() => {})
     })
-  }, [model, initialRepo])
+  }, [model, seed.repo])
 
   // Several repos always get worktrees: one checkout can't hold a multi-repo task. A folder without git has none.
   const plain = repos.some((path) => probes[path]?.git === false)
@@ -191,8 +190,8 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
 
   // A phone that talks first opens with the keyboard down, and keeps it down after a take.
   useEffect(() => {
-    if (!talksFirst(model.client)) area.current?.focus()
-  }, [model.client])
+    if (!talksFirst(model.client) && !seed.pickProject) area.current?.focus()
+  }, [model.client, seed.pickProject])
 
   // One attempt per engine needs a worktree each, on this machine, in a project.
   const compareAvailable = !remote && !ungrouped && !inPlace && !sh.on
@@ -405,6 +404,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             <ChipPopover
               field="repo"
               yields
+              startOpen={seed.pickProject}
               title={
                 !remote && repos.length > 1 ? t("newSession.repoCount", { count: repos.length }) : t("newSession.repo")
               }

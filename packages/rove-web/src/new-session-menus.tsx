@@ -38,9 +38,11 @@ export function ChipPopover(props: {
   yields?: boolean
   /** Runs whenever the popover shuts, however it shut. */
   onClose?: () => void
+  /** Mounts already open: the opener asked for this choice. */
+  startOpen?: boolean
   children: (close: () => void) => ReactNode
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(props.startOpen === true)
   const narrow = useNarrow()
   const onClose = useRef(props.onClose)
   onClose.current = props.onClose

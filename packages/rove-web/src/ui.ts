@@ -160,6 +160,8 @@ export interface NewSessionStart {
   readonly prompt?: string
   /** Start in no project (the rail's Ungrouped), the composer's "No folder" choice. */
   readonly ungrouped?: true
+  /** Open on the project menu (the first-run "Pick a project"). */
+  readonly pickProject?: true
   /** The engine to pick, ahead of the project's preferred one (Retry). */
   readonly engine?: string
   /** Worktree on or off, ahead of the remembered choice (Retry: as the task it retries was made). */

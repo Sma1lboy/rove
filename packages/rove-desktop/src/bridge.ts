@@ -8,7 +8,7 @@ import { type ChildProcess, spawn, spawnSync } from "node:child_process"
 import { constants, accessSync, existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { createServer } from "node:net"
 import { homedir } from "node:os"
-import { delimiter, join } from "node:path"
+import { delimiter, dirname, join } from "node:path"
 
 const WINDOWS = process.platform === "win32"
 
@@ -148,6 +148,8 @@ export async function start(opts: { bin: string; attempts?: number; port?: numbe
     const port = opts.port ?? (await freePort())
     const child = launch(opts.bin, ["--web", "--no-qr", "--port", String(port)], {
       ...process.env,
+      // `rove` starts with `#!/usr/bin/env node`; a Finder launch's PATH has neither node nor the Bun standing in for it, which sit beside the bin.
+      PATH: [dirname(opts.bin), process.env.PATH].filter(Boolean).join(delimiter),
       FORCE_COLOR: "0",
       NO_COLOR: "1",
     })

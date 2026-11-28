@@ -10,6 +10,7 @@ beforeEach(() => {
   welcomeDeps.repoOf = (dir) => (dir === "/work/app" ? "/work/app" : null)
   welcomeDeps.branchOf = () => "feat/x"
   welcomeDeps.preferredEngine = () => "claude"
+  welcomeDeps.savedRepos = () => []
 })
 afterEach(() => Object.assign(welcomeDeps, real))
 
@@ -25,6 +26,7 @@ describe("welcome.env", () => {
       signedOut: [],
       git: true,
       start: { repo: "/work/app", label: "app", baseRef: "feat/x", engine: "claude" },
+      project: "/work/app",
     })
   })
 
@@ -44,5 +46,24 @@ describe("welcome.env", () => {
   test("a preferred engine that is not ready yields to the first ready one", async () => {
     welcomeDeps.preferredEngine = () => "kimi"
     expect(await probe()).toMatchObject({ start: { engine: "codex" } })
+  })
+
+  test("the project is the cwd's repo, else a saved one, else none", async () => {
+    welcomeDeps.repoOf = () => null
+    expect((await probe()).project).toBeNull()
+    welcomeDeps.savedRepos = () => ["/work/saved"]
+    expect((await probe()).project).toBe("/work/saved")
+  })
+
+  test("a signed-out engine carries the shell line that runs its CLI, quoted when the path needs it", async () => {
+    welcomeDeps.engines = async () => ({
+      usable: [],
+      signedOut: ["claude", "codex"],
+      programs: { claude: "/Users/a b/bin/claude" },
+    })
+    expect((await probe()).signedOut).toEqual([
+      { id: "claude", name: "Claude", signIn: "'/Users/a b/bin/claude'" },
+      { id: "codex", name: "Codex", signIn: "codex" },
+    ])
   })
 })
