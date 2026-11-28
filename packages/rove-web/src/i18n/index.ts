@@ -102,8 +102,11 @@ function fill(text: string, params?: Params): string {
   return params ? text.replace(/\{(\w+)\}/g, (match, name: string) => String(params[name] ?? match)) : text
 }
 
+/** A `count` of 1 reads the key's `…One` sibling when there is one ("1 note", not "1 notes"). */
 export function t(key: string, params?: Params): string {
-  return fill(lookup(CATALOGS[locale.get()], key) ?? lookup(en, key) ?? key, params)
+  const one = params?.count === 1 ? `${key}One` : null
+  const text = (one && (lookup(CATALOGS[locale.get()], one) ?? lookup(en, one))) || lookup(CATALOGS[locale.get()], key)
+  return fill(text ?? lookup(en, key) ?? key, params)
 }
 
 /** `t` over the TUI's own catalogs (English first, like the TUI), for copy the TUI already words. */

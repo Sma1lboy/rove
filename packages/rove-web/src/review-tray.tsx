@@ -41,7 +41,7 @@ export function ReviewTray({
           onClick={() => setOpen(!open)}
         >
           <Chevron right={!open} />
-          <span>{count === 1 ? t("review.countOne") : t("review.count", { count })}</span>
+          <span>{t("review.count", { count })}</span>
         </Button>
         <Button disabled={sending} onClick={onSend}>
           {sending ? t("review.sending") : t("review.send", { count })}

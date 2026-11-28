@@ -292,9 +292,7 @@ export function PreviewView({
       .request<{ sent: number; delivered: boolean; reason?: string }>("review.send", model.engineTarget(view.taskId))
       .then((r) => {
         toast(
-          r.delivered
-            ? t(r.sent === 1 ? "preview.sentOne" : "preview.sent", { count: r.sent })
-            : t("preview.notSent", { reason: r.reason ?? "" }),
+          r.delivered ? t("preview.sent", { count: r.sent }) : t("preview.notSent", { reason: r.reason ?? "" }),
           r.delivered ? "info" : "error",
         )
         refreshNotes()
