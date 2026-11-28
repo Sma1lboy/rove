@@ -49,7 +49,7 @@
     },
     "packages/rove": {
       "name": "@sma1lboy/rove",
-      "version": "0.9.308",
+      "version": "0.9.309",
       "bin": {
         "rove": "dist/cli/rove.js",
       },
@@ -89,7 +89,7 @@
     },
     "packages/rove-bridge": {
       "name": "rove-bridge",
-      "version": "0.0.69",
+      "version": "0.0.70",
       "dependencies": {
         "@hsinsekai-nanami/agent": "0.2.4",
         "@hsinsekai-nanami/core": "0.2.2",
@@ -199,7 +199,7 @@
     },
     "packages/rove-lark": {
       "name": "rove-lark",
-      "version": "0.0.4",
+      "version": "0.0.5",
       "dependencies": {
         "@sma1lboy/rove": "workspace:*",
         "@sma1lboy/rove-daemon": "workspace:*",
@@ -257,7 +257,7 @@
     },
     "packages/rove-weixin": {
       "name": "rove-weixin",
-      "version": "0.0.69",
+      "version": "0.0.70",
       "dependencies": {
         "@sma1lboy/rove": "workspace:*",
         "@sma1lboy/rove-daemon": "workspace:*",
