@@ -18,6 +18,15 @@ const NARROW_QUERY = `(max-width: ${NARROW_BREAKPOINT * CELL_PX - 1}px)`
 /** Narrow mode: which panel is up. The list is where a cold start lands, with the Recent row to go back. */
 export const narrowPane = createStore<"sidebar" | "workspace">("sidebar")
 
+/** Counts the phone's returns from a session to the list; the row it came back from flashes once on each. */
+export const listReturns = createStore(0)
+let lastPane = narrowPane.get()
+narrowPane.subscribe(() => {
+  const pane = narrowPane.get()
+  if (lastPane === "workspace" && pane === "sidebar") listReturns.set(listReturns.get() + 1)
+  lastPane = pane
+})
+
 export const enterWorkspace = (): void => narrowPane.set("workspace")
 export const backToTasks = (): void => narrowPane.set("sidebar")
 /** Open a page and, in narrow mode, show it: a page left open behind the list sets to the same value and fires nothing. */

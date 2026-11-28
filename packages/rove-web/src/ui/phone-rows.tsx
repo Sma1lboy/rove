@@ -22,7 +22,10 @@ export function ScriptMark() {
 
 /** The mark drops its 1px optical nudge here: on the row's centre with the title and the dots. */
 const ROW =
-  "flex min-h-15 w-full items-center gap-3 px-3 py-2 text-left active:not-has-[[data-pr-chip]:active]:bg-hover focus-visible:bg-hover focus-visible:outline-none [&>svg]:translate-y-0"
+  "relative flex min-h-15 w-full items-center gap-3 rounded-sm px-3 py-2 text-left active:not-has-[[data-pr-chip]:active]:bg-hover focus-visible:bg-hover focus-visible:outline-none [&>svg]:translate-y-0"
+/** Replays on each return (the key) and each time the hidden list shows again. */
+const FLASH =
+  "pointer-events-none absolute inset-0 rounded-[inherit] bg-hover animate-[fade-out_560ms_ease-in_forwards] motion-reduce:hidden"
 /** Hidden while empty, so a one-line row's title sits on the row's centre. */
 const LINE2 = "flex min-w-0 items-center gap-1.5 font-mono text-[13px] leading-[1.3] text-muted empty:hidden"
 
@@ -39,21 +42,18 @@ export function PhoneStatusRow(
     title: ReactNode
     /** Greyed: a paused routine, a row whose machine is away. */
     dim?: boolean
-    selected?: boolean
+    /** The session the list came back from: its row washes once and fades, then looks like the rest. */
+    flash?: number
     line2: ReactNode
     /** Before `status`, on the row's centre: a target of its own (the PR chip). */
     trail?: ReactNode
     status: ReactNode
   },
 ) {
-  const { lead, mark, title, dim, selected, line2, trail, status, ...rest } = props
+  const { lead, mark, title, dim, flash, line2, trail, status, ...rest } = props
   return (
-    <button
-      type="button"
-      className={`${ROW} ${selected ? "bg-menu" : "hover:bg-hover data-menu-open:bg-hover"}`}
-      data-phone-row
-      {...rest}
-    >
+    <button type="button" className={`${ROW} hover:bg-hover data-menu-open:bg-hover`} data-phone-row {...rest}>
+      {!!flash && <span key={flash} className={FLASH} aria-hidden="true" data-row-flash />}
       {lead}
       {mark}
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">

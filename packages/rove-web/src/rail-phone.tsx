@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
-import { openPage } from "./layout.ts"
+import { listReturns, openPage } from "./layout.ts"
 import { CloudMark } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { useCopy, useReload } from "./pages-kit.ts"
@@ -23,6 +23,7 @@ import { SwipeRow } from "./ui/swipe-row.tsx"
 
 export function PhoneRailRow(props: RailRowProps) {
   const { row } = props
+  const returns = useStore(listReturns)
   if (row.kind === "project" || row.kind === "state") {
     // Another machine's project has no checkout here, so no actions of its own.
     const hasMenu = row.kind === "project" && row.machine === undefined
@@ -60,7 +61,7 @@ export function PhoneRailRow(props: RailRowProps) {
       mark={<EngineIcon icon={props.engineIcon} name={task.engine?.name} />}
       title={row.attempt ?? task.label}
       dim={props.stale}
-      selected={props.selected}
+      flash={props.selected ? returns : 0}
       line2={
         <>
           {props.repo && <span className="max-w-24 flex-none truncate text-subtle">{props.repo}</span>}
