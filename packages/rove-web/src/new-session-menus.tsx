@@ -24,6 +24,7 @@ import {
   chipWrap,
   rowClass,
 } from "./ui/composer.ts"
+import { haptic } from "./ui/haptic.ts"
 import { Sheet } from "./ui/sheet.tsx"
 import { PALETTE_INPUT } from "./ui/shell.ts"
 import { INPUT, KICKER } from "./ui/text.ts"
@@ -95,7 +96,11 @@ export function ChipPopover(props: {
         aria-haspopup="menu"
         aria-expanded={open}
         disabled={props.disabled}
-        onClick={() => setOpen((now) => !now)}
+        onClick={() => {
+          // The same tap the phone's other sheets give as they open.
+          if (narrow && !open) haptic()
+          setOpen((now) => !now)
+        }}
       >
         {typeof props.label === "string" ? <span className={CLIP}>{props.label}</span> : props.label}
       </button>
