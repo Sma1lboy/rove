@@ -16,14 +16,13 @@ import { terminalTheme } from "./prefs-theme.ts"
 import { prefsStore } from "./prefs.ts"
 import { markScrolling } from "./scroll-reveal.ts"
 import { type Notice, type TermHandle, streamKey } from "./term-contract.ts"
-import { createCopyHold } from "./term-copy.ts"
+import { attachCopy } from "./term-copy.ts"
 import { createCover } from "./term-cover.ts"
 import { attachDictationGuard } from "./term-dictation.ts"
 import { OverlayFitAddon } from "./term-fit.ts"
 import { attachKittyImages } from "./term-images.ts"
-import { SHIFT_ENTER, ctrlChord, isCopyChord, isShiftEnter } from "./term-keys.ts"
+import { ctrlChord } from "./term-keys.ts"
 import { FONT_FAMILY, XTERM_THEME, followFontSize, termFontSize } from "./term-look.ts"
-import { osc52Text } from "./term-osc52.ts"
 import { createReplyGate } from "./term-replies.ts"
 import { linesFromBottom, viewportAfterWrite } from "./term-scroll.ts"
 import { attachWheelScroll, createSmoothScroll } from "./term-smooth.ts"
@@ -348,45 +347,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
     paintHost()
   })
 
-  const hold = createCopyHold((text) => void o.copyText(text))
-  // Copy: ctrl+c with a selection copies and drops it, otherwise it stays the interrupt (TUI `copySelectionIfAny`).
-  term.attachCustomKeyEventHandler((e) => {
-    if (e.type === "keydown") hold.key()
-    // Its keypress is swallowed too, or xterm would still send the CR.
-    if (isShiftEnter(e)) {
-      e.preventDefault()
-      if (e.type === "keydown") typing.input(SHIFT_ENTER)
-      return false
-    }
-    // On a Mac, Ctrl+V would ask the engine to read the rove machine's clipboard, not this browser's.
-    // Elsewhere it is the browser's own paste, which the paste event already covers.
-    const ctrlV =
-      e.type === "keydown" && e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "v"
-    if (ctrlV && /Mac|iPhone|iPad/.test(navigator.platform)) {
-      void o.pasteImage()
-      return false
-    }
-    const chord = isCopyChord(e)
-    if (!chord) return true
-    // Ctrl+Shift+C is also the browser's "inspect element": in the terminal it only ever copies.
-    if (chord === "copy" && e.ctrlKey) e.preventDefault()
-    // Ctrl+C with only the engine's selection goes to the engine: it copies or interrupts by its own rule.
-    const text = term.getSelection() || (chord === "copy" ? hold.text() : "")
-    if (text.trim().length === 0) return chord === "interrupt-or-copy"
-    void o.copyText(text)
-    term.clearSelection()
-    return false
-  })
-
-  const onDown = (e: MouseEvent) => e.button === 0 && hold.press()
-  const onUp = (e: MouseEvent) => e.button === 0 && hold.release()
-  el.addEventListener("mousedown", onDown)
-  document.addEventListener("mouseup", onUp)
-  const osc52 = term.parser.registerOscHandler(52, (data) => {
-    const text = osc52Text(data)
-    if (text) hold.osc52(text)
-    return true
-  })
+  const detachCopy = attachCopy(term, el, typing, o.copyText, o.pasteImage)
 
   // Scrolling as the TUI pane does it. A wheel the app does not take moves the scrollback by whole
   // lines here, not through xterm's scrollable, which drops a sub-line touchpad delta whenever new
@@ -496,9 +457,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
       offScroll()
       offMoving()
       if (resizeTimer !== null) window.clearTimeout(resizeTimer)
-      el.removeEventListener("mousedown", onDown)
-      document.removeEventListener("mouseup", onUp)
-      osc52.dispose()
+      detachCopy()
       textarea?.removeEventListener("focus", focused)
       textarea?.removeEventListener("blur", blurred)
       scroll.dispose()
