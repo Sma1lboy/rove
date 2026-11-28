@@ -137,6 +137,7 @@ needs numbers, not when you want to know what a task is doing.
 ```text
 send               --task-id --repo --prompt|--prompt-file --tab --replace --command
                    --respawn --plain --allow-empty --expect-report --if-runnable --queue
+                   --unarchive
 dispatch           --task-id(REQ) --prompt|--prompt-file(REQ) --tab
 interrupt          --task-id --group --all --tab
 resume-quota       --task-id --all
@@ -176,7 +177,11 @@ gate-withdraw      --gate(REQ)
 **`send` pastes and submits unconditionally.** It does not read the target
 composer or wait out a quiet keyboard: reaching a live engine tab means the
 text is written to it. The only refusals left are physical — no such tab, a
-dead PTY, no engine process — and each has its own code below.
+dead PTY, no engine process — and each has its own code below. Sending to an
+archived task is allowed and delivers (restarting its engine if stopped) while
+keeping the task hidden; the reply carries `archived: true` and a one-line
+`warning`. Pass `send --unarchive` to unarchive the task (and its archived
+descendants) first (`unarchived: true` in the reply when restored).
 
 **`note` is the repo's durable field-note store.** One line, a verified
 conclusion another session could act on — it is appended to the repo's notes

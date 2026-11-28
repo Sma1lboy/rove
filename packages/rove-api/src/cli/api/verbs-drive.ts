@@ -24,7 +24,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
     name: "send",
     group: "drive",
     summary:
-      "Paste a follow-up prompt into a task's running engine (one full turn). Without --task-id, a task spawned from another Rove session replies to its dispatcher's tab (then that task's live canonical engine; nothing alive = DISPATCHER_UNREACHABLE, never a silent spawn); a Rove session with no dispatcher is refused (NO_REPLY_ADDRESS); outside a Rove session, the active task. Sent from inside another Rove task ($ROVE_TASK_ID), the prompt is prefixed with [ROVE PEER] provenance — who sent it and how to reply (tab-precise) — so agent-to-agent messaging needs no coordinator. With --repo instead of --task-id the prompt starts a new session in that project's own checkout and is delivered there (`newSession: true`, `taskId` is the new session): a project has no standing conversation to send to. The prompt is pasted into the target composer and submitted; delivery is refused only when there is physically nothing to write to (no such tab, dead PTY, no engine process). A `succeeded:` report sent from a managed task whose branch has 0 commits is REFUSED (EMPTY_SUCCESS_REPORT) — commit first, or pass --allow-empty when the task genuinely produced no commits. `delivered: true` means the bytes landed, nothing more: when the target session was already in `error` or `dead`, the reply carries `targetState` (+ `targetDetail`) — read it before waiting on an answer.",
+      "Paste a follow-up prompt into a task's running engine (one full turn). Without --task-id, a task spawned from another Rove session replies to its dispatcher's tab (then that task's live canonical engine; nothing alive = DISPATCHER_UNREACHABLE, never a silent spawn); a Rove session with no dispatcher is refused (NO_REPLY_ADDRESS); outside a Rove session, the active task. Sent from inside another Rove task ($ROVE_TASK_ID), the prompt is prefixed with [ROVE PEER] provenance — who sent it and how to reply (tab-precise) — so agent-to-agent messaging needs no coordinator. With --repo instead of --task-id the prompt starts a new session in that project's own checkout and is delivered there (`newSession: true`, `taskId` is the new session): a project has no standing conversation to send to. The prompt is pasted into the target composer and submitted; delivery is refused only when there is physically nothing to write to (no such tab, dead PTY, no engine process). Sending to an archived task is allowed and still delivers (restarting its engine if stopped) while the task stays hidden; the reply then carries `archived: true` and a one-line `warning` (pass --unarchive to restore the task and its descendants first). A `succeeded:` report sent from a managed task whose branch has 0 commits is REFUSED (EMPTY_SUCCESS_REPORT) — commit first, or pass --allow-empty when the task genuinely produced no commits. `delivered: true` means the bytes landed, nothing more: when the target session was already in `error` or `dead`, the reply carries `targetState` (+ `targetDetail`) — read it before waiting on an answer.",
     flags: [
       F.taskId(false),
       {
@@ -97,6 +97,13 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
         required: false,
         description:
           "Wait for a running turn instead of landing in it. A tab that is idle takes the prompt now, as without the flag; one that is working, waiting on a permission menu or rate-limited has it held by the daemon and pasted when its turn ends, one held prompt per turn, in order. The reply is then `{queued:true, queueId, position, tabId}`. Without it a prompt sent mid-turn lands in that turn: Codex drops the work in flight, Claude Code folds it in. A report (`--expect-report`) is armed when the prompt is pasted, not when it is held. See `queue-list`, `queue-edit`, `queue-cancel`; a daemon restart drops held prompts.",
+      },
+      {
+        name: "unarchive",
+        type: "bool",
+        required: false,
+        description:
+          "Unarchive an archived target task (and its archived descendants, same semantics as `unarchive`) before delivering so the task is visible again in the sidebar, rail, Inbox and default `list`. Conflicts with --repo.",
       },
     ],
     handler: send,
