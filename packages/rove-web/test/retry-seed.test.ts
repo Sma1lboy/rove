@@ -36,7 +36,7 @@ describe("retrySeed", () => {
 
   test("a project's own checkout retries in place, and an ungrouped one in no project with no extra repos", () => {
     expect(retrySeed({ ...ROW, kind: "dir" }, BRIEF).worktree).toBe(false)
-    const ungrouped = retrySeed({ ...ROW, kind: "dir", scratch: true }, BRIEF)
+    const ungrouped = retrySeed({ ...ROW, kind: "dir", noProject: true }, BRIEF)
     expect(ungrouped.ungrouped).toBe(true)
     expect(ungrouped.repo).toBeUndefined()
     expect(ungrouped.extras).toBeUndefined()

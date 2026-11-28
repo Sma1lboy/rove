@@ -6,8 +6,6 @@
  * too): a caller shows the list to a person before deleting anything.
  */
 
-import { isEphemeral } from "../task-scratch.ts"
-
 export interface LegacyAdoptCandidate {
   readonly id: string
   readonly title: string
@@ -15,7 +13,6 @@ export interface LegacyAdoptCandidate {
   readonly kind?: string
   readonly status?: string
   readonly archived?: boolean
-  readonly scratch?: boolean
   readonly worktreeOnly?: boolean
   readonly routine?: unknown
   readonly parentTaskId?: string | null
@@ -37,7 +34,6 @@ export function legacyAdoptedTasks<T extends LegacyAdoptCandidate>(tasks: readon
       (t.kind ?? "task") === "task" &&
       t.status === "backlog" &&
       !t.archived &&
-      !isEphemeral(t) &&
       !t.worktreeOnly &&
       !t.routine &&
       !t.parentTaskId &&

@@ -301,7 +301,7 @@ export function taskOps(deps: TaskOpsDeps = realDeps): OpTable {
     "task.openScratch": {
       kind: "write",
       destructive: false,
-      wraps: "rpc task.openDir {dir: $HOME, scratch: true}",
+      wraps: "rpc task.openDir {dir: $HOME, noProject: true}",
       async run(a, ctx) {
         const home = deps.homeDir()
         // Scratch remembers its own last engine, keyed by $HOME like any project; `+` reuses it.
@@ -310,7 +310,7 @@ export function taskOps(deps: TaskOpsDeps = realDeps): OpTable {
         const title = optStr(a, "title")
         const res = await ctx.api.rpc<{ taskId: string }>("task.openDir", {
           dir: home,
-          scratch: true,
+          noProject: true,
           vendor: picked ?? taskOpDeps.preferredEngine(),
           ...(mdl ? { model: mdl } : {}),
           ...(title ? { title } : {}),

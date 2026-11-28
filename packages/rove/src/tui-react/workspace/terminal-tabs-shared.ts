@@ -28,9 +28,9 @@ import {
 
 export { tabsByTask, tabsRevision }
 
-/** Scratch tasks opened onto an engine rather than a bare shell. The first
- *  `TerminalTabs` mount deletes the id and seeds an engine tab-1. */
-export const engineScratchTasks = new Set<string>()
+/** No folder sessions opened as a bare shell rather than an engine. The first
+ *  `TerminalTabs` mount deletes the id and seeds a shell tab-1. */
+export const shellScratchTasks = new Set<string>()
 
 /** Write a task's tabs: through the daemon (`tabs-sync.ts`), which tells every client. */
 export function setTaskTabs(taskId: string, state: TabsState, base?: TabsState): TabsState {

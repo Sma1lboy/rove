@@ -155,10 +155,10 @@ describe("runAutoTitlePass on a shared directory", () => {
   })
 })
 
-describe("runAutoTitlePass on a scratch conversation", () => {
-  test("is named from its own session, never the directory scan, and stays scratch", async () => {
+describe("runAutoTitlePass on a No folder conversation", () => {
+  test("is named from its own session, never the directory scan, and stays Ungrouped", async () => {
     const dir = fs.mkdtempSync(path.join(tmpRoot, "scratch-"))
-    const scratch = await orch.openDirectoryTask({ dir, scratch: true })
+    const scratch = await orch.openDirectoryTask({ dir, noProject: true })
     const scans: string[] = []
     const deriveScan = async (worktree: string) => {
       scans.push(worktree)
@@ -175,7 +175,7 @@ describe("runAutoTitlePass on a scratch conversation", () => {
       conversationOf: () => ({ sessionId: "s-1" }),
       deriveById: async (_vendor, sessionId) => `own-${sessionId}`,
     })
-    expect(orch.getTask(scratch.id)).toMatchObject({ title: "own-s-1", scratch: true })
+    expect(orch.getTask(scratch.id)).toMatchObject({ title: "own-s-1", noProject: true })
     expect(scans).toEqual([])
   })
 })

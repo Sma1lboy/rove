@@ -54,7 +54,6 @@ describe("routine-create --no-repo", () => {
       expect(await client.request("automation.runNow", { id: automation.id })).toEqual({ status: "dispatched" })
       const [task] = orch.listTasks()
       expect(task).toMatchObject({ kind: "dir", noProject: true, title: "nightly" })
-      expect(task?.scratch).toBeUndefined()
       expect(realpathSync(task?.worktreePath ?? "")).toBe(realpathSync(routineDir(automation.id)))
       expect(started).toEqual([task?.id])
     } finally {

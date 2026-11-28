@@ -48,7 +48,7 @@ describe("rowLiveBranchPath", () => {
     const scratch = task("s", {
       kind: "dir",
       branch: "",
-      scratch: true,
+      noProject: true,
       worktreePath: "/Users/me/x",
       repo: "/Users/me/x",
     })
@@ -120,7 +120,7 @@ describe("worktreeRowLabel", () => {
   test("a scratch task with an empty title never renders blank", () => {
     const scratch = task("s", {
       kind: "dir",
-      scratch: true,
+      noProject: true,
       branch: "",
       title: "",
       worktreePath: "/Users/me",

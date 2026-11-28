@@ -21,7 +21,7 @@ import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { readLastActiveTaskId, writeLastActiveTaskId } from "../state/last-active.ts"
 import type { AdoptableWorktree } from "../types/worktree.ts"
 import { WorkspaceCheckpoints } from "./checkpoints.ts"
-import { type OpenDirectoryTaskInput, adoptScratchRepoRow, openDirectoryTaskRow } from "./core-create.ts"
+import { type OpenDirectoryTaskInput, openDirectoryTaskRow } from "./core-create.ts"
 import { canonPath } from "./core-helpers.ts"
 import type { CreateTaskInput } from "./create-task-input.ts"
 import { TaskDeletingError, TaskNotFoundError } from "./errors.ts"
@@ -218,8 +218,6 @@ export class Orchestrator {
     openDirectoryTaskRow({ store: this.store }, input)
 
   /** Migrate a scratch task into a repo (adoption) — see `core-create.ts`. */
-  adoptScratchRepo = (id: TaskId | string, repo: string): Promise<void> =>
-    adoptScratchRepoRow({ store: this.store }, id, repo)
 
   /** Regroup a top-level task (and its children) under another project; nothing on disk moves — see `move-project.ts`. */
   moveTaskToProject = (id: TaskId | string, repo: string): Promise<{ repo: string; moved: readonly string[] }> =>

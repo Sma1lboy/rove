@@ -154,8 +154,8 @@ describe("child tasks", () => {
   test("scratch children nest under their scratch parent", () => {
     const result = rows({
       tasks: [
-        task("s", { kind: "dir", scratch: true, repo: "/Users/me" }),
-        task("sc", { kind: "dir", scratch: true, repo: "/Users/me", parentTaskId: toTaskId("s") }),
+        task("s", { kind: "dir", noProject: true, repo: "/Users/me" }),
+        task("sc", { kind: "dir", noProject: true, repo: "/Users/me", parentTaskId: toTaskId("s") }),
       ],
     })
     expect(shape(result)).toEqual([

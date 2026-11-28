@@ -139,8 +139,6 @@ export type DaemonRequestName =
   | "project.ensure"
   // Open an existing directory as a standalone `kind:"dir"` task (`rove .`).
   | "task.openDir"
-  // Scratch → project migration: repoint + clear the flag.
-  | "task.adoptScratchRepo"
   // One part of a file another machine sends for an agent here (`machines/send-file.ts`).
   | "attachment.append"
   // An Ungrouped session moves itself under a project (`update --project`); its directory stays.
@@ -312,10 +310,8 @@ export type DaemonRequestName =
   | "pty.detach"
   | "pty.list"
   | "pty.watchStatus"
-  // Re-key a running session (`{from, to}` → `{renamed: boolean}`) for the
-  // scratch fold; the child keeps running. Older hosts reject it, so callers
-  // must check `renamed`: if false, fold only the tab record and the session
-  // stays under its old key until scratch teardown.
+  // Re-key a running session (`{from, to}` → `{renamed: boolean}`); the child
+  // keeps running. Older hosts reject it, so callers must check `renamed`.
   | "pty.rename"
   // Ring-buffer peek (no attach/spawn/resize) for `rove api read-output`'s
   // terminal fallback. Older hosts reject it; callers treat that as no data.
@@ -415,9 +411,7 @@ export interface SerializedTask {
   readonly branch: string
   readonly worktreePath: string
   readonly kind: "task" | "dir"
-  /** Scratch shell task — Scratch-section row, cleared on adopt/rename. */
-  readonly scratch?: boolean
-  /** Projectless routine session — sorts into the Ungrouped group. */
+  /** Ungrouped (No folder) session. Older daemons sent `scratch` for the same thing. */
   readonly noProject?: boolean
   /** The chat connector this session answers for; its project sorts last. */
   readonly connector?: string

@@ -6,7 +6,7 @@ import type { DaemonTask } from "./contracts.ts"
 import type { SerializedTask } from "./protocol.ts"
 
 /**
- * Empty-title fallback (scratch tasks mint no auto-name), filled on the wire
+ * Empty-title fallback (an unnamed No folder session), filled on the wire
  * upstream of every consumer so none renders a blank row. The STORED title
  * stays empty. No truncation: consumers clip, agents want the full path.
  */
@@ -23,7 +23,6 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     branch: task.branch,
     worktreePath: task.worktreePath,
     kind: task.kind ?? "task",
-    ...(task.scratch ? { scratch: true } : {}),
     ...(task.noProject ? { noProject: true } : {}),
     ...(task.connector ? { connector: task.connector } : {}),
     ...(task.routine ? { routine: task.routine } : {}),

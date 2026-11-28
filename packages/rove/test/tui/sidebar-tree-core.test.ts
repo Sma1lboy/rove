@@ -83,8 +83,8 @@ describe("buildTreeRows", () => {
     const result = rows({
       tasks: [
         task("m", { kind: "dir", repo: "/repos/rove", branch: "", worktreePath: "/repos/rove" }),
-        task("s1", { kind: "dir", scratch: true, repo: "/Users/me" }),
-        task("s2", { kind: "dir", scratch: true, repo: "/Users/me" }),
+        task("s1", { kind: "dir", noProject: true, repo: "/Users/me" }),
+        task("s2", { kind: "dir", noProject: true, repo: "/Users/me" }),
       ],
     })
     expect(result.map((r) => [r.kind, r.id])).toEqual([
@@ -99,7 +99,7 @@ describe("buildTreeRows", () => {
   test("a scratch task is one reachable row, whether or not it has tabs", () => {
     const result = rows({
       tasks: [
-        task("s", { kind: "dir", scratch: true, repo: "/Users/me" }),
+        task("s", { kind: "dir", noProject: true, repo: "/Users/me" }),
         task("m", { kind: "dir", repo: "/repos/rove", branch: "", worktreePath: "/repos/rove" }),
       ],
       tabsByTask: new Map([["s", [tab("tab-1"), tab("tab-2")]]]),
@@ -171,7 +171,7 @@ describe("buildTreeRows", () => {
     // Same dir, one scratch + one ordinary dir task: only the ordinary one
     // groups under the directory; the scratch row lives in Scratch.
     const result = rows({
-      tasks: [task("s", { kind: "dir", scratch: true, repo: "/tmp/x" }), task("d", { kind: "dir", repo: "/tmp/x" })],
+      tasks: [task("s", { kind: "dir", noProject: true, repo: "/tmp/x" }), task("d", { kind: "dir", repo: "/tmp/x" })],
     })
     expect(result.map((r) => [r.kind, r.id])).toEqual([
       ["project", SCRATCH_SECTION_ID],

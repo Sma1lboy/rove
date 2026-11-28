@@ -14,7 +14,7 @@ export interface RetryBrief {
   readonly extraRepos?: readonly { readonly repo: string; readonly baseRef?: string }[]
 }
 
-type RetryRow = Pick<TaskRow, "id" | "label" | "kind" | "scratch" | "noProject" | "machine">
+type RetryRow = Pick<TaskRow, "id" | "label" | "kind" | "noProject" | "machine">
 
 export function retrySeed(task: RetryRow, brief: RetryBrief): NewSessionStart {
   const ungrouped = isUngrouped(task)

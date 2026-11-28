@@ -58,7 +58,7 @@ noise), `updatedAt`/`createdAt` (ride every change), `quotaResume` (the
 
 | detail field | type | meaning |
 |---|---|---|
-| `fields` | `string[]` | which fields changed, from: `title`, `branch`, `worktreePath`, `status`, `pinned`, `vendor`, `command`, `modelEffort`, `linkedWorkItem`, `scratch` |
+| `fields` | `string[]` | which fields changed, from: `title`, `branch`, `worktreePath`, `status`, `pinned`, `vendor`, `command`, `modelEffort`, `linkedWorkItem`, `noProject` |
 | `from` | object | previous value per changed field (omitted when it was unset) |
 | `to` | object | new value per changed field (omitted when now unset) |
 
@@ -95,7 +95,7 @@ status to `done` when `to.lifecycle` becomes `"merged"`.
 ### `worktree.created`
 
 A managed task's worktree materialized: lazy ensure on first open, adopt of
-an external worktree, or scratch-adopt. Fires once per task (empty → set
+an external worktree. Fires once per task (empty → set
 path transition); a worktree MOVE is a `task.changed` on `worktreePath`.
 
 ## Issues, notes, delivery, attention

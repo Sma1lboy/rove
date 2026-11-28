@@ -201,14 +201,8 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
 
   const scratch = useScratchShell({
     orchestrator: orch,
-    tasks,
-    kv,
-    selectedId: () => selectedId,
-    selectTask: setSelectedId,
     enterTask: (id) => void activateTask(id),
-    forgetTaskTabs: (id) => forgetTaskTabs(kv, id),
     notifyError,
-    notifyInfo,
     seedPrompt: quickFork.seedPrompt,
   })
 
@@ -445,7 +439,6 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
                   onQuickFork={quickFork.onQuickFork}
                   initialPrompt={quickFork.initialPromptFor(selectedTask?.id)}
                   onTabVisited={inbox.resolveVisited}
-                  onScratchExit={scratch.onScratchExit}
                   onOpenScratch={scratch.openScratchShell}
                   onEngineChosen={taskActions.setVendor}
                   onOpenSettings={pages.openSettings}

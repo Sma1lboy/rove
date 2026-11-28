@@ -70,7 +70,7 @@ import { noteAnswerInput } from "./row-status-sync"
 import { showSharedFilesHint } from "./shared-files-hint"
 import { TabStrip } from "./tab-strip"
 import { ensureTabReservation, releaseTabReservation, tabsLoaded, taskTabsView } from "./tabs-sync"
-import { engineScratchTasks, reportTabsDelta, setTaskTabs, tabsByTask, tabsRevision } from "./terminal-tabs-shared"
+import { reportTabsDelta, setTaskTabs, shellScratchTasks, tabsByTask, tabsRevision } from "./terminal-tabs-shared"
 import { useTabClose } from "./use-tab-close"
 import { useTabDialogs } from "./use-tab-dialogs"
 import { useTabHandoffs } from "./use-tab-handoffs"
@@ -87,12 +87,6 @@ export interface TerminalTabsProps {
   /** Every repo of a multi-repo task (`taskRepos`), exposed to its engine and shell tabs. */
   repos?: readonly TaskRepoView[]
   taskKind?: "task" | "dir"
-  /** Scratch task: tab-1 is a BARE SHELL unless it was opened onto an engine
-   *  (`engineScratchTasks`), and the last tab exiting deletes the task via
-   *  `onScratchExit` instead of recycling into an engine tab. */
-  ephemeral?: boolean
-  /** The scratch task's last tab exited — the host deletes the task row. */
-  onScratchExit?: () => void
   /** ctrl+e's "scratch" destination; the only entry point, no chord. */
   onOpenScratch?: (vendor: VendorId | undefined) => void
   /** Open Settings on a section: a dead engine's "Settings → Engines". Absent = the action is not offered. */
@@ -162,8 +156,9 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     const fromDaemon = saved && Array.isArray(saved.tabs) ? rehydrateTabs(saved, [defaultShell()]) : null
     rehydratedRef.current = fromDaemon !== null
     if (fromDaemon) return fromDaemon
-    const shellScratch = props.ephemeral === true && !engineScratchTasks.delete(props.taskId)
-    return shellScratch ? initialShellTabs(defaultShell()) : pinSession(initialTabs(), undefined)
+    return shellScratchTasks.delete(props.taskId)
+      ? initialShellTabs(defaultShell())
+      : pinSession(initialTabs(), undefined)
   }
 
   const [state, setState] = useState<TabsState>(initState)
@@ -315,7 +310,6 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     resumeTriedRef,
     notifyCannotCloseLast: (tabId) =>
       notif.notify({ kind: "error", taskId: props.taskId, tabId, title: t("terminal.tab.cannotCloseLast") }),
-    onScratchExit: props.ephemeral === true ? props.onScratchExit : undefined,
   })
   // The mount-only pending-close listener reads the CURRENT hook via ref.
   const tabCloseRef = useLatest(tabClose)

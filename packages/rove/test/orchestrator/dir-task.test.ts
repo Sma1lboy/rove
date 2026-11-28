@@ -86,33 +86,12 @@ describe("openDirectoryTask", () => {
   })
 })
 
-describe("scratch tasks", () => {
-  it("a scratch task mints NO auto-name — title stays empty until named or adopted", async () => {
-    const scratch = await orch.openDirectoryTask({ dir, scratch: true })
-    expect(scratch.title).toBe("")
-    // Adoption derives the title from the repo it lands in (rule ①).
-    await orch.adoptScratchRepo(scratch.id, home)
-    expect(orch.getTask(scratch.id)?.title).not.toBe("")
-  })
-
-  it("adoptScratchRepo repoints the task at the repo and clears the flag", async () => {
-    const scratch = await orch.openDirectoryTask({ dir, scratch: true })
-    await orch.adoptScratchRepo(scratch.id, home) // any existing dir works as "the repo"
-    const adopted = orch.getTask(scratch.id)
-    expect(adopted?.scratch).toBe(false)
-    // canonPath realpaths (macOS /var → /private/var) — compare the tail.
-    expect(adopted?.repo.endsWith(home.replace(/^\/private/, ""))).toBe(true)
-    expect(adopted?.worktreePath).toBe(adopted?.repo)
-    expect(adopted?.kind).toBe("dir")
-  })
-
-  it("renaming a scratch task clears the flag — naming is the keep gesture", async () => {
-    const scratch = await orch.openDirectoryTask({ dir, scratch: true })
-    await orch.setTitle(scratch.id, "my bench")
-    const kept = orch.getTask(scratch.id)
-    expect(kept?.scratch).toBe(false)
-    expect(kept?.noProject).toBe(true) // still Ungrouped, not its cwd's project
-    expect(kept?.title).toBe("my bench")
+describe("No folder sessions", () => {
+  it("mint NO auto-name, and a rename keeps them Ungrouped", async () => {
+    const task = await orch.openDirectoryTask({ dir, noProject: true })
+    expect(task.title).toBe("")
+    await orch.setTitle(task.id, "my bench")
+    expect(orch.getTask(task.id)).toMatchObject({ title: "my bench", noProject: true })
   })
 
   it("a routine's no-project session keeps its title, pins, routine link and flag across a reload", async () => {
@@ -124,7 +103,6 @@ describe("scratch tasks", () => {
       modelEffort: "high",
       routine: { automationId: "auto-1" },
     })
-    expect(task.scratch).toBeUndefined()
     const reloaded = new TaskIndexStore({ homeDir: home })
     await reloaded.load()
     expect(reloaded.get(task.id)).toMatchObject({
@@ -135,12 +113,5 @@ describe("scratch tasks", () => {
       modelEffort: "high",
       routine: { automationId: "auto-1" },
     })
-  })
-
-  it("the scratch flag survives a store reload (codec round-trip)", async () => {
-    const scratch = await orch.openDirectoryTask({ dir, scratch: true })
-    const reloaded = new TaskIndexStore({ homeDir: home })
-    await reloaded.load()
-    expect(reloaded.get(scratch.id)?.scratch).toBe(true)
   })
 })

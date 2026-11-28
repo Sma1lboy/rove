@@ -43,7 +43,7 @@ afterEach(async () => {
 /** A managed worktree task row, optionally a child of / sharer of another. */
 async function row(
   title: string,
-  extra: { parent?: Task; shares?: Task; path?: string; kind?: Task["kind"]; scratch?: true; checkoutOf?: Task } = {},
+  extra: { parent?: Task; shares?: Task; path?: string; kind?: Task["kind"]; noProject?: true; checkoutOf?: Task } = {},
 ): Promise<Task> {
   const owner = extra.shares
   return store.create({
@@ -56,7 +56,7 @@ async function row(
     vendor: "claude",
     ...(extra.parent ? { parentTaskId: extra.parent.id } : {}),
     ...(owner ? { sharesWorkspaceOf: owner.id } : {}),
-    ...(extra.scratch ? { scratch: true } : {}),
+    ...(extra.noProject ? { noProject: true } : {}),
     ...(extra.checkoutOf
       ? { worktreeOnly: true, dispatcher: { taskId: String(extra.checkoutOf.id), tabId: "tab-1" } }
       : {}),
@@ -131,8 +131,8 @@ describe("deleting a task that has children", { timeout: DURABLE_WRITE_TIMEOUT_M
     expect(store.get(leaf.id)?.parentTaskId).toBeUndefined()
   })
 
-  it("keeps children of an Ungrouped scratch parent Ungrouped once it is gone", async () => {
-    const scratch = await row("scratch", { kind: "dir", scratch: true })
+  it("keeps children of an Ungrouped parent Ungrouped once it is gone", async () => {
+    const scratch = await row("scratch", { kind: "dir", noProject: true })
     const child = await row("child", { kind: "dir", parent: scratch, shares: scratch })
 
     await orch.deleteTask(scratch.id)

@@ -67,7 +67,7 @@ describe("grouping", () => {
       task("old", { repo: "/repo/tool10", pinned: true }),
       task("older", { repo: "/repo/tool2", createdAt: "2026-08-02T00:00:00Z" }),
       task("new", { repo: "/repo/tool10", createdAt: "2026-08-03T00:00:00Z" }),
-      task("scratch", { kind: "dir", scratch: true }),
+      task("scratch", { kind: "dir", noProject: true }),
     ]
     const labels = (sortMode: string) => groups(tasks, NO_TABS, { sortMode }).map((group) => group.label)
     expect(labels("name")).toEqual(["Ungrouped", "tool1", "tool2", "tool10"])
@@ -75,7 +75,7 @@ describe("grouping", () => {
   })
 
   test("scratch is one bench at the FRONT, wherever the store put it", () => {
-    const scratch = task("s1", { kind: "dir", repo: "/tmp/s", scratch: true })
+    const scratch = task("s1", { kind: "dir", repo: "/tmp/s", noProject: true })
     const result = groups([task("a1", { repo: "/work/api" }), scratch])
     expect(result.map((g) => g.key)).toEqual([SCRATCH_SECTION_ID, "/work/api"])
     expect(result[0]?.tasks.map((t) => t.id)).toEqual(["s1"])
@@ -91,7 +91,7 @@ describe("grouping", () => {
   test("a projectless routine's dir task joins the Ungrouped bench, not a project of its own", () => {
     const home = "/home/.rove/routines/a1"
     const dir = task("d1", { kind: "dir", repo: home, worktreePath: home, noProject: true })
-    const scratch = task("s1", { kind: "dir", repo: "/tmp/s", scratch: true })
+    const scratch = task("s1", { kind: "dir", repo: "/tmp/s", noProject: true })
     const result = groups([task("a1", { repo: "/work/api" }), dir, scratch])
     expect(result.map((g) => g.key)).toEqual([SCRATCH_SECTION_ID, "/work/api"])
     expect(result[0]?.label).toBe("Ungrouped")
@@ -172,7 +172,7 @@ describe("routine runs", () => {
   test("a projectless run leaves Ungrouped too", () => {
     const home = "/home/.rove/routines/a1"
     const run = routine("r1", { kind: "dir", repo: home, worktreePath: home, noProject: true })
-    const scratch = task("s1", { kind: "dir", repo: "/tmp/s", scratch: true })
+    const scratch = task("s1", { kind: "dir", repo: "/tmp/s", noProject: true })
     expect(groups([run, scratch])[0]?.tasks.map((t) => t.id)).toEqual(["s1"])
   })
 

@@ -26,7 +26,7 @@ const WATCHED_FIELDS = [
   "model",
   "tier",
   "linkedWorkItem",
-  "scratch",
+  "noProject",
 ] as const
 
 export type WatchedTaskField = (typeof WATCHED_FIELDS)[number]

@@ -47,34 +47,30 @@ settled, and have not been renamed yet:
 Where this page quotes a command, a file or a label in the app, it uses the
 name you will actually type or see.
 
-A **New shell** from a Session row is not a Scratch shell: it is a child Session sharing the row's directory, listed under it, whose `tab-1` is the login shell. When that shell exits the row stays, empty, and is never deleted for it.
+A **New shell** from a Session row is not a Scratch shell: it is a child Session sharing the row's directory, listed under it, whose `tab-1` is the login shell. When that shell exits the row stays, empty.
 
-**Scratch shells** are directory Sessions with an unsettled home: press `tab` in
-the `ctrl+e` new-conversation dialog until the destination reads "new scratch
-task", pick an engine (or `shell` for a bare shell), and `enter` opens one in
-`$HOME` with that engine already running. It
-lives in the sidebar's **Ungrouped** group above every Workspace, and follows a
-zero-ceremony lifecycle: its last tab exiting removes the row (no archive, no
-confirm; nothing on disk is touched). Routines created with **Ungrouped**
-run in their own directory under `.rove/routines/` and their Sessions open from
-the Routines page, not the sidebar; they are not scratch shells and are never
-auto-removed. A scratch row earns a permanent place
-two ways: rename it (naming is the keep gesture), or start a coding harness
-inside a git repository. Rove detects the live harness plus the shell's
-settled directory and quietly migrates the row into that repository's
-Workspace. If the settled directory already belongs to a Session (a directory
-Session's directory, or inside a worktree Session's worktree), the shell folds into that Session as a new terminal tab, running
-engine and all, instead of becoming a duplicate row.
+**Scratch shells** (No folder sessions) are directory Sessions in the sidebar's
+**Ungrouped** group: press `tab` in the `ctrl+e` new-conversation dialog until
+the destination reads "new scratch task", pick an engine (or `shell` for a bare
+shell), and `enter` opens one in `$HOME` with that engine already running. It
+lives in **Ungrouped** above every Workspace and behaves like any other
+Session: its shell exiting leaves the row open and empty (⏎ starts it again),
+and a `cd` into a repository changes nothing about where it is listed. It
+leaves Ungrouped only when it is moved: the agent runs
+`rove api update --project <repo>`, or you pick **Move to project** from the
+row's menu in the TUI or the web. Until someone names it (a rename, or the
+auto-title from its own conversation) the row shows its directory. Routines
+created with **Ungrouped** run in their own directory under `.rove/routines/`
+and their Sessions open from the Routines page, not the sidebar.
 
-Two stored flags carry this. `scratch` means throwaway (the row goes when its
-shell exits, a repo + harness adopts it, it stays untitled); `noProject` means
-Ungrouped without being throwaway. A row is Ungrouped when either is set, so a
-rename clears `scratch` and sets `noProject`. Before the split, a rename only
-cleared `scratch` and the renamed row fell out of Ungrouped into a new group
-named after its directory (#2362). Code reads and clears `scratch` only through
-`isEphemeral`, `isUngrouped`, `KEEP_SESSION` and `SETTLE_IN_PROJECT` in
-`rove-daemon/src/task-scratch.ts` (re-exported from rove-core); an architecture
-test holds every other file to that.
+One stored flag carries this: `noProject` on a `kind: "dir"` Session
+(`isUngrouped` in `rove-daemon/src/task-scratch.ts`). Earlier builds also had
+`scratch`, which made the row throwaway: it was deleted when its shell exited,
+and it moved itself into a Workspace (or folded into a Session there as a new
+tab) once a coding agent started inside a repository. Renaming it was the way
+to keep it. That behavior is gone; a stored or wire `scratch` is read as
+`noProject` and never written, and the daemon no longer serves
+`task.adoptScratchRepo`.
 
 Each Session has a `status` you set yourself (`backlog`, `in_progress`,
 `in_review`, `done`, `canceled`, `error`) — from the sidebar row's right-click

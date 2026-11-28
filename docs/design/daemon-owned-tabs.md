@@ -61,7 +61,7 @@ and this TUI's operations still in flight. It shows the in-flight operations
 folded over the confirmed state, so a local change paints at once and the
 daemon's version replaces it when it answers. Every writer (`TerminalTabs`'
 `update`, the background writers for unmounted tasks, kanban's background
-engine tab, the scratch fold) commits through it. A commit diffs against the
+engine tab) commits through it. A commit diffs against the
 state the reducer started from, not the newest view, so a tab another client
 added in the meantime is never read as closed. `tabsByTask` / `tabsRevision`
 live here and are published only from the daemon-backed view. kv-core refuses

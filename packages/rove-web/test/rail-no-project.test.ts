@@ -8,7 +8,7 @@ const task = (id: string, extra: Partial<TaskRow> = {}): TaskRow =>
 describe("the Ungrouped group", () => {
   const rows = [
     task("app-checkout", { kind: "dir" }),
-    task("shell", { kind: "dir", repo: "/Users/me", scratch: true }),
+    task("shell", { kind: "dir", repo: "/Users/me", noProject: true }),
     task("fresh-run", { kind: "dir", repo: "/home/.rove/routines/a", noProject: true }),
     task("standing", { kind: "dir", repo: "/home/.rove/routines/b", noProject: true, routine: true }),
     // A plain dir task is still its own project.
@@ -39,7 +39,7 @@ describe("the Ungrouped group", () => {
 const connectorRows = [
   task("wechat", { kind: "dir", repo: "/home/.rove/weixin/agent", connector: "weixin", rank: 0 }),
   task("old", { repo: "/r/old", rank: 1 }),
-  task("shell", { kind: "dir", repo: "/Users/me", scratch: true, rank: 2 }),
+  task("shell", { kind: "dir", repo: "/Users/me", noProject: true, rank: 2 }),
   task("new", { repo: "/r/new", rank: 3 }),
 ]
 

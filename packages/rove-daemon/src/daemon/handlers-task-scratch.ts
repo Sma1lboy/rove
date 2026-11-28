@@ -1,4 +1,4 @@
-/** Directory tasks: open one (`rove .`, Scratch, a session in a project's own checkout) or adopt a scratch one into the repo its shell landed in. */
+/** Directory tasks: open one (`rove .`, a No folder session, a session in a project's own checkout). */
 
 import { optionalBoolean, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
@@ -12,7 +12,8 @@ export const SCRATCH_HANDLERS: readonly DaemonRequestHandler[] = [
       const task = await ctx.orch.openDirectoryTask({
         dir,
         vendor: optionalVendor(payload, "vendor"),
-        scratch: optionalBoolean(payload, "scratch"),
+        // `scratch` is what clients one version behind send for a No folder session.
+        noProject: optionalBoolean(payload, "noProject") || optionalBoolean(payload, "scratch"),
         title: optionalString(payload, "title"),
         model: optionalString(payload, "model"),
         modelEffort: optionalString(payload, "effort"),
@@ -20,15 +21,6 @@ export const SCRATCH_HANDLERS: readonly DaemonRequestHandler[] = [
         ...(optionalBoolean(payload, "remote") ? { workspace: { backend: "remote" as const } } : {}),
       })
       return { taskId: task.id, task: serializeTask(task) }
-    },
-  },
-  {
-    // No-op on non-scratch rows.
-    name: "task.adoptScratchRepo",
-    async handle(payload, ctx) {
-      const taskId = requireString(payload, "taskId")
-      await ctx.orch.adoptScratchRepo(taskId, requireString(payload, "repo"))
-      return {}
     },
   },
 ]

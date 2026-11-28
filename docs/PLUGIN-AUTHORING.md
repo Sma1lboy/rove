@@ -290,7 +290,7 @@ This table is the one-line index. **Per-event trigger semantics, exact
 | `task.changed` | any watched task field changed (title/branch/status/pin/vendor/…), fired off the snapshot diff, so EVERY mutation path counts | `fields`, `from`, `to` |
 | `task.landed` | a task's branch merged back into its base repo | `strategy`, `landedOn`, `commit` |
 | `task.pr-changed` | the task's PR status changed (open/merged/closed, checks) | `from`, `to` (TaskPRStatus) |
-| `worktree.created` | a task's worktree materialized: lazy ensure, adopt, or scratch-adopt | task context |
+| `worktree.created` | a task's worktree materialized: lazy ensure or adopt | task context |
 | `issue.changed` | a daemon-tracker issue mutated (create/edit/status) | `repo`, `op` |
 | `note.filed` | a session filed a field note (`rove api note`) | `repo`, `author`, `text`, `persisted` |
 | `message.delivered` | text was dispatched into a task's live session (`dispatch`/note relay) | `source`, `tabId`, `length` |

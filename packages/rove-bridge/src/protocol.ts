@@ -171,9 +171,7 @@ export interface TaskRow {
   readonly archived?: boolean
   /** A task a scheduled routine's firing made (its standing session or one fresh run); kept out of the task list. */
   readonly routine?: boolean
-  /** A temp shell task (sidebar Scratch); groups with `noProject` rows under "Ungrouped". */
-  readonly scratch?: boolean
-  /** A dir task a projectless routine made; groups with scratch rows under "Ungrouped". */
+  /** An Ungrouped (No folder) dir task: a No folder session or a projectless routine's run. */
   readonly noProject?: boolean
   /** The chat connector this session answers for; its project sorts below every other. */
   readonly connector?: string

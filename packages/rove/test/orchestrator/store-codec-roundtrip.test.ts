@@ -61,7 +61,6 @@ const FULL_TASK: DeepRequired<Omit<Task, "origin" | "repoId" | "workspace">> & {
   worktreePath: "/repo/.worktrees/round-trip",
   kind: "dir",
   fromProjectRow: true,
-  scratch: true,
   noProject: true,
   connector: "weixin",
   routine: { automationId: "auto-1" },
@@ -225,5 +224,12 @@ describe("tasks.json codec round-trip", () => {
     const row = { ...JSON.parse(JSON.stringify(FULL_TASK)), kind: "main", fromProjectRow: undefined }
     const [loaded] = normalizeIndex({ version: 3, tasks: [row] }, "round-trip-test").tasks
     expect(loaded).toMatchObject({ kind: "dir", fromProjectRow: true })
+  })
+
+  it("loads an old `scratch` row as an Ungrouped one", () => {
+    const { noProject: _, ...row } = JSON.parse(JSON.stringify(FULL_TASK))
+    const [loaded] = normalizeIndex({ version: 3, tasks: [{ ...row, scratch: true }] }, "round-trip-test").tasks
+    expect(loaded?.noProject).toBe(true)
+    expect(loaded && "scratch" in loaded).toBe(false)
   })
 })
