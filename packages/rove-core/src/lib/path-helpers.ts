@@ -73,9 +73,19 @@ export function splitPathForDirSuggest(value: string): PathSplit {
   return { base: expanded.slice(0, lastSlash + 1), filter: expanded.slice(lastSlash + 1) }
 }
 
+/** True when `dir` exists on disk and resolves to a directory (follows symlinks/junctions). */
+export function isExistingDir(dir: string): boolean {
+  if (!dir) return false
+  try {
+    return fs.statSync(dir).isDirectory()
+  } catch {
+    return false
+  }
+}
+
 /**
- * Direct subdirectories of `base`, sorted; [] on any fs error so the picker
- * degrades to free text. Hidden entries are kept — `filterSubdirs` hides them.
+ * Direct subdirectories of `base` (including symlinks/junctions to directories), sorted;
+ * [] on any fs error so the picker degrades to free text. Hidden entries are kept — `filterSubdirs` hides them.
  */
 export function listSubdirs(base: string): readonly string[] {
   if (!base) return []
@@ -83,7 +93,7 @@ export function listSubdirs(base: string): readonly string[] {
     const entries = fs.readdirSync(base, { withFileTypes: true })
     const out: string[] = []
     for (const e of entries) {
-      if (e.isDirectory()) out.push(e.name)
+      if (e.isDirectory() || (e.isSymbolicLink() && isExistingDir(path.join(base, e.name)))) out.push(e.name)
     }
     return out.sort((a, b) => a.localeCompare(b))
   } catch {
@@ -104,9 +114,10 @@ export function filterSubdirs(all: readonly string[], filter: string): readonly 
   return visible.filter((n) => n.toLowerCase().startsWith(f))
 }
 
-/** Input value after drilling into `name`; keeps a typed `~/` prefix (`baseExpanded` is the real path). */
+/** Input value after drilling into `name`; keeps a typed `~/` prefix and Windows backslash syntax. */
 export function joinDrill(typedValue: string, baseExpanded: string, name: string): string {
-  const out = `${baseExpanded + name}/`
+  const sep = pathSyntax(baseExpanded).sep === "\\" && !typedValue.includes("/") ? "\\" : "/"
+  const out = `${baseExpanded + name}${sep}`
   if (typedValue.startsWith("~")) {
     const short = tildify(out)
     if (short.startsWith("~")) return short === "~" ? "~/" : `${short}/`

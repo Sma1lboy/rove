@@ -202,6 +202,33 @@ test("Open folder… steps in with l, steps back with h, confirms with enter, an
   act(() => h.destroy())
 })
 
+test("pasting a full path with a trailing slash or file:// URI confirms that exact folder, not its first child", async () => {
+  const dir = repo("pasted-with-children")
+  mkdirSync(join(dir, "src"), { recursive: true })
+  const h = await mount("", [])
+
+  await pressTab(h, TO_REPO)
+  // Trailing slash lists `src/` below the input, yet Enter without arrowing down must pick `dir` itself.
+  await act(async () => h.mockInput.typeText(`${dir}/`))
+  await settle()
+  act(() => h.mockInput.pressEnter())
+  await settle()
+  await commit(h)
+  expect(h.submitted).toHaveLength(1)
+  expect(h.submitted[0]).toMatchObject({ repo: dir })
+
+  // A Linux file:// URI pasted directly into Search folders... resolves and submits cleanly too.
+  await click(h, "pasted-with-children")
+  const dir2 = repo("from-file-uri")
+  await act(async () => h.mockInput.typeText(`file://${dir2}`))
+  await settle()
+  act(() => h.mockInput.pressEnter())
+  await settle()
+  await commit(h)
+  expect(h.submitted[1]).toMatchObject({ repo: dir2 })
+  act(() => h.destroy())
+})
+
 test("a path being typed renders verbatim and submits that path after Tab completion", async () => {
   const dir = repo("typed")
   const h = await mount(dir)

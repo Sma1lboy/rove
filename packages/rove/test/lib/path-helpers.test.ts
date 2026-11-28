@@ -13,12 +13,15 @@
  * keeps the rendered input readable.
  */
 
+import * as fs from "node:fs"
 import * as os from "node:os"
+import * as path from "node:path"
 import {
   expandHome,
   filterSubdirs,
   joinDrill,
   joinPicked,
+  listSubdirs,
   splitPathForDirSuggest,
   stripTrailingSlash,
 } from "@sma1lboy/rove-core/lib/path-helpers.ts"
@@ -94,6 +97,20 @@ describe("joinDrill", () => {
   it("keeps absolute display when the user typed an absolute path", () => {
     const home = os.homedir()
     expect(joinDrill(`${home}/`, `${home}/`, "code")).toBe(`${home}/code/`)
+  })
+
+  it("keeps Windows backslash separators when drilling a Windows path", () => {
+    expect(joinDrill("C:\\Projects\\", "C:\\Projects\\", "demo")).toBe("C:\\Projects\\demo\\")
+  })
+})
+
+describe("listSubdirs", () => {
+  it("includes symlinks that resolve to directories", () => {
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), "rove-listsubdirs-"))
+    const target = path.join(base, "real-dir")
+    fs.mkdirSync(target)
+    fs.symlinkSync(target, path.join(base, "linked-dir"), "dir")
+    expect(listSubdirs(`${base}/`)).toEqual(["linked-dir", "real-dir"])
   })
 })
 
