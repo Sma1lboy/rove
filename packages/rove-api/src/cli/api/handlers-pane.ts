@@ -15,7 +15,7 @@ import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { F } from "./flags.ts"
-import { daemonOf, simpleRpc } from "./handler-helpers.ts"
+import { daemonOf, simpleRpc, taskToActOn } from "./handler-helpers.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
 import { conversationHome, failSharedChild, spawnSharedChild, withFirstConversationLock } from "./shared-child.ts"
 import type { LaunchSpec } from "./tab-launch.ts"
@@ -336,7 +336,7 @@ export const TAB_NEW_VERB: VerbSpec = {
         helpStep("tab-new"),
       )
     }
-    const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+    const task = await taskToActOn(daemon, taskId)
     // The last engine picked; the task's own when it is the same, so its model and effort carry over.
     const preferred = latest ? resolvePreferredVendor() : undefined
     const command = ctx.args.str("command") || (preferred && preferred !== task.vendor ? preferred : undefined)
@@ -438,7 +438,7 @@ export const TAB_SPLIT_VERB: VerbSpec = {
     const taskId = ctx.args.require("task-id")
     const tabId = ctx.args.require("tab")
     const action = ctx.args.requireEnum<"open" | "close" | "rename" | "reset">("action")
-    const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+    const task = await taskToActOn(daemon, taskId)
     if (!task.worktreePath) throw new ApiError(`task ${taskId} has no worktree yet`, "NO_WORKTREE")
     const cols = ctx.args.int("cols")
     const rows = ctx.args.int("rows")

@@ -91,9 +91,9 @@ export function useWorkspaceSelection(args: {
       args.focusWorkspace()
     }
     if (selectedId !== null) parkedRef.current = false
-    // The open task archived, deleting or gone: nothing selected, and New task in its place. Opening an
-    // archived task from the fold is no change, so that one stays open. A deleting task must not stay
-    // selected: its mounted Terminal answers the sweep's kill with a dead-on-attach RESUME.
+    // The open task archived, deleting or gone: nothing selected, and New task in its place. Only the change
+    // counts: a task already archived when selected (a restored active task) stays, shown read-only. A deleting
+    // task must not stay selected: its mounted Terminal answers the sweep's kill with a dead-on-attach RESUME.
     const selected = selectedId ? tasks.find((task) => task.id === selectedId) : undefined
     const wasLive = selectedId !== null && liveSelectedRef.current === selectedId
     const live = selected !== undefined && selected.archived !== true && !selected.deletion

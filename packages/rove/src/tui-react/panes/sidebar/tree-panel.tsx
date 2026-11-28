@@ -2,8 +2,8 @@
 /**
  * The sidebar tree's body: ONE scrollbox of one-line rows (the cursor indexes
  * one flat id list). A project's routine count row folds the sessions a
- * SCHEDULE created, a task folds its child tasks, and the Archived row at the
- * end folds what the user archived; everything else a human opened shows.
+ * SCHEDULE created and a task folds its child tasks; everything else a human
+ * opened shows. Archived tasks are not listed (the palette finds them).
  */
 
 import type { ScrollBoxRenderable } from "@opentui/core"
