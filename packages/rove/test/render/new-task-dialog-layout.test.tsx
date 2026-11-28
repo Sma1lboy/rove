@@ -178,7 +178,7 @@ test.each([
   expect(new Set(borderedBoxes(h).map((box) => box.height))).toEqual(new Set([3]))
   const scroll = scrollBox(h)
   expect(scroll).toBeDefined()
-  const footer = frame.split("\n").findIndex((line) => /enter (next field|create)/.test(line))
+  const footer = frame.split("\n").findIndex((line) => /enter (next field|create|select)/.test(line))
   expect(footer).toBeGreaterThan(scroll!.y + scroll!.height)
   act(() => h.destroy())
 })

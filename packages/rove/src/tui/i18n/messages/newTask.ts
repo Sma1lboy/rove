@@ -6,8 +6,8 @@
 export const en = {
   retryHint: "Correct the field above, then choose Create again.",
   title: "New task",
-  /** `{enter}` is whichever of the two below applies at the focused stop —
-   *  enter creates only on Create, and walks the form everywhere else. */
+  /** `{enter}` is whichever caption below applies at the focused stop —
+   *  enter creates on Create, toggles rows on a pick list, and walks the form elsewhere. */
   legend: "{enter} · tab complete/fields · ctrl+[ ] mode · ctrl+e engine · esc cancel",
   /** Enter's caption while the Create button holds focus */
   enterCreate: "enter create",
@@ -18,6 +18,8 @@ export const en = {
   noFolder: "No folder",
   /** Enter's caption at every other stop, where it advances the form */
   enterNext: "enter next field",
+  /** Enter's caption on a pick list (ALSO INCLUDE, the Adopt filter), where it toggles the highlighted row */
+  enterSelect: "enter select",
 
   tabs: {
     existing: "For Existing",
@@ -136,6 +138,7 @@ export const zh: typeof en = {
   chipProject: "项目",
   noFolder: "无文件夹",
   enterNext: "enter 下一个字段",
+  enterSelect: "enter 选中",
 
   tabs: {
     existing: "已有仓库",

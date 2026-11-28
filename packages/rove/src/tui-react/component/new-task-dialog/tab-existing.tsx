@@ -110,7 +110,6 @@ export function ExistingTab({ vm, only }: { vm: NewTaskVm; only?: boolean }) {
           <DialogSection
             label={t("newTask.field.extras")}
             focused={vm.field === "extras"}
-            hint="enter"
             onPress={() => vm.setField("extras")}
           >
             <box paddingLeft={2}>
