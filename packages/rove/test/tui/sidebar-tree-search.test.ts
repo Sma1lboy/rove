@@ -157,10 +157,9 @@ describe("search finds exactly what the row displays (dir rows)", () => {
     expect(filterTreeRows(built(), "release/2026-09", liveBranch).map((r) => r.id)).toEqual(["/Users/me/work/api", "m"])
   })
 
-  test("a titled row is findable by its conversation title and still by its branch", () => {
+  test("a titled row is findable by its title and still by its branch", () => {
     const named = task("n", { branch: "feat/named-row", title: "Fix the login bug" })
-    const all = rows({ tasks: [named], tabsByTask: new Map(), conversationTitles: new Map([["n", "Wire up OAuth"]]) })
-    expect(filterTreeRows(all, "oauth").map((r) => r.id)).toContain("n")
+    const all = rows({ tasks: [named], tabsByTask: new Map() })
     expect(filterTreeRows(all, "named-row").map((r) => r.id)).toContain("n")
     expect(filterTreeRows(all, "login").map((r) => r.id)).toContain("n")
   })

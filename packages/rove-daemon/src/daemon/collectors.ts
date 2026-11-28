@@ -69,6 +69,8 @@ export interface DaemonCollectorOptions {
   readonly ownerOf?: PtyOwnerResolver
   /** Each walked tab's foreground engine (null = none), every observer tick. */
   readonly onLiveEngine?: (taskId: string, tabId: string, vendor: string | null) => void
+  /** Each walked tab's OSC title, every observer tick. */
+  readonly onEngineTitle?: (taskId: string, tabId: string, title: string) => void | Promise<void>
   /** The conversation a task's own engine tab pinned; names a task that shares its directory. */
   readonly conversationOf?: ConversationOf
 }
@@ -223,7 +225,9 @@ export function startDaemonCollectors(
           ...createActivityObserverIo(options.homeDir, runtime, activity, ownerOf),
           onEngineEvidence: (taskId, tabId, evidence) => {
             options.onLiveEngine?.(taskId, tabId, evidence.walkVendor)
-            return upgradeProtocol(taskId, tabId, evidence)
+            const titled = options.onEngineTitle?.(taskId, tabId, evidence.title)
+            const upgraded = upgradeProtocol(taskId, tabId, evidence)
+            return titled ? Promise.all([titled, upgraded]).then(() => undefined) : upgraded
           },
           onProgramStatusEvent: receiveStatus,
         },

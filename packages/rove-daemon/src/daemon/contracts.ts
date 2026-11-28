@@ -252,6 +252,8 @@ export interface DaemonTask {
   /** Every prompt sent to this task arms a delivery that must end in `rove api report`. */
   readonly requireReport?: boolean
   readonly worktreeOnly?: boolean
+  /** The last engine-reported name written into `title`. */
+  readonly engineTitle?: string
   /** The `add --prompt` brief as delivered, verbatim, never truncated; outlives
    *  the engine transcript. Absent until delivered. */
   readonly prompt?: string
@@ -341,7 +343,7 @@ export interface DaemonOrchestrator extends CheckpointOrchestrator {
   moveTaskToProject(id: string, repo: string): Promise<{ repo: string; moved: readonly string[] }>
   ensureWorktree(id: string, opts?: { onProgress?: (percent: number) => void }): Promise<string>
   forgetProject(repo: string): Promise<void>
-  setTitle(id: string, title: string, opts?: { keepScratch?: boolean }): Promise<void>
+  setTitle(id: string, title: string, opts?: { keepScratch?: boolean; fromEngine?: boolean }): Promise<void>
   setBranch(id: string, branch: string): Promise<void>
   /** Record the language a task's user writes in, from their own prompt text. */
   observeLanguage(id: string, text: string): Promise<void>

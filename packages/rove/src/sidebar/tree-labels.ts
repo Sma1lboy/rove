@@ -27,26 +27,6 @@ export function rowLiveBranchPath(task: Task): string {
   return task.worktreePath || task.repo || ""
 }
 
-/**
- * The name of the task's one engine conversation: a migrated child reads its
- * parent's aliased tab, any other task its first named engine tab (a diff or
- * shell tab's title is not the conversation's). Absent until the engine has
- * named the session.
- */
-export function conversationTitleOf(
-  task: Task,
-  tabsByTask: ReadonlyMap<
-    string,
-    readonly { readonly id: string; readonly title?: string; readonly engine?: boolean }[]
-  >,
-): string | undefined {
-  const alias = task.ptyAlias
-  const tabs = tabsByTask.get(alias?.taskId ?? task.id)
-  if (!tabs) return undefined
-  if (alias) return tabs.find((tab) => tab.id === alias.tabId)?.title
-  return tabs.find((tab) => tab.engine === true && tab.title !== undefined)?.title
-}
-
 /** The `<dir>-xxxx` title `openDirectoryTaskRow` mints when no title is given. */
 const AUTO_DIR_TITLE = /^\S+-[0-9a-z]{4}$/
 
@@ -57,9 +37,8 @@ export function isNamedDir(task: Task): boolean {
 }
 
 /**
- * A row is a conversation, so it is named like one: the engine session's own
- * title (`liveTitle`, from {@link conversationTitleOf}), else the task's
- * title, else its branch. The task title names `task` rows and children; a
+ * A row is named by its task's title (the newest name reported: the first
+ * prompt, the engine's own title, a rename), else its branch. The task title names `task` rows and children; a
  * `dir` row reads its live HEAD, else its tail-truncated directory, unless it
  * was named (a prompt-derived or renamed
  * title; the auto-minted `jacksonc-xxxx` and repo-name titles are noise, and
@@ -71,10 +50,8 @@ export function isNamedDir(task: Task): boolean {
  */
 export function worktreeRowLabel(
   task: Task,
-  opts: { readonly liveBranch?: string; readonly liveTitle?: string; readonly home?: string } = {},
+  opts: { readonly liveBranch?: string; readonly home?: string } = {},
 ): string {
-  const live = opts.liveTitle?.trim()
-  if (live) return live
   const title = task.title.trim()
   const namedDir = isNamedDir(task)
   if (title && (task.parentTaskId !== undefined || task.kind === "task" || namedDir)) return title

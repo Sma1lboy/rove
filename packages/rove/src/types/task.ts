@@ -229,6 +229,9 @@ export interface Task {
   readonly deleteBranchPending?: boolean
   /** Every prompt sent to this task arms a delivery that must end in `rove api report`. */
   readonly requireReport?: boolean
+  /** The last name the engine reported (OSC title) that was written into `title`; a restart re-reading the same
+   *  report must not clobber a later rename. */
+  readonly engineTitle?: string
   /**
    * A checkout `add --worktree-only` cut for the calling session to work in, with no engine of its own. While it has a
    * parent the clients list no row for it; the first turn an engine starts in it clears the mark.

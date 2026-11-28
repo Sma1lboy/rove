@@ -7,13 +7,7 @@
  */
 
 import { describe, expect, test } from "vitest"
-import {
-  conversationTitleOf,
-  parseRowId,
-  rowLiveBranchPath,
-  tabRowId,
-  worktreeRowLabel,
-} from "../../src/tui/panes/sidebar/tree-core"
+import { parseRowId, rowLiveBranchPath, tabRowId, worktreeRowLabel } from "../../src/tui/panes/sidebar/tree-core"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
 
@@ -76,12 +70,8 @@ describe("rowLiveBranchPath", () => {
 })
 
 describe("worktreeRowLabel", () => {
-  test("the conversation's own title names the row, over the task title and the branch", () => {
-    const a = task("a", { branch: "feat/a", title: "some title" })
-    expect(worktreeRowLabel(a, { liveTitle: "Fix the login bug" })).toBe("Fix the login bug")
-    // Unnamed (or whitespace-only) → the task title, never the branch.
-    expect(worktreeRowLabel(a, { liveTitle: "  " })).toBe("some title")
-    expect(worktreeRowLabel(a)).toBe("some title")
+  test("the task title names the row, over the branch", () => {
+    expect(worktreeRowLabel(task("a", { branch: "feat/a", title: "some title" }))).toBe("some title")
   })
 
   test("a task with no usable title falls back to its branch", () => {
@@ -91,7 +81,7 @@ describe("worktreeRowLabel", () => {
   test("a session in the repo's checkout keeps its live HEAD until the conversation is named", () => {
     const main = task("m", { kind: "dir", branch: "", title: "rove", worktreePath: "/repos/rove" })
     expect(worktreeRowLabel(main, { liveBranch: "main" })).toBe("main")
-    expect(worktreeRowLabel(main, { liveBranch: "main", liveTitle: "Plan the release" })).toBe("Plan the release")
+    expect(worktreeRowLabel({ ...main, title: "Plan the release" }, { liveBranch: "main" })).toBe("Plan the release")
   })
 
   test("a branchless dir task is named by its tail-truncated path — its stored title is ignored", () => {
@@ -146,44 +136,5 @@ describe("worktreeRowLabel", () => {
   test("nothing at all still yields a label", () => {
     const bare = task("x", { kind: "dir", branch: "", title: "", worktreePath: "", repo: "" })
     expect(worktreeRowLabel(bare)).toBe("scratch")
-  })
-})
-
-describe("conversationTitleOf", () => {
-  const tabs = new Map([
-    ["p", [{ id: "tab-1", title: "Parent chat", engine: true }]],
-    [
-      "q",
-      [
-        { id: "tab-1", engine: true },
-        { id: "tab-2", title: "Second", engine: true },
-      ],
-    ],
-    [
-      "d",
-      [
-        { id: "tab-3", title: "all", engine: false },
-        { id: "tab-1", title: "Fix the hook", engine: true },
-      ],
-    ],
-    ["s", [{ id: "tab-1", title: "vim", engine: false }]],
-  ])
-
-  test("a task reads its own first named tab; unnamed or unknown is absent", () => {
-    expect(conversationTitleOf(task("p"), tabs)).toBe("Parent chat")
-    expect(conversationTitleOf(task("q"), tabs)).toBe("Second")
-    expect(conversationTitleOf(task("nobody"), tabs)).toBeUndefined()
-  })
-
-  test("a diff or shell tab's title never names the conversation", () => {
-    expect(conversationTitleOf(task("d"), tabs)).toBe("Fix the hook")
-    expect(conversationTitleOf(task("s"), tabs)).toBeUndefined()
-  })
-
-  test("a migrated child reads the parent's aliased tab, not the parent's other tabs", () => {
-    const child = task("c", { ptyAlias: { taskId: toTaskId("q"), tabId: "tab-1" } })
-    expect(conversationTitleOf(child, tabs)).toBeUndefined()
-    const second = task("c2", { ptyAlias: { taskId: toTaskId("q"), tabId: "tab-2" } })
-    expect(conversationTitleOf(second, tabs)).toBe("Second")
   })
 })

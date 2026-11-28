@@ -23,10 +23,9 @@ function rowHaystacks(row: TreeRow, liveBranch?: (task: Task) => string): readon
   const task = row.task
   const title = task.kind !== "dir" || isNamedDir(task) ? task.title : ""
   const liveBranchName = liveBranch?.(task)
-  const liveTitle = row.kind === "worktree" ? row.title : undefined
   // The branch no longer names the row, but it stays findable.
   return [
-    worktreeRowLabel(task, { liveBranch: liveBranchName, liveTitle }),
+    worktreeRowLabel(task, { liveBranch: liveBranchName }),
     liveBranchName || task.branch,
     title,
     repoBasename(task.repo),

@@ -105,6 +105,13 @@ transcript (the wire format is unverified), so auto-title keeps the
 placeholder and `rove api read-output` reports `engine_unsupported` rather
 than guessing.
 
+**Session names: the newest one wins.** A session starts named after your
+first message. After that, whatever names it last sticks: the engine's own
+terminal title each time it changes (Claude Code, Codex and others set one),
+`rove api update --title`, or a rename. The engine setting the same title
+again doesn't undo a rename. An engine that sets no terminal title, such as
+Antigravity, keeps the name from your first message.
+
 ## Picking an engine
 
 Per task, at creation time, or with `v` in the sidebar. For new tasks the

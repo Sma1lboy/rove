@@ -138,6 +138,8 @@ export function coerceTask(value: unknown): Task | null {
     ...(progress ? { progress } : {}),
     // Every send to this task owes a `rove api report`; lost, a loop quietly stops being held to it.
     ...(v.requireReport === true ? { requireReport: true } : {}),
+    // Lost, a restart re-applies the engine's old title over a later rename.
+    ...(typeof v.engineTitle === "string" && v.engineTitle ? { engineTitle: v.engineTitle } : {}),
     // Unlisted under its parent; dropped, every checkout an agent cut for itself would show as a child session.
     ...(v.worktreeOnly === true ? { worktreeOnly: true } : {}),
     // Hidden from the sidebar; dropped, the row would reappear on its own.

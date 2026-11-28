@@ -52,14 +52,21 @@ export class TaskEditor {
   }
 
   /** Naming a SCRATCH task is the "keep this" gesture: clears the flag so the
-   *  row survives its shell exiting. An automatic name passes `keepScratch`. */
-  async setTitle(id: TaskId | string, title: string, opts?: { keepScratch?: boolean }): Promise<void> {
+   *  row survives its shell exiting. An automatic name passes `keepScratch`.
+   *  Every writer is equal: the latest name wins. `fromEngine` also records it
+   *  as the engine's report, so only a NEW report renames again. */
+  async setTitle(
+    id: TaskId | string,
+    title: string,
+    opts?: { keepScratch?: boolean; fromEngine?: boolean },
+  ): Promise<void> {
     const trimmed = sanitizeTaskTitle(title)
     if (!trimmed) throw new Error("setTitle: title is required (empty or whitespace-only rejected)")
     const task = this.requireTask(id)
     const unscratch = task.scratch === true && opts?.keepScratch !== true
-    if (task.title === trimmed && !unscratch) return
-    await this.store.update(task.id, { title: trimmed, ...(unscratch ? { scratch: false } : {}) })
+    const engineTitle = opts?.fromEngine && task.engineTitle !== trimmed ? { engineTitle: trimmed } : {}
+    if (task.title === trimmed && !unscratch && !("engineTitle" in engineTitle)) return
+    await this.store.update(task.id, { title: trimmed, ...(unscratch ? { scratch: false } : {}), ...engineTitle })
     await this.followBranchToTitle(task, trimmed)
   }
 
