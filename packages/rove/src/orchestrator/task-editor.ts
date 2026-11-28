@@ -51,8 +51,8 @@ export class TaskEditor {
     return task
   }
 
-  /** Naming a SCRATCH task is the "keep this" gesture: clears the flag so the
-   *  row survives its shell exiting. An automatic name passes `keepScratch`.
+  /** Naming a SCRATCH task is the "keep this" gesture: survives its shell exiting, stays
+   *  Ungrouped (`noProject`, not its cwd's project). An automatic name passes `keepScratch`.
    *  Every writer is equal: the latest name wins. `fromEngine` also records it
    *  as the engine's report, so only a NEW report renames again. */
   async setTitle(
@@ -66,7 +66,11 @@ export class TaskEditor {
     const unscratch = task.scratch === true && opts?.keepScratch !== true
     const engineTitle = opts?.fromEngine && task.engineTitle !== trimmed ? { engineTitle: trimmed } : {}
     if (task.title === trimmed && !unscratch && !("engineTitle" in engineTitle)) return
-    await this.store.update(task.id, { title: trimmed, ...(unscratch ? { scratch: false } : {}), ...engineTitle })
+    await this.store.update(task.id, {
+      title: trimmed,
+      ...(unscratch ? { scratch: false, noProject: true } : {}),
+      ...engineTitle,
+    })
     await this.followBranchToTitle(task, trimmed)
   }
 
