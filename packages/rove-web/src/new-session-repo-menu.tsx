@@ -154,7 +154,6 @@ export function RepoMenu(props: {
       extra={remote?.blocked ? null : extra}
       more={remote?.blocked ? [] : more}
       moreLabel={t("newSession.githubGroup")}
-      hint={remote ? undefined : t("newSession.repoMultiHint")}
       onPick={(key, add) => {
         if (key === OPEN_FOLDER) return setBrowsing(true)
         if (key === NO_PROJECT_KEY) {

@@ -16,6 +16,7 @@ import {
   HEADING,
   HINT,
   MENU,
+  MENU_INPUT,
   NAME,
   POP,
   ROWS,
@@ -26,7 +27,6 @@ import {
 } from "./ui/composer.ts"
 import { haptic } from "./ui/haptic.ts"
 import { Sheet } from "./ui/sheet.tsx"
-import { PALETTE_INPUT } from "./ui/shell.ts"
 import { INPUT, KICKER } from "./ui/text.ts"
 
 /** A chip that opens a popover above itself; Esc, a click outside, or `close()` shuts it and returns focus to the chip. */
@@ -187,7 +187,7 @@ export function SearchList(props: {
   return (
     <div className={MENU}>
       <input
-        className={PALETTE_INPUT}
+        className={MENU_INPUT}
         // biome-ignore lint/a11y/noAutofocus: the popover's only field
         autoFocus
         spellCheck={false}
