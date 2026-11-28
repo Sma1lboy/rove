@@ -53,6 +53,7 @@ export type PrefKey = keyof Prefs
 export interface ThemeEntry {
   readonly name: string
   readonly bundled: boolean
+  readonly fontFamily?: string
   readonly dark: Readonly<Record<string, string>>
   readonly light: Readonly<Record<string, string>>
 }

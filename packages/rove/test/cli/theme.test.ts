@@ -190,6 +190,64 @@ describe("runThemeSubcommand add (terminal color scheme)", () => {
     await expect(runThemeSubcommand(["add", src])).rejects.toThrow("exit 1")
     expect(err()).toContain("neither a Rove theme JSON nor a terminal color scheme")
   })
+
+  it("imports Alacritty TOML and WezTerm Lua files via `add` and activates when --use is passed", async () => {
+    const alacritty = join(home, "alacritty.toml")
+    writeFileSync(
+      alacritty,
+      '[font.normal]\nfamily = "Fira Code"\n[colors.primary]\nbackground = "#1e1e2e"\nforeground = "#cdd6f4"\n[colors.cursor]\ncursor = "#f5e0dc"\n',
+      "utf8",
+    )
+    await runThemeSubcommand(["add", alacritty, "--use"])
+    expect(out()).toContain('installed theme "alacritty" from a terminal color scheme (active)')
+    const loaded = loadUserThemes().find((t) => t.name === "alacritty")
+    expect(loaded?.theme.fontFamily).toBe("Fira Code")
+    expect(resolveThemeSlotHex(loaded!.theme, "cursor")).toBe("#f5e0dc")
+
+    const wezterm = join(home, "nord.lua")
+    writeFileSync(
+      wezterm,
+      'return { colors = { background = "#2e3440", foreground = "#d8dee9", cursor_bg = "#88c0d0", ansi = { "#3b4252", "#bf616a" } } }\n',
+      "utf8",
+    )
+    await runThemeSubcommand(["add", wezterm])
+    expect(installed("nord")("cursor")).toBe("#88c0d0")
+    expect(installed("nord")("error")).toBe("#bf616a")
+  })
+})
+
+describe("runThemeSubcommand import", () => {
+  let origXdg: string | undefined
+
+  beforeEach(() => {
+    origXdg = process.env.XDG_CONFIG_HOME
+    process.env.XDG_CONFIG_HOME = join(home, "xdg")
+  })
+
+  afterEach(() => {
+    if (origXdg === undefined) Reflect.deleteProperty(process.env, "XDG_CONFIG_HOME")
+    else process.env.XDG_CONFIG_HOME = origXdg
+  })
+
+  it("detects, lists, and imports a local Kitty config", async () => {
+    const kittyDir = join(home, "xdg", "kitty")
+    mkdirSync(kittyDir, { recursive: true })
+    writeFileSync(
+      join(kittyDir, "kitty.conf"),
+      "font_family JetBrains Mono\nbackground #1a1b26\nforeground #c0caf5\ncursor #c0caf5\ncolor4 #7aa2f7\n",
+      "utf8",
+    )
+    await runThemeSubcommand(["import", "--list"])
+    expect(out()).toContain("kitty")
+    expect(out()).toContain('font="JetBrains Mono"')
+
+    await runThemeSubcommand(["import", "kitty"])
+    expect(out()).toContain('imported theme "kitty" from Kitty')
+    expect(out()).toContain("(active)")
+    const loaded = loadUserThemes().find((t) => t.name === "kitty")
+    expect(loaded?.theme.fontFamily).toBe("JetBrains Mono")
+    expect(resolveThemeSlotHex(loaded!.theme, "primary")).toBe("#7aa2f7")
+  })
 })
 
 describe("runThemeSubcommand add (URL source)", () => {

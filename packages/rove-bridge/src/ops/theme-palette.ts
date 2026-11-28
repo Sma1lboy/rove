@@ -6,6 +6,7 @@
 
 import { resolveThemeSlotHex } from "@sma1lboy/rove-core/theme/hex.ts"
 import { paletteInks, rgbToHex, taskHex } from "@sma1lboy/rove-core/theme/palette-hex.ts"
+import { TERMINAL_ANSI_SLOTS } from "@sma1lboy/rove-core/theme/terminal-scheme.ts"
 import type { ThemeJson } from "@sma1lboy/rove-core/theme/theme-data.ts"
 
 export type ThemeMode = "dark" | "light"
@@ -34,6 +35,7 @@ const SLOTS: Readonly<Record<string, string | null>> = {
   syntaxType: "info",
   diffAddedBg: "background",
   diffRemovedBg: "background",
+  cursor: "primary",
 }
 
 export function palette(theme: ThemeJson, mode: ThemeMode): Record<string, string> {
@@ -49,6 +51,11 @@ export function palette(theme: ThemeJson, mode: ThemeMode): Record<string, strin
     return value
   }
   for (const name of Object.keys(SLOTS)) slot(name)
+  // Pass through optional terminal ANSI 0–15 slots when the theme defines them (e.g. imported terminal schemes).
+  for (const ansiSlot of TERMINAL_ANSI_SLOTS) {
+    const value = resolveThemeSlotHex(theme, ansiSlot, mode)
+    if (value) out[ansiSlot] = value
+  }
   // Colorblind pair, from the TUI's `diffInks(theme, true)`: added turned toward blue.
   const cb = paletteInks(theme, mode)
   out.diffAddedColorblind = rgbToHex(cb.diffAddedColorblind)

@@ -7,7 +7,17 @@
 import { useEffect } from "react"
 import type { AppModel } from "./model.ts"
 import { useCrossTaskNotices } from "./notify.ts"
-import { cssVars, paletteFor, terminalTheme, themePreview, xtermTheme } from "./prefs-theme.ts"
+import {
+  cssVars,
+  fontFamilyFor,
+  monoFontStack,
+  paletteFor,
+  terminalFontFamily,
+  terminalFontStack,
+  terminalTheme,
+  themePreview,
+  xtermTheme,
+} from "./prefs-theme.ts"
 import { loadPrefs, usePrefs } from "./prefs.ts"
 import { loadSnippets } from "./snippets.ts"
 import { useStore } from "./store.ts"
@@ -43,11 +53,15 @@ export function usePrefsApply(model: AppModel): void {
   useEffect(() => {
     const root = document.documentElement
     const palette = preview ? preview[mode] : paletteFor(state.themes, state.prefs.theme, mode)
+    const fontFamily = preview ? (preview.fontFamily ?? null) : fontFamilyFor(state.themes, state.prefs.theme)
     const vars = palette ? cssVars(palette, state.prefs) : {}
     for (const [name, value] of Object.entries(vars)) root.style.setProperty(name, value)
+    if (fontFamily) root.style.setProperty("--mono", monoFontStack(fontFamily))
+    else root.style.removeProperty("--mono")
     root.style.colorScheme = mode
     for (const key of ATTRS) root.dataset[key] = String(state.prefs[key])
     terminalTheme.set(palette ? xtermTheme(palette) : null)
+    terminalFontFamily.set(fontFamily ? terminalFontStack(fontFamily) : null)
     // The phone browser's toolbar takes the page colour (Android reads theme-color).
     let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
     if (!meta) {

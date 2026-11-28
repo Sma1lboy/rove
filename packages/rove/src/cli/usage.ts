@@ -35,7 +35,7 @@ export function topLevelUsage(cliName: ProductCliName = ROVE_PRODUCT_NAME): stri
     "  doctor [--report|--fix] Diagnose daemon/PTY/engines/git; --fix walks the remedies",
     `  config [--path]         Open ${cliName}'s config file (state.json) in your editor`,
     "  reset [--hard]          Stop runtimes; optionally wipe task/UI state",
-    "  theme <verb>            Manage user themes (list|add|remove)",
+    "  theme <verb>            Manage user themes (list|add|import|remove)",
     `  skill <verb>            Install the ${cliName} agent skill (install|status|command|print)`,
     "  plugin <verb>           Install and run plugins (install|link|list|action|…)",
     "  feedback                File a GitHub issue on the Rove repo",

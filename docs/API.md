@@ -307,6 +307,9 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `GITHUB_APPLY_FORWARDED_ONLY` | `github-apply` called directly. Only another machine's `github-sync` may send it. |
 | `MACHINE_UPDATE_FAILED` | `machine-update`: that machine's `rove update` or its daemon restart failed; the message carries its last lines of output. `machine` names it. |
 | `MACHINE_UPDATE_FORWARDED` | `machine-update` sent by another machine's hub: a machine is only updated from the one that registered it. |
+| `TERMINAL_NOT_FOUND` | `theme-import`: no readable color scheme was found for the requested (or any detected) local terminal emulator. |
+| `THEME_EXISTS` | `theme-import`: a user theme with that name already exists under `~/.rove/themes/` (pass `--force` to overwrite). |
+| `BAD_THEME` | `theme-import`: the target theme name is invalid or the converted theme failed validation. |
 
 `DELIVER_FAILED` and `CREATE_FAILED` are not error codes in that sense: they
 only ever appear inside a `PARTIAL_FANOUT` payload, on `failures[].error.code`,
@@ -1853,6 +1856,14 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   `{ ok, taskId, notes, todos: [{ id, text, done }], done, total }`. Daemon RPC: `task.notes`.
   The web shows `done/total` on the task row and warns (never blocks) in the land confirm while
   todos are unchecked.
+
+- `theme-import [--list] [--terminal ghostty|kitty|alacritty|wezterm] [--name NAME] [--force] [--no-switch]`:
+  offline verb that probes local Ghostty, Kitty, Alacritty, and WezTerm configs and imports one into
+  `~/.rove/themes/<name>.json` (background, foreground, cursor, ANSI 16 colors, optional `fontFamily`).
+  With `--list`, returns `{ terminals }` without writing. Otherwise installs and switches `activeTheme`
+  in `state.json` (unless `--no-switch` is passed), returning
+  `{ terminal, label, name, path, configPath, switched, sourceTheme?, fontFamily? }`.
+  Refusals: `TERMINAL_NOT_FOUND`, `THEME_EXISTS`, `BAD_THEME`. See [Themes](./themes.md).
 
 ## issues
 

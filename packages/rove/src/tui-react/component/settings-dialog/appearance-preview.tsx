@@ -2,6 +2,7 @@
 import { TextAttributes } from "@opentui/core"
 import type { AppearanceSetting, AppearanceSnapshot } from "@sma1lboy/rove-client/settings/appearance.ts"
 import { GLYPH_SETS } from "@sma1lboy/rove-core/lib/glyphs.ts"
+import type { ThemeJson } from "@sma1lboy/rove-core/theme/theme-data.ts"
 import { diffInks } from "../../../tui/context/theme-core"
 import { TASK_PARTNER_HUE_DEG } from "../../../tui/lib/border-flow"
 import { breathColor, breathGlyph } from "../../../tui/lib/breathe"
@@ -15,9 +16,13 @@ import { COLLAPSED_RAIL_WIDTH } from "../../panes/sidebar/collapsed-rail"
 import { useSpinnerFrame } from "../../panes/sidebar/row-cards"
 import { runningPaneFlow, runningPaneTitle } from "../../workspace/running-pane-chrome"
 
-export function AppearancePreview(props: { current: AppearanceSnapshot; active?: AppearanceSetting }) {
+export function AppearancePreview(props: {
+  current: AppearanceSnapshot
+  active?: AppearanceSetting
+  themeOverride?: ThemeJson
+}) {
   const { current } = props
-  const theme = useTheme().preview(current)
+  const theme = useTheme().preview({ ...current, themeOverride: props.themeOverride })
   const t = useT()
   const size = useTerminalSize()
   const narrow = size.width < 75

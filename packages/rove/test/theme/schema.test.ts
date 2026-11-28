@@ -60,6 +60,11 @@ describe("validateTheme — accepts", () => {
     const r = validateTheme({ $schema: "https://example.com/theme.json", theme: { text: "#fff" } })
     expect(r.ok).toBe(true)
   })
+
+  test("optional fontFamily string", () => {
+    const r = validateTheme({ fontFamily: "JetBrains Mono", theme: { text: "#fff" } })
+    expect(r.ok).toBe(true)
+  })
 })
 
 describe("validateTheme — rejects", () => {
@@ -96,5 +101,11 @@ describe("validateTheme — rejects", () => {
   test("`theme` is not an object", () => {
     const r = validateTheme({ theme: "claude" })
     expect(r.ok).toBe(false)
+  })
+
+  test("invalid fontFamily (empty, non-string, or CSS delimiters)", () => {
+    expect(validateTheme({ fontFamily: "", theme: { text: "#fff" } }).ok).toBe(false)
+    expect(validateTheme({ fontFamily: 123, theme: { text: "#fff" } }).ok).toBe(false)
+    expect(validateTheme({ fontFamily: "Mono; color: red", theme: { text: "#fff" } }).ok).toBe(false)
   })
 })

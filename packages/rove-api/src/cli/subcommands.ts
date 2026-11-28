@@ -56,7 +56,7 @@ export const SUBCOMMAND_VERBS: Readonly<Record<VerbedSubcommand, readonly string
   ],
   repo: ["show", "set", "unset"],
   skill: ["install", "status", "print"],
-  theme: ["list", "add", "remove"],
+  theme: ["list", "add", "import", "remove"],
   weixin: ["login", "logout", "status", "allow", "deny", "send", "agent"],
   lark: ["connect", "disconnect", "status", "allow", "deny", "tone"],
 }

@@ -6,6 +6,7 @@
 import { DELIVERIES_VERB, REPORT_VERB } from "./handlers-delivery.ts"
 import { ENGINE_LIST_VERB } from "./handlers-engines.ts"
 import { ATTENTION_DISMISS_VERB, SHOULD_RUN_VERB } from "./handlers-runnability.ts"
+import { THEME_IMPORT_VERB } from "./handlers-theme.ts"
 import { TODO_VERB } from "./handlers-todo.ts"
 import { fullSchema, groupSchema, schemaIndex, verbSchema } from "./schema.ts"
 import { ApiError, VERB_GROUP_IDS, type VerbContext, type VerbGroup, type VerbSpec } from "./types.ts"
@@ -167,6 +168,7 @@ export const VERBS: readonly VerbSpec[] = [
   ...ROUTINE_VERBS,
   ...WORK_ITEM_VERBS,
   ...EDIT_VERBS,
+  THEME_IMPORT_VERB,
   TODO_VERB,
   ...LIFECYCLE_VERBS,
   ...WORKTREE_VERBS,

@@ -267,6 +267,8 @@ update          --task-id --title --tab --branch --parent --project --group --co
                 --auto-fix-ci{on|off}
                 --status{backlog|in_progress|in_review|done|canceled|error}
                 --report-branch --report-pr --report-summary --progress
+theme-import    --list --terminal{ghostty|kitty|alacritty|wezterm} --name --force
+                --no-switch
 todo            --task-id --add --check --uncheck --edit --text --remove --notes
                 --clear-notes
 land            --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delete-branch

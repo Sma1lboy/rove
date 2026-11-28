@@ -118,6 +118,7 @@ export type ThemeContextValue = {
     themeMode: ThemeModePreference
     focusAccent: FocusAccentSlot
     transparentBackground: boolean
+    themeOverride?: ThemeJson
   }): Theme
   all(): string[]
   has(name: string): boolean
@@ -238,13 +239,18 @@ export function ThemeProvider(props: { children?: ReactNode; mode?: ThemeModePre
       setFocusAccent(v: FocusAccentSlot): void {
         store.update((s) => ({ ...s, focusAccent: v }))
       },
-      preview: (options) =>
-        applyDisplayOverlay(
-          resolveActive({ ...state, active: options.themeName }, resolveThemeMode(options.themeMode, hostMode)),
+      preview: (options) => {
+        const resolvedMode = resolveThemeMode(options.themeMode, hostMode)
+        const base = options.themeOverride
+          ? resolveTheme(options.themeOverride, resolvedMode)
+          : resolveActive({ ...state, active: options.themeName }, resolvedMode)
+        return applyDisplayOverlay(
+          base,
           options.focusAccent,
           options.transparentBackground,
           hostBackground ?? undefined,
-        ),
+        )
+      },
       all: listThemes,
       has: hasTheme,
     }),

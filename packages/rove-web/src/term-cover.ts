@@ -31,7 +31,7 @@ export function createCover(term: Terminal, host: HTMLElement, serialize: Serial
     const screen = term.element?.querySelector<HTMLElement>(".xterm-screen")
     if (!cover || !screen || term.rows <= 0 || term.cols <= 0) return
     const ctx = document.createElement("canvas").getContext("2d")
-    if (ctx) ctx.font = `${term.options.fontSize ?? 13}px ${FONT_FAMILY}`
+    if (ctx) ctx.font = `${term.options.fontSize ?? 13}px ${term.options.fontFamily ?? FONT_FAMILY}`
     const glyph = ctx?.measureText("W").width ?? 0
     cover.style.setProperty("--row-h", `${screen.clientHeight / term.rows}px`)
     if (glyph > 0) cover.style.letterSpacing = `${screen.clientWidth / term.cols - glyph}px`

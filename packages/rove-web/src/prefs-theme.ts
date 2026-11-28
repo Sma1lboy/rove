@@ -21,6 +21,26 @@ export function paletteFor(themes: readonly ThemeEntry[], name: string, mode: Mo
   return entry ? entry[mode] : null
 }
 
+/** Optional monospace font family declared by the chosen theme (e.g. imported from a local terminal). */
+export function fontFamilyFor(themes: readonly ThemeEntry[], name: string): string | null {
+  const entry = themes.find((t) => t.name === name) ?? themes.find((t) => t.name === "claude")
+  return entry?.fontFamily ?? null
+}
+
+function quoteCssFont(family: string): string {
+  return `"${family.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`
+}
+
+/** Page `--mono` stack with a theme's font first while keeping Rove Nerd Symbols for icon glyphs. */
+export function monoFontStack(family: string): string {
+  return `${quoteCssFont(family)}, "Rove Nerd Symbols", "JetBrains Mono", "IBM Plex Mono", "SF Mono", Menlo, Consolas, ui-monospace, monospace`
+}
+
+/** xterm.js font stack with a theme's font first while keeping Rove Nerd Symbols for prompt glyphs. */
+export function terminalFontStack(family: string): string {
+  return `${quoteCssFont(family)}, "Rove Nerd Symbols", "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace`
+}
+
 const channelsOf = (hex: string): number[] => [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16))
 
 function luminance(hex: string): number {
@@ -151,38 +171,41 @@ export function cssVars(palette: Palette, prefs: Pick<Prefs, "focusAccent" | "co
   } as Record<string, string>
 }
 
-/** xterm's colours from the same slots (the TUI's `theme.text`/`background` are the terminal defaults). */
+/** xterm's colours from the same slots; prefers explicit cursor and ANSI 0–15 slots when the theme defines them. */
 export function xtermTheme(palette: Palette): Record<string, string> {
   return {
     background: palette.background,
     foreground: palette.text,
-    cursor: palette.primary,
+    cursor: palette.cursor ?? palette.primary,
     cursorAccent: palette.background,
     selectionBackground: palette.backgroundMenu,
-    black: palette.background,
-    red: palette.error,
-    green: palette.success,
-    yellow: palette.warning,
-    blue: palette.info,
-    magenta: palette.syntaxType,
-    cyan: palette.secondary,
-    white: palette.textMuted,
-    brightBlack: palette.diffLineNumber,
-    brightRed: palette.error,
-    brightGreen: palette.success,
-    brightYellow: palette.warning,
-    brightBlue: palette.info,
-    brightMagenta: palette.syntaxType,
-    brightCyan: palette.secondary,
-    brightWhite: palette.text,
+    black: palette.terminalBlack ?? palette.background,
+    red: palette.terminalRed ?? palette.error,
+    green: palette.terminalGreen ?? palette.success,
+    yellow: palette.terminalYellow ?? palette.warning,
+    blue: palette.terminalBlue ?? palette.info,
+    magenta: palette.terminalMagenta ?? palette.syntaxType,
+    cyan: palette.terminalCyan ?? palette.secondary,
+    white: palette.terminalWhite ?? palette.textMuted,
+    brightBlack: palette.terminalBrightBlack ?? palette.diffLineNumber,
+    brightRed: palette.terminalBrightRed ?? palette.error,
+    brightGreen: palette.terminalBrightGreen ?? palette.success,
+    brightYellow: palette.terminalBrightYellow ?? palette.warning,
+    brightBlue: palette.terminalBrightBlue ?? palette.info,
+    brightMagenta: palette.terminalBrightMagenta ?? palette.syntaxType,
+    brightCyan: palette.terminalBrightCyan ?? palette.secondary,
+    brightWhite: palette.terminalBrightWhite ?? palette.text,
   } as Record<string, string>
 }
 
 /** The xterm colours in use; null until a palette is known (the terminal keeps its built-in dark ones). */
 export const terminalTheme = createStore<Record<string, string> | null>(null)
 
-/** A theme's two halves, installed or not (a rove.run theme previews before it is installed). */
-export type PreviewTheme = Pick<ThemeEntry, "name" | "dark" | "light">
+/** The xterm font stack from the active theme, or null to use the default stack in `term-look.ts`. */
+export const terminalFontFamily = createStore<string | null>(null)
+
+/** A theme's two halves, installed or not (a rove.run or local terminal theme previews before it is installed). */
+export type PreviewTheme = Pick<ThemeEntry, "name" | "dark" | "light" | "fontFamily">
 
 /** The theme a gallery card is showing while the pointer or focus is on it; `null` paints the saved one. */
 export const themePreview = createStore<PreviewTheme | null>(null)

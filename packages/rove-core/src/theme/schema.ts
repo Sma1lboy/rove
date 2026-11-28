@@ -97,5 +97,14 @@ export function validateTheme(value: unknown): ValidateResult {
     return { ok: false, reason: "`$schema` must be a string when present" }
   }
 
+  if ("fontFamily" in obj && obj.fontFamily !== undefined) {
+    if (typeof obj.fontFamily !== "string" || obj.fontFamily.trim().length === 0) {
+      return { ok: false, reason: "`fontFamily` must be a non-empty string when present" }
+    }
+    if (/[\r\n;{}]/.test(obj.fontFamily)) {
+      return { ok: false, reason: "`fontFamily` must not contain newlines or CSS delimiter characters" }
+    }
+  }
+
   return { ok: true, theme: obj as unknown as ThemeJson }
 }

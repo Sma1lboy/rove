@@ -2,16 +2,29 @@
 
 import type { Terminal } from "@xterm/xterm"
 import { isNarrow, onNarrowChange } from "./layout.ts"
+import { terminalFontFamily } from "./prefs-theme.ts"
 
 /** The phone layout reads a step larger: 45 columns on a 390px screen. */
 export const termFontSize = (): number => (isNarrow() ? 14 : 13)
 
-/** Keeps a mounted terminal's size in step as the viewport crosses into or out of the phone layout. */
-export const followFontSize = (term: Terminal, refit: () => void): (() => void) =>
-  onNarrowChange(() => {
+/** Keeps a mounted terminal's size and theme font family in step with viewport and theme changes. */
+export const followFontSize = (term: Terminal, refit: () => void): (() => void) => {
+  const offNarrow = onNarrowChange(() => {
     term.options.fontSize = termFontSize()
     refit()
   })
+  const offFont = terminalFontFamily.subscribe(() => {
+    const next = terminalFontFamily.get() ?? FONT_FAMILY
+    if (term.options.fontFamily !== next) {
+      term.options.fontFamily = next
+      refit()
+    }
+  })
+  return () => {
+    offNarrow()
+    offFont()
+  }
+}
 
 /** The TUI's default `claude` theme, dark (`theme/claude.json`). */
 export const XTERM_THEME = {
