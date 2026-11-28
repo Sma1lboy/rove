@@ -37,3 +37,12 @@ export const MD_LINK = "text-accent underline"
 export const MD_TABLE = "mb-2 block max-w-full overflow-x-auto border-collapse font-mono text-meta last:mb-0"
 export const MD_CELL = "border-hairline border-line px-2 py-0.5 text-left align-top"
 export const MD_RULE = "my-2 border-0 border-t border-line"
+
+/** Inline composer pinned at the bottom of the Chat tab. Hidden on touch phones where `TermComposer` already sits underneath. */
+export const chatComposerClass = (narrow: boolean): string =>
+  `flex-none border-t border-line px-3 py-2${narrow ? " touch:hidden" : ""}`
+export const CHAT_COMPOSER_ROW =
+  "flex min-w-0 items-end gap-2 rounded-sm border-hairline border-line bg-inset px-2.5 py-1.5 focus-within:border-line-active"
+export const CHAT_COMPOSER_INPUT =
+  "min-h-[24px] min-w-0 flex-1 resize-none bg-transparent py-0.5 font-sans text-body leading-[1.45] text-ink outline-none [border:0] placeholder:text-subtle disabled:opacity-60 touch:text-display"
+export const CHAT_COMPOSER_SEND = "flex-none"

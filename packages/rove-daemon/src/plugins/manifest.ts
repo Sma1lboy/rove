@@ -122,6 +122,8 @@ export interface PluginEngine {
   readonly modelsCommand?: readonly string[]
   /** Flag that skips the engine's permission prompts, appended while Rove's bypass setting is on. */
   readonly permissionBypassFlag?: string
+  /** Optional adapter protocol (`"acp"`): speaks Agent Client Protocol over stdio, no screen rules required. */
+  readonly protocol?: "acp"
 }
 
 export type { PluginPage } from "./manifest-pages.ts"
@@ -428,6 +430,12 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
       if (raw !== "argv" && raw !== "paste") fail(`engines[${i}].first_message_delivery must be argv | paste`)
       firstMessageDelivery = raw
     }
+    let protocol: PluginEngine["protocol"]
+    if (t.protocol !== undefined) {
+      const raw = asString(t.protocol, `engines[${i}].protocol`)
+      if (raw !== "acp") fail(`engines[${i}].protocol must be acp`)
+      protocol = raw
+    }
     return {
       id: engineId,
       name: asString(t.name, `engines[${i}].name`),
@@ -445,6 +453,7 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
       ...(t.permission_bypass_flag === undefined
         ? {}
         : { permissionBypassFlag: asString(t.permission_bypass_flag, `engines[${i}].permission_bypass_flag`) }),
+      ...(protocol ? { protocol } : {}),
     }
   })
   const engineSeen = new Set<string>()

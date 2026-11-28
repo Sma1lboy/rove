@@ -9,6 +9,13 @@ export type CommandHandler = (args: string[]) => Promise<void>
 
 export const DYNAMIC_COMMANDS = new Map<string, CommandHandler>([
   [
+    "_acp-bridge",
+    async (args) => {
+      const { runAcpBridgeSubcommand } = await import("@sma1lboy/rove-core/engine/acp-local/bridge-runner.ts")
+      await runAcpBridgeSubcommand(args)
+    },
+  ],
+  [
     "_trust-claude-worktree",
     async (paths) => {
       const { trustClaudeWorktree } = await import("../engine/claude-code-local/trust.ts")

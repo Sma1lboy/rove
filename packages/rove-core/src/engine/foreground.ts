@@ -13,6 +13,7 @@ import { basename } from "node:path"
 import { recordSpawn } from "@sma1lboy/rove-core/lib/spawn-profile.ts"
 import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
+import { ACP_BRIDGE_SUBCOMMAND, ACP_PROTOCOL } from "./acp-local/adapter.ts"
 import { type ProcRow, PsProbeUnavailableError } from "./process-rows.ts"
 import { engineEntry, identifiableEngineIds } from "./registry"
 
@@ -194,11 +195,16 @@ export function foregroundEngineIn(rows: readonly ProcRow[], rootPid: number): F
   const builtin = walkDescendants(rows, rootPid, vendorFromArgv)
   if (builtin) return builtin
   const custom = customEngineBinaries()
-  if (custom.size === 0) return null
-  return walkDescendants(
-    rows,
-    rootPid,
-    (args) => custom.get(executableNameFromArgv(args.trim().split(/\s+/)) ?? "") ?? null,
+  if (custom.size > 0) {
+    const matched = walkDescendants(
+      rows,
+      rootPid,
+      (args) => custom.get(executableNameFromArgv(args.trim().split(/\s+/)) ?? "") ?? null,
+    )
+    if (matched) return matched
+  }
+  return walkDescendants(rows, rootPid, (args) =>
+    args.trim().split(/\s+/).includes(ACP_BRIDGE_SUBCOMMAND) ? ACP_PROTOCOL : null,
   )
 }
 

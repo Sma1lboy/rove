@@ -18,6 +18,28 @@ export interface ReadReply {
   readonly fallbackReason?: string | null
 }
 
+/** Shape of a bridge `transcript.update` push frame. */
+export interface TranscriptUpdateEvent {
+  readonly taskId: string
+  readonly tab?: string
+  readonly reset?: boolean
+  readonly source: "history" | "terminal"
+  readonly history?: {
+    readonly messages?: readonly RawMessage[]
+    readonly firstIndex?: number
+    readonly totalMessages?: number
+  }
+  readonly terminal?: { readonly tail?: readonly string[] }
+  readonly cursor: string | null
+  readonly olderCursor?: string | null
+}
+
+export function isTranscriptUpdateEvent(data: unknown): data is TranscriptUpdateEvent {
+  if (!data || typeof data !== "object") return false
+  const e = data as Record<string, unknown>
+  return typeof e.taskId === "string" && (e.source === "history" || e.source === "terminal")
+}
+
 export interface RawMessage {
   readonly role?: string
   readonly timestamp?: string

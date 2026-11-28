@@ -1,12 +1,21 @@
 /**
- * Reads a task's conversation for the Chat tab: the newest page first, older pages on demand, and the forward
- * cursor as the poll point for what the engine writes next. An engine with no history reader gets its terminal tail.
+ * Reads a task's conversation for the Chat tab: the newest page first, older pages on demand,
+ * live incremental updates pushed via `transcript.subscribe` (`transcript.update`), and the
+ * forward cursor as the fallback poll point for older bridges or remote tasks.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { errorText } from "./dialogs.tsx"
 import type { AppModel } from "./model.ts"
-import { EMPTY, type RawMessage, type ReadReply, type Transcript, addPage } from "./transcript-data.ts"
+import {
+  EMPTY,
+  type RawMessage,
+  type ReadReply,
+  type Transcript,
+  type TranscriptUpdateEvent,
+  addPage,
+  isTranscriptUpdateEvent,
+} from "./transcript-data.ts"
 
 const PAGE = 50
 
@@ -27,6 +36,8 @@ export interface TranscriptLoader {
   readonly state: TranscriptState
   /** True while an older page is on its way. */
   readonly paging: boolean
+  /** True when the bridge accepted `transcript.subscribe` for push-driven live updates. */
+  readonly streaming: boolean
   readonly loadOlder: () => Promise<void>
   /** Every older page, for an export; the whole conversation as loaded, or null when there is none to read. */
   readonly loadAll: () => Promise<Transcript | null>
@@ -35,9 +46,47 @@ export interface TranscriptLoader {
   readonly reload: () => void
 }
 
-export function useTranscript(model: AppModel, taskId: string): TranscriptLoader {
+/** Pure reducer folding a bridge `transcript.update` push into the current loader state. */
+export function applyTranscriptUpdate(cur: TranscriptState, ev: TranscriptUpdateEvent): TranscriptState {
+  if (ev.reset) {
+    if (ev.source === "terminal" || !ev.history) {
+      return { kind: "terminal", tail: ev.terminal?.tail ?? [] }
+    }
+    const transcript = addPage(EMPTY, ev.history.messages ?? [], ev.history.firstIndex ?? 0)
+    return {
+      kind: "ready",
+      transcript,
+      cursor: ev.cursor ?? null,
+      older: ev.olderCursor ?? null,
+    }
+  }
+  if (ev.source === "history" && ev.history) {
+    const messages = ev.history.messages ?? []
+    const firstIndex = ev.history.firstIndex ?? 0
+    if (cur.kind === "ready") {
+      return {
+        ...cur,
+        transcript: addPage(cur.transcript, messages, firstIndex),
+        cursor: ev.cursor ?? cur.cursor,
+      }
+    }
+    return {
+      kind: "ready",
+      transcript: addPage(EMPTY, messages, firstIndex),
+      cursor: ev.cursor ?? null,
+      older: ev.olderCursor ?? null,
+    }
+  }
+  if (ev.source === "terminal" && ev.terminal) {
+    return { kind: "terminal", tail: ev.terminal.tail ?? [] }
+  }
+  return cur
+}
+
+export function useTranscript(model: AppModel, taskId: string, active = true): TranscriptLoader {
   const [state, setState] = useState<TranscriptState>({ kind: "loading" })
   const [paging, setPaging] = useState(false)
+  const [streaming, setStreaming] = useState(false)
   const latest = useRef(state)
   latest.current = state
   // One read at a time, and a read for a task or reload that has moved on is dropped.
@@ -70,12 +119,62 @@ export function useTranscript(model: AppModel, taskId: string): TranscriptLoader
 
   useEffect(() => {
     setState({ kind: "loading" })
+    setStreaming(false)
     void load()
     return () => {
       turn.current++
       busy.current = false
     }
   }, [load])
+
+  // Subscribe to bridge `transcript.update` pushes once initial load settles (`ready` or `terminal`).
+  const loadedKind = state.kind === "ready" || state.kind === "terminal" ? state.kind : null
+  useEffect(() => {
+    if (!active || !loadedKind) {
+      setStreaming(false)
+      return
+    }
+    let disposed = false
+    let subscribed = false
+
+    const offEvent = model.client.on("transcript.update", (data) => {
+      if (disposed || !isTranscriptUpdateEvent(data) || data.taskId !== taskId || data.tab) return
+      setState((cur) => applyTranscriptUpdate(cur, data))
+    })
+
+    const subscribe = (): void => {
+      const cur = latest.current
+      const cursor = cur.kind === "ready" ? cur.cursor : null
+      void model.client
+        .request<{ streaming?: boolean }>("transcript.subscribe", {
+          taskId,
+          ...(cursor ? { cursor } : {}),
+        })
+        .then(
+          (res) => {
+            if (disposed) return
+            const ok = res?.streaming === true
+            subscribed = ok
+            setStreaming(ok)
+          },
+          () => {
+            if (!disposed) setStreaming(false)
+          },
+        )
+    }
+
+    const offOpen = model.client.onOpen(subscribe)
+
+    return () => {
+      disposed = true
+      offEvent()
+      offOpen()
+      setStreaming(false)
+      if (subscribed) {
+        void model.client.request("transcript.unsubscribe", { taskId }).catch(() => {})
+      }
+    }
+  }, [active, loadedKind, model, taskId])
 
   const refresh = useCallback(async () => {
     const now = latest.current
@@ -179,5 +278,5 @@ export function useTranscript(model: AppModel, taskId: string): TranscriptLoader
     void load()
   }, [load])
 
-  return { state, paging, loadOlder, loadAll, refresh, reload }
+  return { state, paging, streaming, loadOlder, loadAll, refresh, reload }
 }

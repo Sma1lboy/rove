@@ -152,7 +152,7 @@ export function ColumnView({
   return (
     <div className={SIDE_VIEW}>
       {column.kind === "files" && <FilesView model={model} task={task} narrow={narrow} />}
-      {column.kind === "chat" && <TranscriptView model={model} task={task} active />}
+      {column.kind === "chat" && <TranscriptView model={model} task={task} active narrow={narrow} />}
       {column.kind === "quota" && <ContextView model={model} task={task} active />}
       {column.kind === "diff" && (
         <PreviewHost

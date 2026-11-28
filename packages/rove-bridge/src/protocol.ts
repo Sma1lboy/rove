@@ -55,6 +55,9 @@ export const OPS = [
   "auth.setMode",
   // Settings → Connectors → Phone: a fresh device token in a relay link to show as a QR code.
   "phone.pair",
+  // Live incremental transcript updates for the web Chat tab (`transcript-feed.ts`).
+  "transcript.subscribe",
+  "transcript.unsubscribe",
 ] as const
 
 export type Op = (typeof OPS)[number]
@@ -77,12 +80,30 @@ export interface ViewingFields {
   readonly narrow?: boolean
 }
 
-/**
- * The `panel` push: `rove api panel-show` asked the web side panel to show something. Remember
+/** The `panel` push: `rove api panel-show` asked the web side panel to show something. Remember
  * `view`/`url`/`path` for `taskId`; if this page is on that task with a panel, bring it up (no
  * focus steal, no task switch). `at` (ms epoch) dedupes a replay. Absent `url`/`path` = just the view.
  */
 export type { PanelShowPayload as PanelPush } from "./panels.ts"
+
+/** Incremental (or reset) transcript update pushed to `transcript.subscribe` clients. */
+export interface TranscriptUpdatePush {
+  readonly taskId: string
+  readonly tab?: string
+  readonly reset?: boolean
+  readonly source: "history" | "terminal"
+  readonly history?: {
+    readonly sessionId?: string
+    readonly messages: readonly unknown[]
+    readonly firstIndex: number
+    readonly totalMessages?: number
+  }
+  readonly terminal?: {
+    readonly tail: readonly string[]
+  }
+  readonly cursor: string | null
+  readonly olderCursor?: string | null
+}
 
 /** The `browser.probe` op's answer (`args: { url, origin? }`): can this page sit in an iframe? */
 export type { FrameProbe as BrowserProbeResult } from "@sma1lboy/rove-daemon/daemon/frame-check"

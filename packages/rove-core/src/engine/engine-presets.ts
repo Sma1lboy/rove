@@ -26,6 +26,7 @@
 import { randomUUID } from "node:crypto"
 import { getCustomEngineIds, getPersistedString } from "@sma1lboy/rove-core/state/repos.ts"
 import { BUILTIN_VENDORS, type VendorId, isBuiltinVendor } from "@sma1lboy/rove-core/types/vendor.ts"
+import { ACP_PROTOCOL } from "./acp-local/adapter.ts"
 import { isContribEngine } from "./contrib-engines.ts"
 import { vendorFromArgv } from "./foreground.ts"
 import {
@@ -54,8 +55,8 @@ import {
  */
 export const GENERIC_PROTOCOL = "generic" as const
 
-/** Protocols a preset may declare: the built-in adapters ({@link BUILTIN_VENDORS}). */
-export const ENGINE_PROTOCOLS: readonly VendorId[] = BUILTIN_VENDORS
+/** Protocols a preset may declare: the built-in adapters plus the generic ACP adapter. */
+export const ENGINE_PROTOCOLS: readonly VendorId[] = [...BUILTIN_VENDORS, ACP_PROTOCOL]
 
 /** state.json key holding a custom preset's declared protocol. */
 export function engineProtocolKey(id: string): string {

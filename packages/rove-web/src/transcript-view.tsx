@@ -1,7 +1,8 @@
 /**
- * The side panel's Chat tab: the engine's own conversation (`output.read` history, the same for claude and codex)
- * as readable messages, newest at the bottom. Reading only: the composer stays in the terminal. Tool calls are one
- * line each; Copy takes one message, Export the thread, and the find box steps through matches.
+ * The side panel's Chat tab: the engine's own conversation (`output.read` history + live `transcript.update`
+ * pushes) as readable messages, newest at the bottom, with a lightweight inline composer (`tab.send` →
+ * `rove api send`) targeting the active engine tab. Tool calls are one line each; Copy takes one message,
+ * Export the thread, and the find box steps through matches.
  */
 
 import { type KeyboardEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
@@ -10,6 +11,7 @@ import { t, useLocale } from "./i18n/index.ts"
 import { MarkdownView, markText } from "./markdown-view.tsx"
 import type { AppModel } from "./model.ts"
 import { useStore } from "./store.ts"
+import { TranscriptComposer } from "./transcript-composer.tsx"
 import { type Entry, entryCopyText, exportMarkdown, findEntries, hitIsOlder, locateHit } from "./transcript-data.ts"
 import { transcriptTarget } from "./transcript-focus.ts"
 import { useTranscript } from "./transcript-load.ts"
@@ -18,8 +20,10 @@ import { Button } from "./ui/button.tsx"
 import { INPUT } from "./ui/text.ts"
 import * as s from "./ui/transcript.ts"
 
-/** Re-read this often while the engine works; once it stops, one last read picks up the end. */
+/** Polling cadence when the bridge does not support push streaming. */
 const LIVE_MS = 3000
+/** Safety fallback poll while push streaming (`transcript.subscribe`) is active. */
+const FALLBACK_POLL_MS = 15_000
 /** Scrolled this close to the top, the next older page loads; this close to the bottom, new messages keep it pinned. */
 const EDGE_PX = 80
 const FLASH_MS = 2500
@@ -73,10 +77,20 @@ function EntryView(props: {
   )
 }
 
-export function TranscriptView({ model, task, active }: { model: AppModel; task: TaskRow; active: boolean }) {
+export function TranscriptView({
+  model,
+  task,
+  active,
+  narrow = false,
+}: {
+  model: AppModel
+  task: TaskRow
+  active: boolean
+  narrow?: boolean
+}) {
   useLocale()
-  const loader = useTranscript(model, task.id)
-  const { state } = loader
+  const loader = useTranscript(model, task.id, active)
+  const { state, streaming } = loader
   const [query, setQuery] = useState("")
   const [step, setStep] = useState(0)
   const [flash, setFlash] = useState<number | null>(null)
@@ -109,9 +123,9 @@ export function TranscriptView({ model, task, active }: { model: AppModel; task:
   }, [active, kind, refresh])
   useEffect(() => {
     if (!active || !live) return
-    const timer = setInterval(() => void refresh(), LIVE_MS)
+    const timer = setInterval(() => void refresh(), streaming ? FALLBACK_POLL_MS : LIVE_MS)
     return () => clearInterval(timer)
-  }, [active, live, refresh])
+  }, [active, live, refresh, streaming])
 
   // New messages keep a pinned reader at the bottom; an older page keeps the reader's place.
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs when the loaded messages change
@@ -210,6 +224,7 @@ export function TranscriptView({ model, task, active }: { model: AppModel; task:
       <div className={s.CHAT}>
         <p className={s.CHAT_NOTE}>{t("transcript.noHistory")}</p>
         <pre className={`${s.CHAT_TAIL} min-h-0 flex-1 overflow-y-auto`}>{state.tail.join("\n")}</pre>
+        <TranscriptComposer key={task.id} model={model} task={task} narrow={narrow} onSent={() => void refresh()} />
       </div>
     )
   }
@@ -275,6 +290,7 @@ export function TranscriptView({ model, task, active }: { model: AppModel; task:
           />
         ))}
       </div>
+      <TranscriptComposer key={task.id} model={model} task={task} narrow={narrow} onSent={() => void refresh()} />
     </div>
   )
 }

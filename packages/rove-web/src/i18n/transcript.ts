@@ -20,6 +20,11 @@ export const en = {
     retry: "[ retry ]",
     noHistory: "This engine keeps no history Rove can read. Showing its terminal tail.",
     tail: "Terminal tail",
+    composerPlaceholder: "Send a message…",
+    composerPlaceholderEngine: "Message {engine}…",
+    composerSend: "Send",
+    composerSending: "Sending…",
+    composerQueued: "Queued for when the current turn finishes.",
   },
 }
 
@@ -44,5 +49,10 @@ export const zh: typeof en = {
     retry: "[ 重试 ]",
     noHistory: "这个引擎没有 Rove 能读取的历史记录，显示的是它的终端末尾。",
     tail: "终端末尾",
+    composerPlaceholder: "发送消息…",
+    composerPlaceholderEngine: "给 {engine} 发消息…",
+    composerSend: "发送",
+    composerSending: "发送中…",
+    composerQueued: "已排队，将在当前轮次结束后发送。",
   },
 }

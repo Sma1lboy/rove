@@ -97,13 +97,18 @@ the two share one token.
   never begins on someone else's code from a click in a list. Nothing is written
   to GitHub.
 - The Chat tab (first of the panel's buttons) reads the task's conversation from
-  the engine's own history (`output.read`, claude and codex alike): user and
+  the engine's own history (`output.read`, claude, codex, ACP, and other
+  history-capable engines alike): user and
   assistant turns as Markdown, each tool call folded to one line, `[ copy ]` per
-  message, a find box, `[ export .md ]` for the whole thread, and new messages
-  as the engine writes them. A palette conversation hit opens it scrolled to
+  message, a find box, `[ export .md ]` for the whole thread, and live
+  incremental updates pushed over the bridge (`transcript.subscribe` /
+  `transcript.update`, triggered by daemon hook events and transcript file
+  changes, with polling kept as fallback). A palette conversation hit opens it scrolled to
   that message. An engine with no readable history shows its labelled terminal
-  tail. The view itself takes no input; on a phone the message composer and
-  the key row sit under it, so a message, esc or ^C still goes to the agent.
+  tail. An inline composer at the bottom of the Chat tab submits messages to the
+  active engine tab via `rove api send` (`tab.send`); on a touch phone, the
+  shared message composer and key row sit under the view instead, so a message,
+  esc or ^C still goes to the agent.
   There the key row writes straight to the session (no terminal is attached,
   so the shared terminal keeps its size) and has no sticky Ctrl.
 - The side panel holds several tabs per task (Files, a diff per file, a
