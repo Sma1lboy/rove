@@ -31,6 +31,8 @@ let bridge: Started | null = null
 let win: BrowserWindow | null = null
 let quitting = false
 let setup: Setup | null = null
+/** The start in flight, so a Dock click during it does not start a second bridge. */
+let booting: Promise<void> | null = null
 
 const binFile = () => join(app.getPath("userData"), "rove-binary.txt")
 const stateFile = () => join(app.getPath("userData"), "window.json")
@@ -152,11 +154,11 @@ function createWindow(started: Started): void {
     app.setBadgeCount(Number(/^\((\d+)\)/.exec(title)?.[1] ?? 0))
   })
   smokeTest(win)
-  // Close means quit: the bridge is this app's child, and a hidden window with a live bridge is a
-  // process the owner cannot see. (The daemon itself is shared with the TUI and outlives us.)
+  // macOS: closing the window leaves the app in the Dock with its bridge, and a Dock click brings the window back
+  // (`showWindow`). Elsewhere close means quit: a windowless app there is a process the owner cannot see.
   win.on("closed", () => {
     win = null
-    if (!quitting) app.quit()
+    if (!quitting && process.platform !== "darwin") app.quit()
   })
 
   /**
@@ -273,7 +275,6 @@ async function boot(): Promise<void> {
   keepUp(bin, bridge)
   createWindow(bridge)
   log("window created")
-  // After the main window exists: closing the last window quits the app.
   setup?.close()
   setup = null
 }
@@ -387,15 +388,26 @@ function relaunch(): void {
   app.exit(0)
 }
 
+/** The window back: the open one to the front, else a new one on the running bridge, else a fresh start. */
+function showWindow(): void {
+  if (win) {
+    if (win.isMinimized()) win.restore()
+    win.focus()
+  } else if (bridge) createWindow(bridge)
+  else startOnce()
+}
+
+function startOnce(): void {
+  booting ??= boot().finally(() => {
+    booting = null
+  })
+}
+
 // One window per install: a second launch focuses the first rather than starting a second bridge.
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
-  app.on("second-instance", () => {
-    if (!win) return
-    if (win.isMinimized()) win.restore()
-    win.focus()
-  })
+  app.on("second-instance", showWindow)
   app.setName(APP_NAME)
   app.setAboutPanelOptions({ applicationName: APP_NAME, applicationVersion: app.getVersion() })
   app.whenReady().then(() => {
@@ -403,12 +415,14 @@ if (!app.requestSingleInstanceLock()) {
     log(`start ${app.getVersion()} (electron ${process.versions.electron}, ${process.platform}-${process.arch})`)
     watchMemory(() => bridge?.pid)
     buildMenu()
-    void boot()
+    startOnce()
   })
   app.on("activate", () => {
-    if (!BrowserWindow.getAllWindows().length) void boot()
+    if (!BrowserWindow.getAllWindows().length) showWindow()
   })
-  app.on("window-all-closed", () => app.quit())
+  app.on("window-all-closed", () => {
+    if (process.platform !== "darwin") app.quit()
+  })
   app.on("before-quit", () => {
     quitting = true
     bridge?.stop()
