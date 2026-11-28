@@ -159,7 +159,6 @@ Note: App Store Connect hides the "What's New in This Version" field on an initi
 | Privacy Policy URL | `https://rove.run/privacy` | `https://rove.run/privacy` |
 | Copyright | `© 2026 Jackson Chen` | `© 2026 Jackson Chen` |
 
-- `TODO(owner):` Update `packages/rove-landing/privacy.html` before App Store submission. It currently says "Nothing passes through a server run by Rove" (`privacy.html:58` / `privacy.html:131`), which is now out of date because of the optional hosted encrypted relay at `https://relay.sma1lboy.me` (`packages/rove-relay`).
 - `TODO(owner):` Confirm the Copyright line matches the legal individual or organization name on your Apple Developer Program account (`LICENSE` says `Jackson Chen`; `privacy.html` footer says `Sma1lboy`).
 - `TODO(owner):` Confirm whether you prefer `https://github.com/Sma1lboy/rove/issues` (linked under "Questions" on `privacy.html`) or `https://docs.rove.run` as the Support URL.
 
@@ -181,7 +180,7 @@ Matches `Sources/RoveMobile/PrivacyInfo.xcprivacy` (`NSPrivacyTracking: false`, 
 | Built-in demo (`try a demo`) | **Not Collected** / **不收集** | `DemoWeb.swift` + `packages/rove-web/src/demo/transport.ts`: served entirely from the app bundle (`rove-demo://app/`), makes zero network requests, and persists nothing across launches. |
 | Third-party AI providers on the user's computer | **Not Collected by this app** / **本 App 不收集** | Coding agents (Claude Code, Codex, etc.) run on the user's own computer under the user's own accounts and provider policies; the iPhone app never talks to AI provider APIs directly. |
 
-`TODO(owner):` Confirm in the Cloudflare dashboard for `relay.sma1lboy.me` that Workers Logs / Trace Events / Analytics Engine retention is off (matching `wrangler.toml`), and update `packages/rove-landing/privacy.html` so the published privacy policy discloses the optional hosted relay accurately.
+`TODO(owner):` Confirm in the Cloudflare dashboard for `relay.sma1lboy.me` that Workers Logs / Trace Events / Analytics Engine retention is off (matching `wrangler.toml`); rove.run/privacy says the relay writes no logs.
 
 ---
 

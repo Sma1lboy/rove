@@ -55,7 +55,7 @@
   <section class="note wide">
     <h2 data-s="where.h">Where your data goes</h2>
     <div class="body">
-      <p data-s="where.p1">The app talks only to the computer you paired it with, over your local network, Tailscale, or a tunnel you set up yourself, such as a Cloudflare Tunnel or a relay on your own Cloudflare account. Nothing passes through a server run by Rove. What you type, the tasks you open and the terminal output you read travel between your phone and your computer and nowhere else.</p>
+      <p data-s="where.p1">The app talks only to the computer you paired it with, over your local network, Tailscale, or a tunnel you set up yourself, such as a Cloudflare Tunnel or a relay on your own Cloudflare account. If you pair through Rove's hosted relay (relay.sma1lboy.me), the connection passes through a server run by Rove, but it is end-to-end encrypted: the relay forwards ciphertext it cannot read, never sees the pairing code or token, and writes no logs. It only counts bytes per pairing per day, to stop abuse. What you type, the tasks you open and the terminal output you read can only be read on your phone and your computer.</p>
       <p data-s="where.p2">The coding agents on your computer may send your prompts to the AI providers you set them up with. That happens on your computer, under those providers' own policies, not through the app.</p>
     </div>
   </section>
@@ -128,7 +128,7 @@
     'h1': '隐私',
     'lede': 'Rove 的 iPhone app 打开的是你自己电脑上的 Rove 页面。它没有账号、没有统计、没有广告，也不会把任何东西发给做 Rove 的人。',
     'where.h': '数据去了哪里',
-    'where.p1': 'app 只和你配对的那台电脑通信，走你的局域网、Tailscale，或你自己搭的隧道（比如 Cloudflare Tunnel，或部署在你自己 Cloudflare 账号上的中继）。中间不经过任何 Rove 运营的服务器。你输入的内容、打开的任务、看到的终端输出，只在手机和你的电脑之间来回。',
+    'where.p1': 'app 只和你配对的那台电脑通信，走你的局域网、Tailscale，或你自己搭的隧道（比如 Cloudflare Tunnel，或部署在你自己 Cloudflare 账号上的中继）。如果你通过 Rove 托管的中继（relay.sma1lboy.me）配对，连接会经过 Rove 运营的服务器，但全程端到端加密：中继只转发它解不开的密文，拿不到配对码和 token，也不记录日志，只按每个配对每天统计字节数，用来防滥用。你输入的内容、打开的任务、看到的终端输出，只有你的手机和电脑能看到。',
     'where.p2': '你电脑上的 coding agent 可能会把你的提示词发给你给它们配置的 AI 服务商。这发生在你的电脑上，适用那些服务商自己的政策，不经过这个 app。',
     'keep.h': '留在手机上的东西',
     'keep.l1': '每台电脑的配对链接和其中的 token，存在 iOS 钥匙串里。在电脑列表里点 <b>forget</b> 就删掉那一台。',
