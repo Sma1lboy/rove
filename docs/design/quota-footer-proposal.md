@@ -1,6 +1,6 @@
 # Proposal: 多引擎底栏 Quota / 余额展示 UI 方案
 
-- **关联 Issue**：#2380
+- **关联 Issue**：#2389
 - **阶段范围**：纯 UI 设计方案（不改后端采集、不改引擎适配器、不改产品代码）
 - **覆盖端**：TUI（`@opentui/react`）+ `rove-web` / `rove-desktop`（两者共用同一套 web UI，仅桌面端复用宿主窗口）+ 移动端窄屏（`< 560px`）
 
@@ -21,7 +21,7 @@
 
 ### 1.2 与既有“静默底栏（quiet chrome）”决策的张力
 
-Issue #2380 提出在窗口底栏直观看 `Session % | Weekly %`，但当前两端的布局已经历过一轮收敛：
+Issue #2389 提出在窗口底栏直观看 `Session % | Weekly %`，但当前两端的布局已经历过一轮收敛：
 
 - **`rove-web` / `rove-desktop`**：#1624 主动移除了常驻底栏，`StatusBar`（`packages/rove-web/src/status-bar.tsx`）现在**仅在断连或重连时出现**；#1758 将配额放进**左侧栏底部**（`rail-foot.tsx` → `UsageChips`），每引擎一行：`Claude ━━━━━━━ 5h 42%`。移动端（`< 560px`）则收进 Settings 列表底部的卡片。
 - **TUI**：#2162 与 web 对齐，将配额移出 `WorkspaceFrame` 底栏（`host-footer.tsx`，由 `workspace-usage-footer.test.tsx` 锁定）并迁入 `SidebarUsageLines`。但 TUI 的 1 行底栏**依然常驻**，目前左侧仅画当前会话的 `ctx 62%`，右侧画 `⌃A commands · F1 help`，中间长期留白。
