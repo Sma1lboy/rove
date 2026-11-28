@@ -4,9 +4,9 @@
  */
 
 import { availableEngineIds } from "@/engine/account-detect"
+import { t } from "@/i18n"
 import { errorMessage } from "@/lib/error-message"
 import { addSavedRepo, getSavedRepos, resolveMainRepoRoot } from "@/state/repos"
-import { t } from "@/tui/i18n"
 import { DEFAULT_TASK_VENDOR, type VendorId } from "@/types/task"
 import type { NewTaskDialogOptions, NewTaskInput } from "../component/new-task-dialog/state"
 import type { TaskActionContext } from "./task-actions"

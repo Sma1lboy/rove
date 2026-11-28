@@ -14,10 +14,10 @@
 
 import { afterEach, expect, test } from "bun:test"
 import type { CapturedFrame } from "@opentui/core"
+import { currentLang, setLocaleLang } from "../../src/i18n"
 import { UpdatePage } from "../../src/tui-react/component/update-page"
 import { setTransparentBackground } from "../../src/tui-react/context/theme"
 import { BUNDLED_THEMES, DEFAULT_THEME, applyDisplayOverlay, resolveTheme } from "../../src/tui/context/theme-core"
-import { currentLang, setLocaleLang } from "../../src/tui/i18n"
 import { renderComponent, waitForFrameText } from "./harness"
 
 const LANG = currentLang()

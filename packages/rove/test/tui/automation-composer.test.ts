@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
+import { currentLang, setLocaleLang } from "../../src/i18n"
 import {
   COMPOSER_FIELDS,
   type ComposerDraft,
@@ -8,7 +9,6 @@ import {
   previewSchedule,
 } from "../../src/tui/component/automation-composer"
 import { describeCron } from "../../src/tui/component/cron-segments"
-import { currentLang, setLocaleLang } from "../../src/tui/i18n"
 
 const FULL: ComposerDraft = {
   name: "weekday audit",

@@ -6,7 +6,7 @@
  */
 
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
-import { t } from "../../tui/i18n"
+import { t } from "../../i18n"
 import { ModsPage } from "../component/mods-page"
 import { type PageEntry, type PageProps, setPageSource } from "./registry"
 

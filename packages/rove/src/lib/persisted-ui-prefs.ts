@@ -7,6 +7,7 @@
 
 import { readFileSync } from "node:fs"
 import { kvStatePath } from "../env.ts"
+import { DEFAULT_LOCALE, type LocaleId, isLocaleId } from "../i18n/catalog"
 import {
   DEFAULT_THEME_MODE,
   FOCUS_ACCENT_SLOTS,
@@ -15,7 +16,6 @@ import {
   type ThemeModePreference,
   hasBundledTheme,
 } from "../theme/theme-data"
-import { DEFAULT_LOCALE, type LocaleId, isLocaleId } from "../tui/i18n/catalog"
 
 /** state.json key holding the persisted UI language. */
 export const LOCALE_KEY = "locale"

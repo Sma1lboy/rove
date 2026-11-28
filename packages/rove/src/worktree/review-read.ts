@@ -9,9 +9,9 @@
 
 import { isAbsolute, normalize } from "node:path"
 import { ApiError } from "../cli/api/types.ts"
-import { type PreviewData, loadPreviewData } from "../tui/ops/preview-core.ts"
 import { runWorktreeGit } from "./content.ts"
 import { type StatusEntry, listFiles, resolveBase, statusFiles, statusFilesBranch } from "./git-status.ts"
+import { type PreviewData, loadPreviewData } from "./preview-core.ts"
 
 export type DiffScope = "branch" | "working"
 /** What a preview can compare: a `DiffScope`, or `task` = everything since the base, uncommitted work included. */

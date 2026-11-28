@@ -292,7 +292,7 @@ only last.
 
 ## 10. Copy and microcopy
 
-- **The TUI's words win.** Reuse its message catalogue (`tc(...)`, `@sma1lboy/rove/src/tui/i18n`)
+- **The TUI's words win.** Reuse its message catalogue (`tc(...)`, `@sma1lboy/rove/src/i18n`)
   so both clients say the same thing. A new string lands in both `en` and `zh`.
 - **Name things by what the user does,** not by the implementation. An action keeps one name
   through the flow (the button says "Delete", the result says "Deleted").

@@ -100,7 +100,7 @@ export async function runCompletionsSubcommand(
     // and the onboarding graph.
     const [{ installCompletions, settleWelcomeInstall }, { t }] = await Promise.all([
       import("./onboarding.ts"),
-      import("../tui/i18n"),
+      import("../i18n"),
     ])
     const completion = installCompletions(shell, deps.home, cliName, shipped)
     settleWelcomeInstall("completions", shell)

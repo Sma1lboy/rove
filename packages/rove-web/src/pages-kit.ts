@@ -5,11 +5,11 @@
  * having focus, so the rail's `n`/`d` never reach a page and the page's never reach the rail).
  */
 
-import { en as autoEn, zh as autoZh } from "@sma1lboy/rove/src/tui/i18n/messages/automations.ts"
-import { en as commonEn, zh as commonZh } from "@sma1lboy/rove/src/tui/i18n/messages/common.ts"
-import { en as kanbanEn, zh as kanbanZh } from "@sma1lboy/rove/src/tui/i18n/messages/kanban.ts"
-import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
-import { en as itemsEn, zh as itemsZh } from "@sma1lboy/rove/src/tui/i18n/messages/workItems.ts"
+import { en as autoEn, zh as autoZh } from "@sma1lboy/rove/src/i18n/messages/automations.ts"
+import { en as commonEn, zh as commonZh } from "@sma1lboy/rove/src/i18n/messages/common.ts"
+import { en as kanbanEn, zh as kanbanZh } from "@sma1lboy/rove/src/i18n/messages/kanban.ts"
+import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/i18n/messages/tasks.ts"
+import { en as itemsEn, zh as itemsZh } from "@sma1lboy/rove/src/i18n/messages/workItems.ts"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { everyVisible } from "./every-visible.ts"
 import { useLocale } from "./i18n/index.ts"

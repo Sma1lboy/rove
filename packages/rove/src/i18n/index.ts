@@ -9,7 +9,7 @@
  * module-level constant, which freezes the language.
  */
 
-import { type ReadableState, createStateCell } from "../../lib/external-store"
+import { type ReadableState, createStateCell } from "../lib/external-store"
 import { CATALOGS, DEFAULT_LOCALE, LOCALES, type LocaleId } from "./catalog"
 import { interpolate, lookup, lookupKeys } from "./lookup"
 

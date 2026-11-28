@@ -3,7 +3,7 @@ import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { describe, expect, test } from "vitest"
-import { type PreviewData, loadPreviewData, unifiedDiffFiles } from "../../src/tui/ops/preview-core"
+import { type PreviewData, loadPreviewData, unifiedDiffFiles } from "../../src/worktree/preview-core"
 
 /** Asserts the preview's kind and narrows to it. */
 function expectKind<K extends PreviewData["kind"]>(data: PreviewData, kind: K): Extract<PreviewData, { kind: K }> {

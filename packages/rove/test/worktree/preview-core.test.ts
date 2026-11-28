@@ -1,5 +1,5 @@
 /**
- * Data half of the ops preview window (`tui/ops/preview-core.ts`).
+ * Data half of the ops preview window (`worktree/preview-core.ts`).
  * `loadPreviewData` decides which renderable the preview mounts — a dirty
  * file MUST render as a `<diff>` vs HEAD and a clean/untracked one as its
  * `<code>` content — and `filetypeOf` picks the tree-sitter grammar. Both
@@ -21,7 +21,7 @@ import {
   loadPreviewData,
   patchFirstLine,
   unifiedDiffFiles,
-} from "../../src/tui/ops/preview-core.ts"
+} from "../../src/worktree/preview-core.ts"
 
 /** Asserts the preview's kind and narrows to it. */
 function expectKind<K extends PreviewData["kind"]>(data: PreviewData, kind: K): Extract<PreviewData, { kind: K }> {

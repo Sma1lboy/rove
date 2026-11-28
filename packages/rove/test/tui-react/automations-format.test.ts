@@ -9,8 +9,8 @@
  */
 
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
+import { currentLang, setLocaleLang, t } from "../../src/i18n"
 import { formatRunStatus, formatWhen } from "../../src/tui-react/component/automations-format"
-import { currentLang, setLocaleLang, t } from "../../src/tui/i18n"
 
 const NOW = new Date(2026, 6, 31, 10, 0, 0).getTime()
 const iso = (deltaMs: number): string => new Date(NOW + deltaMs).toISOString()

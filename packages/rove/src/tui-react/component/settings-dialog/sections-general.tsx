@@ -10,6 +10,7 @@ import { TextAttributes } from "@opentui/core"
 import { useMemo } from "react"
 import type { UsageSnapshotMap } from "../../../client/remote-orchestrator"
 import { engineDisplayName } from "../../../engine/interactive-command"
+import { LOCALES, type LocaleId } from "../../../i18n/catalog"
 import { displayWidth } from "../../../lib/display-width"
 import type { UsageShow } from "../../../state/usage-show"
 import {
@@ -22,7 +23,6 @@ import {
   languageRowId,
   rowIndex,
 } from "../../../tui/component/settings-dialog/model"
-import { LOCALES, type LocaleId } from "../../../tui/i18n/catalog"
 import { keyHintsToggleOn, toggleKeyHints } from "../../../tui/lib/keyboard-hints"
 import { useKV } from "../../context/kv"
 import { useTheme } from "../../context/theme"

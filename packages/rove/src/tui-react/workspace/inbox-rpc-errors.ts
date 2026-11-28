@@ -1,5 +1,5 @@
 import { userFacingErrorMessage } from "@/lib/error-message"
-import { t } from "../../tui/i18n"
+import { t } from "../../i18n"
 
 export type InboxRpcAction = "mark read" | "dismiss"
 

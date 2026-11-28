@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from "vitest"
-import { CATALOGS, LOCALES, en } from "../../src/tui/i18n/catalog"
+import { CATALOGS, LOCALES, en } from "../../src/i18n/catalog"
 
 type Leaf = string
 

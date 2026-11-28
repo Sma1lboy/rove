@@ -12,6 +12,7 @@
  * commands, classifier endpoints and secrets.
  */
 
+import { DEFAULT_LOCALE, LOCALES, isLocaleId } from "@sma1lboy/rove/src/i18n/catalog.ts"
 import {
   DEFAULT_EDITOR_KIND,
   EDITOR_CUSTOM_KEY,
@@ -84,7 +85,6 @@ import {
   FOCUS_ACCENT_SLOTS,
   THEME_MODE_PREFERENCES,
 } from "@sma1lboy/rove/src/tui/context/theme-core.ts"
-import { DEFAULT_LOCALE, LOCALES, isLocaleId } from "@sma1lboy/rove/src/tui/i18n/catalog.ts"
 import { FINISHED_ALERTS_KEY } from "@sma1lboy/rove/src/tui/lib/notify-state.ts"
 import {
   DEFAULT_PREFIX_TAP_PRESENTATION,

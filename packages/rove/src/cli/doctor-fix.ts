@@ -11,7 +11,7 @@
  */
 
 import { createInterface } from "node:readline"
-import { t } from "../tui/i18n"
+import { t } from "../i18n"
 
 export type DoctorFix =
   | {
