@@ -19,10 +19,10 @@ import {
   PR_LIST_STATE,
   PR_LIST_STATS,
   PR_LIST_TITLE,
-  PR_SHEET_ITEM,
+  PR_SHEET_LIST,
   prListClass,
 } from "./ui/rail.ts"
-import { SHEET_LIST, SHEET_SEP, Sheet, SheetRow } from "./ui/sheet.tsx"
+import { SHEET_LIST, Sheet, SheetRow } from "./ui/sheet.tsx"
 
 interface Entry {
   readonly task: TaskRow
@@ -74,6 +74,11 @@ export function prEntries(tasks: readonly TaskRow[]): Entry[] {
   return [...byPr.values()]
 }
 
+const STATE_ORDER = { open: 0, merged: 1, closed: 2 } as const
+/** Open first, then merged, then closed; the order within each as found. */
+const byState = (entries: readonly Entry[]): Entry[] =>
+  [...entries].sort((a, b) => STATE_ORDER[a.mark.state] - STATE_ORDER[b.mark.state])
+
 const entryKey = (task: TaskRow, pr: TaskRowPr): string => pr.url ?? `${task.id}#${pr.number ?? ""}`
 
 /** A PR's title over its state, checks, repo and number, and its line counts at the end. */
@@ -115,7 +120,7 @@ const chipLabel = (entries: readonly Entry[], lead: PrMark): string =>
 
 /**
  * On a phone row: the chip is its own 44px target (the row under it doesn't open), and a tap raises the PRs as a
- * sheet, each with a way to the forge.
+ * sheet: a compact list, a tap on a PR opens it on the forge.
  */
 function PrChipSheet({ entries, lead }: { entries: readonly Entry[]; lead: PrMark }) {
   const [open, setOpen] = useState(false)
@@ -151,25 +156,19 @@ function PrChipSheet({ entries, lead }: { entries: readonly Entry[]; lead: PrMar
             onClose={() => setOpen(false)}
           >
             {(close) => (
-              <div className={SHEET_LIST} data-pr-sheet>
-                {entries.map((entry, i) => (
-                  <div key={entryKey(entry.task, entry.pr)} className="flex flex-col">
-                    {i > 0 && <hr className={SHEET_SEP} />}
-                    <div className={PR_SHEET_ITEM}>
-                      <PrSummary {...entry} />
-                    </div>
-                    {entry.pr.url && (
-                      <SheetRow
-                        tone="action"
-                        onClick={() => {
-                          close()
-                          window.open(entry.pr.url, "_blank", "noopener")
-                        }}
-                      >
-                        {t(/^https:\/\/github\.com\//.test(entry.pr.url) ? "rail.pr.openGitHub" : "rail.pr.openForge")}
-                      </SheetRow>
-                    )}
-                  </div>
+              <div className={`${SHEET_LIST} ${PR_SHEET_LIST}`} data-pr-sheet>
+                {byState(entries).map((entry) => (
+                  <SheetRow
+                    key={entryKey(entry.task, entry.pr)}
+                    stacked
+                    disabled={!entry.pr.url}
+                    onClick={() => {
+                      close()
+                      window.open(entry.pr.url, "_blank", "noopener")
+                    }}
+                  >
+                    <PrSummary {...entry} />
+                  </SheetRow>
                 ))}
               </div>
             )}

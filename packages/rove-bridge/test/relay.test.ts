@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { RelayAgent } from "@hsinsekai-nanami/agent"
 import { RelayTunnelClient } from "@hsinsekai-nanami/client"
-import { relayIngressDeps } from "../src/relay.ts"
+import { claimRelay, relayIngressDeps } from "../src/relay.ts"
 import type { BridgeDeps } from "../src/server.ts"
 import type { SignIn } from "../src/sign-in.ts"
 import { startRelay } from "./relay-fixture.ts"
@@ -85,4 +85,15 @@ describe("--preset relay", () => {
     const relay = await relayed()
     await expect(tunnel(relay.url, "d".repeat(43)).connect()).rejects.toThrow()
   })
+})
+
+test("one relay agent per home: a live holder keeps it, a dead one's claim is taken over", () => {
+  const dir = mkdtempSync(join(tmpdir(), "rove-relay-claim-"))
+  expect(claimRelay(dir, process.pid)).toBe(true)
+  // A second bridge in the same home while the first lives.
+  expect(claimRelay(dir, process.pid + 1)).toBe(false)
+  expect(claimRelay(dir, process.pid)).toBe(true)
+  const dead = Bun.spawnSync(["true"]).pid
+  writeFileSync(join(dir, "relay-agent.pid"), String(dead))
+  expect(claimRelay(dir, process.pid)).toBe(true)
 })
