@@ -173,9 +173,6 @@ struct ShellPairingView: View {
                                 .lineLimit(1...4)
                                 .accessibilityIdentifier("pairingField")
                         }
-                        PhoneButton(label: String(localized: "paste"), compact: true, identifier: "pasteButton") {
-                            text = UIPasteboard.general.string ?? text
-                        }
                     }
                 }
                 .padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 24)
