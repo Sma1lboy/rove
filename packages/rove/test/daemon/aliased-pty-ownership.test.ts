@@ -11,10 +11,10 @@ import { type ActivityObserverIo, startActivityObserver } from "@sma1lboy/rove-d
 import { DaemonActivityRegistry } from "@sma1lboy/rove-daemon/daemon/activity-registry"
 import { resolvePtyOwner } from "@sma1lboy/rove-daemon/daemon/cwd-task"
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
+import { programStatusActivity } from "@sma1lboy/rove-daemon/daemon/program-status-activity"
 import { recordPtyExit } from "@sma1lboy/rove-daemon/daemon/pty-exit-store"
 import { startPtyExitWatch } from "@sma1lboy/rove-daemon/daemon/pty-exit-watch"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { programStatusActivity } from "../../../rove-daemon/src/daemon/program-status-activity.ts"
 
 const tasks = [
   { id: "parent" },

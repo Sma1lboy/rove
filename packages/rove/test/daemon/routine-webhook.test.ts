@@ -1,12 +1,12 @@
 import { createHmac } from "node:crypto"
-import { describe, expect, it } from "vitest"
-import { runAutomationOnce } from "../../../rove-daemon/src/daemon/automation-runner.ts"
+import { runAutomationOnce } from "@sma1lboy/rove-daemon/daemon/automation-runner"
 import {
   newWebhookSecret,
   readWebhookEvent,
   webhookSignatureValid,
-} from "../../../rove-daemon/src/daemon/automation-webhook.ts"
-import { AUTOMATION_HANDLERS } from "../../../rove-daemon/src/daemon/handlers-automations.ts"
+} from "@sma1lboy/rove-daemon/daemon/automation-webhook"
+import { AUTOMATION_HANDLERS } from "@sma1lboy/rove-daemon/daemon/handlers-automations"
+import { describe, expect, it } from "vitest"
 import { NOW, automation, fakeDeps, tempStore } from "./automation-runner-fixtures.ts"
 
 const sign = (secret: string, body: string) => `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`

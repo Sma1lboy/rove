@@ -9,13 +9,13 @@
  * phase leaves a line, and each line carries enough to answer "who and what".
  */
 
-import { afterEach, describe, expect, test, vi } from "vitest"
-import type { DaemonTask } from "../../../rove-daemon/src/daemon/contracts.ts"
+import type { DaemonTask } from "@sma1lboy/rove-daemon/daemon/contracts"
 import {
   auditDeletionFailed,
   auditDeletionRemoved,
   auditDeletionRequested,
-} from "../../../rove-daemon/src/daemon/task-deletion-audit.ts"
+} from "@sma1lboy/rove-daemon/daemon/task-deletion-audit"
+import { afterEach, describe, expect, test, vi } from "vitest"
 
 function capture(): { lines: string[]; restore: () => void } {
   const lines: string[] = []

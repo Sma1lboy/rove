@@ -25,8 +25,8 @@ vi.mock("node:child_process", async (importOriginal) => {
   }
 })
 
-vi.mock("../../../rove-daemon/src/client/index.ts", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../rove-daemon/src/client/index.ts")>()
+vi.mock("@sma1lboy/rove-daemon/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@sma1lboy/rove-daemon/client")>()
   return {
     ...actual,
     RoveDaemonClient: class {
@@ -41,10 +41,10 @@ vi.mock("../../../rove-daemon/src/client/index.ts", async (importOriginal) => {
   }
 })
 
-const { spawnDetachedDaemon } = await import("../../../rove-daemon/src/client/detached-spawn.ts")
-const { dispatchPtyRequest } = await import("../../../rove-daemon/src/daemon/pty-server-verbs.ts")
-const { PTY_JOB_ENV, PTY_JOB_OWNER_ENV } = await import("../../../rove-daemon/src/daemon/win-pty-job.ts")
-const { defaultDaemonSocketPath } = await import("../../../rove-daemon/src/daemon/paths.ts")
+const { spawnDetachedDaemon } = await import("@sma1lboy/rove-daemon/client/detached-spawn")
+const { dispatchPtyRequest } = await import("@sma1lboy/rove-daemon/daemon/pty-server-verbs")
+const { PTY_JOB_ENV, PTY_JOB_OWNER_ENV } = await import("@sma1lboy/rove-daemon/daemon/win-pty-job")
+const { defaultDaemonSocketPath } = await import("@sma1lboy/rove-daemon/daemon/paths")
 
 afterEach(() => {
   spawned.length = 0

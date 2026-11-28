@@ -2,14 +2,14 @@ import { execSync, spawn } from "node:child_process"
 import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { describe, expect, it, vi } from "vitest"
 import {
   formatPrecheckSkip,
   precheckPassed,
   runAutomationPrecheck,
   tail,
   withWatchdog,
-} from "../../../rove-daemon/src/daemon/automation-precheck.ts"
+} from "@sma1lboy/rove-daemon/daemon/automation-precheck"
+import { describe, expect, it, vi } from "vitest"
 
 const CWD = process.cwd()
 

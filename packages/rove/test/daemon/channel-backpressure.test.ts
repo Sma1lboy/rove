@@ -1,7 +1,7 @@
+import { writeFrame } from "@sma1lboy/rove-daemon/daemon/client-connection"
+import { ClientWriter } from "@sma1lboy/rove-daemon/daemon/client-writer"
+import type { DaemonFrame } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { expect, it } from "vitest"
-import { writeFrame } from "../../../rove-daemon/src/daemon/client-connection.ts"
-import { ClientWriter } from "../../../rove-daemon/src/daemon/client-writer.ts"
-import type { DaemonFrame } from "../../../rove-daemon/src/daemon/protocol.ts"
 
 it("a slow consumer recovers final full snapshots without losing commands, per-task state or ordered bytes", () => {
   const received: DaemonFrame[] = []

@@ -8,7 +8,6 @@ import { execFile, spawn } from "node:child_process"
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterAll, describe, expect, it } from "vitest"
 import {
   PTY_JOB_ENV,
   PTY_JOB_OWNER_ENV,
@@ -17,7 +16,8 @@ import {
   newPtyJobName,
   ptyJobLaunch,
   withoutPtyJob,
-} from "../../../rove-daemon/src/daemon/win-pty-job.ts"
+} from "@sma1lboy/rove-daemon/daemon/win-pty-job"
+import { afterAll, describe, expect, it } from "vitest"
 
 describe("ptyJobLaunch", () => {
   const inTab = { [PTY_JOB_ENV]: "Local\\rove-pty-1", [PTY_JOB_OWNER_ENV]: "C:\\Users\\a\\.rove\\daemon.sock" }

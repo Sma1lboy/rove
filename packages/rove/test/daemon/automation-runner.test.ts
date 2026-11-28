@@ -1,14 +1,14 @@
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { describe, expect, it } from "vitest"
 import {
   dueAutomations,
   resolveDueOccurrence,
   runAutomationOnce,
   sweepAutomations,
-} from "../../../rove-daemon/src/daemon/automation-runner.ts"
-import { AutomationsStore } from "../../../rove-daemon/src/daemon/automations-store.ts"
+} from "@sma1lboy/rove-daemon/daemon/automation-runner"
+import { AutomationsStore } from "@sma1lboy/rove-daemon/daemon/automations-store"
+import { describe, expect, it } from "vitest"
 import { HOUR, NOW, REPO, automation, fakeDeps, tempStore } from "./automation-runner-fixtures.ts"
 
 describe("dueAutomations", () => {

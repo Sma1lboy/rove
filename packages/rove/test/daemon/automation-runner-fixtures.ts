@@ -10,12 +10,12 @@
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import type { DaemonRpcClient } from "../../../rove-daemon/src/client/rpc.ts"
-import type { DispatchRuntime } from "../../../rove-daemon/src/daemon/automation-dispatch.ts"
-import { AutomationsStore } from "../../../rove-daemon/src/daemon/automations-store.ts"
-import type { Automation, DaemonTask } from "../../../rove-daemon/src/daemon/contracts.ts"
-import type { ArmDeliveryInput } from "../../../rove-daemon/src/daemon/deliveries-store.ts"
-import type { Delivery } from "../../../rove-daemon/src/daemon/delivery-contracts.ts"
+import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
+import type { DispatchRuntime } from "@sma1lboy/rove-daemon/daemon/automation-dispatch"
+import { AutomationsStore } from "@sma1lboy/rove-daemon/daemon/automations-store"
+import type { Automation, DaemonTask } from "@sma1lboy/rove-daemon/daemon/contracts"
+import type { ArmDeliveryInput } from "@sma1lboy/rove-daemon/daemon/deliveries-store"
+import type { Delivery } from "@sma1lboy/rove-daemon/daemon/delivery-contracts"
 
 export const NOW = new Date(2026, 6, 31, 10, 0, 0).getTime() // Fri 2026-07-31 10:00 local
 export const HOUR = 3_600_000

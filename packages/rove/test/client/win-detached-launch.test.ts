@@ -8,14 +8,14 @@
 
 import type { ChildProcess } from "node:child_process"
 import { EventEmitter } from "node:events"
-import { describe, expect, it } from "vitest"
 import {
   LAUNCH_CMD_ENV,
   LAUNCH_LOG_ENV,
   WIN_DETACHED_LAUNCHER_PS,
   spawnWindowsDetached,
   windowsCommandLine,
-} from "../../../rove-daemon/src/client/win-detached-launch.ts"
+} from "@sma1lboy/rove-daemon/client/win-detached-launch"
+import { describe, expect, it } from "vitest"
 
 describe("windowsCommandLine (MSVCRT argv quoting)", () => {
   it("quotes an argument with a space and doubles only the backslashes before the closing quote", () => {

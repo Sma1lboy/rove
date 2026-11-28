@@ -4,9 +4,9 @@ import { join } from "node:path"
 import { DaemonActivityRegistry } from "@sma1lboy/rove-daemon/daemon/activity-registry"
 import { AttentionInboxStore } from "@sma1lboy/rove-daemon/daemon/attention-inbox"
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
+import { programStatusActivity } from "@sma1lboy/rove-daemon/daemon/program-status-activity"
+import type { ProgramStatusEvent } from "@sma1lboy/rove-daemon/daemon/program-status-event"
 import { expect, it } from "vitest"
-import { programStatusActivity } from "../../../rove-daemon/src/daemon/program-status-activity"
-import type { ProgramStatusEvent } from "../../../rove-daemon/src/daemon/program-status-event"
 
 it("retains same-millisecond transitions, deduplicates recovery, and protects newer hooks on clear", async () => {
   const bus = new DaemonEventBus()

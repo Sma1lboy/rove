@@ -4,9 +4,9 @@ import { execFileSync } from "node:child_process"
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { release, tmpdir } from "node:os"
 import { join } from "node:path"
-import { runPluginHook } from "../../../../rove-daemon/src/plugins/hook-run.ts"
-import { ModHost } from "../../../../rove-daemon/src/plugins/mod-host.ts"
-import { pluginLogPath } from "../../../../rove-daemon/src/plugins/plugin-paths.ts"
+import { runPluginHook } from "@sma1lboy/rove-daemon/plugins/hook-run"
+import { ModHost } from "@sma1lboy/rove-daemon/plugins/mod-host"
+import { pluginLogPath } from "@sma1lboy/rove-daemon/plugins/plugin-paths"
 
 assert.ok(process.versions.bun, "The plugin host must run under Bun")
 const baseline = process.argv.includes("--baseline")

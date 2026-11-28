@@ -1,9 +1,9 @@
 /** A standing session already holds the routine's prompt: later runs send only the header, until it could have lost or outdated it. */
 
+import { runAutomationOnce } from "@sma1lboy/rove-daemon/daemon/automation-runner"
+import type { AutomationsStore } from "@sma1lboy/rove-daemon/daemon/automations-store"
+import { FULL_PROMPT_EVERY_RUNS } from "@sma1lboy/rove-daemon/daemon/routine-prompt"
 import { describe, expect, it } from "vitest"
-import { runAutomationOnce } from "../../../rove-daemon/src/daemon/automation-runner.ts"
-import type { AutomationsStore } from "../../../rove-daemon/src/daemon/automations-store.ts"
-import { FULL_PROMPT_EVERY_RUNS } from "../../../rove-daemon/src/daemon/routine-prompt.ts"
 import { NOW, REPO, automation, fakeDeps, tempStore } from "./automation-runner-fixtures.ts"
 import { dispatch, fakeCtx } from "./handler-test-context.ts"
 

@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { runAutomationOnce, sweepAutomations } from "@sma1lboy/rove-daemon/daemon/automation-runner"
 import { describe, expect, it } from "vitest"
-import { runAutomationOnce, sweepAutomations } from "../../../rove-daemon/src/daemon/automation-runner.ts"
 import { HOUR, NOW, REPO, automation, fakeDeps, tempStore } from "./automation-runner-fixtures.ts"
 
 /**

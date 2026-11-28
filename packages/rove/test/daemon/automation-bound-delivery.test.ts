@@ -1,15 +1,15 @@
 import { existsSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { describe, expect, it, vi } from "vitest"
-import { dispatchAutomation } from "../../../rove-daemon/src/daemon/automation-dispatch.ts"
+import { dispatchAutomation } from "@sma1lboy/rove-daemon/daemon/automation-dispatch"
 import {
   runAutomationOnce,
   startAutomationRunner,
   sweepAutomations,
-} from "../../../rove-daemon/src/daemon/automation-runner.ts"
-import { AutomationsStore } from "../../../rove-daemon/src/daemon/automations-store.ts"
-import type { DaemonTask } from "../../../rove-daemon/src/daemon/contracts.ts"
+} from "@sma1lboy/rove-daemon/daemon/automation-runner"
+import { AutomationsStore } from "@sma1lboy/rove-daemon/daemon/automations-store"
+import type { DaemonTask } from "@sma1lboy/rove-daemon/daemon/contracts"
+import { describe, expect, it, vi } from "vitest"
 import { NOW, REPO, automation, fakeDeps } from "./automation-runner-fixtures.ts"
 
 const TARGET = { kind: "existing-tab", taskId: "existing", tabId: "tab-2" } as const

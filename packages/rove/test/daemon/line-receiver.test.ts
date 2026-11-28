@@ -1,5 +1,5 @@
+import { LineReceiver, MAX_REQUEST_FRAME_BYTES } from "@sma1lboy/rove-daemon/daemon/line-receiver"
 import { describe, expect, it } from "vitest"
-import { LineReceiver, MAX_REQUEST_FRAME_BYTES } from "../../../rove-daemon/src/daemon/line-receiver.ts"
 
 const BYTES = Buffer.from("任务🚀\nsecond\n\n尾巴")
 

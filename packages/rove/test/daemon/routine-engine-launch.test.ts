@@ -4,8 +4,8 @@
  */
 
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
+import type { Automation, DaemonTask } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { describe, expect, it } from "vitest"
-import type { Automation, DaemonTask } from "../../../rove-daemon/src/daemon/contracts.ts"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import type { ApiRuntime } from "../../src/cli/api/types.ts"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"

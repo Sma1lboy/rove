@@ -1,7 +1,9 @@
 import { readFileSync } from "node:fs"
+import { createRequire } from "node:module"
 import { resolve } from "node:path"
 import { expect, it } from "vitest"
 
+const require = createRequire(import.meta.url)
 const read = (path: string) => readFileSync(resolve(import.meta.dirname, "../..", path), "utf8")
 
 it.each([
@@ -11,7 +13,7 @@ it.each([
   "src/tui-react/workspace/show-workspace.tsx",
   "src/tui-react/workspace/use-turn-polls.ts",
   "src/tui/ops/activity-monitor.ts",
-  "../rove-daemon/src/daemon/activity-liveness.ts",
+  require.resolve("@sma1lboy/rove-daemon/daemon/activity-liveness"),
 ])("%s keeps directory-wide transcript APIs out of tab activity", (path) => {
   expect(read(path)).not.toMatch(
     /(?:transcriptActivity|sharedActivity|sharedEntry|usingShared|\.latestActivity\(|\.latestCompletion\(|\.latestTranscriptMtime\()/,

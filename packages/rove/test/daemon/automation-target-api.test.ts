@@ -1,5 +1,5 @@
+import type { Automation } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { describe, expect, it } from "vitest"
-import type { Automation } from "../../../rove-daemon/src/daemon/contracts.ts"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
 import { bootDaemonHarness, fakeOrchestrator } from "./harness.ts"
 

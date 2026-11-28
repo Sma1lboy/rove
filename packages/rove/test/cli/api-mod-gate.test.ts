@@ -1,7 +1,7 @@
 /** `issue-*` belongs to the Kanban mod and `workitem-*` to the Issues mod: hidden and refused until installed. */
 
+import { ISSUE_HANDLERS } from "@sma1lboy/rove-daemon/daemon/handlers-issues"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { ISSUE_HANDLERS } from "../../../rove-daemon/src/daemon/handlers-issues.ts"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, expectApiError, stubRuntime } from "./api-handler-fixtures.ts"
 

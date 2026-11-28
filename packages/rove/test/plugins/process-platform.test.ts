@@ -1,8 +1,8 @@
 import { ChildProcess } from "node:child_process"
 import { PassThrough } from "node:stream"
+import { runPluginHook } from "@sma1lboy/rove-daemon/plugins/hook-run"
+import { ModHost } from "@sma1lboy/rove-daemon/plugins/mod-host"
 import { type MockInstance, afterEach, describe, expect, it, vi } from "vitest"
-import { runPluginHook } from "../../../rove-daemon/src/plugins/hook-run.ts"
-import { ModHost } from "../../../rove-daemon/src/plugins/mod-host.ts"
 
 const mocks = vi.hoisted(() => ({ spawn: vi.fn(), execFile: vi.fn() }))
 vi.mock("node:child_process", async (original) => ({
@@ -14,7 +14,7 @@ vi.mock("node:fs", async (original) => ({
   mkdirSync: vi.fn(),
   appendFileSync: vi.fn(),
 }))
-vi.mock("../../../rove-daemon/src/daemon/log-rotate.ts", () => ({ rotateLogIfNeeded: vi.fn() }))
+vi.mock("@sma1lboy/rove-daemon/daemon/log-rotate", () => ({ rotateLogIfNeeded: vi.fn() }))
 
 const pid = 123456
 function childProcess() {

@@ -1,14 +1,14 @@
-import { describe, expect, it, vi } from "vitest"
-import type { DaemonOrchestrator, DaemonTask, EngineQuotaUsage } from "../../../rove-daemon/src/daemon/contracts.ts"
+import type { DaemonOrchestrator, DaemonTask, EngineQuotaUsage } from "@sma1lboy/rove-daemon/daemon/contracts"
 import {
   dueQuotaResumes,
   exhaustedResetAtMs,
   quotaResumeContinuePrompt,
   scheduleQuotaResume,
   startQuotaResumeRunner,
-} from "../../../rove-daemon/src/daemon/quota-resume.ts"
-import type { QuotaUsageCache } from "../../../rove-daemon/src/daemon/quota-usage-cache.ts"
-import type { DaemonRuntimeAdapter } from "../../../rove-daemon/src/daemon/runtime.ts"
+} from "@sma1lboy/rove-daemon/daemon/quota-resume"
+import type { QuotaUsageCache } from "@sma1lboy/rove-daemon/daemon/quota-usage-cache"
+import type { DaemonRuntimeAdapter } from "@sma1lboy/rove-daemon/daemon/runtime"
+import { describe, expect, it, vi } from "vitest"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
 import { vendorsWithQuotaProbe } from "../../src/engine/registry.ts"
 
