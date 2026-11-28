@@ -18,10 +18,12 @@ const label = (s: Shot) =>
 
 /** `src` maps a shot's file to what the page embeds (a relative path, or a data URL when sharing). */
 export function gridPage(title: string, note: string, shots: readonly Shot[], src: (file: string) => string): string {
-  const figs = shots.map(
-    (s) =>
-      `<figure class="${s.viewport}"><a href="${src(s.file)}" target="_blank"><img src="${src(s.file)}" loading="lazy"></a><figcaption>${label(s)}</figcaption></figure>`,
-  )
+  // A data URL is linked once, not twice: the shared page has to stay under the host's size limit.
+  const figs = shots.map((s) => {
+    const img = `<img src="${src(s.file)}" loading="lazy">`
+    const body = src(s.file).startsWith("data:") ? img : `<a href="${src(s.file)}" target="_blank">${img}</a>`
+    return `<figure class="${s.viewport}">${body}<figcaption>${label(s)}</figcaption></figure>`
+  })
   return `<!doctype html><meta charset="utf-8"><title>${esc(title)}</title><style>${STYLE}</style><h1>${esc(title)}</h1><p>${esc(note)}</p><main>${figs.join("\n")}</main>\n`
 }
 

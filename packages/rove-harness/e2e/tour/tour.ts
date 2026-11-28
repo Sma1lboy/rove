@@ -167,7 +167,12 @@ async function share(series: string, pages: string[]): Promise<void> {
   for (const [i, html] of pages.entries()) {
     const file = join(out, `share-${i + 1}.html`)
     await writeFile(file, html)
-    link = sh(bin, [file, "--series", slug, "--round", String(i + 1), "--title", `Rove tour ${i + 1}/${pages.length}`], out)
+    try {
+      link = sh(bin, [file, "--series", slug, "--round", String(i + 1), "--title", `Rove tour ${i + 1}/${pages.length}`], out)
+    } catch (err) {
+      log(`--share: round ${i + 1} failed (${String((err as { stderr?: string }).stderr ?? err).trim()}); the pages stay in ${out}`)
+      return
+    }
   }
   log(`shared ${pages.length} round(s): ${link}`)
 }

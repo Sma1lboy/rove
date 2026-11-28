@@ -153,7 +153,7 @@ export async function shoot(opts: ShootOptions, log: (line: string) => void): Pr
       // entries after it on every viewport alike.
       for (const entry of entries) {
         for (const viewport of viewports) {
-          if (!opts.window && !(entry.on ?? ["desktop"]).includes(viewport)) continue
+          if (!(entry.on ?? ["desktop"]).includes(viewport)) continue
           const name = `${entry.id}${viewport === "phone" ? "-phone" : ""}${variant === "default" ? "" : `-${variant}`}`
           const kind = entry.home ?? "full"
           const t0 = Date.now()
