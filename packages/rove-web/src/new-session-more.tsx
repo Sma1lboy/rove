@@ -85,7 +85,7 @@ function Row(props: { label: string; dim?: ReactNode; sub?: boolean; disabled?: 
     <button
       type="button"
       role="menuitem"
-      className={`${C.rowClass({ cursor: false })} [&:hover:not(:disabled)]:bg-hover`}
+      className={`${C.rowClass({ cursor: false })} enabled:hover:bg-hover`}
       disabled={props.disabled}
       onClick={props.onClick}
     >

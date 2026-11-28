@@ -21,7 +21,7 @@ export function ScriptMark() {
 }
 
 const ROW =
-  "flex min-h-15 w-full items-center gap-3 px-3 py-2 text-left active:bg-hover focus-visible:bg-hover focus-visible:outline-none data-menu-open:bg-hover"
+  "flex min-h-15 w-full items-center gap-3 px-3 py-2 text-left active:bg-hover focus-visible:bg-hover focus-visible:outline-none"
 const LINE2 = "flex min-w-0 items-center gap-1.5 font-mono text-[13px] leading-[1.3] text-muted"
 
 /**
@@ -44,7 +44,12 @@ export function PhoneStatusRow(
 ) {
   const { lead, mark, title, dim, selected, line2, top, bottom, ...rest } = props
   return (
-    <button type="button" className={`${ROW} ${selected ? "bg-menu" : ""}`} data-phone-row {...rest}>
+    <button
+      type="button"
+      className={`${ROW} ${selected ? "bg-menu" : "hover:bg-hover data-menu-open:bg-hover"}`}
+      data-phone-row
+      {...rest}
+    >
       {lead}
       {mark}
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -60,7 +65,7 @@ export function PhoneStatusRow(
 }
 
 const HEAD_BUTTON =
-  "flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-1.5 border-none bg-transparent p-0 text-left text-inherit [font:inherit]"
+  "flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-1.5 border-none bg-transparent p-0 text-left text-inherit [font:inherit] hover:text-ink"
 
 /** A group's header: its name in capitals (a tap folds it), then how many rows it holds and a ⋯ for its actions. */
 export function PhoneGroupHead(props: {
@@ -90,7 +95,7 @@ export function PhoneGroupHead(props: {
       {props.more && (
         <button
           type="button"
-          className="-mr-2 grid size-11 flex-none cursor-pointer place-items-center border-none bg-transparent font-sans text-display text-muted active:text-ink"
+          className="-mr-2 grid size-11 flex-none cursor-pointer place-items-center border-none bg-transparent font-sans text-display text-muted hover:text-ink active:text-ink"
           aria-label={props.more.label}
           data-group-more
           onClick={props.more.onClick}

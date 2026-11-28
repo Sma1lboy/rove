@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
 import { t } from "../i18n/index.ts"
 import { useNarrow } from "../layout.ts"
-import { PRESS, SQUARE, SQUARE_BAR, glass } from "./glass.ts"
+import { GLASS_HOVER, PRESS, SQUARE, SQUARE_BAR, glass } from "./glass.ts"
 import { DIALOG_CLOSE } from "./overlay.ts"
 
 const ICON = "fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round]"
@@ -20,7 +20,7 @@ export function GlassButton(props: {
   return (
     <button
       type="button"
-      className={`pointer-events-auto relative grid flex-none cursor-pointer place-items-center size-11 ${SQUARE} ${glass()} text-ink ${PRESS}`}
+      className={`pointer-events-auto relative grid flex-none cursor-pointer place-items-center size-11 ${SQUARE} ${glass()} ${GLASS_HOVER} text-ink ${PRESS}`}
       data-nav={props.kind}
       aria-label={props.label}
       title={props.label}
@@ -31,8 +31,8 @@ export function GlassButton(props: {
   )
 }
 
-/** One segment of the bar's glass capsule: no glass of its own, the capsule carries it. */
-const SEGMENT = `pointer-events-auto relative grid h-full w-13 flex-none cursor-pointer place-items-center text-ink ${PRESS}`
+/** One segment of the bar's glass capsule: no glass of its own, the capsule carries it. Its hover fills its end of the capsule, up to the hairline. */
+const SEGMENT = `pointer-events-auto relative grid h-full w-13 flex-none cursor-pointer place-items-center text-ink first:rounded-l-[13px] last:rounded-r-[13px] ${GLASS_HOVER} ${PRESS}`
 
 /**
  * Settings and Inbox share one glass capsule bottom left, as related controls do on iOS; a hairline parts the two.

@@ -37,7 +37,7 @@ export const RAIL_BAR_ICON =
   "size-5.5 fill-none stroke-current stroke-[1.5] [stroke-linecap:round] [stroke-linejoin:round]"
 /** `:hover` without the hover-capable media gate, as the sheet had: a tap leaves the row washed on a phone. */
 export const railNavRowClass = (active: boolean): string =>
-  `flex items-center rounded-sm px-2 py-0.75 text-left touch:min-h-10 narrow:min-h-13 narrow:text-(length:--fs-title) ${active ? "bg-menu text-ink" : "text-muted [&:hover]:bg-hover"}`
+  `flex items-center rounded-sm px-2 py-0.75 text-left touch:min-h-10 narrow:min-h-13 narrow:text-(length:--fs-title) ${active ? "bg-menu text-ink" : "text-muted hover:bg-hover"}`
 /** New task's own +, in the column of the projects' hover +; always shown, in the accent. */
 export const RAIL_NAV_PLUS =
   "ml-auto -mr-[4.5px] w-5 text-center font-sans text-display leading-none font-normal text-accent normal-nums"
