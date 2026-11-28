@@ -1,8 +1,9 @@
 /**
- * The phone shows the PTY at the size another viewer gave it (`term-mount.ts`) and sizes the font to fit that
- * grid into its box: the widest font whose cells, whole device pixels each, still fit the width. A pinch or a
- * double tap goes to a readable size, where a drag pans. Only the pan is a CSS transform (a translate, which
- * xterm's mouse mapping reads through `getBoundingClientRect`); every zoom level is drawn at its real font size.
+ * The phone shows the PTY at the size another viewer gave it (`term-mount.ts`) at a readable font, from the left
+ * edge and the bottom, where a drag pans across wide lines. A double tap or a pinch out fits the whole width
+ * (whole-device-pixel cells); a double tap there goes back. A grid shorter than the box sits at its bottom, so the
+ * latest output stays by the composer. Only the pan is a CSS transform (a translate, which xterm's mouse mapping
+ * reads through `getBoundingClientRect`); every zoom level is drawn at its real font size.
  */
 
 import type { Terminal } from "@xterm/xterm"
@@ -45,10 +46,14 @@ export function fitFontSize(width: number, cols: number, ratio: number, perPx: n
   return Math.max(1, (cell + 0.5) / (perPx * ratio))
 }
 
-export function attachZoom(el: HTMLElement, term: Terminal): TermZoom {
+/** A session's last zoom (by stream), so reopening it keeps the reader's choice. */
+const remembered = new Map<string, Zoom>()
+/** "fit" = the whole width in the box; null = readable (the box's own font); a number = pinched to it. */
+type Zoom = number | "fit" | null
+
+export function attachZoom(el: HTMLElement, term: Terminal, key: string): TermZoom {
   let on = false
-  /** null = fitted to the width, following the box. */
-  let zoomPx: number | null = null
+  let zoomPx: Zoom = remembered.get(key) ?? null
   let x = 0
   let y = 0
   let stick = true
@@ -63,36 +68,55 @@ export function attachZoom(el: HTMLElement, term: Terminal): TermZoom {
   }
   const fitPx = () =>
     Math.min(termFontSize(), fitFontSize(room().w, term.cols, window.devicePixelRatio || 1, cellAdvance(term)))
+  /** Never under the fit: a PTY narrow enough to read whole has nothing to pan. */
+  const wantPx = () => {
+    const fit = fitPx()
+    return zoomPx === "fit" ? fit : Math.max(fit, zoomPx ?? termFontSize())
+  }
+  const setZoom = (next: Zoom) => {
+    zoomPx = next
+    remembered.set(key, next)
+  }
   const setFont = (px: number) => {
-    if (term.options.fontSize !== px) term.options.fontSize = px
+    if (term.options.fontSize === px) return
+    term.options.fontSize = px
+    // xterm re-sizes its scroll area on a buffer resize or scroll, not a new font: until then a swipe reads the old
+    // row height and the scrollback does not move. Forget the last scroll target so the sync re-places it.
+    const view = (term as unknown as { _core?: { _viewport?: { _latestYDisp?: number; queueSync(): void } } })._core
+      ?._viewport
+    if (!view) return
+    view._latestYDisp = undefined
+    view.queueSync()
   }
   const place = () => {
     const box = term.element
     if (!box) return
     if (!on) {
       box.style.transform = ""
+      box.style.removeProperty("--pan")
       return
     }
     const s = screen()
     const { w, h } = room()
     const maxX = Math.max(0, (s?.offsetWidth ?? 0) - w)
-    const maxY = Math.max(0, (s?.offsetHeight ?? 0) - h)
+    // Negative when the grid is shorter than the box: it then sits on the box's bottom edge, never above a dead band.
+    const maxY = (s?.offsetHeight ?? 0) - h
     x = clamp(x, 0, maxX)
-    y = clamp(stick ? maxY : y, 0, maxY)
+    y = maxY <= 0 ? maxY : clamp(stick ? maxY : y, 0, maxY)
     stick = y >= maxY - 0.5
     box.style.transform = x || y ? `translate(${-x}px, ${-y}px)` : ""
+    box.style.setProperty("--pan", `${x}px ${y}px`)
   }
   /** Zooms to `px`, keeping the content under (cx, cy) in the box where it is. */
   const zoomAt = (px: number, cx: number, cy: number) => {
     const before = Number(term.options.fontSize)
-    const fit = fitPx()
-    zoomPx = px <= fit + 0.25 ? null : Math.min(MAX_PX, px)
-    const next = zoomPx ?? fit
+    setZoom(px <= fitPx() + 0.25 ? "fit" : Math.min(MAX_PX, px))
+    const next = wantPx()
     setFont(next)
     const ratio = next / before
     x = (x + cx) * ratio - cx
     y = (y + cy) * ratio - cy
-    stick = false
+    // A view on the latest output stays on it: only the sideways anchor follows the fingers.
     userAt = performance.now()
     place()
   }
@@ -166,7 +190,7 @@ export function attachZoom(el: HTMLElement, term: Terminal): TermZoom {
     lastTap = again ? null : { x: here.x, y: here.y, at: now }
     if (!again) return
     e.preventDefault()
-    zoomAt(zoomPx === null ? termFontSize() : 0, here.x, here.y)
+    zoomAt(Number(term.options.fontSize) > fitPx() + 0.25 ? 0 : termFontSize(), here.x, here.y)
   }
   el.addEventListener("touchstart", onStart, { capture: true, passive: true })
   el.addEventListener("touchmove", onMove, { capture: true, passive: false })
@@ -193,8 +217,7 @@ export function attachZoom(el: HTMLElement, term: Terminal): TermZoom {
     revealCursor,
     layout(next) {
       on = next
-      if (!on) zoomPx = null
-      setFont(on ? (zoomPx ?? fitPx()) : termFontSize())
+      setFont(on ? wantPx() : termFontSize())
       place()
     },
     dispose() {

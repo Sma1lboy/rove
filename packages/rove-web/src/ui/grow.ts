@@ -5,6 +5,8 @@ import { type Ref, type RefCallback, useCallback, useLayoutEffect, useRef } from
  * property animated here that is not a transform: the text has to reflow.
  */
 export const GROW = "max-h-(--field-max) transition-[height] duration-140 ease-snap motion-reduce:transition-none"
+/** `GROW`'s duration: a field that is swapped out once emptied waits this long, so it shrinks before it goes. */
+export const GROW_MS = 140
 
 /**
  * Sizes `el` to its text, between its CSS min and max height, easing from the height it had. Measured by hand so it
