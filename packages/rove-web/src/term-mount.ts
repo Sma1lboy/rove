@@ -11,7 +11,6 @@ import { WebLinksAddon } from "@xterm/addon-web-links"
 import { Terminal } from "@xterm/xterm"
 import "@xterm/xterm/css/xterm.css"
 import { type BridgeClient, BridgeRequestError } from "./bridge.ts"
-import { isNarrow } from "./layout.ts"
 import { terminalTheme } from "./prefs-theme.ts"
 import { prefsStore } from "./prefs.ts"
 import { markScrolling } from "./scroll-reveal.ts"
@@ -32,8 +31,7 @@ import { loadTerminalRenderer } from "./term-webgl.ts"
 
 /** Width of xterm's overlay scrollbar (its default is 14); it floats over the last column (`term-fit.ts`). */
 const SCROLLBAR_WIDTH = 8
-import { createAcks, decode, resetPayload, sizePayload, streamPayload } from "./term-wire.ts"
-import { attachZoom } from "./term-zoom.ts"
+import { createAcks, decode, resetPayload, streamPayload } from "./term-wire.ts"
 import { activeStream, layoutMoving } from "./ui.ts"
 
 export interface MountOpts {
@@ -106,17 +104,6 @@ export function mountTerminal(o: MountOpts): TermHandle {
   if (o.snapshot) cover.raise(o.snapshot)
   if (o.focusOnMount) term.focus()
 
-  // The phone never sizes the shared PTY: a narrower width hard-wraps wide output for every viewer. It takes the
-  // size the PTY has (another viewer's, or the spawn default) at a readable font (`term-zoom.ts`).
-  const zoom = attachZoom(el, term, streamKey(taskId, tabId, o.leafId))
-  let ptySize: { cols: number; rows: number } | null = null
-  const following = () => isNarrow() && ptySize !== null
-  const adopt = (size: { cols?: number; rows?: number }) => {
-    if (size.cols === undefined || size.rows === undefined) return
-    ptySize = { cols: size.cols, rows: size.rows }
-    refit()
-  }
-
   const expected = streamKey(taskId, tabId, o.leafId)
   let owned = attachments.get(client)
   if (!owned) {
@@ -155,8 +142,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
   // A ring replay starts mid-repaint (even mid-sequence), so at an unchanged size it draws a mostly blank screen.
   // A one-row size nudge makes the engine repaint in full (the host only SIGWINCHes on a size change).
   const nudgeRepaint = (owner: string): Promise<unknown> => {
-    if (term.rows <= 2 || (isNarrow() && !following())) return Promise.resolve()
-    // Read once: a phone follows the PTY's size, so the nudge's own `term.size` shrinks `term.rows` too.
+    if (term.rows <= 2) return Promise.resolve()
     const { cols, rows } = term
     return client
       .request("term.resize", { stream: owner, cols, rows: rows - 1 })
@@ -170,10 +156,6 @@ export function mountTerminal(o: MountOpts): TermHandle {
     const owner = stream
     replies.replay((parsed) => writeAcked(withReset(decode(p.replay)), p.replay.length, parsed))
     if (alive) void nudgeRepaint(owner).catch(() => {})
-  })
-  const offSize = client.on("term.size", (raw) => {
-    const p = sizePayload(raw)
-    if (p && p.stream === expected) adopt(p)
   })
   const offExit = client.on("term.exit", (raw) => {
     const p = streamPayload(raw)
@@ -225,11 +207,10 @@ export function mountTerminal(o: MountOpts): TermHandle {
         taskId,
         tabId,
         ...(o.leafId && o.leafId !== "leaf-1" ? { leafId: o.leafId } : {}),
-        ...(isNarrow() ? {} : { cols: term.cols, rows: term.rows }),
+        cols: term.cols,
+        rows: term.rows,
         acks: true,
       })
-      // Before the replay is written, so it parses at the size it was drawn for.
-      adopt(res)
       const current = owned.get(expected)
       if (current) current.attached = true
       else detach()
@@ -299,7 +280,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
   // and on a keystroke (throttled; the host ignores a size it already has).
   let claimedAt = 0
   const claimSize = () => {
-    if (!stream || !alive || isNarrow()) return
+    if (!stream || !alive) return
     claimedAt = Date.now()
     void client.request("term.resize", { stream, cols: term.cols, rows: term.rows }).catch(() => {})
   }
@@ -310,21 +291,14 @@ export function mountTerminal(o: MountOpts): TermHandle {
   const resize = term.onResize(({ cols, rows }) => {
     if (resizeTimer !== null) window.clearTimeout(resizeTimer)
     resizeTimer = window.setTimeout(() => {
-      if (stream && alive && !isNarrow()) void client.request("term.resize", { stream, cols, rows }).catch(() => {})
+      if (stream && alive) void client.request("term.resize", { stream, cols, rows }).catch(() => {})
     }, 80)
   })
   // Hidden behind a preview the box is 0×0; fitting to it would shrink the shared PTY. While a column slides
   // or is dragged the canvas keeps its size: fit once it settles.
   function refit(): void {
     if (layoutMoving.get() !== null || !sized()) return
-    // The grid first, then the font that fits it; the box's own font first, then the grid that fits it.
-    if (following() && ptySize) {
-      if (term.cols !== ptySize.cols || term.rows !== ptySize.rows) term.resize(ptySize.cols, ptySize.rows)
-      zoom.layout(true)
-    } else {
-      zoom.layout(false)
-      fit.fit()
-    }
+    fit.fit()
     if (attachWhenSized) {
       attachWhenSized = false
       void attach()
@@ -369,7 +343,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
     heldBack = null
   })
   const detachWheel = attachWheelScroll(el, term, smooth)
-  const detachTouch = attachTouchScroll(el, term, smooth, zoom)
+  const detachTouch = attachTouchScroll(el, term, smooth)
   const onScrollbarDown = (e: MouseEvent) => {
     if (!(e.target instanceof Element && e.target.closest(".scrollbar"))) return
     heldBack = null
@@ -393,7 +367,6 @@ export function mountTerminal(o: MountOpts): TermHandle {
   )
   const wipeAll = term.parser.registerEscHandler({ final: "c" }, noteWipe)
   const followInput = () => {
-    zoom.toBottom()
     heldBack = null
     smooth.reset()
     if (linesFromBottom(term.buffer.active) > 0) term.scrollToBottom()
@@ -410,7 +383,6 @@ export function mountTerminal(o: MountOpts): TermHandle {
     const target = viewportAfterWrite(heldBack, term.buffer.active)
     if (target !== null) term.scrollToLine(target)
     reportScroll()
-    zoom.revealCursor(true)
   })
   const userScroll = (move: () => void) => {
     heldBack = null
@@ -419,7 +391,6 @@ export function mountTerminal(o: MountOpts): TermHandle {
   }
 
   const focused = () => {
-    zoom.revealCursor()
     activeStream.set(stream)
     claimSize()
     o.onFocusChange(true)
@@ -433,12 +404,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
     stream: expected,
     scrollLines: (lines) => userScroll(() => term.scrollLines(lines)),
     scrollToTop: () => userScroll(() => term.scrollToTop()),
-    revealCursor: () => zoom.revealCursor(),
-    scrollToBottom: () =>
-      userScroll(() => {
-        zoom.toBottom()
-        term.scrollToBottom()
-      }),
+    scrollToBottom: () => userScroll(() => term.scrollToBottom()),
     armCtrl: (onUsed) => {
       ctrlNext = onUsed
     },
@@ -477,9 +443,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
       offOpen()
       offData()
       offExit()
-      offSize()
       offReset()
-      zoom.dispose()
       acks.dispose()
       if (stream && activeStream.get() === stream) activeStream.set(null)
       ownership.owners--

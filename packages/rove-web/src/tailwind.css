@@ -319,11 +319,6 @@ button:focus-visible {
   padding-left: 3px;
 }
 
-/* A panned phone screen (`term-zoom.ts`) moves the box; the slider stays on the pane's own right edge. */
-.term-host .xterm .xterm-scrollable-element > .scrollbar.vertical {
-  translate: var(--pan, 0 0);
-}
-
 @media (hover: none) and (pointer: coarse) {
   /* iOS Safari zooms the page into any focused field under 16px (xterm's hidden textarea too). Field
      utilities set their own size, hence !important. */
