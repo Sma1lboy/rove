@@ -20,6 +20,8 @@ import { TabStrip } from "./tab-strip.tsx"
 import { useTaskColor } from "./task-colors.ts"
 import { newChatHere, openTab } from "./task-dialogs.tsx"
 import { TermComposer } from "./term-composer.tsx"
+import { streamKey } from "./term-contract.ts"
+import { TermKeyRow } from "./term-key-row.tsx"
 import { dialog, newSession, page, toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import { PANE, PANE_WORKING, PLACEHOLDER, PLACEHOLDER_BOX, WORKSPACE, WORKSPACE_FRAME } from "./ui/shell.ts"
@@ -145,9 +147,19 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
         {task && panelOn && (
           <div className="flex min-w-0 flex-1 flex-col">
             <SidePanel model={model} task={task} narrow />
-            {/* Chat reads the engine's conversation; the message composer comes along so the phone can still answer it. */}
+            {/* Chat reads the engine's conversation; the composer and the key row come along so the phone can still answer and interrupt it. */}
             {view === "chat" && selectedTab?.kind === "engine" && (
-              <TermComposer model={model} taskId={task.id} tabId={selectedTab.id} />
+              <>
+                <TermComposer model={model} taskId={task.id} tabId={selectedTab.id} />
+                <TermKeyRow
+                  to={(data) =>
+                    void model.client
+                      .request("term.input", { stream: streamKey(task.id, selectedTab.id), data })
+                      .catch((e) => toast(String(e), "error"))
+                  }
+                  atMenu={task.tabStatus?.[selectedTab.id]?.kind === "needs-input"}
+                />
+              </>
             )}
           </div>
         )}

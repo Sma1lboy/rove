@@ -325,7 +325,7 @@ function WebTerminal(props: TerminalViewProps) {
         )}
       </div>
       {props.composer && <TermComposer model={props.model} taskId={taskId} tabId={tabId} />}
-      {handle && <TermKeyRow handle={handle} atMenu={atMenu} />}
+      {handle && <TermKeyRow to={handle} atMenu={atMenu} />}
     </div>
   )
 }
