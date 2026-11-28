@@ -175,7 +175,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
 
   return (
     <div
-      className={`group/pane flex min-h-0 min-w-0 flex-1 flex-col outline-none ${narrow ? "px-1.5 pt-2.5 pb-2" : "pt-0.5 pr-1.5 pb-1.5 pl-0"}`}
+      className={`group/pane flex min-h-0 min-w-0 flex-1 flex-col outline-none ${narrow ? "px-1.5 pt-2.5 pb-2" : "p-1.5"}`}
       // biome-ignore lint/a11y/noNoninteractiveTabindex: the pane takes focus so its keys stay scoped to it, as in the TUI
       tabIndex={0}
       ref={pane}

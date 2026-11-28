@@ -21,6 +21,7 @@
 
 :root {
   --paper: #141413;
+  --canvas: #0c0c0b;
   --surface: #1a1917;
   --inset: #2b2a27;
   /* One step past inset: a selected or cursor row, which a pointer hover (`--hover`) must not look like. */
@@ -328,6 +329,7 @@ button:focus-visible {
 @theme inline {
   --color-*: initial;
   --color-paper: var(--paper);
+  --color-canvas: var(--canvas);
   --color-surface: var(--surface);
   --color-inset: var(--inset);
   --color-menu: var(--menu);
@@ -559,6 +561,8 @@ button:focus-visible {
 
 /* Under the folded rail: the workspace's top bar clears the floating rail buttons. */
 @custom-variant rail-folded (:where(.app.is-rail-folded) &);
+/* Wide with the rail docked: it is a card, its grip in the gap beside it. */
+@custom-variant rail-open (:where(.app:not(.is-narrow, .is-rail-folded)) &);
 @custom-variant rail-peek (:where(.app.is-rail-peek) &);
 @custom-variant panel-expanded (:where(.app.is-panel-expanded) &);
 
