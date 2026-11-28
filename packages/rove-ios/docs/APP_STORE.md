@@ -1,6 +1,6 @@
 # App Store listing and release copy
 
-Everything App Store Connect, External TestFlight, and the 1.0 launch need for **Rove Mobile** (`run.rove.app`). Copy-paste the plain-text blocks as-is (no Markdown is rendered in App Store Connect fields). Check every `TODO(owner):` before submitting.
+Everything App Store Connect, External TestFlight, and the 1.0 launch need for **Rove: AI Agent Workspace** (`run.rove.app`). Copy-paste the plain-text blocks as-is (no Markdown is rendered in App Store Connect fields). Check every `TODO(owner):` before submitting.
 
 For App Review instructions and reviewer walkthrough, see [`REVIEW_NOTES.md`](./REVIEW_NOTES.md).
 
@@ -10,18 +10,18 @@ For App Review instructions and reviewer walkthrough, see [`REVIEW_NOTES.md`](./
 
 ### App name (limit: 30)
 
-- **English (11 / 30):**
+- **English (24 / 30):**
   ```text
-  Rove Mobile
+  Rove: AI Agent Workspace
   ```
-- **Simplified Chinese (11 / 30):**
+- **Simplified Chinese (24 / 30):**
   ```text
-  Rove Mobile
+  Rove: AI Agent Workspace
   ```
 
 Home-screen display name (`CFBundleDisplayName` in `Info.plist`) is `Rove`.
 
-`TODO(owner):` Confirm "Rove Mobile" (or "Rove", if preferred) is available as a global App Store name in App Store Connect before locking the listing.
+Set in App Store Connect on 2026-11-28. "Rove Mobile" and "Rove" are taken by other apps.
 
 ### Subtitle (limit: 30)
 
@@ -49,9 +49,9 @@ Home-screen display name (`CFBundleDisplayName` in `Info.plist`) is `Rove`.
 
 - **English (2435 / 4000):**
   ```text
-  You started a few coding tasks on your computer and stepped away from your desk. An agent finishes a fix, or stops to ask before running a command. With Rove Mobile, you open that session on your iPhone, read what changed line by line, answer the question, or start another task—without walking back to your computer.
+  You started a few coding tasks on your computer and stepped away from your desk. An agent finishes a fix, or stops to ask before running a command. With Rove, you open that session on your iPhone, read what changed line by line, answer the question, or start another task—without walking back to your computer.
 
-  Rove is a free, open-source tool you run on your own computer (macOS, Linux, or Windows) to run many AI coding agents—such as Claude Code and Codex—at the same time. Rove Mobile is its iPhone companion. It pairs with your computer and opens your Rove workspace full screen.
+  Rove is a free, open-source tool you run on your own computer (macOS, Linux, or Windows) to run many AI coding agents—such as Claude Code and Codex—at the same time. This app is its iPhone companion. It pairs with your computer and opens your Rove workspace full screen.
 
   PAIR IN SECONDS, USE AWAY FROM HOME
   Run rove --web on your computer, open Settings → Connectors → Phone, and scan the QR code with this app—or paste the pairing link. You can connect over your local Wi-Fi, Tailscale, your own tunnel, or Rove's optional hosted relay. The relay is end-to-end encrypted so your code and messages stay between your phone and your computer, with no VPN to install.
@@ -79,9 +79,9 @@ Home-screen display name (`CFBundleDisplayName` in `Info.plist`) is `Rove`.
 
 - **Simplified Chinese (954 / 4000):**
   ```text
-  你在电脑上同时跑了几个编程任务，临时离开了工位。某个助手改完了代码，或者停下来等你确认一条命令。打开 Rove Mobile，就能在 iPhone 上直接看到它刚做了什么、逐行查看代码改动、回复它的提问，或者顺手再开一个新任务，不用跑回电脑前。
+  你在电脑上同时跑了几个编程任务，临时离开了工位。某个助手改完了代码，或者停下来等你确认一条命令。打开 Rove，就能在 iPhone 上直接看到它刚做了什么、逐行查看代码改动、回复它的提问，或者顺手再开一个新任务，不用跑回电脑前。
 
-  Rove 是一款运行在你自己电脑上（macOS、Linux、Windows）的免费开源工具，可以同时运行 Claude Code、Codex 等多个 AI 编程助手。Rove Mobile 是它的 iPhone 客户端，与你的电脑配对后全屏打开你电脑上的 Rove 工作区。
+  Rove 是一款运行在你自己电脑上（macOS、Linux、Windows）的免费开源工具，可以同时运行 Claude Code、Codex 等多个 AI 编程助手。这个 App 是它的 iPhone 客户端，与你的电脑配对后全屏打开你电脑上的 Rove 工作区。
 
   扫码即连，出门也能用
   在电脑上运行 rove --web，打开「设置 → 连接器 → 手机」显示二维码，用这个 App 扫一下（或直接粘贴链接）就能连上。你可以在局域网、Tailscale、自建隧道下使用，也可以直接走 Rove 提供的可选托管中继——全程端到端加密，代码和对话只在你的手机和电脑之间传输，不用装 VPN，也不用折腾端口转发。
@@ -111,9 +111,9 @@ Home-screen display name (`CFBundleDisplayName` in `Info.plist`) is `Rove`.
 
 Comma-separated, no spaces, no words repeated from Name or Subtitle, and no third-party trademarks (Guideline 2.3.7).
 
-- **English (96 / 100):**
+- **English (93 / 100):**
   ```text
-  terminal,developer,git,diff,remote,cli,code,review,ai,programming,pair,voice,dictation,tasks,dev
+  terminal,developer,git,diff,remote,cli,code,review,programming,pair,voice,dictation,tasks,dev
   ```
 - **Simplified Chinese (63 / 100):**
   ```text
@@ -126,7 +126,7 @@ Note: App Store Connect hides the "What's New in This Version" field on an initi
 
 - **English (640 / 4000):**
   ```text
-  First release of Rove Mobile.
+  First release of Rove for iPhone.
 
   - Pair with your computer by scanning the QR code in rove --web's Settings → Connectors → Phone (or printed by rove --web --preset relay), or by pasting the link.
   - Connect away from home through Rove's optional end-to-end encrypted relay with no VPN or tunnel setup, or use your local network, Tailscale, or your own tunnel.
@@ -137,7 +137,7 @@ Note: App Store Connect hides the "What's New in This Version" field on an initi
 
 - **Simplified Chinese (282 / 4000):**
   ```text
-  Rove Mobile 首个正式版本。
+  Rove iPhone 版首个正式版本。
 
   - 在电脑上运行 rove --web，在页面「设置 → 连接器 → 手机」中查看二维码（或用 rove --web --preset relay 在终端生成），用手机扫码或粘贴链接即可配对。
   - 支持通过 Rove 可选的端到端加密中继远程连接，出门在外无需配置 VPN 或隧道；也支持局域网、Tailscale 或自建隧道。
@@ -311,11 +311,11 @@ Capture note: in built-in demo mode (`try a demo` / `先看看`), the top bar re
 
 - **English (344 / 4000):**
   ```text
-  Rove Mobile lets you check on the AI coding agents running on your computer from your iPhone. Scan a QR code from rove --web (no VPN needed with the optional end-to-end encrypted relay) to read code changes, answer agent questions, dictate replies with hold-to-talk, or start a new task. No computer handy? Tap "try a demo" on the first screen.
+  Rove lets you check on the AI coding agents running on your computer from your iPhone. Scan a QR code from rove --web (no VPN needed with the optional end-to-end encrypted relay) to read code changes, answer agent questions, dictate replies with hold-to-talk, or start a new task. No computer handy? Tap "try a demo" on the first screen.
   ```
 - **Simplified Chinese (148 / 4000):**
   ```text
-  Rove Mobile 让你在 iPhone 上随时查看电脑里正在运行的 AI 编程助手。运行 rove --web 后扫码即可配对（通过可选的端到端加密中继，无需配 VPN），在手机上逐行看代码改动、回复助手提问、按住说话语音输入，或新建任务。手边没电脑？首次打开点「先看看」即可体验内置演示。
+  Rove 让你在 iPhone 上随时查看电脑里正在运行的 AI 编程助手。运行 rove --web 后扫码即可配对（通过可选的端到端加密中继，无需配 VPN），在手机上逐行看代码改动、回复助手提问、按住说话语音输入，或新建任务。手边没电脑？首次打开点「先看看」即可体验内置演示。
   ```
 
 ### What to Test (limit: 4000)
@@ -343,22 +343,22 @@ Capture note: in built-in demo mode (`try a demo` / `先看看`), the top bar re
 
 - **English (260 / 280 chars; 267 / 280 X-weighted):**
   ```text
-  Stepped away from your desk while coding agents are still running? Rove Mobile is on the App Store. Scan a QR code from your computer—no VPN needed—to read code changes, answer agent prompts, or start a new task from iPhone. Free, open source: https://rove.run
+  Stepped away from your desk while coding agents are still running? Rove for iPhone is on the App Store. Scan a QR code from your computer—no VPN needed—to read code changes, answer agent prompts, or start a new task from iPhone. Free, open source: https://rove.run
   ```
 - **Simplified Chinese (131 / 280 chars; 219 / 280 X-weighted):**
   ```text
-  离开电脑时，编程助手还在继续干活？Rove Mobile 现已上架 App Store。扫个二维码连上你自己的电脑，不用配 VPN，就能在 iPhone 上看进度、逐行看代码改动、回复提问或新建任务。免费开源，支持先试用内置演示：https://rove.run
+  离开电脑时，编程助手还在继续干活？Rove iPhone 版现已上架 App Store。扫个二维码连上你自己的电脑，不用配 VPN，就能在 iPhone 上看进度、逐行看代码改动、回复提问或新建任务。免费开源，支持先试用内置演示：https://rove.run
   ```
 
 ### README / rove.run blurb (3–4 sentences)
 
 - **English (597 chars):**
   ```text
-  When you step away from your desk while coding agents are still running, Rove Mobile lets you follow along from your iPhone. Run `rove --web` on your computer and scan the QR code in Settings → Connectors → Phone to connect through an optional end-to-end encrypted relay with no VPN setup, or pair over your local network or Tailscale. From your phone, you can read code changes line by line, answer agent prompts by typing or hold-to-talk, and start new tasks across your projects. It requires no account, collects no analytics, and includes a built-in demo you can try before pairing a computer.
+  When you step away from your desk while coding agents are still running, Rove lets you follow along from your iPhone. Run `rove --web` on your computer and scan the QR code in Settings → Connectors → Phone to connect through an optional end-to-end encrypted relay with no VPN setup, or pair over your local network or Tailscale. From your phone, you can read code changes line by line, answer agent prompts by typing or hold-to-talk, and start new tasks across your projects. It requires no account, collects no analytics, and includes a built-in demo you can try before pairing a computer.
   ```
 - **Simplified Chinese (212 chars):**
   ```text
-  离开工位时，电脑上的编程助手还在继续干活，你可以用 Rove Mobile 在 iPhone 上随时跟进。在电脑运行 `rove --web`，打开「设置 → 连接器 → 手机」扫描二维码，即可通过可选的端到端加密中继连接，无需配置 VPN，也支持局域网或 Tailscale。在手机上可以逐行查看代码改动、打字或按住说话回复助手提问，也能直接新建任务。App 无需账号、没有统计追踪，还内置了免电脑演示，没配对也能先体验。
+  离开工位时，电脑上的编程助手还在继续干活，你可以用 Rove 在 iPhone 上随时跟进。在电脑运行 `rove --web`，打开「设置 → 连接器 → 手机」扫描二维码，即可通过可选的端到端加密中继连接，无需配置 VPN，也支持局域网或 Tailscale。在手机上可以逐行查看代码改动、打字或按住说话回复助手提问，也能直接新建任务。App 无需账号、没有统计追踪，还内置了免电脑演示，没配对也能先体验。
   ```
 
 ### 1.0 release `[ios]` changeset body (one line)
@@ -367,9 +367,9 @@ Use the English line in `.changeset/*.md` when cutting the 1.0 release.
 
 - **English (260 chars):**
   ```text
-  [ios] Rove Mobile 1.0 launches on the App Store: pair your iPhone with `rove --web` over QR or link (including the optional end-to-end encrypted relay), switch computers from Keychain, dictate with hold-to-talk, or explore the built-in demo without a computer.
+  [ios] Rove for iPhone 1.0 launches on the App Store: pair your iPhone with `rove --web` over QR or link (including the optional end-to-end encrypted relay), switch computers from Keychain, dictate with hold-to-talk, or explore the built-in demo without a computer.
   ```
 - **Simplified Chinese (115 chars):**
   ```text
-  [ios] Rove Mobile 1.0 上架 App Store：支持通过二维码或链接与 `rove --web` 配对（含可选端到端加密中继）、在钥匙串中保存并切换多台电脑、按住说话语音输入，以及无需电脑即可体验的内置演示。
+  [ios] Rove for iPhone 1.0 上架 App Store：支持通过二维码或链接与 `rove --web` 配对（含可选端到端加密中继）、在钥匙串中保存并切换多台电脑、按住说话语音输入，以及无需电脑即可体验的内置演示。
   ```
