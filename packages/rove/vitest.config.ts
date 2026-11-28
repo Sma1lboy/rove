@@ -61,8 +61,8 @@ export default defineConfig({
     // them in the denominator made the % measure the runtime, not the tests.
     coverage: {
       provider: "v8",
-      // Tests here also execute sibling workspaces' source: rove-core always,
-      // rove-daemon on the opt-in socket-coverage track.
+      // Tests here also execute sibling workspaces' source: rove-core and
+      // rove-client always, rove-daemon on the opt-in socket-coverage track.
       allowExternal: true,
       include: includeDaemonCoverage
         ? [path.resolve(__dirname, "../rove-daemon/src/**/*.ts")]
@@ -70,6 +70,10 @@ export default defineConfig({
             "src/**/*.ts",
             path.join(
               path.dirname(createRequire(import.meta.url).resolve("@sma1lboy/rove-core/package.json")),
+              "src/**/*.ts",
+            ),
+            path.join(
+              path.dirname(createRequire(import.meta.url).resolve("@sma1lboy/rove-client/package.json")),
               "src/**/*.ts",
             ),
           ],

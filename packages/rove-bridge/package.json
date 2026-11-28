@@ -20,6 +20,7 @@
     "@hsinsekai-nanami/agent": "0.2.4",
     "@hsinsekai-nanami/core": "0.2.2",
     "@sma1lboy/rove": "workspace:*",
+    "@sma1lboy/rove-client": "workspace:*",
     "@sma1lboy/rove-core": "workspace:*",
     "@sma1lboy/rove-daemon": "workspace:*",
     "uqr": "^0.1.3"

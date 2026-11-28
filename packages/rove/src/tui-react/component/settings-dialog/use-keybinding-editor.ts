@@ -3,13 +3,13 @@
  * unbind it. Every change goes through `saveKeybindingEdits`, which writes the YAML and reloads.
  */
 
+import { PREFIX_KEY_ID, type Recording, recordStroke } from "@sma1lboy/rove-client/keys/chord-recorder.ts"
+import type { KeybindingEdit } from "@sma1lboy/rove-client/keys/keybindings-write.ts"
+import { findBinding } from "@sma1lboy/rove-client/keys/keybindings.ts"
+import { prefixFirstStrokes } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
+import { matchKey } from "@sma1lboy/rove-client/keys/keymap-match.ts"
+import { recordSlotLabels } from "@sma1lboy/rove-client/keys/keymap-overrides.ts"
 import { useEffect, useRef, useState } from "react"
-import { PREFIX_KEY_ID, type Recording, recordStroke } from "../../../keys/chord-recorder"
-import { findBinding } from "../../../keys/keybindings"
-import type { KeybindingEdit } from "../../../keys/keybindings-write"
-import { prefixFirstStrokes } from "../../../keys/keymap-dispatch"
-import { matchKey } from "../../../keys/keymap-match"
-import { recordSlotLabels } from "../../../keys/keymap-overrides"
 import { saveKeybindingEdits } from "../../../tui/context/keybindings-user"
 import { captureKeys } from "../../lib/keymap"
 

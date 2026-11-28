@@ -1,6 +1,6 @@
 /** Pane focus cycle, sidebar ← workspace → files (TUI `focus.next` / `focus.previous`): clamps at the ends, no wrap. */
 
-import { type CyclePaneId, nextFocusedPane } from "@sma1lboy/rove/src/keys/keybinding-gates.ts"
+import { type CyclePaneId, nextFocusedPane } from "@sma1lboy/rove-client/keys/keybinding-gates.ts"
 
 /** The terminal that has the keyboard when the workspace does: the active leaf of the shown tab (a parked terminal sits outside every leaf). */
 const ACTIVE_TERMINAL = ".split-leaf.is-active textarea.xterm-helper-textarea"

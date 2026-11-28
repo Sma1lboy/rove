@@ -7,15 +7,15 @@
  * subscription).
  */
 
+import { keymapVersion, subscribeKeymapVersion } from "@sma1lboy/rove-client/keys/keybindings.ts"
 import { useSyncExternalStore } from "react"
-import { keymapVersion, subscribeKeymapVersion } from "../../keys/keybindings"
 
 export {
   RoveKeymap,
   bindByIds,
   bumpKeymapVersion,
   subscribeKeymapVersion,
-} from "../../keys/keybindings"
+} from "@sma1lboy/rove-client/keys/keybindings.ts"
 
 /**
  * Subscribe the component to keymap reloads. Returns the current version

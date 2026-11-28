@@ -8,8 +8,8 @@
  * writes the snapshot AND broadcasts and both converge in any order.
  */
 
+import type { TabsSnapshotKv } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
 import { setTabTitle } from "../../tabs/terminal-tabs-core"
-import type { TabsSnapshotKv } from "../../tabs/terminal-tabs-persist"
 import { knownTabsState, requestTabRename, setTaskTabs, takeUnclaimedTabRename } from "./terminal-tabs-shared"
 
 /**

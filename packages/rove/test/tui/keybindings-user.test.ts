@@ -27,7 +27,7 @@ vi.mock("@sma1lboy/rove-core/state/keybindings-file.ts", () => ({
   resetKeybindingsFileCache: vi.fn(),
 }))
 
-const { findBinding, resetKeymapToDefaults } = await import("../../src/keys/keybindings")
+const { findBinding, resetKeymapToDefaults } = await import("@sma1lboy/rove-client/keys/keybindings.ts")
 const userKb = await import("../../src/tui/context/keybindings-user")
 
 const ID = "sidebar.rename" // overridable, default ["r"], carries a hint

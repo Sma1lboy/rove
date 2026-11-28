@@ -11,11 +11,11 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import { prefixAction } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
 import { SPLIT_STYLE_KEY, normalizeSplitStyle } from "@sma1lboy/rove-core/state/split-style.ts"
 import type { EngineTerminalPresentation } from "@sma1lboy/rove-core/types/terminal-presentation.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { type ReactNode, useEffect, useMemo, useState } from "react"
-import { prefixAction } from "../../keys/keymap-dispatch"
 import {
   type SplitLeaf,
   type SplitNode,

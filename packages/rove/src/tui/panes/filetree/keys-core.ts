@@ -4,8 +4,8 @@
  * dispatch that makes these chords rebindable.
  */
 
-import { bindByIds } from "../../../keys/keybindings"
-import type { Binding } from "../../../keys/keymap-dispatch"
+import { bindByIds } from "@sma1lboy/rove-client/keys/keybindings.ts"
+import type { Binding } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
 
 /** Here, not in the component, to avoid a view ↔ bindings-hook import cycle. */
 export type FileTreeTab = "all" | "changes"

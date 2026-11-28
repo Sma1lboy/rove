@@ -38,6 +38,7 @@ on:
       - "packages/rove/**"
       - "packages/rove-daemon/**"
       - "packages/rove-core/**"
+      - "packages/rove-client/**"
       - "packages/rove-bridge/**"
       - "packages/rove-web/**"
       - "packages/rove-harness/**"
@@ -54,7 +55,7 @@ on:
 env:
   # The same set as `paths` above, as git pathspecs.
   SHIPPED: >-
-    packages/rove packages/rove-daemon packages/rove-core packages/rove-bridge packages/rove-web packages/rove-harness
+    packages/rove packages/rove-daemon packages/rove-core packages/rove-client packages/rove-bridge packages/rove-web packages/rove-harness
     packages/rove-plugin-sdk packages/rove-weixin packages/rove-lark .agents/skills/rove scripts/voice bun.lock
     scripts/next-version.mjs .github/workflows/next.yml
 

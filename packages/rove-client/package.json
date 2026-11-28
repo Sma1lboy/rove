@@ -1,0 +1,25 @@
+{
+  "name": "@sma1lboy/rove-client",
+  "version": "0.0.0",
+  "description": "Rove's client-shared layer: keybindings, appearance, sidebar helpers and terminal-tab persistence shared by the TUI, web bridge and browser client.",
+  "type": "module",
+  "packageManager": "bun@1.3.13",
+  "exports": {
+    "./package.json": "./package.json",
+    "./*": "./src/*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sma1lboy/rove-core": "workspace:*",
+    "@sma1lboy/rove-daemon": "workspace:*",
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "@tsconfig/bun": "1.0.11",
+    "@types/bun": "1.3.14",
+    "@types/node": "25.6.2",
+    "typescript": "5.8.2"
+  }
+}

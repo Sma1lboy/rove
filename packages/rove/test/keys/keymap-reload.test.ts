@@ -8,9 +8,9 @@
  * would pile up. These tests pin the reset (keys AND the cosmetic hint).
  */
 
+import { RoveKeymap, findBinding, resetKeymapToDefaults } from "@sma1lboy/rove-client/keys/keybindings.ts"
+import { applyKeymapOverrides } from "@sma1lboy/rove-client/keys/keymap-overrides.ts"
 import { afterEach, describe, expect, test } from "vitest"
-import { RoveKeymap, findBinding, resetKeymapToDefaults } from "../../src/keys/keybindings"
-import { applyKeymapOverrides } from "../../src/keys/keymap-overrides"
 
 const ID = "sidebar.rename" // overridable, default ["r"], carries a hint
 

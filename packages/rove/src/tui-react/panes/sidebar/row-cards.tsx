@@ -9,8 +9,8 @@
  */
 
 import type { TaskEngineState } from "@/client/remote-orchestrator"
+import type { SidebarRow } from "@sma1lboy/rove-client/sidebar/groups.ts"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
-import type { SidebarRow } from "../../../sidebar/groups"
 import { sidebarPollClockSnapshot, subscribeSidebarPollClock } from "../../../tui/lib/sidebar-poll-clock"
 import { spinnerFrameSnapshot, subscribeSpinnerFrame } from "../../../tui/lib/spinner-frame-store"
 import { DONE_PULSE_MS } from "../../../tui/panes/sidebar/row-view"

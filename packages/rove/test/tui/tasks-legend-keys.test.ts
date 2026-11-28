@@ -19,10 +19,10 @@
  * live-reload machinery (applyKeymapOverrides + resetKeymapToDefaults).
  */
 
+import { legendCap, legendRowCap } from "@sma1lboy/rove-client/keys/help-groups.ts"
+import { RoveKeymap, resetKeymapToDefaults } from "@sma1lboy/rove-client/keys/keybindings.ts"
+import { applyKeymapOverrides } from "@sma1lboy/rove-client/keys/keymap-overrides.ts"
 import { afterEach, describe, expect, test } from "vitest"
-import { legendCap, legendRowCap } from "../../src/keys/help-groups"
-import { RoveKeymap, resetKeymapToDefaults } from "../../src/keys/keybindings"
-import { applyKeymapOverrides } from "../../src/keys/keymap-overrides"
 
 describe("tasks-pane legend keycap derivation", () => {
   afterEach(() => resetKeymapToDefaults())

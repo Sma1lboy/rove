@@ -10,9 +10,9 @@
  * instead of teaching a dead key.
  */
 
-import { formatChord } from "../../keys/chord-glyphs"
-import { legendCap } from "../../keys/help-groups"
-import type { BindingReachability } from "../../keys/keymap-reachability"
+import { formatChord } from "@sma1lboy/rove-client/keys/chord-glyphs.ts"
+import { legendCap } from "@sma1lboy/rove-client/keys/help-groups.ts"
+import type { BindingReachability } from "@sma1lboy/rove-client/keys/keymap-reachability.ts"
 
 /** Master toggle (Settings → General → Keyboard hints). Default ON. */
 export const KEY_HINTS_ENABLED_KEY = "hints.keyboard.enabled"

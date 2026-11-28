@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { RoveKeymap } from "@sma1lboy/rove/src/keys/keybindings-table.ts"
+import { RoveKeymap } from "@sma1lboy/rove-client/keys/keybindings-table.ts"
 import { type KeyPress, chordCandidates } from "../src/chord.ts"
 import { allCommands, registerCommands } from "../src/commands.ts"
 import {

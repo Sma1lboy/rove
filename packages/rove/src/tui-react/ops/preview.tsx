@@ -8,6 +8,7 @@
 
 import { type DiffRenderable, TextAttributes } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
+import { bindByIds } from "@sma1lboy/rove-client/keys/keybindings.ts"
 import { execHostForWorktreePath } from "@sma1lboy/rove-core/exec/resolve.ts"
 import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 import { formatBytes } from "@sma1lboy/rove-core/lib/format-bytes.ts"
@@ -25,7 +26,6 @@ import {
   unifiedDiffFiles,
 } from "@sma1lboy/rove-core/worktree/preview-core.ts"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { bindByIds } from "../../keys/keybindings"
 import { openWithSystemViewer } from "../../lib/open-external"
 import { remotePreview } from "../../machines/remote-worktree.ts"
 import { buildSyntaxStyle } from "../../tui/ops/preview-syntax"

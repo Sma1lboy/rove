@@ -1,5 +1,9 @@
-import { type Binding, type RegisteredBinding, currentPrefixConfiguration } from "./keymap-dispatch"
-import { inputPassthroughReachable } from "./keymap-reachability"
+import {
+  type Binding,
+  type RegisteredBinding,
+  currentPrefixConfiguration,
+} from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
+import { inputPassthroughReachable } from "@sma1lboy/rove-client/keys/keymap-reachability.ts"
 
 export type PaletteAction = { id: string; key: string; prefix: boolean; run: () => boolean }
 

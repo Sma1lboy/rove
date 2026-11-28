@@ -1,6 +1,3 @@
-import type { Task } from "@sma1lboy/rove-core/types/task.ts"
-import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
-import { describe, expect, it } from "vitest"
 import {
   type SidebarRow,
   reconcileSidebarRows,
@@ -9,7 +6,10 @@ import {
   sameSidebarRowTask,
   sidebarProjectKey,
   sidebarProjectLabel,
-} from "../../src/sidebar/groups.ts"
+} from "@sma1lboy/rove-client/sidebar/groups.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
+import { describe, expect, it } from "vitest"
 
 it("uses one sidebar identity and basename for Windows repo spellings", () => {
   expect(sidebarProjectKey("c:\\Projects\\demo\\")).toBe(sidebarProjectKey("C:/Projects/demo"))

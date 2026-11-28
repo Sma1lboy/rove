@@ -1,6 +1,5 @@
 /** @jsxImportSource @opentui/react */
 import { TextAttributes } from "@opentui/core"
-import { useState } from "react"
 import {
   type AppearanceChoice,
   type AppearanceSetting,
@@ -8,7 +7,8 @@ import {
   appearanceChoices,
   applyAppearanceChoice,
   currentAppearanceChoice,
-} from "../../../settings/appearance"
+} from "@sma1lboy/rove-client/settings/appearance.ts"
+import { useState } from "react"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { useBindings } from "../../lib/keymap"

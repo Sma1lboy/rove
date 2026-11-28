@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/react */
 import { expect, it } from "bun:test"
-import { bindByIds } from "../../src/keys/keybindings"
-import { prefixAction } from "../../src/keys/keymap-dispatch"
+import { bindByIds } from "@sma1lboy/rove-client/keys/keybindings.ts"
+import { prefixAction } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
 import { CommandPalette } from "../../src/tui-react/component/command-palette"
 import { useBindings } from "../../src/tui-react/lib/keymap"
 import { useDialog } from "../../src/tui-react/ui/dialog"

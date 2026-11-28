@@ -6,7 +6,7 @@
  * (rail, files) are run by replaying their key on that pane.
  */
 
-import { type RoveBinding, RoveKeymap } from "@sma1lboy/rove/src/keys/keybindings-table.ts"
+import { type RoveBinding, RoveKeymap } from "@sma1lboy/rove-client/keys/keybindings-table.ts"
 import type { AppModel } from "./model.ts"
 import { userChordsOf } from "./user-keys.ts"
 

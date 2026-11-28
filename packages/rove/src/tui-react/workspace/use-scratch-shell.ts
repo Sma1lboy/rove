@@ -15,6 +15,7 @@
  */
 
 import { homedir } from "node:os"
+import type { TabsSnapshotKv } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
 import { t } from "@sma1lboy/rove-core/i18n/index.ts"
 import { userFacingErrorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 import { deriveTitleFromPrompt } from "@sma1lboy/rove-core/orchestrator/title.ts"
@@ -23,7 +24,6 @@ import { DEFAULT_TASK_VENDOR, type Task } from "@sma1lboy/rove-core/types/task.t
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { defaultDaemonLogPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
-import type { TabsSnapshotKv } from "../../tabs/terminal-tabs-persist"
 import { finishDeletedTaskFlow } from "../../tui/lib/task-actions"
 import { engineScratchTasks, requestTabActivation } from "./terminal-tabs-shared"
 import { useScratchAdopt } from "./use-scratch-adopt"

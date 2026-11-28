@@ -5,10 +5,10 @@
  */
 
 import type { TaskEngineState } from "@/client/remote-orchestrator"
+import type { TaskSortMode } from "@sma1lboy/rove-client/sidebar/groups.ts"
+import type { TabsSnapshotKv } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { useMemo } from "react"
-import type { TaskSortMode } from "../../../sidebar/groups"
-import type { TabsSnapshotKv } from "../../../tabs/terminal-tabs-persist"
 import { type SidebarGroup, buildSidebarGroups } from "../../../tui/panes/sidebar/project-groups"
 import type { TreeTab } from "../../../tui/panes/sidebar/tree-core"
 import { useTabsByTask } from "./use-tabs-by-task"

@@ -1,5 +1,5 @@
+import { type KeybindingEdit, editKeybindingsYaml } from "@sma1lboy/rove-client/keys/keybindings-write.ts"
 import { describe, expect, it } from "vitest"
-import { type KeybindingEdit, editKeybindingsYaml } from "../../src/keys/keybindings-write"
 
 const keymap = () => [
   { id: "chat.tab.new", scope: "workspace", keys: ["ctrl+t"], prefixKeys: ["t"] },

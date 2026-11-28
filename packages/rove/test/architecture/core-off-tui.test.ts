@@ -9,7 +9,7 @@ import { readFileSync, readdirSync } from "node:fs"
 import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { describe, expect, test } from "vitest"
-import { CORE_SRC } from "../core-package.ts"
+import { CLIENT_SRC, CORE_SRC } from "../core-package.ts"
 
 const SRC = fileURLToPath(new URL("../../src", import.meta.url))
 const UI_DIRS = ["tui", "tui-react", "bundled-plugins"]
@@ -53,6 +53,7 @@ describe("core code does not import the TUI", () => {
 })
 
 const ROVE_PKG = resolve(fileURLToPath(new URL("../..", import.meta.url)))
+const CLIENT_PKG = resolve(CLIENT_SRC, "..")
 
 function walk(dir: string, acc: string[] = []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -74,5 +75,27 @@ describe("@sma1lboy/rove-core stands below the CLI package", () => {
       }),
     )
     expect(offenders.map((file) => relative(CORE_SRC, file))).toEqual([])
+  })
+
+  test("no rove-core file imports @sma1lboy/rove-client", () => {
+    const offenders = walk(CORE_SRC).filter((file) =>
+      [...readFileSync(file, "utf8").matchAll(SPEC)].some(([, spec = ""]) => {
+        if (spec === "@sma1lboy/rove-client" || spec.startsWith("@sma1lboy/rove-client/")) return true
+        return spec.startsWith(".") && resolve(dirname(file), spec).startsWith(`${CLIENT_PKG}/`)
+      }),
+    )
+    expect(offenders.map((file) => relative(CORE_SRC, file))).toEqual([])
+  })
+})
+
+describe("@sma1lboy/rove-client stands below the CLI package", () => {
+  test("no rove-client file imports @sma1lboy/rove or a path inside packages/rove", () => {
+    const offenders = walk(CLIENT_SRC).filter((file) =>
+      [...readFileSync(file, "utf8").matchAll(SPEC)].some(([, spec = ""]) => {
+        if (spec === "@sma1lboy/rove" || spec.startsWith("@sma1lboy/rove/") || UI_PACKAGE.test(spec)) return true
+        return spec.startsWith(".") && resolve(dirname(file), spec).startsWith(`${ROVE_PKG}/`)
+      }),
+    )
+    expect(offenders.map((file) => relative(CLIENT_SRC, file))).toEqual([])
   })
 })

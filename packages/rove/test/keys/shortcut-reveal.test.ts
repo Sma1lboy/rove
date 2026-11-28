@@ -1,6 +1,10 @@
+import { findBinding, resetKeymapToDefaults } from "@sma1lboy/rove-client/keys/keybindings.ts"
+import {
+  DIRECT_GUIDE_PREFIX_ACTION_ID,
+  directGuideOptions,
+  shortcutCaption,
+} from "@sma1lboy/rove-client/keys/shortcut-reveal.ts"
 import { afterEach, describe, expect, it } from "vitest"
-import { findBinding, resetKeymapToDefaults } from "../../src/keys/keybindings"
-import { DIRECT_GUIDE_PREFIX_ACTION_ID, directGuideOptions, shortcutCaption } from "../../src/keys/shortcut-reveal"
 
 const reachable = (direct: string[] = [], prefix: string[] = []) => ({
   direct: new Set(direct),

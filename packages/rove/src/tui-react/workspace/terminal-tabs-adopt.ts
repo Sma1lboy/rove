@@ -5,9 +5,9 @@
  * so the next mount attaches to the session already running under its key.
  */
 
+import type { TabsSnapshotKv } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
 import { adoptTabs } from "../../tabs/tabs-adopt"
 import type { TabsState } from "../../tabs/terminal-tabs-core"
-import type { TabsSnapshotKv } from "../../tabs/terminal-tabs-persist"
 import { knownTabsState, requestTabAdopt, setTaskTabs, takeUnclaimedTabAdopt } from "./terminal-tabs-shared"
 
 /**

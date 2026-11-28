@@ -1,11 +1,11 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { compareNewest } from "@sma1lboy/rove-client/sidebar/groups.ts"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Orchestrator } from "../../src/orchestrator/core.ts"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
-import { compareNewest } from "../../src/sidebar/groups.ts"
 
 describe("Orchestrator active task recency", () => {
   let home: string

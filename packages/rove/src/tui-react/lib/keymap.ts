@@ -12,9 +12,7 @@
 
 import type { KeyEvent, KeyHandler } from "@opentui/core"
 import { flushSync, useRenderer } from "@opentui/react"
-import { profileTick } from "@sma1lboy/rove-core/lib/render-profile.ts"
-import { createContext, useContext, useEffect, useRef, useSyncExternalStore } from "react"
-import { type CtrlHoldDetector, createCtrlHoldDetector } from "../../keys/ctrl-hold"
+import { type CtrlHoldDetector, createCtrlHoldDetector } from "@sma1lboy/rove-client/keys/ctrl-hold.ts"
 import {
   type Binding,
   type BindingsConfig,
@@ -25,15 +23,17 @@ import {
   insertRegistration,
   invokeArmedPrefixAction,
   resetPrefixState,
-} from "../../keys/keymap-dispatch"
-import { type BindingReachability, bindingReachability } from "../../keys/keymap-reachability"
-import { isKittyModifierKeyName } from "../../keys/modifier-keys"
+} from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
+import { type BindingReachability, bindingReachability } from "@sma1lboy/rove-client/keys/keymap-reachability.ts"
+import { isKittyModifierKeyName } from "@sma1lboy/rove-client/keys/modifier-keys.ts"
+import { prefixHudHideDirect, prefixHudShowDirect } from "@sma1lboy/rove-client/keys/prefix-hud.ts"
+import { directGuideOptions } from "@sma1lboy/rove-client/keys/shortcut-reveal.ts"
+import { profileTick } from "@sma1lboy/rove-core/lib/render-profile.ts"
+import { createContext, useContext, useEffect, useRef, useSyncExternalStore } from "react"
 import { capturePaletteActions } from "../../keys/palette-actions"
-import { prefixHudHideDirect, prefixHudShowDirect } from "../../keys/prefix-hud"
-import { directGuideOptions } from "../../keys/shortcut-reveal"
 import { useLatest } from "../lib/use-latest"
 
-export type { Binding, BindingsConfig } from "../../keys/keymap-dispatch"
+export type { Binding, BindingsConfig } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
 
 /**
  * Scope token set by the dialog overlay: `useBindings` inside it become

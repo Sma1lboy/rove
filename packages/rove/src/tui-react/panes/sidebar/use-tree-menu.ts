@@ -4,10 +4,10 @@
  * `t()` pass, and the dispatch between them.
  */
 
+import { formatChord } from "@sma1lboy/rove-client/keys/chord-glyphs.ts"
+import { legendCap } from "@sma1lboy/rove-client/keys/help-groups.ts"
 import { resolvePreferredVendor } from "@sma1lboy/rove-core/state/vendor-prefs.ts"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { formatChord } from "../../../keys/chord-glyphs"
-import { legendCap } from "../../../keys/help-groups"
 import { pausedGitOperation } from "../../../tui/ops/conflict-prompt"
 import { SCRATCH_SECTION_ID, type TreeRow } from "../../../tui/panes/sidebar/tree-core"
 import {

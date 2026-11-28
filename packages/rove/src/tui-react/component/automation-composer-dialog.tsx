@@ -11,9 +11,9 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import { sidebarProjectLabel } from "@sma1lboy/rove-client/sidebar/groups.ts"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { useState } from "react"
-import { sidebarProjectLabel } from "../../sidebar/groups"
 import {
   type ComposerDraft,
   type ComposerField,

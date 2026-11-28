@@ -5,8 +5,8 @@
  * because none change.
  */
 
+import { sidebarProjectLabel } from "@sma1lboy/rove-client/sidebar/groups.ts"
 import { useState } from "react"
-import { sidebarProjectLabel } from "../../sidebar/groups"
 import { clampCursor, windowAround } from "../../tui/component/new-task-dialog/state"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"

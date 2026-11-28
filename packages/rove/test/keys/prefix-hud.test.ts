@@ -6,15 +6,15 @@
  * a keystroke did.
  */
 
-import { afterEach, describe, expect, test } from "vitest"
 import {
   type RegisteredBinding,
   configurePrefix,
   dispatchKeyEvent,
   resetPrefixConfiguration,
   resetPrefixState,
-} from "../../src/keys/keymap-dispatch"
-import { prefixHudState, resetPrefixHud } from "../../src/keys/prefix-hud"
+} from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
+import { prefixHudState, resetPrefixHud } from "@sma1lboy/rove-client/keys/prefix-hud.ts"
+import { afterEach, describe, expect, test } from "vitest"
 
 function event(name: string, ctrl = false) {
   let defaultPrevented = false

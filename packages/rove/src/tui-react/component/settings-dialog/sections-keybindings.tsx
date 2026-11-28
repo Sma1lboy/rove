@@ -7,19 +7,19 @@
  */
 
 import { TextAttributes } from "@opentui/core"
-import { tKeys } from "@sma1lboy/rove-core/i18n/index.ts"
-import { tildify } from "@sma1lboy/rove-core/lib/path-home.ts"
-import { PREFIX_KEY_ID } from "../../../keys/chord-recorder"
-import { editableBindings } from "../../../keys/editable-bindings"
-import { groupBindings } from "../../../keys/help-groups"
-import { findBinding } from "../../../keys/keybindings"
+import { PREFIX_KEY_ID } from "@sma1lboy/rove-client/keys/chord-recorder.ts"
+import { editableBindings } from "@sma1lboy/rove-client/keys/editable-bindings.ts"
+import { groupBindings } from "@sma1lboy/rove-client/keys/help-groups.ts"
+import { findBinding } from "@sma1lboy/rove-client/keys/keybindings.ts"
 import {
   DEFAULT_PREFIX_CONFIGURATION,
   currentPrefixConfiguration,
   prefixFirstStrokes,
-} from "../../../keys/keymap-dispatch"
-import { recordSlotLabels } from "../../../keys/keymap-overrides"
-import { PREFIX_TAP_PRESENTATIONS } from "../../../keys/prefix-tap-presentation"
+} from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
+import { recordSlotLabels } from "@sma1lboy/rove-client/keys/keymap-overrides.ts"
+import { PREFIX_TAP_PRESENTATIONS } from "@sma1lboy/rove-client/keys/prefix-tap-presentation.ts"
+import { tKeys } from "@sma1lboy/rove-core/i18n/index.ts"
+import { tildify } from "@sma1lboy/rove-core/lib/path-home.ts"
 import { keybindingRowId, keybindingRows, prefixTapPresentationRowId, rowIndex } from "../../../settings/model"
 import { userKeybindingsReport } from "../../../tui/context/keybindings-user"
 import { useKeymapVersion } from "../../context/keybindings"

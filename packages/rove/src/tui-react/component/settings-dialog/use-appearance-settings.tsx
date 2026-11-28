@@ -1,5 +1,9 @@
 /** @jsxImportSource @opentui/react */
-import type { AppearanceChoice, AppearanceSetting, AppearanceSnapshot } from "../../../settings/appearance"
+import type {
+  AppearanceChoice,
+  AppearanceSetting,
+  AppearanceSnapshot,
+} from "@sma1lboy/rove-client/settings/appearance.ts"
 import type { KVContext } from "../../context/kv"
 import { useTheme } from "../../context/theme"
 import type { DialogContext } from "../../ui/dialog"

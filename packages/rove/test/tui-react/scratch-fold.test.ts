@@ -10,10 +10,10 @@
  * target's own tabs. The adoption lands in the daemon's tab store, never the kv.
  */
 
+import type { TabsSnapshotKv } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import type { SharedTabs } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import type { TabsSnapshotKv } from "../../src/tabs/terminal-tabs-persist"
 import { foldScratchShell } from "../../src/tui-react/workspace/scratch-fold"
 import { resetTabsSyncForTests } from "../../src/tui-react/workspace/tabs-sync"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"

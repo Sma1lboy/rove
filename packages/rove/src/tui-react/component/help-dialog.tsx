@@ -8,17 +8,17 @@
  */
 
 import { type ScrollBoxRenderable, TextAttributes } from "@opentui/core"
-import { useMemo, useRef, useState } from "react"
-import { formatChord } from "../../keys/chord-glyphs"
+import { formatChord } from "@sma1lboy/rove-client/keys/chord-glyphs.ts"
 import {
   type HelpGrammarSection,
   type HelpSurface,
   grammarHelpSections,
   matchesHelpAction,
   scopeCategory,
-} from "../../keys/help-groups"
-import { currentPrefixConfiguration } from "../../keys/keymap-dispatch"
-import type { BindingReachability } from "../../keys/keymap-reachability"
+} from "@sma1lboy/rove-client/keys/help-groups.ts"
+import { currentPrefixConfiguration } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
+import type { BindingReachability } from "@sma1lboy/rove-client/keys/keymap-reachability.ts"
+import { useMemo, useRef, useState } from "react"
 import { glyphLegendSections } from "../../tui/lib/glyph-legend"
 import { RoveKeymap, useKeymapVersion } from "../context/keybindings"
 import { useTheme } from "../context/theme"

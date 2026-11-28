@@ -5,8 +5,12 @@
  */
 
 import { useRenderer } from "@opentui/react"
-import { type WorkspacePageState, nextFocusedPane, workspacePagesClosed } from "../../keys/keybinding-gates"
-import { prefixAction } from "../../keys/keymap-dispatch"
+import {
+  type WorkspacePageState,
+  nextFocusedPane,
+  workspacePagesClosed,
+} from "@sma1lboy/rove-client/keys/keybinding-gates.ts"
+import { prefixAction } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
 import { restoreTerminal } from "../../lib/restore-terminal"
 import { redrawScreen } from "../../tui/lib/screen-refresh"
 import { CommandPalette } from "../component/command-palette"

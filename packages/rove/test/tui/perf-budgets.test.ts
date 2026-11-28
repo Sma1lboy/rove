@@ -21,10 +21,10 @@ beforeAll(() => {
   vi.stubEnv("ROVE_DEV", "0")
   return () => vi.unstubAllEnvs()
 })
+import { type Binding, type RegisteredBinding, dispatchKeyEvent } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
 import { computeNextAllowedAt, shouldPoll } from "@sma1lboy/rove-core/lib/poll-scheduling.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
-import { type Binding, type RegisteredBinding, dispatchKeyEvent } from "../../src/keys/keymap-dispatch"
 import { breathGlyph } from "../../src/tui/lib/breathe"
 import { buildSidebarRowView, withSpinnerFrame } from "../../src/tui/panes/sidebar/row-view"
 import {

@@ -14,7 +14,7 @@
 import { argvHasFlag } from "@/cli/argv"
 import { roveCliInvocation } from "@/cli/invocation"
 import { engineEntry } from "@/engine/registry"
-import { permissionBypassEnabled } from "@/state/permission-bypass"
+import { permissionBypassEnabled } from "@sma1lboy/rove-core/state/permission-bypass.ts"
 import { getPersistedString } from "@sma1lboy/rove-core/state/repos.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/task.ts"
 import { coerceVendorId } from "@sma1lboy/rove-core/types/vendor.ts"

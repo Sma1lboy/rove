@@ -4,7 +4,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs"
 import { join, relative } from "node:path"
 import { fileURLToPath } from "node:url"
 import { describe, expect, test } from "vitest"
-import { CORE_SRC } from "../core-package.ts"
+import { CLIENT_SRC, CORE_SRC } from "../core-package.ts"
 
 const SRC_ROOT = fileURLToPath(new URL("../../src", import.meta.url))
 const RETIRED_ROOT = join(SRC_ROOT, "tmux")
@@ -40,7 +40,7 @@ function referencesTmux(file: string, line: string): boolean {
 }
 
 function retiredRuntimeOffenders(): string[] {
-  return [...sourceFiles(SRC_ROOT), ...sourceFiles(CORE_SRC)]
+  return [...sourceFiles(SRC_ROOT), ...sourceFiles(CORE_SRC), ...sourceFiles(CLIENT_SRC)]
     .filter((file) => {
       const source = readFileSync(file, "utf8")
       return source.includes("ROVE_TMUX") || source.split("\n").some((line) => referencesTmux(file, line))

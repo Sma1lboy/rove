@@ -12,6 +12,13 @@
  * commands, classifier endpoints and secrets.
  */
 
+import {
+  DEFAULT_PREFIX_TAP_PRESENTATION,
+  PREFIX_TAP_PRESENTATIONS,
+  PREFIX_TAP_PRESENTATION_KEY,
+  normalizePrefixTapPresentation,
+} from "@sma1lboy/rove-client/keys/prefix-tap-presentation.ts"
+import { appearanceChoices } from "@sma1lboy/rove-client/settings/appearance.ts"
 import { DEFAULT_LOCALE, LOCALES, isLocaleId } from "@sma1lboy/rove-core/i18n/catalog.ts"
 import {
   DEFAULT_EDITOR_KIND,
@@ -27,6 +34,7 @@ import { AUTO_STATUS_KEY } from "@sma1lboy/rove-core/state/auto-status.ts"
 import { COLORBLIND_KEY, DEFAULT_COLORBLIND, normalizeColorblind } from "@sma1lboy/rove-core/state/colorblind.ts"
 import { DISPATCHER_KEY } from "@sma1lboy/rove-core/state/dispatcher.ts"
 import { DEFAULT_GLYPH_SET, GLYPH_SET_KEY, normalizeGlyphSet } from "@sma1lboy/rove-core/state/glyph-set.ts"
+import { PERMISSION_BYPASS_KEY } from "@sma1lboy/rove-core/state/permission-bypass.ts"
 import {
   DEFAULT_RUNNING_TITLE,
   RUNNING_TITLE_KEY,
@@ -86,14 +94,6 @@ import {
   THEME_MODE_PREFERENCES,
 } from "@sma1lboy/rove-core/theme/theme-data.ts"
 import { channelOf } from "@sma1lboy/rove-core/version.ts"
-import {
-  DEFAULT_PREFIX_TAP_PRESENTATION,
-  PREFIX_TAP_PRESENTATIONS,
-  PREFIX_TAP_PRESENTATION_KEY,
-  normalizePrefixTapPresentation,
-} from "@sma1lboy/rove/src/keys/prefix-tap-presentation.ts"
-import { appearanceChoices } from "@sma1lboy/rove/src/settings/appearance.ts"
-import { PERMISSION_BYPASS_KEY } from "@sma1lboy/rove/src/state/permission-bypass.ts"
 import { BridgeError } from "../protocol.ts"
 
 export type Scalar = string | number | boolean

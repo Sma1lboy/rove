@@ -6,9 +6,9 @@
  * closed tabs are that machine's `tab-new` / `tab-close`.
  */
 
+import { prefixAction } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
 import { useEffect, useState } from "react"
 import type { TaskTabRow } from "../../cli/api/tab-snapshot.ts"
-import { prefixAction } from "../../keys/keymap-dispatch"
 import { forwardVerb, requireMachine } from "../../machines/forward.ts"
 import { bindByIds } from "../context/keybindings"
 import { useTheme } from "../context/theme"

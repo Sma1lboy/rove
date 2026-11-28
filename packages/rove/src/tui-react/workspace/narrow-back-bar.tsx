@@ -6,8 +6,8 @@
  */
 
 import { TextAttributes } from "@opentui/core"
-import { formatChord } from "../../keys/chord-glyphs"
-import { legendCap } from "../../keys/help-groups"
+import { formatChord } from "@sma1lboy/rove-client/keys/chord-glyphs.ts"
+import { legendCap } from "@sma1lboy/rove-client/keys/help-groups.ts"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 

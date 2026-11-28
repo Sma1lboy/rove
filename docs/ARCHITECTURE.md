@@ -105,15 +105,11 @@ worktree on the shared branch name. `taskRepos(task)` (in `rove-daemon`'s
     than testing `task.kind`.
   - `src/client/` — framework-free remote Orchestrator client and channel
     stores.
-  - `src/settings/` — the settings-dialog row model and appearance choices,
+  - `src/settings/` — the settings-dialog row model (`model.ts`),
     framework-free so the bridge reads the same data as the TUI.
   - `src/assets/` — bundled binary assets (the notification chime).
   - `src/tabs/` — the terminal-tab model (tabs, splits, argv, titles) shared
     by the TUI, `rove api` and the web client.
-  - `src/keys/` — the keybinding model: bindings table, chord matching,
-    prefix dispatch, user overrides and the pure workspace gates. Free of
-    opentui and React; the TUI and the web client both read it.
-  - `src/sidebar/` — sidebar view helpers (PR chips, row labels, project grouping) shared by the TUI and the bridge.
   - `src/tui/` — framework-free keymap, state, terminal, file, sidebar, and
     workspace cores.
   - `src/tui-react/` — the only UI implementation: React 19 over opentui.
@@ -139,6 +135,18 @@ worktree on the shared branch name. `taskRepos(task)` (in `rove-daemon`'s
     loader, installer and hex resolver that `rove api` and the bridge read.
     Resolving to drawable colors (opentui `RGBA`, no React) is
     `rove/src/tui/context/theme-core.ts`.
+- `packages/rove-client/` — `@sma1lboy/rove-client`, the UI-free client-shared
+  layer between `rove-core` and the TUI, bridge and browser clients. Not
+  published: the CLI and web builds bundle it. Modules are imported as
+  `@sma1lboy/rove-client/<path>.ts`:
+  - `src/keys/` — the keybinding model: bindings table, chord matching,
+    prefix dispatch, user overrides and the pure workspace gates. Free of
+    opentui and React; the TUI and the web client both read it.
+  - `src/settings/` — appearance choices (`appearance.ts`), shared by the TUI
+    and the web client.
+  - `src/sidebar/` — sidebar view helpers (PR chips, row labels, project
+    grouping) shared by the TUI and the bridge.
+  - `src/tabs/` — terminal-tab persistence (`terminal-tabs-persist.ts`).
 - `packages/rove-daemon/` — Unix-socket daemon protocol/server, standalone
   PTY Host implementation, and the plugin core
   (`src/plugins/`: manifest, registry, event derivation, daemon-side host —
@@ -241,9 +249,10 @@ this capability refuse capped launches rather than opening without admission.
   package (`test/architecture/core-off-tui.test.ts`).
 - Clients (`rove-web`, `rove-bridge`, `rove-lark`, `rove-weixin`) never import
   `@sma1lboy/rove/src/tui*` (`test/architecture/clients-off-tui.test.ts`).
-- Package layering: `rove-daemon` ← `rove-core` ← `rove` (CLI, TUI) and the
-  clients. `rove-core` imports nothing from `@sma1lboy/rove` but its
-  `package.json`, which carries the product version
+- Package layering: `rove-daemon` ← `rove-core` ← `rove-client` ← `rove`
+  (CLI, TUI) and the clients. `rove-core` imports nothing from `@sma1lboy/rove`
+  (except `package.json`, which carries the product version) or
+  `@sma1lboy/rove-client`; `rove-client` imports nothing from `@sma1lboy/rove`
   (`test/architecture/core-off-tui.test.ts`).
 - A package reaches another only through its package name, never a relative
   `../other-package/` path (`test/architecture/no-relative-package-crossing.test.ts`,

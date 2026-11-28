@@ -5,9 +5,9 @@
  * an invisible keybinding).
  */
 
+import { grammarHelpSections, groupBindings } from "@sma1lboy/rove-client/keys/help-groups.ts"
+import type { RoveBinding } from "@sma1lboy/rove-client/keys/keybindings.ts"
 import { describe, expect, it } from "vitest"
-import { grammarHelpSections, groupBindings } from "../../src/keys/help-groups"
-import type { RoveBinding } from "../../src/keys/keybindings"
 
 describe("groupBindings", () => {
   it("groups by category in declaration order, preserving row order", () => {

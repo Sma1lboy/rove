@@ -8,7 +8,7 @@
  * staleness bit and produces one cell. They share only the `task()` fixture.
  */
 
-import { prChip } from "@/sidebar/row-chips"
+import { prChip } from "@sma1lboy/rove-client/sidebar/row-chips.ts"
 import { TASK_STATUSES, type Task } from "@sma1lboy/rove-core/types/task.ts"
 import { pad } from "./golden-file"
 import { task } from "./sidebar-state-matrix"

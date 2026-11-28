@@ -8,6 +8,7 @@
  * Experimental: `apiVersion` bumps on any incompatible change.
  */
 
+import { sidebarProjectLabel } from "@sma1lboy/rove-client/sidebar/groups.ts"
 import { registerMessages, t } from "@sma1lboy/rove-core/i18n/index.ts"
 import { asAttachmentPaths, captureClipboardAttachment } from "@sma1lboy/rove-core/lib/attachments.ts"
 import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
@@ -23,7 +24,6 @@ import { pathIdentity, samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { availableEngineIds } from "../../engine/account-detect"
 import { engineDisplayName } from "../../engine/interactive-command"
 import { EVENT_FEED_LIMIT, eventRows } from "../../lib/issue-events-core"
-import { sidebarProjectLabel } from "../../sidebar/groups"
 import { clampCursor, stripNewlines } from "../../tui/component/new-task-dialog/state"
 import { taskGroupIn, taskGroupLabel, taskGroupTone } from "../../tui/panes/sidebar/task-group-view"
 import { FailureHint } from "../component/failure-hint"

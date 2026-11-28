@@ -1,5 +1,5 @@
+import { formatChord } from "@sma1lboy/rove-client/keys/chord-glyphs.ts"
 import { describe, expect, it } from "vitest"
-import { formatChord } from "../../src/keys/chord-glyphs.ts"
 
 describe("formatChord", () => {
   it("renders modifier chords as glyph cluster + space + uppercased key", () => {

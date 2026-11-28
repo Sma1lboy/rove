@@ -8,6 +8,15 @@
  * chords in the keymap grammar; the TUI's own writer checks it and refuses what the loader would drop.
  */
 
+import { PREFIX_KEY_ID } from "@sma1lboy/rove-client/keys/chord-recorder.ts"
+import { editableBindings } from "@sma1lboy/rove-client/keys/editable-bindings.ts"
+import { resolveUserKeybindings } from "@sma1lboy/rove-client/keys/keybindings-resolve.ts"
+import { type KeybindingSaveResult, writeKeybindingEdits } from "@sma1lboy/rove-client/keys/keybindings-save.ts"
+import { createKeybindingsFile } from "@sma1lboy/rove-client/keys/keybindings-starter.ts"
+import { RoveKeymap } from "@sma1lboy/rove-client/keys/keybindings-table.ts"
+import type { KeybindingEdit } from "@sma1lboy/rove-client/keys/keybindings-write.ts"
+import { prefixFirstStrokes } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
+import { normalizeChord } from "@sma1lboy/rove-client/keys/keymap-overrides.ts"
 import { spawnDetached } from "@sma1lboy/rove-core/lib/spawn-detached.ts"
 import {
   type KeybindingsFile,
@@ -15,15 +24,6 @@ import {
   resetKeybindingsFileCache,
 } from "@sma1lboy/rove-core/state/keybindings-file.ts"
 import { roveCliInvocation } from "@sma1lboy/rove/src/cli/invocation.ts"
-import { PREFIX_KEY_ID } from "@sma1lboy/rove/src/keys/chord-recorder.ts"
-import { editableBindings } from "@sma1lboy/rove/src/keys/editable-bindings.ts"
-import { resolveUserKeybindings } from "@sma1lboy/rove/src/keys/keybindings-resolve.ts"
-import { type KeybindingSaveResult, writeKeybindingEdits } from "@sma1lboy/rove/src/keys/keybindings-save.ts"
-import { createKeybindingsFile } from "@sma1lboy/rove/src/keys/keybindings-starter.ts"
-import { RoveKeymap } from "@sma1lboy/rove/src/keys/keybindings-table.ts"
-import type { KeybindingEdit } from "@sma1lboy/rove/src/keys/keybindings-write.ts"
-import { prefixFirstStrokes } from "@sma1lboy/rove/src/keys/keymap-dispatch.ts"
-import { normalizeChord } from "@sma1lboy/rove/src/keys/keymap-overrides.ts"
 import { BridgeError, str } from "../protocol.ts"
 import type { Args, OpTable } from "./types.ts"
 

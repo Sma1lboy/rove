@@ -1,5 +1,5 @@
+import { reconcileStableRows } from "@sma1lboy/rove-core/lib/stable-rows.ts"
 import { describe, expect, test } from "vitest"
-import { reconcileStableRows } from "../../src/lib/stable-rows"
 
 type Row = { id: string; label: string }
 

@@ -15,7 +15,7 @@ import { readFileSync, readdirSync } from "node:fs"
 import { join, relative } from "node:path"
 import { fileURLToPath } from "node:url"
 import { describe, expect, test } from "vitest"
-import { CORE_SRC } from "../core-package.ts"
+import { CLIENT_SRC, CORE_SRC } from "../core-package.ts"
 
 const SRC_ROOT = fileURLToPath(new URL("../../src", import.meta.url))
 
@@ -70,7 +70,7 @@ function sourceFiles(dir: string, files: string[] = []): string[] {
 
 describe("argv flag guards recognize the attached --flag=value form", () => {
   test("no exact-token argv flag checks outside the allowlist", () => {
-    const offenders = [...sourceFiles(SRC_ROOT), ...sourceFiles(CORE_SRC)]
+    const offenders = [...sourceFiles(SRC_ROOT), ...sourceFiles(CORE_SRC), ...sourceFiles(CLIENT_SRC)]
       .filter((file) => !BARE_TOKEN_ALLOWED.has(file))
       .flatMap((file) =>
         readFileSync(file, "utf8")

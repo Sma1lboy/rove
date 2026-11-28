@@ -11,6 +11,7 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import { isNoProjectTask } from "@sma1lboy/rove-client/sidebar/groups.ts"
 import { routineEngineText } from "@sma1lboy/rove-core/automations/automation-engine-core.ts"
 import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 import { getSavedRepos } from "@sma1lboy/rove-core/state/repos.ts"
@@ -24,7 +25,6 @@ import { pathSyntax } from "@sma1lboy/rove-daemon/path-identity"
 import { type ReactNode, useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { engineDisplayName } from "../../engine/interactive-command"
-import { isNoProjectTask } from "../../sidebar/groups"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"

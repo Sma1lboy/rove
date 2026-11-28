@@ -5,8 +5,8 @@
  * is a click target, and advertises the chord the keymap currently binds to it.
  */
 
-import { currentPrefixConfiguration } from "../../../keys/keymap-dispatch"
-import { shortcutCaption } from "../../../keys/shortcut-reveal"
+import { currentPrefixConfiguration } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
+import { shortcutCaption } from "@sma1lboy/rove-client/keys/shortcut-reveal.ts"
 import { useKeymapVersion } from "../../context/keybindings"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"

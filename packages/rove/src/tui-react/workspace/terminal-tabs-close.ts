@@ -12,9 +12,9 @@
  * of `terminal-tabs-shared.ts` to keep that module's imports narrow.
  */
 
+import type { TabsSnapshotKv } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
 import { logClientError } from "@sma1lboy/rove-daemon/client/client-log"
 import { type TerminalTab, closeTab, tabPtyKey, tabPtyKeyFor } from "../../tabs/terminal-tabs-core"
-import type { TabsSnapshotKv } from "../../tabs/terminal-tabs-persist"
 import { peekSharedPtyClient } from "../../tui/panes/terminal/pty-hosted-client"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { noteClosedPtyKey } from "../../tui/workspace/closed-tab-suppress"

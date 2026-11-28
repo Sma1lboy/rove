@@ -12,6 +12,7 @@
 
 import type { DiffRenderable, RGBA } from "@opentui/core"
 import { CodeRenderable } from "@opentui/core"
+import { bindByIds, findBinding } from "@sma1lboy/rove-client/keys/keybindings.ts"
 import {
   type DiffReviewApi,
   type DiffRow,
@@ -23,7 +24,6 @@ import {
   unsentComments,
 } from "@sma1lboy/rove-core/worktree/diff-comments.ts"
 import { type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react"
-import { bindByIds, findBinding } from "../../keys/keybindings"
 import { followScrollTop } from "../../tui/panes/filetree/pane-core"
 import { RenameTaskDialog } from "../component/rename-task-dialog"
 import { useKeymapVersion } from "../context/keybindings"
