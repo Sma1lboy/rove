@@ -6,7 +6,7 @@
  * reread each time this opens.
  */
 
-import { PREFIX_KEY_ID } from "@sma1lboy/rove/src/keys/chord-recorder.ts"
+import { PREFIX_KEY_ID } from "@sma1lboy/rove-client/keys/chord-recorder.ts"
 import { useEffect, useState } from "react"
 import { askAgent } from "./ask-agent.ts"
 import { t } from "./i18n/index.ts"

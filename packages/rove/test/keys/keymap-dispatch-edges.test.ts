@@ -5,8 +5,12 @@
  * keymap-dispatch.test.ts; both files share the same makeEvt/makeReg shape.
  */
 
+import {
+  type RegisteredBinding,
+  dispatchKeyEvent,
+  insertRegistration,
+} from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
 import { beforeEach, describe, expect, test, vi } from "vitest"
-import { type RegisteredBinding, dispatchKeyEvent, insertRegistration } from "../../src/keys/keymap-dispatch"
 
 // Silence + capture the shadowed-match warning (several tests below stack two
 // enabled same-chord bindings on purpose). NOTE: the warning dedupes per chord

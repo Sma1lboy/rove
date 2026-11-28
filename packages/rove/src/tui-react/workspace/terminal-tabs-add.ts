@@ -9,10 +9,10 @@
  * process's copy so its next write can't drop the row.
  */
 
+import { type TabsSnapshotKv, terminalTabsKey } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
 import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"
 import { absorbTab } from "../../tabs/tabs-adopt"
 import type { CommandTab, EngineTab, TabsState } from "../../tabs/terminal-tabs-core"
-import { type TabsSnapshotKv, terminalTabsKey } from "../../tabs/terminal-tabs-persist"
 import {
   knownTabsState,
   reportTabsDelta,

@@ -8,9 +8,9 @@
  * new-conversation pair rides every task row.
  */
 
+import { findBinding } from "@sma1lboy/rove-client/keys/keybindings.ts"
 import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, test } from "vitest"
-import { findBinding } from "../../src/keys/keybindings"
 import type { TreeRow } from "../../src/tui/panes/sidebar/tree-core"
 import { treeMenuItems } from "../../src/tui/panes/sidebar/tree-menu"
 

@@ -18,13 +18,13 @@
  * here — vitest runs under node. These tests feed pre-parsed documents.
  */
 
-import { describe, expect, test } from "vitest"
 import {
   type OverridableBinding,
   applyKeymapOverrides,
   extractKeybindingOverrides,
   normalizeChord,
-} from "../../src/keys/keymap-overrides"
+} from "@sma1lboy/rove-client/keys/keymap-overrides.ts"
+import { describe, expect, test } from "vitest"
 
 function chordOf(raw: string): string {
   const r = normalizeChord(raw)

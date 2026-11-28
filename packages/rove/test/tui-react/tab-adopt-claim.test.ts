@@ -6,8 +6,8 @@
  * the daemon's tab store (`tabs-sync.ts`); the kv is never written.
  */
 
+import type { TabsSnapshotKv } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import type { TabsSnapshotKv } from "../../src/tabs/terminal-tabs-persist"
 import { resetTabsSyncForTests } from "../../src/tui-react/workspace/tabs-sync"
 import { adoptTaskTabs } from "../../src/tui-react/workspace/terminal-tabs-adopt"
 import { tabActivationListeners, tabsByTask, takeTabAdopt } from "../../src/tui-react/workspace/terminal-tabs-shared"

@@ -6,8 +6,8 @@
  * chords sit in the store. Defaults are snapshotted before anything is applied.
  */
 
-import { formatChord } from "@sma1lboy/rove/src/keys/chord-glyphs.ts"
-import { type RoveBinding, RoveKeymap } from "@sma1lboy/rove/src/keys/keybindings-table.ts"
+import { formatChord } from "@sma1lboy/rove-client/keys/chord-glyphs.ts"
+import { type RoveBinding, RoveKeymap } from "@sma1lboy/rove-client/keys/keybindings-table.ts"
 import { useEffect } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { createStore, useStore } from "./store.ts"

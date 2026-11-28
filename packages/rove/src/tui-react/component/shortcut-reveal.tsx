@@ -7,15 +7,15 @@
  * control badges.
  */
 
-import { type ReactNode, createContext, useContext, useMemo } from "react"
-import { currentPrefixConfiguration } from "../../keys/keymap-dispatch"
-import { prefixHudState } from "../../keys/prefix-hud"
+import { currentPrefixConfiguration } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
+import { prefixHudState } from "@sma1lboy/rove-client/keys/prefix-hud.ts"
 import {
   PREFIX_TAP_PRESENTATION_KEY,
   type PrefixTapPresentation,
   normalizePrefixTapPresentation,
-} from "../../keys/prefix-tap-presentation"
-import { shortcutCaption } from "../../keys/shortcut-reveal"
+} from "@sma1lboy/rove-client/keys/prefix-tap-presentation.ts"
+import { shortcutCaption } from "@sma1lboy/rove-client/keys/shortcut-reveal.ts"
+import { type ReactNode, createContext, useContext, useMemo } from "react"
 import { useKeymapVersion } from "../context/keybindings"
 import { useOptionalKV } from "../context/kv"
 import { useTheme } from "../context/theme"

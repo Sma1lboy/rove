@@ -19,6 +19,8 @@ import { engineLaunchArgv, withPinnedSessionId } from "@/engine/engine-presets"
 import { remoteTaskOf } from "./hub-singleton.ts"
 
 import { getCapabilities } from "@/engine/registry"
+import { prefixAction } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
+import { terminalTabsKey } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
 import { linkedWorktree } from "@sma1lboy/rove-core/machines/remote-workspace.ts"
 import { resolvePreferredVendor } from "@sma1lboy/rove-core/state/vendor-prefs.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
@@ -26,7 +28,6 @@ import { buildDiffReview } from "@sma1lboy/rove-core/worktree/diff-comments.ts"
 import type { TaskRepoView } from "@sma1lboy/rove-daemon/task-tree"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { repoEnv } from "../../engine/multi-repo-launch"
-import { prefixAction } from "../../keys/keymap-dispatch"
 import type { SectionId } from "../../settings/model"
 import { shellTabInput } from "../../tabs/terminal-tab-spawn"
 import {
@@ -46,7 +47,6 @@ import {
   tabCwdFor,
   tabPtyKeyFor,
 } from "../../tabs/terminal-tabs-core"
-import { terminalTabsKey } from "../../tabs/terminal-tabs-persist"
 import { terminalDrawsKitty } from "../../tui/lib/terminal-graphics"
 import { warmHostedShell } from "../../tui/panes/terminal/pty-hosted"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"

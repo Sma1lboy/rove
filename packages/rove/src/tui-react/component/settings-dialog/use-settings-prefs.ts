@@ -6,6 +6,11 @@
 
 import { accessSync, constants as fsConstants, mkdirSync } from "node:fs"
 import {
+  PREFIX_TAP_PRESENTATION_KEY,
+  type PrefixTapPresentation,
+  normalizePrefixTapPresentation,
+} from "@sma1lboy/rove-client/keys/prefix-tap-presentation.ts"
+import {
   DEFAULT_EDITOR_KIND,
   EDITOR_CUSTOM_KEY,
   EDITOR_KINDS,
@@ -91,11 +96,6 @@ import {
   worktreeBaseKindOf,
 } from "@sma1lboy/rove-core/state/worktree-base.ts"
 import { channelOf } from "@sma1lboy/rove-core/version.ts"
-import {
-  PREFIX_TAP_PRESENTATION_KEY,
-  type PrefixTapPresentation,
-  normalizePrefixTapPresentation,
-} from "../../../keys/prefix-tap-presentation"
 import type { KVContext } from "../../context/kv"
 import { useT } from "../../i18n"
 import {

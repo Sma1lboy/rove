@@ -11,12 +11,12 @@
  *      the snapshot.
  */
 
+import type { TabsSnapshotKv } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { DEFAULT_TASK_VENDOR } from "@sma1lboy/rove-core/types/task.ts"
 import { useEffect, useMemo, useState } from "react"
 import { conversationTitle, tabTitleStable } from "../../../tabs/terminal-tab-split"
 import { tabPtyKeyFor } from "../../../tabs/terminal-tabs-core"
-import type { TabsSnapshotKv } from "../../../tabs/terminal-tabs-persist"
 import type { TreeTab } from "../../../tui/panes/sidebar/tree-core"
 import { tabRowId } from "../../../tui/panes/sidebar/tree-core"
 import { isRecentlyClosedPtyKey } from "../../../tui/workspace/closed-tab-suppress"

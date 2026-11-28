@@ -3,7 +3,7 @@
  * menus and the rail's pane rows all go through here. The tree belongs to the server (`tab.split`).
  */
 
-import { legendCap } from "@sma1lboy/rove/src/keys/help-groups.ts"
+import { legendCap } from "@sma1lboy/rove-client/keys/help-groups.ts"
 import type { SplitView, TabRow } from "rove-bridge/protocol"
 import { ConfirmDialog, TextDialog } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"

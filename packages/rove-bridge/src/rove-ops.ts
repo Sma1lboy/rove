@@ -6,6 +6,7 @@
  */
 
 import { isAbsolute, normalize } from "node:path"
+import { terminalTabsKey } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
 import { isUnlistedCheckout } from "@sma1lboy/rove-core/lib/worktree-only.ts"
 import { isRemoteWorkspace } from "@sma1lboy/rove-core/machines/remote-workspace.ts"
 import { getDisabledEngineIds, getSavedRepos } from "@sma1lboy/rove-core/state/repos.ts"
@@ -26,7 +27,6 @@ import { engineDisplayName } from "@sma1lboy/rove/src/engine/interactive-command
 import { type EngineIcon, engineEntry } from "@sma1lboy/rove/src/engine/registry.ts"
 import { conversationTitle } from "@sma1lboy/rove/src/tabs/terminal-tab-split.ts"
 import type { TerminalTab } from "@sma1lboy/rove/src/tabs/terminal-tabs-core.ts"
-import { terminalTabsKey } from "@sma1lboy/rove/src/tabs/terminal-tabs-persist.ts"
 import {
   type DiffRefs,
   type PreviewScope,

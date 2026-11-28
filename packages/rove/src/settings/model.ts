@@ -16,15 +16,18 @@
  * can import it without @opentui.
  */
 
+import { PREFIX_KEY_ID } from "@sma1lboy/rove-client/keys/chord-recorder.ts"
+import { editableBindings } from "@sma1lboy/rove-client/keys/editable-bindings.ts"
+import {
+  PREFIX_TAP_PRESENTATIONS,
+  type PrefixTapPresentation,
+} from "@sma1lboy/rove-client/keys/prefix-tap-presentation.ts"
+import { APPEARANCE_SETTINGS, type AppearanceSetting } from "@sma1lboy/rove-client/settings/appearance.ts"
 // theme-core (not ../../context/theme): this module is shared with the
 // React port, which must not reference the Solid .tsx even type-only.
 import { LOCALES, type LocaleId } from "@sma1lboy/rove-core/i18n/catalog.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { AUTO_ROUTING_TIERS, type AutoRoutingTier } from "../engine/auto-routing"
-import { PREFIX_KEY_ID } from "../keys/chord-recorder"
-import { editableBindings } from "../keys/editable-bindings"
-import { PREFIX_TAP_PRESENTATIONS, type PrefixTapPresentation } from "../keys/prefix-tap-presentation"
-import { APPEARANCE_SETTINGS, type AppearanceSetting } from "./appearance"
 
 export type NavLevel = "sidebar" | "body"
 

@@ -1,6 +1,6 @@
 import { type RowTone, rowStatusGlyph } from "@/lib/row-status-glyph"
-import type { SidebarTone } from "@/sidebar/row-chips"
 import { breathGlyph } from "@/tui/lib/breathe"
+import type { SidebarTone } from "@sma1lboy/rove-client/sidebar/row-chips.ts"
 import { t } from "@sma1lboy/rove-core/i18n/index.ts"
 import { DEFAULT_GLYPHS, type GlyphSet } from "@sma1lboy/rove-core/lib/glyphs.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"

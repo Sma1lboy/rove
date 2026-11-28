@@ -9,8 +9,8 @@
  */
 
 import { roveCliInvocation } from "@/cli/invocation"
+import type { PluginKeyBinding } from "@sma1lboy/rove-client/keys/keymap-plugin-bindings.ts"
 import { spawnDetached } from "@sma1lboy/rove-core/lib/spawn-detached.ts"
-import type { PluginKeyBinding } from "../../keys/keymap-plugin-bindings"
 import { pluginKeybindings } from "../../tui/context/keybindings-user"
 import { useBindings } from "../lib/keymap"
 

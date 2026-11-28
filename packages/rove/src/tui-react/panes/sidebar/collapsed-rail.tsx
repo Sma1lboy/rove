@@ -33,7 +33,7 @@ import { useSpinnerFrame } from "./row-cards"
 import { projectHeaderLabel } from "./tree-panel"
 import { SHARED_MARK, WORKTREE_MARK } from "./tree-rows"
 
-import type { CollapsedRailStyle } from "../../../settings/appearance"
+import type { CollapsedRailStyle } from "@sma1lboy/rove-client/settings/appearance.ts"
 export type { CollapsedRailStyle }
 
 export const DEFAULT_COLLAPSED_RAIL_STYLE: CollapsedRailStyle = "glyphs"

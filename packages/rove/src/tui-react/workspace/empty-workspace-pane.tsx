@@ -1,10 +1,10 @@
+import { bindByIds } from "@sma1lboy/rove-client/keys/keybindings.ts"
 import { SHELL_TASK_TITLE } from "@sma1lboy/rove-core/orchestrator/title.ts"
 import { DEFAULT_TASK_VENDOR, type VendorId } from "@sma1lboy/rove-core/types/task.ts"
 /** @jsxImportSource @opentui/react */
 import { type ReactNode, useEffect } from "react"
 import { availableEngineIds } from "../../engine/account-detect"
 import { engineDisplayName } from "../../engine/interactive-command"
-import { bindByIds } from "../../keys/keybindings"
 import { initialShellTabs, openCommandTab } from "../../tabs/terminal-tabs-core"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
 import { NewChatDialog } from "../component/new-chat-dialog"

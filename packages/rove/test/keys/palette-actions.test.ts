@@ -1,6 +1,6 @@
+import { matchesHelpAction } from "@sma1lboy/rove-client/keys/help-groups.ts"
+import { type RegisteredBinding, prefixAction } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
 import { describe, expect, it } from "vitest"
-import { matchesHelpAction } from "../../src/keys/help-groups"
-import { type RegisteredBinding, prefixAction } from "../../src/keys/keymap-dispatch"
 import { capturePaletteActions } from "../../src/keys/palette-actions"
 
 describe("palette actions", () => {

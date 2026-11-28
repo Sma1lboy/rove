@@ -11,9 +11,9 @@
  * through the live keymap; `useKeymapVersion()` tracks YAML rebinds.
  */
 
+import { formatChord } from "@sma1lboy/rove-client/keys/chord-glyphs.ts"
+import { currentPrefixConfiguration } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { formatChord } from "../../keys/chord-glyphs"
-import { currentPrefixConfiguration } from "../../keys/keymap-dispatch"
 import {
   KEY_HINTS_ENABLED_KEY,
   type StatusHintToken,

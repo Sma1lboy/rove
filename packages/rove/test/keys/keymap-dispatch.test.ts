@@ -10,8 +10,8 @@
  * don't also receive the key in the same tick.
  */
 
+import { type RegisteredBinding, dispatchKeyEvent } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
 import { beforeEach, describe, expect, test, vi } from "vitest"
-import { type RegisteredBinding, dispatchKeyEvent } from "../../src/keys/keymap-dispatch"
 
 // Silence + capture the shadowed-match warning (several LIFO tests below
 // stack two enabled same-chord bindings on purpose). NOTE: the warning

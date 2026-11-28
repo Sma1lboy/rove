@@ -6,6 +6,7 @@
  * Shared by `TerminalTabs.tsx` and `host.tsx` so they can't diverge.
  */
 
+import { repoBasename } from "@sma1lboy/rove-client/sidebar/groups.ts"
 import { t } from "@sma1lboy/rove-core/i18n/index.ts"
 import { appendAttachmentRefs } from "@sma1lboy/rove-core/lib/attachments.ts"
 import { userFacingErrorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
@@ -18,7 +19,6 @@ import { useState } from "react"
 import { engineDisplayName } from "../../engine/interactive-command"
 import { FORK_UNSUPPORTED_CODE } from "../../orchestrator/errors"
 import type { SpawnChildInput } from "../../orchestrator/spawn-child"
-import { repoBasename } from "../../sidebar/groups"
 import type { TabsState } from "../../tabs/terminal-tabs-core"
 import type { QuickTaskComposerOptions, QuickTaskResult } from "../component/quick-task-composer"
 import { type RoundOrchestrator, runQuickForkRound } from "./quick-fork-round"

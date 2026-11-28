@@ -5,10 +5,10 @@
  * follows the new chords (`sidebar.nav: [w, e]` → w=down, e=up).
  */
 
+import { RoveKeymap, bindByIds, findBinding, resetKeymapToDefaults } from "@sma1lboy/rove-client/keys/keybindings.ts"
+import { type Binding, type RegisteredBinding, dispatchKeyEvent } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
+import { applyKeymapOverrides } from "@sma1lboy/rove-client/keys/keymap-overrides.ts"
 import { afterEach, describe, expect, test } from "vitest"
-import { RoveKeymap, bindByIds, findBinding, resetKeymapToDefaults } from "../../src/keys/keybindings"
-import { type Binding, type RegisteredBinding, dispatchKeyEvent } from "../../src/keys/keymap-dispatch"
-import { applyKeymapOverrides } from "../../src/keys/keymap-overrides"
 
 function makeEvt(name: string, ctrl = false) {
   let defaultPrevented = false

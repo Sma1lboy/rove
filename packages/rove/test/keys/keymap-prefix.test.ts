@@ -1,5 +1,4 @@
-import { afterEach, describe, expect, test } from "vitest"
-import { bindByIds } from "../../src/keys/keybindings"
+import { bindByIds } from "@sma1lboy/rove-client/keys/keybindings.ts"
 import {
   type RegisteredBinding,
   armPrefixNow,
@@ -9,7 +8,8 @@ import {
   prefixAction,
   resetPrefixConfiguration,
   resetPrefixState,
-} from "../../src/keys/keymap-dispatch"
+} from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
+import { afterEach, describe, expect, test } from "vitest"
 
 function event(name: string, ctrl = false) {
   let defaultPrevented = false

@@ -10,9 +10,9 @@
  * than merely equal.
  */
 
+import { sidebarProjectKey } from "@sma1lboy/rove-client/sidebar/groups.ts"
 import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, it } from "vitest"
-import { sidebarProjectKey } from "../../src/sidebar/groups.ts"
 import {
   type MachineLayerEntry,
   applyMachineLayer,

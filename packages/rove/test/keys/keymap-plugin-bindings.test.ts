@@ -1,5 +1,5 @@
+import { extractPluginKeybindings } from "@sma1lboy/rove-client/keys/keymap-plugin-bindings.ts"
 import { describe, expect, it } from "vitest"
-import { extractPluginKeybindings } from "../../src/keys/keymap-plugin-bindings"
 
 describe("extractPluginKeybindings", () => {
   it("parses pane: and action: values with normalized chords", () => {

@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 import { TextAttributes } from "@opentui/core"
-import { APPEARANCE_SETTINGS, currentAppearanceChoice } from "../../../settings/appearance"
+import { APPEARANCE_SETTINGS, currentAppearanceChoice } from "@sma1lboy/rove-client/settings/appearance.ts"
 import type { SettingsRow } from "../../../settings/model"
 import { rowIndex } from "../../../settings/model"
 import { useTheme } from "../../context/theme"

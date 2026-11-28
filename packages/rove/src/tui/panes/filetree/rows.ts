@@ -9,8 +9,8 @@
  * unchanged rows limits churn to rows that actually changed.
  */
 
-import { reconcileStableRows } from "@/lib/stable-rows"
 import { charWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
+import { reconcileStableRows } from "@sma1lboy/rove-core/lib/stable-rows.ts"
 import { truncateStartCells } from "@sma1lboy/rove-core/lib/truncate.ts"
 import type { FileStatus, StatusEntry } from "@sma1lboy/rove-core/worktree/git-status.ts"
 import type { TreeNode } from "./tree"

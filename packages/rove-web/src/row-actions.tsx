@@ -5,7 +5,7 @@
  * so the key that runs it and the chord shown beside it are the user's (`keybindings.yaml`).
  */
 
-import { legendCap } from "@sma1lboy/rove/src/keys/help-groups.ts"
+import { legendCap } from "@sma1lboy/rove-client/keys/help-groups.ts"
 import type { TabRow, TaskRow } from "rove-bridge/protocol"
 import { ChoiceDialog, ConfirmDialog, TextDialog } from "./dialogs.tsx"
 import { ChangeEngineDialog, type EngineCurrent } from "./engine-dialog.tsx"

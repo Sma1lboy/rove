@@ -5,8 +5,8 @@
  * array (`rehydrateTabs` keeps it), so moves survive restart.
  */
 
+import type { TabsSnapshotKv } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
 import { moveTab } from "../../tabs/terminal-tabs-core"
-import type { TabsSnapshotKv } from "../../tabs/terminal-tabs-persist"
 import { knownTabsState, requestTabMove, setTaskTabs, takeUnclaimedTabMove } from "./terminal-tabs-shared"
 
 /** Whether the order changed; false for no such tab, no tabs, or the edge-stop (never wraps). */

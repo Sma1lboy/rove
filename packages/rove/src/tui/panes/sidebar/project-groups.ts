@@ -10,9 +10,6 @@
  */
 
 import type { TaskEngineState } from "@/client/remote-orchestrator"
-import { isUnlistedCheckout } from "@sma1lboy/rove-core/lib/worktree-only.ts"
-import type { Task } from "@sma1lboy/rove-core/types/task.ts"
-import { workspaceBackendId } from "@sma1lboy/rove-daemon/workspace"
 import {
   type ProjectKeyOf,
   type TaskSortMode,
@@ -23,7 +20,10 @@ import {
   sidebarProjectKeyOfTask,
   sidebarProjectKeyResolver,
   sidebarRepoLabel,
-} from "../../../sidebar/groups"
+} from "@sma1lboy/rove-client/sidebar/groups.ts"
+import { isUnlistedCheckout } from "@sma1lboy/rove-core/lib/worktree-only.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { workspaceBackendId } from "@sma1lboy/rove-daemon/workspace"
 import { compareTaskGroup } from "./task-group-view"
 import { SCRATCH_SECTION_ID } from "./tree-ids"
 

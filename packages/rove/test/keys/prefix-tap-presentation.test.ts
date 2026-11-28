@@ -1,5 +1,5 @@
+import { normalizePrefixTapPresentation } from "@sma1lboy/rove-client/keys/prefix-tap-presentation.ts"
 import { describe, expect, it } from "vitest"
-import { normalizePrefixTapPresentation } from "../../src/keys/prefix-tap-presentation"
 
 describe("prefix tap presentation", () => {
   it("defaults missing, malformed, and unknown values to local entries", () => {

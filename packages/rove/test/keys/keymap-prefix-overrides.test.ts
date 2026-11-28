@@ -1,5 +1,8 @@
+import {
+  applyPrefixKeymapOverrides,
+  extractPrefixKeybindings,
+} from "@sma1lboy/rove-client/keys/keymap-prefix-overrides.ts"
 import { describe, expect, test } from "vitest"
-import { applyPrefixKeymapOverrides, extractPrefixKeybindings } from "../../src/keys/keymap-prefix-overrides"
 
 const keymap = [
   { id: "chat.tab.new", scope: "workspace", keys: [], prefixKeys: ["t"] },

@@ -17,8 +17,8 @@ import { availableParallelism, tmpdir } from "node:os"
 import { basename, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { CLIENTS, leadingClientTags } from "../.changeset/changelog.mjs"
-import { validateUiEvidence } from "./ui-evidence.mjs"
 import { wslDistro, wslScript } from "./pre-pr-wsl.mjs"
+import { validateUiEvidence } from "./ui-evidence.mjs"
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url))
 
@@ -29,7 +29,7 @@ const ALWAYS = ["rove-bridge", "rove-weixin", "rove-lark"]
 
 /** Mirrors the old changeset-cap job: published-package source needs an added changeset. */
 export function missingChangeset(changedFiles, addedFiles) {
-  const userFacing = changedFiles.some((f) => /^packages\/(rove|rove-core|rove-daemon)\/src\//.test(f))
+  const userFacing = changedFiles.some((f) => /^packages\/(rove|rove-core|rove-client|rove-daemon)\/src\//.test(f))
   const added = addedFiles.some((f) => /^\.changeset\/[^/]+\.md$/.test(f) && !f.endsWith("README.md"))
   return userFacing && !added
 }
@@ -78,7 +78,17 @@ export function touchedAreas(files) {
 }
 
 function parseArgs(argv) {
-  const opts = { base: "main", bodyFile: null, quick: false, full: false, fetch: true, jobs: Math.max(4, Math.floor(availableParallelism() / 2)), wsl: true, suitesOnly: false, touchedFile: null }
+  const opts = {
+    base: "main",
+    bodyFile: null,
+    quick: false,
+    full: false,
+    fetch: true,
+    jobs: Math.max(4, Math.floor(availableParallelism() / 2)),
+    wsl: true,
+    suitesOnly: false,
+    touchedFile: null,
+  }
   for (let i = 0; i < argv.length; i++) {
     const [flag, inline] = argv[i].split(/=(.*)/s)
     const value = () => inline ?? argv[++i]
@@ -99,7 +109,10 @@ function parseArgs(argv) {
 function git(args) {
   const r = spawnSync("git", args, { cwd: ROOT, encoding: "utf8" })
   if (r.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${r.stderr.trim()}`)
-  return r.stdout.split("\n").map((l) => l.trim()).filter(Boolean)
+  return r.stdout
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
 }
 
 // On Windows a bare `bash` can resolve to WSL's System32 shim; use Git's own.
@@ -200,47 +213,98 @@ function heavyJobs(touched) {
   const renderArgs = process.platform === "linux" ? ["--platform=linux"] : []
   // The render track is the long pole serially (~3.5 min); shard it as CI does.
   const renderShards = [1, 2, 3, 4].map((i) =>
-    job(`render track ${i}/4`, [bun(["scripts/render-track.mjs", ...renderArgs, "--half=main", `--shard=${i}/4`], ROVE)]),
+    job(`render track ${i}/4`, [
+      bun(["scripts/render-track.mjs", ...renderArgs, "--half=main", `--shard=${i}/4`], ROVE),
+    ]),
   )
   const jobs = [
     ...renderShards,
     job("render track PTY half", [bun(["scripts/render-track.mjs", ...renderArgs, "--half=pty"], ROVE)]),
-    job("rove unit tests", [bun(["x", "vitest", "run", "--passWithNoTests", "--minWorkers=1", "--maxWorkers=8"], ROVE)]),
+    job("rove unit tests", [
+      bun(["x", "vitest", "run", "--passWithNoTests", "--minWorkers=1", "--maxWorkers=8"], ROVE),
+    ]),
     // The socket suite (test/daemon) only ever ran in release.yml; a PR could
     // break the daemon protocol and every gate still went green.
     ...[1, 2].map((i) =>
       job(`daemon socket ${i}/2`, [
-        bun(["x", "vitest", "run", "test/daemon", "--pool", "forks", "--minWorkers=1", "--maxWorkers=4", "--passWithNoTests", `--shard=${i}/2`], ROVE, {
-          ROVE_INCLUDE_SOCKET: "1",
-        }),
+        bun(
+          [
+            "x",
+            "vitest",
+            "run",
+            "test/daemon",
+            "--pool",
+            "forks",
+            "--minWorkers=1",
+            "--maxWorkers=4",
+            "--passWithNoTests",
+            `--shard=${i}/2`,
+          ],
+          ROVE,
+          {
+            ROVE_INCLUDE_SOCKET: "1",
+          },
+        ),
       ]),
     ),
     // Serial within a shard, as test:behavior is; each file isolates its own ROVE_HOME, so shards can overlap.
     ...[1, 2, 3].map((i) =>
       job(`behavior ${i}/3`, [
-        bun(["x", "vitest", "run", "test/behavior", "--pool", "forks", "--minWorkers=1", "--maxWorkers=1", "--retry=2", "--passWithNoTests", `--shard=${i}/3`], ROVE, {
-          ROVE_INCLUDE_BEHAVIOR: "1",
-        }),
+        bun(
+          [
+            "x",
+            "vitest",
+            "run",
+            "test/behavior",
+            "--pool",
+            "forks",
+            "--minWorkers=1",
+            "--maxWorkers=1",
+            "--retry=2",
+            "--passWithNoTests",
+            `--shard=${i}/3`,
+          ],
+          ROVE,
+          {
+            ROVE_INCLUDE_BEHAVIOR: "1",
+          },
+        ),
       ]),
     ),
     harnessJob(harnessTests),
-    job("visual ground truth", [bun(["x", "playwright", "install", "chromium"], HARNESS), bun(["run", "visual"], HARNESS)]),
+    job("visual ground truth", [
+      bun(["x", "playwright", "install", "chromium"], HARNESS),
+      bun(["run", "visual"], HARNESS),
+    ]),
     job("built CLI carries weixin", [bun(["packages/rove/dist/cli/rove.js", "weixin", "--help"])]),
     job("built CLI carries lark", [bun(["packages/rove/dist/cli/rove.js", "lark", "--help"])]),
     ...packagesToTest(touched, readManifests()).map((name) => job(`${name} tests`, [bun(["--filter", name, "test"])])),
   ]
   if (areas.docs) jobs.push(job("docs site build", [bun(["run", "--filter", "@sma1lboy/rove-docs", "build"])]))
-  if (areas.ios) jobs.push(job("iOS color guard", [{ cmd: bashPath(), args: ["scripts/lint-colors.sh"], cwd: join(ROOT, "packages", "rove-ios") }]))
+  if (areas.ios)
+    jobs.push(
+      job("iOS color guard", [
+        { cmd: bashPath(), args: ["scripts/lint-colors.sh"], cwd: join(ROOT, "packages", "rove-ios") },
+      ]),
+    )
   return jobs
 }
 
 /** The fast tier's suites: the repo-wide guards, the package tests the diff calls for, and the docs build. */
 function fastJobs(touched) {
-  const jobs = packagesToTest(touched, readManifests()).map((name) => job(`${name} tests`, [bun(["--filter", name, "test"])]))
+  const jobs = packagesToTest(touched, readManifests()).map((name) =>
+    job(`${name} tests`, [bun(["--filter", name, "test"])]),
+  )
   // Repo-wide invariants (skill fingerprint, engine-owned copy, i18n keys) break from any diff, in seconds.
   const guards = bun(["x", "vitest", "run", "test/architecture"], ROVE)
   // The guards regenerate rove-docs/content/docs, so the docs build must not run beside them.
-  if (touchedAreas(touched).docs) jobs.push(job("rove architecture guards, docs site build", [guards, bun(["run", "--filter", "@sma1lboy/rove-docs", "build"])]))
+  if (touchedAreas(touched).docs)
+    jobs.push(
+      job("rove architecture guards, docs site build", [
+        guards,
+        bun(["run", "--filter", "@sma1lboy/rove-docs", "build"]),
+      ]),
+    )
   else jobs.push(job("rove architecture guards", [guards]))
   return jobs
 }
@@ -253,7 +317,9 @@ function fastJobs(touched) {
 async function pluginWindowsAcceptance() {
   const evidenceClean = git(["status", "--porcelain", "--", "plugin-evidence"]).length === 0
   await job("plugin-windows acceptance", [
-    bun(["packages/rove/test/behavior/plugin-process/compare.mjs"], ROOT, { BASE_SHA: "61c4532cc642039ce4ce3f6739d1ee35f2c58cd0" }),
+    bun(["packages/rove/test/behavior/plugin-process/compare.mjs"], ROOT, {
+      BASE_SHA: "61c4532cc642039ce4ce3f6739d1ee35f2c58cd0",
+    }),
   ])()
   if (evidenceClean) git(["checkout", "--", "plugin-evidence"])
 }
@@ -276,7 +342,8 @@ function skippedNotes(touched) {
   if (process.platform === "win32" || spawnSync("docker", ["info"], { stdio: "ignore" }).status !== 0)
     notes.push("clean-linux-install: needs docker on Linux/macOS; runs on push to main")
   if (areas.ios) notes.push("iOS simulator suite: run it in Xcode; ios.yml runs it on push to main")
-  if (areas.pluginWindows && process.platform !== "win32") notes.push("plugin-windows acceptance: needs Windows; run plugin-windows.yml by hand")
+  if (areas.pluginWindows && process.platform !== "win32")
+    notes.push("plugin-windows acceptance: needs Windows; run plugin-windows.yml by hand")
   return notes
 }
 
@@ -292,7 +359,8 @@ async function main() {
     // The WSL half: HEAD is a detached copy with no origin, so the host passes the diff.
     const touched = readFileSync(opts.touchedFile, "utf8").split("\n").filter(Boolean)
     // Typecheck builds the plugin SDK's dist, which the architecture guards import.
-    if (!opts.full) step("typecheck", () => run("bun", ["run", "typecheck"])) && (await pool(fastJobs(touched), opts.jobs))
+    if (!opts.full)
+      step("typecheck", () => run("bun", ["run", "typecheck"])) && (await pool(fastJobs(touched), opts.jobs))
     else if (step("build", () => run("bun", ["run", "build"]))) await pool(heavyJobs(touched), opts.jobs)
     return finish()
   }
@@ -300,11 +368,14 @@ async function main() {
   const added = git(["diff", "--name-only", "--diff-filter=A", range])
   const touched = git(["diff", "--name-only", range])
   const body = opts.bodyFile ? readFileSync(opts.bodyFile, "utf8") : null
-  if (git(["status", "--porcelain"]).length) console.warn("warning: uncommitted changes are outside the diff the gates check (commit first)")
+  if (git(["status", "--porcelain"]).length)
+    console.warn("warning: uncommitted changes are outside the diff the gates check (commit first)")
 
   step("changeset-cap", () => {
     if (!missingChangeset(changed, added)) return true
-    console.error("This branch touches packages/rove/src or packages/rove-daemon/src but adds no .changeset/*.md. Run 'bun run changeset' (or 'bun run changeset -- --empty' for tooling-only).")
+    console.error(
+      "This branch touches packages/rove/src or packages/rove-daemon/src but adds no .changeset/*.md. Run 'bun run changeset' (or 'bun run changeset -- --empty' for tooling-only).",
+    )
     return false
   })
   step("changeset frontmatter", () => run("bun", ["scripts/check-changeset.mjs"]))
@@ -312,7 +383,9 @@ async function main() {
     const untagged = untaggedChangesets(added, (f) => readFileSync(join(ROOT, f), "utf8"))
     if (untagged.length === 0) return true
     for (const f of untagged) console.error(`  ${f}`)
-    console.error(`An added changeset's body must open with the clients it is for, e.g. '[web][ios] On a phone, …'. Tags: ${CLIENTS.map((c) => `[${c}]`).join(" ")}. See docs/RELEASING.md.`)
+    console.error(
+      `An added changeset's body must open with the clients it is for, e.g. '[web][ios] On a phone, …'. Tags: ${CLIENTS.map((c) => `[${c}]`).join(" ")}. See docs/RELEASING.md.`,
+    )
     return false
   })
   step("lint", () => run("bun", ["run", "lint"]))
@@ -320,8 +393,12 @@ async function main() {
     const hits = aiAttribution(`${git(["log", "--format=%B", `origin/${opts.base}..HEAD`]).join("\n")}\n${body ?? ""}`)
     if (hits.length === 0) return true
     for (const line of hits) console.error(`  ${line.trim()}`)
-    console.error("AGENTS.md forbids AI attribution in commits and PR bodies. Drop the line from the PR body; for commits run")
-    console.error(`  git filter-branch -f --msg-filter "grep -viE 'co-authored-by:.*(claude|anthropic|codex|openai)|generated with \\[?claude'" origin/${opts.base}..HEAD`)
+    console.error(
+      "AGENTS.md forbids AI attribution in commits and PR bodies. Drop the line from the PR body; for commits run",
+    )
+    console.error(
+      `  git filter-branch -f --msg-filter "grep -viE 'co-authored-by:.*(claude|anthropic|codex|openai)|generated with \\[?claude'" origin/${opts.base}..HEAD`,
+    )
     return false
   })
   step("no silent catch", () => run("node", ["scripts/no-silent-catch.mjs"]))
@@ -329,7 +406,12 @@ async function main() {
 
   if (!opts.quick) {
     step("file-size-cap", () =>
-      run(bashPath(), ["scripts/file-size-check.sh"], { BASE_REF: opts.base, PR_BODY: body ?? "", PR_NUMBER: "", GH_TOKEN: "" }),
+      run(bashPath(), ["scripts/file-size-check.sh"], {
+        BASE_REF: opts.base,
+        PR_BODY: body ?? "",
+        PR_NUMBER: "",
+        GH_TOKEN: "",
+      }),
     )
     step("ui-evidence", () => {
       if (body === null) {
@@ -341,22 +423,40 @@ async function main() {
       for (const e of errors) console.error(e)
       return errors.length === 0
     })
-    step("script tests", () => run("node", ["--test", "scripts/scan-plugins.test.mjs", "scripts/ui-evidence.test.mjs", "scripts/pre-pr.test.mjs", "scripts/web-ui-gate.test.mjs", "scripts/next-version.test.mjs"]))
+    step("script tests", () =>
+      run("node", [
+        "--test",
+        "scripts/scan-plugins.test.mjs",
+        "scripts/ui-evidence.test.mjs",
+        "scripts/pre-pr.test.mjs",
+        "scripts/web-ui-gate.test.mjs",
+        "scripts/next-version.test.mjs",
+      ]),
+    )
     const distro = process.platform === "win32" && opts.wsl ? wslDistro() : null
-    if (process.platform === "win32" && opts.wsl && !distro) console.warn("warning: no WSL distro found; running the POSIX suites natively (many fail on Windows)")
-    process.stdout.write(`\n▶ ${opts.full ? "full" : "fast"} tier, suites in parallel (--jobs ${opts.jobs}), logs in ${LOGS}\n`)
+    if (process.platform === "win32" && opts.wsl && !distro)
+      console.warn("warning: no WSL distro found; running the POSIX suites natively (many fail on Windows)")
+    process.stdout.write(
+      `\n▶ ${opts.full ? "full" : "fast"} tier, suites in parallel (--jobs ${opts.jobs}), logs in ${LOGS}\n`,
+    )
     // WSL builds its own copy, so it need not wait for this checkout's typecheck.
     const wsl = distro ? wslJob(touched, distro, opts.jobs, opts.full)() : null
     // Typecheck and build rebuild the plugin SDK's dist, which the suites here read: run them first.
     if (!opts.full) {
       if (await job("typecheck", [bun(["run", "typecheck"])])()) await pool(distro ? [] : fastJobs(touched), opts.jobs)
-    } else if ((await job("typecheck", [bun(["run", "typecheck"])])()) && (await job("build", [bun(["run", "build"])])())) {
+    } else if (
+      (await job("typecheck", [bun(["run", "typecheck"])])()) &&
+      (await job("build", [bun(["run", "build"])])())
+    ) {
       await pool(distro ? [harnessJob(WINDOWS_HARNESS)] : heavyJobs(touched), opts.jobs)
       if (touchedAreas(touched).pluginWindows && process.platform === "win32") await pluginWindowsAcceptance()
     }
     await wsl
     if (opts.full) for (const note of skippedNotes(touched)) console.log(`skip ${note}`)
-    else console.log("fast tier: unit, render, behavior, visual and the cross-OS suites run on main's batch and before release (--full runs them here)")
+    else
+      console.log(
+        "fast tier: unit, render, behavior, visual and the cross-OS suites run on main's batch and before release (--full runs them here)",
+      )
   }
   finish()
 }

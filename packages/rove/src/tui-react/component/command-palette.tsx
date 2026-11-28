@@ -1,10 +1,10 @@
 /** @jsxImportSource @opentui/react */
 import { flushSync } from "@opentui/react"
+import { formatChord } from "@sma1lboy/rove-client/keys/chord-glyphs.ts"
+import { matchesHelpAction } from "@sma1lboy/rove-client/keys/help-groups.ts"
+import { currentPrefixConfiguration } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
 import { relativeAge } from "@sma1lboy/rove-core/lib/relative-time.ts"
 import { useState } from "react"
-import { formatChord } from "../../keys/chord-glyphs"
-import { matchesHelpAction } from "../../keys/help-groups"
-import { currentPrefixConfiguration } from "../../keys/keymap-dispatch"
 import type { PaletteAction } from "../../keys/palette-actions"
 import { useTheme } from "../context/theme"
 import { tKeys, useT } from "../i18n"

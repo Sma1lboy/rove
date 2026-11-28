@@ -3,8 +3,12 @@
  * an open dialog or full-page swap disables every workspace chord group.
  */
 
+import {
+  type WorkspacePageState,
+  nextFocusedPane,
+  workspacePagesClosed,
+} from "@sma1lboy/rove-client/keys/keybinding-gates.ts"
 import { describe, expect, test } from "vitest"
-import { type WorkspacePageState, nextFocusedPane, workspacePagesClosed } from "../../src/keys/keybinding-gates"
 
 const closed: WorkspacePageState = {
   dialogOpen: false,

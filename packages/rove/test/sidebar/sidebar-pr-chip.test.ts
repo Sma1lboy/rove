@@ -1,4 +1,4 @@
-import { prChip, sidebarPrChip } from "@/sidebar/row-chips"
+import { prChip, sidebarPrChip } from "@sma1lboy/rove-client/sidebar/row-chips.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, test } from "vitest"
 

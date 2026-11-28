@@ -7,9 +7,9 @@
  * remains Rove-owned there while every other unreserved key reaches the PTY).
  */
 
+import { findBinding, resetKeymapToDefaults } from "@sma1lboy/rove-client/keys/keybindings.ts"
+import type { BindingReachability } from "@sma1lboy/rove-client/keys/keymap-reachability.ts"
 import { afterEach, describe, expect, test } from "vitest"
-import { findBinding, resetKeymapToDefaults } from "../../src/keys/keybindings.ts"
-import type { BindingReachability } from "../../src/keys/keymap-reachability.ts"
 import {
   KEY_HINTS_ENABLED_KEY,
   keyHintsToggleOn,

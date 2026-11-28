@@ -1,4 +1,4 @@
-import type { AppearanceChoice } from "../../../settings/appearance"
+import type { AppearanceChoice } from "@sma1lboy/rove-client/settings/appearance.ts"
 import type { useT } from "../../i18n"
 
 export function appearanceChoiceLabel(choice: AppearanceChoice, t: ReturnType<typeof useT>): string {

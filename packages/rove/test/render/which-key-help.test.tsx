@@ -5,12 +5,17 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test"
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { CTRL_HOLD_THRESHOLD_MS } from "@sma1lboy/rove-client/keys/ctrl-hold.ts"
+import { bindByIds } from "@sma1lboy/rove-client/keys/keybindings.ts"
+import {
+  PREFIX_GUIDE_DELAY_MS,
+  prefixHudPush,
+  prefixHudSetArmed,
+  resetPrefixHud,
+} from "@sma1lboy/rove-client/keys/prefix-hud.ts"
+import { PREFIX_TAP_PRESENTATION_KEY } from "@sma1lboy/rove-client/keys/prefix-tap-presentation.ts"
 import { currentLang, setLocaleLang } from "@sma1lboy/rove-core/i18n/index.ts"
 import { displayWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
-import { CTRL_HOLD_THRESHOLD_MS } from "../../src/keys/ctrl-hold"
-import { bindByIds } from "../../src/keys/keybindings"
-import { PREFIX_GUIDE_DELAY_MS, prefixHudPush, prefixHudSetArmed, resetPrefixHud } from "../../src/keys/prefix-hud"
-import { PREFIX_TAP_PRESENTATION_KEY } from "../../src/keys/prefix-tap-presentation"
 import { HelpDialog } from "../../src/tui-react/component/help-dialog"
 import { PrefixHud } from "../../src/tui-react/component/prefix-hud"
 import { ShortcutRevealProvider } from "../../src/tui-react/component/shortcut-reveal"

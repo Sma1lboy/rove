@@ -2,9 +2,9 @@
 /** Real-render coverage for the prefix+n New task chord and the ctrl+n terminal boundary. */
 
 import { afterEach, describe, expect, it } from "bun:test"
+import { resetPrefixState } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
+import { resetPrefixHud } from "@sma1lboy/rove-client/keys/prefix-hud.ts"
 import { useState } from "react"
-import { resetPrefixState } from "../../src/keys/keymap-dispatch"
-import { resetPrefixHud } from "../../src/keys/prefix-hud"
 import { FocusProvider, type PaneId, useFocus } from "../../src/tui-react/context/focus"
 import { useBindings } from "../../src/tui-react/lib/keymap"
 import { SidebarBrandHeader, SidebarSearchInput } from "../../src/tui-react/panes/sidebar/chrome"

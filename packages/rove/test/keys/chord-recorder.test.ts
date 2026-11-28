@@ -1,5 +1,5 @@
+import { type Recording, recordStroke } from "@sma1lboy/rove-client/keys/chord-recorder.ts"
 import { describe, expect, it } from "vitest"
-import { type Recording, recordStroke } from "../../src/keys/chord-recorder"
 
 const start = (slots = 1): Recording => ({ id: "x", slots, got: [], prefixArmed: false })
 const PREFIX = ["ctrl+a"]

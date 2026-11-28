@@ -1,6 +1,6 @@
 import type { KeyEvent } from "@opentui/core"
+import { CTRL_HOLD_THRESHOLD_MS, createCtrlHoldDetector } from "@sma1lboy/rove-client/keys/ctrl-hold.ts"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { CTRL_HOLD_THRESHOLD_MS, createCtrlHoldDetector } from "../../src/keys/ctrl-hold"
 
 function event(name: string, eventType: KeyEvent["eventType"] = "press"): KeyEvent {
   return { name, eventType } as KeyEvent

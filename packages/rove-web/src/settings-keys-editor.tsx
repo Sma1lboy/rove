@@ -5,10 +5,10 @@
  * writes the YAML (`keybindings.set`) and refuses a chord its loader would drop.
  */
 
-import { PREFIX_KEY_ID, type Recording, recordStroke } from "@sma1lboy/rove/src/keys/chord-recorder.ts"
-import { editableBindings } from "@sma1lboy/rove/src/keys/editable-bindings.ts"
-import { groupBindings } from "@sma1lboy/rove/src/keys/help-groups.ts"
-import { recordSlotLabels } from "@sma1lboy/rove/src/keys/keymap-overrides.ts"
+import { PREFIX_KEY_ID, type Recording, recordStroke } from "@sma1lboy/rove-client/keys/chord-recorder.ts"
+import { editableBindings } from "@sma1lboy/rove-client/keys/editable-bindings.ts"
+import { groupBindings } from "@sma1lboy/rove-client/keys/help-groups.ts"
+import { recordSlotLabels } from "@sma1lboy/rove-client/keys/keymap-overrides.ts"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { chordCandidates } from "./chord.ts"

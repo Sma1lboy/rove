@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/react */
 import { expect, test } from "bun:test"
+import { resetPrefixState } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
 import { useState } from "react"
-import { resetPrefixState } from "../../src/keys/keymap-dispatch"
 import { Terminal } from "../../src/tui-react/panes/terminal/Terminal"
 import { useDialog } from "../../src/tui-react/ui/dialog"
 import { DialogConfirm } from "../../src/tui-react/ui/dialog-confirm"

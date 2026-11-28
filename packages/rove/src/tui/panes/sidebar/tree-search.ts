@@ -4,10 +4,10 @@
  * A named task stays findable by its original title after its conversation acquires a name.
  */
 
+import { repoBasename } from "@sma1lboy/rove-client/sidebar/groups.ts"
+import { isNamedDir } from "@sma1lboy/rove-client/sidebar/tree-labels.ts"
 import { fuzzyMatch } from "@sma1lboy/rove-core/lib/fuzzy.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
-import { repoBasename } from "../../../sidebar/groups"
-import { isNamedDir } from "../../../sidebar/tree-labels"
 import { type TreeRow, worktreeRowLabel } from "./tree-core"
 
 /**

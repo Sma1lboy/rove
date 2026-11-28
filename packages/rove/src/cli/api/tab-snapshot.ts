@@ -17,11 +17,11 @@
  */
 
 import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"
+import { terminalTabsKey } from "@sma1lboy/rove-core/state/tabs-persistence.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { PtySessionExit } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { type SharedTabs, type TabOp, diffTabs } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import { engineLaunchArgv } from "../../engine/engine-presets.ts"
-import { terminalTabsKey } from "../../state/tabs-persistence.ts"
 import { splitLeafPtyKey } from "../../tabs/terminal-tab-split.ts"
 import {
   type TabsState,

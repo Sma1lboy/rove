@@ -1,17 +1,17 @@
 /** Prefix/terminal boundary regressions kept separate from the legacy dispatcher suite. */
 
 import type { KeyEvent } from "@opentui/core"
-import { beforeEach, describe, expect, test } from "vitest"
-import { bindByIds } from "../../src/keys/keybindings"
+import { bindByIds } from "@sma1lboy/rove-client/keys/keybindings.ts"
 import {
   type RegisteredBinding,
   configurePrefix,
   dispatchKeyEvent,
   resetPrefixConfiguration,
   resetPrefixState,
-} from "../../src/keys/keymap-dispatch"
-import { bindingReachability } from "../../src/keys/keymap-reachability"
-import { prefixHudState, resetPrefixHud } from "../../src/keys/prefix-hud"
+} from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
+import { bindingReachability } from "@sma1lboy/rove-client/keys/keymap-reachability.ts"
+import { prefixHudState, resetPrefixHud } from "@sma1lboy/rove-client/keys/prefix-hud.ts"
+import { beforeEach, describe, expect, test } from "vitest"
 
 function makeEvt(name: string, mods: Partial<KeyEvent> = {}): KeyEvent & { defaultPrevented: boolean } {
   const evt = {

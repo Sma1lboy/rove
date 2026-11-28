@@ -23,10 +23,10 @@ import {
   replaceStateFile,
   updateStateFile,
 } from "@sma1lboy/rove-core/state/store.ts"
+import { TERMINAL_TABS_PREFIX } from "@sma1lboy/rove-core/state/tabs-persistence.ts"
 import { logClientError } from "@sma1lboy/rove-daemon/client/client-log"
 import { isUnpublishedStateKey } from "@sma1lboy/rove-daemon/daemon/state-watcher"
 import { FILES_OPEN_KEY } from "../../state/files-pane.ts"
-import { TERMINAL_TABS_PREFIX } from "../../state/tabs-persistence.ts"
 
 const WRITE_DEBOUNCE_MS = 250
 

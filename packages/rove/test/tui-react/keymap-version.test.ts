@@ -1,5 +1,5 @@
+import { keymapVersion } from "@sma1lboy/rove-client/keys/keybindings.ts"
 import { describe, expect, it } from "vitest"
-import { keymapVersion } from "../../src/keys/keybindings"
 import { bumpKeymapVersion, subscribeKeymapVersion } from "../../src/tui-react/context/keybindings"
 
 describe("keymap version subscription (React side)", () => {

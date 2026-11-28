@@ -1,5 +1,5 @@
-import { formatChord } from "../../keys/chord-glyphs"
-import { legendCap } from "../../keys/help-groups"
+import { formatChord } from "@sma1lboy/rove-client/keys/chord-glyphs.ts"
+import { legendCap } from "@sma1lboy/rove-client/keys/help-groups.ts"
 import type { KVContext } from "../context/kv"
 
 export function showSharedFilesHint(

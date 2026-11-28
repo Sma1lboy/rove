@@ -1,6 +1,6 @@
 import type { KeyEvent } from "@opentui/core"
+import { defaultChordsOf, findBinding, resetKeymapToDefaults } from "@sma1lboy/rove-client/keys/keybindings.ts"
 import { describe, expect, it } from "vitest"
-import { defaultChordsOf, findBinding, resetKeymapToDefaults } from "../../src/keys/keybindings"
 import {
   PASSTHROUGH_CHORDS,
   PASSTHROUGH_NAMES,

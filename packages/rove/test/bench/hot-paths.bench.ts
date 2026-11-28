@@ -12,11 +12,16 @@
  * via its own `*.bench.ts` default include.
  */
 
+import {
+  type Binding,
+  type RegisteredBinding,
+  dispatchKeyEvent,
+  matchKey,
+} from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { parseStatusEntries } from "@sma1lboy/rove-core/worktree/git-status.ts"
 import { bench, describe } from "vitest"
-import { type Binding, type RegisteredBinding, dispatchKeyEvent, matchKey } from "../../src/keys/keymap-dispatch"
 import { type Row, reconcileRows } from "../../src/tui/panes/filetree/rows"
 import { buildSidebarRowView } from "../../src/tui/panes/sidebar/row-view"
 
