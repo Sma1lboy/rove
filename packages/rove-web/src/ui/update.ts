@@ -11,7 +11,17 @@ export const UPDATE_OUTPUT =
   "my-2 max-h-[40vh] overflow-auto whitespace-pre-wrap wrap-anywhere rounded-sm bg-inset p-2 font-mono text-[length:var(--fs-meta)]"
 export const RELEASE_NOTES = "[&_h2]:mx-0 [&_h2]:mt-3.5 [&_h2]:mb-1 [&_h2]:text-[length:var(--fs-body)]"
 /** The fold for entries tagged for other clients, under a release's own. */
-export const RELEASE_OTHER = "mt-2 [&>summary]:cursor-pointer [&>summary]:text-muted [&>summary]:text-meta"
+export const RELEASE_OTHER =
+  "mt-4 [&>summary]:cursor-pointer [&>summary]:select-none [&>summary]:py-1 [&>summary]:text-meta [&>summary]:text-muted [&>summary]:hover:text-ink touch:[&>summary]:py-2.5"
+export const RELEASE_OTHER_BODY = "mt-2"
+/** Bump heading (Major / Minor / Patch Changes), shown only when a release has a minor or major bump. */
+export const RELEASE_BUMP = "mt-5 first:mt-0"
+export const RELEASE_BUMP_HEAD = "mx-0 mt-0 mb-2 font-sans text-[length:var(--fs-body)] font-semibold text-accent"
+/** Scope section (Phone & iPhone app, Web, Terminal (TUI), …). */
+export const RELEASE_SCOPE = "mt-4 first:mt-0"
+export const RELEASE_SCOPE_HEAD = "mx-0 mt-0 mb-1.5 flex items-baseline gap-2"
+export const RELEASE_SCOPE_TITLE = "font-mono text-meta font-semibold text-ink"
+export const RELEASE_SCOPE_COUNT = "rounded-xs bg-inset px-1.5 font-mono text-meta font-normal text-muted"
 export const WHATS_NEW_BODY = "max-h-[55vh] overflow-x-hidden overflow-y-auto"
 export const WHATS_NEW_KEYS = "mr-auto text-[length:var(--fs-meta)]"
 /** Phone bottom sheet: notes scroll under the handle and title; actions stay pinned in the thumb zone. */
@@ -20,7 +30,8 @@ export const WHATS_NEW_SHEET_BODY =
 export const WHATS_NEW_SHEET_FOOT = "flex flex-none px-3 pt-2"
 /** Changelog markdown (release-notes.tsx): wrapped, never a sideways scroll. */
 export const RELEASE_MD =
-  "text-[length:var(--fs-body)] leading-[1.55] wrap-anywhere [&_h3]:mx-0 [&_h3]:mt-3 [&_h3]:mb-1.5 [&_h3]:font-sans [&_h3]:text-meta [&_h3]:font-medium [&_h3]:normal-nums [&_h3]:text-muted [&_h3:first-child]:mt-0 [&_ul]:m-0 [&_ul]:pl-4.5 [&_li+li]:mt-2 [&_p]:mx-0 [&_p]:mt-0 [&_p]:mb-2 [&_a]:text-accent [&_a]:underline [&_a]:underline-offset-2 [&_code]:rounded-sm [&_code]:bg-inset [&_code]:px-1 [&_code]:py-0 [&_code]:font-mono [&_code]:text-meta [&_code]:font-normal [&_code]:normal-nums"
+  "text-[length:var(--fs-body)] leading-[1.55] wrap-anywhere [&_ul]:m-0 [&_ul]:pl-4.5 [&_li+li]:mt-2 [&_p]:mx-0 [&_p]:mt-0 [&_p]:mb-2 [&_a]:text-accent [&_a]:underline [&_a]:underline-offset-2 [&_code]:rounded-sm [&_code]:bg-inset [&_code]:px-1 [&_code]:py-0 [&_code]:font-mono [&_code]:text-meta [&_code]:font-normal [&_code]:normal-nums"
+export const RELEASE_HEADING = "mx-0 mt-3 mb-1.5 font-sans text-meta font-medium normal-nums text-muted first:mt-0"
 
 /** Worktrees */
 export const WT_GROUP = "mt-3"

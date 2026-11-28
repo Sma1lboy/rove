@@ -29,18 +29,27 @@ describe("release notes", () => {
   })
 })
 
-test("the web's own entries come first; the rest fold under one line", () => {
+test("groups the web's own scopes first with counts, strips inline tags and Patch Changes, and folds other clients", () => {
   const tagged = `### Patch Changes
 
 - [#1](https://github.com/Sma1lboy/rove/pull/1) **tui** Files search in the TUI.
 
 - [#2](https://github.com/Sma1lboy/rove/pull/2) **web · ios** Phone glass.
 
-- [#3](https://github.com/Sma1lboy/rove/pull/3) Untagged change.`
+- [#3](https://github.com/Sma1lboy/rove/pull/3) **web** Desktop sidebar pick.
+
+- [#4](https://github.com/Sma1lboy/rove/pull/4) Untagged change.`
   const html = renderToStaticMarkup(createElement(ReleaseNotes, { body: tagged }))
   const fold = html.indexOf("<details")
+  expect(html).not.toContain("Patch Changes")
+  expect(html).not.toContain("web · ios")
+  expect(html).toContain("#2</a>")
+  expect(html.indexOf("Phone &amp; iPhone app")).toBeLessThan(html.indexOf("Web"))
+  expect(html.indexOf("Web")).toBeLessThan(html.indexOf("Other"))
   expect(fold).toBeGreaterThan(html.indexOf("Phone glass."))
+  expect(fold).toBeGreaterThan(html.indexOf("Desktop sidebar pick."))
   expect(fold).toBeGreaterThan(html.indexOf("Untagged change."))
+  expect(html.indexOf("Terminal (TUI)")).toBeGreaterThan(fold)
   expect(html.indexOf("Files search in the TUI.")).toBeGreaterThan(fold)
   expect(html).toContain("Also in this release: 1 for other clients")
 })

@@ -32,6 +32,16 @@ export const en = {
   changesSectionHeader: "── changes from v{from} to v{to} ──",
   /** Folded line under a release's own entries; expands to the changes tagged for other clients. */
   otherClients: "Also in this release: {count} for other clients",
+  /** Section headings for scope-grouped release notes (keyed by NoteScope). */
+  scopes: {
+    ios: "Phone & iPhone app",
+    web: "Web",
+    tui: "Terminal (TUI)",
+    cli: "Command line",
+    daemon: "Background service",
+    android: "Android app",
+    other: "Other",
+  },
   updateComplete: "Rove update complete. Relaunch Rove to use the new version.",
   updateFailed: "Rove update failed with exit code {code}. Check the output above, then run `rove update` to retry.",
   pressAnyKey: "Press any key to close this update window.",
@@ -125,6 +135,15 @@ export const zh: typeof en = {
   notesUnavailable: "发布说明不可用。请使用「打开发布页」查看 GitHub 发布页面。",
   changesSectionHeader: "── v{from} 至 v{to} 的变更 ──",
   otherClients: "本版本还有 {count} 条其他客户端的更新",
+  scopes: {
+    ios: "手机与 iPhone 应用",
+    web: "网页端",
+    tui: "终端 (TUI)",
+    cli: "命令行",
+    daemon: "后台服务",
+    android: "Android 应用",
+    other: "其他",
+  },
   updateComplete: "Rove 更新完成。请重新启动 Rove 以使用新版本。",
   updateFailed: "Rove 更新失败，退出码为 {code}。请检查上方输出，再运行 `rove update` 重试。",
   pressAnyKey: "按任意键关闭此更新窗口。",

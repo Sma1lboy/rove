@@ -13,7 +13,7 @@
 import { type NativeResourceOwner, SyntaxStyle } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
 import { useMemo, useState } from "react"
-import { TUI_NOTE_CLIENTS, splitReleaseNotes } from "../../lib/release-note-clients"
+import { type BumpGroup, type NoteScope, TUI_NOTE_CLIENTS, groupReleaseNotes } from "../../lib/release-note-clients"
 import type { Theme } from "../../tui/context/theme-core"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
@@ -21,12 +21,13 @@ import { releaseNotesMarkdown } from "./release-notes-markdown"
 
 function buildReleaseNotesStyle(theme: Theme, owner: NativeResourceOwner): SyntaxStyle {
   const heading = { fg: theme.accent, bold: true }
+  const bumpHeading = { fg: theme.text, bold: true }
   const code = { fg: theme.info }
   return SyntaxStyle.fromStyles(
     {
       "markup.heading": heading,
-      "markup.heading.1": heading,
-      "markup.heading.2": heading,
+      "markup.heading.1": bumpHeading,
+      "markup.heading.2": bumpHeading,
       "markup.heading.3": heading,
       "markup.heading.4": heading,
       "markup.heading.5": heading,
@@ -50,21 +51,43 @@ function buildReleaseNotesStyle(theme: Theme, owner: NativeResourceOwner): Synta
   )
 }
 
-/** The TUI's own entries first; the ones tagged for other clients fold under one clickable line. */
+function renderGroupsMarkdown(
+  groups: readonly BumpGroup[],
+  scopeLabel: (scope: NoteScope) => string,
+  showScopeHeading: boolean,
+): string {
+  const parts: string[] = []
+  for (const group of groups) {
+    if (group.heading) parts.push(`## ${group.heading}`)
+    for (const section of group.sections) {
+      if (showScopeHeading) parts.push(`### ${scopeLabel(section.scope)} (${section.count})`)
+      const sep = section.entries.some((e) => e.includes("\n") || e.length > 80) ? "\n\n" : "\n"
+      parts.push(section.entries.join(sep))
+    }
+  }
+  return parts.join("\n\n")
+}
+
+/** The TUI's own scope sections first; the ones tagged for other clients fold under one clickable line. */
 export function ReleaseNotesBody(props: { body: string }) {
   const { theme } = useTheme()
   const t = useT()
   const [open, setOpen] = useState(false)
-  const notes = useMemo(() => splitReleaseNotes(releaseNotesMarkdown(props.body), TUI_NOTE_CLIENTS), [props.body])
+  const notes = useMemo(() => groupReleaseNotes(releaseNotesMarkdown(props.body), TUI_NOTE_CLIENTS), [props.body])
+  const scopeLabel = (scope: NoteScope) => t(`update.scopes.${scope}`)
+  const ownContent = [notes.preface, renderGroupsMarkdown(notes.own, scopeLabel, notes.hasScopedEntries)]
+    .filter(Boolean)
+    .join("\n\n")
+  const otherContent = notes.otherCount > 0 ? renderGroupsMarkdown(notes.other, scopeLabel, notes.hasScopedEntries) : ""
   return (
     <box flexDirection="column" gap={1}>
-      {notes.own ? <MarkdownText content={notes.own} /> : null}
+      {ownContent ? <MarkdownText content={ownContent} /> : null}
       {notes.otherCount > 0 ? (
         <text fg={theme.textMuted} wrapMode="word" onMouseUp={() => setOpen((v) => !v)}>
           {open ? "▾" : "▸"} {t("update.otherClients", { count: String(notes.otherCount) })}
         </text>
       ) : null}
-      {open ? <MarkdownText content={notes.other} /> : null}
+      {open && otherContent ? <MarkdownText content={otherContent} /> : null}
     </box>
   )
 }
