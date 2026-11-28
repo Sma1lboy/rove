@@ -130,14 +130,9 @@ test("escape leaves search and restores the full tree", async () => {
   expect(text).toContain("bravo")
 })
 
-test("search enters a folded directory task by its original name and restores the project fold", async () => {
+test("search enters a folded directory task by its name and restores the project fold", async () => {
   tabsByTask.clear()
   const target = task("target", { kind: "dir", title: "Publish build notes", branch: "" })
-  tabsByTask.set(target.id, {
-    tabs: [{ kind: "engine", id: "tab-1", title: "Release checklist", ordinal: 1 }],
-    activeId: "tab-1",
-    nextOrdinal: 2,
-  })
   const other = task("other", { repo: "/repos/other", title: "Other task" })
   const entered: string[] = []
   const { frame, mockInput, mockMouse } = await renderComponent(
@@ -148,14 +143,14 @@ test("search enters a folded directory task by its original name and restores th
     }),
     { width: 32, height: 22 },
   )
-  const open = await waitForFrameText(frame, "Release checklist")
+  const open = await waitForFrameText(frame, "Publish build notes")
   const header = open.split("\n").findIndex((line) => line.includes("rove") && !line.includes("[ rove ]"))
   await mockMouse.click(2, header, 0)
   // Waited for, not read at once: the fold lands a render after the click.
-  expect(await waitForFrameText(frame, "rove ›")).not.toContain("Release checklist")
+  expect(await waitForFrameText(frame, "rove ›")).not.toContain("Publish build notes")
   await step(frame, () => mockInput.typeText("/"))
   await step(frame, () => mockInput.typeText("Publish build"))
-  expect(await frame()).toContain("Release checklist")
+  expect(await frame()).toContain("Publish build notes")
   act(() => mockInput.pressEscape())
   await waitForFrameText(frame, "rove ›")
   await step(frame, () => mockInput.pressEnter())
@@ -166,7 +161,7 @@ test("search enters a folded directory task by its original name and restores th
   expect(entered).toEqual(["other", "target"])
   const closed = await frame()
   expect(closed).toContain("rove ›")
-  expect(closed).not.toContain("Release checklist")
+  expect(closed).not.toContain("Publish build notes")
   await step(frame, () => mockInput.pressEnter())
   expect(entered).toEqual(["other", "target", "other"])
 })
