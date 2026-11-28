@@ -291,7 +291,7 @@ export function UpdateView({ client }: { client: BridgeClient }) {
       <PhonePage
         title={t("rail.update")}
         rootRef={host}
-        actions={[
+        action={
           installed
             ? { label: u.webRestart, tone: "accent", disabled: restarting, onClick: () => activate("restart") }
             : canUpdate
@@ -300,8 +300,8 @@ export function UpdateView({ client }: { client: BridgeClient }) {
                   tone: "accent",
                   onClick: () => activate("update"),
                 }
-              : { label: t("pages.phone.viewNotes"), disabled: !url, onClick: () => activate("release") },
-        ]}
+              : { label: t("pages.phone.viewNotes"), disabled: !url, onClick: () => activate("release") }
+        }
       >
         {notesBody}
         {/* Up to date: what the running version brought, the web's and the iPhone's entries first. */}

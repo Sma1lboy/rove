@@ -27,6 +27,7 @@ import { useSkillStatus } from "./skill-status.ts"
 import { StatusBar } from "./status-bar.tsx"
 import { useStore } from "./store.ts"
 import { layoutMoving, newSession, openNewSessionFromLink, page } from "./ui.ts"
+import { PhoneBarHost } from "./ui/phone.tsx"
 import { APP_SHELL, RAIL_PEEK_EDGE, appClass } from "./ui/shell.ts"
 import { maybeAskToUpdate } from "./update-prompt.tsx"
 import { checkForUpdate, maybeShowWhatsNew } from "./update-view.tsx"
@@ -160,6 +161,8 @@ function Shell({ model }: { model: AppModel }) {
         )}
         <RailView model={model} narrow={narrow} />
         <Workspace model={model} narrow={narrow} />
+        {/* One bar over both panels: the list's, the open page's, or none. A back swipe hands it to the list as it starts. */}
+        {surface && <PhoneBarHost show={surface === "sidebar" || backing ? "list" : "page"} />}
         {!narrow && <SidePanel model={model} task={task} remoteHost={remoteTask?.machine?.label} />}
         <StatusBar model={model} />
         <Overlays />

@@ -80,7 +80,9 @@ animation unless the product already has them.
   token override in `src/tailwind.css`. Glass is one recipe, `src/ui/glass.ts`; round nav buttons are
   `src/ui/nav-button.tsx`. Arbitrary values stay inside `src/ui/` (rove-ui §0).
 - **A phone screen composes `src/ui/phone.tsx`** (`PhoneBar` back + title + trailing controls, `PhoneTitle`,
-  `PHONE_LIST`, `PhoneGroup` + `PHONE_ROW` grouped cards, `BottomBar` capsule + accent primary) and `src/ui/sheet.tsx`.
+  `PHONE_LIST`, `PhoneGroup` + `PHONE_ROW` grouped cards) and `src/ui/sheet.tsx`. The bottom bar is one app-level
+  `PhoneBarHost` that stays put while pages push and pop and morphs its contents; a screen declares it with
+  `usePhoneBar` (`PhonePage`'s `primary`/`action` does this). A sheet keeps its own foot (`PhoneActions`).
   The page branches once (`useNarrow()`) into a phone tree and a desktop tree; don't thread `w-narrow:` variants
   through a desktop recipe for a new phone screen.
 - **The iPhone app** (`packages/rove-ios`) is a native shell around rove-web: native only for pairing (scan or paste

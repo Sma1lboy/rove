@@ -9,7 +9,7 @@ import { useStore } from "./store.ts"
 import { BarCapsule } from "./ui/nav-button.tsx"
 import { RAIL_BAR_ICON, RAIL_FOOT, RAIL_FOOT_ROW, RAIL_NAV_CUE, RAIL_NAV_ICON, railNavRowClass } from "./ui/page.ts"
 import { ICON_BUTTON_DOT } from "./ui/panel.ts"
-import { BottomBar } from "./ui/phone.tsx"
+import { usePhoneBar } from "./ui/phone.tsx"
 import { UsageChips } from "./usage-view.tsx"
 
 /** Lucide `settings` (ISC). */
@@ -24,8 +24,8 @@ function Gear({ className }: { className: string }) {
 
 /**
  * The rail's foot, ruled off from the task list: the usage readings, then Settings, one left edge and one
- * quiet voice, so the readings never read as a line of the last task. On a phone it is a floating bar the list
- * scrolls under: Settings and Inbox in one glass capsule bottom left, a New task bar filling the rest, naming the mode it starts in; the readings sit at the top of Settings. A missing Rove skill is named in words beside
+ * quiet voice, so the readings never read as a line of the last task. On a phone it is the list's bottom bar
+ * (`PhoneBarHost`): Settings and Inbox in one glass capsule bottom left, a New task bar filling the rest, naming the mode it starts in; the readings sit at the top of Settings. A missing Rove skill is named in words beside
  * Settings (the engines on hover); installing it is in Settings › Engines.
  */
 export function RailFoot({
@@ -37,31 +37,34 @@ export function RailFoot({
   useLocale()
   const gap = useStore(skillMissing)
   const hint = ts("engines.skill.bannerHintWeb", { engines: gap.join(", ") })
-  if (narrow) {
-    return (
-      <BottomBar
-        wide={{
-          label: t("rail.newTask"),
-          note: t(`rail.newTaskMode.${newTaskMode()}`),
-          onClick: () => startNewTask(),
-        }}
-      >
-        <BarCapsule
-          settings={{
-            label: gap.length > 0 ? `${t("rail.settings")}, ${hint}` : t("rail.settings"),
-            onClick: onSettings,
-            glyph: (
-              <>
-                <Gear className={RAIL_BAR_ICON} />
-                {gap.length > 0 && <span className={ICON_BUTTON_DOT} />}
-              </>
-            ),
-          }}
-          inbox={{ label: t("rail.inbox", { count: inbox.count }), onClick: inbox.onClick, count: inbox.count }}
-        />
-      </BottomBar>
-    )
-  }
+  usePhoneBar(
+    "list",
+    narrow
+      ? {
+          wide: {
+            label: t("rail.newTask"),
+            note: t(`rail.newTaskMode.${newTaskMode()}`),
+            onClick: () => startNewTask(),
+          },
+          capsule: (
+            <BarCapsule
+              settings={{
+                label: gap.length > 0 ? `${t("rail.settings")}, ${hint}` : t("rail.settings"),
+                onClick: onSettings,
+                glyph: (
+                  <>
+                    <Gear className={RAIL_BAR_ICON} />
+                    {gap.length > 0 && <span className={ICON_BUTTON_DOT} />}
+                  </>
+                ),
+              }}
+              inbox={{ label: t("rail.inbox", { count: inbox.count }), onClick: inbox.onClick, count: inbox.count }}
+            />
+          ),
+        }
+      : null,
+  )
+  if (narrow) return null
   return (
     <div className={RAIL_FOOT}>
       {!narrow && <UsageChips client={model.client} />}
