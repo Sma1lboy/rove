@@ -105,4 +105,18 @@ describe("loadPluginEngines", () => {
     expect(loadPluginEngines()).toEqual(["aider"])
     expect(engineEntry("aider").firstMessageDelivery).toBe("paste")
   })
+
+  it("turns model_flag and models_command into the registry's model methods", async () => {
+    const bin = tmp("rove-engines-bin-")
+    writeFileSync(join(bin, "aider-models"), "#!/bin/sh\nprintf 'gpt-x\\tGPT X\\n'\n", { mode: 0o755 })
+    const withModels = MANIFEST.replace(
+      'command = ["aider"]',
+      `command = ["aider"]\nmodel_flag = "--model"\nmodels_command = ["${join(bin, "aider-models")}"]`,
+    )
+    homeWith([{ id: "acme.engines", root: pluginRoot(withModels) }])
+    expect(loadPluginEngines()).toEqual(["aider"])
+    const entry = engineEntry("aider")
+    expect(entry.modelArgv?.(["aider"], "gpt-x")).toEqual(["aider", "--model", "gpt-x"])
+    expect(await entry.listModels?.()).toEqual([{ id: "gpt-x", label: "GPT X" }])
+  })
 })

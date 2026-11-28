@@ -88,9 +88,15 @@ open. `-p` would exit after one turn.
 
 **Plugins can contribute engines too**: a plugin manifest's `[[engines]]`
 entries register engines with a display name, launch command, screen
-manifest, and identity. Unlike the contrib catalog, plugin engines are
+manifest, identity, and optionally a model flag and a model-list command.
+Unlike the contrib catalog, plugin engines are
 offered without a binary check — installing the plugin is the opt-in. See
 [Plugin authoring](./PLUGIN-AUTHORING.md).
+
+A contrib or plugin engine is the same registry entry as a built-in with
+fewer capabilities filled in, so any launch whose engine resolves to it, a
+custom command line included, uses what it declares: Antigravity's first
+message rides `-i` even for `agy --model … --dangerously-skip-permissions`.
 
 **Kimi is partial.** Rove finds the binary, reads its login state, and can
 locate each session's transcript, enough to watch it for activity and to

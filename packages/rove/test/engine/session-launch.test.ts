@@ -65,6 +65,19 @@ describe("hosted engine session launch", () => {
     expect(launch.command[2]).toContain('exec "${SHELL:-/bin/sh}"')
   })
 
+  // The vendor's argv hook, not the command line's shape, decides delivery: agy exits on a positional.
+  test("a custom command line for a contrib engine still sends the first message through its argv hook", () => {
+    const launch = buildEngineSessionLaunch({
+      task: { id: "task-1", kind: "task", vendor: "antigravity", repo: "/repo" },
+      worktreePath: "/repo/.worktrees/task-1",
+      shell: "/bin/zsh",
+      argv: ["agy", "--model", "gemini-4-neon-high", "--dangerously-skip-permissions"],
+      promptIntent: { kind: "explicit", prompt: "fix it" },
+      protocolGates: { status: () => false, notes: () => false, dispatcher: () => false },
+    })
+    expect(launch.command[2]).toContain("agy --model gemini-4-neon-high --dangerously-skip-permissions -i 'fix it'")
+  })
+
   describe("inline image env", () => {
     const launchFor = (vendor: "omp" | "claude", inlineImages?: boolean) =>
       buildEngineSessionLaunch({

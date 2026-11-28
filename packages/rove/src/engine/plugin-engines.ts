@@ -6,11 +6,27 @@
  * blocks a launch.
  */
 
-import { readPluginManifest } from "@sma1lboy/rove-daemon/plugins/manifest"
+import { type PluginEngine, readPluginManifest } from "@sma1lboy/rove-daemon/plugins/manifest"
 import { loadPluginRegistry } from "@sma1lboy/rove-daemon/plugins/registry"
 import { getCustomEngineIds } from "../state/repos.ts"
 import { resetAvailableVendorsCache } from "./account-detect.ts"
-import { CONTRIB_ENGINE_IDS, clearPluginEngines, registerPluginEngine } from "./contrib-engines.ts"
+import {
+  CONTRIB_ENGINE_IDS,
+  type ContribEngineSpec,
+  clearPluginEngines,
+  registerPluginEngine,
+} from "./contrib-engines.ts"
+import { listModelLines } from "./model-lists.ts"
+
+/** TOML carries no functions: the declarative model keys become the base contract's methods. */
+function pluginModelCapabilities(engine: PluginEngine): Pick<ContribEngineSpec, "modelArgv" | "listModels"> {
+  const flag = engine.modelFlag
+  const [bin, ...args] = engine.modelsCommand ?? []
+  return {
+    ...(flag ? { modelArgv: (base: readonly string[], model: string) => [...base, flag, model] } : {}),
+    ...(bin ? { listModels: listModelLines(bin, args) } : {}),
+  }
+}
 
 /** Load engines from every enabled plugin; returns the registered ids. */
 export function loadPluginEngines(homeDir?: string): readonly string[] {
@@ -31,6 +47,7 @@ export function loadPluginEngines(homeDir?: string): readonly string[] {
             screenManifest: { rules: engine.rules },
             identity,
             ...(engine.firstMessageDelivery ? { firstMessageDelivery: engine.firstMessageDelivery } : {}),
+            ...pluginModelCapabilities(engine),
           })
           if (ok) {
             registered.push(engine.id)
