@@ -253,7 +253,11 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
         if (attached) await forwarder.detach(attached.stream)
         const revived = await ops.reviveTab(target, shownTab).then(
           () => true,
-          () => false,
+          (err: unknown) => {
+            // An archived task stays stopped: the page shows its read-only view, not a dead terminal.
+            if (err instanceof BridgeError && err.code === "TASK_ARCHIVED") throw err
+            return false
+          },
         )
         if (!revived && gone !== null) throw gone
         attached = await attach()

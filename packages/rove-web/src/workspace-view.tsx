@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react"
 import { useEffect } from "react"
+import { ArchivedPane } from "./archived-pane.tsx"
 import { AttemptsStrip } from "./attempts-strip.tsx"
 import { t } from "./i18n/index.ts"
 import { openMachines } from "./machines-dialog.tsx"
@@ -83,6 +84,17 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
         <div className={PANE}>
           {/* A different seed remounts the composer so its chips follow; the prompt draft survives. */}
           <NewSessionView key={composerKey(composing)} model={model} seed={composing} />
+        </div>
+      </main>
+    )
+  }
+  // Archiving stopped its sessions: no tab strip, terminal or composer that would attach or start one.
+  if (task?.archived) {
+    return (
+      <main className={`${WORKSPACE} ${WORKSPACE_FRAME}`}>
+        {narrow && <NarrowBackBar client={model.client} title={task.title} />}
+        <div className={PANE}>
+          <ArchivedPane model={model} task={task} />
         </div>
       </main>
     )

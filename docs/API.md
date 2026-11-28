@@ -2173,7 +2173,9 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   Archiving also ends the task's sessions: every engine and shell process
   of the task is stopped. The worktree, branch, transcript and each tab's
   conversation stay, so after `unarchive` a tab reopens the conversation it
-  had. Every verb that takes `--task-id` (`get-task`, `context`, `collect`,
+  had. Opening an archived task starts nothing: `tab-revive` is refused with
+  `TASK_ARCHIVED`, and the TUI and the web client show it read-only (the web
+  shows its conversation) with an Unarchive button instead of a terminal. Every verb that takes `--task-id` (`get-task`, `context`, `collect`,
   `digest`, `delete`) keeps working on the task by id. A `send` delivers and
   starts the engine again while leaving the task archived, returning
   `archived: true` and a one-line `warning`; pass `send --unarchive` to bring

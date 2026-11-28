@@ -74,6 +74,18 @@ export function ShowWorkspace(props: {
       </box>
     )
   }
+  // Archiving stopped the task's sessions; mounting its tabs would start them again.
+  if (props.task?.archived === true) {
+    const taskId = props.task.id
+    return (
+      <box flexGrow={1} alignItems="center" justifyContent="center" flexDirection="column" gap={1}>
+        <text fg={theme.textMuted}>{t("workspace.empty.archived")}</text>
+        <text fg={theme.primary} onMouseUp={() => void props.orchestrator.archiveTask(taskId, false)}>
+          {t("workspace.empty.unarchive")}
+        </text>
+      </box>
+    )
+  }
   // Where the tabs run: the worktree plus the task's own subdirectory, if it has one.
   const path = props.task
     ? taskCwd({ worktreePath: props.worktree, cwdSubpath: props.task.cwdSubpath })

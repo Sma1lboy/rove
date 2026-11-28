@@ -56,6 +56,14 @@ export const TAB_REVIVE_VERB: VerbSpec = {
       })
     }
     const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+    // Archiving ended the task's sessions; looking at it must not start one again.
+    if (task.archived === true) {
+      throw new ApiError(`task ${taskId} is archived; its sessions stay stopped`, "TASK_ARCHIVED", {
+        taskId,
+        hint: "unarchive the task first, then revive the tab",
+        nextCommandArgs: ["api", "unarchive", "--task-id", taskId],
+      })
+    }
     const scope = await ptyScopeOf(daemon, task)
     if (hostedKeyFor(taskId, tabId, scope) === null) {
       throw new ApiError(`tab ${tabId} on task ${taskId} belongs to a child task's conversation`, "TAB_NOT_FOUND", {

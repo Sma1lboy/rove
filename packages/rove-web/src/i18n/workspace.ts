@@ -3,6 +3,8 @@ export const en = {
   workspace: {
     pickTask: "pick a task on the left",
     noTabs: "no open sessions in this task",
+    archived: "Archived",
+    archivedNote: "no live terminal; unarchive to reopen it",
     startEngine: "Start {engine}",
     startSession: "Start session",
     tabNotLive: "this tab has no running session",
@@ -126,6 +128,8 @@ export const zh: typeof en = {
   workspace: {
     pickTask: "从左边选一个任务",
     noTabs: "这个任务没有打开的会话",
+    archived: "已归档",
+    archivedNote: "没有在运行的终端，取消归档后重新打开",
     startEngine: "启动 {engine}",
     startSession: "启动会话",
     tabNotLive: "这个标签没有在运行的会话",
