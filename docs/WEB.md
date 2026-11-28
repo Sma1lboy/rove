@@ -104,11 +104,9 @@ the two share one token.
   workspace's top right open it on that view (the shown kind is tinted;
   pressing it again closes the panel), and its top row has an expand button
   and a close ×. A phone keeps its Terminal / Chat / Context / Files / Diff /
-  Browser switch and shows no buttons. A phone opens an engine tab on Chat,
-  whose messages reflow to the screen where the shared terminal's older output
-  would hard-wrap; a tab with nothing to read there (no history reader, nothing
-  said yet) or a shell tab opens on Terminal. Each tab keeps the view last
-  picked in that switch. A page
+  Browser switch and shows no buttons. A phone opens a session on Terminal;
+  each tab keeps the view last picked in that switch, so one left on Chat
+  reopens on Chat. A page
   reports whether it has a panel, whether it is open, and its width, so
   `rove api viewers` tells an agent what you can see (and whether the page is
   on the daemon's machine or behind a tunnel). `rove api panel-show` makes
