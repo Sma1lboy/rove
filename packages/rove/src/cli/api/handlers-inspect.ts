@@ -16,7 +16,7 @@
 
 import { foregroundEngineIn, parsePsSnapshot, psSnapshot } from "../../engine/foreground.ts"
 import { loadStateFile } from "../../state/store.ts"
-import type { TabsState } from "../../tui/workspace/terminal-tabs-core.ts"
+import type { TabsState } from "../../tabs/terminal-tabs-core.ts"
 import { F } from "./flags.ts"
 import { type TaskSessionRow, unregisteredTabIds } from "./tab-snapshot.ts"
 import type { VerbContext, VerbSpec } from "./types.ts"

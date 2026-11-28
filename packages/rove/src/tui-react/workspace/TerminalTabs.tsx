@@ -25,14 +25,7 @@ import type { TaskRepoView } from "@sma1lboy/rove-daemon/task-tree"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { repoEnv } from "../../engine/multi-repo-launch"
 import { linkedWorktree } from "../../machines/remote-workspace.ts"
-import type { SectionId } from "../../tui/component/settings-dialog/model"
-import { prefixAction } from "../../tui/lib/keymap-dispatch"
-import { terminalDrawsKitty } from "../../tui/lib/terminal-graphics"
-import { buildDiffReview } from "../../tui/ops/diff-comments"
-import { warmHostedShell } from "../../tui/panes/terminal/pty-hosted"
-import { defaultShell } from "../../tui/panes/terminal/pty-types"
-import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
-import { shellTabInput } from "../../tui/workspace/terminal-tab-spawn"
+import { shellTabInput } from "../../tabs/terminal-tab-spawn"
 import {
   type EngineTab,
   type TabSpawn,
@@ -49,7 +42,14 @@ import {
   setTabSplit,
   tabCwdFor,
   tabPtyKeyFor,
-} from "../../tui/workspace/terminal-tabs-core"
+} from "../../tabs/terminal-tabs-core"
+import type { SectionId } from "../../tui/component/settings-dialog/model"
+import { prefixAction } from "../../tui/lib/keymap-dispatch"
+import { terminalDrawsKitty } from "../../tui/lib/terminal-graphics"
+import { buildDiffReview } from "../../tui/ops/diff-comments"
+import { warmHostedShell } from "../../tui/panes/terminal/pty-hosted"
+import { defaultShell } from "../../tui/panes/terminal/pty-types"
+import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import type { HookTabState } from "../../tui/workspace/turn-state-merge"
 import { EngineHookReadiness } from "../component/engine-hook-readiness"
 import type { QuickTaskResult } from "../component/quick-task-composer"

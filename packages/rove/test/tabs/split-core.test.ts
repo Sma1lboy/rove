@@ -12,8 +12,8 @@ import {
   renameLeaf,
   splitActive,
   splitFits,
-} from "../../src/tui/workspace/split-core"
-import { type EngineTab, splitLeafNames, splitLeafPtyKey, tabTitle } from "../../src/tui/workspace/terminal-tabs-core"
+} from "../../src/tabs/split-core"
+import { type EngineTab, splitLeafNames, splitLeafPtyKey, tabTitle } from "../../src/tabs/terminal-tabs-core"
 
 /** Terminal-flavored payload in these tests; the tree never inspects it. */
 const MAIN = null

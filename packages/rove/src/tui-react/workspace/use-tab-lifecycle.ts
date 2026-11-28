@@ -17,7 +17,7 @@ import {
   setTabAutoTitle,
   setTabSessionId,
   setTabSpawned,
-} from "../../tui/workspace/terminal-tabs-core"
+} from "../../tabs/terminal-tabs-core"
 
 const NAMING_POLL_MS = 5000
 

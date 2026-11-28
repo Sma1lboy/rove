@@ -16,8 +16,8 @@
 
 import { describe, expect, it } from "vitest"
 import { foregroundEngineIn, parsePsSnapshot } from "../../src/engine/foreground"
-import { conversationTitle, tabTitle, tabTitleStable } from "../../src/tui/workspace/terminal-tab-split"
-import type { TerminalTab } from "../../src/tui/workspace/terminal-tabs-core"
+import { conversationTitle, tabTitle, tabTitleStable } from "../../src/tabs/terminal-tab-split"
+import type { TerminalTab } from "../../src/tabs/terminal-tabs-core"
 
 const engineTab = (over: Partial<TerminalTab> = {}): TerminalTab =>
   ({ kind: "engine", id: "tab-1", title: null, ordinal: 1, ...over }) as TerminalTab

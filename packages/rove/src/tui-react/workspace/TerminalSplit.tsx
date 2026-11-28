@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/react */
 /**
  * One workspace terminal tab's body: a TERMINAL adapter over the split tree
- * (`tui/workspace/split-core.ts`). Leaf content null = the tab's own command
+ * (`tabs/split-core.ts`). Leaf content null = the tab's own command
  * (only `leaf-1`, whose PTY key IS the tab key); an argv = a split shell.
  *
  * A leaf whose process exits removes itself tmux-style; the LAST leaf's exit
@@ -14,11 +14,6 @@ import type { EngineTerminalPresentation } from "@/types/terminal-presentation"
 import { TextAttributes } from "@opentui/core"
 import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { SPLIT_STYLE_KEY, normalizeSplitStyle } from "../../state/split-style"
-import { prefixAction } from "../../tui/lib/keymap-dispatch"
-import { defaultShell } from "../../tui/panes/terminal/pty-types"
-import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
-import { getDefaultLiveEngines } from "../../tui/workspace/live-engine"
-import { type SplitDivider, groupChrome, leafOnEdge, paneBoxProps, paneChrome } from "../../tui/workspace/split-chrome"
 import {
   type SplitLeaf,
   type SplitNode,
@@ -29,14 +24,19 @@ import {
   removeLeaf,
   renameLeaf,
   splitActive,
-} from "../../tui/workspace/split-core"
+} from "../../tabs/split-core"
 import {
   type PersistedSplit,
   collapseSplit,
   isTabSplit,
   splitLeafNames,
   splitLeafPtyKey,
-} from "../../tui/workspace/terminal-tabs-core"
+} from "../../tabs/terminal-tabs-core"
+import { prefixAction } from "../../tui/lib/keymap-dispatch"
+import { defaultShell } from "../../tui/panes/terminal/pty-types"
+import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
+import { getDefaultLiveEngines } from "../../tui/workspace/live-engine"
+import { type SplitDivider, groupChrome, leafOnEdge, paneBoxProps, paneChrome } from "../../tui/workspace/split-chrome"
 import type { VendorId } from "../../types/vendor"
 import { RenameTaskDialog } from "../component/rename-task-dialog"
 import { bindByIds } from "../context/keybindings"

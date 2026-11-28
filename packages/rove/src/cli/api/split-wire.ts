@@ -4,8 +4,8 @@
  * only, so no client ever holds (or hands back) a command line.
  */
 
-import type { SplitNode } from "../../tui/workspace/split-core.ts"
-import type { PersistedSplit } from "../../tui/workspace/terminal-tab-split.ts"
+import type { SplitNode } from "../../tabs/split-core.ts"
+import type { PersistedSplit } from "../../tabs/terminal-tab-split.ts"
 
 export type WireSplitNode =
   /**

@@ -6,8 +6,8 @@
  */
 
 import type { VendorId } from "@/types/vendor"
-import { leaves } from "./split-core"
-import { type TerminalTab, hasEngineLeaf, splitLeafPtyKey, tabPtyKey } from "./terminal-tabs-core"
+import { leaves } from "../../tabs/split-core"
+import { type TerminalTab, hasEngineLeaf, splitLeafPtyKey, tabPtyKey } from "../../tabs/terminal-tabs-core"
 
 /** The tab's single PTY key; null for a multi-leaf split, which has no single process. */
 export function soloKey(taskId: string, tab: TerminalTab): string | null {

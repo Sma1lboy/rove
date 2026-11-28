@@ -1,5 +1,5 @@
+import { type TabsState, splitLeafPtyKey, tabPtyKeyFor } from "../../tabs/terminal-tabs-core"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
-import { type TabsState, splitLeafPtyKey, tabPtyKeyFor } from "../../tui/workspace/terminal-tabs-core"
 
 /** The active tab's focused-leaf emulator cells, for split-core's size gate; null → depth-cap fallback. */
 export function activeLeafCells(state: TabsState, taskId: string): { cols: number; rows: number } | null {

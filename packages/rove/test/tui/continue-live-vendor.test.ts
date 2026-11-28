@@ -20,14 +20,8 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { encodeCwd } from "@/engine/claude-code-local/history"
 import { liveSourceProtocol, planChatContinuation, tabSessionId } from "@/engine/session-handoff-plan"
+import { type EngineTab, type TabsState, engineTabArgv, initialTabs, setTabSessionId } from "@/tabs/terminal-tabs-core"
 import { addForkTab } from "@/tui-react/workspace/fork-chat-tab"
-import {
-  type EngineTab,
-  type TabsState,
-  engineTabArgv,
-  initialTabs,
-  setTabSessionId,
-} from "@/tui/workspace/terminal-tabs-core"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
 const WORKTREE = "/repo/wt-claudecpa"

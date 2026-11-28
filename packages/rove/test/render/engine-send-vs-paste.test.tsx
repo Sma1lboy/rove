@@ -17,10 +17,10 @@
  */
 
 import { afterEach, describe, expect, test } from "bun:test"
+import { initialShellTabs } from "../../src/tabs/terminal-tabs-core"
 import { resolveConflictsAction } from "../../src/tui-react/workspace/use-resolve-conflicts"
 import { buildEnginePaste, buildEngineSend, useTabHandoffs } from "../../src/tui-react/workspace/use-tab-handoffs"
 import { _resetDefaultPtyRegistry, getDefaultPtyRegistry } from "../../src/tui/panes/terminal/registry"
-import { initialShellTabs } from "../../src/tui/workspace/terminal-tabs-core"
 import { renderComponent } from "./harness"
 
 type Op = { readonly op: "paste" | "write"; readonly text: string }

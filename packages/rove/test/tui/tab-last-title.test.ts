@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest"
-import { tabTitle, visibleNativeStatus } from "../../src/tui/workspace/terminal-tab-split.ts"
+import { tabTitle, visibleNativeStatus } from "../../src/tabs/terminal-tab-split.ts"
 import {
   type TabsState,
   type TerminalTab,
   initialTabs,
   setTabAutoTitle,
   setTabLastTitle,
-} from "../../src/tui/workspace/terminal-tabs-core.ts"
+} from "../../src/tabs/terminal-tabs-core.ts"
 
 /**
  * The Inbox renders tabs it does not host, so it has no LIVE title stream —

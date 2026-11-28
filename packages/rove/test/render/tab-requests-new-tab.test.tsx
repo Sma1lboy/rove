@@ -9,9 +9,9 @@
  */
 
 import { expect, test } from "bun:test"
+import { type TabsState, initialTabs } from "../../src/tabs/terminal-tabs-core"
 import { requestNewTab } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import { useTabRequests } from "../../src/tui-react/workspace/use-tab-requests"
-import { type TabsState, initialTabs } from "../../src/tui/workspace/terminal-tabs-core"
 import { act, renderComponent } from "./harness"
 
 /** Task ids are unique per TEST on purpose: the harness tears the RENDERER down

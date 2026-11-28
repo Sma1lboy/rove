@@ -41,7 +41,7 @@ vi.mock("../../src/engine/hosted-session.ts", async (original) => ({
 }))
 
 import { defaultApiRuntime } from "../../src/cli/api/runtime.ts"
-import type { TabsState } from "../../src/tui/workspace/terminal-tabs-core.ts"
+import type { TabsState } from "../../src/tabs/terminal-tabs-core.ts"
 import { type TabsDaemon, tabsDaemon } from "./tabs-daemon-fake.ts"
 
 let home: string

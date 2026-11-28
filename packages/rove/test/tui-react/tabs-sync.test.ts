@@ -9,6 +9,7 @@ import { diffTabs } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import { type TabsChangedPayload, TabsStore } from "@sma1lboy/rove-daemon/daemon/tabs-store"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import type { TabsTransport } from "../../src/client/remote-orchestrator-tabs"
+import { type TabsState, addTab, closeTab, selectTab } from "../../src/tabs/terminal-tabs-core"
 import {
   attachTabsTransport,
   commitTaskTabs,
@@ -19,7 +20,6 @@ import {
   tabsByTask,
   tabsRevision,
 } from "../../src/tui-react/workspace/tabs-sync"
-import { type TabsState, addTab, closeTab, selectTab } from "../../src/tui/workspace/terminal-tabs-core"
 
 const row = (id: string): TabRow => ({ kind: "engine", id, ordinal: Number(id.slice(4)), title: null })
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0))

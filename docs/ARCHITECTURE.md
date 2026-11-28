@@ -105,6 +105,8 @@ worktree on the shared branch name. `taskRepos(task)` (in `rove-daemon`'s
     than testing `task.kind`.
   - `src/client/` — framework-free remote Orchestrator client and channel
     stores.
+  - `src/tabs/` — the terminal-tab model (tabs, splits, argv, titles) shared
+    by the TUI, `rove api` and the web client.
   - `src/tui/` — framework-free keymap, state, terminal, file, sidebar, and
     workspace cores.
   - `src/tui-react/` — the only UI implementation: React 19 over opentui.

@@ -8,7 +8,7 @@
  * writes the snapshot AND broadcasts and both converge in any order.
  */
 
-import { setTabTitle } from "../../tui/workspace/terminal-tabs-core"
+import { setTabTitle } from "../../tabs/terminal-tabs-core"
 import type { TabsSnapshotKv } from "./terminal-tabs-persist"
 import { knownTabsState, requestTabRename, setTaskTabs, takeUnclaimedTabRename } from "./terminal-tabs-shared"
 

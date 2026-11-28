@@ -16,7 +16,6 @@ vi.mock("../../src/tui/panes/terminal/registry.ts", () => ({
   getDefaultPtyRegistry: () => ({ release: () => {} }),
 }))
 
-import { useTabClose } from "../../src/tui-react/workspace/use-tab-close.ts"
 import {
   type TabsState,
   type TerminalTab,
@@ -24,7 +23,8 @@ import {
   initialShellTabs,
   rehydrateTabs,
   reopenTabs,
-} from "../../src/tui/workspace/terminal-tabs-core.ts"
+} from "../../src/tabs/terminal-tabs-core.ts"
+import { useTabClose } from "../../src/tui-react/workspace/use-tab-close.ts"
 
 function harness(state: TabsState, opts: { scratch?: boolean } = {}) {
   const calls = { scratchExit: 0, cannotCloseLast: 0, updates: [] as TabsState[] }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
+import { leaves } from "../../src/tabs/split-core"
+import { initialTabs, openContentTab } from "../../src/tabs/terminal-tabs-core"
 import { closePluginPanes, openPluginPane } from "../../src/tui/workspace/pane-split"
-import { leaves } from "../../src/tui/workspace/split-core"
-import { initialTabs, openContentTab } from "../../src/tui/workspace/terminal-tabs-core"
 
 const ARGV = ["sh", "-lc", "exec lazygit"] as const
 

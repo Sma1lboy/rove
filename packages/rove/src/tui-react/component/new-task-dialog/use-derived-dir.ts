@@ -2,11 +2,11 @@
  * Directory drill-down derivation — memoized
  * split + readdir + filter over a typed path, shared by the existing
  * tab's browse-mode repo picker and the clone tab's parent-dir picker.
- * Pure plumbing from `src/tui/lib/path-helpers.ts`.
+ * Pure plumbing from `src/lib/path-helpers.ts`.
  */
 
 import { useMemo } from "react"
-import { filterSubdirs, listSubdirs, splitPathForDirSuggest } from "../../../tui/lib/path-helpers"
+import { filterSubdirs, listSubdirs, splitPathForDirSuggest } from "../../../lib/path-helpers"
 
 export function useDerivedDir(value: string) {
   const split = useMemo(() => splitPathForDirSuggest(value), [value])

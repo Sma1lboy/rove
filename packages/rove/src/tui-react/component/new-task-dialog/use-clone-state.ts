@@ -6,6 +6,7 @@
 
 import type { VendorId } from "@/types/vendor"
 import { useEffect, useState } from "react"
+import { expandHome, joinPicked } from "../../../lib/path-helpers"
 import {
   cloneRepo,
   deriveFolderName,
@@ -25,7 +26,6 @@ import {
   windowAround,
 } from "../../../tui/component/new-task-dialog/state"
 import { DEFAULT_BASE_REF } from "../../../tui/lib/git-snapshot"
-import { expandHome, joinPicked } from "../../../tui/lib/path-helpers"
 import { t } from "../../i18n"
 import { useTerminalSize } from "../../lib/use-terminal-size"
 import { useDerivedDir } from "./use-derived-dir"

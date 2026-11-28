@@ -12,7 +12,7 @@
 import { describe, expect, it } from "vitest"
 import { foregroundEngineIn, parsePsSnapshot } from "../../src/engine/foreground"
 import { engineEntry } from "../../src/engine/registry"
-import type { TerminalTab } from "../../src/tui/workspace/terminal-tabs-core"
+import type { TerminalTab } from "../../src/tabs/terminal-tabs-core"
 import { targetFor } from "../../src/tui/workspace/turn-target"
 
 const engineTab = (over: Partial<TerminalTab> = {}): TerminalTab =>

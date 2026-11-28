@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, test } from "vitest"
-import { initialTabs, openEditorTab } from "../../src/tui/workspace/terminal-tabs-core"
+import { initialTabs, openEditorTab } from "../../src/tabs/terminal-tabs-core"
 
 describe("pure-TUI File tab behavior", () => {
   test("opening another file replaces and focuses the existing File tab", () => {

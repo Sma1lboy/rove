@@ -1,12 +1,12 @@
 /**
- * Write side of `tui/workspace/tabs-adopt.ts` (which explains why divergence
+ * Write side of `tabs/tabs-adopt.ts` (which explains why divergence
  * is adopted, not just reported). Same two routes as `closeTaskTab`: claimed →
  * the mounted component appends via `update`; unclaimed → write map + kv here
  * so the next mount attaches to the session already running under its key.
  */
 
-import { adoptTabs } from "../../tui/workspace/tabs-adopt"
-import type { TabsState } from "../../tui/workspace/terminal-tabs-core"
+import { adoptTabs } from "../../tabs/tabs-adopt"
+import type { TabsState } from "../../tabs/terminal-tabs-core"
 import type { TabsSnapshotKv } from "./terminal-tabs-persist"
 import { knownTabsState, requestTabAdopt, setTaskTabs, takeUnclaimedTabAdopt } from "./terminal-tabs-shared"
 

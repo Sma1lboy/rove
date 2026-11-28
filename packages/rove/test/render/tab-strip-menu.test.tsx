@@ -12,10 +12,10 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { act, useState } from "react"
 import { TAB_STRIP_MODE_KEY } from "../../src/state/tab-strip"
+import type { TerminalTab } from "../../src/tabs/terminal-tabs-core"
 import { useBindings } from "../../src/tui-react/lib/keymap"
 import { TabStrip } from "../../src/tui-react/workspace/tab-strip"
 import { useTabStripMenu } from "../../src/tui-react/workspace/use-tab-strip-menu"
-import type { TerminalTab } from "../../src/tui/workspace/terminal-tabs-core"
 import { renderComponent, settle, waitForFrameText } from "./harness"
 
 process.env.ROVE_HOME_DIR ??= mkdtempSync(join(tmpdir(), "rove-tab-strip-menu-"))

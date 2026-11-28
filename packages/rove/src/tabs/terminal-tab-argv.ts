@@ -11,9 +11,9 @@ import {
   buildEngineSessionLaunch,
 } from "@/engine/session-launch"
 import { trustEngineWorktree } from "@/engine/trust-worktree"
-import { engineForkArgv, engineResumeArgv, withPinnedSessionId } from "../../engine/engine-presets"
+import { engineForkArgv, engineResumeArgv, withPinnedSessionId } from "../engine/engine-presets"
 
-import type { VendorId } from "../../types/vendor"
+import type { VendorId } from "../types/vendor"
 import type { TabSpawn } from "./terminal-tab-spawn"
 import type { EngineTab, TabsState, TerminalTab } from "./terminal-tabs-core"
 

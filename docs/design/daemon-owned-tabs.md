@@ -5,7 +5,7 @@ relay of #1352).
 
 ## Problem
 
-A task's terminal tabs (`TabsState`, `tui/workspace/terminal-tab-shapes.ts`)
+A task's terminal tabs (`TabsState`, `tabs/terminal-tab-shapes.ts`)
 were written by every process that touched them: each TUI (its in-memory
 `tabsByTask` copy, flushed whole to the `terminalTabs.<taskId>` key of
 state.json), the CLI verbs (`tab-new`, `tab-close`, `tab-split`, renames, a

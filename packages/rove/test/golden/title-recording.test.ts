@@ -14,7 +14,7 @@
 
 import { describe, expect, it } from "vitest"
 import { stripEngineStatusPrefix } from "../../src/engine/registry"
-import { demoteExitedEngine } from "../../src/tui/workspace/terminal-tab-identity"
+import { demoteExitedEngine } from "../../src/tabs/terminal-tab-identity"
 import {
   type TabsState,
   type TerminalTab,
@@ -23,7 +23,7 @@ import {
   setTabLiveVendor,
   tabTitle,
   tabTitleStable,
-} from "../../src/tui/workspace/terminal-tabs-core"
+} from "../../src/tabs/terminal-tabs-core"
 import type { VendorId } from "../../src/types/vendor"
 
 const SHELL = ["/bin/zsh"]

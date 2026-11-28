@@ -21,7 +21,7 @@ import type { RowStatusPayload } from "@sma1lboy/rove-daemon/daemon/row-status-s
 import { parseDaemonStopReason } from "@sma1lboy/rove-daemon/daemon/stop-reason"
 import type { TabsChangedPayload } from "@sma1lboy/rove-daemon/daemon/tabs-store"
 import type { EngineActivityDetail, TaskActivityState } from "../engine/hook-events.ts"
-import { isAddedTab } from "../tui/workspace/tabs-adopt.ts"
+import { isAddedTab } from "../tabs/tabs-adopt.ts"
 import type { UpdateInfo } from "../version.ts"
 import { handleMapChannel } from "./remote-orchestrator-map-events.ts"
 import {

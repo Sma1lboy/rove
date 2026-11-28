@@ -5,9 +5,9 @@
  */
 
 import { describe, expect, it } from "vitest"
-import { initialSplit, splitActive } from "../../src/tui/workspace/split-core"
-import { absorbTab, adoptTabs } from "../../src/tui/workspace/tabs-adopt"
-import { initialTabs } from "../../src/tui/workspace/terminal-tabs-core"
+import { initialSplit, splitActive } from "../../src/tabs/split-core"
+import { absorbTab, adoptTabs } from "../../src/tabs/tabs-adopt"
+import { initialTabs } from "../../src/tabs/terminal-tabs-core"
 
 describe("adoptTabs", () => {
   it("adopts the live session's own tab id without disturbing the active tab", () => {

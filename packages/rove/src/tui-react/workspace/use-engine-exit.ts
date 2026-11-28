@@ -5,10 +5,10 @@
  */
 
 import { useEffect, useState } from "react"
+import { type TerminalTab, tabPtyKeyFor } from "../../tabs/terminal-tabs-core"
 import type { SectionId } from "../../tui/component/settings-dialog/model"
 import { engineExitOf } from "../../tui/workspace/engine-exit"
 import { getDefaultLiveEngines } from "../../tui/workspace/live-engine"
-import { type TerminalTab, tabPtyKeyFor } from "../../tui/workspace/terminal-tabs-core"
 import type { HookTabState } from "../../tui/workspace/turn-state-merge"
 import type { EngineExit } from "../panes/terminal/engine-exit-banner"
 import { useTabRowStatus } from "./row-status-sync"

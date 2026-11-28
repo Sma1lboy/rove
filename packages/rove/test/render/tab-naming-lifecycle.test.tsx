@@ -3,8 +3,8 @@ import { afterEach, expect, spyOn, test } from "bun:test"
 import { useState } from "react"
 import { protocolEntry } from "../../src/engine/engine-presets"
 import type { EngineHistoryReader } from "../../src/engine/registry"
+import type { TabsState } from "../../src/tabs/terminal-tabs-core"
 import { type TabLifecycleIO, useTabNaming } from "../../src/tui-react/workspace/use-tab-lifecycle"
-import type { TabsState } from "../../src/tui/workspace/terminal-tabs-core"
 import { act, renderComponent } from "./harness"
 
 const history = protocolEntry("claude").history

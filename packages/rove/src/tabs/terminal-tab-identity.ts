@@ -11,7 +11,7 @@
  * resume story that doesn't exist.
  */
 
-import type { VendorId } from "../../types/vendor"
+import type { VendorId } from "../types/vendor"
 import type { TerminalTab } from "./terminal-tabs-core"
 
 export function createTabIdentityObserver() {

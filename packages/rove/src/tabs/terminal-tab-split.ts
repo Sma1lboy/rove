@@ -7,15 +7,15 @@
  */
 
 import type { VendorId } from "@/types/vendor"
-import { sniffProtocolFromTitle } from "../../engine/protocol-sniff"
+import { sniffProtocolFromTitle } from "../engine/protocol-sniff"
 import {
   engineEntry,
   engineStatusPrefixes,
   isEnginePlaceholderTitle,
   stripEngineStatusPrefix,
-} from "../../engine/registry"
-import { t } from "../i18n"
+} from "../engine/registry"
 import { pathLeaf } from "../lib/path-helpers"
+import { t } from "../tui/i18n"
 import { type SplitState, leaves } from "./split-core"
 import type { TerminalTab } from "./terminal-tabs-core"
 

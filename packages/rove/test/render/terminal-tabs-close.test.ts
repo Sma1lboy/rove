@@ -15,11 +15,11 @@
 
 import { afterEach, beforeEach, expect, test } from "bun:test"
 import type { SharedTabs } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
+import type { TabsState } from "../../src/tabs/terminal-tabs-core"
 import { resetTabsSyncForTests } from "../../src/tui-react/workspace/tabs-sync"
 import { closeOtherTaskTabs, closeTaskTab } from "../../src/tui-react/workspace/terminal-tabs-close"
 import { terminalTabsKey } from "../../src/tui-react/workspace/terminal-tabs-persist"
 import { tabActivationListeners, tabsByTask, takeTabClose } from "../../src/tui-react/workspace/terminal-tabs-shared"
-import type { TabsState } from "../../src/tui/workspace/terminal-tabs-core"
 import { type TabsSyncDaemon, attachTabsDaemon, flushTabs } from "../tui-react/tabs-sync-daemon"
 import { isolateHome } from "./harness"
 

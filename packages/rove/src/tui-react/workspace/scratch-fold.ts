@@ -9,8 +9,8 @@
  * it STAYS in Scratch (retried each tick).
  */
 
+import { tabPtyKey } from "../../tabs/terminal-tabs-core"
 import { getSharedPtyClient } from "../../tui/panes/terminal/pty-hosted-client"
-import { tabPtyKey } from "../../tui/workspace/terminal-tabs-core"
 import { reserveTabOrdinals } from "./tabs-sync"
 import { adoptTaskTabs } from "./terminal-tabs-adopt"
 import type { TabsSnapshotKv } from "./terminal-tabs-persist"
