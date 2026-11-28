@@ -8,6 +8,17 @@ import type { Terminal } from "@xterm/xterm"
 type RenderServiceInternals = {
   readonly _isPaused?: boolean
   _renderRows?(start: number, end: number): void
+  handleCharSizeChanged?(): void
+}
+
+/**
+ * Under DevTools device emulation Chromium reports `device-pixel-content-box` at the real screen's ratio, not the
+ * emulated one. Both renderers size their canvas from that box, so glyphs drawn for one ratio land on a canvas
+ * sized for another. A true box is within a pixel of CSS size times the ratio.
+ */
+function boxLies(entry: ResizeObserverEntry | undefined): boolean {
+  const box = entry?.devicePixelContentBoxSize?.[0]
+  return !!box && Math.abs(box.inlineSize - entry.contentRect.width * window.devicePixelRatio) > 2
 }
 
 let fontsTrimmed = false
@@ -70,11 +81,35 @@ export function loadTerminalRenderer(term: Terminal, refit: () => void): { dispo
       }
       term.loadAddon(addon)
       canvas = addon
+      const layer = term.element?.querySelector("canvas.xterm-text-layer")
+      if (layer) watch(layer)
     } catch {
       // xterm keeps its DOM renderer when Canvas 2D is also unavailable.
       return
     }
     refit()
+  }
+  // addon-webgl 0.19 snaps its canvas to the device-pixel box in a ResizeObserver that runs after the frame's
+  // render, which clears it until xterm 6's next rAF: a blank frame per resize. An observer made after the
+  // renderer's runs after it, before paint; xterm has no public synchronous render.
+  const observers: ResizeObserver[] = []
+  function watch(target: Element): void {
+    const observer = new ResizeObserver(([entry]) => {
+      const renderer = (term as unknown as { _core?: { _renderService?: RenderServiceInternals } })._core
+        ?._renderService
+      if (!renderer) return
+      const lies = boxLies(entry)
+      // Sizes the canvas from the ratio again, as before the renderer read the box.
+      if (lies) renderer.handleCharSizeChanged?.()
+      if (webgl && !renderer._isPaused) renderer._renderRows?.(0, term.rows - 1)
+      else if (lies) term.refresh(0, term.rows - 1)
+    })
+    observers.push(observer)
+    try {
+      observer.observe(target, { box: "device-pixel-content-box" })
+    } catch {
+      // Without the device-pixel box the renderer never re-sizes its canvas after a render.
+    }
   }
   let glCanvas: HTMLCanvasElement | null = null
   // A full atlas merges its pages, and rows drawn from a dropped page are blank or garbled until they change.
@@ -119,23 +154,8 @@ export function loadTerminalRenderer(term: Terminal, refit: () => void): { dispo
   } catch {
     void fallback()
   }
-  // addon-webgl 0.19 snaps its canvas to the device-pixel box in a ResizeObserver that runs after the frame's
-  // render, which clears it until xterm 6's next rAF: a blank frame per resize. This observer runs after that
-  // one, before paint; xterm has no public synchronous render.
-  const repaint = new ResizeObserver(() => {
-    const renderer = (term as unknown as { _core?: { _renderService?: RenderServiceInternals } })._core?._renderService
-    if (webgl && renderer && !renderer._isPaused && typeof renderer._renderRows === "function") {
-      renderer._renderRows(0, term.rows - 1)
-    }
-  })
   glCanvas?.addEventListener("webglcontextrestored", onRestored)
-  if (glCanvas) {
-    try {
-      repaint.observe(glCanvas, { box: "device-pixel-content-box" })
-    } catch {
-      // Without the device-pixel box the addon never re-sizes its canvas after a render.
-    }
-  }
+  if (glCanvas) watch(glCanvas)
   // The atlas keeps each glyph as first drawn: redraw once a late font (the symbols face, bold) arrives. Moving to a
   // new atlas here blanks a terminal for two frames on a task switch, whose views load fonts; a font arrives a few
   // times a page, so the clear's growth stays small.
@@ -159,7 +179,7 @@ export function loadTerminalRenderer(term: Terminal, refit: () => void): { dispo
       document.removeEventListener("visibilitychange", onShown)
       glCanvas?.removeEventListener("webglcontextrestored", onRestored)
       if (moving) cancelAnimationFrame(moving)
-      repaint.disconnect()
+      for (const observer of observers) observer.disconnect()
       // A disposed renderer keeps its context until GC; past ~16 the browser kills the oldest, maybe a parked one's.
       glCanvas?.getContext("webgl2")?.getExtension("WEBGL_lose_context")?.loseContext()
     },
