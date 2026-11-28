@@ -2,6 +2,7 @@ import { spawn } from "node:child_process"
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import type { Readable, Writable } from "node:stream"
 import { isProcessAlive, stopDaemonProcess } from "@sma1lboy/rove-daemon/daemon/lifecycle"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -132,15 +133,24 @@ describe("stopDaemonProcess", () => {
 
 describe.skipIf(process.platform === "win32")("isProcessAlive", () => {
   it("reads an exited child nobody reaped as dead", async () => {
-    // The child outlives the exec, so only `sleep` (which never waits) is its parent; dash reaps a child that exits first.
-    const shell = spawn("sh", ["-c", "sleep 0.1 & echo $!; exec sleep 30"], { stdio: ["ignore", "pipe", "ignore"] })
+    // sh reaps a child that exits before the exec, so the child is held on fd 3 until the echo proves `cat` (which never waits) is its parent.
+    const shell = spawn("sh", ["-c", "cat <&3 >/dev/null & echo $!; exec cat 3<&-"], {
+      stdio: ["pipe", "pipe", "ignore", "pipe"],
+    })
+    const [stdin, stdout, , hold] = shell.stdio as unknown as [Writable, Readable, null, Writable]
     try {
-      const zombie = Number(
-        await new Promise<string>((resolve) => shell.stdout.once("data", (d) => resolve(String(d)))),
-      )
-      await new Promise((resolve) => setTimeout(resolve, 600))
+      let out = ""
+      stdout.on("data", (d) => {
+        out += String(d)
+      })
+      stdin.write("parent-is-cat\n")
+      await vi.waitFor(() => expect(out).toContain("parent-is-cat"))
+      const zombie = Number(out.split("\n")[0])
+      expect(isProcessAlive(zombie)).toBe(true)
+
+      hold.end()
+      await vi.waitFor(() => expect(isProcessAlive(zombie)).toBe(false))
       expect(() => process.kill(zombie, 0)).not.toThrow()
-      expect(isProcessAlive(zombie)).toBe(false)
       expect(isProcessAlive(shell.pid as number)).toBe(true)
     } finally {
       shell.kill("SIGKILL")
