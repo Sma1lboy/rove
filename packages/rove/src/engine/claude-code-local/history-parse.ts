@@ -9,24 +9,46 @@ import { isObject } from "../../lib/is-object.ts"
 import { isJsonlLineWithinBound } from "../file-bounds"
 import { createAppendParseCache, sortByTimestamp } from "../history-cache"
 import { normalizeClaudeContent } from "./normalize"
-import { isClaudeCommandBreadcrumb, isClaudeSystemReminder, isSyntheticClaudeRecord } from "./synthetic"
+import {
+  isClaudeCommandBreadcrumb,
+  isClaudeSystemReminder,
+  isSyntheticClaudeRecord,
+  trackClaudeSideRequest,
+} from "./synthetic"
 
-const cache = createAppendParseCache<readonly Message[], string>({
-  initial: () => [],
+interface ParseState {
+  messages: readonly Message[]
+  /** Side-request branch uuids; carried across chunks because a reply can land after its prompt was cached. */
+  side: ReadonlySet<string>
+}
+
+const cache = createAppendParseCache<ParseState, string>({
+  initial: () => ({ messages: [], side: new Set() }),
   parseChunk: (chunk, prev, sessionId) => {
-    const added = parseJsonl(chunk, sessionId)
-    return added.length ? prev.concat(added) : prev
+    const next = parseLines(chunk, sessionId, prev.side)
+    if (!next.messages.length && next.side === prev.side) return prev
+    return { messages: prev.messages.concat(next.messages), side: next.side }
   },
 })
 
 /** `raw` is the full current file; an append-only change reuses the cached prefix. */
 export function parseSessionRaw(filePath: string, raw: string, sessionId: string): readonly Message[] {
-  return sortByTimestamp(cache(filePath, raw, sessionId))
+  return sortByTimestamp(cache(filePath, raw, sessionId).messages)
 }
 
-/** Role+content records only. Must stay line-local — the append-cache relies on it. */
+/** Role+content records only. */
 export function parseJsonl(raw: string, sessionId: string): Message[] {
+  return parseLines(raw, sessionId, new Set()).messages
+}
+
+/** The only cross-line state is `side`, so `parseLines(a + b)` equals parsing `b` with `a`'s `side`. */
+function parseLines(
+  raw: string,
+  sessionId: string,
+  sideIn: ReadonlySet<string>,
+): { messages: Message[]; side: ReadonlySet<string> } {
   const out: Message[] = []
+  let side = sideIn
   for (const line of raw.split("\n")) {
     const trimmed = line.trim()
     if (!trimmed) continue
@@ -39,10 +61,13 @@ export function parseJsonl(raw: string, sessionId: string): Message[] {
       continue
     }
     if (!isObject(parsed)) continue
+    const before = side
+    side = trackClaudeSideRequest(parsed, side)
+    if (side !== before) continue
     const msg = extractMessage(parsed, sessionId)
     if (msg) out.push(msg)
   }
-  return out
+  return { messages: out, side }
 }
 
 function extractMessage(record: Record<string, unknown>, fallbackSessionId: string): Message | null {

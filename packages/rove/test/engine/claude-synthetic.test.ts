@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { parseJsonl } from "../../src/engine/claude-code-local/history.ts"
+import { type HistoryDeps, parseJsonl, readHistory } from "../../src/engine/claude-code-local/history.ts"
 import { isSyntheticClaudeRecord } from "../../src/engine/claude-code-local/synthetic.ts"
 
 /**
@@ -84,6 +84,75 @@ describe("parseJsonl drops synthetic first rows", () => {
     expect(messages.map((m) => [m.role, m.blocks])).toEqual([
       ["user", [{ type: "text", text: "fix it" }]],
       ["assistant", [reminder]],
+    ])
+  })
+})
+
+describe("readHistory drops Claude's prompt-suggestion side request", () => {
+  // Shape copied from a real Claude Code 2.1.321 sdk-cli transcript: the side
+  // request is an unflagged main-chain record; its reply chains off it.
+  const rec = (o: Record<string, unknown>) =>
+    JSON.stringify({ isSidechain: false, sessionId: "side", promptSource: "sdk", ...o })
+  const prompt = rec({
+    type: "user",
+    uuid: "u1",
+    parentUuid: null,
+    timestamp: "2026-11-28T07:16:29.890Z",
+    message: { role: "user", content: [{ type: "text", text: "Write an essay about rivers." }] },
+  })
+  const answer = rec({
+    type: "assistant",
+    uuid: "a1",
+    parentUuid: "u1",
+    timestamp: "2026-11-28T07:16:46.206Z",
+    message: { role: "assistant", content: [{ type: "text", text: "Every river is in two places at once." }] },
+  })
+  const suggestion = rec({
+    type: "user",
+    uuid: "s1",
+    parentUuid: "a1",
+    timestamp: "2026-11-28T07:16:46.332Z",
+    message: {
+      role: "user",
+      content: [
+        {
+          type: "text",
+          text: "[SUGGESTION MODE: Suggest what the user might naturally type next into Claude Code.]\n\nFIRST: ...",
+        },
+      ],
+    },
+  })
+  const suggested = rec({
+    type: "assistant",
+    uuid: "s2",
+    parentUuid: "s1",
+    timestamp: "2026-11-28T07:16:48.239Z",
+    message: { role: "assistant", content: [{ type: "text", text: "Make it shorter, around 300 words" }] },
+  })
+  const next = rec({
+    type: "user",
+    uuid: "u2",
+    parentUuid: "a1",
+    timestamp: "2026-11-28T07:17:44.027Z",
+    message: { role: "user", content: [{ type: "text", text: "Now one about mountains." }] },
+  })
+
+  it("keeps only the real turns, even when the reply lands in a later read", async () => {
+    let raw = `${prompt}\n${answer}\n${suggestion}\n`
+    const deps: HistoryDeps = {
+      projectsDir: () => "/fake-side",
+      readdir: async () => ["proj"],
+      readFile: async () => raw,
+      pathExists: async () => true,
+    }
+    const texts = async () =>
+      (await readHistory("side", deps)).map((m) => m.blocks.map((b) => (b.type === "text" ? b.text : "")).join(""))
+    expect(await texts()).toEqual(["Write an essay about rivers.", "Every river is in two places at once."])
+    raw += `${suggested}\n${next}\n`
+    expect(await texts()).toEqual([
+      "Write an essay about rivers.",
+      "Every river is in two places at once.",
+      "Now one about mountains.",
     ])
   })
 })
