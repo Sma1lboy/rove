@@ -61,3 +61,23 @@ test("the panel shows only beside its task: the New session composer and a page 
   page.set(null)
   expect(panelShown("C")).toBe(true)
 })
+
+test("the phone opens an engine tab on Chat until a view is picked there; an unreadable Chat gives way to the terminal", async () => {
+  const { chatUnreadable, narrowView, openNarrowView, pickNarrowView } = await import("../src/panel-layout.ts")
+  openNarrowView("D", "tab-1", true)
+  expect(narrowView.get()).toBe("chat")
+  openNarrowView("D", "tab-2", false)
+  expect(narrowView.get()).toBe("terminal")
+
+  pickNarrowView("D", "tab-1", "terminal")
+  openNarrowView("D", "tab-1", true)
+  expect(narrowView.get()).toBe("terminal")
+
+  openNarrowView("E", "tab-1", true)
+  chatUnreadable()
+  expect(narrowView.get()).toBe("terminal")
+  // A Chat the user picked stays, read or not.
+  pickNarrowView("E", "tab-1", "chat")
+  chatUnreadable()
+  expect(narrowView.get()).toBe("chat")
+})

@@ -12,7 +12,7 @@ import { backToTasks, enterWorkspace } from "./layout.ts"
 import { macHost, useMacToolbar } from "./mac-host.ts"
 import type { AppModel } from "./model.ts"
 import { type NavPlace, go, isLive, navState, step } from "./nav-history.ts"
-import { LAUNCHED_KINDS, type NarrowView, narrowView } from "./panel-layout.ts"
+import { LAUNCHED_KINDS, type NarrowView, narrowView, pickNarrowView } from "./panel-layout.ts"
 import { showPanel } from "./panel-state.ts"
 import { ICONS } from "./panel-tabs.tsx"
 import { needsPerson } from "./rail-glyphs.ts"
@@ -162,14 +162,20 @@ const TERMINAL_ICON = (
   <path d="M3 3.5h10a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1zM4.5 6.5 6.5 8l-2 1.5M8 10h3" />
 )
 
-const VIEWS = ["terminal", ...LAUNCHED_KINDS] as const
+// Chat leads the panel kinds here: the desktop opens it from the side panel's + menu, the phone only from this sheet.
+const VIEWS = ["terminal", "chat", ...LAUNCHED_KINDS] as const
 const viewName = (id: NarrowView): string => (id === "terminal" ? t("layout.narrowTerminal") : t(`panel.${id}`))
 
 /**
  * Narrow layout, content panel: the way back to the list the viewport has no room to show beside it.
  * In a task it names the task; one button shows the view on screen and opens a sheet of the others (the terminal and the desktop's right-column panels).
  */
-export function NarrowBackBar({ client, taskId, title }: { client: BridgeClient; taskId?: string; title?: string }) {
+export function NarrowBackBar({
+  client,
+  taskId,
+  tabId = null,
+  title,
+}: { client: BridgeClient; taskId?: string; tabId?: string | null; title?: string }) {
   useLocale()
   const view = useStore(narrowView)
   const [picking, setPicking] = useState(false)
@@ -192,7 +198,10 @@ export function NarrowBackBar({ client, taskId, title }: { client: BridgeClient;
           title={t("layout.narrowViews")}
           value={view}
           picks={VIEWS.map((id) => ({ value: id, label: viewName(id) }))}
-          onPick={(id) => (id === "terminal" ? narrowView.set(id) : showPanel(taskId, id))}
+          onPick={(id) => {
+            if (id !== "terminal") showPanel(taskId, id)
+            pickNarrowView(taskId, tabId, id)
+          }}
           onClose={() => setPicking(false)}
         />
       )}

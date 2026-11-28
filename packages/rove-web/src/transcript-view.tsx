@@ -9,6 +9,7 @@ import type { TaskRow } from "rove-bridge/protocol"
 import { t, useLocale } from "./i18n/index.ts"
 import { MarkdownView, markText } from "./markdown-view.tsx"
 import type { AppModel } from "./model.ts"
+import { chatUnreadable } from "./panel-layout.ts"
 import { useStore } from "./store.ts"
 import { type Entry, entryCopyText, exportMarkdown, findEntries, hitIsOlder, locateHit } from "./transcript-data.ts"
 import { transcriptTarget } from "./transcript-focus.ts"
@@ -93,6 +94,10 @@ export function TranscriptView({ model, task, active }: { model: AppModel; task:
   const matches = useMemo(() => findEntries(entries, query), [entries, query])
   const at = matches.length === 0 ? 0 : Math.min(step, matches.length - 1)
   const currentIndex = matches[at] ?? null
+  const unreadable = state.kind === "terminal" || (ready !== null && entries.length === 0 && ready.older === null)
+  useEffect(() => {
+    if (unreadable) chatUnreadable()
+  }, [unreadable])
 
   const scrollTo = (index: number) => {
     pinned.current = false
