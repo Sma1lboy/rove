@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "name": "Status Inspector",
+  "description": "Declarative two-line rail rows paired with a live session status inspector in the right panel.",
+  "author": "Rove",
+  "layout": {
+    "frame": "flush",
+    "radius": 6,
+    "density": "comfortable",
+    "statusBar": "always"
+  },
+  "slots": {
+    "rail.row": {
+      "fields": ["title", "statusLabel"],
+      "secondaryFields": ["branch", "engine", "repo"],
+      "surface": "surface",
+      "variant": "card"
+    },
+    "panel.section": {
+      "component": "components/InspectorSection.tsx"
+    }
+  }
+}
