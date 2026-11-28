@@ -95,7 +95,11 @@ export async function runSteps(page: Page, steps: readonly Step[], locale: Local
       await page.mouse.move(x, y)
     } else if ("wait" in step) await waitLocate(page, step.wait, locale)
     else if ("press" in step) await (step.on ? page.locator(step.on).first().press(step.press) : page.keyboard.press(step.press))
-    else if ("type" in step) await page.keyboard.type(step.type)
+    else if ("type" in step) {
+      // A terminal drops keys typed before it has attached to its stream.
+      await quiet(page)
+      await page.keyboard.type(step.type)
+    }
   }
 }
 
@@ -109,17 +113,52 @@ async function longPress(page: Page, x: number, y: number): Promise<void> {
 }
 
 const QUIET_MS = 300
-const wire = new WeakMap<Page, () => number>()
+/** A request this old is a long poll, not one the screen is waiting on. */
+const LONG_POLL_MS = 5000
 
-/** Notes when the page last heard from or wrote to its bridge's WebSocket. Call before the page loads. */
+/** When the page last heard from its bridge, and when its oldest unanswered request went out. */
+interface Wire {
+  last: number
+  pending: Map<number, number>
+}
+const wires = new WeakMap<Page, Wire>()
+
+/** Follows the page's bridge WebSocket: rove-web sends `{ id, op }` and the bridge answers `{ id, ok }`. Call before the page loads. */
 export function trackWire(page: Page): void {
-  if (wire.has(page)) return
-  let last = Date.now()
+  if (wires.has(page)) return
+  const wire: Wire = { last: Date.now(), pending: new Map() }
+  const id = (payload: string | Buffer): number | null => {
+    try {
+      const frame = JSON.parse(String(payload))
+      return typeof frame?.id === "number" && !("event" in frame) ? frame.id : null
+    } catch {
+      return null
+    }
+  }
   page.on("websocket", (ws) => {
-    ws.on("framereceived", () => (last = Date.now()))
-    ws.on("framesent", () => (last = Date.now()))
+    ws.on("framesent", ({ payload }) => {
+      wire.last = Date.now()
+      const sent = id(payload)
+      if (sent !== null) wire.pending.set(sent, Date.now())
+    })
+    ws.on("framereceived", ({ payload }) => {
+      wire.last = Date.now()
+      const answered = id(payload)
+      if (answered !== null) wire.pending.delete(answered)
+    })
   })
-  wire.set(page, () => last)
+  wires.set(page, wire)
+}
+
+/** Every request answered (bar long polls) and nothing on the wire for a moment. */
+async function quiet(page: Page): Promise<void> {
+  const wire = wires.get(page)
+  for (let i = 0; wire && i < 60; i++) {
+    const now = Date.now()
+    const waiting = [...wire.pending.values()].some((at) => now - at < LONG_POLL_MS)
+    if (!waiting && now - wire.last >= QUIET_MS) return
+    await page.waitForTimeout(QUIET_MS / 2)
+  }
 }
 
 /**
@@ -132,9 +171,8 @@ export async function settle(page: Page, capture: () => Promise<Buffer>): Promis
     const el = document.activeElement as HTMLElement | null
     if (el?.closest(".xterm")) el.blur()
   })
-  // Replies still on the wire (a skill check, a diff) would land after the shot.
-  const quietSince = wire.get(page)
-  for (let i = 0; quietSince && Date.now() - quietSince() < QUIET_MS && i < 40; i++) await page.waitForTimeout(QUIET_MS / 2)
+  // Replies still on the wire (a skill check, an engine scan) would land after the shot.
+  await quiet(page)
   let last = await capture()
   for (let i = 0; i < 30; i++) {
     await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))

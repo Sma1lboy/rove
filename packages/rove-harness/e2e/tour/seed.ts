@@ -32,7 +32,7 @@ const GIT_ID = {
 
 export function homeEnv(root: string, extra: Record<string, string> = {}): Record<string, string> {
   const home = join(root, "home")
-  return buildFixtureEnv({ root, home, ports: {}, homePolicy: "redirect", extra: { ...GIT_ID, LANG: "en_US.UTF-8", SHELL: "/bin/bash", ...extra } })
+  return buildFixtureEnv({ root, home, ports: {}, homePolicy: "redirect", extra: { ...GIT_ID, LANG: "en_US.UTF-8", ...extra } })
 }
 
 export function rove(h: Pick<Home, "env" | "roveDir">, args: readonly string[], cwd = h.roveDir): string {
@@ -101,6 +101,8 @@ async function seed(h: Home, version: string): Promise<void> {
   await mkdir(join(h.home, ".runtime"), { recursive: true })
   await chmod(join(h.home, ".runtime"), 0o700)
   await writeFixtureWebToken(h.home)
+  // A shell a task falls back to is the user's zsh: without this its prompt prints the user and host names.
+  await writeFile(join(h.home, ".zshrc"), "PROMPT='%# '\n")
   if (name === "empty") {
     // A first run: the welcome checklist and every empty state.
     await writeState(h, {})
@@ -112,13 +114,14 @@ async function seed(h: Home, version: string): Promise<void> {
   const web$ = join(root, "acme-web")
   await seedRepo(root, api$, env)
   await seedRepo(root, web$, env)
-  const add = (repo: string, title: string, more: string[] = []) =>
-    api(h, ["add", "--repo", repo, "--no-parent", "--title", title, "--command", SHELL, "--start", ...more]) as { taskId: string }
-  const login = add(api$, "Fix login redirect loop")
-  const limit = add(api$, "Add rate limiting to /auth")
-  const dark = add(web$, "Dark mode for settings page")
-  const react = add(web$, "Upgrade React to 19")
-  api(h, ["add", "--repo", api$, "--parent", limit.taskId, "--title", "Write tests for limiter", "--command", SHELL, "--start"])
+  // Named worktrees: the allocator's pick is random, and the name shows in paths on several screens.
+  const add = (repo: string, title: string, name: string, more: string[] = ["--no-parent"]) =>
+    api(h, ["add", "--repo", repo, ...more, "--title", title, "--worktree-name", name, "--command", SHELL, "--start"]) as { taskId: string }
+  const login = add(api$, "Fix login redirect loop", "heron")
+  const limit = add(api$, "Add rate limiting to /auth", "otter")
+  const dark = add(web$, "Dark mode for settings page", "lynx")
+  const react = add(web$, "Upgrade React to 19", "ibis")
+  add(api$, "Write tests for limiter", "wren", ["--parent", limit.taskId])
 
   sh(
     root,
@@ -143,7 +146,8 @@ sed -i '' 's/Demo project./Demo project, now with safe redirects./' README.md`,
   api(h, ["engine-report", "--task-id", react.taskId, "--tab", "tab-1", "--kind", "turn-failed"])
 
   const routine = (repo: string, args: string[]) => api(h, ["routine-create", "--repo", repo, ...args])
-  routine(api$, ["--name", "Nightly dependency audit", "--schedule", "0 3 * * *", "--script", 'echo "0 vulnerabilities found in 42 packages"'])
+  // Weekly: a "next run in 27m" label would change between two runs minutes apart.
+  routine(api$, ["--name", "Weekly dependency audit", "--schedule", "0 3 * * SUN", "--script", 'echo "0 vulnerabilities found in 42 packages"'])
   routine(web$, ["--name", "Lint on weekdays", "--schedule", "30 9 * * MON-FRI", "--script", 'echo "src/app.tsx:12 unused import"; exit 1'])
   routine(api$, ["--name", "Weekly changelog draft", "--schedule", "0 10 * * FRI", "--prompt", "Draft this week's changelog.", "--vendor", "claude", "--disabled"])
   const routines = api(h, ["routine-list"]) as { automations: { id: string; enabled: boolean }[] }

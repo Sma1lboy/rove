@@ -17,6 +17,8 @@ export interface Shot {
   readonly viewport: Viewport
   readonly variant: Variant
   readonly page: number
+  /** Animated marks (status dots), in image pixels: a compare ignores what changes inside them. */
+  readonly moving?: readonly (readonly number[])[]
 }
 export interface ShootOptions {
   readonly checkout: string
@@ -222,7 +224,8 @@ async function shootEntry({ entry, viewport, variant, name, kind, bridges, conte
       if (n > 0 && !(await scrollTo(page, n))) break
       const file = `${name}${n > 0 ? `-p${n + 1}` : ""}.png`
       await writeFile(join(opts.out, file), await settle(page, capture))
-      shots.push({ file, entry: entry.id, caption: entry.caption, viewport, variant, page: n + 1 })
+      const moving = opts.window ? undefined : await page.evaluate(MOVING)
+      shots.push({ file, entry: entry.id, caption: entry.caption, viewport, variant, page: n + 1, moving })
     }
     return shots
   } catch (err) {
@@ -233,6 +236,12 @@ async function shootEntry({ entry, viewport, variant, name, kind, bridges, conte
     if (entry.offline && bridge) bridges.set(kind, await startBridge(bridge.home))
   }
 }
+
+const MOVING = () =>
+  [...document.querySelectorAll("[data-dots]")].map((e) => {
+    const r = e.getBoundingClientRect()
+    return [r.left, r.top, r.right, r.bottom].map((v) => Math.round(v * devicePixelRatio))
+  })
 
 /** Same sequence every load: anything drawn from `Math.random` (sky scenes, ids in the DOM) stops differing run to run. */
 const SEEDED_RANDOM = `(() => { let s = 0x2f6b1d; Math.random = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x80000000 } })()`

@@ -148,7 +148,7 @@ export const MANIFEST: readonly Entry[] = [
 
   // ── Routines ──
   { id: "routines", caption: "Routines", on: ["desktop", "phone"], steps: [{ click: "Routines" }] },
-  { id: "routine-ok", caption: "Routines: a passing routine", steps: [{ click: "Routines" }, { click: "Nightly dependency audit" }] },
+  { id: "routine-ok", caption: "Routines: a passing routine", steps: [{ click: "Routines" }, { click: "Weekly dependency audit" }] },
   { id: "routine-failed-runs", caption: "Routines: runs filtered to failures", steps: [{ click: "Routines" }, { click: "[ failed ]" }] },
   { id: "routine-delete", caption: "Routines: delete confirm", steps: [{ click: "Routines" }, { click: "[ delete ]" }] },
   { id: "routine-paused", caption: "Routines: a paused prompt routine", steps: [{ click: "Routines" }, { click: "Weekly changelog draft" }] },
@@ -224,10 +224,11 @@ export const MANIFEST: readonly Entry[] = [
   { id: "settings-engine-claude", caption: "Settings › Engines › Claude", pages: 2, steps: settings("engines", [{ click: "Claude" }]) },
   { id: "settings-pair-phone", caption: "Settings › Connectors › pair a phone (QR)", steps: settings("connectors", [{ click: "Show QR code" }]) },
 
+  { id: "bridge-lost", caption: "The bridge went away", on: ["desktop", "phone"], offline: true },
+
   // ── Last: these change the seeded state for every entry after them ──
   { id: "split-right", caption: "Terminal split right (ctrl+\\)", steps: [...shellFor("Dark mode for settings page"), { press: "Control+\\" }] },
   { id: "split-down", caption: "Terminal split down (ctrl+=)", steps: [...shellFor("Upgrade React to 19"), { press: "Control+=" }] },
-  { id: "bridge-lost", caption: "The bridge went away", on: ["desktop", "phone"], offline: true },
 ]
 
 /** Page ids and Settings sections rove-web has that no entry reaches (an entry `<page>` or `page-<page>`). */

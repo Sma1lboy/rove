@@ -52,7 +52,9 @@ const runRoot = await mkdtemp(join(tmpdir(), "rove-tour-"))
 const variants: Variant[] = ["default", ...(flags.variants!.split(",").filter(Boolean) as Variant[])]
 const viewports = flags.viewports!.split(",").filter(Boolean) as ("desktop" | "phone")[]
 const filter = flags.only ? new RegExp(flags.only) : undefined
-const head = (dir: string) => sh("git", ["rev-parse", "--short", "HEAD"], dir)
+/** The commit, marked when the tree has changes on top of it (the usual `--compare` case). */
+const head = (dir: string) =>
+  `${sh("git", ["rev-parse", "--short", "HEAD"], dir)}${sh("git", ["status", "--porcelain"], dir) ? "+changes" : ""}`
 
 const missing = uncovered()
 if (missing.length > 0) log(`manifest misses: ${missing.join(", ")}`)
@@ -62,7 +64,10 @@ async function pass(checkout: string, dir: string): Promise<{ shots: Shot[]; fai
   sh("bun", ["run", "build"], join(checkout, "packages/rove-web"))
   const window = flags.electron ? await electronWindow(join(runRoot, "electron"), REPO) : undefined
   try {
-    const result = await shoot({ checkout, out: dir, runRoot: join(runRoot, dir === out ? "now" : "ref"), viewports, variants, filter, window }, log)
+    // One path for both sides of a compare: it shows on screen (a project's directory).
+    const homes = join(runRoot, "homes")
+    await rm(homes, { recursive: true, force: true })
+    const result = await shoot({ checkout, out: dir, runRoot: homes, viewports, variants, filter, window }, log)
     const sha = head(checkout)
     const note = `${result.shots.length} shots of ${sha}${flags.electron ? " in the Electron window" : ""}, ${new Date().toLocaleString()}.${result.failures.length ? ` ${result.failures.length} failed: ${result.failures.join("; ")}` : ""}`
     await writeIndex(dir, `Rove screenshot tour · ${sha}`, note, result.shots)
@@ -109,13 +114,14 @@ async function compare(before: readonly Shot[], after: readonly Shot[]): Promise
   const changes: Change[] = []
   const old = new Map(before.map((s) => [s.file, s]))
   for (const shot of after) {
+    const was = old.get(shot.file)
     if (!old.delete(shot.file)) {
       changes.push({ shot, kind: "added" })
       continue
     }
     const [a, b] = await Promise.all([readFile(join(out, "before", shot.file)), readFile(join(out, "after", shot.file))])
     if (a.equals(b)) continue
-    const pixels = await diffPixels(bench, a, b)
+    const pixels = await diffPixels(bench, a, b, [...(was?.moving ?? []), ...(shot.moving ?? [])])
     if (pixels > NOISE_PIXELS) changes.push({ shot, kind: "changed", pixels })
   }
   for (const shot of old.values()) changes.push({ shot, kind: "removed" })
@@ -156,7 +162,7 @@ async function share(series: string, pages: string[]): Promise<void> {
     log("--share: brand-studio-share is not installed here; the pages stay local")
     return
   }
-  const slug = `${series}-${stamp.slice(5, 16)}`
+  const slug = `${series}-${stamp.slice(5, 16)}`.replace(/[^\w-]/g, "-")
   let link = ""
   for (const [i, html] of pages.entries()) {
     const file = join(out, `share-${i + 1}.html`)

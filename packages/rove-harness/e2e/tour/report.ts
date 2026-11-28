@@ -45,10 +45,10 @@ export function comparePage(title: string, note: string, changes: readonly Chang
 const CHANNEL = 24
 export const NOISE_PIXELS = 50
 
-/** Pixels that differ between two PNGs; a size change counts as all of them. Decoded in the browser: no image library. */
-export async function diffPixels(bench: Page, a: Buffer, b: Buffer): Promise<number> {
+/** Pixels that differ between two PNGs, outside the `skip` boxes; a size change counts as all of them. Decoded in the browser: no image library. */
+export async function diffPixels(bench: Page, a: Buffer, b: Buffer, skip: readonly (readonly number[])[] = []): Promise<number> {
   return bench.evaluate(
-    async ([a, b, channel]) => {
+    async ([a, b, channel, skip]) => {
       const load = async (png: string) => {
         const image = new Image()
         image.src = `data:image/png;base64,${png}`
@@ -59,8 +59,12 @@ export async function diffPixels(bench: Page, a: Buffer, b: Buffer): Promise<num
       }
       const [x, y] = await Promise.all([load(a as string), load(b as string)])
       if (x.width !== y.width || x.height !== y.height) return x.width * x.height
+      const boxes = skip as number[][]
       let count = 0
       for (let i = 0; i < x.data.length; i += 4) {
+        const px = (i / 4) % x.width
+        const py = Math.floor(i / 4 / x.width)
+        if (boxes.some(([l, t, r, b]) => px >= l! - 1 && px <= r! + 1 && py >= t! - 1 && py <= b! + 1)) continue
         if (
           Math.abs(x.data[i]! - y.data[i]!) > (channel as number) ||
           Math.abs(x.data[i + 1]! - y.data[i + 1]!) > (channel as number) ||
@@ -70,7 +74,7 @@ export async function diffPixels(bench: Page, a: Buffer, b: Buffer): Promise<num
       }
       return count
     },
-    [a.toString("base64"), b.toString("base64"), CHANNEL] as const,
+    [a.toString("base64"), b.toString("base64"), CHANNEL, skip] as const,
   )
 }
 
