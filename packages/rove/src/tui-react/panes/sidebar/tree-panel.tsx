@@ -97,7 +97,6 @@ export function SidebarTreeBody(props: {
               guides={treeGuides(props.rows.length, (index) => props.rows[index]?.depth ?? 0, i)}
               level={row.level}
               fold={row.fold}
-              title={row.title}
               remote={row.remote}
               shared={props.shared}
             />

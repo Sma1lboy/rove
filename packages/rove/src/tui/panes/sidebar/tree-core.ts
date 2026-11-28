@@ -23,7 +23,7 @@ export {
   parseRowId,
   tabRowId,
 } from "./tree-ids"
-export { conversationTitleOf, rowLiveBranchPath, worktreeRowLabel } from "../../../sidebar/tree-labels"
+export { rowLiveBranchPath, worktreeRowLabel } from "../../../sidebar/tree-labels"
 
 /** One shared grouping (project-groups.ts), so tree and folded rail agree on which projects exist. */
 export { ownerProjectKey, projectKeysOf } from "./project-groups"
@@ -80,8 +80,6 @@ export type TreeRow =
       readonly level?: number
       /** Set on a task with children. */
       readonly fold?: TreeFold
-      /** The engine conversation's own name, when it has one; the label prefers it. */
-      readonly title?: string
       /** Set when the task lives on another machine. */
       readonly remote?: RemoteMark
     }
@@ -127,8 +125,6 @@ export interface TreeInput extends SidebarGroupInput {
   readonly openedTasks?: ReadonlySet<string>
   /** The selected task: an automatic fold never hides it. */
   readonly selectedTaskId?: string
-  /** taskId → its conversation's name (`conversationTitleOf`); absent = unnamed. */
-  readonly conversationTitles?: ReadonlyMap<string, string>
 }
 
 export interface TreeRowsInput {
@@ -140,8 +136,6 @@ export interface TreeRowsInput {
   readonly openedTasks?: ReadonlySet<string>
   /** The selected task: an automatic fold never hides it. */
   readonly selectedTaskId?: string
-  /** taskId → its conversation's name (`conversationTitleOf`); absent = unnamed. */
-  readonly conversationTitles?: ReadonlyMap<string, string>
 }
 
 interface ChildIndex {
@@ -192,7 +186,6 @@ interface PushContext extends ChildIndex {
   readonly collapsed: ReadonlySet<string> | undefined
   readonly opened: ReadonlySet<string> | undefined
   readonly selectedId: string | undefined
-  readonly titles: ReadonlyMap<string, string> | undefined
 }
 
 /** The user's fold wins; else a parent with more than {@link AUTO_FOLD_CHILDREN} children folds, unless the selected task is under it. */
@@ -208,7 +201,6 @@ function pushTask(rows: TreeRow[], task: Task, generation: number, ctx: PushCont
   const ids = kids ? descendantIds(ctx.children, task.id) : []
   const collapsed = kids !== undefined && ctx.collapsed !== undefined && isFolded(task.id, kids.length, ids, ctx)
   const level = generation + 1
-  const title = ctx.titles?.get(task.id)
   rows.push({
     kind: "worktree",
     id: task.id,
@@ -216,7 +208,6 @@ function pushTask(rows: TreeRow[], task: Task, generation: number, ctx: PushCont
     depth: Math.min(level, MAX_TREE_DEPTH),
     ...(level > MAX_TREE_DEPTH ? { level } : {}),
     ...(kids ? { fold: { count: ids.length, collapsed, descendantIds: ids } } : {}),
-    ...(title ? { title } : {}),
   })
   if (collapsed || !kids) return
   for (const child of kids) pushTask(rows, child, generation + 1, ctx)
@@ -232,7 +223,6 @@ export function buildRowsFromGroups(input: TreeRowsInput): TreeRow[] {
     collapsed: input.collapsedTasks,
     opened: input.openedTasks,
     selectedId: input.selectedTaskId,
-    titles: input.conversationTitles,
   }
   const rows: TreeRow[] = []
   for (const group of input.groups) {
@@ -263,7 +253,6 @@ export function buildTreeRows(input: TreeInput): TreeRow[] {
     collapsedTasks: input.collapsedTasks,
     openedTasks: input.openedTasks,
     selectedTaskId: input.selectedTaskId,
-    conversationTitles: input.conversationTitles,
   })
 }
 

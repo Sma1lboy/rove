@@ -22,7 +22,6 @@ import { type MachineLayerEntry, applyMachineLayer } from "../../../tui/panes/si
 import {
   type TreeRow,
   buildRowsFromGroups,
-  conversationTitleOf,
   filterTreeRows,
   rowLiveBranchPath,
   treeFlatIds,
@@ -146,7 +145,7 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
     [kv],
   )
 
-  const { groups, tabsByTask } = useSidebarGroups({
+  const { groups } = useSidebarGroups({
     tasks,
     kv,
     sortMode: opts.sortMode,
@@ -157,14 +156,8 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
   const machines = opts.machines ?? EMPTY_MACHINES
   const { rows, totalCount } = useMemo(() => {
     // Search builds with no task folds so folded rows stay findable.
-    const conversationTitles = new Map<string, string>()
-    for (const task of tasks) {
-      const title = conversationTitleOf(task, tabsByTask)
-      if (title) conversationTitles.set(task.id, title)
-    }
     const all = buildRowsFromGroups({
       groups,
-      conversationTitles,
       collapsedProjects: searching ? undefined : collapsedProjects,
       collapsedTasks: searching ? undefined : folds.collapsed,
       openedTasks: folds.opened,
@@ -187,19 +180,7 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
       ),
       totalCount: total,
     }
-  }, [
-    groups,
-    tabsByTask,
-    tasks,
-    collapsedProjects,
-    searching,
-    query,
-    recentTask,
-    folds,
-    selectedTaskId,
-    machines,
-    opts.branchTick,
-  ])
+  }, [groups, collapsedProjects, searching, query, recentTask, folds, selectedTaskId, machines, opts.branchTick])
   rowsRef.current = rows
   const flatIds = useMemo(() => treeFlatIds(rows), [rows])
 

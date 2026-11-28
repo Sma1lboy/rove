@@ -49,7 +49,7 @@ import {
   type TaskRow,
   type TasksPayload,
 } from "./protocol.ts"
-import { type RowTitleSources, rowLabels } from "./row-labels.ts"
+import { rowLabels } from "./row-labels.ts"
 import type { RowStatuses } from "./row-status.ts"
 import { attentionRows, remoteRowStatus, taskRows } from "./task-rows.ts"
 
@@ -180,8 +180,6 @@ export interface LiveRowSignals {
   gates(): readonly ActiveGate[]
   /** The daemon's `row.status` (`RowStatusFeed`): every row's status and its tabs'; null before the first answer. */
   rowStatus?(): RowStatuses | null
-  /** What the row names are read from (`rowLabels`); absent or null = every row reads its stored title / branch. */
-  titleSources?(): Promise<RowTitleSources | null>
   /** Tasks of the other registered machines (`MachineFeed`, from the daemon's hub), each stamped with its `origin`. */
   remote?(): readonly SerializedTask[]
   /** What those machines' daemons push about their tasks (`MachineFeed.liveSignal`). */
@@ -257,16 +255,15 @@ export function createRoveOps(
   return {
     async tasks() {
       const { tasks } = await client.request<{ tasks: SerializedTask[] }>("task.list")
-      const [inbox, engineRows, titleSources] = await Promise.all([
+      const [inbox, engineRows] = await Promise.all([
         tryRead(() => client.request<{ items: AttentionInboxItem[] }>("attention.list")),
         tryRead(engines),
-        tryRead(async () => (await signals?.titleSources?.()) ?? null),
       ])
       const now = Date.now()
       const statuses = signals?.rowStatus?.() ?? null
       const localStatus = statuses ? { tasks: statuses, liveness: true } : null
       const remoteTasks = signals?.remote?.() ?? []
-      const labels = rowLabels([...tasks, ...remoteTasks], titleSources)
+      const labels = rowLabels([...tasks, ...remoteTasks])
       const localExtras = signals ? { changes: signals.changes(), tokens: signals.tokens(), labels } : undefined
       // Other machines' rows: engine state, changes and tokens as their daemons push them through the hub.
       // Liveness (which tabs run) lives in their pty hosts, so that stays unknown here.

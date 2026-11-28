@@ -24,6 +24,8 @@ import { getCustomEngineIds, getPersistedString, getSavedRepos, setPersistedStri
 import { loadStateFile } from "../state/store.ts"
 import { stateFileTabsPersistence } from "../state/tabs-persistence.ts"
 import { preferredReleaseChannel, updateDelayHours } from "../state/update-channel.ts"
+import type { TerminalTab } from "../tabs/terminal-tab-shapes.ts"
+import { conversationTitle } from "../tabs/terminal-tab-split.ts"
 import { DEFAULT_TASK_VENDOR, isTaskStatus } from "../types/task.ts"
 import type { VendorId } from "../types/vendor.ts"
 import { CURRENT_VERSION, checkLatestVersion } from "../version.ts"
@@ -154,6 +156,8 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   latestTranscriptMtime,
   deriveTitleFromSession,
   deriveTitleFromSessionId,
+  // Tab rows are opaque to the daemon; they are the TUI's TerminalTab shape.
+  conversationTitle: (tab, vendor, rawTitle) => conversationTitle(tab as unknown as TerminalTab, vendor, rawTitle),
   createEngineTurnDetector: (vendor) => createEngineTurnDetector(sessionProtocol(vendor)),
   async runWorktreeStatus(worktreePath, signal, baseRef) {
     const result = await spawnCapture("git", ["status", "--porcelain=v1"], {

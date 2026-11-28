@@ -102,6 +102,8 @@ export interface DaemonRuntimeAdapter {
   deriveTitleFromSession(worktreePath: string, vendor: VendorId): Promise<string>
   /** The first-prompt title of ONE session, by id; `""` when none yet. */
   deriveTitleFromSessionId(vendor: VendorId, sessionId: string): Promise<string>
+  /** The engine's name for a tab from its raw OSC title; null for a placeholder or product name. Absent in test doubles. */
+  conversationTitle?(tab: import("./tabs-ops.ts").TabRow, vendor: VendorId, rawTitle: string): string | null
   createEngineTurnDetector(vendor: VendorId): EngineTurnDetectorAdapter
   /** `baseRef` is the task's RECORDED fork point; absent/stale falls back to
    *  own resolution, and `behind` is omitted when nothing resolves. */
