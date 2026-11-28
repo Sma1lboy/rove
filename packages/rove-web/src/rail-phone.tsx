@@ -8,6 +8,7 @@ import type { AppModel } from "./model.ts"
 import { useCopy, useReload } from "./pages-kit.ts"
 import { extPages, lastExtPage, rememberExtPage, sessionLine2 } from "./phone-rows.ts"
 import { PrChip } from "./pr-chip.tsx"
+import { agentless } from "./rail-glyphs.ts"
 import type { RailRowProps } from "./rail-view.tsx"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { type RoutinesReply, routineNeedsYou } from "./routines-data.ts"
@@ -59,7 +60,7 @@ export function PhoneRailRow(props: RailRowProps) {
           </span>
         )
       }
-      mark={<EngineIcon icon={props.engineIcon} name={task.engine?.name} />}
+      mark={<EngineIcon icon={props.engineIcon} name={task.engine?.name} blank={agentless(task, props.tabs)} />}
       title={row.attempt ?? task.label}
       dim={props.stale}
       flash={props.selected ? returns : 0}

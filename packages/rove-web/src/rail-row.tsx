@@ -7,7 +7,7 @@ import { CloudMark } from "./machines-view.tsx"
 import { PrChip } from "./pr-chip.tsx"
 import type { TreeGuide } from "./rail-blocks.ts"
 import type { DragProps, RowPlace } from "./rail-drag.ts"
-import { statusMark } from "./rail-glyphs.ts"
+import { agentless, statusMark } from "./rail-glyphs.ts"
 import type { NavRow } from "./rail.ts"
 import { useRowTip } from "./row-tip.tsx"
 import { RowTokens } from "./row-tokens.tsx"
@@ -89,7 +89,9 @@ export function RailRow(props: {
   const running = task.rowStatus?.kind === "running"
   const count = todoCount(task)
   const markStyle = useStatusMarkStyle()
-  const byEngine = markStyle === "engine"
+  const noAgent = agentless(task, props.tabs)
+  // A blank mark carries no state, so the dots do.
+  const byEngine = markStyle === "engine" && !noAgent
   const status = row.fold?.collapsed ? props.rollup : task.rowStatus
   const button = (
     <button
@@ -116,6 +118,7 @@ export function RailRow(props: {
           icon={props.engineIcon}
           name={task.engine?.name}
           status={byEngine ? statusMark(status) : undefined}
+          blank={noAgent}
         />
       )}
       <span className={`${ROW_TITLE_RAIL} ${props.stale ? "text-subtle" : ""} ${running ? ROW_TITLE_RUNNING : ""}`}>

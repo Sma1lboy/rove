@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
-import type { RowStatus, TaskRow } from "rove-bridge/protocol"
+import type { RowStatus, TabRow, TaskRow } from "rove-bridge/protocol"
 import { treeGuides } from "../src/rail-blocks.ts"
-import { mostUrgentStatus } from "../src/rail-glyphs.ts"
+import { agentless, mostUrgentStatus } from "../src/rail-glyphs.ts"
 import { AUTO_FOLD_CHILDREN, groupByProject, navRows } from "../src/rail.ts"
 
 const task = (id: string, extra: Partial<TaskRow> = {}): TaskRow =>
@@ -152,5 +152,20 @@ describe("the recent sort", () => {
       "recent",
     )
     expect(project?.tasks.map((row) => row.id)).toEqual(["new", "old"])
+  })
+})
+
+describe("a session with no coding agent", () => {
+  const claude = { engine: { id: "claude", name: "Claude" } }
+  const tab = (kind: string) => ({ id: "tab-1", kind }) as TabRow
+  test("is a command rove names no engine for, or a session of shell tabs only", () => {
+    expect(agentless(task("bash", { engine: { id: null, name: "generic" } }), [tab("engine")])).toBe(true)
+    expect(agentless(task("shell", claude), [tab("shell")])).toBe(true)
+  })
+  test("has an agent when an engine tab, a found engine or a not-yet-started engine is behind it", () => {
+    expect(agentless(task("t", claude), [tab("shell"), tab("engine")])).toBe(false)
+    expect(agentless(task("t", claude), undefined)).toBe(false)
+    const found = { tabStatus: { "tab-1": { engine: "codex" } } } as unknown as Partial<TaskRow>
+    expect(agentless(task("t", { ...claude, ...found }), [tab("shell")])).toBe(false)
   })
 })

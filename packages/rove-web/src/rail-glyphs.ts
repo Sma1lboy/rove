@@ -1,7 +1,7 @@
 /** Status marks a rail row draws: the dot look, the tone palette, and the rollups over a folded group. */
 
 import { type DotLook, dotLook } from "@sma1lboy/rove-core/lib/status-dots.ts"
-import type { RowStatus, TaskRow, TaskRowPr } from "rove-bridge/protocol"
+import type { RowStatus, TabRow, TaskRow, TaskRowPr } from "rove-bridge/protocol"
 
 export type Tone = "accent" | "muted" | "attention" | "warning" | "success" | "info" | "ink"
 
@@ -33,6 +33,16 @@ export interface StatusMark {
 export function statusMark(status: RowStatus | undefined): StatusMark {
   const look = dotLook(status)
   return { look, tone: LOOK_TONE[look] }
+}
+
+/**
+ * No coding agent behind the session: a command rove has no engine for (a bare shell), or only shell tabs and no
+ * engine found running in one. Its row draws no engine mark.
+ */
+export function agentless(task: TaskRow, tabs: readonly TabRow[] | undefined): boolean {
+  if (Object.values(task.tabStatus ?? {}).some((tab) => tab.engine)) return false
+  if (!task.engine?.id) return true
+  return !!tabs?.length && !tabs.some((tab) => tab.kind === "engine")
 }
 
 /** A folded group's rows that need a person: something to answer or something broken. */
