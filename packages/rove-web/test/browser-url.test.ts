@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { canFrame, frameNote, isLoopbackHost, normalizePath, normalizeUrl } from "../src/browser-url.ts"
+import { canFrame, elidePath, frameNote, isLoopbackHost, normalizePath, normalizeUrl } from "../src/browser-url.ts"
 
 const local = { origin: "http://127.0.0.1:7961", hostname: "127.0.0.1" }
 const remote = { origin: "https://rove.example.com", hostname: "rove.example.com" }
@@ -106,5 +106,14 @@ describe("isLoopbackHost", () => {
     expect(isLoopbackHost("[::1]")).toBe(true)
     expect(isLoopbackHost("128.0.0.1")).toBe(false)
     expect(isLoopbackHost("localhost.evil.com")).toBe(false)
+  })
+})
+
+describe("elidePath", () => {
+  const fits = (n: number) => (s: string) => s.length <= n
+  test("drops leading folders whole and keeps the file name", () => {
+    expect(elidePath("/tmp/w/src/middleware/rate/limiter.ts", fits(99))).toBe("/tmp/w/src/middleware/rate/limiter.ts")
+    expect(elidePath("/tmp/w/src/middleware/rate/limiter.ts", fits(18))).toBe("…/rate/limiter.ts")
+    expect(elidePath("/tmp/w/src/middleware/rate/limiter.ts", fits(3))).toBe("…/limiter.ts")
   })
 })

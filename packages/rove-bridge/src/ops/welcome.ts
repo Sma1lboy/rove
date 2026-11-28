@@ -6,6 +6,7 @@
  */
 
 import { basename } from "node:path"
+import { engineLogin } from "@sma1lboy/rove/src/engine/engine-health.ts"
 import { detectEngineStatuses, probeableEngineIds, summarizeEngines } from "@sma1lboy/rove/src/engine/engine-status.ts"
 import { engineDisplayName } from "@sma1lboy/rove/src/engine/interactive-command.ts"
 import { getSavedRepos, resolveMainRepoRoot } from "@sma1lboy/rove/src/state/repos.ts"
@@ -46,12 +47,15 @@ export const welcomeDeps = {
     usable: readonly VendorId[]
     signedOut: readonly VendorId[]
     programs?: Readonly<Record<string, string>>
+    /** Usable engines whose login Rove cannot read (no detector, or it failed): runnable, but not known signed in. */
+    loginUnknown?: readonly VendorId[]
   }> {
     return probeableEngineIds()
       .then(detectEngineStatuses)
       .then((statuses) => ({
         ...summarizeEngines(statuses),
         programs: Object.fromEntries(statuses.flatMap((s) => (s.binary.found ? [[s.vendor, s.binary.path]] : []))),
+        loginUnknown: statuses.flatMap((s) => (s.binary.found && engineLogin(s) === "unknown" ? [s.vendor] : [])),
       }))
       .catch(() => ({ usable: [], signedOut: [] }))
   },
@@ -74,7 +78,10 @@ export const welcomeOps: OpTable = {
     destructive: false,
     wraps: "helpers probeableEngineIds + detectEngineStatuses, firstTaskRepo",
     async run() {
-      const [{ usable, signedOut, programs }, git] = await Promise.all([welcomeDeps.engines(), welcomeDeps.gitOnPath()])
+      const [{ usable, signedOut, programs, loginUnknown }, git] = await Promise.all([
+        welcomeDeps.engines(),
+        welcomeDeps.gitOnPath(),
+      ])
       const dir = welcomeDeps.cwd()
       const repo = dir === null ? null : welcomeDeps.repoOf(dir)
       let start: QuickStart | null = null
@@ -88,7 +95,10 @@ export const welcomeOps: OpTable = {
         }
       }
       return {
-        engines: usable.map(chip),
+        // `login: "unknown"`: Settings reads it the same way, so the welcome must not call it signed in.
+        engines: usable.map((id) =>
+          loginUnknown?.includes(id) ? { ...chip(id), login: "unknown" as const } : chip(id),
+        ),
         // `signIn` is the line a shell runs to reach that engine's own login.
         signedOut: signedOut.map((id) => ({ ...chip(id), signIn: shellWord(programs?.[id] ?? id) })),
         git,

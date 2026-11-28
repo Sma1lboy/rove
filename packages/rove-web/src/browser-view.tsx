@@ -10,7 +10,16 @@ import { useEffect, useRef, useState } from "react"
 import { BrowserAnnotate } from "./browser-annotate.tsx"
 import { canCapture } from "./browser-capture.ts"
 import { type BrowserTab, browserUrl } from "./browser-tabs.ts"
-import { canFrame, filePath, fileShown, frameNote, isLoopbackHost, normalizePath, normalizeUrl } from "./browser-url.ts"
+import {
+  canFrame,
+  elidePath,
+  filePath,
+  fileShown,
+  frameNote,
+  isLoopbackHost,
+  normalizePath,
+  normalizeUrl,
+} from "./browser-url.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { usePagePorts } from "./ports-strip.tsx"
@@ -108,12 +117,17 @@ export function BrowserView({
     setProblem(null)
   }, [address])
 
-  // A path's end is the file: a bar too narrow for the whole of it shows that end.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: draft is what the bar holds.
+  // A path's end is the file: a bar too narrow for all of it drops leading folders, never part of a name.
+  const [editing, setEditing] = useState(false)
+  const [barWidth, setBarWidth] = useState(0)
   useEffect(() => {
     const el = bar.current
-    if (el && path !== null && document.activeElement !== el) el.scrollLeft = el.scrollWidth
-  }, [draft, path, shown])
+    if (!el) return
+    const watch = new ResizeObserver(() => setBarWidth(el.clientWidth))
+    watch.observe(el)
+    return () => watch.disconnect()
+  }, [])
+  const shownDraft = path === null || editing || !bar.current ? draft : elideToBar(bar.current, draft, barWidth)
 
   const load = (input: string) => {
     const file = normalizePath(input, root)
@@ -181,8 +195,10 @@ export function BrowserView({
         <input
           ref={bar}
           className={`browser-url mono ${BROWSER_URL}`}
-          value={draft}
+          value={shownDraft}
           placeholder={t("browser.placeholder")}
+          onFocus={() => setEditing(true)}
+          onBlur={() => setEditing(false)}
           aria-label={t("browser.address")}
           aria-invalid={problem !== null}
           spellCheck={false}
@@ -259,4 +275,14 @@ export function BrowserView({
       ) : null}
     </div>
   )
+}
+
+const measure = document.createElement("canvas").getContext("2d")
+
+function elideToBar(el: HTMLInputElement, text: string, width: number): string {
+  const style = getComputedStyle(el)
+  const room = width - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight)
+  if (!measure || !(room > 0)) return text
+  measure.font = style.font
+  return elidePath(text, (s) => measure.measureText(s).width <= room)
 }

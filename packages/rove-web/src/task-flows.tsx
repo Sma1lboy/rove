@@ -6,6 +6,7 @@
  */
 
 import { isDiskFull } from "@sma1lboy/rove/src/lib/error-message.ts"
+import { landRefusalText } from "@sma1lboy/rove/src/lib/land-refusal.ts"
 import type { TaskRow } from "rove-bridge/protocol"
 import { BridgeRequestError } from "./bridge.ts"
 import { ConfirmDialog, errorText } from "./dialogs.tsx"
@@ -20,6 +21,8 @@ interface LandPreflight {
   readonly ahead?: number
   readonly refusal?: string
   readonly message?: string
+  readonly branch?: string
+  readonly dirtyFiles?: readonly string[]
 }
 
 const LAND_CONFLICT = /LAND_CONFLICT/
@@ -59,7 +62,15 @@ export async function landFlow(
     toast(
       probe.refusal === "MAIN_CHECKOUT_DIRTY"
         ? tc("worktrees", "land.dirtyBase")
-        : tc("worktrees", "land.failed", { error: probe.message ?? probe.refusal }),
+        : landRefusalText(
+            // The TUI's `t` answers a missing key with the key itself, as the helper expects.
+            (key, params) => {
+              const text = tc("worktrees", key.replace(/^worktrees\./, ""), params)
+              return text === key.replace(/^worktrees\./, "") ? key : text
+            },
+            { ...probe, refusal: probe.refusal },
+            task.branch || task.title,
+          ),
       "error",
     )
     return

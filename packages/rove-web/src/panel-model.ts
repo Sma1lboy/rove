@@ -32,6 +32,7 @@ export interface TaskPanel {
 export const COLUMN_MIN_PX = 220
 /** What `columnWeights` adds up to. */
 const WEIGHT_TOTAL = 1000
+const WIDE_KINDS: ReadonlySet<PanelKind> = new Set(["diff", "browser"])
 
 /** A task never seen: Files alone. */
 export function newPanel(): TaskPanel {
@@ -133,7 +134,8 @@ export function columnWeights(panel: TaskPanel): number[] {
     return w !== undefined && w > 0 ? [w] : []
   })
   const mean = given.length > 0 ? given.reduce((a, b) => a + b, 0) / given.length : 1
-  const raw = panel.columns.map((col) => panel.weights[col.kind] || mean)
+  // Code and pages need the width that a list or a gauge does not: they open at twice its share.
+  const raw = panel.columns.map((col) => panel.weights[col.kind] || mean * (WIDE_KINDS.has(col.kind) ? 2 : 1))
   const sum = raw.reduce((a, b) => a + b, 0)
   return raw.map((w) => (w / sum) * WEIGHT_TOTAL)
 }

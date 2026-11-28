@@ -24,6 +24,8 @@ import { prefixHint, userKeys } from "./user-keys.ts"
 interface EngineChip {
   readonly id: string
   readonly name: string
+  /** "unknown": it runs, but Rove cannot read whether it is signed in. */
+  readonly login?: "unknown"
 }
 
 interface WelcomeEnv {
@@ -50,6 +52,7 @@ function checksFor(env: WelcomeEnv, model: AppModel): Check[] {
   const names = (list: readonly EngineChip[]) => list.map((e) => e.name).join(", ")
   const installed = env.engines.length + env.signedOut.length > 0
   const login = env.signedOut[0]
+  const signedIn = env.engines.filter((e) => e.login !== "unknown")
   const checks: Check[] = [
     {
       id: "engine",
@@ -64,9 +67,11 @@ function checksFor(env: WelcomeEnv, model: AppModel): Check[] {
       id: "login",
       ok: env.engines.length > 0,
       label:
-        env.engines.length > 0
-          ? t("firstRun.loginFound", { list: names(env.engines) })
-          : t(login ? "firstRun.loginMissing" : "firstRun.loginWaiting", { list: names(env.signedOut) }),
+        signedIn.length > 0
+          ? t("firstRun.loginFound", { list: names(signedIn) })
+          : env.engines.length > 0
+            ? t("firstRun.loginUnknown", { list: names(env.engines) })
+            : t(login ? "firstRun.loginMissing" : "firstRun.loginWaiting", { list: names(env.signedOut) }),
       fix: t("firstRun.loginFix", { name: login?.name ?? "" }),
       // The engine's own CLI asks for the login; a shell in a No folder session runs it.
       run: () =>

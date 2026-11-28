@@ -21,7 +21,9 @@ export const en = {
     lastOpened: "Last opened",
     state: { needs: "needs you", working: "working", ready: "ready", idle: "idle" },
     extraRepos: "{count} more repos in this task",
+    extraReposOne: "1 more repo in this task",
     todos: "{done} of {total} todos done",
+    todosOne: "{done} of 1 todo done",
     startsAt: "Starts {time}",
     pr: {
       state: { open: "open", merged: "merged", closed: "closed" },
@@ -99,7 +101,9 @@ export const zh: typeof en = {
     lastOpened: "上次打开",
     state: { needs: "等你处理", working: "进行中", ready: "待收尾", idle: "空闲" },
     extraRepos: "这个任务还含 {count} 个仓库",
+    extraReposOne: "这个任务还含 1 个仓库",
     todos: "{done}/{total} 条待办已完成",
+    todosOne: "{done}/1 条待办已完成",
     startsAt: "{time} 启动",
     pr: {
       state: { open: "进行中", merged: "已合并", closed: "已关闭" },

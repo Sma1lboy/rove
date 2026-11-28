@@ -87,6 +87,7 @@ export const en = {
     askInChat: "ask in chat",
     askInChatHint: "Put the selected lines in the engine's prompt",
     sent: "sent {count} notes to the engine",
+    sentOne: "sent 1 note to the engine",
     notSent: "notes not sent: {reason}",
   },
   review: {
@@ -117,6 +118,7 @@ export const en = {
     viewedOn: "[x] viewed",
     unmarkViewed: "Unmark {path} viewed",
     totals: "{files} files · +{added} −{removed}",
+    totalsOne: "1 file · +{added} −{removed}",
     viewedCount: "{done}/{files} viewed",
     nextFile: "[ next file ]",
     nextComment: "[ next comment ]",
@@ -156,7 +158,7 @@ export const en = {
     expand: "Expand the side panel",
     restore: "Restore the side panel size",
     closeOthers: "Close others",
-    resizeSplit: "Drag to resize, double-click to split evenly",
+    resizeSplit: "Drag to resize, double-click to reset the widths",
   },
   browser: {
     address: "Address",
@@ -274,6 +276,7 @@ export const zh: typeof en = {
     askInChat: "在对话里问",
     askInChatHint: "把选中的几行放进引擎的输入框",
     sent: "已把 {count} 条批注发给引擎",
+    sentOne: "已把 1 条批注发给引擎",
     notSent: "批注没有发出：{reason}",
   },
   review: {
@@ -304,6 +307,7 @@ export const zh: typeof en = {
     viewedOn: "[x] 已看",
     unmarkViewed: "取消 {path} 的已看",
     totals: "{files} 个文件 · +{added} −{removed}",
+    totalsOne: "1 个文件 · +{added} −{removed}",
     viewedCount: "已看 {done}/{files}",
     nextFile: "[ 下个文件 ]",
     nextComment: "[ 下条评论 ]",
@@ -343,7 +347,7 @@ export const zh: typeof en = {
     expand: "展开侧边栏",
     restore: "还原侧边栏大小",
     closeOthers: "关闭其他",
-    resizeSplit: "拖动调整宽度，双击恢复均分",
+    resizeSplit: "拖动调整宽度，双击恢复默认宽度",
   },
   browser: {
     address: "地址",

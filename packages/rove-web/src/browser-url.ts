@@ -27,6 +27,17 @@ export function fileShown(path: string, root: string | undefined): string {
   return root ? `${root.replace(/\/$/, "")}/${path}` : path
 }
 
+/** `path` cut at a folder boundary to what `fits`, the file name always whole: `…/rate/limiter.ts`. */
+export function elidePath(path: string, fits: (text: string) => boolean): string {
+  if (fits(path)) return path
+  const parts = path.split("/")
+  for (let i = 1; i < parts.length - 1; i++) {
+    const tail = `…/${parts.slice(i).join("/")}`
+    if (fits(tail)) return tail
+  }
+  return parts.length > 1 ? `…/${parts.at(-1)}` : path
+}
+
 /**
  * A typed local path (`/abs/x`, `./x`, `file:///abs/x`) as a file address; "outside" when it is not
  * under `root`, the only directory the bridge reads; null when it is not a path.

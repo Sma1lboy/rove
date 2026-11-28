@@ -43,6 +43,14 @@ describe("welcome.env", () => {
     expect(await probe()).toMatchObject({ engines: [], signedOut: [{ id: "claude" }], start: null })
   })
 
+  test("an engine whose login Rove cannot read is marked, so the welcome does not call it signed in", async () => {
+    welcomeDeps.engines = async () => ({ usable: ["pi", "claude"], signedOut: [], loginUnknown: ["pi"] })
+    expect((await probe()).engines).toEqual([
+      { id: "pi", name: "Pi", login: "unknown" },
+      { id: "claude", name: "Claude" },
+    ])
+  })
+
   test("a preferred engine that is not ready yields to the first ready one", async () => {
     welcomeDeps.preferredEngine = () => "kimi"
     expect(await probe()).toMatchObject({ start: { engine: "codex" } })

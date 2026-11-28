@@ -17,13 +17,13 @@ async function archiveAttempts(model: AppModel, ids: readonly string[], force: b
       done++
     }
   } catch (err) {
-    if (done > 0) toast(t("compare.archived", { count: done }))
+    if (done > 0) toast(t(done === 1 ? "compare.archivedOne" : "compare.archived", { count: done }))
     // A busy attempt goes back to the dialog, which offers "archive anyway".
     if (err instanceof BridgeRequestError && err.code === "TASK_BUSY") throw err
     toast(t("compare.archiveFailed", { error: errorText(err) }), "error")
     return
   }
-  toast(t("compare.archived", { count: done }))
+  toast(t(done === 1 ? "compare.archivedOne" : "compare.archived", { count: done }))
 }
 
 /** Marks `keep` as the round's one kept attempt (clearing a previous one), then asks whether to archive the rest. */
