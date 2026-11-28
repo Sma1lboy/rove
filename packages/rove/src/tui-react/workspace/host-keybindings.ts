@@ -17,6 +17,7 @@ import { useBindings } from "../lib/keymap"
 import { usePageEntries } from "../pages/registry"
 import type { DialogContext } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
+import { exitAfterRestore } from "./exit-after-restore"
 import type { HostPagesState } from "./host-pages"
 import { type WorkspacePageState, nextFocusedPane, workspacePagesClosed } from "./keybinding-gates"
 import { usePluginKeybindings } from "./use-plugin-keybindings"
@@ -74,13 +75,7 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
   /** Restore the terminal BEFORE exiting: a bare process.exit leaves mouse
    *  tracking on, spraying `35;66;18M` junk into the shell. */
   function exitApp(): void {
-    try {
-      renderer?.destroy()
-    } catch (err) {
-      // silent-catch-ok: exiting next; no screen for a toast.
-      console.error("Rove: renderer.destroy() failed during quit:", err)
-    }
-    process.exit(0)
+    void exitAfterRestore(renderer, () => process.exit(0))
   }
 
   async function quit(): Promise<void> {
