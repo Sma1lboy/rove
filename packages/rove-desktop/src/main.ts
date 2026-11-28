@@ -12,6 +12,7 @@ import { join } from "node:path"
 import { BrowserWindow, Menu, type MenuItemConstructorOptions, app, dialog, screen, session, shell } from "electron"
 import { type Started, findRove, redact, rememberRove, start } from "./bridge"
 import { openLog, watchMemory, writeLog } from "./memory-log"
+import { type Setup, openSetup } from "./setup"
 
 const APP_NAME = "Rove"
 /** The page's own paper colour, so the first frame is not a white flash. */
@@ -29,6 +30,7 @@ const logFile = () => join(app.getPath("logs"), "desktop.log")
 let bridge: Started | null = null
 let win: BrowserWindow | null = null
 let quitting = false
+let setup: Setup | null = null
 
 const binFile = () => join(app.getPath("userData"), "rove-binary.txt")
 const stateFile = () => join(app.getPath("userData"), "window.json")
@@ -244,13 +246,10 @@ async function boot(): Promise<void> {
   let bin = findRove(binFile())
   log(bin ? `rove: ${bin}` : "rove: not found")
   if (!bin) {
-    const choice = await explain(
-      "The app drives the Rove you already have installed, and could not find it. Install it with\n\n  curl -fsSL https://rove.run/install.sh | sh\n\nor point this app at it.",
-      ["Choose rove…", "Quit"],
-    )
-    if (choice !== 0) return app.quit()
-    bin = await chooseBinary()
+    setup ??= openSetup({ find: () => findRove(binFile()), choose: chooseBinary, log })
+    bin = await setup.bin
     if (!bin) return app.quit()
+    log(`rove: ${bin}`)
   }
   try {
     const started = Date.now()
@@ -269,6 +268,9 @@ async function boot(): Promise<void> {
   keepUp(bin, bridge)
   createWindow(bridge)
   log("window created")
+  // After the main window exists: closing the last window quits the app.
+  setup?.close()
+  setup = null
 }
 
 /**

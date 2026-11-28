@@ -20,6 +20,25 @@ The app is a shell — the Rove it drives is the one your TUI and phones drive, 
 upgrading Rove upgrades the app's backend, and a task started here is in the TUI
 the moment you switch.
 
+## First launch
+
+On a computer with no Rove, the app opens a small window with one button, **Install Rove**.
+It runs the official installer (`curl -fsSL https://rove.run/install.sh | sh`; on Windows
+`npm install -g bun @sma1lboy/rove`), shows what the installer prints, and opens Rove by
+itself when it is done. A failed install keeps its output on screen with **Try again**. If
+Rove is installed somewhere the app does not look, **choose the rove program…** points the
+app at it.
+
+With no session yet, the page then lists what a first task needs and fixes each one in place:
+
+| Check | Fix on the page |
+|---|---|
+| A coding agent is installed | **Set up an agent** opens Settings › Engines, which lists each agent's program |
+| An agent is signed in | **Sign in to …** opens a terminal running that agent's CLI, which asks for the login |
+| A project is picked | **Pick a project** opens New session on its project menu |
+
+The same checklist shows in a browser on `rove --web`.
+
 ## Download
 
 | Platform | File |
@@ -29,7 +48,7 @@ the moment you switch.
 | Windows | [Rove-win-x64.exe](https://github.com/Sma1lboy/rove/releases/download/desktop/Rove-win-x64.exe) |
 | Linux | [Rove-linux-x86_64.AppImage](https://github.com/Sma1lboy/rove/releases/download/desktop/Rove-linux-x86_64.AppImage) |
 
-Install the Rove CLI first: the app starts the `rove` it finds on this machine. The macOS
+The app starts the `rove` it finds on this machine and offers to install it when there is none. The macOS
 build is signed with a Developer ID and notarized. The Windows installer is not signed, so
 SmartScreen asks once: **More info › Run anyway**.
 
@@ -74,7 +93,8 @@ A macOS app launched from Finder starts with `/usr/bin:/bin`, not your shell's
 (**Rove › Set Rove program…**, saved in the app's user data), `ROVE_DESKTOP_BIN`,
 this process's `PATH`, the usual install places (Homebrew, `~/.bun/bin`,
 `~/.local/bin`, nvm, Volta, asdf), and finally `zsh -lc 'command -v rove'`.
-Nothing found → a dialog with the install line and a file picker.
+Nothing found → the install window (see First launch). `ROVE_DESKTOP_INSTALL_CMD` replaces
+the installer command, for testing that window without installing anything.
 
 ## Previewing against someone else's bridge
 

@@ -8,7 +8,7 @@
 import { basename } from "node:path"
 import { detectEngineStatuses, probeableEngineIds, summarizeEngines } from "@sma1lboy/rove/src/engine/engine-status.ts"
 import { engineDisplayName } from "@sma1lboy/rove/src/engine/interactive-command.ts"
-import { resolveMainRepoRoot } from "@sma1lboy/rove/src/state/repos.ts"
+import { getSavedRepos, resolveMainRepoRoot } from "@sma1lboy/rove/src/state/repos.ts"
 import { resolvePreferredVendor } from "@sma1lboy/rove/src/state/vendor-prefs.ts"
 import { DEFAULT_BASE_REF, getCurrentBranch, validateRepoPath } from "@sma1lboy/rove/src/tui/lib/git-snapshot.ts"
 import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
@@ -27,6 +27,8 @@ interface QuickStart {
   readonly engine: string
 }
 
+const shellWord = (text: string): string => (/^[\w./-]+$/.test(text) ? text : `'${text.replaceAll("'", "'\\''")}'`)
+
 const chip = (id: VendorId): EngineChip => ({ id, name: engineDisplayName(id) })
 
 export const welcomeDeps = {
@@ -39,12 +41,21 @@ export const welcomeDeps = {
     }
   },
   gitOnPath: (): boolean => Bun.which("git") !== null,
-  async engines(): Promise<{ usable: readonly VendorId[]; signedOut: readonly VendorId[] }> {
+  /** `programs`: where each found engine's CLI is, since a shell's PATH may not reach it. */
+  async engines(): Promise<{
+    usable: readonly VendorId[]
+    signedOut: readonly VendorId[]
+    programs?: Readonly<Record<string, string>>
+  }> {
     return probeableEngineIds()
       .then(detectEngineStatuses)
-      .then(summarizeEngines)
+      .then((statuses) => ({
+        ...summarizeEngines(statuses),
+        programs: Object.fromEntries(statuses.flatMap((s) => (s.binary.path ? [[s.vendor, s.binary.path]] : []))),
+      }))
       .catch(() => ({ usable: [], signedOut: [] }))
   },
+  savedRepos: (): readonly string[] => [...getSavedRepos()].sort(),
   /** The TUI's `firstTaskRepo`: the main checkout of the cwd's repo, or null when the cwd is no repo. */
   repoOf(dir: string): string | null {
     try {
@@ -63,7 +74,7 @@ export const welcomeOps: OpTable = {
     destructive: false,
     wraps: "helpers probeableEngineIds + detectEngineStatuses, firstTaskRepo",
     async run() {
-      const [{ usable, signedOut }, git] = await Promise.all([welcomeDeps.engines(), welcomeDeps.gitOnPath()])
+      const [{ usable, signedOut, programs }, git] = await Promise.all([welcomeDeps.engines(), welcomeDeps.gitOnPath()])
       const dir = welcomeDeps.cwd()
       const repo = dir === null ? null : welcomeDeps.repoOf(dir)
       let start: QuickStart | null = null
@@ -76,7 +87,15 @@ export const welcomeOps: OpTable = {
           engine: usable.includes(pref) ? pref : (usable[0] ?? pref),
         }
       }
-      return { engines: usable.map(chip), signedOut: signedOut.map(chip), git, start }
+      return {
+        engines: usable.map(chip),
+        // `signIn` is the line a shell runs to reach that engine's own login.
+        signedOut: signedOut.map((id) => ({ ...chip(id), signIn: shellWord(programs?.[id] ?? id) })),
+        git,
+        start,
+        // A project is picked once the cwd is one or any is saved.
+        project: repo ?? welcomeDeps.savedRepos()[0] ?? null,
+      }
     },
   },
 }
