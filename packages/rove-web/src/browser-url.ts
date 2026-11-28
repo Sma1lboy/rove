@@ -90,17 +90,21 @@ export function normalizeUrl(input: string): string | null {
 }
 
 /**
- * Whether a page at `page` (its `location`) may put `url` (from `normalizeUrl`) in an iframe. `local`:
- * this page is on the machine Rove runs on (the bridge says so in `hello`; a loopback page address
- * says so too), which is where a loopback address means the dev server.
+ * Whether a page at `page` (its `location`) may put `url` (from `normalizeUrl`) in an iframe, or
+ * in a native desktop `WebContentsView` (`native: true`). `local`: this page is on the machine Rove
+ * runs on (the bridge says so in `hello`; a loopback page address says so too), which is where a
+ * loopback address means the dev server.
  */
 export function canFrame(
   url: string,
   page: Pick<Location, "origin" | "hostname">,
   local: boolean = isLoopbackHost(page.hostname),
+  native = false,
 ): Frameable {
   const target = new URL(url)
   if (target.origin === page.origin) return "self"
+  // Native Electron WebContentsView has no mixed-content or iframe blocking.
+  if (native) return "yes"
   // A loopback address is the Rove machine's own server, whatever the scheme.
   if (isLoopbackHost(target.hostname)) return local ? "yes" : "remote"
   // Plain http elsewhere is mixed content on an https page and a dead end on the rest.

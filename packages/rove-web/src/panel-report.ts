@@ -5,11 +5,12 @@
  */
 
 import type { BridgeClient } from "./bridge.ts"
+import { desktopBrowser } from "./desktop-browser.ts"
 import { isNarrow, onNarrowChange } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { isPanelPush, panelFields } from "./panel-contract.ts"
 import { panelOpen } from "./panel-layout.ts"
-import { applyPanelPush, onPanelsChange, panelShown } from "./panel-state.ts"
+import { applyPanelPush, focusDesktopBrowserTab, onPanelsChange, panelShown } from "./panel-state.ts"
 import { newSession, page } from "./ui.ts"
 
 export function watchPanel(model: AppModel, client: BridgeClient): void {
@@ -24,4 +25,16 @@ export function watchPanel(model: AppModel, client: BridgeClient): void {
   client.on("panel", (data) => {
     if (isPanelPush(data)) applyPanelPush(data, model.selection.get().taskId)
   })
+  const desktop = desktopBrowser()
+  if (desktop) {
+    const show = (opts: { id: string; taskId?: string; panelKey?: string; url: string }) => {
+      const targetTaskId = opts.taskId ?? model.selection.get().taskId
+      if (!targetTaskId || !opts.url) return
+      focusDesktopBrowserTab({ taskId: targetTaskId, desktopTabId: opts.id, panelKey: opts.panelKey, url: opts.url })
+    }
+    desktop.onHandoff((event) => {
+      if (event.owner === "human") show(event)
+    })
+    desktop.onFocus((info) => show(info))
+  }
 }

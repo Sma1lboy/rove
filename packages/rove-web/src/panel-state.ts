@@ -3,7 +3,8 @@
  * `REMEMBERED_TASKS` tasks), and the ways to bring a view up.
  */
 
-import { type BrowserColumn, closeTab } from "./browser-tabs.ts"
+import { type BrowserColumn, activateTab, closeTab } from "./browser-tabs.ts"
+import { browserPanelKey, closeNativePanelTab, queueAdoptedTab } from "./desktop-browser.ts"
 import { isNarrow } from "./layout.ts"
 import { type PanelPush, applyPlan, planPanelPush } from "./panel-contract.ts"
 import { narrowView, panelExpanded, panelOpen } from "./panel-layout.ts"
@@ -128,18 +129,59 @@ function settleClosed(taskId: string, kind: PanelKind): void {
 }
 
 export function closePanelColumn(taskId: string, kind: PanelKind): void {
+  if (kind === "browser") {
+    const col = columnOf(panels.get()[taskId] ?? FRESH, "browser")
+    if (col?.kind === "browser") {
+      for (const tab of col.tabs) closeNativePanelTab(taskId, tab.id)
+    }
+  }
   editPanel(taskId, (panel) => closeColumn(panel, kind))
   settleClosed(taskId, kind)
 }
 
 /** Edits the task's Browser column; closing its last tab closes the column. */
 export function editBrowserColumn(taskId: string, edit: (col: BrowserColumn) => BrowserColumn | null): void {
+  const before = columnOf(panels.get()[taskId] ?? FRESH, "browser")
   editPanel(taskId, (panel) => editBrowser(panel, edit))
+  if (before?.kind === "browser") {
+    const after = columnOf(panels.get()[taskId] ?? FRESH, "browser")
+    const kept = new Set(after?.kind === "browser" ? after.tabs.map((t) => t.id) : [])
+    for (const tab of before.tabs) {
+      if (!kept.has(tab.id)) closeNativePanelTab(taskId, tab.id)
+    }
+  }
   settleClosed(taskId, "browser")
 }
 
 export function closeBrowserTab(taskId: string, id: string): void {
   editBrowserColumn(taskId, (col) => closeTab(col, id))
+}
+
+/** Open or focus a live desktop browser tab handed off from an agent (`rove api web tab handoff`). */
+export function focusDesktopBrowserTab(opts: {
+  readonly taskId: string
+  readonly desktopTabId: string
+  readonly panelKey?: string
+  readonly url: string
+}): void {
+  const prefix = `${opts.taskId}:`
+  if (opts.panelKey?.startsWith(prefix)) {
+    const tabId = opts.panelKey.slice(prefix.length)
+    editBrowserColumn(opts.taskId, (col) => activateTab(col, tabId))
+    panelOpen.set(true)
+    if (isNarrow()) narrowView.set("browser")
+    return
+  }
+  editPanel(opts.taskId, (panel) => {
+    const next = showBrowser(panel, opts.url)
+    const col = columnOf(next, "browser")
+    if (col?.kind === "browser") {
+      queueAdoptedTab(browserPanelKey(opts.taskId, col.active), opts.desktopTabId)
+    }
+    return next
+  })
+  panelOpen.set(true)
+  if (isNarrow()) narrowView.set("browser")
 }
 
 /**

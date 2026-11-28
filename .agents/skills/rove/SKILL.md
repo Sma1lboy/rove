@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 139 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 142 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -465,6 +465,25 @@ rove api panel-show --view browser --url http://localhost:5173
   panel opens on the page that is looking at that task, without taking focus
   or switching task; every other page remembers the view for later. Open it
   when it helps what the human is doing, not for every file you touch.
+
+When the human is in `rove-desktop` (Electron), the side-panel Browser is a
+native `WebContentsView` with persistent cookies and no iframe blocking. Drive
+it directly over local IPC with `rove api web`:
+
+```bash
+rove api web tab list
+rove api web tab new https://github.com
+rove api web nav https://example.com
+rove api web snap --interactive --root @e2
+rove api web batch '[{"action":"fill","ref":"@e2","value":"hello"},{"action":"click","ref":"@e3"}]'
+rove api web eval "document.title"
+rove api web fetch https://api.example.com/me
+rove api web tab handoff b-1 --owner human --reason "Complete 2FA login"
+```
+
+`tab handoff <id>` (or `web handoff <id>`) passes a live logged-in tab between
+human and agent with zero reload. Fails with `DESKTOP_UNAVAILABLE` when
+`rove-desktop` is not running (browser-only `rove --web` uses `panel-show`).
 
 ### A label on a task's row
 

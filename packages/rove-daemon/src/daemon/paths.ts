@@ -246,3 +246,19 @@ export function defaultPtyFreezeDir(homeDir = readRoveHomeDirEnv() ?? homedir())
 export function defaultDeliveryLockDir(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   return runtimeDataPath(homeDir, "delivery-locks")
 }
+
+/**
+ * Local IPC socket served by `rove-desktop` for native WebContentsView automation
+ * (`rove api web`). Mirrors `defaultPtyHostSocketPath`'s path-fitting rules so
+ * deep sandbox homes never overflow AF_UNIX `sun_path`.
+ */
+export function defaultDesktopBrowserSocketPath(
+  homeDir?: string,
+  platform: NodeJS.Platform = process.platform,
+): string {
+  const override = readRoveEnv("DESKTOP_BROWSER_SOCKET_PATH")
+  if (override) return override
+  const base = homeDir ?? readRoveHomeDirEnv() ?? homedir()
+  if (platform === "win32") return windowsPipePath(base, "desktop-browser")
+  return fitSocketPath(join(base, ROVE_STATE_DIR_BASENAME, "desktop-browser.sock"), base, "desktop-browser")
+}

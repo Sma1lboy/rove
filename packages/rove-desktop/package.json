@@ -8,6 +8,7 @@
   "scripts": {
     "native:preview": "bun scripts/native-preview.ts",
     "build": "bun scripts/build.ts",
+    "test": "bun test test",
     "start": "bun run build && electron .",
     "pack": "bun run build && electron-builder --mac --dir",
     "dist": "bun run build && electron-builder --mac",

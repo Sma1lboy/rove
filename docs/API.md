@@ -307,6 +307,9 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `GITHUB_APPLY_FORWARDED_ONLY` | `github-apply` called directly. Only another machine's `github-sync` may send it. |
 | `MACHINE_UPDATE_FAILED` | `machine-update`: that machine's `rove update` or its daemon restart failed; the message carries its last lines of output. `machine` names it. |
 | `MACHINE_UPDATE_FORWARDED` | `machine-update` sent by another machine's hub: a machine is only updated from the one that registered it. |
+| `DESKTOP_UNAVAILABLE` | `web` was called when `rove-desktop` is not running (no local browser IPC socket). |
+| `BROWSER_ERROR` | A `web` browser IPC or CDP command failed inside `rove-desktop`. |
+| `BROWSER_TIMEOUT` | A `web` browser IPC or navigation call exceeded its `--timeout`. |
 
 `DELIVER_FAILED` and `CREATE_FAILED` are not error codes in that sense: they
 only ever appear inside a `PARTIAL_FANOUT` payload, on `failures[].error.code`,
@@ -1633,6 +1636,36 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   public address (a private, loopback, link-local or unique-local address is
   refused, after resolving the name), follows no redirect, and gives up after
   3 seconds. `localhost` URLs are not probed.
+- `web <tab|nav|snap|batch|eval|fetch|handoff> [flags]` (canonical flag form:
+  `web --action <subcmd> ...`): drive `rove-desktop`'s native Electron
+  `WebContentsView` side-panel browser over its local owner-only IPC socket
+  (`~/.rove/desktop-browser.sock`, or `ROVE_DESKTOP_BROWSER_SOCKET_PATH`). Runs
+  offline from the daemon; returns `DESKTOP_UNAVAILABLE` when `rove-desktop` is
+  not running.
+  - `web tab list|new|close|focus|handoff [--id ID] [--url URL] [--owner human|agent]`:
+    manage live native browser tabs (persistent `persist:rove-browser` cookies
+    and session). Positional forms: `web tab list`, `web tab new <url>`,
+    `web tab close <id>`, `web tab focus <id>`, `web tab handoff <id>`.
+  - `web nav (<url> | back | forward | reload) [--id ID] [--wait-until load|domcontentloaded|none]`:
+    navigate a tab or step through real Chromium `navigationHistory` (blocks
+    non-`http(s)` schemes and Rove's own bridge origin).
+  - `web snap [--id ID] [--interactive] [--root @eN] [--max-nodes N]`: compact
+    CDP accessibility/interactive snapshot returning `text` and structured
+    `nodes` with `@e1..@eN` refs for follow-up `--root @eN` scoping or `batch`
+    actions.
+  - `web eval <expr> [--id ID] [--await false]`: evaluate JavaScript in the
+    live page and return its JSON-serializable value (`EVAL_ERROR` on throws).
+  - `web batch <json> | --steps-file PATH [--id ID]`: run a JSON array of steps
+    (`nav`, `click`, `fill`, `type`, `press`, `select`, `check`, `hover`,
+    `focus`, `scroll`, `wait`, `eval`, `snap`) targeting `@eN` refs or CSS
+    selectors in one round-trip.
+  - `web fetch <url> [--id ID] [--method GET] [--headers JSON] [--body TEXT]`:
+    HTTP request sharing the tab's live logged-in cookies (page `window.fetch`
+    for same-origin/relative URLs, persistent session fetch for cross-origin).
+  - `web handoff [<id>] [--owner human|agent] [--reason TEXT]` (alias of
+    `web tab handoff`): hand a live logged-in tab between human and agent
+    without reloading or dropping session state; handing to `human` opens and
+    focuses the tab in the side panel.
 - `notify --title TEXT [--body TEXT] [--kind KIND] [--task-id ID]
   [--source TAG]`: show a toast in every attached Rove UI. `--body` adds a
   second, muted line under the title — context, not a second message.
