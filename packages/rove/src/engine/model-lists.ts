@@ -158,3 +158,23 @@ export function parseOmpModelJson(stdout: string): readonly EngineModel[] {
 export async function listOmpModels(): Promise<readonly EngineModel[]> {
   return cachedModelList("omp", ["models", "--json"], parseOmpModelJson)
 }
+
+/**
+ * One model per stdout line, `id` or `id<TAB>label`: `agy models` (1.5.17;
+ * its "Fetching…" header goes to stderr) and `opencode models` (0.6.3,
+ * `provider/model`). A first column with a space is prose, not an id.
+ */
+export function parseModelLines(stdout: string): readonly EngineModel[] {
+  const out: EngineModel[] = []
+  for (const line of stdout.split("\n")) {
+    const [id = "", label = ""] = line.split("\t").map((c) => c.trim())
+    if (!id || /\s/.test(id)) continue
+    out.push({ id, ...(label ? { label } : {}) })
+  }
+  return out
+}
+
+/** A contrib engine's list verb printing {@link parseModelLines} output. */
+export function listModelLines(bin: string, args: readonly string[]): () => Promise<readonly EngineModel[]> {
+  return () => cachedModelList(bin, args, parseModelLines)
+}

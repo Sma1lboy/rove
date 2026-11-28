@@ -39,6 +39,7 @@ import { GrokHookAdapter, grokConfigDir } from "./grok-local/hook-adapter.ts"
 import { HermesHookAdapter, hermesConfigDir } from "./hermes-local/hook-adapter.ts"
 import type { EngineHookAdapter } from "./hook-adapter.ts"
 import { MastracodeHookAdapter } from "./mastracode-local/hook-adapter.ts"
+import { listModelLines } from "./model-lists.ts"
 import { OpencodeFamilyHookAdapter } from "./opencode-local/hook-adapter.ts"
 import { QodercliHookAdapter } from "./qodercli-local/hook-adapter.ts"
 import type { EngineIcon, EngineRegistryEntry } from "./registry.ts"
@@ -73,6 +74,14 @@ export interface ContribEngineSpec {
   readonly createHookAdapter?: () => EngineHookAdapter
   /** See `EngineRegistryEntry.skillsDir`. */
   readonly skillsDir?: () => string | null
+  /** See `EngineRegistryEntry.listModels`. */
+  readonly listModels?: EngineRegistryEntry["listModels"]
+  /** See `EngineRegistryEntry.modelArgv`. */
+  readonly modelArgv?: EngineRegistryEntry["modelArgv"]
+  /** See `EngineRegistryEntry.effortLevels`; pair with {@link effortArgv}. */
+  readonly effortLevels?: EngineRegistryEntry["effortLevels"]
+  /** See `EngineRegistryEntry.effortArgv`. */
+  readonly effortArgv?: EngineRegistryEntry["effortArgv"]
 }
 
 /**
@@ -103,6 +112,8 @@ export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
     displayName: "Gemini CLI",
     defaultCommand: ["gemini"],
     screenManifest: GEMINI,
+    // `-m/--model` is documentation-derived, unverified (CLI not installed here).
+    modelArgv: (base, model) => [...base, "--model", model],
     skillsDir: () => skillsDirUnder(join(homedir(), ".gemini")),
   },
   // opencode's positional is a project DIRECTORY: an argv first message exits
@@ -113,6 +124,8 @@ export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
     defaultCommand: ["opencode"],
     screenManifest: OPENCODE,
     firstMessageDelivery: "paste",
+    listModels: listModelLines("opencode", ["models"]),
+    modelArgv: (base, model) => [...base, "--model", model],
     createHookAdapter: () => new OpencodeFamilyHookAdapter("opencode"),
     skillsDir: () => skillsDirUnder(join(xdgConfigHome(), "opencode")),
   },
@@ -120,6 +133,8 @@ export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
     displayName: "Cursor Agent",
     defaultCommand: ["cursor-agent"],
     screenManifest: CURSOR,
+    // `--model` per cursor-agent 2026.09.15 `--help`; its list verb needs a login, so no list.
+    modelArgv: (base, model) => [...base, "--model", model],
     createHookAdapter: () => new CursorHookAdapter(),
     skillsDir: () => skillsDirUnder(join(homedir(), ".cursor")),
   },
@@ -178,6 +193,10 @@ export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
     screenManifest: ANTIGRAVITY,
     firstMessageArgv: (argv, text) => [...argv, "-i", text],
     trustWorktree: trustAntigravityWorktree,
+    listModels: listModelLines("agy", ["models"]),
+    modelArgv: (base, model) => [...base, "--model", model],
+    effortLevels: ["low", "medium", "high", "xhigh", "max"],
+    effortArgv: (base, level) => [...base, "--effort", level],
     skillsDir: () => skillsDirUnder(join(homedir(), ".gemini", "antigravity")),
   },
   // Hook schemas and screen strings below are documentation-derived, not captured.
@@ -234,5 +253,8 @@ export function contribEngineEntry(id: string, base: EngineRegistryEntry): Engin
     ...(spec.trustWorktree ? { trustWorktree: spec.trustWorktree } : {}),
     ...(spec.createHookAdapter ? { createHookAdapter: spec.createHookAdapter } : {}),
     ...(spec.skillsDir ? { skillsDir: spec.skillsDir } : {}),
+    ...(spec.listModels ? { listModels: spec.listModels } : {}),
+    ...(spec.modelArgv ? { modelArgv: spec.modelArgv } : {}),
+    ...(spec.effortLevels && spec.effortArgv ? { effortLevels: spec.effortLevels, effortArgv: spec.effortArgv } : {}),
   }
 }
