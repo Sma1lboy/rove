@@ -17,7 +17,7 @@ import { type PaneLaunch, listPaneLaunches } from "@sma1lboy/rove-daemon/plugins
 import { resolveEditorLaunch } from "../../lib/editor-launch.ts"
 import { ROVE_PRODUCT_NAME } from "../../product.ts"
 import { type TerminalTab, findEditorTab } from "../../tabs/terminal-tabs-core.ts"
-import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
+import { readPersistedTerminalDefaultColors } from "../../theme/terminal-colors.ts"
 import { ensureHostFor, sessionFailed } from "./session-failed.ts"
 import { collision, createdFresh } from "./tab-new.ts"
 import { type TabsRpc, allocateTab, closeTabsSnapshot, readDaemonTabs } from "./tab-snapshot.ts"

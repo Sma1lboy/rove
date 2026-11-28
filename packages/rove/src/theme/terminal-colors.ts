@@ -5,10 +5,10 @@ import {
   type TerminalDefaultColors,
   parseTerminalDefaultColors,
 } from "@sma1lboy/rove-daemon/daemon/terminal-colors"
-import { BUNDLED_THEMES, DEFAULT_THEME, type ThemeJson, type ThemeMode } from "../context/theme-core"
-import { resolveThemeSlotHex } from "../context/theme/hex"
-import { loadUserThemes } from "../context/theme/loader"
-import { readPersistedUiPrefs } from "./persisted-ui-prefs"
+import { readPersistedUiPrefs } from "../lib/persisted-ui-prefs"
+import { resolveThemeSlotHex } from "./hex"
+import { loadUserThemes } from "./loader"
+import { BUNDLED_THEMES, DEFAULT_THEME, type ThemeJson, type ThemeMode } from "./theme-data"
 
 export function terminalDefaultColorsForTheme(theme: ThemeJson, mode: ThemeMode = "dark"): TerminalDefaultColors {
   return (

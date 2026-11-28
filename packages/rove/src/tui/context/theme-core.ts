@@ -1,26 +1,17 @@
 /**
- * Framework-free theme core behind `src/tui-react/context/theme.tsx`: JSON
- * types, hex/def-ref/variant resolution, and the display overlay, shared with
- * off-render consumers (`tui/lib/persisted-ui-prefs.ts`, tests) so they can't drift.
+ * Framework-free theme core behind `src/tui-react/context/theme.tsx`: resolves
+ * theme data (`src/theme/theme-data.ts`, re-exported here) to opentui colors
+ * and applies the display overlay.
  */
 
 import { RGBA } from "@opentui/core"
 
+import { parseRgbLiteral } from "../../theme/color-literal"
+import type { ColorValue, FocusAccentSlot, ThemeJson, ThemeMode } from "../../theme/theme-data"
 import { turnHue } from "../lib/breathe"
 import { ensureContrast } from "./contrast-guard"
-import { BUNDLED_THEME_JSONS } from "./theme/bundled"
-import { parseRgbLiteral } from "./theme/color-literal"
 
-type HexColor = `#${string}`
-type RefName = string
-type Variant = { dark: HexColor | RefName; light: HexColor | RefName }
-type ColorValue = HexColor | RefName | Variant
-
-export type ThemeJson = {
-  $schema?: string
-  defs?: Record<string, HexColor | RefName>
-  theme: Record<string, ColorValue>
-}
+export * from "../../theme/theme-data"
 
 /** Slot names mirror opencode's so lifted components compile; missing slots fall back to a related one. */
 export type Theme = {
@@ -56,45 +47,6 @@ export type Theme = {
   // arbitrary string access falls through to text
   [key: string]: RGBA
 }
-
-/** Payloads live in `./theme/bundled`; re-exported at this path for existing consumers. */
-export const BUNDLED_THEMES: Record<string, ThemeJson> = BUNDLED_THEME_JSONS
-
-/** Brand default for new installs and every bundled-palette fallback. */
-export const DEFAULT_THEME = "claude"
-
-/**
- * Bundled-only check for off-render callers (`readPersistedUiPrefs` in a pane
- * subprocess) validating a persisted name. The live provider has its own
- * `hasTheme` over bundled + user themes.
- */
-export function hasBundledTheme(name: string): boolean {
-  return Boolean(BUNDLED_THEMES[name])
-}
-
-/** Which half of a `{ dark, light }` theme entry is drawn. */
-export type ThemeMode = "dark" | "light"
-
-/**
- * `auto` follows the host terminal: opentui reads its background over OSC 11
- * and re-reads on an appearance-change report (`?2031`). Persisted as
- * `themeMode`; unset is `dark`.
- */
-export type ThemeModePreference = ThemeMode | "auto"
-export const THEME_MODE_PREFERENCES: ReadonlyArray<ThemeModePreference> = ["dark", "light", "auto"]
-export const DEFAULT_THEME_MODE: ThemeModePreference = "dark"
-
-/** `auto` with no answer from the terminal yet (or ever) draws dark. */
-export function resolveThemeMode(preference: ThemeModePreference, detected: ThemeMode | null): ThemeMode {
-  return preference === "auto" ? (detected ?? "dark") : preference
-}
-
-/**
- * Slot for the focused-pane indicator. Default `primary` (terracotta under
- * Claude, the brand hue); `success` = green, `info` = cyan/blue. Persisted via KV.
- */
-export type FocusAccentSlot = "primary" | "success" | "info"
-export const FOCUS_ACCENT_SLOTS: ReadonlyArray<FocusAccentSlot> = ["primary", "success", "info"]
 
 /**
  * Missing slots fall back (foregrounds → `text`, backgrounds → `background`),

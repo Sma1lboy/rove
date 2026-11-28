@@ -105,6 +105,9 @@ worktree on the shared branch name. `taskRepos(task)` (in `rove-daemon`'s
     than testing `task.kind`.
   - `src/client/` — framework-free remote Orchestrator client and channel
     stores.
+  - `src/theme/` — opentui-free theme data: the JSON shape, bundled palettes,
+    loader, installer and hex resolver that `rove api` and the bridge read.
+    Resolving to drawable colors stays in `tui/context/theme-core.ts`.
   - `src/tabs/` — the terminal-tab model (tabs, splits, argv, titles) shared
     by the TUI, `rove api` and the web client.
   - `src/tui/` — framework-free keymap, state, terminal, file, sidebar, and

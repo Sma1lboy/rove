@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { BUNDLED_THEME_JSONS } from "@sma1lboy/rove/src/tui/context/theme/bundled.ts"
+import { BUNDLED_THEME_JSONS } from "@sma1lboy/rove/src/theme/bundled.ts"
 import { type HostedThemeDeps, createHostedThemeOps } from "../src/ops/theme-hosted.ts"
 import type { Args, BridgeApi, OpTable } from "../src/ops/types.ts"
 

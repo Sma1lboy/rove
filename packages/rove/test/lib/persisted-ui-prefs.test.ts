@@ -26,7 +26,7 @@ vi.mock("../../src/tui/context/theme-core", () => ({
   hasBundledTheme: (name: string) => ["claude", "tokyonight"].includes(name),
 }))
 
-const { defaultTransparentBackground, readPersistedUiPrefs } = await import("../../src/tui/lib/persisted-ui-prefs.ts")
+const { defaultTransparentBackground, readPersistedUiPrefs } = await import("../../src/lib/persisted-ui-prefs.ts")
 
 /** What an unset `transparentBackground` resolves to on THIS platform. */
 const UNSET_TRANSPARENT = defaultTransparentBackground()

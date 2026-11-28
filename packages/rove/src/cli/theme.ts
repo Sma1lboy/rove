@@ -12,9 +12,9 @@ import { basename, join, resolve } from "node:path"
 import { errorMessage } from "@/lib/error-message"
 import { expandTilde } from "../lib/path-home.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
-import { BUNDLED_THEME_JSONS } from "../tui/context/theme/bundled"
-import { ThemeInstallError, isThemeName, parseThemeSource, writeUserTheme } from "../tui/context/theme/install"
-import { userThemesDir } from "../tui/context/theme/loader"
+import { BUNDLED_THEME_JSONS } from "../theme/bundled"
+import { ThemeInstallError, isThemeName, parseThemeSource, writeUserTheme } from "../theme/install"
+import { userThemesDir } from "../theme/loader"
 import { SUBCOMMAND_VERBS } from "./subcommands.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME

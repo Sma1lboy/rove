@@ -1,8 +1,8 @@
 import { RGBA } from "@opentui/core"
 import { describe, expect, it } from "vitest"
+import { terminalDefaultColorsForTheme } from "../../src/theme/terminal-colors"
 import { contrastRatio } from "../../src/tui/context/contrast-guard"
 import { BUNDLED_THEMES, applyDisplayOverlay, resolveTheme, resolveThemeMode } from "../../src/tui/context/theme-core"
-import { terminalDefaultColorsForTheme } from "../../src/tui/lib/terminal-colors"
 
 type ThemeJson = (typeof BUNDLED_THEMES)[keyof typeof BUNDLED_THEMES]
 

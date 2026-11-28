@@ -13,7 +13,7 @@ export const followFontSize = (term: Terminal, refit: () => void): (() => void) 
     refit()
   })
 
-/** The TUI's default `claude` theme, dark (`tui/context/theme/claude.json`). */
+/** The TUI's default `claude` theme, dark (`theme/claude.json`). */
 export const XTERM_THEME = {
   background: "#141413",
   foreground: "#eae7df",

@@ -1,6 +1,6 @@
 # Terminal UI
 
-The TUI is the product, and the web client follows it. Both clients read one theme file (an opencode-format JSON under `packages/rove/src/tui/context/theme/`) with a `dark` and a `light` half. The TUI paints the slots directly. The web maps them onto its tokens (`prefs-theme.ts`). Theme mode `auto` follows the terminal's or the browser's colour scheme.
+The TUI is the product, and the web client follows it. Both clients read one theme file (an opencode-format JSON under `packages/rove/src/theme/`) with a `dark` and a `light` half. The TUI paints the slots directly. The web maps them onto its tokens (`prefs-theme.ts`). Theme mode `auto` follows the terminal's or the browser's colour scheme.
 
 ## Theme slots → tokens
 

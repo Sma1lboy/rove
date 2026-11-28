@@ -9,7 +9,7 @@ import UIKit
 // (`scripts/lint-colors.sh` fails the build on a raw `Color(...)`, `.black`, `.white`,
 // `UIColor(...)` or a material anywhere else).
 enum Theme {
-    /// Raw palette: rove-web's default `claude` theme (rove/src/tui/context/theme/claude.json, as prefs-theme.ts maps
+    /// Raw palette: rove-web's default `claude` theme (rove/src/theme/claude.json, as prefs-theme.ts maps
     /// it), so the native screens match the page they wrap. Tokens below pick from it.
     private enum Hex {
         static let paperLight: UInt32 = 0xFAF9F5, paperDark: UInt32 = 0x141413

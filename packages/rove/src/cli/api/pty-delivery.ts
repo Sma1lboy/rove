@@ -27,7 +27,7 @@ import {
 } from "../../engine/hosted-session.ts"
 import { enginePresence } from "../../engine/session-engine-presence.ts"
 import { type EngineSessionLaunch, initMarkerSaysFinished } from "../../engine/session-launch.ts"
-import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
+import { readPersistedTerminalDefaultColors } from "../../theme/terminal-colors.ts"
 import { openAdmittedEngine } from "./engine-admission.ts"
 import { restoredTabsOf } from "./tab-respawn.ts"
 import { ApiError, type DeliveredPrompt } from "./types.ts"

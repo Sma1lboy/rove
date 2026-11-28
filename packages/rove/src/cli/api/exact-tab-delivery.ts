@@ -11,7 +11,7 @@ import type { PsSnapshot } from "../../engine/foreground.ts"
 import { awaitEngineProcess, hostedSessionFailureLine } from "../../engine/hosted-session.ts"
 import { enginePresence } from "../../engine/session-engine-presence.ts"
 import type { EngineSessionLaunch } from "../../engine/session-launch.ts"
-import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
+import { readPersistedTerminalDefaultColors } from "../../theme/terminal-colors.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import { openAdmittedEngine } from "./engine-admission.ts"
 import {

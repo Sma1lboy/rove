@@ -16,7 +16,7 @@
  */
 
 import { describe, expect, test } from "vitest"
-import { isHex, validateTheme } from "../../src/tui/context/theme/schema"
+import { isHex, validateTheme } from "../../src/theme/schema"
 
 describe("isHex", () => {
   test("accepts 3, 6, and 8 digit hex", () => {

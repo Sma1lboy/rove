@@ -12,6 +12,7 @@ import { useState } from "react"
 import { RemoteOrchestrator, type RoveOrchestrator, type UsageSnapshotMap } from "../../../client/remote-orchestrator"
 import { enginesNeedingHookInstall, enginesWithHooksInstalled } from "../../../engine/integration-status"
 import { createStateCell } from "../../../lib/external-store"
+import { LOCALE_KEY } from "../../../lib/persisted-ui-prefs"
 import {
   type NavLevel,
   SECTIONS,
@@ -21,7 +22,6 @@ import {
   sectionRows,
 } from "../../../tui/component/settings-dialog/model"
 import { toggleKeyHints } from "../../../tui/lib/keyboard-hints"
-import { LOCALE_KEY } from "../../../tui/lib/persisted-ui-prefs"
 import type { VendorId } from "../../../types/task"
 import type { KVContext } from "../../context/kv"
 import { useTheme } from "../../context/theme"
