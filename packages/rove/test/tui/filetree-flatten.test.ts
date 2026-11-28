@@ -13,7 +13,7 @@ import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
 import { type Row, flattenTree, statusRows } from "../../src/tui/panes/filetree/rows.ts"
 import type { TreeNode } from "../../src/tui/panes/filetree/tree.ts"
-import { readWorktreeChanges } from "../../src/tui/panes/sidebar/worktree-changes.ts"
+import { readWorktreeChanges } from "../../src/worktree/worktree-changes.ts"
 
 describe("flattenTree", () => {
   const tree: TreeNode = {

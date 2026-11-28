@@ -28,8 +28,8 @@ import {
   trackedWorktreePaths,
 } from "@sma1lboy/rove-daemon/daemon/worktree-changes-collector"
 import { describe, expect, test } from "vitest"
-import type { WorktreeChanges } from "../../src/tui/panes/sidebar/worktree-changes.ts"
 import { type Task, toTaskId } from "../../src/types/task.ts"
+import type { WorktreeChanges } from "../../src/worktree/worktree-changes.ts"
 
 /** Minimal Task — only the fields the collector reads. */
 function task(over: Omit<Partial<Task>, "id"> & { id: string }): Task {

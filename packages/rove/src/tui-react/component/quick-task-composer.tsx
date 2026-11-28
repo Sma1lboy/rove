@@ -15,8 +15,8 @@
 
 import { usePaste } from "@opentui/react"
 import { useState } from "react"
+import { asAttachmentPaths, attachmentLabel, captureClipboardAttachment } from "../../lib/attachments"
 import { isBlankText, stripNewlines } from "../../tui/component/new-task-dialog/state"
-import { asAttachmentPaths, attachmentLabel, captureClipboardAttachment } from "../../tui/lib/attachments"
 import type { VendorId } from "../../types/task"
 import { nextVendorWithin } from "../../types/vendor"
 import { useTheme } from "../context/theme"

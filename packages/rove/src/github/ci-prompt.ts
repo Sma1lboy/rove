@@ -5,7 +5,7 @@
  * Log tails are pasted verbatim in a fence — evidence, not instructions.
  */
 
-import { readFirstNonEmptyRepoFile } from "../../lib/repo-config-file.ts"
+import { readFirstNonEmptyRepoFile } from "../lib/repo-config-file.ts"
 
 /** One failing check as the daemon's `pr.failingChecks` returns it. */
 export interface CIFailingCheck {

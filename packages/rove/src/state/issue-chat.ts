@@ -11,8 +11,8 @@ import {
   issueProjectPrompt as buildIssueProjectPrompt,
   issueWorktreePrompt as buildIssueWorktreePrompt,
 } from "@sma1lboy/rove-daemon/prompts/issue-prompts"
+import { attachmentLabel } from "../lib/attachments"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
-import { attachmentLabel } from "../tui/lib/attachments"
 
 export type IssueChatPlacement = "worktree" | "project"
 

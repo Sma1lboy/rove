@@ -8,7 +8,7 @@ import type { VendorId } from "@/types/vendor"
 import type { TaskCopyField } from "../../../tui/lib/task-actions"
 import type { TaskSortMode } from "../../../tui/panes/sidebar/groups"
 import type { SidebarNav } from "../../../tui/panes/sidebar/nav-core"
-import type { WorktreeChanges } from "../../../tui/panes/sidebar/worktree-changes"
+import type { WorktreeChanges } from "../../../worktree/worktree-changes"
 
 /** Task-lifecycle callbacks shared VERBATIM by {@link SidebarProps}, the tree's
  *  bindings and menu, and the host, so the surfaces can't drift. */

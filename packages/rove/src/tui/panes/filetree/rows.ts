@@ -12,7 +12,7 @@
 import { charWidth } from "@/lib/display-width"
 import { reconcileStableRows } from "@/tui/lib/stable-rows"
 import { truncateStartCells } from "@/tui/lib/truncate"
-import type { FileStatus, StatusEntry } from "./git"
+import type { FileStatus, StatusEntry } from "../../../worktree/git-status"
 import type { TreeNode } from "./tree"
 
 /** All tab: file/dir tree rows with `depth`. Changes tab: flat status rows with +/- stats. */

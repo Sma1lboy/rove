@@ -14,11 +14,11 @@
 
 import { bench, describe } from "vitest"
 import { type Binding, type RegisteredBinding, dispatchKeyEvent, matchKey } from "../../src/tui/lib/keymap-dispatch"
-import { parseStatusEntries } from "../../src/tui/panes/filetree/git"
 import { type Row, reconcileRows } from "../../src/tui/panes/filetree/rows"
 import { buildSidebarRowView } from "../../src/tui/panes/sidebar/row-view"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
+import { parseStatusEntries } from "../../src/worktree/git-status"
 
 /* -- keymap dispatch: runs once per keypress over the whole stack ----- */
 

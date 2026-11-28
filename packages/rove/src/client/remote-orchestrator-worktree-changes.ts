@@ -5,7 +5,7 @@
  * worktree look clean.
  */
 
-import { type WorktreeChanges, sameWorktreeChanges } from "../tui/panes/sidebar/worktree-changes.ts"
+import { type WorktreeChanges, sameWorktreeChanges } from "../worktree/worktree-changes.ts"
 
 /** Path → counts, or `null` for a worktree the daemon TRACKED but could not
  *  read. Absent means "not collected" (remote project, just-created task) and
