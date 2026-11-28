@@ -43,6 +43,23 @@ describe("engine identity", () => {
     expect(engineFor(fast, [...ENGINES, beta], "alpha")).toEqual({ id: "alpha-fast", name: "Alpha Fast" })
   })
 
+  test("a catalog engine launched with extra flags keeps its identity", () => {
+    const gamma: EngineRow = {
+      id: "gamma",
+      name: "Gamma",
+      command: "gm",
+      protocol: "gamma",
+      builtin: false,
+      enabled: true,
+    }
+    expect(
+      engineFor(task({ id: "f", vendor: "gamma", command: "gm --model x" } as never), [...ENGINES, gamma]),
+    ).toEqual({
+      id: "gamma",
+      name: "Gamma",
+    })
+  })
+
   test("a task on an engine switched off still shows that engine's name", () => {
     const off = ENGINES.map((e) => (e.id === "alpha-fast" ? { ...e, enabled: false } : e))
     expect(engineFor(task({ id: "d", vendor: "alpha", command: "alpha --fast" } as never), off)).toEqual({
