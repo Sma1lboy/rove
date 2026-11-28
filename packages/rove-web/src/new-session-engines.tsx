@@ -1,15 +1,29 @@
 /** The composer's engine and model chips; the engine chip has a compare mode: one prompt to several engines, kept apart as sibling attempts. */
 
-import { useState } from "react"
+import { type ReactNode, useState } from "react"
 import { t } from "./i18n/index.ts"
 import { ChipPopover, ChoiceMenu } from "./new-session-menus.tsx"
 import { type Choice, engineChipLabel, modelChipLabel, toggleEngine } from "./new-session.ts"
 import { Button } from "./ui/button.tsx"
+import { CLIP, ICON, TIGHT_MARK, TIGHT_WORD } from "./ui/composer.ts"
+import { EngineIcon, type EngineIconData } from "./ui/engine-icon.tsx"
 
 interface EngineRow {
   readonly id: string
   readonly name: string
   readonly ready?: boolean
+  /** The registry's mark (`engines.list`); a ring without one. */
+  readonly icon?: EngineIconData
+}
+
+/** In a tight bar the word gives way to `mark`; the word stays the button's name. */
+function TightLabel(props: { mark: ReactNode; word: string }) {
+  return (
+    <>
+      <span className={TIGHT_MARK}>{props.mark}</span>
+      <span className={`${CLIP} ${TIGHT_WORD}`}>{props.word}</span>
+    </>
+  )
 }
 
 /** What the chip shows and Start sends: the engines in pick order, and whether compare mode is on. */
@@ -59,9 +73,15 @@ export function EngineChip(props: {
   const { picks, choice } = props
   const engines = choice.engines
   if (engines.length < 2) return null
-  const names = picks.ids.map((id) => engines.find((e) => e.id === id)?.name ?? id)
+  const rows = picks.ids.map((id) => engines.find((e) => e.id === id))
+  const names = rows.map((e, i) => e?.name ?? picks.ids[i] ?? "")
+  const marks = rows.map((e, i) => <EngineIcon key={picks.ids[i]} icon={e?.icon} />)
   return (
-    <ChipPopover field="engine" title={t("newSession.engine")} label={engineChipLabel(names) || t("newSession.engine")}>
+    <ChipPopover
+      field="engine"
+      title={t("newSession.engine")}
+      label={<TightLabel mark={marks} word={engineChipLabel(names) || t("newSession.engine")} />}
+    >
       {(close) => (
         <ChoiceMenu
           heading={t("newSession.engine")}
@@ -108,7 +128,12 @@ export function ModelChip(props: {
     <ChipPopover
       field="model"
       title={t("newSession.model")}
-      label={modelChipLabel(props.models, props.model, t("newSession.modelDefault"))}
+      label={
+        <TightLabel
+          mark={<ModelGlyph />}
+          word={modelChipLabel(props.models, props.model, t("newSession.modelDefault"))}
+        />
+      }
     >
       {(close) => (
         <ChoiceMenu
@@ -123,5 +148,14 @@ export function ModelChip(props: {
         />
       )}
     </ChipPopover>
+  )
+}
+
+/** The model chip's mark in a tight bar: a spark, the engine's own mark already sits beside it. */
+function ModelGlyph() {
+  return (
+    <svg className={ICON} viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M8 2.5c.4 3 1.5 4.6 5.5 5.5-4 .9-5.1 2.5-5.5 5.5-.4-3-1.5-4.6-5.5-5.5 4-.9 5.1-2.5 5.5-5.5z" />
+    </svg>
   )
 }

@@ -54,6 +54,7 @@ import { buttonClass } from "./ui/button.tsx"
 import * as C from "./ui/composer.ts"
 import { useGrow } from "./ui/grow.ts"
 import { CardMicFace, ClipGlyph, DropHint, SendButton, composerAttach, composerHold } from "./ui/term-composer.tsx"
+import { useTightBar } from "./ui/tight-bar.ts"
 import { DictationButton, talksFirst, useVoiceHosted } from "./voice/dictation-button.tsx"
 
 /** New task: the composer in `repo`, on this machine or the registered one the caller names. Naming neither is the global New task, which opens on No folder: it must not guess a project from whatever is selected. */
@@ -199,6 +200,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const compareAvailable = !remote && !ungrouped && !inPlace && !sh.on
   const picks = useEnginePicks(sh.choice, compareAvailable)
   const engineMenu = picks.comparing ? shown : sh.choice
+  const bar = useTightBar()
   const engine = choice.engines.find((e) => e.id === engineId)
   const engineName = shown.engines.find((e) => e.id === engineId)?.name ?? engineId
   const models = modelChoices(engine, t("newSession.modelDefault"))
@@ -398,7 +400,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             )}
           </div>
         </div>
-        <div className={C.BAR}>
+        <div ref={bar} className={C.BAR}>
           <div className={C.BAR_GROUP}>
             {machines.length > 0 && (
               <MachineChip machines={machines} value={at_.auto ? AUTO : machine} onPick={pickMachine} />
