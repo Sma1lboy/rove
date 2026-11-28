@@ -10,6 +10,7 @@
  */
 
 import { readFileSync } from "node:fs"
+import { createRequire } from "node:module"
 import { describe, expect, it } from "vitest"
 import { scaleWavVolume } from "../../src/tui/lib/wav-volume"
 
@@ -112,7 +113,7 @@ describe("scaleWavVolume", () => {
  * the volume argument was discarded — that click was all you ever heard.
  */
 describe("the bundled chime", () => {
-  const asset = readFileSync(new URL("../../src/assets/pulse.wav", import.meta.url))
+  const asset = readFileSync(createRequire(import.meta.url).resolve("@sma1lboy/rove-client/assets/pulse.wav"))
 
   it("is 16-bit PCM that scales, not something the scaler has to refuse", () => {
     expect(scaleWavVolume(asset, 0.4)).not.toBeNull()

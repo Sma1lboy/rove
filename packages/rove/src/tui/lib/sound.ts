@@ -19,8 +19,8 @@
 import { existsSync, mkdirSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { basename, delimiter, extname, isAbsolute, join, resolve } from "node:path"
+import pulseAssetRaw from "@sma1lboy/rove-client/assets/pulse.wav" with { type: "file" }
 import { persistedSoundVolume } from "@sma1lboy/rove-core/state/sound-volume.ts"
-import pulseAssetRaw from "../../assets/pulse.wav" with { type: "file" }
 import { scaleWavVolume } from "./wav-volume"
 
 // Bun's `type: "file"` import is absolute in dev but chunk-relative in
