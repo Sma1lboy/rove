@@ -1,17 +1,19 @@
 /**
- * The phone shows the PTY at the size another viewer gave it (`term-mount.ts`) and scales that screen into its
- * box: fitted to the width by default; a pinch or a double tap goes to the readable size, where a drag pans.
- * A CSS transform on `.xterm`: the renderer keeps drawing at the real font size, so zoomed-in text stays crisp.
+ * The phone shows the PTY at the size another viewer gave it (`term-mount.ts`) and sizes the font to fit that
+ * grid into its box: the widest font whose cells, whole device pixels each, still fit the width. A pinch or a
+ * double tap goes to a readable size, where a drag pans. Only the pan is a CSS transform (a translate, which
+ * xterm's mouse mapping reads through `getBoundingClientRect`); every zoom level is drawn at its real font size.
  */
 
 import type { Terminal } from "@xterm/xterm"
+import { termFontSize } from "./term-look.ts"
 
-/** The phone's own font size (`termFontSize`) at scale 1. */
-const READABLE = 1
-const MAX = 2.5
+const MAX_PX = 24
 const DOUBLE_TAP_MS = 300
 const DOUBLE_TAP_PX = 30
 const TAP_SLOP_PX = 6
+/** Output stops pulling the view to the cursor for this long after the user pans or zooms. */
+const USER_HOLD_MS = 3000
 
 export interface TermZoom {
   /** A drag pans the screen before it scrolls (`term-touch.ts`). */
@@ -20,58 +22,100 @@ export interface TermZoom {
   pan(dx: number, dy: number): number
   /** Back to the screen's bottom edge (jump to bottom, typing). */
   toBottom(): void
-  /** Re-measures; `on` = the screen is the PTY's size, not the box's. */
+  /** Pans the cursor's cell into view; `fromOutput` yields to a user who just moved the view. */
+  revealCursor(fromOutput?: boolean): void
+  /** Sets the font for `on` (the grid is the PTY's) or back to the box's own; then re-places the screen. */
   layout(on: boolean): void
   dispose(): void
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 
+/** `fontSize` × this = one cell's advance, from xterm's own measure (the same private read `term-fit.ts` makes). */
+function cellAdvance(term: Terminal): number {
+  const measured = (term as unknown as { _core?: { _charSizeService?: { width?: number } } })._core?._charSizeService
+    ?.width
+  const px = Number(term.options.fontSize)
+  return measured && px > 0 ? measured / px : 0.6
+}
+
+/** The largest font whose `cols` cells fit `width` CSS px: xterm floors a cell to whole device pixels. */
+export function fitFontSize(width: number, cols: number, ratio: number, perPx: number): number {
+  const cell = Math.floor((width * ratio) / cols)
+  return Math.max(1, (cell + 0.5) / (perPx * ratio))
+}
+
 export function attachZoom(el: HTMLElement, term: Terminal): TermZoom {
   let on = false
   /** null = fitted to the width, following the box. */
-  let zoom: number | null = null
+  let zoomPx: number | null = null
   let x = 0
   let y = 0
   let stick = true
+  let userAt = 0
 
-  const size = () => ({ w: term.element?.offsetWidth ?? 0, h: term.element?.offsetHeight ?? 0 })
-  const fitScale = () => {
-    const { w } = size()
-    return w > 0 ? Math.min(READABLE, el.clientWidth / w) : READABLE
+  const screen = () => term.element?.querySelector<HTMLElement>(".xterm-screen") ?? null
+  const room = () => {
+    const box = term.element
+    const style = box ? getComputedStyle(box) : null
+    const pad = (side: string) => Number.parseFloat(style?.getPropertyValue(`padding-${side}`) ?? "") || 0
+    return { w: el.clientWidth - pad("left") - pad("right"), h: el.clientHeight }
   }
-  const scale = () => zoom ?? fitScale()
-  const apply = () => {
+  const fitPx = () =>
+    Math.min(termFontSize(), fitFontSize(room().w, term.cols, window.devicePixelRatio || 1, cellAdvance(term)))
+  const setFont = (px: number) => {
+    if (term.options.fontSize !== px) term.options.fontSize = px
+  }
+  const place = () => {
     const box = term.element
     if (!box) return
     if (!on) {
-      box.style.transform = box.style.transformOrigin = box.style.width = box.style.height = ""
+      box.style.transform = ""
       return
     }
-    box.style.width = box.style.height = "fit-content"
-    box.style.transformOrigin = "0 0"
-    const s = scale()
-    const { w, h } = size()
-    const maxX = Math.max(0, w * s - el.clientWidth)
-    const maxY = Math.max(0, h * s - el.clientHeight)
+    const s = screen()
+    const { w, h } = room()
+    const maxX = Math.max(0, (s?.offsetWidth ?? 0) - w)
+    const maxY = Math.max(0, (s?.offsetHeight ?? 0) - h)
     x = clamp(x, 0, maxX)
     y = clamp(stick ? maxY : y, 0, maxY)
     stick = y >= maxY - 0.5
-    box.style.transform = `translate(${-x}px, ${-y}px) scale(${s})`
+    box.style.transform = x || y ? `translate(${-x}px, ${-y}px)` : ""
   }
-  /** Zooms to `next`, keeping the screen point under (cx, cy) in the box where it is. */
-  const zoomAt = (next: number, cx: number, cy: number) => {
-    const s = scale()
-    const fit = fitScale()
-    const z = clamp(next, fit, MAX)
-    zoom = z - fit < 0.01 ? null : z
-    x = ((cx + x) / s) * z - cx
-    y = ((cy + y) / s) * z - cy
+  /** Zooms to `px`, keeping the content under (cx, cy) in the box where it is. */
+  const zoomAt = (px: number, cx: number, cy: number) => {
+    const before = Number(term.options.fontSize)
+    const fit = fitPx()
+    zoomPx = px <= fit + 0.25 ? null : Math.min(MAX_PX, px)
+    const next = zoomPx ?? fit
+    setFont(next)
+    const ratio = next / before
+    x = (x + cx) * ratio - cx
+    y = (y + cy) * ratio - cy
     stick = false
-    apply()
+    userAt = performance.now()
+    place()
+  }
+  const revealCursor = (fromOutput = false) => {
+    const s = screen()
+    if (!on || !s || term.cols <= 0 || term.rows <= 0) return
+    if (fromOutput && performance.now() - userAt < USER_HOLD_MS) return
+    const { w, h } = room()
+    const cellW = s.offsetWidth / term.cols
+    const cellH = s.offsetHeight / term.rows
+    const cx = term.buffer.active.cursorX * cellW
+    const cy = term.buffer.active.cursorY * cellH
+    const before = [x, y]
+    if (cx < x || cx + cellW > x + w) x = cx - w / 2
+    if (cy < y) y = cy
+    else if (cy + cellH > y + h) y = cy + cellH - h
+    if (x === before[0] && y === before[1]) return
+    stick = false
+    place()
   }
 
-  let pinch: { d: number; s: number } | null = null
+  let pinch: { d: number; px: number } | null = null
+  let frame = 0
   let tap: { x: number; y: number; moved: boolean } | null = null
   let lastTap: { x: number; y: number; at: number } | null = null
   const local = (t: Touch) => {
@@ -85,7 +129,7 @@ export function attachZoom(el: HTMLElement, term: Terminal): TermZoom {
   const onStart = (e: TouchEvent) => {
     if (!on) return
     if (e.touches.length === 2) {
-      pinch = { d: spread(e).d, s: scale() }
+      pinch = { d: spread(e).d, px: Number(term.options.fontSize) }
       tap = null
     } else if (e.touches.length === 1) tap = { ...local(e.touches[0]), moved: false }
   }
@@ -94,7 +138,13 @@ export function attachZoom(el: HTMLElement, term: Terminal): TermZoom {
     if (pinch && e.touches.length === 2) {
       e.preventDefault()
       const { d, cx, cy } = spread(e)
-      if (pinch.d > 0) zoomAt((pinch.s * d) / pinch.d, cx, cy)
+      if (pinch.d <= 0) return
+      // Half-pixel steps, at most one per frame: each new size draws a new glyph atlas.
+      const px = Math.round(((pinch.px * d) / pinch.d) * 2) / 2
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        if (px !== term.options.fontSize) zoomAt(px, cx, cy)
+      })
       return
     }
     if (tap && e.touches.length === 1) {
@@ -111,21 +161,18 @@ export function attachZoom(el: HTMLElement, term: Terminal): TermZoom {
     const now = performance.now()
     const here = tap
     tap = null
-    if (
-      lastTap &&
-      now - lastTap.at < DOUBLE_TAP_MS &&
-      Math.hypot(here.x - lastTap.x, here.y - lastTap.y) < DOUBLE_TAP_PX
-    ) {
-      lastTap = null
-      e.preventDefault()
-      zoomAt(zoom === null ? READABLE : fitScale(), here.x, here.y)
-    } else lastTap = { x: here.x, y: here.y, at: now }
+    const again =
+      lastTap && now - lastTap.at < DOUBLE_TAP_MS && Math.hypot(here.x - lastTap.x, here.y - lastTap.y) < DOUBLE_TAP_PX
+    lastTap = again ? null : { x: here.x, y: here.y, at: now }
+    if (!again) return
+    e.preventDefault()
+    zoomAt(zoomPx === null ? termFontSize() : 0, here.x, here.y)
   }
   el.addEventListener("touchstart", onStart, { capture: true, passive: true })
   el.addEventListener("touchmove", onMove, { capture: true, passive: false })
   el.addEventListener("touchend", onEnd, { capture: true, passive: false })
   el.addEventListener("touchcancel", onEnd, { capture: true, passive: false })
-  const resized = term.onResize(apply)
+  const resized = term.onResize(place)
 
   return {
     active: () => on,
@@ -135,19 +182,23 @@ export function attachZoom(el: HTMLElement, term: Terminal): TermZoom {
       x += dx
       y += dy
       stick = false
-      apply()
-      const used = y - before
-      return dy - used
+      userAt = performance.now()
+      place()
+      return dy - (y - before)
     },
     toBottom() {
       stick = true
-      apply()
+      place()
     },
+    revealCursor,
     layout(next) {
       on = next
-      apply()
+      if (!on) zoomPx = null
+      setFont(on ? (zoomPx ?? fitPx()) : termFontSize())
+      place()
     },
     dispose() {
+      if (frame) cancelAnimationFrame(frame)
       el.removeEventListener("touchstart", onStart, { capture: true })
       el.removeEventListener("touchmove", onMove, { capture: true })
       el.removeEventListener("touchend", onEnd, { capture: true })

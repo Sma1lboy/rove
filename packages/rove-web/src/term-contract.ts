@@ -24,6 +24,8 @@ export interface TermHandle {
   scrollLines(lines: number): void
   scrollToTop(): void
   scrollToBottom(): void
+  /** A zoomed-in phone screen pans the cursor's cell into view (the composer took focus). */
+  revealCursor(): void
   /** The next single key typed reaches the engine as its Ctrl chord; `onUsed` fires when it does. `null` disarms. */
   armCtrl(onUsed: (() => void) | null): void
   /** Attach again (a reset respawned the session under the same key). */

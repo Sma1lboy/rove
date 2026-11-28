@@ -41,14 +41,21 @@ export interface AttachResult {
   readonly rows?: number
 }
 
+/** How often a size-less attach on a host that pushes no `pty.size` asks for the PTY's size. */
+const SIZE_POLL_MS = 1000
+
 export class TerminalForwarder {
   private readonly attached = new Set<string>()
   private readonly offs: Array<() => void>
   private readonly flow: TermFlow
+  /** Size-less attaches on a host that pushes no `pty.size`: the size and offset last seen. */
+  private readonly polled = new Map<string, { cols?: number; rows?: number; offset: number }>()
+  private pollTimer: ReturnType<typeof setInterval> | null = null
 
   constructor(
     private readonly pty: PtyHostClient,
     private readonly send: (frame: string) => void,
+    private readonly pollMs = SIZE_POLL_MS,
   ) {
     this.flow = new TermFlow({
       forward: (stream, data) => this.send(pushEvent("term.data", { stream, data })),
@@ -67,6 +74,8 @@ export class TerminalForwarder {
       }),
       pty.on("pty.size", (frame) => {
         const { key, cols, rows } = frame.payload as PtySizeEventPayload
+        // This host pushes: polling is only for one that doesn't.
+        this.stopPolling()
         if (this.attached.has(key)) this.send(pushEvent("term.size", { stream: key, cols, rows }))
       }),
     ]
@@ -110,9 +119,12 @@ export class TerminalForwarder {
         cwd,
         ...(size ? { cols: size.cols, rows: size.rows } : {}),
       })
-      // A host predating `cols`/`rows` on open still reports them on a peek.
-      const sized = open.cols !== undefined ? open : await this.pty.request<PtyPeekResult>("pty.peek", { key: stream })
-      return { stream, alive: open.alive, replay: open.replay, cols: sized.cols, rows: sized.rows }
+      if (open.cols !== undefined)
+        return { stream, alive: open.alive, replay: open.replay, cols: open.cols, rows: open.rows }
+      // A host predating `cols`/`rows` on open pushes no `pty.size` either; a peek still reports the size.
+      const peek = await this.pty.request<PtyPeekResult>("pty.peek", { key: stream, sinceOffset: open.offset })
+      if (!size && this.attached.has(stream)) this.poll(stream, peek)
+      return { stream, alive: open.alive, replay: open.replay, cols: peek.cols, rows: peek.rows }
     } catch (err) {
       this.attached.delete(stream)
       this.flow.forget(stream)
@@ -137,6 +149,7 @@ export class TerminalForwarder {
 
   async detach(stream: string): Promise<void> {
     if (!this.attached.delete(stream)) return
+    this.polled.delete(stream)
     this.flow.forget(stream)
     await this.pty.request("pty.detach", { key: stream })
   }
@@ -145,8 +158,33 @@ export class TerminalForwarder {
     for (const off of this.offs) off()
     for (const stream of this.attached) this.flow.forget(stream)
     this.attached.clear()
+    this.stopPolling()
     // Closing the socket detaches every key this connection held.
     this.pty.close()
+  }
+
+  private poll(stream: string, seen: PtyPeekResult): void {
+    this.polled.set(stream, { cols: seen.cols, rows: seen.rows, offset: seen.offset })
+    this.pollTimer ??= setInterval(() => void this.pollSizes(), this.pollMs)
+  }
+
+  private stopPolling(): void {
+    this.polled.clear()
+    if (this.pollTimer) clearInterval(this.pollTimer)
+    this.pollTimer = null
+  }
+
+  private async pollSizes(): Promise<void> {
+    for (const [stream, last] of this.polled) {
+      // Cut at the last offset, so a peek carries only what was written since, not the whole ring.
+      const peek = await this.pty
+        .request<PtyPeekResult>("pty.peek", { key: stream, sinceOffset: last.offset })
+        .catch(() => null)
+      if (!peek || this.polled.get(stream) !== last) continue
+      this.polled.set(stream, { cols: peek.cols, rows: peek.rows, offset: peek.offset })
+      if (peek.cols && peek.rows && (peek.cols !== last.cols || peek.rows !== last.rows))
+        this.send(pushEvent("term.size", { stream, cols: peek.cols, rows: peek.rows }))
+    }
   }
 
   /** A phone may only type into a session it attached through this bridge. */
