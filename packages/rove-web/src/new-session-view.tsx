@@ -13,6 +13,7 @@ import { CelestialPlate } from "./celestial/plate.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { isTouch } from "./key-hints.ts"
 import { openCompare } from "./layout.ts"
+import { useLinkBadges } from "./link-badges.tsx"
 import type { AppModel } from "./model.ts"
 import { BranchChips } from "./new-session-branch.tsx"
 import { ATTACHMENTS_KEY, WORKTREE_KEY, keepDraft, promptDraft } from "./new-session-draft.ts"
@@ -53,6 +54,7 @@ import { type NewSessionStart, newSession, openNewSession, toast } from "./ui.ts
 import { buttonClass } from "./ui/button.tsx"
 import * as C from "./ui/composer.ts"
 import { useGrow } from "./ui/grow.ts"
+import { FIELD } from "./ui/link-badge.ts"
 import { CardMicFace, ClipGlyph, DropHint, SendButton, composerAttach, composerHold } from "./ui/term-composer.tsx"
 import { useTightBar } from "./ui/tight-bar.ts"
 import { DictationButton, talksFirst, useVoiceHosted } from "./voice/dictation-button.tsx"
@@ -129,19 +131,6 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const voiceHosted = useVoiceHosted(model.client)
 
   const talks = isTouch() && voiceHosted === true
-  // Dictation lands at the caret and never submits: you read it before it goes anywhere.
-  const insertDictated = (text: string) => {
-    const el = area.current
-    const at = el?.selectionStart ?? prompt.length
-    const end = el?.selectionEnd ?? prompt.length
-    const glue = at > 0 && !/\s$/.test(prompt.slice(0, at)) ? " " : ""
-    setPrompt(`${prompt.slice(0, at)}${glue}${text}${prompt.slice(end)}`)
-    const caret = at + glue.length + text.length
-    requestAnimationFrame(() => {
-      if (!talks) el?.focus()
-      el?.setSelectionRange(caret, caret)
-    })
-  }
   // Another registered machine ("" = this one): its project list, the pick there, and the ref to branch from.
   const at_ = useRemoteTarget(model, { machine: seed.machine, repo: seed.repo }, choice)
   const { machines, machine, remote, machineName, remoteList, engineThere, shown } = at_
@@ -234,7 +223,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         pick: remotePick,
         machine,
         engine: engineId,
-        prompt: prompt.trim(),
+        prompt: badges.expand(prompt).trim(),
         baseRef: remoteBase,
         ...(remoteInPlace ? { checkout: remoteCheckoutPath } : {}),
         engineThere,
@@ -260,7 +249,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     if (!primary && !ungrouped && !toClone) return setError(t("newSession.needRepo"))
     if (!prompt.trim() && !sh.on) return setError(t("newSession.needPrompt"))
     setBusy(true)
-    const first = withRefs(prompt.trim(), await ready())
+    const first = withRefs(badges.expand(prompt).trim(), await ready())
     try {
       const list = toClone ? [await cloneInto(toClone)] : repos
       // Every pick is re-probed: a typed path may not be a repo, and the daemon wants canonical roots.
@@ -329,6 +318,14 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   }
 
   const snippets = useSnippetSuggest({ value: prompt, onChange: setPrompt, area, onEnter: () => void start() })
+  const badges = useLinkBadges({
+    model,
+    value: prompt,
+    onChange: setPrompt,
+    area,
+    field: snippets.field,
+    onFilePaste: targets?.onPaste,
+  })
 
   const pickMachine = (alias: string): void => {
     at_.switchTo(alias, primary)
@@ -354,17 +351,19 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         <div className={C.CARD} {...targets?.drop}>
           {targets?.over && <DropHint label={t("layout.composerDrop")} />}
           {!remote && <AttachmentThumbs attachments={attachments} onRemove={remove} />}
-          <textarea
-            ref={grow}
-            className={C.PROMPT}
-            rows={4}
-            spellCheck={false}
-            placeholder={t(sh.on ? "newSession.shellPlaceholder" : "newSession.placeholder")}
-            value={prompt}
-            disabled={busy}
-            onPaste={targets?.onPaste}
-            {...snippets.field}
-          />
+          <div className="relative">
+            {badges.layer}
+            <textarea
+              ref={grow}
+              className={`${C.PROMPT} ${FIELD}`}
+              rows={4}
+              spellCheck={false}
+              placeholder={t(sh.on ? "newSession.shellPlaceholder" : "newSession.placeholder")}
+              value={prompt}
+              disabled={busy}
+              {...badges.field}
+            />
+          </div>
           {snippets.list}
           <div className={C.CARD_ACTIONS}>
             {targets && (
@@ -383,7 +382,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               context={() => ({
                 draft: [prompt.slice(-300), primary, branchName, remotePick?.ref ?? ""].filter(Boolean).join("\n"),
               })}
-              onText={insertDictated}
+              onText={(text) => badges.insert(text, !talks)}
               disabled={busy}
               look={talks ? composerHold : C.cardIcon}
               idle={talks ? t("voice.hold") : undefined}

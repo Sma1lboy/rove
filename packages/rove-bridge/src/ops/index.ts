@@ -11,6 +11,7 @@ import { githubOps } from "./github.ts"
 import { insightOps } from "./insight.ts"
 import { keybindingsOps } from "./keybindings.ts"
 import { launchOps } from "./launch.ts"
+import { linkOps } from "./links.ts"
 import { machineOps } from "./machines.ts"
 import { modsOps } from "./mods.ts"
 import { pagesOps } from "./pages.ts"
@@ -58,6 +59,7 @@ export const AREA_OPS: OpTable = mergeOpTables(
   updateOps,
   machineOps,
   devOps,
+  linkOps,
   prefsOps,
   hostedThemeOps,
   routingOps,
