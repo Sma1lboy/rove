@@ -37,11 +37,11 @@ const html = `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="referrer" content="no-referrer" />
     <meta http-equiv="Content-Security-Policy" content="${csp}" />
     <title>rove</title>
-    <style>html,body{margin:0;background:#1a1a1a;color:#ccc;font:14px ui-monospace,monospace}#relay-status{padding:24px}</style>
+    <style>html,body{margin:0;background:#1a1a1a;color:#ccc;font:14px ui-monospace,monospace}#relay-status{padding:calc(24px + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right)) 24px calc(24px + env(safe-area-inset-left))}</style>
   </head>
   <body>
     <div id="root"><p id="relay-status"></p></div>

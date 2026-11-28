@@ -145,11 +145,18 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
             <ShortcutBadge model={model} bindingId="inbox.show" head />
           </span>
         )}
-        <UpdateChip />
-        <RefreshRoveButton client={model.client} railBar={!narrow} />
+        {!narrow && <UpdateChip />}
+        {!narrow && <RefreshRoveButton client={model.client} railBar />}
         {narrow && <PhoneRoutines model={model} />}
         {narrow && <PhoneExtensions model={model} />}
       </header>
+      {/* A phone's header has no room beside its buttons: the update notices get a line of their own. */}
+      {narrow && (
+        <div className="-mt-1 flex items-center gap-2 px-4 pb-2 empty:hidden">
+          <UpdateChip />
+          <RefreshRoveButton client={model.client} />
+        </div>
+      )}
       {narrow && payload && <PhoneRailNote model={model} />}
       {moving && (
         <div className={`${RAIL_SEARCH} mono`}>
