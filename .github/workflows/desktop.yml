@@ -1,8 +1,8 @@
 # The desktop app (packages/rove-desktop) on Linux and Windows: package it, then open the packaged app
 # against a bridge from this checkout and check the page loaded (`ROVE_DESKTOP_SMOKE`). The installers
 # are uploaded as workflow artifacts, and a push to main also puts them on the rolling `desktop` release
-# that rove.run links to. macOS is built, signed and notarized by scripts/release-mac.sh on a Mac that
-# holds the Developer ID certificate.
+# that rove.run links to. macOS is built, signed and notarized by scripts/release-mac.sh, run by
+# desktop-mac.yml.
 
 name: Desktop
 
