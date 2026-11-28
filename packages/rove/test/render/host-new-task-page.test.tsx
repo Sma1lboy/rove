@@ -110,7 +110,7 @@ test("the global New task opens on No folder and starts a no-folder session with
     3,
     before.split("\n").findIndex((line) => line.includes("New task")),
   )
-  const page = await waitForFrameText(frame, "No folder")
+  const page = await waitForFrameText(frame, "Choose folder")
   const at = (text: string, screen: string) => {
     const y = screen.split("\n").findIndex((line) => line.includes(text))
     return { x: (screen.split("\n")[y] ?? "").indexOf(text) + 1, y }
@@ -147,7 +147,7 @@ test("a project's + pressed while the New task page is open moves the page to th
     3,
     lines.findIndex((line) => line.includes("New task")),
   )
-  await waitForFrameText(frame, "No folder")
+  await waitForFrameText(frame, "Choose folder")
   // The header's + shows under the pointer.
   await mockMouse.moveTo(4, header)
   const hovered = await waitForFrameText(frame, "repo v")
@@ -155,5 +155,5 @@ test("a project's + pressed while the New task page is open moves the page to th
   expect(plus).toBeGreaterThan(0)
   await mockMouse.click(plus, header)
   const moved = await waitForFrameText(frame, "Describe a task")
-  expect(moved).not.toContain("No folder")
+  expect(moved).not.toContain("Choose folder")
 })

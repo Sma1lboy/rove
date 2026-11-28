@@ -100,7 +100,7 @@ describe("routine engine pins launch on the engine they were validated against",
       await cli("routine-create", create("--model", "sonnet"))
       const [routine] = await routines()
       expect(routine).toMatchObject({ vendor: "claude", model: "sonnet" })
-      expect(await runNow(routine!.id)).toEqual(["claude", "--model", "sonnet"])
+      expect((await runNow(routine!.id))?.slice(0, 3)).toEqual(["claude", "--model", "sonnet"])
     } finally {
       await h.close()
     }

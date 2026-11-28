@@ -86,7 +86,7 @@ for (const [how, after] of [
   test(`the selected session ${how} opens New task on No folder, and the page takes the keys`, async () => {
     const { frame, mockInput, list, active } = await host()
     await list(after)
-    const page = await waitForFrameText(frame, "No folder")
+    const page = await waitForFrameText(frame, "Choose folder")
     expect(page).toContain("Describe a task")
     expect(page).not.toContain("· running")
     expect(active()).toBeNull()
