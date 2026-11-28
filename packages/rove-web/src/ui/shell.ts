@@ -2,6 +2,13 @@
 
 import { PRESS, SQUARE, glass } from "./glass.ts"
 
+/** Faint hairline shared by the docked rail edge and side-panel column dividers. */
+export const PANE_HAIRLINE = {
+  railRight: "rail-open:[border-right:var(--hairline)_solid_var(--line-faint)]",
+  dividerBefore:
+    "before:absolute before:inset-y-0 before:left-[calc(var(--divider)/2)] before:[border-left:var(--hairline)_solid_var(--line-faint)] before:content-[''] hover:before:border-l-line-active active:before:border-l-line-active",
+} as const
+
 /** Only the size, for lines outside a `.mono` element: they keep the line height they inherit. */
 const META = "text-meta leading-[inherit]"
 /** What the sheets' `font: <size> <family>` shorthand reset besides size and family. */
@@ -45,7 +52,7 @@ export const RAIL_FRAME = [
   "relative narrow-content:hidden narrow-back:col-1 narrow-back:row-1 touch:select-none touch:touch-callout-none",
   "wide:overflow-x-clip wide:pt-8.5 wide:[&>:not([data-grip])]:min-w-(--rail-open-w)",
   // Docked, a tone off the page, as Claude Desktop's sidebar: the regions part by colour, the hairline only just shows.
-  "rail-open:bg-sidebar rail-open:[border-right:var(--hairline)_solid_color-mix(in_srgb,var(--line)_50%,transparent)]",
+  `rail-open:bg-sidebar ${PANE_HAIRLINE.railRight}`,
   "rail-folded:absolute rail-folded:inset-y-1.5 rail-folded:left-1.5 rail-folded:z-6 rail-folded:col-1 rail-folded:row-1 rail-folded:box-border rail-folded:w-(--rail-open-w) rail-folded:-translate-x-[calc(100%+12px)] rail-folded:rounded-md rail-folded:border-hairline rail-folded:border-line rail-folded:bg-surface rail-folded:shadow-none rail-folded:transition-[translate] rail-folded:duration-200 rail-folded:ease-snap rail-folded:motion-reduce:transition-none rail-folded:[&>:not([data-grip])]:min-w-0",
   "rail-peek:translate-none rail-peek:shadow-dialog",
 ].join(" ")
