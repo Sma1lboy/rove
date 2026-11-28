@@ -19,6 +19,7 @@ import { EnginePicker, SHELL, isPane, openTab, paneIdOf, useEngineChoice, usePan
 import { tc } from "./tui-copy.ts"
 import { toast } from "./ui.ts"
 import { FIELD, TEXTAREA } from "./ui/form.ts"
+import { useGrow } from "./ui/grow.ts"
 import { DIALOG_BODY } from "./ui/overlay.ts"
 import { HINT, INPUT, KICKER } from "./ui/text.ts"
 
@@ -51,6 +52,7 @@ export function NewChatDialog(props: {
   const [destination, setDestination] = useState<NewChatDestination>(props.destination ?? "tab")
   const [context, setContext] = useState<NewChatContext>(props.context ?? "fresh")
   const [prompt, setPrompt] = useState("")
+  const grow = useGrow(prompt)
   const [attempts, setAttempts] = useState("1")
   const [baseRef, setBaseRef] = useState(task?.branch ?? "main")
   const { busy, error, setError, submit } = useSubmit()
@@ -260,6 +262,7 @@ export function NewChatDialog(props: {
           <label className={FIELD}>
             <span className={`${KICKER} text-muted`}>{t("newChat.prompt")}</span>
             <textarea
+              ref={grow}
               className={`${INPUT} ${TEXTAREA}`}
               data-field="message"
               // biome-ignore lint/a11y/noAutofocus: the dialog's main field

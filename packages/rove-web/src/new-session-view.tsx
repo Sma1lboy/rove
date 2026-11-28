@@ -52,6 +52,7 @@ import { useEngineChoice } from "./task-dialogs.tsx"
 import { type NewSessionStart, newSession, openNewSession, toast } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
 import * as C from "./ui/composer.ts"
+import { useGrow } from "./ui/grow.ts"
 import { CardMicFace, ClipGlyph, DropHint, SendButton, composerAttach, composerHold } from "./ui/term-composer.tsx"
 import { DictationButton, talksFirst, useVoiceHosted } from "./voice/dictation-button.tsx"
 
@@ -123,6 +124,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const lastTry = useRef<() => void>(() => {})
   const { attachments, attach, remove, ready, clear } = useAttachments(model, setError, ATTACHMENTS_KEY)
   const area = useRef<HTMLTextAreaElement>(null)
+  const grow = useGrow(prompt, area)
   const voiceHosted = useVoiceHosted(model.client)
 
   const talks = isTouch() && voiceHosted === true
@@ -351,7 +353,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           {targets?.over && <DropHint label={t("layout.composerDrop")} />}
           {!remote && <AttachmentThumbs attachments={attachments} onRemove={remove} />}
           <textarea
-            ref={area}
+            ref={grow}
             className={C.PROMPT}
             rows={4}
             spellCheck={false}

@@ -65,6 +65,8 @@
   --radius-xs: 4px;
   /* One line weight for every rule and outline: a device pixel's worth on a retina screen, 1px elsewhere. */
   --hairline: 1px;
+  /* A growing text field stops here and scrolls: ten lines of the phone composer, never past half of what the keyboard leaves. */
+  --field-max: min(242px, calc(var(--vvh, 100dvh) * 0.5));
   color-scheme: dark;
 }
 

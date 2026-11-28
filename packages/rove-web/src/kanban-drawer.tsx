@@ -20,6 +20,7 @@ import { SelectorField } from "./selector-field.tsx"
 import { closeDialog, toast } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
 import { CHIPS_ROW, FIELD, TEXTAREA, chipClass } from "./ui/form.ts"
+import { useGrow } from "./ui/grow.ts"
 import {
   KB_AGE,
   KB_BODY,
@@ -142,6 +143,7 @@ export function IssueDrawer(props: {
   const at = (field: Field) => (el: HTMLElement | null) => {
     refs.current[field] = el
   }
+  const grow = useGrow(body, at("description"))
   const first: Field = create ? "title" : startable ? "workspace" : linkedTaskId ? "open" : "title"
   useEffect(() => refs.current[first]?.focus(), [first])
 
@@ -290,7 +292,7 @@ export function IssueDrawer(props: {
               {uploading && <span className="text-accent">…</span>}
             </span>
             <textarea
-              ref={at("description")}
+              ref={grow}
               className={`${INPUT} ${TEXTAREA} ${KB_BODY}`}
               rows={8}
               spellCheck={false}

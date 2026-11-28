@@ -1,5 +1,7 @@
 /** The New session page: an empty hero above, the composer pinned to the bottom of the workspace pane. */
 
+import { GROW as GROWS } from "./grow.ts"
+
 /** Everything below inherits this font: no recipe here sets `text-meta`, which would reset line-height to normal. */
 export const NEW_SESSION =
   "flex min-h-0 min-w-0 flex-1 flex-col p-4 font-mono text-meta leading-[1.5] font-normal not-italic normal-nums"
@@ -14,7 +16,7 @@ export const NOTE = "pointer-events-none absolute bottom-full left-0 mb-2 flex f
 export const CARD =
   "relative flex flex-col gap-2 rounded-md border-hairline border-line bg-surface px-3 py-2.5 focus-within:border-line-active"
 export const CARD_ACTIONS = "flex flex-wrap items-center justify-end gap-1.5"
-export const PROMPT = "max-h-[40vh] min-h-[4.5em] w-full bg-transparent text-ink [border:0] [outline:0]"
+export const PROMPT = `${GROWS} min-h-[4.5em] w-full bg-transparent text-ink [border:0] [outline:0]`
 /** On a phone the chips sit above the card, starting and ending on its edges, so the card itself rests on the keyboard. */
 export const BAR = "flex items-center gap-1.5 px-1 narrow:order-first narrow:px-0"
 /**

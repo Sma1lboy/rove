@@ -1,10 +1,12 @@
 /** Dialog and settings form pieces: a labelled field, a multi-line input, a row of pickable chips, a choice list. */
 
+import { GROW } from "./grow.ts"
+
 /** A label (or kicker) stacked over its control. */
 export const FIELD = "flex flex-col gap-1.5"
 
 /** Added to `.input` on a `<textarea>`. */
-export const TEXTAREA = "min-h-18 max-h-[50vh] leading-[1.45]"
+export const TEXTAREA = `${GROW} min-h-18 leading-[1.45]`
 
 export const CHIPS_ROW = "flex flex-wrap gap-1.5"
 

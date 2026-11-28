@@ -9,6 +9,7 @@ import { t, useLocale } from "./i18n/index.ts"
 import { closeDialog } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
 import { CHOICES, TEXTAREA } from "./ui/form.ts"
+import { useGrow } from "./ui/grow.ts"
 import { DialogClose } from "./ui/nav-button.tsx"
 import { DIALOG_BODY, DIALOG_HEAD, DIALOG_TITLE, OVERLAY, dialogClass } from "./ui/overlay.ts"
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
@@ -76,6 +77,7 @@ export function TextDialog(props: {
   onSubmit: (value: string) => Promise<void>
 }) {
   const [value, setValue] = useState(props.initial ?? "")
+  const grow = useGrow(value)
   const { busy, error, submit } = useSubmit()
   return (
     <DialogShell title={props.title}>
@@ -88,6 +90,7 @@ export function TextDialog(props: {
       >
         {props.multiline ? (
           <textarea
+            ref={grow}
             className={`${INPUT} ${TEXTAREA}`}
             aria-label={props.title}
             // biome-ignore lint/a11y/noAutofocus: a dialog's only field
