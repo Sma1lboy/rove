@@ -3,7 +3,7 @@
  * schedules it, and a process that exits first leaves the alt screen up.
  */
 
-import { afterEach, describe, expect, test, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import { exitAfterRestore } from "../../src/tui-react/workspace/exit-after-restore"
 
 /** A renderer whose restore finishes when the test says so. */
@@ -18,6 +18,9 @@ function fakeRenderer() {
 }
 
 describe("exitAfterRestore", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
   afterEach(() => {
     vi.useRealTimers()
   })
@@ -36,12 +39,11 @@ describe("exitAfterRestore", () => {
   })
 
   test("still exits when the restore never finishes", async () => {
-    vi.useFakeTimers()
     const { renderer } = fakeRenderer()
     const exit = vi.fn()
 
-    const quitting = exitAfterRestore(renderer, exit, 50)
-    await vi.advanceTimersByTimeAsync(50)
+    const quitting = exitAfterRestore(renderer, exit)
+    await vi.runAllTimersAsync()
     await quitting
 
     expect(exit).toHaveBeenCalledOnce()
