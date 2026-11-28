@@ -114,8 +114,9 @@ test("the schedule row is five editable cells, not a text field", async () => {
   // Each cell is labelled — the structure is visible without knowing cron.
   expect(before).toMatch(/min.*hour.*day.*month.*weekday/)
 
-  // Tab to schedule (name → repo → target → prompt → schedule), step to the hour cell,
+  // Tab to schedule (name → repo → target → prompt → triggerMode → schedule), step to the hour cell,
   // and change it.
+  mockInput.pressTab()
   mockInput.pressTab()
   mockInput.pressTab()
   mockInput.pressTab()
@@ -175,6 +176,7 @@ test.each([
   mockInput.pressTab()
   await frame()
   mockInput.typeText("Run the report")
+  mockInput.pressTab()
   mockInput.pressTab()
   mockInput.pressTab()
   await frame()
@@ -264,4 +266,65 @@ test("a click on an older run opens that run's task, not the latest", async () =
   expect(y).toBeGreaterThan(0)
   await mockMouse.click((lines[y] ?? "").indexOf("#1 ") + 1, y)
   expect(opened).toEqual(["older"])
+})
+
+test("event-driven routines render their trigger source without a cron schedule and can be composed in Event mode", async () => {
+  const calls: unknown[] = []
+  const eventRoutine = {
+    id: "ev-1",
+    name: "fix red ci",
+    repo: "/x/rove",
+    prompt: "Fix failing checks",
+    eventTriggers: [{ kind: "ci_failed", filter: { branch: "main" } }],
+    enabled: true,
+    missedRunGraceMinutes: 60,
+    createdAt: "2026-07-01T00:00:00Z",
+    updatedAt: "2026-07-01T00:00:00Z",
+  }
+  const orch = {
+    ...orchestrator([eventRoutine]),
+    createAutomation: async (draft: unknown) => {
+      calls.push(draft)
+      return {}
+    },
+  }
+  const { frame, mockInput } = await renderComponent(
+    <AutomationsPage orchestrator={orch as never} focused={true} focusRepo="/x/rove" onClose={() => {}} />,
+    { width: 110, height: 34, providers: { dialog: true, notifications: true } },
+  )
+  const rendered = await waitForFrameText(frame, "on ci_failed (main)")
+  expect(rendered).toContain("events: ci_failed (main)")
+
+  mockInput.typeText("n")
+  await waitForFrameText(frame, "New routine")
+  mockInput.typeText("PR reviewer")
+  // name → repo → target → prompt → triggerMode
+  mockInput.pressTab()
+  mockInput.pressTab()
+  mockInput.pressTab()
+  await frame()
+  mockInput.typeText("Review requested PR")
+  mockInput.pressTab()
+  await frame()
+  // Switch from Schedule to Event mode
+  mockInput.pressArrow("right")
+  await waitForFrameText(frame, "EVENT SOURCE")
+  // eventKind → eventFilter → confirm
+  mockInput.pressTab()
+  await frame()
+  mockInput.pressArrow("down")
+  mockInput.pressTab()
+  await frame()
+  mockInput.typeText("release/*")
+  mockInput.pressTab()
+  await frame()
+  mockInput.pressEnter()
+  await waitUntil(() => calls.length > 0)
+  expect(calls).toEqual([
+    expect.objectContaining({
+      name: "PR reviewer",
+      eventTriggers: [{ kind: "pr_review_requested", filter: { branch: "release/*" } }],
+    }),
+  ])
+  expect(calls[0]).not.toHaveProperty("schedule")
 })

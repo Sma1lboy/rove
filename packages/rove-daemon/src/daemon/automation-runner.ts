@@ -19,7 +19,6 @@ import type { DaemonRpcClient } from "../client/rpc.ts"
 import { type DispatchOutcome, type DispatchRunnability, dispatchAutomation } from "./automation-dispatch.ts"
 import { formatPrecheckSkip, precheckPassed, precheckSkip, runAutomationPrecheck } from "./automation-precheck.ts"
 import { routineRepoMissing } from "./automation-repo-check.ts"
-import { type WebhookEvent, webhookPrecheckEnv } from "./automation-webhook.ts"
 import type { AutomationsStore } from "./automations-store.ts"
 import {
   type Automation,
@@ -28,8 +27,10 @@ import {
   type AutomationRunResponse,
   type AutomationRunStatus,
   type AutomationTrigger,
+  type AutomationTriggerEvent,
   type DaemonOrchestrator,
   automationRunNeedsAttention,
+  eventPrecheckEnv,
 } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import { countCronBetween, latestCronAtOrBefore } from "./cron.ts"
@@ -46,10 +47,10 @@ import { startTicker } from "./ticker.ts"
  *  minute, so a faster tick would only re-ask the same question. */
 export const DEFAULT_AUTOMATION_TICK_MS = 60_000
 
-/** Automations whose armed time has arrived. */
+/** Automations whose armed time has arrived. Event-only routines (no schedule) never enter the sweep. */
 export function dueAutomations(automations: readonly Automation[], nowMs: number): Automation[] {
   return automations.filter((a) => {
-    if (!a.enabled) return false
+    if (!a.enabled || !a.schedule || !a.nextRunAt) return false
     const at = Date.parse(a.nextRunAt)
     return Number.isFinite(at) && at <= nowMs
   })
@@ -70,6 +71,7 @@ export function resolveDueOccurrence(
   nowMs: number,
   tickMs: number = DEFAULT_AUTOMATION_TICK_MS,
 ): { scheduledFor: number; missed: boolean } | null {
+  if (!automation.schedule) return null
   const notBefore = Date.parse(automation.createdAt)
   const scheduledFor = latestCronAtOrBefore(automation.schedule, nowMs, Number.isFinite(notBefore) ? notBefore : 0)
   // `nextRunAt` is stale for the current expression (hand edit, or an edit
@@ -234,6 +236,7 @@ async function recordSkip(
  * occurrence, so without this the skipped ones leave no record.
  */
 function droppedOccurrences(automation: Automation, scheduledFor: number): { count: number; firstMs: number } | null {
+  if (!automation.schedule || !automation.nextRunAt) return null
   const armedAt = Date.parse(automation.nextRunAt)
   if (!Number.isFinite(armedAt) || armedAt >= scheduledFor) return null
   const count = countCronBetween(automation.schedule, armedAt, scheduledFor)
@@ -275,9 +278,9 @@ async function runScript(
 export async function runAutomationOnce(
   deps: RunnerDeps,
   automation: Automation,
-  args: { scheduledFor: number; trigger: AutomationTrigger; event?: WebhookEvent },
+  args: { scheduledFor: number; trigger: AutomationTrigger; event?: AutomationTriggerEvent },
 ): Promise<AutomationRunStatus> {
-  const env = args.event ? webhookPrecheckEnv(args.event) : undefined
+  const env = args.event ? eventPrecheckEnv(args.event, args.trigger === "webhook" ? "webhook" : "event") : undefined
   const now = deps.now ?? Date.now
   const reserved = deps.store.reserveRun(automation.id)
   const record = async (

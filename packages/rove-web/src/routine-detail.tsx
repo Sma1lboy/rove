@@ -1,6 +1,12 @@
 /** The Routines page's detail column: the selected routine's actions, schedule, engine, prompt and runs. */
 
-import type { Automation, AutomationRun } from "@sma1lboy/rove-core/automations/automation-run-core.ts"
+import {
+  type Automation,
+  type AutomationRun,
+  automationTriggerMode,
+  formatEventTriggers,
+} from "@sma1lboy/rove-core/automations/automation-run-core.ts"
+import { routineWebhookPath } from "@sma1lboy/rove-core/automations/automation-trigger-core.ts"
 import { describeCronWith } from "@sma1lboy/rove-core/automations/cron-core.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { fill, useCopy, useCronTranslate } from "./pages-kit.ts"
@@ -32,8 +38,12 @@ export function RoutineDetail(props: {
   const cronT = useCronTranslate()
   const intl = useLocale() === "zh" ? "zh-CN" : "en-US"
   const { routine, busy, when } = props
-  const described = describeCronWith(routine.schedule, cronT)
+  const mode = automationTriggerMode(routine)
+  const described = routine.schedule ? describeCronWith(routine.schedule, cronT) : null
   const nextAt = routine.nextRunAt ? Date.parse(routine.nextRunAt) : Number.NaN
+  const eventsText = formatEventTriggers(routine)
+  const triggerLabel =
+    mode === "hybrid" ? auto.triggerHybrid : mode === "event" ? auto.triggerEvent : auto.triggerSchedule
   return (
     <>
       <div className={RT_HEAD}>
@@ -51,25 +61,43 @@ export function RoutineDetail(props: {
         </span>
       </div>
       <dl className={RT_META}>
-        <dt className="text-muted">{t("pages.routineSchedule")}</dt>
-        <dd>
-          {described ?? <span className="mono">{routine.schedule}</span>}
-          {described && <span className="mono text-muted">{`  ${routine.schedule}`}</span>}
-        </dd>
-        <dt className="text-muted">{t("pages.routineNext")}</dt>
-        <dd className={routine.enabled ? "" : "text-warning"}>
-          {routine.enabled
-            ? Number.isFinite(nextAt)
-              ? `${when(routine.nextRunAt)} · ${new Date(nextAt).toLocaleString(intl, {
-                  weekday: "short",
-                  month: "short",
-                  day: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}`
-              : "—"
-            : auto.paused}
-        </dd>
+        <dt className="text-muted">{t("pages.routineTrigger")}</dt>
+        <dd>{triggerLabel}</dd>
+        {routine.schedule && (
+          <>
+            <dt className="text-muted">{t("pages.routineSchedule")}</dt>
+            <dd>
+              {described ?? <span className="mono">{routine.schedule}</span>}
+              {described && <span className="mono text-muted">{`  ${routine.schedule}`}</span>}
+            </dd>
+            <dt className="text-muted">{t("pages.routineNext")}</dt>
+            <dd className={routine.enabled ? "" : "text-warning"}>
+              {routine.enabled
+                ? Number.isFinite(nextAt)
+                  ? `${when(routine.nextRunAt)} · ${new Date(nextAt).toLocaleString(intl, {
+                      weekday: "short",
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}`
+                  : "—"
+                : auto.paused}
+            </dd>
+          </>
+        )}
+        {eventsText && (
+          <>
+            <dt className="text-muted">{t("pages.routineEvents")}</dt>
+            <dd className="mono">{eventsText}</dd>
+          </>
+        )}
+        {routine.webhook && (
+          <>
+            <dt className="text-muted">{t("pages.routineWebhook")}</dt>
+            <dd className="mono">{routineWebhookPath(routine.id)}</dd>
+          </>
+        )}
         <dt className="text-muted">{t("pages.routineProject")}</dt>
         <dd>{props.project}</dd>
         {/* A script routine runs a command, not an engine: nothing is delivered anywhere. */}

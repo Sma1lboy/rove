@@ -1,6 +1,12 @@
 /** A routine's detail on a phone: a sheet of grouped cards, its runs as two-line rows, and its actions along the foot. */
 
-import { type AutomationRun, routineRunResponseState } from "@sma1lboy/rove-core/automations/automation-run-core.ts"
+import {
+  type AutomationRun,
+  automationTriggerMode,
+  formatEventTriggers,
+  routineRunResponseState,
+} from "@sma1lboy/rove-core/automations/automation-run-core.ts"
+import { routineWebhookPath } from "@sma1lboy/rove-core/automations/automation-trigger-core.ts"
 import { describeCronWith } from "@sma1lboy/rove-core/automations/cron-core.ts"
 import { type ComponentProps, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
@@ -28,6 +34,10 @@ export function RoutineSheet(props: ComponentProps<typeof RoutineDetail> & { onC
   const [outcome, setOutcome] = useState<Outcome | "all">("all")
   const [more, setMore] = useState(false)
   const { routine, runs, busy, when } = props
+  const mode = automationTriggerMode(routine)
+  const eventsText = formatEventTriggers(routine)
+  const triggerLabel =
+    mode === "hybrid" ? auto.triggerHybrid : mode === "event" ? auto.triggerEvent : auto.triggerSchedule
   const nextAt = routine.nextRunAt ? Date.parse(routine.nextRunAt) : Number.NaN
   const shown = filterRuns(runs, outcome === "all" ? null : outcome)
   const last = filterRuns(runs, null)[0]
@@ -38,16 +48,31 @@ export function RoutineSheet(props: ComponentProps<typeof RoutineDetail> & { onC
         <>
           <div className={`${SHEET_LIST} gap-4 pt-1 pb-3`} data-routine-sheet>
             <PhoneGroup inset>
-              <PhoneFact label={t("pages.routineSchedule")}>
-                {describeCronWith(routine.schedule, cronT) ?? <span className="font-mono">{routine.schedule}</span>}
-              </PhoneFact>
-              <PhoneFact label={t("pages.routineNext")}>
-                {routine.enabled
-                  ? Number.isFinite(nextAt)
-                    ? `${when(routine.nextRunAt)} · ${new Date(nextAt).toLocaleString(intl, { weekday: "short", hour: "2-digit", minute: "2-digit" })}`
-                    : "—"
-                  : auto.paused}
-              </PhoneFact>
+              <PhoneFact label={t("pages.routineTrigger")}>{triggerLabel}</PhoneFact>
+              {routine.schedule && (
+                <>
+                  <PhoneFact label={t("pages.routineSchedule")}>
+                    {describeCronWith(routine.schedule, cronT) ?? <span className="font-mono">{routine.schedule}</span>}
+                  </PhoneFact>
+                  <PhoneFact label={t("pages.routineNext")}>
+                    {routine.enabled
+                      ? Number.isFinite(nextAt)
+                        ? `${when(routine.nextRunAt)} · ${new Date(nextAt).toLocaleString(intl, { weekday: "short", hour: "2-digit", minute: "2-digit" })}`
+                        : "—"
+                      : auto.paused}
+                  </PhoneFact>
+                </>
+              )}
+              {eventsText && (
+                <PhoneFact label={t("pages.routineEvents")}>
+                  <span className="font-mono">{eventsText}</span>
+                </PhoneFact>
+              )}
+              {routine.webhook && (
+                <PhoneFact label={t("pages.routineWebhook")}>
+                  <span className="font-mono">{routineWebhookPath(routine.id)}</span>
+                </PhoneFact>
+              )}
               {props.engine && <PhoneFact label={t("pages.routineEngine")}>{props.engine}</PhoneFact>}
               <PhoneFact label={t("pages.routineProject")}>{props.project}</PhoneFact>
               {!routine.script && (

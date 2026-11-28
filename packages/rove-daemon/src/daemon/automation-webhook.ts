@@ -13,6 +13,8 @@ export interface WebhookEvent {
   readonly name: string
   /** The payload's `action` (`opened`, `reopened`…), when it has one. */
   readonly action?: string
+  /** Associated branch (PR head, check/workflow branch, or push ref), when present. */
+  readonly branch?: string
   /** One line for the prompt: event, repo, number and link when the payload has them. */
   readonly summary: string
 }
@@ -51,12 +53,19 @@ export function readWebhookEvent(name: string | null | undefined, body: string):
   const item = field(payload, "issue") ?? field(payload, "pull_request")
   const number = field(item, "number")
   const url = text(field(item, "html_url"))
+  const rawRef = text(field(payload, "ref"))
+  const branch =
+    text(field(field(field(payload, "pull_request"), "head"), "ref")) ??
+    text(field(field(payload, "check_suite"), "head_branch")) ??
+    text(field(field(field(payload, "check_run"), "check_suite"), "head_branch")) ??
+    text(field(field(payload, "workflow_run"), "head_branch")) ??
+    (rawRef?.startsWith("refs/heads/") ? rawRef.slice("refs/heads/".length) : undefined)
   const parts = [
     action ? `${event}.${action}` : event,
     repo && typeof number === "number" ? `${repo}#${number}` : repo,
     url,
   ].filter(Boolean)
-  return { name: event, ...(action ? { action } : {}), summary: parts.join(" ") }
+  return { name: event, ...(action ? { action } : {}), ...(branch ? { branch } : {}), summary: parts.join(" ") }
 }
 
 /** Env the precheck runs with, so it can filter: `[ "$ROVE_WEBHOOK_ACTION" = opened ]`. */

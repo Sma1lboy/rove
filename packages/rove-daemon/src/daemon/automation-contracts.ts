@@ -1,8 +1,30 @@
-/** Scheduled automations ("routines"): the schedule record, its run history, and the edit patch. */
+/** Scheduled and event-driven automations ("routines"): the rule record, its run history, and the edit patch. */
 
+import type { AutomationEventTrigger } from "./automation-event-contracts.ts"
 import type { VendorId } from "./contracts.ts"
 import type { DeliveryStatus } from "./delivery-contracts.ts"
 import type { SkipVerdict } from "./runnability-contracts.ts"
+
+export {
+  AUTOMATION_EVENT_KINDS,
+  automationTriggerMode,
+  eventPrecheckEnv,
+  formatEventTrigger,
+  formatEventTriggers,
+  globMatch,
+  hasAutomationEventTrigger,
+  isAutomationEventKind,
+  matchEventFilter,
+  matchEventTrigger,
+  normalizeEventTriggers,
+  parseEventTriggers,
+  triggersWantWebhook,
+  type AutomationEventFilter,
+  type AutomationEventKind,
+  type AutomationEventTrigger,
+  type AutomationTriggerEvent,
+  type AutomationTriggerMode,
+} from "./automation-event-contracts.ts"
 
 /** Back-pointer from a routine's standing session task to its {@link Automation}. */
 export interface TaskRoutineLink {
@@ -37,8 +59,10 @@ export interface Automation {
   readonly model?: string
   /** Reasoning level each run's engine launches at (`Task.modelEffort`). */
   readonly modelEffort?: string
-  /** Five-field cron, evaluated in the daemon host's local time. */
-  readonly schedule: string
+  /** Five-field cron, evaluated in the daemon host's local time. Absent for pure event-driven routines. */
+  readonly schedule?: string
+  /** Event triggers bound to this routine (`ci_failed`, `pr_review_requested`, `issue_opened`, `webhook`, `local`). */
+  readonly eventTriggers?: readonly AutomationEventTrigger[]
   readonly precheck?: AutomationPrecheck
   /** Script routine: run this command instead of an engine. `prompt` is empty,
    *  and non-empty stdout becomes the run's response. */
@@ -64,8 +88,8 @@ export interface Automation {
    *  firing rebuilds. */
   readonly sessionTaskId?: string
   readonly enabled: boolean
-  /** ISO-8601. The single source of truth for when this fires next. */
-  readonly nextRunAt: string
+  /** ISO-8601. The single source of truth for when a scheduled routine fires next; absent when unscheduled. */
+  readonly nextRunAt?: string
   /** How late a missed occurrence may still run. Older ones are skipped. */
   readonly missedRunGraceMinutes: number
   /**
@@ -119,8 +143,8 @@ export interface AutomationPrecheckResult {
   readonly durationMs: number
 }
 
-/** `manual` (run-now) skips the precheck; `webhook` runs it, like `scheduled`. */
-export type AutomationTrigger = "scheduled" | "manual" | "webhook"
+/** `manual` (run-now) skips the precheck; `webhook` and `event` run it, like `scheduled`. */
+export type AutomationTrigger = "scheduled" | "manual" | "webhook" | "event"
 
 export interface AutomationRun {
   readonly id: string
@@ -189,14 +213,17 @@ export function routineRunResponseState(
   return nowMs - Date.parse(run.at) > ROUTINE_RESPONSE_WINDOW_MS ? "missing" : "awaiting"
 }
 
-/** Mutable fields of an automation. `schedule` changes recompute `nextRunAt`. */
+/** Mutable fields of an automation. `schedule` changes recompute (or clear) `nextRunAt`. */
 export interface AutomationPatch {
   readonly name?: string
   readonly prompt?: string
   readonly vendor?: VendorId | null
   readonly model?: string | null
   readonly modelEffort?: string | null
-  readonly schedule?: string
+  /** `null` clears the cron schedule (requires an event trigger or webhook to remain). */
+  readonly schedule?: string | null
+  /** `null` clears event triggers (requires a schedule or webhook to remain). */
+  readonly eventTriggers?: readonly AutomationEventTrigger[] | null
   readonly precheck?: AutomationPrecheck | null
   readonly script?: AutomationPrecheck | null
   readonly notify?: boolean

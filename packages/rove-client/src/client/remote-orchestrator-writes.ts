@@ -429,11 +429,18 @@ export async function listAutomationsOp(client: RoveDaemonClient): Promise<{
   return client.request("automation.list", {})
 }
 
-/** Create a schedule (`automation.create`); no `repo` = a projectless routine. The daemon validates
- *  the cron and rejects an expression that parses but never fires. */
+/** Create a scheduled and/or event-driven routine (`automation.create`); no `repo` = a projectless routine. */
 export async function createAutomationOp(
   client: RoveDaemonClient,
-  input: { repo?: string; name: string; prompt: string; schedule: string },
+  input: {
+    repo?: string
+    name: string
+    prompt: string
+    schedule?: string
+    eventTriggers?: Automation["eventTriggers"]
+    webhook?: boolean
+    target?: Automation["target"]
+  },
 ): Promise<{ automation: Automation }> {
   return client.request("automation.create", input)
 }

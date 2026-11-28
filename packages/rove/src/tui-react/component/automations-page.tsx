@@ -13,7 +13,12 @@
 import { TextAttributes } from "@opentui/core"
 import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { isNoProjectTask } from "@sma1lboy/rove-client/sidebar/groups.ts"
+import {
+  buildEventTriggerFromDraft,
+  draftTriggerMode,
+} from "@sma1lboy/rove-core/automations/automation-composer-core.ts"
 import { routineEngineText } from "@sma1lboy/rove-core/automations/automation-engine-core.ts"
+import { routineTriggerSubtitle } from "@sma1lboy/rove-core/automations/automation-trigger-core.ts"
 import { engineDisplayName } from "@sma1lboy/rove-core/engine/interactive-command.ts"
 import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 import { getSavedRepos } from "@sma1lboy/rove-core/state/repos.ts"
@@ -37,8 +42,9 @@ import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import { FRAME } from "../ui/frame"
 import { AutomationComposer } from "./automation-composer-dialog"
+import { AutomationsDetail } from "./automations-detail"
 import { formatWhen } from "./automations-format"
-import { RunHistory, RunResponses, runGlyph, runToneColor } from "./automations-runs"
+import { runGlyph, runToneColor } from "./automations-runs"
 
 /** Agent-driven edits land within a poll; `automation.list` is a local read. */
 const POLL_MS = 5_000
@@ -225,8 +231,17 @@ export function AutomationsPage(props: {
 
     setBusyId("new")
     try {
-      const { repo, ...rest } = draft
-      await orch.createAutomation(repo === null ? rest : { ...rest, repo })
+      const mode = draftTriggerMode(draft)
+      const payload = {
+        ...(draft.repo === null ? {} : { repo: draft.repo }),
+        name: draft.name,
+        prompt: draft.prompt,
+        ...(mode === "event"
+          ? { eventTriggers: [buildEventTriggerFromDraft(draft.eventKind ?? "ci_failed", draft.eventFilter)] }
+          : { schedule: draft.schedule }),
+        ...(draft.target ? { target: draft.target } : {}),
+      }
+      await orch.createAutomation(payload)
       refetch()
     } catch (err) {
       // The daemon's cron error names the fix; carry it verbatim.
@@ -372,7 +387,7 @@ export function AutomationsPage(props: {
                 <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
                   {[
                     automation.repo ? repoLabel(automation.repo) : t("automations.noProject"),
-                    automation.schedule,
+                    routineTriggerSubtitle(automation),
                     engineOf(automation)?.short,
                   ]
                     .filter(Boolean)
@@ -385,7 +400,7 @@ export function AutomationsPage(props: {
                   </text>
                 )}
                 <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
-                  {formatWhen(automation.nextRunAt, now)}
+                  {automation.nextRunAt ? formatWhen(automation.nextRunAt, now) : t("automations.eventModeBadge")}
                 </text>
                 {/* How the last run went. One cell, right of the next-run
                     time: without it a routine that has failed every firing
@@ -407,77 +422,21 @@ export function AutomationsPage(props: {
         </scrollbox>
       )}
 
-      {/* The detail frame is always mounted, even with nothing selected: a
-          panel that appears and disappears makes the page jump, and the empty
-          frame is where a first-time user reads what a routine even carries. */}
-      <box
-        flexDirection="row"
-        marginTop={1}
-        {...FRAME}
-        borderColor={theme.border}
-        padding={1}
-        gap={2}
-        // Shares height with the list once a routine is selected: responses scroll inside it.
-        {...(selected ? { flexGrow: 1, flexShrink: 1, flexBasis: 0 } : { flexShrink: 0 })}
-      >
-        {selected ? (
-          <>
-            <box flexDirection="column" flexGrow={1} flexShrink={1} flexBasis={0}>
-              <box flexDirection="row" justifyContent="space-between" gap={2}>
-                <text fg={theme.text} wrapMode="none" flexShrink={1} flexGrow={1}>
-                  {selected.prompt}
-                </text>
-                {/* Running one on demand is how you find out a routine works
-                  without waiting for its schedule — the reason it is a button
-                  and not only the `s` key. */}
-                <text
-                  fg={busyId === selected.id ? theme.textMuted : theme.primary}
-                  attributes={TextAttributes.BOLD}
-                  wrapMode="none"
-                  flexShrink={0}
-                  onMouseUp={() => void runNow()}
-                >
-                  {t("automations.runNow")}
-                </text>
-              </box>
-              <text fg={theme.textMuted} wrapMode="word">
-                {selected.target
-                  ? t("automations.targetExisting", {
-                      task:
-                        props.orchestrator?.listTasks().find((task) => task.id === selected.target?.taskId)?.title ??
-                        selected.target.taskId,
-                      tab: selected.target.tabId,
-                    })
-                  : t(
-                      selected.persistentSession
-                        ? selected.newConversation
-                          ? "automations.targetStandingNew"
-                          : "automations.targetStanding"
-                        : "automations.targetFresh",
-                    )}
-              </text>
-              {selectedEngine ? <text fg={theme.textMuted}>{selectedEngine.full}</text> : null}
-              {selected.precheck ? (
-                <text fg={theme.textMuted}>{t("automations.precheck", { command: selected.precheck.command })}</text>
-              ) : null}
-              {lastFailure[selected.id] ? (
-                <text fg={theme.warning} wrapMode="word">
-                  {t("automations.lastFailed", {
-                    when: formatWhen(lastFailure[selected.id]?.at, now),
-                    reason: lastFailure[selected.id]?.reason ?? "",
-                  })}
-                </text>
-              ) : null}
-              <RunHistory runs={runs} now={now} onOpenTask={props.onOpenTask} />
-            </box>
-            <box flexDirection="column" flexGrow={1} flexShrink={1} flexBasis={0}>
-              <RunResponses runs={runs} now={now} />
-            </box>
-          </>
-        ) : (
-          <text fg={theme.textMuted}>{t("automations.noSelection")}</text>
-        )}
-      </box>
+      <AutomationsDetail
+        selected={selected}
+        runs={runs}
+        busy={Boolean(selected && busyId === selected.id)}
+        engineFull={selectedEngine?.full ?? null}
+        targetTitle={
+          selected?.target
+            ? props.orchestrator?.listTasks().find((task) => task.id === selected.target?.taskId)?.title
+            : undefined
+        }
+        lastFailure={selected ? lastFailure[selected.id] : undefined}
+        now={now}
+        onRunNow={() => void runNow()}
+        onOpenTask={props.onOpenTask}
+      />
 
       {notice ? <text fg={theme.textMuted}>{notice}</text> : null}
     </box>

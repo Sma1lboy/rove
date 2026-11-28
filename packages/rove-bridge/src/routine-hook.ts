@@ -14,6 +14,7 @@ const MAX_BODY_BYTES = 1024 * 1024
 const STATUS: Readonly<Record<string, number>> = {
   fired: 202,
   pong: 200,
+  ignored: 200,
   not_found: 404,
   bad_signature: 401,
   disabled: 409,

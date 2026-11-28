@@ -206,6 +206,8 @@ export type DaemonRequestName =
   | "automation.runNow"
   // A signed POST relayed by the web server; fires one run in the background.
   | "automation.webhook"
+  // Fire matching event-driven routines from a local hook / CLI event (`rove api routine-emit`).
+  | "automation.emitEvent"
   // One agent-reported response per run; `{run:null}` for an unknown run id.
   | "automation.respond"
   // Armed deliveries (docs/design/long-run-controls.md): `arm` persists an
@@ -349,6 +351,8 @@ export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonReque
   "workitem.start",
   // Precheck subprocess, then a full session start.
   "automation.runNow",
+  // Dispatches matching event-driven routines (prechecks + session starts).
+  "automation.emitEvent",
   // Materializes the worktree and starts the engine.
   "task.startScheduledNow",
   // One serial paste per rate-limited task.

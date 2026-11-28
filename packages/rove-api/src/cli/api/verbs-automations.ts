@@ -7,18 +7,20 @@
  * `docs/design/automations.md`.
  */
 
-import { ROUTINE_RESPONSE_MAX_CHARS } from "@sma1lboy/rove-daemon/daemon/contracts"
+import { AUTOMATION_EVENT_KINDS, ROUTINE_RESPONSE_MAX_CHARS } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
 import { requirePromptText } from "./handlers-tasks.ts"
 import { createEngineFields, updateEngineFields } from "./routine-engine-fields.ts"
+import { EVENT_FLAGS, eventTriggersPayload } from "./routine-event-fields.ts"
 import { ApiError, type VerbSpec } from "./types.ts"
 
 const SCHEDULE_FLAG = {
   name: "schedule",
   type: "string",
   placeholder: "CRON",
-  description: "Five-field cron in the daemon host's local time, e.g. '0 9 * * MON-FRI'.",
+  description:
+    "Five-field cron in the daemon host's local time, e.g. '0 9 * * MON-FRI'. Optional when --event or --webhook is set; '' on update clears it.",
 } as const
 
 const PRECHECK_FLAGS = [
@@ -178,15 +180,26 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
   {
     name: "routine-list",
     group: "routine",
-    summary: "List scheduled routines with their next run time.",
-    flags: [],
-    handler: (ctx) => simpleRpc(ctx, "automation.list", {}),
+    summary: "List scheduled and event-driven routines with their triggers and next run time.",
+    flags: [
+      {
+        name: "mode",
+        type: "enum",
+        values: ["schedule", "event", "hybrid"],
+        placeholder: "MODE",
+        description: "Filter routines by trigger mode (schedule, event, or hybrid).",
+      },
+    ],
+    handler: (ctx) => {
+      const mode = ctx.args.enumOf<"schedule" | "event" | "hybrid">("mode")
+      return simpleRpc(ctx, "automation.list", mode ? { mode } : {})
+    },
   },
   {
     name: "routine-create",
     group: "routine",
     summary:
-      "Schedule a prompt. Each firing creates a fresh task (worktree + engine, or with --no-repo a directory session) and delivers it. Use --target-task and --target-tab for an existing conversation, or --script to run a command with no engine. An enabled routine keeps the daemon alive.",
+      "Create a scheduled and/or event-driven routine. Pass --schedule (five-field cron), --event (ci_failed, pr_review_requested, issue_opened, webhook, local), --webhook, or combine them. Each firing creates a fresh task (worktree + engine, or with --no-repo a directory session), delivers into an existing conversation (--target-task + --target-tab), or runs --script with no engine. An enabled routine keeps the daemon alive.",
     flags: [
       {
         ...F.repo(false),
@@ -202,7 +215,8 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       { name: "name", type: "string", required: true, placeholder: "N", description: "Routine name." },
       F.prompt(false, "Text delivered to the selected conversation or a new session. Required unless --script."),
       F.promptFile(),
-      { ...SCHEDULE_FLAG, required: true },
+      SCHEDULE_FLAG,
+      ...EVENT_FLAGS,
       {
         ...F.vendor(),
         description:
@@ -236,13 +250,20 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       const script = scriptPayload(ctx)
       if (script.script && ctx.args.promptText() !== undefined)
         throw new ApiError("pass --prompt or --script, not both", "BAD_FLAG")
+      const schedule = ctx.args.str("schedule")
+      const events = eventTriggersPayload(ctx)
+      const webhook = ctx.args.bool("webhook") === true
+      if (!schedule && !events.eventTriggers?.length && !webhook) {
+        throw new ApiError("pass --schedule, --event, or --webhook", "MISSING_FLAG")
+      }
       return simpleRpc(ctx, "automation.create", {
         ...(repo ? { repo } : {}),
         name: ctx.args.require("name"),
         ...(script.script ? script : { prompt: requirePromptText(ctx, "routine-create") }),
-        schedule: ctx.args.require("schedule"),
+        ...(schedule ? { schedule } : {}),
+        ...(events.eventTriggers?.length ? { eventTriggers: events.eventTriggers } : {}),
         ...(ctx.args.bool("notify") ? { notify: true } : {}),
-        ...(ctx.args.bool("webhook") ? { webhook: true } : {}),
+        ...(webhook ? { webhook: true } : {}),
         ...(await createEngineFields(ctx, repo)),
         ...(ctx.args.str("base-branch") ? { baseRef: ctx.args.str("base-branch") } : {}),
         ...precheckPayload(ctx),
@@ -260,13 +281,14 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
     name: "routine-update",
     group: "routine",
     summary:
-      "Change a routine. A new --schedule re-anchors its next run; --precheck '' clears the precheck; --enabled false pauses it (disabling the last active one releases the daemon's keep-alive hold) and --enabled true resumes it.",
+      "Change a routine. A new --schedule re-anchors its next run (--schedule '' clears it if an event/webhook trigger remains); --event sets or clears ('' ) event triggers; --precheck '' clears the precheck; --enabled false pauses it (disabling the last active one releases the daemon's keep-alive hold) and --enabled true resumes it.",
     flags: [
       { name: "id", type: "string", required: true, placeholder: "ID", description: "Routine id." },
       { name: "name", type: "string", placeholder: "N", description: "New name." },
       F.prompt(false, "New prompt."),
       F.promptFile(),
       SCHEDULE_FLAG,
+      ...EVENT_FLAGS,
       {
         ...F.vendor(),
         type: "string",
@@ -292,7 +314,8 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
         id,
         ...(ctx.args.str("name") !== undefined ? { name: ctx.args.str("name") } : {}),
         ...(ctx.args.promptText() !== undefined ? { prompt: ctx.args.promptText() } : {}),
-        ...(ctx.args.str("schedule") !== undefined ? { schedule: ctx.args.str("schedule") } : {}),
+        ...(ctx.args.present("schedule") ? { schedule: ctx.args.str("schedule") ?? null } : {}),
+        ...eventTriggersPayload(ctx),
         ...(await updateEngineFields(ctx, id)),
         // `--base-branch ''` clears the base ref (sends null); `present` keeps
         // that empty value visible where `str` would fold it into "absent".
@@ -377,6 +400,48 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
         })
       }
       return res
+    },
+  },
+  {
+    name: "routine-emit",
+    group: "routine",
+    summary:
+      "Emit a local or custom event into the daemon to fire matching enabled event-driven routines (e.g. from a git hook, CI script, or agent). Runs each matched routine's precheck with ROVE_EVENT_* env vars.",
+    flags: [
+      {
+        name: "event",
+        type: "string",
+        required: true,
+        placeholder: "NAME",
+        description: "Event name (e.g. 'ci_failed', 'issue_opened', 'deploy.finished').",
+      },
+      {
+        name: "kind",
+        type: "enum",
+        values: AUTOMATION_EVENT_KINDS,
+        placeholder: "KIND",
+        description:
+          "Event trigger kind to match. Defaults to --event when it names a built-in kind, otherwise 'local'.",
+      },
+      { ...F.repo(false), description: "Scope matching to routines on this repo (plus projectless routines)." },
+      { name: "id", type: "string", placeholder: "ID", description: "Target one specific routine id." },
+      { name: "action", type: "string", placeholder: "ACTION", description: "Optional event action (e.g. 'opened')." },
+      { name: "branch", type: "string", placeholder: "BRANCH", description: "Optional branch name." },
+      { name: "url", type: "string", placeholder: "URL", description: "Optional link to the triggering PR/issue/run." },
+      { name: "detail", type: "string", placeholder: "TEXT", description: "Optional one-line detail for the prompt." },
+    ],
+    handler: (ctx) => {
+      const repo = ctx.args.str("repo") !== undefined ? ctx.args.requireRepo("repo") : undefined
+      return simpleRpc(ctx, "automation.emitEvent", {
+        event: ctx.args.require("event"),
+        ...(ctx.args.enumOf("kind") ? { kind: ctx.args.enumOf("kind") } : {}),
+        ...(repo ? { repo } : {}),
+        ...(ctx.args.str("id") ? { id: ctx.args.str("id") } : {}),
+        ...(ctx.args.str("action") ? { action: ctx.args.str("action") } : {}),
+        ...(ctx.args.str("branch") ? { branch: ctx.args.str("branch") } : {}),
+        ...(ctx.args.str("url") ? { url: ctx.args.str("url") } : {}),
+        ...(ctx.args.str("detail") ? { detail: ctx.args.str("detail") } : {}),
+      })
     },
   },
   {

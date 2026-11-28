@@ -7,9 +7,16 @@
  * CLI-only (`rove api routine-update`).
  */
 
+import {
+  buildEventTriggerFromDraft,
+  draftTriggerMode,
+} from "@sma1lboy/rove-core/automations/automation-composer-core.ts"
 import { routineEngineText } from "@sma1lboy/rove-core/automations/automation-engine-core.ts"
 import type { Automation } from "@sma1lboy/rove-core/automations/automation-run-core.ts"
-import { describeCronWith } from "@sma1lboy/rove-core/automations/cron-core.ts"
+import {
+  matchesRoutineFilter,
+  routineTriggerSubtitle,
+} from "@sma1lboy/rove-core/automations/automation-trigger-core.ts"
 import { useEffect, useRef, useState } from "react"
 import { ConfirmDialog } from "./dialogs.tsx"
 import { ChangeEngineDialog } from "./engine-dialog.tsx"
@@ -35,27 +42,17 @@ import { lastReply, requestRemembered } from "./remembered.ts"
 import { RoutineComposer } from "./routine-composer.tsx"
 import { RoutineDetail } from "./routine-detail.tsx"
 import { useRoutineRuns } from "./routine-run-log.tsx"
-import { TONE_CLASS, TONE_GLYPH, runTone } from "./routine-runs.tsx"
 import { RoutineSheet } from "./routine-sheet.tsx"
 import { type RoutinesReply, routineNeedsYou, whenText } from "./routines-data.ts"
+import { RoutinesDesktopList } from "./routines-list.tsx"
 import { RoutinesPhoneList } from "./routines-phone.tsx"
 import { useStore } from "./store.ts"
 import { dialog, page, routineFocus, toast } from "./ui.ts"
 import { PAGE, PAGE_TITLE, PG_ACTIONS, PG_ACTION_LINK, PG_LIST, PG_NOTICE, PG_TOP } from "./ui/page.ts"
 import { PhonePage } from "./ui/phone.tsx"
-import {
-  RT_BODY,
-  RT_DETAIL,
-  RT_GROUP,
-  RT_LIST,
-  RT_PAGE,
-  RT_ROW_LINE,
-  RT_ROW_SUB,
-  RT_WHEN,
-  rtNameClass,
-  rtRowClass,
-} from "./ui/routines.ts"
-import { KICKER, LINK } from "./ui/text.ts"
+import { RT_BODY, RT_DETAIL, RT_PAGE } from "./ui/routines.ts"
+import { Segmented } from "./ui/segmented.tsx"
+import { LINK } from "./ui/text.ts"
 
 const POLL_MS = 5_000
 
@@ -71,6 +68,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
   const taskRepos = useTaskRepos(model)
   const focusRepo = useSelectedRepo(model)
   const [reply, setReply] = useState<RoutinesReply | null>(() => lastReply<RoutinesReply>(c, "routine.list") ?? null)
+  const [modeFilter, setModeFilter] = useState<"all" | "schedule" | "event">("all")
   // The cursor follows the routine, not its row: pausing one moves it to another group.
   const [cursorId, setCursorId] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
@@ -107,14 +105,14 @@ export function RoutinesView({ model }: { model: AppModel }) {
   )
 
   const listed = reply?.automations ?? []
+  const visible = listed.filter((routine) => matchesRoutineFilter(routine, modeFilter))
   const lastRunStatus = reply?.lastRunStatus ?? {}
   const lastFailure = reply?.lastFailure ?? {}
   const needsYou = (routine: Automation) => routineNeedsYou(reply, routine.id)
-  // What wants a human first, then what runs, then what is paused; daemon order within each.
   const sections = [
-    { key: "pages.routinesNeedYou", rows: listed.filter(needsYou) },
-    { key: "pages.routinesActive", rows: listed.filter((routine) => routine.enabled && !needsYou(routine)) },
-    { key: "pages.routinesPaused", rows: listed.filter((routine) => !routine.enabled && !needsYou(routine)) },
+    { key: "pages.routinesNeedYou", rows: visible.filter(needsYou) },
+    { key: "pages.routinesActive", rows: visible.filter((routine) => routine.enabled && !needsYou(routine)) },
+    { key: "pages.routinesPaused", rows: visible.filter((routine) => !routine.enabled && !needsYou(routine)) },
   ]
   const rows = sections.flatMap((section) => section.rows)
   const at = Math.max(
@@ -216,11 +214,21 @@ export function RoutinesView({ model }: { model: AppModel }) {
           void (async () => {
             setBusy("new")
             try {
+              const mode = draftTriggerMode(draft)
+              const trigger =
+                mode === "event" ? buildEventTriggerFromDraft(draft.eventKind ?? "ci_failed", draft.eventFilter) : null
               await c.request("routine.create", {
                 ...(draft.repo === null ? {} : { repo: draft.repo }),
                 name: draft.name,
                 prompt: draft.prompt,
-                schedule: draft.schedule,
+                ...(trigger
+                  ? {
+                      event: trigger.kind,
+                      ...(trigger.filter?.branch ? { eventBranch: trigger.filter.branch } : {}),
+                      ...(trigger.filter?.event ? { eventName: trigger.filter.event } : {}),
+                      ...(trigger.filter?.action ? { eventAction: trigger.filter.action } : {}),
+                    }
+                  : { schedule: draft.schedule }),
                 ...(draft.target ? { targetTask: draft.target.taskId, targetTab: draft.target.tabId } : {}),
               })
               reload()
@@ -357,83 +365,67 @@ export function RoutinesView({ model }: { model: AppModel }) {
     onChangeEngine: changeEngine,
   }
   const detailNode = detailProps && <RoutineDetail {...detailProps} />
-  const cron = (routine: Automation) => describeCronWith(routine.schedule, cronT) ?? routine.schedule
+  const triggerSub = (routine: Automation) => routineTriggerSubtitle(routine, cronT)
+  const timingLabel = (routine: Automation) =>
+    routine.enabled ? (routine.nextRunAt ? when(routine.nextRunAt) : auto.eventModeBadge) : auto.paused
+  const modePicker = listed.length > 0 && (
+    <Segmented
+      label={t("pages.routinesFilter")}
+      value={modeFilter}
+      picks={[
+        { value: "all" as const, label: t("pages.routinesFilterAll") },
+        { value: "schedule" as const, label: t("pages.routinesFilterSchedule") },
+        { value: "event" as const, label: t("pages.routinesFilterEvent") },
+      ]}
+      onPick={setModeFilter}
+    />
+  )
   const body = (
     <>
       <PendingStarts client={c} tick={tick} reload={reload} />
 
       {reply === null ? (
         <p className="text-muted">{common.loading}</p>
-      ) : rows.length === 0 ? (
+      ) : listed.length === 0 ? (
         <div className={PG_LIST}>
           <p className="text-muted">{auto.empty}</p>
           <p className="keys-only">{auto.emptyHint}</p>
         </div>
       ) : phone ? (
-        <RoutinesPhoneList
-          sections={sections}
-          lastRunStatus={lastRunStatus}
-          icons={icons}
-          line2={(routine) => `${cron(routine)} · ${routine.enabled ? when(routine.nextRunAt) : auto.paused}`}
-          engine={(routine) => engineOf(routine)?.short}
-          onPick={(routine) => {
-            setCursorId(routine.id)
-            setSheet(true)
-          }}
-        />
+        <>
+          <div className="mb-2">{modePicker}</div>
+          <RoutinesPhoneList
+            sections={sections}
+            lastRunStatus={lastRunStatus}
+            icons={icons}
+            line2={(routine) => `${triggerSub(routine)} · ${timingLabel(routine)}`}
+            engine={(routine) => engineOf(routine)?.short}
+            onPick={(routine) => {
+              setCursorId(routine.id)
+              setSheet(true)
+            }}
+          />
+        </>
       ) : (
         <div className={RT_BODY}>
-          <div className={RT_LIST} ref={list}>
-            {sections.map((section) =>
-              section.rows.length === 0 ? null : (
-                <section key={section.key}>
-                  <h2 className={`${KICKER} ${RT_GROUP} ${section === sections[0] ? "text-error" : "text-muted"}`}>
-                    {t(section.key)}
-                  </h2>
-                  {section.rows.map((routine) => {
-                    const index = rows.indexOf(routine)
-                    const last = lastRunStatus[routine.id]
-                    const tone = last ? runTone(last) : null
-                    return (
-                      // biome-ignore lint/a11y/useKeyWithClickEvents: the page's keys (j/k) move the cursor
-                      <div
-                        key={routine.id}
-                        data-row={index}
-                        className={rtRowClass(index === at)}
-                        onClick={() => {
-                          setCursor(index)
-                          setReveal((n) => n + 1)
-                        }}
-                      >
-                        <span className={RT_ROW_LINE}>
-                          <span className={rtNameClass(!routine.enabled)}>{routine.name}</span>
-                          <span className={`mono text-muted ${RT_WHEN}`}>
-                            {routine.enabled ? when(routine.nextRunAt) : auto.paused}
-                          </span>
-                          <span className={`mono ${tone ? TONE_CLASS[tone] : "text-muted"}`} style={{ width: "1ch" }}>
-                            {tone ? TONE_GLYPH[tone] : " "}
-                          </span>
-                        </span>
-                        <span className={`mono text-muted ${RT_ROW_SUB}`} title={routine.schedule}>
-                          {[repoName(routine.repo), cron(routine), engineOf(routine)?.short]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </span>
-                        {lastFailure[routine.id] ? (
-                          <span className={`mono text-warning ${RT_ROW_SUB}`} title={lastFailure[routine.id]?.reason}>
-                            {fill(auto.lastFailed, {
-                              when: when(lastFailure[routine.id]?.at),
-                              reason: lastFailure[routine.id]?.reason ?? "",
-                            })}
-                          </span>
-                        ) : null}
-                      </div>
-                    )
-                  })}
-                </section>
-              ),
-            )}
-          </div>
+          <RoutinesDesktopList
+            listRef={list}
+            header={modePicker}
+            sections={sections}
+            rows={rows}
+            cursor={at}
+            lastRunStatus={lastRunStatus}
+            lastFailure={lastFailure}
+            repoName={repoName}
+            triggerSub={triggerSub}
+            timingLabel={timingLabel}
+            engineShort={(routine) => engineOf(routine)?.short}
+            when={when}
+            onPick={(index) => {
+              setCursor(index)
+              setReveal((n) => n + 1)
+            }}
+          />
 
           {/* Always mounted, even with nothing selected: a panel that comes and goes makes the page jump. */}
           <div className={RT_DETAIL} ref={detail}>

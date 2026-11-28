@@ -34,8 +34,9 @@ describe("AutomationsStore", () => {
     await store.init()
     const created = await store.create(BASE)
     // 10:00 now, daily 09:00 → tomorrow.
-    expect(new Date(created.nextRunAt).getDate()).toBe(1)
-    expect(new Date(created.nextRunAt).getHours()).toBe(9)
+    expect(created.nextRunAt).toBeDefined()
+    expect(new Date(created.nextRunAt ?? "").getDate()).toBe(1)
+    expect(new Date(created.nextRunAt ?? "").getHours()).toBe(9)
   })
 
   it("rejects a schedule that parses but never fires", async () => {
@@ -119,7 +120,7 @@ describe("AutomationsStore", () => {
     store = t.store
     await store.init()
     const created = await store.create({ ...BASE, schedule: "*/15 * * * *" })
-    const fired = Date.parse(created.nextRunAt)
+    const fired = Date.parse(created.nextRunAt ?? "")
     const advanced = await store.advanceNextRun(created.id, fired)
     // Strictly-after, or the sweep would re-fire the same occurrence forever.
     expect(Date.parse(advanced?.nextRunAt ?? "")).toBeGreaterThan(fired)

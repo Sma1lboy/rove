@@ -13,6 +13,7 @@ import type { DaemonActivityRegistry } from "./activity-registry.ts"
 import { DEFAULT_AUTO_FIX_TICK_MS, needsPrPoll, startAutoFixRunner } from "./auto-fix-ci.ts"
 import { DEFAULT_AUTO_TITLE_POLL_MS, pinnedConversation, startAutoTitlePoller } from "./auto-title-poller.ts"
 import type { DispatchRunnability } from "./automation-dispatch.ts"
+import { hasPrEventRoutine, startAutomationEventWatcher } from "./automation-events.ts"
 import { DEFAULT_AUTOMATION_TICK_MS, startAutomationRunner } from "./automation-runner.ts"
 import type { AutomationsStore } from "./automations-store.ts"
 import type { ChannelName } from "./channels.ts"
@@ -340,8 +341,11 @@ export function startDaemonCollectors(
     // prStatus rides the task push too.
     () => hasSubscribersFor("task.snapshot"),
     undefined,
-    // An opted-in task with an open PR is watched too: CI turning red overnight is what it waits for.
-    () => needsPrPoll(orch.listTasks()) || (activity?.workingTaskIds().length ?? 0) > 0,
+    // An opted-in task with an open PR or an enabled PR-event routine keeps polling awake.
+    () =>
+      needsPrPoll(orch.listTasks()) ||
+      hasPrEventRoutine(automations?.store.list() ?? []) ||
+      (activity?.workingTaskIds().length ?? 0) > 0,
     undefined,
     makePrRefreshReader(),
   )
@@ -381,23 +385,27 @@ export function startDaemonCollectors(
   // Ungated: the row is wrong whether or not a client watches, and its first
   // pass is what cleans up after a restart.
 
+  const automationRunnerDeps = automations
+    ? {
+        store: automations.store,
+        deliveries: automations.deliveryDeps.deliveries,
+        orch,
+        runtime,
+        link: automations.link,
+        ...(automations.plugins ? { plugins: automations.plugins } : {}),
+        ...(automations.inbox ? { inbox: automations.inbox } : {}),
+        ...(automations.gates ? { gates: automations.gates } : {}),
+        ...(automations.runnability ? { runnability: automations.runnability } : {}),
+        ...(automations.dispatches ? { dispatches: automations.dispatches } : {}),
+      }
+    : null
   // Ungated: a schedule that requires an audience is not a schedule.
-  const stopAutomationRunner = automations
-    ? startAutomationRunner(
-        {
-          store: automations.store,
-          deliveries: automations.deliveryDeps.deliveries,
-          orch,
-          runtime,
-          link: automations.link,
-          ...(automations.plugins ? { plugins: automations.plugins } : {}),
-          ...(automations.inbox ? { inbox: automations.inbox } : {}),
-          ...(automations.gates ? { gates: automations.gates } : {}),
-          ...(automations.runnability ? { runnability: automations.runnability } : {}),
-          ...(automations.dispatches ? { dispatches: automations.dispatches } : {}),
-        },
-        options.automationTickMs ?? DEFAULT_AUTOMATION_TICK_MS,
-      )
+  const stopAutomationRunner = automationRunnerDeps
+    ? startAutomationRunner(automationRunnerDeps, options.automationTickMs ?? DEFAULT_AUTOMATION_TICK_MS)
+    : () => {}
+  // Reuses the PR poller's persisted `TaskPRStatus` updates via `bus` to fire `ci_failed` / `pr_review_requested` routines.
+  const stopAutomationEventWatcher = automationRunnerDeps
+    ? startAutomationEventWatcher(orch, bus, automationRunnerDeps)
     : () => {}
 
   // Same cadence and ungated like the schedule sweep: the backstop for an
@@ -436,6 +444,7 @@ export function startDaemonCollectors(
         stopScheduledStartRunner,
         stopAutoFixRunner,
         stopAutomationRunner,
+        stopAutomationEventWatcher,
         stopDeliverySweep,
         stopQuotaUsagePoller,
         stopUiPrefsWatcher,

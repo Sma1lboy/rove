@@ -12,11 +12,17 @@ import { type SchedulePreview, previewScheduleWith } from "@sma1lboy/rove-core/a
 import { intlLocale, t } from "@sma1lboy/rove-core/i18n/index.ts"
 
 export {
+  AUTOMATION_EVENT_KINDS,
   COMPOSER_FIELDS,
+  type AutomationEventKind,
+  type AutomationEventTrigger,
   type ComposerDraft,
   type ComposerField,
+  type ComposerTriggerMode,
   EMPTY_DRAFT,
+  buildEventTriggerFromDraft,
   canSubmitDraft,
+  draftTriggerMode,
   firstIncompleteField,
   nextComposerField,
 } from "@sma1lboy/rove-core/automations/automation-composer-core.ts"

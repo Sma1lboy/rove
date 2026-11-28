@@ -15,10 +15,14 @@ import { sidebarProjectLabel } from "@sma1lboy/rove-client/sidebar/groups.ts"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { useState } from "react"
 import {
+  AUTOMATION_EVENT_KINDS,
+  type AutomationEventKind,
   type ComposerDraft,
   type ComposerField,
+  type ComposerTriggerMode,
   EMPTY_DRAFT,
   canSubmitDraft,
+  draftTriggerMode,
   firstIncompleteField,
   nextComposerField,
   previewSchedule,
@@ -91,13 +95,28 @@ function AutomationComposerView(props: {
     patch({ repo: at === 0 ? null : (props.repos[at - 1] ?? null), target: undefined })
   }
 
+  const triggerMode = draftTriggerMode(draft)
+  const eventKind: AutomationEventKind = draft.eventKind ?? "ci_failed"
+  const toggleTriggerMode = (): void => {
+    const nextMode: ComposerTriggerMode = triggerMode === "schedule" ? "event" : "schedule"
+    patch({ triggerMode: nextMode })
+  }
+  const stepEventKind = (delta: number): void => {
+    const idx = AUTOMATION_EVENT_KINDS.indexOf(eventKind)
+    const next = AUTOMATION_EVENT_KINDS[(idx + delta + AUTOMATION_EVENT_KINDS.length) % AUTOMATION_EVENT_KINDS.length]
+    if (next) patch({ eventKind: next })
+  }
+
   function commit(): void {
     if (canSubmitDraft(draft)) {
       props.onSubmit({
         name: draft.name.trim(),
         repo: draft.repo === null ? null : draft.repo.trim(),
         prompt: draft.prompt.trim(),
+        triggerMode,
         schedule: draft.schedule.trim(),
+        eventKind,
+        eventFilter: (draft.eventFilter ?? "").trim(),
         ...(draft.target ? { target: draft.target } : {}),
       })
       dialog.clear()
@@ -136,8 +155,31 @@ function AutomationComposerView(props: {
     bindings: [
       // No escape binding: ModalBarrier's esc both resolves the promise and
       // pops the card; a binding here would outrank it and only resolve.
-      { key: "tab", cmd: () => setField((f) => nextComposerField(f, 1, Boolean(draft.target), projectless)) },
-      { key: "shift+tab", cmd: () => setField((f) => nextComposerField(f, -1, Boolean(draft.target), projectless)) },
+      {
+        key: "tab",
+        cmd: () => setField((f) => nextComposerField(f, 1, Boolean(draft.target), projectless, triggerMode)),
+      },
+      {
+        key: "shift+tab",
+        cmd: () => setField((f) => nextComposerField(f, -1, Boolean(draft.target), projectless, triggerMode)),
+      },
+      ...(field === "triggerMode"
+        ? [
+            { key: "left", cmd: toggleTriggerMode },
+            { key: "right", cmd: toggleTriggerMode },
+            { key: "up", cmd: toggleTriggerMode },
+            { key: "down", cmd: toggleTriggerMode },
+            { key: "space", cmd: toggleTriggerMode },
+          ]
+        : []),
+      ...(field === "eventKind"
+        ? [
+            { key: "left", cmd: () => stepEventKind(-1) },
+            { key: "right", cmd: () => stepEventKind(1) },
+            { key: "up", cmd: () => stepEventKind(-1) },
+            { key: "down", cmd: () => stepEventKind(1) },
+          ]
+        : []),
       // Target and repo are lists: up/down drives them while focused. Input
       // fields' arrows belong to opentui.
       ...(field === "target"
@@ -276,53 +318,117 @@ function AutomationComposerView(props: {
             focused={field === "prompt"}
             onMouseUp={() => setField("prompt")}
             onInput={(v: string) => patch({ prompt: v })}
-            onSubmit={() => setField(nextComposerField("prompt"))}
+            onSubmit={() => setField(nextComposerField("prompt", 1, Boolean(draft.target), projectless, triggerMode))}
           />
         </DialogField>
       </DialogSection>
 
-      {/* Five cells, not a text field: ←/→ picks the cell, ↑/↓ changes it.
-          Typing cron means knowing the field order before you can say
-          anything, and a typo only shows up when the preview goes red. */}
       <DialogSection
-        label={t("automations.fieldSchedule")}
-        focused={field === "schedule"}
-        hint="←/→ ↑/↓"
-        onPress={() => setField("schedule")}
+        label={t("automations.fieldTrigger")}
+        focused={field === "triggerMode"}
+        hint="←/→"
+        onPress={() => setField("triggerMode")}
       >
-        <DialogField focused={field === "schedule"}>
+        <DialogField focused={field === "triggerMode"}>
           <box flexDirection="row" gap={2}>
-            {CRON_SEGMENTS.map((segment, index) => {
-              const activeCell = field === "schedule" && index === segmentCursor
+            {(["schedule", "event"] as const).map((mode) => {
+              const active = triggerMode === mode
               return (
-                <box key={segment} flexDirection="column" onMouseUp={() => selectSegment(index)}>
-                  <text
-                    fg={activeCell ? theme.primary : theme.text}
-                    attributes={activeCell ? TextAttributes.BOLD | TextAttributes.UNDERLINE : undefined}
-                    wrapMode="none"
-                  >
-                    {segmentValues[index] ?? "*"}
-                  </text>
-                  <text fg={activeCell ? theme.textMuted : theme.borderSubtle} wrapMode="none">
-                    {t(`automations.cronField.${segment}`)}
-                  </text>
-                </box>
+                <text
+                  key={mode}
+                  fg={active ? theme.primary : theme.textMuted}
+                  attributes={active ? TextAttributes.BOLD : undefined}
+                  onMouseUp={() => {
+                    setField("triggerMode")
+                    patch({ triggerMode: mode })
+                  }}
+                >
+                  {`${active ? "● " : "○ "}${t(mode === "schedule" ? "automations.triggerSchedule" : "automations.triggerEvent")}`}
+                </text>
               )
             })}
           </box>
-          {/* The whole point of the card: a cron is unreadable, so say when it
-              actually fires, in the user's own clock. */}
-          {preview.kind === "ok" ? (
-            <text fg={theme.success} wrapMode="none">
-              {`${describeCron(draft.schedule) ?? ""}${describeCron(draft.schedule) ? " · " : ""}${preview.relative} · ${preview.absolute}`}
-            </text>
-          ) : (
-            <text fg={theme.error} wrapMode="none">
-              {preview.kind === "never" ? t("automations.cronNever") : t("automations.cronInvalid")}
-            </text>
-          )}
         </DialogField>
       </DialogSection>
+
+      {triggerMode === "schedule" ? (
+        <DialogSection
+          label={t("automations.fieldSchedule")}
+          focused={field === "schedule"}
+          hint="←/→ ↑/↓"
+          onPress={() => setField("schedule")}
+        >
+          <DialogField focused={field === "schedule"}>
+            <box flexDirection="row" gap={2}>
+              {CRON_SEGMENTS.map((segment, index) => {
+                const activeCell = field === "schedule" && index === segmentCursor
+                return (
+                  <box key={segment} flexDirection="column" onMouseUp={() => selectSegment(index)}>
+                    <text
+                      fg={activeCell ? theme.primary : theme.text}
+                      attributes={activeCell ? TextAttributes.BOLD | TextAttributes.UNDERLINE : undefined}
+                      wrapMode="none"
+                    >
+                      {segmentValues[index] ?? "*"}
+                    </text>
+                    <text fg={activeCell ? theme.textMuted : theme.borderSubtle} wrapMode="none">
+                      {t(`automations.cronField.${segment}`)}
+                    </text>
+                  </box>
+                )
+              })}
+            </box>
+            {preview.kind === "ok" ? (
+              <text fg={theme.success} wrapMode="none">
+                {`${describeCron(draft.schedule) ?? ""}${describeCron(draft.schedule) ? " · " : ""}${preview.relative} · ${preview.absolute}`}
+              </text>
+            ) : (
+              <text fg={theme.error} wrapMode="none">
+                {preview.kind === "never" ? t("automations.cronNever") : t("automations.cronInvalid")}
+              </text>
+            )}
+          </DialogField>
+        </DialogSection>
+      ) : (
+        <>
+          <DialogSection
+            label={t("automations.fieldEventKind")}
+            focused={field === "eventKind"}
+            hint="↑/↓"
+            onPress={() => setField("eventKind")}
+          >
+            <DialogField focused={field === "eventKind"}>
+              <text
+                fg={theme.text}
+                onMouseUp={() => {
+                  setField("eventKind")
+                  stepEventKind(1)
+                }}
+              >
+                {t(`automations.eventKind.${eventKind}`)}
+              </text>
+            </DialogField>
+          </DialogSection>
+
+          <DialogSection
+            label={t("automations.fieldEventFilter")}
+            focused={field === "eventFilter"}
+            onPress={() => setField("eventFilter")}
+          >
+            <DialogField focused={field === "eventFilter"}>
+              <input
+                {...INPUT_SCROLL}
+                value={draft.eventFilter ?? ""}
+                placeholder={t(`automations.eventFilterPlaceholder.${eventKind}`)}
+                focused={field === "eventFilter"}
+                onMouseUp={() => setField("eventFilter")}
+                onInput={(v: string) => patch({ eventFilter: v })}
+                onSubmit={() => setField("confirm")}
+              />
+            </DialogField>
+          </DialogSection>
+        </>
+      )}
 
       {error ? (
         <box>

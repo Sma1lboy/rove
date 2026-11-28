@@ -38,6 +38,7 @@ const FULL: Omit<DeepRequired<Automation>, "id" | "nextRunAt" | "createdAt" | "u
   model: "gpt-5.5",
   modelEffort: "high",
   schedule: "0 9 * * *",
+  eventTriggers: [{ kind: "ci_failed", filter: { branch: "main", event: "ci_failed", action: "failing" } }],
   precheck: { command: "git fetch --dry-run", timeoutSeconds: 45 },
   script: { command: "./sweep.sh", timeoutSeconds: 30 },
   notify: true,
@@ -60,6 +61,7 @@ const PATCH: Omit<DeepRequired<AutomationPatch>, "target"> = {
   model: "opus",
   modelEffort: "low",
   schedule: "*/15 * * * *",
+  eventTriggers: [{ kind: "local", filter: { branch: "release/*", event: "deploy", action: "done" } }],
   precheck: { command: "true", timeoutSeconds: 5 },
   script: { command: "./other.sh", timeoutSeconds: 9 },
   notify: false,
@@ -146,6 +148,7 @@ describe("Automation field round-trip", () => {
       model: null,
       modelEffort: null,
       webhook: null,
+      eventTriggers: null,
     })
 
     const reborn = new AutomationsStore(path, () => NOW)
@@ -157,6 +160,21 @@ describe("Automation field round-trip", () => {
     expect(loaded).not.toHaveProperty("model")
     expect(loaded).not.toHaveProperty("modelEffort")
     expect(loaded).not.toHaveProperty("webhook")
+    expect(loaded).not.toHaveProperty("eventTriggers")
+  })
+
+  it("an event-only routine (no schedule) survives a daemon restart", async () => {
+    const path = tempPath()
+    const store = new AutomationsStore(path, () => NOW)
+    await store.init()
+    const { schedule: _schedule, ...eventOnly } = FULL
+    const created = await store.create(eventOnly)
+    expect(created).not.toHaveProperty("schedule")
+    expect(created).not.toHaveProperty("nextRunAt")
+
+    const reborn = new AutomationsStore(path, () => NOW)
+    await reborn.init()
+    expect(reborn.get(created.id)).toEqual(created)
   })
 
   it("a projectless routine (no repo) survives a daemon restart", async () => {
