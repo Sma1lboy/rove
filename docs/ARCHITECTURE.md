@@ -257,6 +257,9 @@ this capability refuse capped launches rather than opening without admission.
   package (`test/architecture/core-off-tui.test.ts`).
 - Clients (`rove-web`, `rove-bridge`, `rove-lark`, `rove-weixin`) never import
   `@sma1lboy/rove/src/tui*` (`test/architecture/clients-off-tui.test.ts`).
+- Clients reach Rove's code only through `@sma1lboy/rove-core`, `-client` and
+  `-api`, never `@sma1lboy/rove/src/…`; the connector registry in rove-bridge is
+  the one exception (`test/architecture/no-rove-src-deep-imports.test.ts`).
 - Package layering: `rove-daemon` ← `rove-core` ← `rove-client` ← `rove-api` ←
   `rove` (CLI, TUI) and the clients. `rove-core` imports nothing from
   `@sma1lboy/rove` (except `package.json`, which carries the product version) or
