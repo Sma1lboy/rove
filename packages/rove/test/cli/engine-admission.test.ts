@@ -1,11 +1,11 @@
 import { Socket } from "node:net"
+import { countLiveEngineSessions, openAdmittedEngine } from "@sma1lboy/rove-api/cli/api/engine-admission.ts"
 import { normalizeWindowsArgs } from "@sma1lboy/rove-core/engine/win-process-snapshot.ts"
 import { ClientWriter } from "@sma1lboy/rove-daemon/daemon/client-writer"
 import { PtyHost } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import { type PtyRequest, dispatchPtyRequest } from "@sma1lboy/rove-daemon/daemon/pty-server-verbs"
 import { describe, expect, it } from "vitest"
-import { countLiveEngineSessions, openAdmittedEngine } from "../../src/cli/api/engine-admission.ts"
 
 const session: PtySessionInfo = {
   key: "a::tab-1",

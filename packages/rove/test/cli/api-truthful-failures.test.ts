@@ -2,15 +2,15 @@
  *  what `add` resolved, what `collect` reports for a turn that died on screen,
  *  and what `send` says when it pastes into a failed session. */
 
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { protocolEntry } from "@sma1lboy/rove-core/engine/engine-presets.ts"
 import { screenErrorLine } from "@sma1lboy/rove-core/engine/screen-state.ts"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, openedTab, recordingDelivery, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 const screen = vi.hoisted(() => ({ error: undefined as string | undefined }))
-vi.mock("../../src/cli/api/engine-screen.ts", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../src/cli/api/engine-screen.ts")>()),
+vi.mock("@sma1lboy/rove-api/cli/api/engine-screen.ts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sma1lboy/rove-api/cli/api/engine-screen.ts")>()),
   engineScreenError: async () => screen.error,
 }))
 

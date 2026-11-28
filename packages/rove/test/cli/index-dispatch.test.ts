@@ -24,7 +24,7 @@ const spies = vi.hoisted(() => ({
 vi.mock("../../src/cli/completions-cmd.ts", () => ({ runCompletionsSubcommand: spies.completions }))
 vi.mock("../../src/cli/export-cmd.ts", () => ({ runExportSubcommand: spies.exportCmd }))
 vi.mock("../../src/cli/repo-cmd.ts", () => ({ runRepoSubcommand: spies.repo }))
-vi.mock("../../src/cli/api-cmd.ts", () => ({ runApiSubcommand: spies.api }))
+vi.mock("@sma1lboy/rove-api/cli/api-cmd.ts", () => ({ runApiSubcommand: spies.api }))
 vi.mock("../../src/cli/update.ts", () => ({ runUpdateSubcommand: spies.update }))
 vi.mock("../../src/cli/theme.ts", () => ({ runThemeSubcommand: spies.theme }))
 vi.mock("../../src/cli/feedback-cmd.ts", () => ({ runFeedbackSubcommand: spies.feedback }))
@@ -32,7 +32,7 @@ vi.mock("../../src/cli/daemon-cmd.ts", () => ({ runDaemonSubcommand: spies.daemo
 vi.mock("../../src/cli/doctor-cmd.ts", () => ({ runDoctorSubcommand: spies.doctor }))
 vi.mock("../../src/cli/reset-cmd.ts", () => ({ runResetSubcommand: spies.reset }))
 vi.mock("../../src/cli/skill-cmd.ts", () => ({ runSkillSubcommand: spies.skill }))
-vi.mock("../../src/cli/hook-cmd.ts", () => ({ runHookSubcommand: spies.hook }))
+vi.mock("@sma1lboy/rove-api/cli/hook-cmd.ts", () => ({ runHookSubcommand: spies.hook }))
 vi.mock("../../src/cli/add-remote.ts", () => ({ runAddRemote: spies.addRemote }))
 vi.mock("../../src/cli/open-dir-cmd.ts", async (importOriginal) => ({
   // Real isPathLikeArg (the routing predicate under test), spied executor.

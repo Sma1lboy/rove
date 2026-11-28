@@ -8,13 +8,13 @@ import { spawnSync } from "node:child_process"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { errorBody, toApiError } from "@sma1lboy/rove-api/cli/api/invoke.ts"
 import { Orchestrator } from "@sma1lboy/rove-core/orchestrator/core.ts"
 import { TaskIndexStore } from "@sma1lboy/rove-core/orchestrator/index/store.ts"
 import { taskCwd } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
 import { GitWorktreeManager } from "@sma1lboy/rove-core/orchestrator/worktree/manager.ts"
 import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
-import { errorBody, toApiError } from "../../src/cli/api/invoke.ts"
 
 const REPO_INIT = path.resolve(__dirname, "./fixtures/repo-init.sh")
 

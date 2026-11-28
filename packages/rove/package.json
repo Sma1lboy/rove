@@ -98,6 +98,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
+    "@sma1lboy/rove-api": "0.0.0",
     "@sma1lboy/rove-client": "0.0.0",
     "@sma1lboy/rove-core": "0.0.0",
     "@sma1lboy/rove-daemon": "0.7.23",

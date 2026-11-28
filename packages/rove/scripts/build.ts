@@ -25,7 +25,7 @@
 
 import { existsSync } from "node:fs"
 import { chmod, cp, mkdir, rm } from "node:fs/promises"
-import { API_VERBS } from "../src/cli/api/verbs.ts"
+import { API_VERBS } from "@sma1lboy/rove-api/cli/api/verbs.ts"
 import { SHELLS, generateCompletions, mergeSubVerbs } from "../src/cli/completion-scripts.ts"
 
 /** Both published bin names; each gets a launcher + the Bun bundle behind it. */

@@ -9,12 +9,12 @@
  * a home fixture it never used.
  */
 
+import { hasLiveEngineTab } from "@sma1lboy/rove-api/cli/api/task-running.ts"
 import { findHostedEngineKey } from "@sma1lboy/rove-core/engine/hosted-session.ts"
 import { joinTaskTabs } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
 import type { TabsState } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import { describe, expect, it } from "vitest"
-import { hasLiveEngineTab } from "../../src/cli/api/task-running.ts"
 
 describe("hasLiveEngineTab (the get-task/collect .running rule)", () => {
   const snapshot = (tabs: unknown[]): TabsState =>

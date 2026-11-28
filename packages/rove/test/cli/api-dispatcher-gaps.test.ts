@@ -10,8 +10,8 @@
  * recorded runs.
  */
 
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { describe, expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, expectApiError, openedTab, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 const runtime = stubRuntime({ openTab: openedTab })

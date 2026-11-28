@@ -1,6 +1,6 @@
 import type { MachineEntry } from "@sma1lboy/rove-core/machines/registry.ts"
+import { upgradeMachine } from "@sma1lboy/rove-core/machines/upgrade.ts"
 import { describe, expect, it } from "vitest"
-import { upgradeMachine } from "../../src/machines/upgrade.ts"
 
 const deck = { alias: "deck", host: "steamdeck.local" } as unknown as MachineEntry
 const ok = { exitCode: 0, stdout: "", stderr: "" }

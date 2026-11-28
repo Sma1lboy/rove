@@ -52,11 +52,11 @@ vi.mock("@sma1lboy/rove-core/engine/engine-status.ts", async (importOriginal) =>
   }
 })
 
-const { invokeVerb } = await import("../../src/cli/api-cmd.ts")
+const { invokeVerb } = await import("@sma1lboy/rove-api/cli/api-cmd.ts")
 const { FakeClient, expectApiError, openedTab, recordingDelivery, stubRuntime, taskFixture } = await import(
   "./api-handler-fixtures.ts"
 )
-const { ApiError } = await import("../../src/cli/api/types.ts")
+const { ApiError } = await import("@sma1lboy/rove-api/cli/api/types.ts")
 
 const savedEnv = { taskId: process.env.ROVE_TASK_ID, tabId: process.env.ROVE_TAB_ID }
 beforeEach(() => {

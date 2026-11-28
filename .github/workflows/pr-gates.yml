@@ -45,13 +45,13 @@ jobs:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           # "User-facing" == touches published-package source. rove-core,
-          # rove-client and rove-daemon are unpublished but ship bundled inside
+          # rove-client, rove-api and rove-daemon are unpublished but ship bundled inside
           # the rove CLI (see docs/RELEASING.md), so they count too;
           # test/docs/config changes in these packages do not.
           touches_user_facing=0
           while IFS= read -r f; do
             case "$f" in
-              packages/rove/src/*|packages/rove-core/src/*|packages/rove-client/src/*|packages/rove-daemon/src/*) touches_user_facing=1 ;;
+              packages/rove/src/*|packages/rove-core/src/*|packages/rove-client/src/*|packages/rove-api/src/*|packages/rove-daemon/src/*) touches_user_facing=1 ;;
             esac
           done < <(git diff --name-only --diff-filter=ACMR "origin/$BASE_REF"...HEAD)
 

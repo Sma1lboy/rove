@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { describe, expect, it } from "vitest"
+import { API_SRC } from "../core-package.ts"
 
 /**
  * docs/API.md carries a table titled "Codes the CLI itself raises". A table
@@ -31,7 +32,7 @@ function tsFiles(dir: string): string[] {
 
 function raisedCodes(): Set<string> {
   const codes = new Set<string>()
-  for (const file of tsFiles(CLI_DIR)) {
+  for (const file of [...tsFiles(CLI_DIR), ...tsFiles(join(API_SRC, "cli"))]) {
     const src = readFileSync(file, "utf8")
     // `new ApiError(<message>, "CODE"` and `fail(<message>, "CODE"` — the two
     // ways this surface refuses. The message argument may span lines and hold

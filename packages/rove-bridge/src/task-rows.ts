@@ -5,6 +5,7 @@
  * the size cap.
  */
 
+import { type ActivityEntry, buildContext } from "@sma1lboy/rove-api/cli/api/context-view.ts"
 import {
   type RowTokenMap,
   type WorktreeChangesMap,
@@ -16,7 +17,6 @@ import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { type TaskStatus, tabStatus, taskStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { rollupPr } from "@sma1lboy/rove-daemon/task-tree"
 import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
-import { type ActivityEntry, buildContext } from "@sma1lboy/rove/src/cli/api/context-view.ts"
 import type { AttentionRow, MachineTag, PrChipKind, RowChanges, RowTokenChip, TaskRow, TaskRowPr } from "./protocol.ts"
 import type { EngineRow } from "./rove-ops.ts"
 

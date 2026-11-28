@@ -1,7 +1,7 @@
 /** `issue-list --status/--search`: an agent asks for the cards it needs instead of the whole board. */
 
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { describe, expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, expectApiError, stubRuntime } from "./api-handler-fixtures.ts"
 
 const board = {

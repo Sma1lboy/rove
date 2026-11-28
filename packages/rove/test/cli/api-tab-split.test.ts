@@ -31,7 +31,7 @@ vi.mock("@sma1lboy/rove-core/engine/hosted-session.ts", async (original) => ({
   }),
 }))
 
-import { defaultApiRuntime } from "../../src/cli/api/runtime.ts"
+import { defaultApiRuntime } from "@sma1lboy/rove-api/cli/api/runtime.ts"
 import { type TabsDaemon, tabsDaemon } from "./tabs-daemon-fake.ts"
 
 let home: string

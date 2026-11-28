@@ -15,7 +15,7 @@ const host = vi.hoisted(() => ({
   /** What the user's editor setting resolves to; null = none installed. The resolution itself is the TUI's (`editor-launch.test.ts`). */
   editor: true,
 }))
-vi.mock("../../src/lib/editor-launch.ts", () => ({
+vi.mock("@sma1lboy/rove-core/lib/editor-launch.ts", () => ({
   resolveEditorLaunch: async (_worktree: string, abs: string, line?: number) =>
     host.editor
       ? {
@@ -40,8 +40,8 @@ vi.mock("@sma1lboy/rove-core/engine/hosted-session.ts", async (original) => ({
   }),
 }))
 
+import { defaultApiRuntime } from "@sma1lboy/rove-api/cli/api/runtime.ts"
 import type { TabsState } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
-import { defaultApiRuntime } from "../../src/cli/api/runtime.ts"
 import { type TabsDaemon, tabsDaemon } from "./tabs-daemon-fake.ts"
 
 let home: string

@@ -10,9 +10,9 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
+import { tabsSection } from "@sma1lboy/rove-api/cli/api/handlers-inspect.ts"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
-import { tabsSection } from "../../src/cli/api/handlers-inspect.ts"
 
 let home: string
 const saved: Record<string, string | undefined> = {}

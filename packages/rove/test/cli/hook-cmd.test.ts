@@ -1,5 +1,5 @@
+import { readTextWithTimeout } from "@sma1lboy/rove-api/cli/hook-cmd.ts"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { readTextWithTimeout } from "../../src/cli/hook-cmd.ts"
 
 /**
  * `readTextWithTimeout` is the stdin-race helper behind `readStdinPayload`. The

@@ -11,11 +11,11 @@
  * which outlives daemon and TUI — and the confirm says so.
  */
 
+import { type SelfRefreshInputs, planSelfRefresh, relaunchSelf } from "@sma1lboy/rove-api/cli/self-relaunch.ts"
 import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
-import { type SelfRefreshInputs, planSelfRefresh, relaunchSelf } from "../../cli/self-relaunch"
-import type { RestorableRenderer } from "../../lib/restore-terminal"
+import type { RestorableRenderer } from "@sma1lboy/rove-core/lib/restore-terminal.ts"
 
-export type { SelfRefreshInputs } from "../../cli/self-relaunch"
+export type { SelfRefreshInputs } from "@sma1lboy/rove-api/cli/self-relaunch.ts"
 
 export interface SelfRefreshDeps {
   readonly orchestrator: Pick<RemoteOrchestrator, "restartDaemon">

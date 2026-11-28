@@ -7,8 +7,8 @@
  * place — they are the only parts a test can hold still.
  */
 
+import { type SelfRefreshInputs, planSelfRefresh, selfRelaunchArgv } from "@sma1lboy/rove-api/cli/self-relaunch.ts"
 import { describe, expect, it } from "vitest"
-import { type SelfRefreshInputs, planSelfRefresh, selfRelaunchArgv } from "../../src/cli/self-relaunch.ts"
 
 const base: SelfRefreshInputs = {
   daemonVersion: "0.9.159",

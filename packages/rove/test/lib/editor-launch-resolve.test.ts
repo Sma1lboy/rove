@@ -20,7 +20,7 @@ vi.mock("@sma1lboy/rove-core/state/repos.ts", () => ({
   getPersistedString: (key: string) => state.persisted[key],
 }))
 vi.mock("@sma1lboy/rove-core/lib/git-env.ts", () => ({ readOnlyGitProcessEnv: () => ({}) }))
-const editorLaunch = await import("../../src/lib/editor-launch")
+const editorLaunch = await import("@sma1lboy/rove-core/lib/editor-launch.ts")
 
 let prevVisual: string | undefined
 let prevEditor: string | undefined

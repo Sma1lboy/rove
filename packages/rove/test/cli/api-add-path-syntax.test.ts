@@ -1,6 +1,6 @@
 import { resolve } from "node:path"
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd"
 import { FakeClient, openedTab, stubRuntime, taskFixture } from "./api-handler-fixtures"
 
 it("reports a requested subdirectory when git and the caller use different Windows separators", async () => {

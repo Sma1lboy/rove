@@ -4,8 +4,8 @@
  * firing, and an empty flag clears the pin.
  */
 
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { describe, expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, stubRuntime } from "./api-handler-fixtures.ts"
 
 const created = () => ({ automation: { id: "r1" } })

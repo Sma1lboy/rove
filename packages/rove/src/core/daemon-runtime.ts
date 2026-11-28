@@ -96,8 +96,8 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   // serves `api.invoke` should not load.
   async invokeApi(verb, params, socketPath, route) {
     const [{ executeVerb, errorEnvelope }, { daemonCaller }, { RoveDaemonClient }] = await Promise.all([
-      import("../cli/api/invoke.ts"),
-      import("../cli/api/types.ts"),
+      import("@sma1lboy/rove-api/cli/api/invoke.ts"),
+      import("@sma1lboy/rove-api/cli/api/types.ts"),
       import("@sma1lboy/rove-daemon/client"),
     ])
     // Its own connection back to this daemon: verbs subscribe and wait on
@@ -107,7 +107,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
       const { inboundRefusal } = await import("../cli/api/inbound.ts")
       const denied = inboundRefusal(verb)
       if (denied) {
-        const { ApiError } = await import("../cli/api/types.ts")
+        const { ApiError } = await import("@sma1lboy/rove-api/cli/api/types.ts")
         return errorEnvelope(
           new ApiError(
             `this machine refuses "${denied}" verbs from other machines (${verb} from ${route.from ?? "a hub"})`,

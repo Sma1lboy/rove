@@ -1,13 +1,13 @@
 /** Request-traffic tests for API collection, lifecycle, adoption, and delivery. */
 
-import { describe, expect, it } from "vitest"
 import {
   ApiError,
   type PromptDeliveryOps,
   type PromptTarget,
   deliverPrompt,
   invokeVerb,
-} from "../../src/cli/api-cmd.ts"
+} from "@sma1lboy/rove-api/cli/api-cmd.ts"
+import { describe, expect, it } from "vitest"
 import { FakeClient, expectApiError, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 describe("collect handler", () => {

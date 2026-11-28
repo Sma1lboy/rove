@@ -8,10 +8,10 @@
  * same function live in `pty-delivery-gates.test.ts`.
  */
 
+import { deliverToExactTab } from "@sma1lboy/rove-api/cli/api/exact-tab-delivery.ts"
+import type { ApiError } from "@sma1lboy/rove-api/cli/api/types.ts"
 import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import { describe, expect, it } from "vitest"
-import { deliverToExactTab } from "../../src/cli/api/exact-tab-delivery.ts"
-import type { ApiError } from "../../src/cli/api/types.ts"
 
 function session(key: string, command: string[], alive = true): PtySessionInfo {
   return { key, alive, pid: alive ? 123 : null, command, title: "" }

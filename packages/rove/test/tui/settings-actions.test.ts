@@ -14,7 +14,7 @@ vi.mock("../../src/tui/component/settings-dialog/actions-core", () => ({
   removeTasksFileForReset: mocks.removeTasks,
 }))
 
-vi.mock("../../src/lib/restore-terminal", () => ({
+vi.mock("@sma1lboy/rove-core/lib/restore-terminal.ts", () => ({
   restoreTerminal: mocks.restore,
 }))
 
@@ -24,7 +24,7 @@ vi.mock("../../src/tui-react/ui/dialog-confirm", () => ({
 
 // The real one replaces the process image. Mocked, so the assertions below can
 // be about WHAT a restart does rather than about surviving it.
-vi.mock("../../src/cli/self-relaunch", () => ({
+vi.mock("@sma1lboy/rove-api/cli/self-relaunch.ts", () => ({
   relaunchSelf: mocks.relaunch,
 }))
 

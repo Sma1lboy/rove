@@ -5,8 +5,8 @@
  * so one plugin cannot claim another's slot by passing a string.
  */
 
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, stubRuntime } from "./api-handler-fixtures.ts"
 
 const runtime = stubRuntime()

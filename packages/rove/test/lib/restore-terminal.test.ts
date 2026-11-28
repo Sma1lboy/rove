@@ -4,8 +4,8 @@
  * first leaves the alt screen up.
  */
 
+import { restoreTerminal } from "@sma1lboy/rove-core/lib/restore-terminal.ts"
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
-import { restoreTerminal } from "../../src/lib/restore-terminal"
 
 /** A renderer whose restore finishes when the test says so. */
 function fakeRenderer() {

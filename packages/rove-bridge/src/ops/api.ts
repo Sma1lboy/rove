@@ -1,8 +1,8 @@
+import { ApiError, invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
+import { DAEMON_UNREACHABLE_MESSAGE, argvToParams, isDaemonUnreachable } from "@sma1lboy/rove-api/cli/api/invoke.ts"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { DaemonRequestName } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { ApiEnvelope, ApiParams } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { ApiError, invokeVerb } from "@sma1lboy/rove/src/cli/api-cmd.ts"
-import { DAEMON_UNREACHABLE_MESSAGE, argvToParams, isDaemonUnreachable } from "@sma1lboy/rove/src/cli/api/invoke.ts"
 import { BridgeError } from "../protocol.ts"
 import type { BridgeApi } from "./types.ts"
 

@@ -4,9 +4,9 @@
  * conversations that exist: `send --tab new` is refused in api-handlers-send.test.ts.)
  */
 
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
+import { resetVerifiedSelfSession, verifiedSelfSession } from "@sma1lboy/rove-api/cli/api/dispatcher.ts"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
-import { resetVerifiedSelfSession, verifiedSelfSession } from "../../src/cli/api/dispatcher.ts"
 import { FakeClient, recordingDelivery, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 // Dispatcher provenance keys off the caller's own $ROVE_TASK_ID/$ROVE_TAB_ID: unset them so exact-payload

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { parseFlags } from "@sma1lboy/rove/src/cli/api/flags.ts"
+import { parseFlags } from "@sma1lboy/rove-api/cli/api/flags.ts"
 import { flag, oneOf, tabId, taskId, text } from "../src/ops/args.ts"
 import { mergeOpTables } from "../src/ops/index.ts"
 import type { OpSpec } from "../src/ops/types.ts"

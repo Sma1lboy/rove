@@ -4,10 +4,10 @@
  * than the window or belonging to another repo.
  */
 
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
+import { buildDigest } from "@sma1lboy/rove-api/cli/api/handlers-digest.ts"
 import type { AutomationRun } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { describe, expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
-import { buildDigest } from "../../src/cli/api/handlers-digest.ts"
 import { FakeClient, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 const runtime = stubRuntime()

@@ -5,10 +5,10 @@
  * delivery into ONE addressed tab is `exact-tab-delivery.test.ts`.
  */
 
+import { deliverHostedPrompt, deliverToKey } from "@sma1lboy/rove-api/cli/api/pty-delivery.ts"
+import { ApiError } from "@sma1lboy/rove-api/cli/api/types.ts"
 import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import { describe, expect, it } from "vitest"
-import { deliverHostedPrompt, deliverToKey } from "../../src/cli/api/pty-delivery.ts"
-import { ApiError } from "../../src/cli/api/types.ts"
 
 function session(key: string, command: string[], alive = true): PtySessionInfo {
   return { key, alive, pid: alive ? 123 : null, command, title: "" }

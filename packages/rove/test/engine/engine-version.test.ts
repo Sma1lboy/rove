@@ -1,8 +1,8 @@
 import { chmodSync, existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { readEngineVersion, withEngineVersions } from "@sma1lboy/rove-core/engine/engine-version.ts"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { readEngineVersion, withEngineVersions } from "../../src/engine/engine-version.ts"
 
 let dir: string
 

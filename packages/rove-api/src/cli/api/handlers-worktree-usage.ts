@@ -6,11 +6,11 @@
  * `--idle-days` / `--merged` narrow it to cleanup candidates before measuring.
  */
 
+import type { CheckoutUsage } from "@sma1lboy/rove-core/orchestrator/worktree/disk-usage.ts"
 import { canonicalize } from "@sma1lboy/rove-core/orchestrator/worktree/paths.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { gitRepoOf } from "@sma1lboy/rove-daemon/task-tree"
-import type { CheckoutUsage } from "../../orchestrator/worktree/disk-usage.ts"
 import { F } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"

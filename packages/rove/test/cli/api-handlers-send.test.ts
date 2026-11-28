@@ -5,10 +5,10 @@
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { ApiError, invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
+import { resetVerifiedSelfSession, verifiedSelfSession } from "@sma1lboy/rove-api/cli/api/dispatcher.ts"
+import { deliverHostedPrompt } from "@sma1lboy/rove-api/cli/api/pty-delivery.ts"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { ApiError, invokeVerb } from "../../src/cli/api-cmd.ts"
-import { resetVerifiedSelfSession, verifiedSelfSession } from "../../src/cli/api/dispatcher.ts"
-import { deliverHostedPrompt } from "../../src/cli/api/pty-delivery.ts"
 import { FakeClient, expectApiError, recordingDelivery, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 // Peer provenance AND dispatcher provenance both key off the caller's own

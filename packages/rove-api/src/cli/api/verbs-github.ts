@@ -4,8 +4,15 @@
  * so a caller that is not the daemon re-sends the verb there.
  */
 
+import {
+  applyToken,
+  deviceLogin,
+  localStatus,
+  logoutGithub,
+  readHubToken,
+  syncTo,
+} from "@sma1lboy/rove-core/github/credentials.ts"
 import type { ApiEnvelope } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { applyToken, deviceLogin, localStatus, logoutGithub, readHubToken, syncTo } from "../../github/credentials.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 

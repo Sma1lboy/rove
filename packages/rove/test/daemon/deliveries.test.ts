@@ -8,6 +8,7 @@
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { AttentionInboxStore } from "@sma1lboy/rove-daemon/daemon/attention-inbox"
 import { runAutomationOnce } from "@sma1lboy/rove-daemon/daemon/automation-runner"
 import { AutomationsStore } from "@sma1lboy/rove-daemon/daemon/automations-store"
@@ -27,7 +28,6 @@ import {
   dispatchDaemonRequest,
 } from "@sma1lboy/rove-daemon/daemon/handlers"
 import { describe, expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, recordingDelivery, stubRuntime } from "../cli/api-handler-fixtures.ts"
 import { NOW, automation, fakeDeps } from "./automation-runner-fixtures.ts"
 

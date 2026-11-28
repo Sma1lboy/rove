@@ -1,10 +1,10 @@
 import { sameHistoryWorktree } from "@sma1lboy/rove-core/engine/history-worktree.ts"
+import { relativeToWorktree } from "@sma1lboy/rove-core/lib/editor-launch.ts"
 import { splitPathForDirSuggest } from "@sma1lboy/rove-core/lib/path-helpers.ts"
 import { tildify } from "@sma1lboy/rove-core/lib/path-home.ts"
 import { matchTaskByCwd, tasksAtWorktreePath } from "@sma1lboy/rove-daemon/daemon/cwd-task"
 import { isForeignDaemonHome } from "@sma1lboy/rove-daemon/daemon/protocol-compat"
 import { expect, it } from "vitest"
-import { relativeToWorktree } from "../../src/lib/editor-launch"
 
 it("attributes Windows hooks to the most specific saved worktree", () => {
   const tasks = [

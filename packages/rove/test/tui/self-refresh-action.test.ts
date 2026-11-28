@@ -10,8 +10,8 @@
  * up to it.
  */
 
+import type { SelfRefreshInputs } from "@sma1lboy/rove-api/cli/self-relaunch.ts"
 import { describe, expect, it, vi } from "vitest"
-import type { SelfRefreshInputs } from "../../src/cli/self-relaunch.ts"
 import { selfRefreshAction } from "../../src/tui-react/workspace/self-refresh-action.ts"
 
 const skewed: SelfRefreshInputs = {

@@ -5,10 +5,14 @@
  * already applied instead of looking like nothing happened.
  */
 
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
+import {
+  type SelfSessionProbe,
+  resetVerifiedSelfSession,
+  verifiedSelfSession,
+} from "@sma1lboy/rove-api/cli/api/dispatcher.ts"
+import { ApiError } from "@sma1lboy/rove-api/cli/api/types.ts"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
-import { type SelfSessionProbe, resetVerifiedSelfSession, verifiedSelfSession } from "../../src/cli/api/dispatcher.ts"
-import { ApiError } from "../../src/cli/api/types.ts"
 import { FakeClient, expectApiError, stubRuntime } from "./api-handler-fixtures.ts"
 
 const ok = () => ({})

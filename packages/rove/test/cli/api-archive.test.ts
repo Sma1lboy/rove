@@ -1,7 +1,7 @@
 /** `archive` / `unarchive`: one `task.archive` request each, `--force` only ever on the way in. */
 
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { describe, expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, stubRuntime } from "./api-handler-fixtures.ts"
 
 function daemon() {

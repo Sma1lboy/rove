@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@sma1lboy/rove": "workspace:*",
+    "@sma1lboy/rove-api": "workspace:*",
     "@sma1lboy/rove-core": "workspace:*",
     "@sma1lboy/rove-daemon": "workspace:*"
   },

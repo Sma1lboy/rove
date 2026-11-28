@@ -16,8 +16,8 @@
  * silent failure for another.
  */
 
+import { toApiError } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { describe, expect, it } from "vitest"
-import { toApiError } from "../../src/cli/api-cmd.ts"
 
 describe("daemon error codes at the CLI boundary", () => {
   it("lifts a CODE: prefix into `code` and drops it from the message", () => {

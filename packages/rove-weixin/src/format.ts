@@ -4,8 +4,8 @@
  * what WeChat would show.
  */
 
+import type { ContextPayload } from "@sma1lboy/rove-api/cli/api/context-view.ts"
 import type { TaskGroup } from "@sma1lboy/rove-core/lib/task-group.ts"
-import type { ContextPayload } from "@sma1lboy/rove/src/cli/api/context-view.ts"
 
 /** iLink chunks near 2048 chars; stay under it so one bubble stays one. */
 export const BUBBLE_CHARS = 1800

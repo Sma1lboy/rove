@@ -14,8 +14,8 @@
  */
 
 import { PassThrough } from "node:stream"
+import { readStdinText } from "@sma1lboy/rove-api/cli/hook-cmd.ts"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { readStdinText } from "../../src/cli/hook-cmd.ts"
 
 /** Stand in for `process.stdin`: a pipe (isTTY undefined) carrying `text`. */
 function pipedStdin(text: string): PassThrough {

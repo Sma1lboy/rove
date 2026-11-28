@@ -33,12 +33,12 @@ vi.mock("@sma1lboy/rove-core/engine/session-engine-presence.ts", () => ({
   enginePresence: async () => ({ kind: "engine", vendor: "codex" }),
 }))
 
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
+import { runHookSubcommand } from "@sma1lboy/rove-api/cli/hook-cmd.ts"
 import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import { Orchestrator } from "@sma1lboy/rove-core/orchestrator/core.ts"
 import { TaskIndexStore } from "@sma1lboy/rove-core/orchestrator/index/store.ts"
 import { GitWorktreeManager } from "@sma1lboy/rove-core/orchestrator/worktree/manager.ts"
-import { invokeVerb } from "../../src/cli/api-cmd"
-import { runHookSubcommand } from "../../src/cli/hook-cmd"
 import { fakeCtx } from "../daemon/handler-test-context"
 import { stubRuntime } from "./api-handler-fixtures"
 

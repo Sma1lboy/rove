@@ -14,9 +14,9 @@
  */
 
 import { basename } from "node:path"
+import type { ContextPayload } from "@sma1lboy/rove-api/cli/api/context-view.ts"
+import { ApiError } from "@sma1lboy/rove-api/cli/api/types.ts"
 import type { Gate } from "@sma1lboy/rove-daemon/daemon/contracts"
-import type { ContextPayload } from "@sma1lboy/rove/src/cli/api/context-view.ts"
-import { ApiError } from "@sma1lboy/rove/src/cli/api/types.ts"
 import { AGENT_TITLE, type AgentControl, agentPrompt } from "./agent.ts"
 import { head, renderStatus, shortId } from "./format.ts"
 import { answeredReply, parseAnswer, renderGates } from "./gates.ts"

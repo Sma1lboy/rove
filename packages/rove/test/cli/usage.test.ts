@@ -1,5 +1,5 @@
+import { TOP_LEVEL_SUBCOMMANDS } from "@sma1lboy/rove-api/cli/subcommands.ts"
 import { describe, expect, it } from "vitest"
-import { TOP_LEVEL_SUBCOMMANDS } from "../../src/cli/subcommands.ts"
 import { topLevelUsage } from "../../src/cli/usage.ts"
 
 /** The command names listed under the `Commands:` block of `rove --help`. */

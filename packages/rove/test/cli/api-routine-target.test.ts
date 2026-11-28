@@ -1,5 +1,5 @@
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { describe, expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, stubRuntime } from "./api-handler-fixtures.ts"
 
 describe("routine target CLI payload", () => {

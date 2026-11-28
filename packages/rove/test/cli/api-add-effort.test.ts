@@ -10,8 +10,8 @@
  * `update --effort` would have rejected.
  */
 
+import { type ApiRuntime, invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { type ApiRuntime, invokeVerb } from "../../src/cli/api-cmd.ts"
 import {
   FakeClient,
   expectApiError,

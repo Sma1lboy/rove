@@ -28,7 +28,7 @@ flowchart LR
 
 | Piece | Where | Job |
 |---|---|---|
-| `rove api note --task-id <id> --text <line>` | `rove/src/cli/api-cmd.ts` | A session files a discovery. |
+| `rove api note --task-id <id> --text <line>` | `rove-api/src/cli/api-cmd.ts` | A session files a discovery. |
 | `note.file` RPC | `rove-daemon/src/daemon/handlers.ts` | Addressing only: find the author's repo's main task, forward over `session.deliver` with provenance (`[ROVE FIELD NOTE] from "<author>" (task <id>): …`). Accepted-but-unrouted when the repo has no main task or the author *is* the dispatcher. |
 | `session.deliver` RPC | `rove-daemon/src/daemon/handlers-ui.ts` | Delivers. Pastes into the task's live hosted engine session through the same adapter `send` uses (never spawns) and reports `delivered`. Only a `no-session` miss falls through to the channel below — publishing after a successful paste would make a listening browser paste it twice. |
 | `session.deliver` channel | `rove-daemon/src/daemon/protocol.ts` | The browser fallback: "paste this text into task X" — an address, not a delivery, because the SPA mints its own tab ids and its sessions are invisible to the PTY host. EVENT semantics; consumers dedupe on `at`. |

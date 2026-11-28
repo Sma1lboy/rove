@@ -9,8 +9,8 @@
  * has to say "these two builds disagree", not "the call failed".
  */
 
+import { ApiError, invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { describe, expect, it } from "vitest"
-import { ApiError, invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, expectApiError, stubRuntime } from "./api-handler-fixtures.ts"
 
 describe("unknown daemon request", () => {

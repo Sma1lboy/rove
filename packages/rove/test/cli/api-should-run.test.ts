@@ -1,7 +1,7 @@
 /** `should-run`, `send --if-runnable` and the `runnability` field: the CLI side of the should-run verdict. */
 
+import { ApiError, invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { ApiError, invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, expectApiError, recordingDelivery, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 const savedEnv = { taskId: process.env.ROVE_TASK_ID, tabId: process.env.ROVE_TAB_ID }

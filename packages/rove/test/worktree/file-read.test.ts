@@ -1,8 +1,8 @@
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { FILE_READ_MAX_BYTES, readPreviewFile } from "@sma1lboy/rove-client/worktree/file-read.ts"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { FILE_READ_MAX_BYTES, readPreviewFile } from "../../src/worktree/file-read.ts"
 
 let base: string
 let tree: string

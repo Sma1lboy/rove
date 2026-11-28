@@ -1,5 +1,5 @@
+import { normalizeMaxLiveEngines } from "@sma1lboy/rove-core/state/engine-limit.ts"
 import { describe, expect, it } from "vitest"
-import { normalizeMaxLiveEngines } from "../../src/state/engine-limit.ts"
 
 describe("normalizeMaxLiveEngines", () => {
   it("reads a positive whole number, typed or hand-edited as a string", () => {

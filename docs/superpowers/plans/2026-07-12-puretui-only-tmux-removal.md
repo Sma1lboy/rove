@@ -128,9 +128,9 @@ git commit -m "refactor: centralize hosted engine launch" -m "Move shell, repo-i
 ### Task 2: Replace API tmux fallback with PTY auto-start
 
 **Files:**
-- Modify: `packages/rove/src/cli/api/pty-delivery.ts`
-- Modify: `packages/rove/src/cli/api/runtime.ts`
-- Modify: `packages/rove/src/cli/api/types.ts`
+- Modify: `packages/rove-api/src/cli/api/pty-delivery.ts`
+- Modify: `packages/rove-api/src/cli/api/runtime.ts`
+- Modify: `packages/rove-api/src/cli/api/types.ts`
 - Modify: `packages/rove/test/cli/api-cmd-runtime.test.ts`
 - Modify: `packages/rove/test/cli/pty-delivery.test.ts`
 - Create: `packages/rove/test/behavior/pty-api-autostart.test.ts`
@@ -213,7 +213,7 @@ Run: `cd packages/rove && bun run build && ROVE_INCLUDE_BEHAVIOR=1 bunx vitest r
 - [ ] **Step 6: Commit**
 
 ```bash
-git add packages/rove/src/cli/api/pty-delivery.ts packages/rove/src/cli/api/runtime.ts packages/rove/src/cli/api/types.ts packages/rove/test/cli/api-cmd-runtime.test.ts packages/rove/test/cli/pty-delivery.test.ts packages/rove/test/behavior/pty-api-autostart.test.ts
+git add packages/rove-api/src/cli/api/pty-delivery.ts packages/rove-api/src/cli/api/runtime.ts packages/rove-api/src/cli/api/types.ts packages/rove/test/cli/api-cmd-runtime.test.ts packages/rove/test/cli/pty-delivery.test.ts packages/rove/test/behavior/pty-api-autostart.test.ts
 git commit -m "feat: auto-start API sessions in PTY host" -m "Make hosted PTYs the only prompt-delivery backend and preserve unattended send/add/fan-out startup. Remove the tmux fallback, duplicate-engine risk, and tmux liveness seams."
 ```
 
@@ -266,7 +266,7 @@ git commit -m "refactor: make task lifecycle PTY-only" -m "Route daemon session 
 **Files:**
 - Modify: `packages/rove/src/cli/index.ts`
 - Modify: `packages/rove/src/cli/usage.ts`
-- Modify: `packages/rove/src/cli/subcommands.ts`
+- Modify: `packages/rove-api/src/cli/subcommands.ts`
 - Modify: `packages/rove/src/cli/maintenance.ts`
 - Modify: `packages/rove/src/cli/doctor-resources.ts`
 - Modify: `packages/rove/scripts/dev-sandbox.ts`

@@ -68,6 +68,7 @@
       },
       "devDependencies": {
         "@biomejs/biome": "1.9.4",
+        "@sma1lboy/rove-api": "0.0.0",
         "@sma1lboy/rove-client": "0.0.0",
         "@sma1lboy/rove-core": "0.0.0",
         "@sma1lboy/rove-daemon": "0.7.23",
@@ -90,6 +91,22 @@
         "node-pty": "^1.1.0",
       },
     },
+    "packages/rove-api": {
+      "name": "@sma1lboy/rove-api",
+      "version": "0.0.0",
+      "dependencies": {
+        "@sma1lboy/rove": "workspace:*",
+        "@sma1lboy/rove-client": "workspace:*",
+        "@sma1lboy/rove-core": "workspace:*",
+        "@sma1lboy/rove-daemon": "workspace:*",
+      },
+      "devDependencies": {
+        "@tsconfig/bun": "1.0.11",
+        "@types/bun": "1.3.14",
+        "@types/node": "25.6.2",
+        "typescript": "5.8.2",
+      },
+    },
     "packages/rove-bridge": {
       "name": "rove-bridge",
       "version": "0.0.70",
@@ -97,6 +114,7 @@
         "@hsinsekai-nanami/agent": "0.2.4",
         "@hsinsekai-nanami/core": "0.2.2",
         "@sma1lboy/rove": "workspace:*",
+        "@sma1lboy/rove-api": "workspace:*",
         "@sma1lboy/rove-client": "workspace:*",
         "@sma1lboy/rove-core": "workspace:*",
         "@sma1lboy/rove-daemon": "workspace:*",
@@ -241,6 +259,7 @@
       "version": "0.0.5",
       "dependencies": {
         "@sma1lboy/rove": "workspace:*",
+        "@sma1lboy/rove-api": "workspace:*",
         "@sma1lboy/rove-core": "workspace:*",
         "@sma1lboy/rove-daemon": "workspace:*",
       },
@@ -303,6 +322,7 @@
       "version": "0.0.70",
       "dependencies": {
         "@sma1lboy/rove": "workspace:*",
+        "@sma1lboy/rove-api": "workspace:*",
         "@sma1lboy/rove-core": "workspace:*",
         "@sma1lboy/rove-daemon": "workspace:*",
         "qrcode-terminal": "^0.12.0",
@@ -1055,6 +1075,8 @@
     "@sma1lboy/opentui-rove-linux-x64": ["@sma1lboy/opentui-rove-linux-x64@0.8.4-rove.1", "", { "os": "linux", "cpu": "x64" }, "sha512-u7FRn6GCdIlUW3tgKg5eDcP6J2dQTjO//YKexmJY/9PgORmCP5aWVv4fRCOk4sxcsOduFRInW5iWkWK7iCe27g=="],
 
     "@sma1lboy/rove": ["@sma1lboy/rove@workspace:packages/rove"],
+
+    "@sma1lboy/rove-api": ["@sma1lboy/rove-api@workspace:packages/rove-api"],
 
     "@sma1lboy/rove-client": ["@sma1lboy/rove-client@workspace:packages/rove-client"],
 

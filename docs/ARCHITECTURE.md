@@ -147,6 +147,14 @@ worktree on the shared branch name. `taskRepos(task)` (in `rove-daemon`'s
   - `src/sidebar/` — sidebar view helpers (PR chips, row labels, project
     grouping) shared by the TUI and the bridge.
   - `src/tabs/` — terminal-tab persistence (`terminal-tabs-persist.ts`).
+- `packages/rove-api/` — `@sma1lboy/rove-api`, the UI-free CLI API layer
+  between `rove-client` and the CLI, bridge and chat connectors. Not published:
+  the CLI build bundles it. Modules are imported as
+  `@sma1lboy/rove-api/<path>.ts`:
+  - `src/cli/api/` — verb definitions, flags, schema, handlers, PTY delivery
+    and runtime helpers for `rove api`.
+  - `src/cli/` — `api-cmd.ts`, `hook-cmd.ts`, `self-relaunch.ts` and
+    `subcommands.ts`.
 - `packages/rove-daemon/` — Unix-socket daemon protocol/server, standalone
   PTY Host implementation, and the plugin core
   (`src/plugins/`: manifest, registry, event derivation, daemon-side host —
@@ -249,10 +257,11 @@ this capability refuse capped launches rather than opening without admission.
   package (`test/architecture/core-off-tui.test.ts`).
 - Clients (`rove-web`, `rove-bridge`, `rove-lark`, `rove-weixin`) never import
   `@sma1lboy/rove/src/tui*` (`test/architecture/clients-off-tui.test.ts`).
-- Package layering: `rove-daemon` ← `rove-core` ← `rove-client` ← `rove`
-  (CLI, TUI) and the clients. `rove-core` imports nothing from `@sma1lboy/rove`
-  (except `package.json`, which carries the product version) or
-  `@sma1lboy/rove-client`; `rove-client` imports nothing from `@sma1lboy/rove`
+- Package layering: `rove-daemon` ← `rove-core` ← `rove-client` ← `rove-api` ←
+  `rove` (CLI, TUI) and the clients. `rove-core` imports nothing from
+  `@sma1lboy/rove` (except `package.json`, which carries the product version) or
+  `@sma1lboy/rove-client`; `rove-client` imports nothing from `@sma1lboy/rove`;
+  `rove-api` imports nothing from `@sma1lboy/rove` except `package.json`
   (`test/architecture/core-off-tui.test.ts`).
 - A package reaches another only through its package name, never a relative
   `../other-package/` path (`test/architecture/no-relative-package-crossing.test.ts`,

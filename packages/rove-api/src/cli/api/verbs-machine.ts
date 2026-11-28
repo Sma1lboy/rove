@@ -2,7 +2,7 @@
 
 import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 import { requireMachine } from "@sma1lboy/rove-core/machines/forward.ts"
-import { upgradeMachine } from "../../machines/upgrade.ts"
+import { upgradeMachine } from "@sma1lboy/rove-core/machines/upgrade.ts"
 import { ApiError, type VerbSpec } from "./types.ts"
 
 export const MACHINE_UPDATE_VERB: VerbSpec = {

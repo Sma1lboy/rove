@@ -5,10 +5,10 @@
  */
 
 import { basename, dirname } from "node:path"
+import { argvToParams } from "@sma1lboy/rove-api/cli/api/invoke.ts"
 import { AUTO_MACHINE } from "@sma1lboy/rove-core/machines/forward.ts"
 import { deriveTitleFromPrompt } from "@sma1lboy/rove-core/orchestrator/title.ts"
 import { MULTI_REPO_CAP } from "@sma1lboy/rove-daemon/task-tree"
-import { argvToParams } from "@sma1lboy/rove/src/cli/api/invoke.ts"
 import { BridgeError, optBool, optInt, optStr } from "../protocol.ts"
 import { absPath, bool, flag, isAbsPath, oneOf, optOneOf, optShellLine, optText, taskId, text } from "./args.ts"
 import { commandFromTask } from "./tasks-command-from.ts"

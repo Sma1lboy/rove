@@ -5,7 +5,7 @@
  */
 
 import { readFileSync, readdirSync, readlinkSync } from "node:fs"
-import { processCwd } from "../../engine/process-cwd.ts"
+import { processCwd } from "@sma1lboy/rove-core/engine/process-cwd.ts"
 
 export interface ListeningSocket {
   readonly port: number

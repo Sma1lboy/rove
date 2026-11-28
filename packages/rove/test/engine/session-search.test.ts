@@ -1,6 +1,11 @@
+import {
+  type SearchableTask,
+  matchMessages,
+  prefilterToken,
+  searchTasks,
+} from "@sma1lboy/rove-core/engine/session-search.ts"
 import type { Message } from "@sma1lboy/rove-core/types/engine.ts"
 import { describe, expect, it, vi } from "vitest"
-import { type SearchableTask, matchMessages, prefilterToken, searchTasks } from "../../src/engine/session-search.ts"
 
 const fake = vi.hoisted(() => ({ sessions: new Map<string, readonly unknown[]>(), tabs: new Map<string, string[]>() }))
 

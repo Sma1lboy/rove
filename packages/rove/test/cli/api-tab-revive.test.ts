@@ -30,8 +30,8 @@ vi.mock("@sma1lboy/rove-core/engine/hosted-session.ts", async (original) => ({
 }))
 vi.mock("@sma1lboy/rove-core/engine/trust-worktree.ts", () => ({ trustEngineWorktree() {} }))
 
-import { ApiError, invokeVerb } from "../../src/cli/api-cmd.ts"
-import { defaultApiRuntime } from "../../src/cli/api/runtime.ts"
+import { ApiError, invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
+import { defaultApiRuntime } from "@sma1lboy/rove-api/cli/api/runtime.ts"
 import { FakeClient, stubRuntime } from "./api-handler-fixtures.ts"
 import { tabsDaemon } from "./tabs-daemon-fake.ts"
 
@@ -104,7 +104,7 @@ it("without $SHELL the relaunch runs in the shell a TUI reattach uses, where a s
   // Dynamic on purpose: the shell resolver caches per module instance, so the
   // unset $SHELL only takes effect on modules evaluated after the stub.
   vi.resetModules()
-  const { defaultApiRuntime: fresh } = await import("../../src/cli/api/runtime.ts")
+  const { defaultApiRuntime: fresh } = await import("@sma1lboy/rove-api/cli/api/runtime.ts")
   const { defaultShell } = await import("../../src/tui/panes/terminal/pty-types.ts")
   const daemon = tabsDaemon({ seed: { t: state(engineRow()) } })
 

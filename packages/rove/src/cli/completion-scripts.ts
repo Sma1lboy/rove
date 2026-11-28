@@ -11,8 +11,8 @@
  */
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
+import { SUBCOMMAND_VERBS, TOP_LEVEL_SUBCOMMANDS } from "@sma1lboy/rove-api/cli/subcommands.ts"
 import type { ProductCliName } from "@sma1lboy/rove-core/product.ts"
-import { SUBCOMMAND_VERBS, TOP_LEVEL_SUBCOMMANDS } from "./subcommands.ts"
 
 /** Shells rove generates completions for; also the install/detect vocabulary. */
 export const SHELLS = ["bash", "zsh", "fish"] as const

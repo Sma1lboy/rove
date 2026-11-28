@@ -10,7 +10,7 @@ import { useDialog } from "../../src/tui-react/ui/dialog"
 import { act, renderComponent, settle } from "./harness"
 
 const searched: string[] = []
-mock.module("../../src/engine/session-search", () => ({
+mock.module("@sma1lboy/rove-core/engine/session-search.ts", () => ({
   searchTasks: async (_tasks: unknown, query: string) => {
     searched.push(query)
     return {

@@ -20,6 +20,7 @@ import { type DaemonRpc, resolveActiveTaskId } from "@sma1lboy/rove-core/client/
 import { launchReposOf, trustExtraRepos } from "@sma1lboy/rove-core/engine/multi-repo-launch.ts"
 import { buildEngineSessionLaunch } from "@sma1lboy/rove-core/engine/session-launch.ts"
 import { trustEngineWorktree } from "@sma1lboy/rove-core/engine/trust-worktree.ts"
+import { persistedMaxLiveEngines } from "@sma1lboy/rove-core/state/engine-limit.ts"
 import {
   inspectRepo,
   isGitRepo,
@@ -28,7 +29,6 @@ import {
   resolveMainRepoRoot,
 } from "@sma1lboy/rove-core/state/repos.ts"
 import { type TerminalTab, tabPtyKeyFor } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
-import { persistedMaxLiveEngines } from "../../state/engine-limit.ts"
 
 // New callers: import from daemon-session.ts directly.
 export { resolveActiveTaskId }
@@ -405,7 +405,7 @@ export const defaultApiRuntime: ApiRuntime = {
   },
   listeningPorts: async () => (await import("./listening-ports.ts")).scanListeningPorts(),
   measureCheckout: async (path) => {
-    const { measureCheckout } = await import("../../orchestrator/worktree/disk-usage.ts")
+    const { measureCheckout } = await import("@sma1lboy/rove-core/orchestrator/worktree/disk-usage.ts")
     const { execHostForWorktreePath } = await import("@sma1lboy/rove-core/exec/resolve.ts")
     return measureCheckout(execHostForWorktreePath(path), path)
   },

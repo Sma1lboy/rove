@@ -4,8 +4,8 @@
  * name the offending repo before anything is created.
  */
 
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { describe, expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import {
   FakeClient,
   expectApiError,

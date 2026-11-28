@@ -1,9 +1,9 @@
 /** `agent-turns` — the totals roll-up and the filter it sends the daemon. */
 
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
+import { summarizeTurns } from "@sma1lboy/rove-api/cli/api/handlers-agent-turns.ts"
 import type { AgentTurnRecord } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { describe, expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
-import { summarizeTurns } from "../../src/cli/api/handlers-agent-turns.ts"
 import { FakeClient, stubRuntime } from "./api-handler-fixtures.ts"
 
 const runtime = stubRuntime()

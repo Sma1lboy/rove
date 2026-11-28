@@ -9,13 +9,13 @@
 
 import { existsSync, readFileSync, readdirSync, unlinkSync } from "node:fs"
 import { basename, join, resolve } from "node:path"
+import { SUBCOMMAND_VERBS } from "@sma1lboy/rove-api/cli/subcommands.ts"
 import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 import { expandTilde } from "@sma1lboy/rove-core/lib/path-home.ts"
 import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 import { BUNDLED_THEME_JSONS } from "@sma1lboy/rove-core/theme/bundled.ts"
 import { ThemeInstallError, isThemeName, parseThemeSource, writeUserTheme } from "@sma1lboy/rove-core/theme/install.ts"
 import { userThemesDir } from "@sma1lboy/rove-core/theme/loader.ts"
-import { SUBCOMMAND_VERBS } from "./subcommands.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME
 

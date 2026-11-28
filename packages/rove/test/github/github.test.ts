@@ -1,14 +1,14 @@
 import { EventEmitter } from "node:events"
 import { PassThrough } from "node:stream"
+import { executeVerb } from "@sma1lboy/rove-api/cli/api/invoke.ts"
+import { REMOTE_CALLER, daemonCaller } from "@sma1lboy/rove-api/cli/api/types.ts"
+import { applyToken, autoSyncSignedOut } from "@sma1lboy/rove-core/github/credentials.ts"
+import { DeviceLogin, type LoginProcess, parseDeviceOutput } from "@sma1lboy/rove-core/github/login.ts"
+import type { RunTool, ToolResult } from "@sma1lboy/rove-core/github/run-tool.ts"
+import { githubStatus, parseAuthStatus, parseSshProbe } from "@sma1lboy/rove-core/github/status.ts"
 import { type ApiEnvelope, ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { describe, expect, it, onTestFinished, vi } from "vitest"
 import { inboundClassOf, inboundRefusal } from "../../src/cli/api/inbound.ts"
-import { executeVerb } from "../../src/cli/api/invoke.ts"
-import { REMOTE_CALLER, daemonCaller } from "../../src/cli/api/types.ts"
-import { applyToken, autoSyncSignedOut } from "../../src/github/credentials.ts"
-import { DeviceLogin, type LoginProcess, parseDeviceOutput } from "../../src/github/login.ts"
-import type { RunTool, ToolResult } from "../../src/github/run-tool.ts"
-import { githubStatus, parseAuthStatus, parseSshProbe } from "../../src/github/status.ts"
 
 const result = (over: Partial<ToolResult>): ToolResult => ({
   code: 0,

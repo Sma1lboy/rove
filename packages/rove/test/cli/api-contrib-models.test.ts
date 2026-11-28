@@ -7,9 +7,9 @@
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { withEngineModel } from "@sma1lboy/rove-core/engine/interactive-command.ts"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, openedTab, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 // The real `pi`/`omp` list verbs cost seconds on a machine that has them.

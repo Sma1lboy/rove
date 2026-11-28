@@ -9,7 +9,7 @@ const spies = vi.hoisted(() => ({
   takeWelcome: vi.fn(() => null as { shell: string | null } | null),
 }))
 
-vi.mock("../../src/cli/hook-cmd.ts", () => ({ ensureGlobalRoveHooks: spies.installHooks }))
+vi.mock("@sma1lboy/rove-api/cli/hook-cmd.ts", () => ({ ensureGlobalRoveHooks: spies.installHooks }))
 // Spread the real module rather than listing the one function stubbed here:
 // a factory that names only its stub turns every later export of the real
 // module into a hard "No X export is defined on the mock" at import time.

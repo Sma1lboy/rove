@@ -1,10 +1,10 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { parseFlags } from "@sma1lboy/rove-api/cli/api/flags.ts"
+import { forwardParams, takeMachineFlag } from "@sma1lboy/rove-api/cli/api/forward-cli.ts"
+import { findVerb } from "@sma1lboy/rove-api/cli/api/verbs.ts"
 import { afterEach, describe, expect, it } from "vitest"
-import { parseFlags } from "../../src/cli/api/flags.ts"
-import { forwardParams, takeMachineFlag } from "../../src/cli/api/forward-cli.ts"
-import { findVerb } from "../../src/cli/api/verbs.ts"
 
 describe("rove api --machine", () => {
   let dir: string | null = null
