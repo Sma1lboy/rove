@@ -2,19 +2,20 @@ import { RAIL_FRAME } from "./shell.ts"
 
 /** Class recipes for the rail row's extras: the tree guides, the fold count, the PR chip and its card, the title tip. */
 
-/** A child steps in under its parent; each column spans the row's full height (the padding pulled back) so lines join. */
-export const CHILD_INDENT = "-my-0.75 -mr-0.5 ml-0 flex flex-none self-stretch"
+/** A child steps in under its parent. */
+export const CHILD_INDENT = "-mr-0.5 ml-0 flex flex-none self-stretch"
 
+// A guide column is not positioned, so its line spans the row's full height whatever the row's padding, and rows join.
 const LINE =
-  "before:absolute before:top-0 before:left-1 before:content-[''] before:[border-left:var(--hairline)_solid_var(--line-active)]"
+  "before:absolute before:top-0 before:ml-1 before:content-[''] before:[border-left:var(--hairline)_solid_var(--line-active)]"
 const GUIDE = {
   blank: "",
   pipe: `${LINE} before:bottom-0`,
   tee: `${LINE} before:bottom-0`,
   // A rounded hook into the last child.
-  elbow: `${LINE} before:right-0 before:bottom-1/2 before:rounded-bl-[6px] before:[border-bottom:var(--hairline)_solid_var(--line-active)]`,
+  elbow: `${LINE} before:w-2 before:bottom-1/2 before:rounded-bl-[6px] before:[border-bottom:var(--hairline)_solid_var(--line-active)]`,
 } as const
-export const guideClass = (kind: keyof typeof GUIDE): string => `relative w-3 ${GUIDE[kind]}`
+export const guideClass = (kind: keyof typeof GUIDE): string => `w-3 ${GUIDE[kind]}`
 
 /** The whole chip column of the row is the target, not just the glyph. */
 export const FOLD_TOGGLE =
