@@ -90,7 +90,7 @@ export interface TerminalTabsProps {
   /** Scratch task: tab-1 is a BARE SHELL unless it was opened onto an engine
    *  (`engineScratchTasks`), and the last tab exiting deletes the task via
    *  `onScratchExit` instead of recycling into an engine tab. */
-  scratch?: boolean
+  ephemeral?: boolean
   /** The scratch task's last tab exited — the host deletes the task row. */
   onScratchExit?: () => void
   /** ctrl+e's "scratch" destination; the only entry point, no chord. */
@@ -162,7 +162,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     const fromDaemon = saved && Array.isArray(saved.tabs) ? rehydrateTabs(saved, [defaultShell()]) : null
     rehydratedRef.current = fromDaemon !== null
     if (fromDaemon) return fromDaemon
-    const shellScratch = props.scratch === true && !engineScratchTasks.delete(props.taskId)
+    const shellScratch = props.ephemeral === true && !engineScratchTasks.delete(props.taskId)
     return shellScratch ? initialShellTabs(defaultShell()) : pinSession(initialTabs(), undefined)
   }
 
@@ -315,7 +315,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     resumeTriedRef,
     notifyCannotCloseLast: (tabId) =>
       notif.notify({ kind: "error", taskId: props.taskId, tabId, title: t("terminal.tab.cannotCloseLast") }),
-    onScratchExit: props.scratch === true ? props.onScratchExit : undefined,
+    onScratchExit: props.ephemeral === true ? props.onScratchExit : undefined,
   })
   // The mount-only pending-close listener reads the CURRENT hook via ref.
   const tabCloseRef = useLatest(tabClose)

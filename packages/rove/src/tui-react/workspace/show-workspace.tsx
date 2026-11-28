@@ -9,6 +9,7 @@ import type { SectionId } from "@sma1lboy/rove-client/settings/model.ts"
 import { engineLaunchArgv } from "@sma1lboy/rove-core/engine/engine-presets.ts"
 import { remoteKeyForRepo } from "@sma1lboy/rove-core/exec/resolve.ts"
 import { taskCwd, taskRepos } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import { isEphemeral } from "@sma1lboy/rove-core/types/task-scratch.ts"
 import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "@sma1lboy/rove-core/types/task.ts"
 import type { ReactNode } from "react"
 import type { QuickTaskResult } from "../component/quick-task-composer"
@@ -113,7 +114,7 @@ export function ShowWorkspace(props: {
   }
   // Existing checkouts wait for an explicit start; managed and scratch tasks auto-start.
   const known = props.task ? knownTaskTabs(kv, String(props.task.id)) : null
-  if (props.task && (known ? known.tabs.length === 0 : !props.task.scratch && props.task.kind === "dir")) {
+  if (props.task && (known ? known.tabs.length === 0 : !isEphemeral(props.task) && props.task.kind === "dir")) {
     return (
       <EmptyWorkspacePane
         taskId={String(props.task.id)}
@@ -140,7 +141,7 @@ export function ShowWorkspace(props: {
       worktree={path}
       repo={props.task?.repo}
       taskKind={props.task?.kind}
-      scratch={props.task?.scratch === true}
+      ephemeral={props.task ? isEphemeral(props.task) : false}
       onScratchExit={() => {
         const taskId = props.task?.id
         if (taskId) props.onScratchExit?.(taskId)

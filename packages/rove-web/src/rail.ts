@@ -5,6 +5,7 @@
  */
 
 import { fuzzyMatch } from "@sma1lboy/rove-core/lib/fuzzy.ts"
+import { isUngrouped } from "@sma1lboy/rove-core/types/task-scratch.ts"
 import type { TabRow, TaskRow } from "rove-bridge/protocol"
 import { t } from "./i18n/index.ts"
 import { mergedLabel, repoLabel } from "./rail-labels.ts"
@@ -137,8 +138,7 @@ const COMPARE: Record<SortMode, ((a: TaskRow, b: TaskRow) => number) | null> = {
 export const NO_PROJECT_KEY = "~scratch"
 
 /** A directory task with no project of its own: a Scratch shell or a projectless routine's run. */
-export const isNoProject = (task: TaskRow): boolean =>
-  task.kind === "dir" && (task.scratch === true || task.noProject === true)
+export const isNoProject = (task: TaskRow): boolean => isUngrouped(task)
 
 /** `tasks` in the rail's order for `sort`: manual order, then a project's main and pinned rows first, then the sort. */
 export function orderTasks(tasks: readonly TaskRow[], sort: SortMode): TaskRow[] {

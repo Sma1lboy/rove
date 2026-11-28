@@ -66,6 +66,16 @@ Workspace. If the settled directory already belongs to a Session (a directory
 Session's directory, or inside a worktree Session's worktree), the shell folds into that Session as a new terminal tab, running
 engine and all, instead of becoming a duplicate row.
 
+Two stored flags carry this. `scratch` means throwaway (the row goes when its
+shell exits, a repo + harness adopts it, it stays untitled); `noProject` means
+Ungrouped without being throwaway. A row is Ungrouped when either is set, so a
+rename clears `scratch` and sets `noProject`. Before the split, a rename only
+cleared `scratch` and the renamed row fell out of Ungrouped into a new group
+named after its directory (#2362). Code reads and clears `scratch` only through
+`isEphemeral`, `isUngrouped`, `KEEP_SESSION` and `SETTLE_IN_PROJECT` in
+`rove-daemon/src/task-scratch.ts` (re-exported from rove-core); an architecture
+test holds every other file to that.
+
 Each Session has a `status` you set yourself (`backlog`, `in_progress`,
 `in_review`, `done`, `canceled`, `error`) — from the sidebar row's right-click
 menu (**Set status**) or with `rove api update --status`. It is a label and nothing

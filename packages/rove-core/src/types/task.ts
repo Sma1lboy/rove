@@ -109,13 +109,12 @@ export interface Task {
   /** Loaded from a stored `main` row; the daemon drops it at boot when it holds no tab, else clears this. */
   readonly fromProjectRow?: boolean
   /**
-   * Scratch shell: a `kind: "dir"` task with an unsettled cwd, shown in the
-   * sidebar's Scratch section. Its shell exiting deletes the row. Cleared on
-   * rename (`setTitle`) or when its live cwd + a detected harness move it into
-   * a project (`adoptScratchRepo`).
+   * Throwaway `kind: "dir"` session (a No folder session). Read and write it only through
+   * `types/task-scratch.ts`: it also puts the row in Ungrouped, but a rename clears it and sets
+   * `noProject`, so grouping survives the rename.
    */
   readonly scratch?: boolean
-  /** A `dir` task the daemon made for a projectless routine; sorts into the Ungrouped group. */
+  /** Ungrouped without being throwaway: a projectless routine's dir, or a renamed scratch session. */
   readonly noProject?: boolean
   /** The chat connector (`weixin`, a plugin's id) this session answers for; its project sorts below every other. */
   readonly connector?: string

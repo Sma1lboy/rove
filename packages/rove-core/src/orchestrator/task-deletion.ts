@@ -1,5 +1,6 @@
 import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 import { deletionTargets, gitRepoOf, taskRepos, taskWorktreePaths } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import { isUngrouped } from "@sma1lboy/rove-core/types/task-scratch.ts"
 import type { Task, TaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { canonPath } from "./core-helpers.ts"
 import { type DirtyFinding, DirtyWorktreeError, WorktreeRemoveFailedError } from "./errors.ts"
@@ -337,7 +338,7 @@ export class TaskDeletionCoordinator {
   /** Children of a deleted task keep running as children of its own parent (or top level). A child of
    *  an Ungrouped (scratch / no-project) parent stays Ungrouped instead of surfacing as a project. */
   private async promoteChildren(deleted: Task): Promise<void> {
-    const ungrouped = deleted.kind === "dir" && (deleted.scratch === true || deleted.noProject === true)
+    const ungrouped = isUngrouped(deleted)
     for (const child of this.store.list().filter((t) => t.parentTaskId === deleted.id)) {
       const keep = ungrouped && child.kind === "dir" ? { noProject: true } : {}
       await this.store.update(child.id, { parentTaskId: deleted.parentTaskId, ...keep })

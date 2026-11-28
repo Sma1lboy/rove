@@ -10,6 +10,7 @@
  * covers a `rove` running without a live daemon.
  */
 
+import { isEphemeral } from "../task-scratch.ts"
 import type { DaemonOrchestrator, VendorId } from "./contracts.ts"
 import { logDaemonError } from "./crash-log"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
@@ -73,7 +74,7 @@ export async function runAutoTitlePass(
   const snapshot = orch.listTasks()
   // A scratch task is stored untitled (the wire shows its path), so empty counts as unnamed.
   const unnamed = (t: { title: string; scratch?: boolean }) =>
-    t.title === placeholderTitle || (t.scratch === true && !t.title)
+    t.title === placeholderTitle || (isEphemeral(t) && !t.title)
   for (const task of snapshot) {
     if (!unnamed(task) || !task.worktreePath) continue
     try {
@@ -82,7 +83,7 @@ export async function runAutoTitlePass(
       // from its own pinned session instead, or not at all. A scratch task's directory is
       // usually home, whose first conversation is never its own.
       const ownOnly =
-        task.scratch === true || snapshot.some((t) => t.id !== task.id && t.worktreePath === task.worktreePath)
+        isEphemeral(task) || snapshot.some((t) => t.id !== task.id && t.worktreePath === task.worktreePath)
       const own = ownOnly ? shared?.conversationOf(task.id) : undefined
       if (ownOnly && !own) continue
       const derived = own
