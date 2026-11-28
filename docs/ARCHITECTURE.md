@@ -232,8 +232,7 @@ this capability refuse capped launches rather than opening without admission.
   `cli/*.ts` entry files) never imports `src/tui*`, so it can split into its own
   package (`test/architecture/core-off-tui.test.ts`).
 - Clients (`rove-web`, `rove-bridge`, `rove-lark`, `rove-weixin`) never import
-  `@sma1lboy/rove/src/tui*`; the modules still imported are a shrink-only list
-  in `test/architecture/clients-off-tui.test.ts`.
+  `@sma1lboy/rove/src/tui*` (`test/architecture/clients-off-tui.test.ts`).
 
 ## 6. State
 
