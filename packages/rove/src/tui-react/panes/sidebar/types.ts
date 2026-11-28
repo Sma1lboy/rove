@@ -60,6 +60,8 @@ export type SidebarTaskCallbacks = {
   onSyncBaseRequest?: (taskId: string) => void
   /** Send the paused merge/rebase's conflicts to the engine. Menu-only, while one is paused. */
   onResolveConflictsRequest?: (taskId: string) => void
+  /** `git <op> --abort` the paused operation, behind a confirm. Menu-only, while one is paused. */
+  onAbortOperationRequest?: (taskId: string) => void
   /** Project row's "Field notes": read the repo's durable notes. Menu-only. */
   onFieldNotesRequest?: (repo: string) => void
 }

@@ -321,6 +321,9 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
         case "resolveConflicts":
           actions.onResolveConflictsRequest?.(taskId)
           break
+        case "abortOperation":
+          actions.onAbortOperationRequest?.(taskId)
+          break
         case "land":
           actions.onLandRequest?.(taskId)
           break

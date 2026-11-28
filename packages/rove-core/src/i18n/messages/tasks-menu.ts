@@ -51,6 +51,8 @@ export const en = {
   syncBase: "Sync with base",
   /** Only while a merge/rebase/cherry-pick/revert is paused in the worktree. */
   resolveConflicts: "Resolve conflicts",
+  /** Same gate: `git <op> --abort`, behind a confirm. */
+  abortOperation: "Abort paused merge or rebase",
   land: "Land into base branch",
   /** Menu-only: the task keeps its unread dot; toasts and chime stop (errors still toast). */
   muteNotifications: "Mute notifications",
@@ -95,6 +97,7 @@ export const zh: typeof en = {
   rerunChecks: "重新运行失败的检查",
   syncBase: "同步基础分支",
   resolveConflicts: "让 agent 解决冲突",
+  abortOperation: "中止暂停的合并或变基",
   land: "合入基础分支",
   muteNotifications: "静音通知",
   unmuteNotifications: "取消静音通知",

@@ -64,6 +64,7 @@ function sidebarProps(over: Partial<HostSidebarProps> = {}): HostSidebarProps {
     onFixChecksRequest: NOOP,
     onRerunChecksRequest: NOOP,
     onResolveConflictsRequest: NOOP,
+    onAbortOperationRequest: NOOP,
     onSyncBaseRequest: NOOP,
     onRunAgainRequest: NOOP,
     onNewTaskFromBranchRequest: NOOP,

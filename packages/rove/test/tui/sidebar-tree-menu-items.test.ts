@@ -239,9 +239,10 @@ describe("the resolve-conflicts entry", () => {
   // get a prompt about conflicts that do not exist.
   test("appears between Sync with base and Land only while an operation is paused", () => {
     expect(actions(worktreeRow())).not.toContain("resolveConflicts")
+    expect(actions(worktreeRow())).not.toContain("abortOperation")
     const rowActions = actions(worktreeRow(), { operationPaused: true })
     const at = rowActions.indexOf("syncBase")
-    expect(rowActions.slice(at, at + 3)).toEqual(["syncBase", "resolveConflicts", "land"])
+    expect(rowActions.slice(at, at + 4)).toEqual(["syncBase", "resolveConflicts", "abortOperation", "land"])
   })
 })
 
