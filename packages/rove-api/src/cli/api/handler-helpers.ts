@@ -5,7 +5,8 @@
  */
 
 import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
-import type { DaemonRequestName } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { taskArchivedError } from "@sma1lboy/rove-core/lib/api-error.ts"
+import type { DaemonRequestName, SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { ApiError, type VerbContext } from "./types.ts"
 
@@ -13,6 +14,16 @@ import { ApiError, type VerbContext } from "./types.ts"
 export function daemonOf(ctx: VerbContext): DaemonRpc {
   if (!ctx.client) throw new ApiError("daemon required", "BAD_DAEMON")
   return ctx.client
+}
+
+/**
+ * The task a verb is about to start or drive a session in. Every such verb reads it here, so none can forget that an
+ * archived task's sessions were stopped on purpose: it is refused (TASK_ARCHIVED) before anything is sent or started.
+ */
+export async function taskToActOn(daemon: DaemonRpc, taskId: string): Promise<SerializedTask> {
+  const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+  if (task.archived === true) throw taskArchivedError(taskId)
+  return task
 }
 
 /**

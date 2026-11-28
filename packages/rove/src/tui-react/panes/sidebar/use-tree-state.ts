@@ -1,8 +1,7 @@
 /**
  * Sidebar tree state: the flat row list and the row id (a task id).
  *
- * Three folds: the Archived row at the end (session-scoped, left out of a
- * search), a project's routine count row (session-scoped on purpose;
+ * Two folds: a project's routine count row (session-scoped on purpose;
  * schedule-created sessions only, and a folded routine stays findable by search
  * and openable from the Inbox and Routines page), and a task's children, open
  * unless the parent is crowded (`AUTO_FOLD_CHILDREN`); folds and opens the

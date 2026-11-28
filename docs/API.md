@@ -2168,8 +2168,9 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   Archiving also ends the task's sessions: every engine and shell process
   of the task is stopped. The worktree, branch, transcript and each tab's
   conversation stay, so after `unarchive` a tab reopens the conversation it
-  had. Nothing starts a session for an archived task: `send` and `tab-revive` are
-  refused with `TASK_ARCHIVED`, the PTY host refuses to spawn under it, and the TUI and the web client show it read-only (the web
+  had. Nothing starts a session for an archived task: `send`, `tab-new`,
+  `tab-split` and `tab-revive` are refused with `TASK_ARCHIVED` (hint:
+  `unarchive it first: rove api unarchive --task-id <id>`), the PTY host refuses to spawn under it, and the TUI and the web client show it read-only (the web
   shows its conversation) with an Unarchive button instead of a terminal. Every verb that takes `--task-id` (`get-task`, `context`, `collect`,
   `digest`, `delete`) keeps working on the task by id. `list --archived` lists only archived tasks.
   The Inbox leaves out an archived task's rows, an open decision gate

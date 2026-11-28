@@ -68,3 +68,16 @@ describe("tab-revive on an archived task", () => {
     expect(revived).toBe(0)
   })
 })
+
+describe("tab verbs on an archived task", () => {
+  it.each([
+    [["tab-new", "--task-id", "t1", "--kind", "engine"]],
+    [["tab-split", "--task-id", "t1", "--tab", "tab-1", "--action", "open"]],
+  ])("%j is refused with TASK_ARCHIVED and starts nothing", async ([verb, ...args]) => {
+    const client = new FakeClient({ "task.get": () => ({ task: { ...taskFixture(), archived: true } }) })
+    await expect(invokeVerb(verb, args, { client, runtime: stubRuntime() })).rejects.toMatchObject({
+      code: "TASK_ARCHIVED",
+    })
+    expect(client.requestNames).toEqual(["task.get"])
+  })
+})

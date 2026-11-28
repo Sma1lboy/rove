@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 138 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 139 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -587,8 +587,8 @@ To hide a finished row WITHOUT deleting anything, use `archive --task-id ID`: th
 children leave the sidebar and the default `list`, while the Worktree, branch and sessions
 stay. It is refused with `TASK_BUSY` while an engine in the subtree is running or waiting on
 you (`--force` hides it anyway and stops nothing). `unarchive` brings it back; `list
---archived` finds archived tasks. `send` and `tab-revive` to an archived task are refused
-with `TASK_ARCHIVED` and start nothing; `unarchive` it first.
+--archived` finds archived tasks. `send`, `tab-new`, `tab-split` and `tab-revive` on an
+archived task are refused with `TASK_ARCHIVED` and start nothing; `unarchive` it first.
 
 **Deleting still needs the user to ask for it in that turn** — say what you
 would remove and wait. `--delete-branch` (or `--force` on a dirty Worktree)

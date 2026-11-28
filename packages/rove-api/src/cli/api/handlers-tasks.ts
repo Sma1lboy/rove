@@ -7,7 +7,6 @@
 
 import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import { roveApiInvocation } from "@sma1lboy/rove-core/engine/interactive-command.ts"
-import { taskArchivedError } from "@sma1lboy/rove-core/lib/api-error.ts"
 import { taskCwd } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
 import { deriveTitleFromPrompt } from "@sma1lboy/rove-core/orchestrator/title.ts"
 import { taskEngineArgv } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
@@ -27,7 +26,7 @@ import {
 } from "./dispatcher.ts"
 import { assertNotEmptySuccess } from "./empty-success-guard.ts"
 import { F } from "./flags.ts"
-import { daemonOf, simpleRpc } from "./handler-helpers.ts"
+import { daemonOf, simpleRpc, taskToActOn } from "./handler-helpers.ts"
 import { markGateAnswersDelivered, takeOwedGateAnswers } from "./handlers-gates.ts"
 import { assertQueueFlags, queueIfBusy } from "./handlers-queue.ts"
 import { readRunnability } from "./handlers-runnability.ts"
@@ -193,9 +192,8 @@ async function sendNow(ctx: VerbContext, rollback: ReplaceRollback): Promise<unk
     const sendTo = await resolveSendTask(ctx, daemon, tab)
     taskId = sendTo.taskId
     tab = sendTo.tab
-    res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
-    // Before --replace or any delivery: archiving stopped its sessions and a send must not start one.
-    if (res.task.archived === true) throw taskArchivedError(taskId)
+    // Before --replace or any delivery.
+    res = { task: await taskToActOn(daemon, taskId) }
     if (replace && tab) prompt = [await handoffBrief(ctx, res.task, tab, "send"), prompt].filter(Boolean).join("\n\n")
     // Before ANY delivery path (--plain included: a verbatim false claim is the
     // same false claim) — a refused report must never reach the coordinator.

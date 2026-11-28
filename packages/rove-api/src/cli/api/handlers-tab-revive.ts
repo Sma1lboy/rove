@@ -1,13 +1,11 @@
 /** `rove api tab-revive` — reopen a Terminal Tab whose session is gone. The open itself is `tab-revive.ts`. */
 
-import { taskArchivedError } from "@sma1lboy/rove-core/lib/api-error.ts"
 import { taskCwd } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
 import { taskEngineArgv } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
-import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { F } from "./flags.ts"
-import { daemonOf } from "./handler-helpers.ts"
+import { daemonOf, taskToActOn } from "./handler-helpers.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
 import { ApiError, type VerbSpec } from "./types.ts"
 
@@ -56,9 +54,7 @@ export const TAB_REVIVE_VERB: VerbSpec = {
         ],
       })
     }
-    const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
-    // Archiving ended the task's sessions; looking at it must not start one again.
-    if (task.archived === true) throw taskArchivedError(taskId)
+    const task = await taskToActOn(daemon, taskId)
     const scope = await ptyScopeOf(daemon, task)
     if (hostedKeyFor(taskId, tabId, scope) === null) {
       throw new ApiError(`tab ${tabId} on task ${taskId} belongs to a child task's conversation`, "TAB_NOT_FOUND", {
