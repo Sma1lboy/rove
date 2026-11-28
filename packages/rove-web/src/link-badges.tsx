@@ -22,9 +22,14 @@ const MARK = "\u2063"
 const SLOT = "\u2003"
 /** Breathing room inside the pill: the badge can't take padding without moving the text off the field's. */
 const PAD = "\u2009"
+/** Word joiner between every character of a token: no line break falls inside a badge, CJK and spaces included. */
+const JOIN = "\u2060"
+const glue = (text: string) => Array.from(text).join(JOIN)
+const HEAD = glue(`${MARK}${PAD}${PAD}${SLOT}${PAD}`) + JOIN
+const TAIL = glue(`${PAD}${PAD}${MARK}`)
 /** The token: a gap outside the pill, then inside it room, the icon slot, room, the label, room; a gap again. */
-const TOKEN = /\u2063\u2009\u2009\u2003\u2009([^\u2063\n]*)\u2009\u2009\u2063/g
-const LABEL_MAX = 32
+const TOKEN = new RegExp(`${HEAD}((?:[^\u2063\u2060\n]${JOIN})*?)${TAIL}`, "gu")
+const LABEL_MAX = 22
 const LINKS_KEY = "rove.web.newSession.links"
 
 interface Link {
@@ -34,12 +39,19 @@ interface Link {
   readonly loading?: boolean
 }
 
-const token = (label: string) => `${MARK}${PAD}${PAD}${SLOT}${PAD}${label}${PAD}${PAD}${MARK}`
+export const token = (label: string) => `${HEAD}${glue(label)}${JOIN}${TAIL}`
+const labelOf = (m: RegExpExecArray) => (m[1] ?? "").replaceAll(JOIN, "")
+const clean = (text: string) => Array.from(text.replace(/[\u2063\u2060\n]/g, ""))
 
-function cut(text: string): string {
-  // No-break spaces: the badge wraps to the next line whole more often instead of splitting at a space.
-  const chars = Array.from(text.replaceAll(MARK, "").replaceAll(" ", "\u00a0"))
-  return chars.length > LABEL_MAX ? `${chars.slice(0, LABEL_MAX - 1).join("")}…` : chars.join("")
+function cut(text: string, max = LABEL_MAX): string {
+  const chars = clean(text)
+  return chars.length > max ? `${chars.slice(0, max - 1).join("")}…` : chars.join("")
+}
+
+/** Host and path before a title arrives, or when there is none; a long one keeps its tail, where links on one site differ. */
+function place(url: URL): string {
+  const chars = clean(`${url.host}${url.pathname.replace(/\/$/, "")}`)
+  return chars.length > LABEL_MAX ? `…${chars.slice(1 - LABEL_MAX).join("")}` : chars.join("")
 }
 
 function loadLinks(): Record<string, Link> {
@@ -52,7 +64,9 @@ function loadLinks(): Record<string, Link> {
 
 /** The prompt as the agent reads it: each badge back to its URL, a broken token's marks dropped. */
 export function expandLinks(text: string, links: Readonly<Record<string, Link>>): string {
-  return text.replace(TOKEN, (whole, label: string) => links[label]?.url ?? whole).replaceAll(MARK, "")
+  return text
+    .replace(TOKEN, (whole, label: string) => links[label.replaceAll(JOIN, "")]?.url ?? whole)
+    .replace(/[\u2063\u2060]/g, "")
 }
 
 export function useLinkBadges(o: {
@@ -92,11 +106,15 @@ export function useLinkBadges(o: {
     o.onChange(value)
     landing.current = caret
   }
-  /** A label no other link holds, so each token maps to one URL. */
+  /**
+   * A label no other badge in the prompt holds, so each token maps to one URL. Only two different links with the
+   * same title get a counter; a link removed from the prompt holds nothing.
+   */
   const free = (label: string, url: string): string => {
-    const taken = latest.current.links
+    const { links: all, value } = latest.current
+    const taken = (name: string) => all[name] && all[name].url !== url && value.includes(token(name))
     let name = label
-    for (let n = 2; taken[name] && taken[name].url !== url; n++) name = cut(`${label} ${n}`)
+    for (let n = 2; taken(name); n++) name = `${cut(label, LABEL_MAX - 1 - String(n).length)} ${n}`
     return name
   }
 
@@ -124,7 +142,7 @@ export function useLinkBadges(o: {
     e.preventDefault()
     const el = e.currentTarget
     const { value } = latest.current
-    const label = free(cut(url.host), url.href)
+    const label = free(place(url), url.href)
     setLinks({ ...latest.current.links, [label]: { url: url.href, loading: true } })
     const piece = token(label)
     change(value.slice(0, el.selectionStart) + piece + value.slice(el.selectionEnd), el.selectionStart + piece.length)
@@ -132,9 +150,7 @@ export function useLinkBadges(o: {
       .request<{ title: string; icon: string }>("link.preview", { url: url.href })
       .catch(() => null)
       .then((res) => {
-        if (res?.title) return retitle(label, url.href, res.title, res.icon)
-        // No title: the plain host, which a sibling still loading may have held when this one was pasted.
-        retitle(label, url.href, url.host, "")
+        retitle(label, url.href, res?.title || place(url), res?.icon ?? "")
       })
     return true
   }
@@ -178,21 +194,21 @@ export function useLinkBadges(o: {
   const parts: ReactNode[] = []
   let last = 0
   for (const m of o.value.matchAll(TOKEN)) {
-    const link = links[m[1] ?? ""]
-    // The same characters as the field, MARKs too: a font may give them width, and any difference drifts the text.
-    parts.push(o.value.slice(last, m.index), `${MARK}${PAD}`)
+    const link = links[labelOf(m)]
+    // The token's own characters, sliced where the pill starts and ends (HEAD and TAIL), MARKs and joiners too:
+    // a font may give them width, and any difference drifts the text off the field's.
+    const t = m[0]
+    parts.push(o.value.slice(last, m.index), t.slice(0, 4))
     parts.push(
       <span key={m.index} className={link ? (link.loading ? L.LOADING : L.BADGE) : L.BROKEN}>
-        {PAD}
+        {t.slice(4, 6)}
         <span className="relative">
-          {SLOT}
+          {t[6]}
           {link && <Favicon src={link.icon} />}
         </span>
-        {PAD}
-        {m[1]}
-        {PAD}
+        {t.slice(7, -3)}
       </span>,
-      `${PAD}${MARK}`,
+      t.slice(-3),
     )
     last = m.index + m[0].length
   }
