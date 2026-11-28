@@ -13,8 +13,8 @@
  * nothing would POST to.
  */
 
+import { displayEndpoint } from "@sma1lboy/rove-client/settings/model.ts"
 import { describe, expect, it } from "vitest"
-import { displayEndpoint } from "../../src/settings/model.ts"
 
 describe("displayEndpoint", () => {
   it("never shows the mode NAME as an address", () => {

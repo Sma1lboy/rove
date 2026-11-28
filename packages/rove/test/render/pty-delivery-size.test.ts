@@ -13,9 +13,9 @@
  */
 
 import { afterEach, describe, expect, test } from "bun:test"
+import { type HostedSessionRpc, deliverToHostedKey } from "@sma1lboy/rove-core/engine/hosted-session.ts"
 import type { DaemonFrame } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { PtyHost } from "@sma1lboy/rove-daemon/daemon/pty-host"
-import { type HostedSessionRpc, deliverToHostedKey } from "../../src/engine/hosted-session.ts"
 
 const hosts: PtyHost[] = []
 

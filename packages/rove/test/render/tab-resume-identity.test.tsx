@@ -1,8 +1,8 @@
 /** @jsxImportSource @opentui/react */
 import { afterEach, expect, spyOn, test } from "bun:test"
+import type { TabsState } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { useState } from "react"
-import type { TabsState } from "../../src/tabs/terminal-tabs-core"
 import { useTabTurnState } from "../../src/tui-react/workspace/use-tab-turn-state"
 import { MockTaskPty } from "../../src/tui/panes/terminal/pty-mock"
 import { getDefaultPtyRegistry } from "../../src/tui/panes/terminal/registry"

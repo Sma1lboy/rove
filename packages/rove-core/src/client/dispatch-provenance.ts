@@ -48,8 +48,8 @@ let identityWarning: string | null = null
 
 async function realProbe(): Promise<SelfSessionProbe> {
   const [{ openHostedSessionHost, listHostedSessions }, { psSnapshot }] = await Promise.all([
-    import("../engine/hosted-session.ts"),
-    import("../engine/foreground.ts"),
+    import("@sma1lboy/rove-core/engine/hosted-session.ts"),
+    import("@sma1lboy/rove-core/engine/foreground.ts"),
   ])
   return {
     sessions: async () => {
@@ -112,7 +112,7 @@ async function resolveSelfSession(env: NodeJS.ProcessEnv, probe?: SelfSessionPro
     const key = `${taskId}::${tabId}`
     const session = (await p.sessions()).find((s) => s.key === key && s.alive)
     if (session?.pid) {
-      const { hasAncestor, parsePsSnapshot } = await import("../engine/foreground.ts")
+      const { hasAncestor, parsePsSnapshot } = await import("@sma1lboy/rove-core/engine/foreground.ts")
       // Both ends of the walk are anchors: the tab's shell, whose console
       // re-links the engine to it, and this CLI, whose console re-links it
       // to the engine's Bash tool — Windows severs the chain at both places

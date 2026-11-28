@@ -1,7 +1,7 @@
 /** Decision gates as the phone sees them: the daemon's `gates` channel joined to task titles. */
 
+import type { ActiveGate } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import type { ActiveGate } from "@sma1lboy/rove/src/client/remote-orchestrator.ts"
 import type { AttentionRow, GateRow } from "./protocol.ts"
 
 /** Open gates, plus answered ones the engine has not received; oldest first. */

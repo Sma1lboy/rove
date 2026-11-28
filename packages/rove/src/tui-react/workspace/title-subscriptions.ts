@@ -20,8 +20,8 @@
  * Callers own the tick driving `reconcile()`: PTYs spawn after mount, so attach retries.
  */
 
+import { stripEngineStatusPrefix } from "@sma1lboy/rove-core/engine/registry.ts"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { stripEngineStatusPrefix } from "../../engine/registry"
 import type { TaskPtyLike } from "../../tui/panes/terminal/pty-types"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { getDefaultLiveEngines } from "../../tui/workspace/live-engine"

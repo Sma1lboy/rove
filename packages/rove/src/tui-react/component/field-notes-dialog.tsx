@@ -18,8 +18,8 @@
 
 import { TextAttributes } from "@opentui/core"
 import type { ScrollBoxRenderable } from "@opentui/core"
+import type { StoredFieldNote } from "@sma1lboy/rove-core/state/field-notes.ts"
 import { useEffect, useRef, useState } from "react"
-import type { StoredFieldNote } from "../../state/field-notes"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"

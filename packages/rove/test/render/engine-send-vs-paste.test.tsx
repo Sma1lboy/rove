@@ -17,7 +17,7 @@
  */
 
 import { afterEach, describe, expect, test } from "bun:test"
-import { initialShellTabs } from "../../src/tabs/terminal-tabs-core"
+import { initialShellTabs } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import { resolveConflictsAction } from "../../src/tui-react/workspace/use-resolve-conflicts"
 import { buildEnginePaste, buildEngineSend, useTabHandoffs } from "../../src/tui-react/workspace/use-tab-handoffs"
 import { _resetDefaultPtyRegistry, getDefaultPtyRegistry } from "../../src/tui/panes/terminal/registry"

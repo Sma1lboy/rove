@@ -7,11 +7,11 @@
  */
 
 import type { BoxRenderable } from "@opentui/core"
+import { sendFileToMachine } from "@sma1lboy/rove-client/machines/send-file.ts"
 import { asAttachmentPaths } from "@sma1lboy/rove-core/lib/attachments.ts"
+import { requireMachine } from "@sma1lboy/rove-core/machines/forward.ts"
 import type { EngineTerminalPresentation } from "@sma1lboy/rove-core/types/terminal-presentation.ts"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { requireMachine } from "../../../machines/forward"
-import { sendFileToMachine } from "../../../machines/send-file"
 import { ImeCursorRetention } from "../../../tui/panes/terminal/ime-cursor"
 import type { TerminalRow } from "../../../tui/panes/terminal/pty"
 import { type PtyRegistry, getDefaultPtyRegistry } from "../../../tui/panes/terminal/registry"

@@ -9,12 +9,12 @@
  * covers the orchestrator's channel plumbing.
  */
 
-import { describe, expect, it } from "vitest"
 import {
   type WorktreeChangesMap,
   parseWorktreeChangesPayload,
   sameWorktreeChangesMap,
-} from "../../src/client/remote-orchestrator-worktree-changes.ts"
+} from "@sma1lboy/rove-client/client/remote-orchestrator-worktree-changes.ts"
+import { describe, expect, it } from "vitest"
 
 describe("worktree.changes pure helpers", () => {
   it("parseWorktreeChangesPayload maps the daemon's unreadable paths to null", () => {

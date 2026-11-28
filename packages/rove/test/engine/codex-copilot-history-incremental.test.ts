@@ -1,14 +1,14 @@
-import { describe, expect, it } from "vitest"
-import type { HistoryDeps } from "../../src/engine/codex-local/history.ts"
+import type { HistoryDeps } from "@sma1lboy/rove-core/engine/codex-local/history.ts"
 import {
   readHistory as readCodexHistory,
   readHistoryWithMetrics as readCodexHistoryWithMetrics,
-} from "../../src/engine/codex-local/history.ts"
-import type { CopilotHistoryDeps } from "../../src/engine/copilot-local/history.ts"
+} from "@sma1lboy/rove-core/engine/codex-local/history.ts"
+import type { CopilotHistoryDeps } from "@sma1lboy/rove-core/engine/copilot-local/history.ts"
 import {
   readHistory as readCopilotHistory,
   readHistoryWithMetrics as readCopilotHistoryWithMetrics,
-} from "../../src/engine/copilot-local/history.ts"
+} from "@sma1lboy/rove-core/engine/copilot-local/history.ts"
+import { describe, expect, it } from "vitest"
 
 /**
  * Why these tests matter: the history pane polls `readHistory` every ~2.5s

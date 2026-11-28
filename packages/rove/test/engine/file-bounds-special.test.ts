@@ -3,14 +3,15 @@ import { mkdtemp } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { expect, it } from "vitest"
+import { corePath } from "../core-package.ts"
 
 it.skipIf(process.platform === "win32")("rejects FIFOs without blocking async or synchronous readers", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "rove-fifo-"))
   const file = path.join(dir, "pipe")
   const made = spawnSync("mkfifo", [file], { timeout: 2000 })
   expect(made.status).toBe(0)
-  const modulePath = path.resolve("src/engine/file-bounds.ts")
-  const detectorPath = path.resolve("src/engine/turn-detector.ts")
+  const modulePath = corePath("engine/file-bounds.ts")
+  const detectorPath = corePath("engine/turn-detector.ts")
   const script = `import {readTextFileBounded, readTextFileSyncBounded, readFirstLineBounded} from ${JSON.stringify(modulePath)};
     import {CodexTurnDetector, ClaudeTurnDetector} from ${JSON.stringify(detectorPath)};
     const path = ${JSON.stringify(file)};

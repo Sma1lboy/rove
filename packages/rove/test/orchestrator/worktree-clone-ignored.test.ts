@@ -8,9 +8,9 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { LocalExecHost } from "@sma1lboy/rove-core/exec/exec-host.ts"
+import { type CloneIgnoredDeps, defaultCloneDeps } from "@sma1lboy/rove-core/orchestrator/worktree/clone-ignored.ts"
+import { GitWorktreeManager } from "@sma1lboy/rove-core/orchestrator/worktree/manager.ts"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
-import { type CloneIgnoredDeps, defaultCloneDeps } from "../../src/orchestrator/worktree/clone-ignored.ts"
-import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
 
 let tmpRoot: string
 let repo: string

@@ -7,7 +7,7 @@
 import path from "node:path"
 import type { ExecHost } from "@sma1lboy/rove-core/exec/exec-host.ts"
 import { READ_ONLY_GIT_ENV } from "@sma1lboy/rove-core/lib/git-env.ts"
-import { duKb, parseIgnoredPaths } from "./salvage-ignored.ts"
+import { duKb, parseIgnoredPaths } from "@sma1lboy/rove-core/orchestrator/worktree/salvage-ignored.ts"
 
 export interface CheckoutUsage {
   readonly exists: boolean | null

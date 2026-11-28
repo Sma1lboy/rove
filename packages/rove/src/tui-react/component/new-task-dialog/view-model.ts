@@ -7,11 +7,11 @@
  * strings use the module-level `t`.
  */
 
-import { AUTO_ROUTING_TIERS, readAutoRoutingTable } from "@/engine/auto-routing"
-import { engineEntry } from "@/engine/registry"
-import type { AdoptableWorktree } from "@/types/worktree"
+import { AUTO_ROUTING_TIERS, readAutoRoutingTable } from "@sma1lboy/rove-core/engine/auto-routing.ts"
+import { engineEntry } from "@sma1lboy/rove-core/engine/registry.ts"
 import { t } from "@sma1lboy/rove-core/i18n/index.ts"
 import { type VendorId, nextVendorWithin, prevVendorWithin } from "@sma1lboy/rove-core/types/vendor.ts"
+import type { AdoptableWorktree } from "@sma1lboy/rove-core/types/worktree.ts"
 import { DEFAULT_BASE_REF, validateRepoPath } from "@sma1lboy/rove-core/worktree/git-snapshot.ts"
 import { useEffect, useMemo, useRef, useState } from "react"
 import {

@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, test } from "bun:test"
-import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import type { FocusContextValue } from "../../src/tui-react/context/focus"
 import { useFileOpenActions } from "../../src/tui-react/workspace/use-file-open-actions"
 

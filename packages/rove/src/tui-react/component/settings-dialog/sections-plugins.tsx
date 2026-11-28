@@ -6,9 +6,13 @@
  */
 
 import { type BoxRenderable, TextAttributes } from "@opentui/core"
+import {
+  type PluginSettingRowView,
+  displaySettingValue,
+  isBooleanOn,
+} from "@sma1lboy/rove-client/lib/plugin-settings-core.ts"
+import type { PluginRowView } from "@sma1lboy/rove-client/lib/plugins-core.ts"
 import { relativeAge } from "@sma1lboy/rove-core/lib/relative-time.ts"
-import { type PluginSettingRowView, displaySettingValue, isBooleanOn } from "../../../lib/plugin-settings-core"
-import type { PluginRowView } from "../../../lib/plugins-core"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import type { SectionCursorProps } from "./rows"

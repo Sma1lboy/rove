@@ -101,7 +101,7 @@ export function getMachinePtyClient(machine: string): Promise<RoveDaemonClient> 
   const cached = machineClients.get(machine)
   if (cached) return cached
   const p = (async () => {
-    const { machinePtySocket } = await import("../../../machines/forward.ts")
+    const { machinePtySocket } = await import("@sma1lboy/rove-core/machines/forward.ts")
     const client = new RoveDaemonClient(await machinePtySocket(machine))
     await client.connect()
     installDispatch(client)

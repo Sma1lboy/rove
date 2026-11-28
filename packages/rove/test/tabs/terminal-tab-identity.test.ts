@@ -8,9 +8,9 @@
  * makes label, glyph and activity agree without a per-consumer guard.
  */
 
+import type { TerminalTab } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import { describe, expect, it } from "vitest"
 import { createTabIdentityObserver, demoteExitedEngine } from "../../src/tabs/terminal-tab-identity"
-import type { TerminalTab } from "../../src/tabs/terminal-tabs-core"
 
 const SHELL = ["/bin/zsh"]
 const engineTab = (over: Partial<TerminalTab> = {}): TerminalTab =>

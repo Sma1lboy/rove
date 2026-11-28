@@ -12,13 +12,13 @@
  * same bytes on an idle composer are not a no-op (a second Esc rewinds).
  */
 
+import { openHostedSessionHost } from "@sma1lboy/rove-core/engine/hosted-session.ts"
+import { findHostedEngineKey, listHostedSessions } from "@sma1lboy/rove-core/engine/hosted-session.ts"
+import { getCapabilities } from "@sma1lboy/rove-core/engine/registry.ts"
 import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import { taskEngineArgv } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { type AliasRef, hostedKeyFor, ptyScopeFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
-import { openHostedSessionHost } from "../../engine/hosted-session.ts"
-import { findHostedEngineKey, listHostedSessions } from "../../engine/hosted-session.ts"
-import { getCapabilities } from "../../engine/registry.ts"
-import { taskEngineArgv } from "../../tabs/tab-snapshot.ts"
 import { readActivityRegistry } from "./activity-view.ts"
 import { F } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"

@@ -9,7 +9,7 @@
  */
 
 import type { TabsSnapshotKv } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
-import { setTabTitle } from "../../tabs/terminal-tabs-core"
+import { setTabTitle } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import { knownTabsState, requestTabRename, setTaskTabs, takeUnclaimedTabRename } from "./terminal-tabs-shared"
 
 /**

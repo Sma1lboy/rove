@@ -14,10 +14,10 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { type Socket, connect } from "node:net"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import type { Orchestrator } from "@sma1lboy/rove-core/orchestrator/core.ts"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { type DaemonServer, type DaemonServerOptions, startDaemonServer } from "@sma1lboy/rove-daemon/daemon/server"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
-import type { Orchestrator } from "../../src/orchestrator/core.ts"
 
 /**
  * Minimal orchestrator double — the daemon boot path only touches

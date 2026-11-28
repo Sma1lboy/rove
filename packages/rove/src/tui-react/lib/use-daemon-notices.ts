@@ -5,6 +5,8 @@
  * than {@link STALE_NOTICE_MS}.
  */
 
+import type { TabAddSignal } from "@sma1lboy/rove-client/client/remote-orchestrator-payloads.ts"
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
 import type { NotifyInput } from "@sma1lboy/rove-core/lib/notify-state.ts"
 import type {
@@ -15,8 +17,6 @@ import type {
   UiPromptPayload,
 } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { useEffect, useRef } from "react"
-import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
-import type { TabAddSignal } from "../../client/remote-orchestrator-payloads"
 import { RenameTaskDialog } from "../component/rename-task-dialog"
 import { useKV } from "../context/kv"
 import { t } from "../i18n"

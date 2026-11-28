@@ -9,8 +9,8 @@
 import { chmodSync, mkdtempSync, utimesSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { listPiModels, parseOmpModelJson, parsePiModelTable } from "@sma1lboy/rove-core/engine/model-lists.ts"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { listPiModels, parseOmpModelJson, parsePiModelTable } from "../../src/engine/model-lists.ts"
 
 describe("parsePiModelTable", () => {
   it("skips the header and keys each row by provider/model, labelled by the bare model", () => {

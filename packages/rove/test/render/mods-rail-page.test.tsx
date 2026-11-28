@@ -2,9 +2,9 @@
 /** The rail offers Mods only while some mod has a pane open, and drops it when the last one closes. */
 
 import { expect, test } from "bun:test"
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
 import type { ModPaneView } from "@sma1lboy/rove-daemon/plugins/mod-tree"
-import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 import { registerModsPage } from "../../src/tui-react/pages/mods-pages"
 import { pageEntries } from "../../src/tui-react/pages/registry"
 

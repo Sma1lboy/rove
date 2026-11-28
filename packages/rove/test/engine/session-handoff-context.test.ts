@@ -3,7 +3,11 @@
  * the user's last request and the newest turns, bounded so a long chat never
  * floods the new composer.
  */
-import { HANDOFF_EXCERPT_CHARS, buildHandoffPrompt, handoffContext } from "@/engine/session-handoff"
+import {
+  HANDOFF_EXCERPT_CHARS,
+  buildHandoffPrompt,
+  handoffContext,
+} from "@sma1lboy/rove-core/engine/session-handoff.ts"
 import type { Message } from "@sma1lboy/rove-core/types/engine.ts"
 import { describe, expect, it } from "vitest"
 

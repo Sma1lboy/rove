@@ -5,8 +5,8 @@
 
 import { argvHasFlag } from "@sma1lboy/rove-core/lib/argv.ts"
 import { getMachine, updateMachine } from "@sma1lboy/rove-core/machines/registry.ts"
+import { forwardedMcp } from "@sma1lboy/rove-core/machines/remote-mcp.ts"
 import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
-import { forwardedMcp } from "../machines/remote-mcp.ts"
 
 export function machineMcp(argv: readonly string[], fail: (message: string) => never): void {
   const [alias, name, url] = argv.filter((a) => !a.startsWith("--"))

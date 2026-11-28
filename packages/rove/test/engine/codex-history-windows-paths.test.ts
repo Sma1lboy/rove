@@ -1,12 +1,12 @@
 import { mkdir, mkdtemp, readFile, readdir, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { expect, it } from "vitest"
 import {
   type HistoryDeps,
   findLatestRolloutForWorktree,
   listSessionIdsForWorktree,
-} from "../../src/engine/codex-local/session-files"
+} from "@sma1lboy/rove-core/engine/codex-local/session-files.ts"
+import { expect, it } from "vitest"
 
 it("finds the same Windows conversation through Git and native cwd spellings", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "rove-resume-path-"))

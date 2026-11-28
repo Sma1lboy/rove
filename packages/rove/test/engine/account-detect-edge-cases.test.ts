@@ -16,15 +16,15 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
   type DetectDeps,
   availableEngineIds,
   detectClaudeAccount,
   detectCodexAccount,
   detectCopilotAccount,
-} from "../../src/engine/account-detect.ts"
-import { claudeGlobalConfigPath, codexAuthPath, copilotConfigPath } from "../../src/engine/vendor-home.ts"
+} from "@sma1lboy/rove-core/engine/account-detect.ts"
+import { claudeGlobalConfigPath, codexAuthPath, copilotConfigPath } from "@sma1lboy/rove-core/engine/vendor-home.ts"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 function deps(over: Partial<DetectDeps> = {}): DetectDeps {
   return {

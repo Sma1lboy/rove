@@ -1,6 +1,6 @@
+import { handleOrchestratorEvent } from "@sma1lboy/rove-client/client/remote-orchestrator-events.ts"
+import type { OrchestratorSignals } from "@sma1lboy/rove-client/client/remote-orchestrator-payloads.ts"
 import { describe, expect, it } from "vitest"
-import { handleOrchestratorEvent } from "../../src/client/remote-orchestrator-events.ts"
-import type { OrchestratorSignals } from "../../src/client/remote-orchestrator-payloads.ts"
 
 /**
  * Transient lifecycle marks must never outlive their evidence: a cancelled

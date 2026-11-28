@@ -13,9 +13,6 @@
 import { TextAttributes } from "@opentui/core"
 import { prefixAction } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
 import { SPLIT_STYLE_KEY, normalizeSplitStyle } from "@sma1lboy/rove-core/state/split-style.ts"
-import type { EngineTerminalPresentation } from "@sma1lboy/rove-core/types/terminal-presentation.ts"
-import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
-import { type ReactNode, useEffect, useMemo, useState } from "react"
 import {
   type SplitLeaf,
   type SplitNode,
@@ -26,14 +23,17 @@ import {
   removeLeaf,
   renameLeaf,
   splitActive,
-} from "../../tabs/split-core"
+} from "@sma1lboy/rove-core/tabs/split-core.ts"
 import {
   type PersistedSplit,
   collapseSplit,
   isTabSplit,
   splitLeafNames,
   splitLeafPtyKey,
-} from "../../tabs/terminal-tabs-core"
+} from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
+import type { EngineTerminalPresentation } from "@sma1lboy/rove-core/types/terminal-presentation.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
+import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { getDefaultLiveEngines } from "../../tui/workspace/live-engine"

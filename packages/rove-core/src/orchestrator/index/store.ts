@@ -9,11 +9,16 @@ import { mkdir, open, rename, unlink } from "node:fs/promises"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 import { release } from "@sma1lboy/rove-core/orchestrator/index/lockfile.ts"
+import {
+  acquireWithRetry,
+  mergeTasksWithDisk,
+  readDiskIndex,
+  recoverIndexFromDisk,
+} from "@sma1lboy/rove-core/orchestrator/index/store-codec.ts"
 import { ROVE_STATE_DIR_BASENAME } from "@sma1lboy/rove-core/product.ts"
 import type { Task, TaskId, TaskIndex } from "@sma1lboy/rove-core/types/task.ts"
 import { DEFAULT_TASK_VENDOR, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { readRoveHomeDirEnv } from "@sma1lboy/rove-daemon/compat-env"
-import { acquireWithRetry, mergeTasksWithDisk, readDiskIndex, recoverIndexFromDisk } from "./store-codec.ts"
 import { ulid } from "./ulid.ts"
 
 export interface TaskIndexStoreOptions {

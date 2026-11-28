@@ -11,8 +11,8 @@
  */
 
 import { join } from "node:path"
+import { TaskIndexStore } from "@sma1lboy/rove-core/orchestrator/index/store.ts"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 
 afterEach(() => {
   vi.unstubAllEnvs()

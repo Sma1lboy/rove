@@ -6,14 +6,14 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { Orchestrator } from "@sma1lboy/rove-core/orchestrator/core.ts"
+import { TaskIndexStore } from "@sma1lboy/rove-core/orchestrator/index/store.ts"
+import { GitWorktreeManager } from "@sma1lboy/rove-core/orchestrator/worktree/manager.ts"
+import { conversationTitle } from "@sma1lboy/rove-core/tabs/terminal-tab-split.ts"
+import type { TerminalTab } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import { syncEngineTitle } from "@sma1lboy/rove-daemon/daemon/engine-title-sync"
 import type { SharedTabs } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import { afterEach, beforeEach, expect, test } from "vitest"
-import { Orchestrator } from "../../src/orchestrator/core.ts"
-import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
-import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
-import { conversationTitle } from "../../src/tabs/terminal-tab-split.ts"
-import type { TerminalTab } from "../../src/tabs/terminal-tabs-core.ts"
 
 let tmpRoot: string
 let store: TaskIndexStore

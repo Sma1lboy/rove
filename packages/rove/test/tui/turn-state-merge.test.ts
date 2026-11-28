@@ -8,8 +8,8 @@
  * failing elsewhere.
  */
 
+import type { ChatTabTurnState } from "@sma1lboy/rove-core/engine/turn-detector.ts"
 import { describe, expect, it } from "vitest"
-import type { ChatTabTurnState } from "../../src/engine/turn-detector"
 import { activityTurnState, mergeTurnStates } from "../../src/tui/workspace/turn-state-merge"
 
 describe("activityTurnState", () => {

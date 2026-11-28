@@ -1,8 +1,8 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { TaskIndexStore } from "@sma1lboy/rove-core/orchestrator/index/store.ts"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 
 /** Self-heal-on-load coercion (`coerceTask`). */
 describe("TaskIndexStore self-heal on load", () => {

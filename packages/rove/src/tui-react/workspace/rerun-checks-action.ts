@@ -4,7 +4,7 @@
  * unit tests.
  */
 
-import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 
 export interface RerunChecksDeps {
   readonly orchestrator: Pick<RemoteOrchestrator, "rerunFailedChecks">

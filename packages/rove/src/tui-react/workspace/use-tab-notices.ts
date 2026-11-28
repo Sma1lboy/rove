@@ -3,8 +3,8 @@
  * "usage limit" (its activity is `rate_limited`). The dead strip outranks the limit.
  */
 
-import type { SectionId } from "../../settings/model"
-import type { TerminalTab } from "../../tabs/terminal-tabs-core"
+import type { SectionId } from "@sma1lboy/rove-client/settings/model.ts"
+import type { TerminalTab } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import type { HookTabState } from "../../tui/workspace/turn-state-merge"
 import type { EngineExit, UsageLimit } from "../panes/terminal/engine-exit-banner"
 import { useEngineExit } from "./use-engine-exit"

@@ -18,9 +18,9 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { protocolEntry, sessionProtocol } from "@sma1lboy/rove-core/engine/engine-presets.ts"
+import { engineEntry } from "@sma1lboy/rove-core/engine/registry.ts"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { protocolEntry, sessionProtocol } from "../../src/engine/engine-presets.ts"
-import { engineEntry } from "../../src/engine/registry.ts"
 
 let home: string
 let originalHome: string | undefined

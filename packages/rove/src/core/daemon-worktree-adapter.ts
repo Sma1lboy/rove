@@ -1,10 +1,10 @@
 import { statSync } from "node:fs"
 import { execHostForWorktreePath } from "@sma1lboy/rove-core/exec/resolve.ts"
+import { GitWorktreeManager } from "@sma1lboy/rove-core/orchestrator/worktree/manager.ts"
+import { type PrState, judgeWorktree, parseGhPrList } from "@sma1lboy/rove-core/orchestrator/worktree/staleness.ts"
 import { getRemoteRepoConfig, getSavedRepos } from "@sma1lboy/rove-core/state/repos.ts"
+import type { WorktreeAuditRow, WorktreeProject } from "@sma1lboy/rove-core/types/worktree.ts"
 import { auditWorktreeResidue, auditWorktreeSalvaged } from "@sma1lboy/rove-daemon/daemon/task-deletion-audit"
-import { GitWorktreeManager } from "../orchestrator/worktree/manager.ts"
-import { type PrState, judgeWorktree, parseGhPrList } from "../orchestrator/worktree/staleness.ts"
-import type { WorktreeAuditRow, WorktreeProject } from "../types/worktree.ts"
 
 const TIMEOUT_MS = 4_000
 const manager = new GitWorktreeManager()

@@ -13,7 +13,9 @@
   },
   "dependencies": {
     "@sma1lboy/rove": "workspace:*",
-    "@sma1lboy/rove-daemon": "workspace:*"
+    "@sma1lboy/rove-daemon": "workspace:*",
+    "@xterm/headless": "^6.0.0",
+    "smol-toml": "^1.7.1"
   },
   "devDependencies": {
     "@tsconfig/bun": "1.0.11",

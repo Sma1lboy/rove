@@ -12,10 +12,6 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import { PERMISSION_BYPASS_KEY } from "@sma1lboy/rove-core/state/permission-bypass.ts"
-import { setPersistedString } from "@sma1lboy/rove-core/state/repos.ts"
-import { setPersistedBool } from "@sma1lboy/rove-core/state/store.ts"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
   argvHasFlag,
   engineCommandKey,
@@ -23,7 +19,11 @@ import {
   engineNameKey,
   interactiveEngineCommand,
   withEngineEffort,
-} from "../../src/engine/interactive-command.ts"
+} from "@sma1lboy/rove-core/engine/interactive-command.ts"
+import { PERMISSION_BYPASS_KEY } from "@sma1lboy/rove-core/state/permission-bypass.ts"
+import { setPersistedString } from "@sma1lboy/rove-core/state/repos.ts"
+import { setPersistedBool } from "@sma1lboy/rove-core/state/store.ts"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 let tmpHome: string
 let originalHome: string | undefined

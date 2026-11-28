@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest"
 import {
   ClaudeHookAdapter,
   ROVE_HOOK_EVENTS,
@@ -6,7 +5,8 @@ import {
   mergeActivityHooks,
   mergeWorktreeSyncHook,
   removeWorktreeWatchHook,
-} from "../../src/engine/claude-code-local/hook-adapter.ts"
+} from "@sma1lboy/rove-core/engine/claude-code-local/hook-adapter.ts"
+import { describe, expect, it } from "vitest"
 
 /**
  * The ONLY place Claude Code hook event names live. These lock the

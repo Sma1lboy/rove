@@ -4,25 +4,29 @@
  * lazy: nothing is read until the owning section is first opened.
  */
 
-import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
-import type { VendorId } from "@sma1lboy/rove-core/types/task.ts"
-import { useCallback, useEffect, useRef, useState } from "react"
-import { BUNDLED_PLUGINS, isBundledPluginInstalled, setBundledPluginInstalled } from "../../../bundled-plugins"
-import { type PluginInstallPreview, preparePluginInstall } from "../../../cli/plugin-install"
-import { type MarketEntry, fetchMarketplace } from "../../../cli/plugin-search"
-import { type EngineStatus, detectEngineStatuses } from "../../../engine/engine-status"
-import { withEngineVersions } from "../../../engine/engine-version"
-import { type EngineIntegration, engineIntegrations } from "../../../engine/integration-status"
-import { reloadPluginEngines } from "../../../engine/plugin-engines"
-import { nextEnumValue, normalizeNumberInput, toggledBooleanValue } from "../../../lib/plugin-settings-core"
+import {
+  nextEnumValue,
+  normalizeNumberInput,
+  toggledBooleanValue,
+} from "@sma1lboy/rove-client/lib/plugin-settings-core.ts"
 import {
   type BuiltInPluginInfo,
   type PluginRowView,
   readPluginRows,
   setPluginEnabled,
   setPluginSetting,
-} from "../../../lib/plugins-core"
-import type { SectionId } from "../../../settings/model"
+} from "@sma1lboy/rove-client/lib/plugins-core.ts"
+import type { SectionId } from "@sma1lboy/rove-client/settings/model.ts"
+import { type EngineStatus, detectEngineStatuses } from "@sma1lboy/rove-core/engine/engine-status.ts"
+import { type EngineIntegration, engineIntegrations } from "@sma1lboy/rove-core/engine/integration-status.ts"
+import { reloadPluginEngines } from "@sma1lboy/rove-core/engine/plugin-engines.ts"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/task.ts"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { BUNDLED_PLUGINS, isBundledPluginInstalled, setBundledPluginInstalled } from "../../../bundled-plugins"
+import { type PluginInstallPreview, preparePluginInstall } from "../../../cli/plugin-install"
+import { type MarketEntry, fetchMarketplace } from "../../../cli/plugin-search"
+import { withEngineVersions } from "../../../engine/engine-version"
 import { useT } from "../../i18n"
 import { registerBundledPlugins } from "../../pages/bundled-pages"
 import { loadPluginPages } from "../../pages/load-plugin-pages"

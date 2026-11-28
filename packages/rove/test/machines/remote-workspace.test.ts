@@ -3,6 +3,13 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSyn
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import {
+  claudeRemoteNotes,
+  claudeRemoteWorkspaceArgv,
+} from "@sma1lboy/rove-core/engine/claude-code-local/remote-workspace.ts"
+import { buildEngineSessionLaunch } from "@sma1lboy/rove-core/engine/session-launch.ts"
+import { addStaysHere } from "@sma1lboy/rove-core/machines/forward.ts"
+import { forwardPort, forwardedMcp } from "@sma1lboy/rove-core/machines/remote-mcp.ts"
+import {
   REMOTE_WORKSPACE_FILE,
   createRemoteLink,
   linkedWorktree,
@@ -18,10 +25,6 @@ import { serializeTask } from "@sma1lboy/rove-daemon/daemon/serialize-task"
 import { computeRepoId } from "@sma1lboy/rove-daemon/repo-id"
 import { describe, expect, test } from "vitest"
 import { bashHookReply, callWorkspaceTool, fileHookReply, mcpReply } from "../../src/cli/remote-workspace-cmd.ts"
-import { claudeRemoteNotes, claudeRemoteWorkspaceArgv } from "../../src/engine/claude-code-local/remote-workspace.ts"
-import { buildEngineSessionLaunch } from "../../src/engine/session-launch.ts"
-import { addStaysHere } from "../../src/machines/forward.ts"
-import { forwardPort, forwardedMcp } from "../../src/machines/remote-mcp.ts"
 
 /** `sh -c` stands in for ssh: the "remote" command line runs in a local shell, so the quoting is the real one. */
 const LOCAL_SSH = ["sh", "-c"]

@@ -13,6 +13,12 @@
  * sequences render.
  */
 
+import { handleOrchestratorEvent } from "@sma1lboy/rove-client/client/remote-orchestrator-events.ts"
+import type {
+  EngineTabStateMap,
+  OrchestratorSignals,
+  TaskEngineState,
+} from "@sma1lboy/rove-client/client/remote-orchestrator-payloads.ts"
 import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
 import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import {
@@ -23,12 +29,6 @@ import {
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import { tabStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { handleOrchestratorEvent } from "../../src/client/remote-orchestrator-events"
-import type {
-  EngineTabStateMap,
-  OrchestratorSignals,
-  TaskEngineState,
-} from "../../src/client/remote-orchestrator-payloads"
 import { buildSidebarRowView } from "../../src/tui/panes/sidebar/row-view"
 import { tabRowActivity } from "../../src/tui/panes/sidebar/tree-core"
 

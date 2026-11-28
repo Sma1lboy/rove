@@ -5,9 +5,9 @@
  * answered a question. The daemon decides every status; this only carries it.
  */
 
+import type { Unsubscribe } from "@sma1lboy/rove-core/orchestrator/core.ts"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { RowStatusPayload } from "@sma1lboy/rove-daemon/daemon/row-status-store"
-import type { Unsubscribe } from "../orchestrator/core.ts"
 
 /** What `row-status-sync.ts` needs from a daemon. */
 export interface RowStatusTransport {

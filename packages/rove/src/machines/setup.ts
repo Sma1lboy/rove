@@ -17,10 +17,15 @@ import { existsSync, mkdirSync, readFileSync } from "node:fs"
 import { hostname } from "node:os"
 import { join } from "node:path"
 import { shQuote } from "@sma1lboy/rove-core/exec/exec-host.ts"
+import {
+  type DiscoverFailure,
+  type DiscoverResult,
+  discoverMachine,
+  remoteRove,
+} from "@sma1lboy/rove-core/machines/discover.ts"
 import { type MachineConfig, sshTargetOf } from "@sma1lboy/rove-core/machines/registry.ts"
 import { hubKeyPath, machineSshArgs } from "@sma1lboy/rove-core/machines/ssh-args.ts"
 import { isWindowsMachine, windowsAuthorizeKeySteps } from "@sma1lboy/rove-core/machines/windows-remote.ts"
-import { type DiscoverFailure, type DiscoverResult, discoverMachine, remoteRove } from "./discover.ts"
 
 export type SetupFix =
   | {

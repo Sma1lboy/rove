@@ -1,11 +1,11 @@
 import { mkdir, mkdtemp, open, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
+import { fetchClaudeQuotaUsage } from "@sma1lboy/rove-core/engine/claude-code-local/quota.ts"
+import { usageFromRolloutRaw } from "@sma1lboy/rove-core/engine/codex-local/quota.ts"
+import { MAX_JSONL_LINE_CHARS } from "@sma1lboy/rove-core/engine/file-bounds.ts"
+import { parseSessionIndex } from "@sma1lboy/rove-core/engine/kimi-local/history.ts"
 import { afterEach, expect, it, vi } from "vitest"
-import { fetchClaudeQuotaUsage } from "../../src/engine/claude-code-local/quota"
-import { usageFromRolloutRaw } from "../../src/engine/codex-local/quota"
-import { MAX_JSONL_LINE_CHARS } from "../../src/engine/file-bounds"
-import { parseSessionIndex } from "../../src/engine/kimi-local/history"
 
 afterEach(() => {
   vi.unstubAllEnvs()

@@ -1,6 +1,6 @@
+import { foregroundEngineIn, parsePsSnapshot } from "@sma1lboy/rove-core/engine/foreground.ts"
+import { serializeProcRows } from "@sma1lboy/rove-core/engine/process-rows.ts"
 import { describe, expect, it } from "vitest"
-import { foregroundEngineIn, parsePsSnapshot } from "../../src/engine/foreground"
-import { serializeProcRows } from "../../src/engine/process-rows"
 
 describe("process row serialization", () => {
   it.each(["\n", "\r\n", "\r", "\u2028", "\u2029"])(

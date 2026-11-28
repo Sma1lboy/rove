@@ -5,14 +5,14 @@
  * tab while it remains selected and present.
  */
 
-import { tabSessionId } from "@/engine/session-handoff-plan"
 import type { BoxRenderable } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
 import { formatChord } from "@sma1lboy/rove-client/keys/chord-glyphs.ts"
 import { legendCap } from "@sma1lboy/rove-client/keys/help-groups.ts"
+import { tabSessionId } from "@sma1lboy/rove-core/engine/session-handoff-plan.ts"
+import type { TerminalTab } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { type ReactNode, useRef, useState } from "react"
-import type { TerminalTab } from "../../tabs/terminal-tabs-core"
 import { copyTextToSystemClipboard } from "../../tui/lib/clipboard-copy"
 import { tabAddress } from "../../tui/lib/task-actions"
 import { type TabStripMenuAction, type TabStripMenuItem, tabStripMenuItems } from "../../tui/workspace/tab-strip-menu"

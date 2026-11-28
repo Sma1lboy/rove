@@ -1,6 +1,5 @@
-import { describe, expect, it } from "vitest"
-import { initialSplit, removeLeaf, splitActive } from "../../src/tabs/split-core"
-import { meaningfulAutoTitle, tabTitle } from "../../src/tabs/terminal-tab-split"
+import { initialSplit, removeLeaf, splitActive } from "@sma1lboy/rove-core/tabs/split-core.ts"
+import { meaningfulAutoTitle, tabTitle } from "@sma1lboy/rove-core/tabs/terminal-tab-split.ts"
 import {
   type EngineTab,
   type TabsState,
@@ -29,7 +28,8 @@ import {
   shellIdentityInput,
   shellSpawn,
   tabExitAction,
-} from "../../src/tabs/terminal-tabs-core"
+} from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
+import { describe, expect, it } from "vitest"
 
 describe("terminal tabs state", () => {
   it("addTab inserts after the active tab, focuses it, never reuses ids", () => {

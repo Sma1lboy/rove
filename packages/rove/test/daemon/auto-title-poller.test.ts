@@ -8,14 +8,14 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { Orchestrator, PLACEHOLDER_TASK_TITLE } from "@sma1lboy/rove-core/orchestrator/core.ts"
+import { TaskIndexStore } from "@sma1lboy/rove-core/orchestrator/index/store.ts"
+import { GitWorktreeManager } from "@sma1lboy/rove-core/orchestrator/worktree/manager.ts"
 import {
   pinnedConversation,
   runAutoTitlePass as runPassWithVendor,
 } from "@sma1lboy/rove-daemon/daemon/auto-title-poller"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
-import { Orchestrator, PLACEHOLDER_TASK_TITLE } from "../../src/orchestrator/core.ts"
-import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
-import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
 
 let tmpRoot: string
 let store: TaskIndexStore

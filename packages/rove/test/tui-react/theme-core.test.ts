@@ -1,6 +1,6 @@
 import { RGBA } from "@opentui/core"
+import { terminalDefaultColorsForTheme } from "@sma1lboy/rove-core/theme/terminal-colors.ts"
 import { describe, expect, it } from "vitest"
-import { terminalDefaultColorsForTheme } from "../../src/theme/terminal-colors"
 import { contrastRatio } from "../../src/tui/context/contrast-guard"
 import { BUNDLED_THEMES, applyDisplayOverlay, resolveTheme, resolveThemeMode } from "../../src/tui/context/theme-core"
 

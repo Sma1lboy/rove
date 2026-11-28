@@ -10,8 +10,8 @@
  * required.
  */
 
-import { CONTRIB_ENGINES } from "@/engine/contrib-engines"
-import { type EngineScreenManifest, classifyScreen } from "@/engine/screen-state"
+import { CONTRIB_ENGINES } from "@sma1lboy/rove-core/engine/contrib-engines.ts"
+import { type EngineScreenManifest, classifyScreen } from "@sma1lboy/rove-core/engine/screen-state.ts"
 import { describe, expect, it } from "vitest"
 
 function manifest(id: string): EngineScreenManifest {

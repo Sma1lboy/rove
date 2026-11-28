@@ -11,7 +11,7 @@
  */
 
 import { expect, test } from "bun:test"
-import { ENGINE_PROTOCOLS } from "../../src/engine/engine-presets"
+import { ENGINE_PROTOCOLS } from "@sma1lboy/rove-core/engine/engine-presets.ts"
 import { EngineProtocolPickerDialogView } from "../../src/tui-react/component/engine-protocol-picker-dialog"
 import { act, isolateHome, renderComponent, settle } from "./harness"
 

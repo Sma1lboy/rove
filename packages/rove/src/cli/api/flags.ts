@@ -2,11 +2,11 @@
 
 import { readFileSync } from "node:fs"
 import { isAbsolute, resolve } from "node:path"
+import { registeredEngineIds } from "@sma1lboy/rove-core/engine/plugin-engines.ts"
 import { parseBoolLiteral } from "@sma1lboy/rove-core/lib/argv.ts"
 import { expandTilde } from "@sma1lboy/rove-core/lib/path-home.ts"
 import { isRemoteRepoKey } from "@sma1lboy/rove-core/state/repos.ts"
 import { ALL_VENDORS, type VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
-import { registeredEngineIds } from "../../engine/plugin-engines.ts"
 import {
   type ApiCaller,
   ApiError,

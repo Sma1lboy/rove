@@ -9,12 +9,12 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
   detectLegacyInstalls,
   isRovePluginEnabled,
   migrationHint,
-} from "../../src/engine/claude-code-local/plugin-migration.ts"
+} from "@sma1lboy/rove-core/engine/claude-code-local/plugin-migration.ts"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 let home: string
 let settingsPath: string

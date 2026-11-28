@@ -13,12 +13,12 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { Orchestrator } from "@sma1lboy/rove-core/orchestrator/core.ts"
+import { TaskIndexStore } from "@sma1lboy/rove-core/orchestrator/index/store.ts"
+import type { GitWorktreeManager } from "@sma1lboy/rove-core/orchestrator/worktree/manager.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { Orchestrator } from "../../src/orchestrator/core.ts"
-import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
-import type { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
 import { bootDaemonHarness, waitFor } from "./harness.ts"
 
 const cleanups: Array<() => Promise<void>> = []

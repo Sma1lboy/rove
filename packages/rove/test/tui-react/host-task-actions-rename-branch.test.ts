@@ -34,8 +34,8 @@ vi.mock("../../src/tui-react/ui/task-dialog-adapters", () => ({
   buildBaseCreateTaskContext: vi.fn(() => ({})),
 }))
 
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
-import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 import { useWorkspaceTaskActions } from "../../src/tui-react/workspace/host-task-actions"
 
 function task(id: string, over: Partial<Task> = {}): Task {

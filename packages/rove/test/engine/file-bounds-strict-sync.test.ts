@@ -2,12 +2,13 @@ import { spawnSync } from "node:child_process"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import { describe, expect, it } from "vitest"
 import {
   readTextFileIfRegular,
   readTextFileIfRegularSync,
   readTextFileSyncBounded,
-} from "../../src/engine/file-bounds.ts"
+} from "@sma1lboy/rove-core/engine/file-bounds.ts"
+import { describe, expect, it } from "vitest"
+import { corePath } from "../core-package.ts"
 
 function fixture(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "rove-strict-sync-"))
@@ -47,7 +48,7 @@ describe("strict synchronous file reads", () => {
     const dir = fixture()
     const fifo = path.join(dir, "fifo")
     expect(spawnSync("mkfifo", [fifo]).status).toBe(0)
-    const source = new URL("../../src/engine/file-bounds.ts", import.meta.url).pathname
+    const source = corePath("engine/file-bounds.ts")
     const child = spawnSync(
       "bun",
       [

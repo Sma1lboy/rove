@@ -1,7 +1,7 @@
+import { engineLaunchArgv } from "@sma1lboy/rove-core/engine/engine-presets.ts"
 import type { Automation, DaemonTask } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { describe, expect, it } from "vitest"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
-import { engineLaunchArgv } from "../../src/engine/engine-presets.ts"
 import { bootDaemonHarness, fakeOrchestrator } from "./harness.ts"
 
 const REPO = process.cwd()

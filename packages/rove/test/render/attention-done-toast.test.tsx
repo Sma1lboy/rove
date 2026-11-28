@@ -5,11 +5,11 @@
  */
 
 import { expect, test } from "bun:test"
+import type { AttentionInboxItem, TaskEngineState } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import type { NotifyInput } from "@sma1lboy/rove-core/lib/notify-state.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { useEffect, useState } from "react"
-import type { AttentionInboxItem, TaskEngineState } from "../../src/client/remote-orchestrator"
 import type { KVContext } from "../../src/tui-react/context/kv"
 import type { NotificationsContext } from "../../src/tui-react/context/notifications"
 import { useAttention } from "../../src/tui-react/workspace/use-attention"

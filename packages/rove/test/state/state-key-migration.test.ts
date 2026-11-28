@@ -17,9 +17,9 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { readAutoRoutingTable } from "@sma1lboy/rove-core/engine/auto-routing.ts"
 import { getPersistedString } from "@sma1lboy/rove-core/state/repos.ts"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { readAutoRoutingTable } from "../../src/engine/auto-routing.ts"
 import { migrateRenamedStateKeys } from "../../src/state/state-key-migration.ts"
 
 let tmpHome: string

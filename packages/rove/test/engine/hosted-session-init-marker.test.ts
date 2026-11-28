@@ -11,8 +11,8 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { type HostedSessionRpc, pastePromptWhenEngineUp } from "@sma1lboy/rove-core/engine/hosted-session.ts"
 import { describe, expect, it, vi } from "vitest"
-import { type HostedSessionRpc, pastePromptWhenEngineUp } from "../../src/engine/hosted-session.ts"
 
 function session(key: string) {
   return { key, alive: true, pid: 42, command: ["engine"], title: "engine" }

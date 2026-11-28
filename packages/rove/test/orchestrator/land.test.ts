@@ -12,9 +12,6 @@ import { spawnSync } from "node:child_process"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import type { Task } from "@sma1lboy/rove-core/types/task.ts"
-import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
-import { afterEach, beforeEach, describe, expect, test } from "vitest"
 import {
   EMPTY_BRANCH_CODE,
   EMPTY_BRANCH_DIRTY_WORKTREE_CODE,
@@ -24,9 +21,12 @@ import {
   MISSING_REF_CODE,
   MainCheckoutDirtyError,
   MissingRefError,
-} from "../../src/orchestrator/errors.ts"
-import { landTask, landTaskWithCleanup } from "../../src/orchestrator/land.ts"
-import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
+} from "@sma1lboy/rove-core/orchestrator/errors.ts"
+import { landTask, landTaskWithCleanup } from "@sma1lboy/rove-core/orchestrator/land.ts"
+import { GitWorktreeManager } from "@sma1lboy/rove-core/orchestrator/worktree/manager.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
+import { afterEach, beforeEach, describe, expect, test } from "vitest"
 
 let tmpRoot: string
 let repo: string

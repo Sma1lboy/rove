@@ -1,6 +1,6 @@
 import { userInfo } from "node:os"
+import { parseResetsAtMs, usageFromClaudePayload } from "@sma1lboy/rove-core/engine/claude-code-local/quota.ts"
 import { describe, expect, it, vi } from "vitest"
-import { parseResetsAtMs, usageFromClaudePayload } from "../../src/engine/claude-code-local/quota.ts"
 
 const spawnCapture = vi.hoisted(() => vi.fn())
 vi.mock("@sma1lboy/rove-core/lib/poll-scheduling.ts", async (importOriginal) => ({
@@ -84,7 +84,7 @@ describe("fetchClaudeQuotaUsage keychain lookup", () => {
     spawnCapture.mockResolvedValue({ status: 1, stdout: "", stderr: "" })
     // A machine with ~/.claude/.credentials.json falls back to that login: keep it off the network.
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")))
-    const { fetchClaudeQuotaUsage } = await import("../../src/engine/claude-code-local/quota.ts")
+    const { fetchClaudeQuotaUsage } = await import("@sma1lboy/rove-core/engine/claude-code-local/quota.ts")
 
     expect(await fetchClaudeQuotaUsage()).toBeNull()
 

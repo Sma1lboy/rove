@@ -1,6 +1,6 @@
+import { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { RemoteOrchestrator } from "../../src/client/remote-orchestrator.ts"
 
 // Keep malformed-event drops diagnosable while preserving every other real export.
 const { logClientError } = vi.hoisted(() => ({ logClientError: vi.fn() }))

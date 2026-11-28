@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, test } from "bun:test"
-import type { StoredFieldNote } from "../../src/state/field-notes"
+import type { StoredFieldNote } from "@sma1lboy/rove-core/state/field-notes.ts"
 import { FieldNotesDialogView } from "../../src/tui-react/component/field-notes-dialog"
 import { renderComponent, waitForFrameText } from "./harness"
 

@@ -6,6 +6,7 @@
  */
 
 import type { ColorInput } from "@opentui/core"
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { formatChord } from "@sma1lboy/rove-client/keys/chord-glyphs.ts"
 import { findBinding } from "@sma1lboy/rove-client/keys/keybindings.ts"
 import { currentPrefixConfiguration } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
@@ -13,7 +14,6 @@ import { UPDATE_NOTIFY_KEY, updateNotifyEnabled } from "@sma1lboy/rove-core/stat
 import { CURRENT_VERSION } from "@sma1lboy/rove-core/version.ts"
 import { type ReactNode, useState } from "react"
 import { type SelfRefreshInputs, planSelfRefresh } from "../../cli/self-relaunch.ts"
-import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { SkillBanner, StaleInstallBanner, VersionSkewBanner } from "../component/version-skew-banner"
 import { useKV } from "../context/kv"
 import { useAccessor } from "../lib/use-accessor"

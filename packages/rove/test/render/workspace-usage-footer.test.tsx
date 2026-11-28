@@ -5,10 +5,10 @@
  */
 
 import { expect, test } from "bun:test"
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
 import { patchStateFile } from "@sma1lboy/rove-core/state/store.ts"
 import type { EngineQuotaUsage } from "@sma1lboy/rove-core/types/engine.ts"
-import type { RemoteOrchestrator } from "../../src/tui-react/../client/remote-orchestrator"
 import { WorkspaceFrame } from "../../src/tui-react/workspace/host-footer"
 import { isolateHome, renderComponent } from "./harness"
 

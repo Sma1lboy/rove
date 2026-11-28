@@ -18,10 +18,20 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { encodeCwd } from "@/engine/claude-code-local/history"
-import { liveSourceProtocol, planChatContinuation, tabSessionId } from "@/engine/session-handoff-plan"
-import { type EngineTab, type TabsState, engineTabArgv, initialTabs, setTabSessionId } from "@/tabs/terminal-tabs-core"
 import { addForkTab } from "@/tui-react/workspace/fork-chat-tab"
+import { encodeCwd } from "@sma1lboy/rove-core/engine/claude-code-local/history.ts"
+import {
+  liveSourceProtocol,
+  planChatContinuation,
+  tabSessionId,
+} from "@sma1lboy/rove-core/engine/session-handoff-plan.ts"
+import {
+  type EngineTab,
+  type TabsState,
+  engineTabArgv,
+  initialTabs,
+  setTabSessionId,
+} from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
 const WORKTREE = "/repo/wt-claudecpa"

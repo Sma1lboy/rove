@@ -12,9 +12,9 @@
  */
 
 import { expect, test } from "bun:test"
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import type { ReactNode } from "react"
 import { IssueDetailDialogView, type IssueDetailOutcome } from "../../src/bundled-plugins/kanban/issue-detail-dialog"
-import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 import { act, renderComponent } from "./harness"
 
 const LINKED_ISSUE = {

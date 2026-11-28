@@ -54,17 +54,17 @@ import {
   latestTranscriptMtimeForWorktree,
   listSessionFilesForWorktree,
   readHistory,
-} from "../../src/engine/claude-code-local/history.ts"
+} from "@sma1lboy/rove-core/engine/claude-code-local/history.ts"
 import {
   deleteHistory as codexDeleteHistory,
   findLatestRolloutForWorktree as codexFindLatestRollout,
   readHistoryWithMetrics as codexReadHistory,
-} from "../../src/engine/codex-local/history.ts"
+} from "@sma1lboy/rove-core/engine/codex-local/history.ts"
 import {
   deleteHistory as copilotDeleteHistory,
   listSessionDirs as copilotListSessionDirs,
   latestTranscriptMtimeForWorktree as copilotMtimeForWorktree,
-} from "../../src/engine/copilot-local/history.ts"
+} from "@sma1lboy/rove-core/engine/copilot-local/history.ts"
 
 const projectsRoot = path.join(tmpHome, ".claude", "projects")
 

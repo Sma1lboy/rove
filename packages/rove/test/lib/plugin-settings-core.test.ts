@@ -8,8 +8,6 @@
  * back as on for a setting whose manifest default is truthy.
  */
 
-import type { PluginSetting } from "@sma1lboy/rove-daemon/plugins/manifest"
-import { describe, expect, it } from "vitest"
 import {
   type PluginSettingRowView,
   displaySettingValue,
@@ -18,7 +16,9 @@ import {
   normalizeNumberInput,
   pluginSettingRows,
   toggledBooleanValue,
-} from "../../src/lib/plugin-settings-core.ts"
+} from "@sma1lboy/rove-client/lib/plugin-settings-core.ts"
+import type { PluginSetting } from "@sma1lboy/rove-daemon/plugins/manifest"
+import { describe, expect, it } from "vitest"
 
 const SOUND: PluginSetting = {
   key: "ROVE_NOTIFY_SOUND",

@@ -19,7 +19,6 @@
 
 import http from "node:http"
 import type { AddressInfo } from "node:net"
-import { describe, expect, it } from "vitest"
 import {
   type ClassifierConfig,
   JEV_ENDPOINT,
@@ -27,8 +26,9 @@ import {
   classifyTier,
   jevRequest,
   readClassifierConfig,
-} from "../../src/engine/auto-routing-classifier.ts"
-import { DEFAULT_TIER_RUBRIC } from "../../src/engine/tier-rubric.generated.ts"
+} from "@sma1lboy/rove-core/engine/auto-routing-classifier.ts"
+import { DEFAULT_TIER_RUBRIC } from "@sma1lboy/rove-core/engine/tier-rubric.generated.ts"
+import { describe, expect, it } from "vitest"
 
 const from = (state: Record<string, unknown>) => (key: string) => state[key]
 

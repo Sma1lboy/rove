@@ -2,7 +2,7 @@
  * The POSIX login shell every rove PTY spawns through, and the path form
  * that shell understands.
  *
- * rove's engine-launch contract (`packages/rove/src/engine/session-launch.ts`)
+ * rove's engine-launch contract (`packages/rove-core/src/engine/session-launch.ts`)
  * is a POSIX shell SCRIPT, not an argv: `trap ':' INT`, `export -p`, `$$`,
  * `${TMPDIR:-/tmp}`, `kill -TERM`, `[ -f ]`, `exec "${SHELL:-/bin/sh}"`.
  * Every engine tab and every embedded terminal is spawned through it, so

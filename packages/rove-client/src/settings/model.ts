@@ -23,11 +23,11 @@ import {
   type PrefixTapPresentation,
 } from "@sma1lboy/rove-client/keys/prefix-tap-presentation.ts"
 import { APPEARANCE_SETTINGS, type AppearanceSetting } from "@sma1lboy/rove-client/settings/appearance.ts"
+import { AUTO_ROUTING_TIERS, type AutoRoutingTier } from "@sma1lboy/rove-core/engine/auto-routing.ts"
 // theme-core (not ../../context/theme): this module is shared with the
 // React port, which must not reference the Solid .tsx even type-only.
 import { LOCALES, type LocaleId } from "@sma1lboy/rove-core/i18n/catalog.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
-import { AUTO_ROUTING_TIERS, type AutoRoutingTier } from "../engine/auto-routing"
 
 export type NavLevel = "sidebar" | "body"
 

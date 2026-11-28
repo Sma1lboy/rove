@@ -1,4 +1,3 @@
-import { afterEach, describe, expect, it } from "vitest"
 import {
   type DetectDeps,
   detectAvailableVendors,
@@ -6,7 +5,8 @@ import {
   detectCodexAccount,
   detectCopilotAccount,
   resetAvailableVendorsCache,
-} from "../../src/engine/account-detect.ts"
+} from "@sma1lboy/rove-core/engine/account-detect.ts"
+import { afterEach, describe, expect, it } from "vitest"
 
 /** A DetectDeps with every binary found and no files/env, overridable per test. */
 function deps(over: Partial<DetectDeps> = {}): DetectDeps {

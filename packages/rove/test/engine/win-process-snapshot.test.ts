@@ -8,9 +8,13 @@
  * Win32_Process`, `GetConsoleProcessList`). Nothing here spawns.
  */
 
-import { describe, expect, it } from "vitest"
-import { engineProcessIn, foregroundEngineIn, hasAncestor, parsePsSnapshot } from "../../src/engine/foreground.ts"
-import { PsProbeUnavailableError } from "../../src/engine/process-rows.ts"
+import {
+  engineProcessIn,
+  foregroundEngineIn,
+  hasAncestor,
+  parsePsSnapshot,
+} from "@sma1lboy/rove-core/engine/foreground.ts"
+import { PsProbeUnavailableError } from "@sma1lboy/rove-core/engine/process-rows.ts"
 import {
   WIN_PROBE_TIMEOUT_MS,
   type WinProcessProbe,
@@ -19,7 +23,8 @@ import {
   parseWinProcessList,
   repairConsoleParentage,
   winProcessSnapshot,
-} from "../../src/engine/win-process-snapshot.ts"
+} from "@sma1lboy/rove-core/engine/win-process-snapshot.ts"
+import { describe, expect, it } from "vitest"
 
 /**
  * A real tab, transcribed. Note 39384's parent 37192: that is the npm shim's

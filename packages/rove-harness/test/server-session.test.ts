@@ -15,7 +15,7 @@ const resolveEngineLaunchInitMock = vi.hoisted(() =>
   })),
 )
 
-vi.mock("../../rove/src/engine/hosted-session.ts", () => ({
+vi.mock("@sma1lboy/rove-core/engine/hosted-session.ts", () => ({
   deliverToHostedKey: vi.fn(),
   ensureHostedEngine: hostedSession.ensureEngine,
   ensureHostedSessionHost: vi.fn(async () => ({
@@ -29,7 +29,7 @@ vi.mock("../../rove/src/engine/hosted-session.ts", () => ({
   openHostedSessionHost: vi.fn(),
 }))
 
-vi.mock("../../rove/src/state/repo-init.ts", () => ({
+vi.mock("@sma1lboy/rove-core/state/repo-init.ts", () => ({
   resolveEngineLaunchInit: resolveEngineLaunchInitMock,
 }))
 

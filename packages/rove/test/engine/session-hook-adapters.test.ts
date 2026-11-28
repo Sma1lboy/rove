@@ -14,15 +14,19 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { DEVIN_HOOK_EVENT_MAP, DevinHookAdapter, devinSettingsPath } from "@/engine/devin-local/hook-adapter"
-import type { EngineHookAdapter } from "@/engine/hook-adapter"
-import { ROVE_HOOK_VERSION, mergeActivityHooks, roveHookArgs } from "@/engine/json-hooks"
-import type { HookEventSpec } from "@/engine/json-hooks"
+import {
+  DEVIN_HOOK_EVENT_MAP,
+  DevinHookAdapter,
+  devinSettingsPath,
+} from "@sma1lboy/rove-core/engine/devin-local/hook-adapter.ts"
+import type { EngineHookAdapter } from "@sma1lboy/rove-core/engine/hook-adapter.ts"
+import { ROVE_HOOK_VERSION, mergeActivityHooks, roveHookArgs } from "@sma1lboy/rove-core/engine/json-hooks.ts"
+import type { HookEventSpec } from "@sma1lboy/rove-core/engine/json-hooks.ts"
 import {
   QODERCLI_HOOK_EVENT_MAP,
   QodercliHookAdapter,
   qodercliSettingsPath,
-} from "@/engine/qodercli-local/hook-adapter"
+} from "@sma1lboy/rove-core/engine/qodercli-local/hook-adapter.ts"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const PROD = ["rove"]

@@ -14,7 +14,7 @@ const fake = vi.hoisted(() => ({
   disposeCalls: 0,
 }))
 
-vi.mock("../../src/orchestrator/index/store.ts", () => ({
+vi.mock("@sma1lboy/rove-core/orchestrator/index/store.ts", () => ({
   TaskIndexStore: class {
     constructor(opts?: { homeDir?: string }) {
       fake.storeHomeDirs.push(opts?.homeDir)
@@ -30,8 +30,8 @@ vi.mock("../../src/orchestrator/index/store.ts", () => ({
     }
   },
 }))
-vi.mock("../../src/orchestrator/worktree/manager.ts", () => ({ GitWorktreeManager: class {} }))
-vi.mock("../../src/orchestrator/core.ts", () => ({
+vi.mock("@sma1lboy/rove-core/orchestrator/worktree/manager.ts", () => ({ GitWorktreeManager: class {} }))
+vi.mock("@sma1lboy/rove-core/orchestrator/core.ts", () => ({
   Orchestrator: class {
     dispose() {
       fake.disposeCalls++

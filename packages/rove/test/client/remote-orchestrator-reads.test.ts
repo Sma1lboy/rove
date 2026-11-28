@@ -1,6 +1,6 @@
+import { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 
 describe("RemoteOrchestrator read methods", () => {
   let orch: RemoteOrchestrator

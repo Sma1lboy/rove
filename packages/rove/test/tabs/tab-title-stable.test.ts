@@ -14,10 +14,10 @@
  * those snapshots heal on display without a migration.
  */
 
+import { foregroundEngineIn, parsePsSnapshot } from "@sma1lboy/rove-core/engine/foreground.ts"
+import { conversationTitle, tabTitle, tabTitleStable } from "@sma1lboy/rove-core/tabs/terminal-tab-split.ts"
+import type { TerminalTab } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import { describe, expect, it } from "vitest"
-import { foregroundEngineIn, parsePsSnapshot } from "../../src/engine/foreground"
-import { conversationTitle, tabTitle, tabTitleStable } from "../../src/tabs/terminal-tab-split"
-import type { TerminalTab } from "../../src/tabs/terminal-tabs-core"
 
 const engineTab = (over: Partial<TerminalTab> = {}): TerminalTab =>
   ({ kind: "engine", id: "tab-1", title: null, ordinal: 1, ...over }) as TerminalTab

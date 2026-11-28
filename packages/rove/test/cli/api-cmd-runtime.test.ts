@@ -39,7 +39,7 @@ vi.mock("@sma1lboy/rove-core/state/repos.ts", async (importOriginal) => {
   }
 })
 
-vi.mock("../../src/worktree/worktree-changes.ts", () => ({
+vi.mock("@sma1lboy/rove-client/worktree/worktree-changes.ts", () => ({
   readWorktreeChanges: mocks.readWorktreeChanges,
 }))
 
@@ -50,20 +50,20 @@ vi.mock("@sma1lboy/rove-core/lib/feedback.ts", () => ({
   submitFeedback: mocks.submitFeedback,
 }))
 
-vi.mock("../../src/engine/interactive-command.ts", () => ({
+vi.mock("@sma1lboy/rove-core/engine/interactive-command.ts", () => ({
   interactiveEngineCommand: mocks.interactiveEngineCommand,
   withClaudeSessionId: mocks.withClaudeSessionId,
 }))
 
-vi.mock("../../src/engine/session-launch.ts", () => ({
+vi.mock("@sma1lboy/rove-core/engine/session-launch.ts", () => ({
   buildEngineSessionLaunch: mocks.buildEngineSessionLaunch,
 }))
 
 // Real join/liveness logic, mocked STATE READ: unit tests must never touch
 // the developer's actual ~/.config/rove/state.json (also silences the
 // publishCliTabSnapshot write deliverPrompt would otherwise attempt).
-vi.mock("../../src/tabs/tab-snapshot.ts", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../src/tabs/tab-snapshot.ts")>()
+vi.mock("@sma1lboy/rove-core/tabs/tab-snapshot.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@sma1lboy/rove-core/tabs/tab-snapshot.ts")>()
   return {
     ...actual,
     readTabsSnapshot: mocks.readTabsSnapshot,

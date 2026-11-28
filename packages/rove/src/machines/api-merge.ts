@@ -4,9 +4,9 @@
  * byte-identical. Verbs aimed at a remote task are forwarded (`forward.ts`).
  */
 
+import { machineTasks } from "@sma1lboy/rove-core/machines/forward.ts"
 import { dedupeMachines, listMachines } from "@sma1lboy/rove-core/machines/registry.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { machineTasks } from "./forward.ts"
 
 /** With machines registered every task, local ones included, carries an `origin`. */
 export async function mergeTaskList(local: { tasks?: SerializedTask[] }): Promise<{ tasks: SerializedTask[] }> {

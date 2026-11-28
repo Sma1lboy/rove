@@ -13,8 +13,8 @@
  */
 
 import { expect, test } from "bun:test"
+import type { StoredFieldNote } from "@sma1lboy/rove-core/state/field-notes.ts"
 import { useEffect, useRef } from "react"
-import type { StoredFieldNote } from "../../src/state/field-notes"
 import { FieldNotesDialog, FieldNotesDialogView } from "../../src/tui-react/component/field-notes-dialog"
 import { useDialog } from "../../src/tui-react/ui/dialog"
 import { act, renderComponent, settle, waitForFrameText } from "./harness"

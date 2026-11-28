@@ -1,5 +1,5 @@
+import { engineSessionIdFromTitle, isEnginePlaceholderTitle } from "@sma1lboy/rove-core/engine/registry.ts"
 import { describe, expect, it } from "vitest"
-import { engineSessionIdFromTitle, isEnginePlaceholderTitle } from "../../src/engine/registry.ts"
 
 /**
  * Codex writes its THREAD ID into the OSC title until the thread is named

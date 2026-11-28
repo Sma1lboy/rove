@@ -1,7 +1,7 @@
+import { COPILOT_SCREEN_MANIFEST } from "@sma1lboy/rove-core/engine/copilot-local/screen.ts"
+import { KIMI_SCREEN_MANIFEST } from "@sma1lboy/rove-core/engine/kimi-local/screen.ts"
+import { type EngineScreenManifest, classifyScreen } from "@sma1lboy/rove-core/engine/screen-state.ts"
 import { describe, expect, it } from "vitest"
-import { COPILOT_SCREEN_MANIFEST } from "../../src/engine/copilot-local/screen.ts"
-import { KIMI_SCREEN_MANIFEST } from "../../src/engine/kimi-local/screen.ts"
-import { type EngineScreenManifest, classifyScreen } from "../../src/engine/screen-state.ts"
 
 describe("classifyScreen", () => {
   const manifest: EngineScreenManifest = {

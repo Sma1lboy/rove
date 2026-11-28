@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest"
 import {
   defaultEngineCommand,
   engineCommandKey,
   engineNameKey,
   parseEngineCommand,
-} from "../../src/engine/interactive-command.ts"
+} from "@sma1lboy/rove-core/engine/interactive-command.ts"
+import { describe, expect, it } from "vitest"
 
 describe("parseEngineCommand", () => {
   it("keeps a quoted flag value with spaces as one argv element", () => {

@@ -1,8 +1,7 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { clearPluginEngines, registerPluginEngine } from "../../src/engine/contrib-engines.ts"
+import { clearPluginEngines, registerPluginEngine } from "@sma1lboy/rove-core/engine/contrib-engines.ts"
 import {
   engineProcessIn,
   foregroundEngine,
@@ -10,7 +9,8 @@ import {
   hasAncestor,
   parsePsSnapshot,
   vendorFromArgv,
-} from "../../src/engine/foreground.ts"
+} from "@sma1lboy/rove-core/engine/foreground.ts"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 /**
  * Verbatim `ps -A -o pid=,ppid=,args=` lines captured while a `claudecpa`

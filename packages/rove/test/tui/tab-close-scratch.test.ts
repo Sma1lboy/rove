@@ -23,7 +23,7 @@ import {
   initialShellTabs,
   rehydrateTabs,
   reopenTabs,
-} from "../../src/tabs/terminal-tabs-core.ts"
+} from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import { useTabClose } from "../../src/tui-react/workspace/use-tab-close.ts"
 
 function harness(state: TabsState, opts: { scratch?: boolean } = {}) {

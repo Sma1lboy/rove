@@ -19,21 +19,17 @@
  *                                         running the picked engine or shell
  */
 
-import { availableEngineIds } from "@/engine/account-detect"
+import { availableEngineIds } from "@sma1lboy/rove-core/engine/account-detect.ts"
 import {
   type ChatForkPlan,
   liveSourceProtocol,
   planChatContinuation,
   planWorktreeHandoff,
-} from "@/engine/session-handoff-plan"
+} from "@sma1lboy/rove-core/engine/session-handoff-plan.ts"
 import { SHELL_TASK_TITLE } from "@sma1lboy/rove-core/orchestrator/title.ts"
 import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 import { resolveMainRepoRoot } from "@sma1lboy/rove-core/state/repos.ts"
 import { setLastActiveVendor } from "@sma1lboy/rove-core/state/vendor-prefs.ts"
-import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
-import { getCurrentBranch } from "@sma1lboy/rove-core/worktree/git-snapshot.ts"
-import { defaultDaemonSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
-import { type PaneLaunch, listPaneLaunches } from "@sma1lboy/rove-daemon/plugins/pane-command"
 import {
   type TabsState,
   type TerminalTab,
@@ -42,7 +38,11 @@ import {
   openCommandTab,
   renameActiveTab,
   tabPtyKeyFor,
-} from "../../tabs/terminal-tabs-core"
+} from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
+import { getCurrentBranch } from "@sma1lboy/rove-core/worktree/git-snapshot.ts"
+import { defaultDaemonSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
+import { type PaneLaunch, listPaneLaunches } from "@sma1lboy/rove-daemon/plugins/pane-command"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { openPluginPane } from "../../tui/workspace/pane-split"

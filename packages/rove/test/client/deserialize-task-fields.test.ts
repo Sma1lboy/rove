@@ -22,9 +22,9 @@
  * goes red until `deserializeTask` carries it.
  */
 
+import { deserializeTask } from "@sma1lboy/rove-client/client/remote-orchestrator-payloads.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { describe, expect, it } from "vitest"
-import { deserializeTask } from "../../src/client/remote-orchestrator-payloads.ts"
 
 type DeepRequired<T> = {
   [K in keyof T]-?: NonNullable<T[K]> extends string | number | boolean

@@ -13,10 +13,10 @@
  */
 
 import { afterAll, beforeAll, expect, test } from "bun:test"
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { useEffect, useRef } from "react"
-import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 import type { FocusContextValue } from "../../src/tui-react/context/focus"
 import type { KVContext } from "../../src/tui-react/context/kv"
 import { pageEntries } from "../../src/tui-react/pages/registry"

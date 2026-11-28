@@ -4,12 +4,12 @@
  * a malformed token rather than let `undefined` reach a sidebar row.
  */
 
-import { describe, expect, it } from "vitest"
 import {
   liveRowTokens,
   parseRowTokensPayload,
   sameRowTokenMap,
-} from "../../src/client/remote-orchestrator-row-tokens.ts"
+} from "@sma1lboy/rove-client/client/remote-orchestrator-row-tokens.ts"
+import { describe, expect, it } from "vitest"
 
 const NOW = 1_800_000_000_000
 

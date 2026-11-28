@@ -18,11 +18,11 @@
  * check; see host-boot.tsx.
  */
 
+import { RemoteOrchestrator, type RemoteOrchestratorOptions } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { logClient, logClientError } from "@sma1lboy/rove-daemon/client/client-log"
 import { connectIfRunning } from "@sma1lboy/rove-daemon/client/daemon-process"
 import type { ChannelName } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { RemoteOrchestrator, type RemoteOrchestratorOptions } from "./remote-orchestrator.ts"
 
 export interface ConnectPaneOrchestratorOptions {
   /** `[subsystem]` tag for the degrade/failure log lines (e.g. `"ui-prefs"`). */

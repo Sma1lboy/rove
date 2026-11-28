@@ -8,8 +8,8 @@
  * done to a good answer — the numbers come back exactly as they were sent.
  */
 
+import { readChoiceAnswer, readJevAnswer, readPlainAnswer } from "@sma1lboy/rove-core/engine/tier-answer.ts"
 import { describe, expect, it } from "vitest"
-import { readChoiceAnswer, readJevAnswer, readPlainAnswer } from "../../src/engine/tier-answer.ts"
 
 const ok = { choice: "standard", confidence: 0.6, probabilities: { swift: 0.2, standard: 0.5, deep: 0.3 } }
 

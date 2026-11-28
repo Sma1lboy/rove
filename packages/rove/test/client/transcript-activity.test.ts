@@ -11,10 +11,10 @@
  *     the signal null (the pane's local mtime/completion probes engage).
  */
 
+import { sameTranscriptActivityMap } from "@sma1lboy/rove-client/client/remote-orchestrator-payloads.ts"
+import { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { describe, expect, it } from "vitest"
-import { sameTranscriptActivityMap } from "../../src/client/remote-orchestrator-payloads.ts"
-import { RemoteOrchestrator } from "../../src/client/remote-orchestrator.ts"
 
 function fakeClient(): { client: RoveDaemonClient; emit: (name: string, payload: unknown) => void } {
   let star: ((frame: { name: string; payload: unknown }) => void) | undefined

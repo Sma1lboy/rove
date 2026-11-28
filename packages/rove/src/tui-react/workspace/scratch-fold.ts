@@ -10,7 +10,7 @@
  */
 
 import type { TabsSnapshotKv } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
-import { tabPtyKey } from "../../tabs/terminal-tabs-core"
+import { tabPtyKey } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import { getSharedPtyClient } from "../../tui/panes/terminal/pty-hosted-client"
 import { reserveTabOrdinals } from "./tabs-sync"
 import { adoptTaskTabs } from "./terminal-tabs-adopt"

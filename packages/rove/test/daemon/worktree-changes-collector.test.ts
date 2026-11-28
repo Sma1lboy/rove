@@ -20,6 +20,7 @@
  * poll-scheduling tests — this file pins the collector's pass logic.
  */
 
+import type { WorktreeChanges } from "@sma1lboy/rove-client/worktree/worktree-changes.ts"
 import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import type { WorktreeChangesPayload } from "@sma1lboy/rove-daemon/daemon/protocol"
@@ -29,7 +30,6 @@ import {
   trackedWorktreePaths,
 } from "@sma1lboy/rove-daemon/daemon/worktree-changes-collector"
 import { describe, expect, test } from "vitest"
-import type { WorktreeChanges } from "../../src/worktree/worktree-changes.ts"
 
 /** Minimal Task — only the fields the collector reads. */
 function task(over: Omit<Partial<Task>, "id"> & { id: string }): Task {

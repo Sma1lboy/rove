@@ -13,14 +13,14 @@ import { daemonRuntime } from "@/core/daemon-runtime"
 import type { EngineUsageSnapshot } from "@sma1lboy/rove-core/types/engine.ts"
 import { describe, expect, test, vi } from "vitest"
 
-vi.mock("@/engine/registry", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/engine/registry")>()
+vi.mock("@sma1lboy/rove-core/engine/registry.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@sma1lboy/rove-core/engine/registry.ts")>()
   return { ...actual, engineEntry: vi.fn(actual.engineEntry) }
 })
 
 /** Drive the narrowing with one canned snapshot, through the real adapter. */
 async function narrow(snapshot: EngineUsageSnapshot | undefined) {
-  const { engineEntry } = await import("@/engine/registry")
+  const { engineEntry } = await import("@sma1lboy/rove-core/engine/registry.ts")
   vi.mocked(engineEntry).mockReturnValueOnce({
     history: { readUsageSnapshot: async () => snapshot },
   } as unknown as ReturnType<typeof engineEntry>)

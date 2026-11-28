@@ -5,13 +5,13 @@
  * back from core are erased, so the cycle is cosmetic.
  */
 
+import { engineForkArgv, engineResumeArgv, withPinnedSessionId } from "@sma1lboy/rove-core/engine/engine-presets.ts"
 import {
   type EngineSessionLaunchTask,
   type EngineSessionProtocolGates,
   buildEngineSessionLaunch,
-} from "@/engine/session-launch"
-import { trustEngineWorktree } from "@/engine/trust-worktree"
-import { engineForkArgv, engineResumeArgv, withPinnedSessionId } from "../engine/engine-presets"
+} from "@sma1lboy/rove-core/engine/session-launch.ts"
+import { trustEngineWorktree } from "@sma1lboy/rove-core/engine/trust-worktree.ts"
 
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { TabSpawn } from "./terminal-tab-spawn"

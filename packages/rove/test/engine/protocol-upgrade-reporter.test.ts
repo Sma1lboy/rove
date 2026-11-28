@@ -18,13 +18,13 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { protocolUpgradeFromLiveSession } from "@sma1lboy/rove-core/engine/protocol-sniff.ts"
+import { engineTitleTurnHint } from "@sma1lboy/rove-core/engine/registry.ts"
 import { startActivityObserver } from "@sma1lboy/rove-daemon/daemon/activity-observer"
 import { DaemonActivityRegistry } from "@sma1lboy/rove-daemon/daemon/activity-registry"
 import { createProtocolUpgradeReporter } from "@sma1lboy/rove-daemon/daemon/collectors"
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { protocolUpgradeFromLiveSession } from "../../src/engine/protocol-sniff.ts"
-import { engineTitleTurnHint } from "../../src/engine/registry.ts"
 
 let home: string
 let originalHome: string | undefined

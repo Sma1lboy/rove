@@ -8,9 +8,9 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { LocalExecHost } from "@sma1lboy/rove-core/exec/exec-host.ts"
+import { GitWorktreeManager } from "@sma1lboy/rove-core/orchestrator/worktree/manager.ts"
+import { runRepoTeardown } from "@sma1lboy/rove-core/orchestrator/worktree/teardown.ts"
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
-import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
-import { runRepoTeardown } from "../../src/orchestrator/worktree/teardown.ts"
 
 let root: string
 let repo: string

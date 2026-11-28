@@ -16,9 +16,9 @@
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import type { ExecCtx } from "@sma1lboy/rove-core/orchestrator/worktree/exec-deps.ts"
+import { type ListDeps, unreadableWorktreeNames } from "@sma1lboy/rove-core/orchestrator/worktree/manager-list.ts"
 import { afterEach, beforeEach, expect, it } from "vitest"
-import type { ExecCtx } from "../../src/orchestrator/worktree/exec-deps.ts"
-import { type ListDeps, unreadableWorktreeNames } from "../../src/orchestrator/worktree/manager-list.ts"
 
 let root: string
 let repo: string

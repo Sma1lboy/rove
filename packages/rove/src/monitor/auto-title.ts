@@ -8,7 +8,7 @@
  * reader and keeps its placeholder rather than mis-reading claude transcripts.
  */
 
-import { protocolEntry } from "@/engine/engine-presets"
+import { protocolEntry } from "@sma1lboy/rove-core/engine/engine-presets.ts"
 import { deriveTitleFromPrompt } from "@sma1lboy/rove-core/orchestrator/title.ts"
 import type { Message } from "@sma1lboy/rove-core/types/engine.ts"
 import { DEFAULT_TASK_VENDOR, type VendorId } from "@sma1lboy/rove-core/types/task.ts"

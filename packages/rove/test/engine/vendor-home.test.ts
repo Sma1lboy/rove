@@ -11,14 +11,14 @@
  * to `/auth.json` at the filesystem root.
  */
 
-import { describe, expect, it } from "vitest"
 import {
   claudeGlobalConfigPath,
   codexAuthPath,
   copilotConfigPath,
   kimiCredentialsPath,
   vendorConfigHome,
-} from "../../src/engine/vendor-home.ts"
+} from "@sma1lboy/rove-core/engine/vendor-home.ts"
+import { describe, expect, it } from "vitest"
 
 const deps = (env: Record<string, string> = {}, home = "/home/u") => ({
   env: (k: string) => env[k],

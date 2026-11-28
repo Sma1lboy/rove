@@ -31,7 +31,7 @@ vi.mock("node:fs", async (importOriginal) => {
 vi.mock("@sma1lboy/rove-daemon/client/daemon-process", () => ({
   connectIfRunning: mocks.connectIfRunning,
 }))
-vi.mock("../../src/state/last-active.ts", () => ({
+vi.mock("@sma1lboy/rove-core/state/last-active.ts", () => ({
   writeLastActiveTaskId: mocks.writeLastActiveTaskId,
 }))
 vi.mock("../../src/tui/lib/outer-terminal-title.ts", () => ({
@@ -42,13 +42,13 @@ vi.mock("../../src/tui/index.tsx", () => ({
   startTui: mocks.startTui,
 }))
 
-vi.mock("../../src/orchestrator/index/store.ts", () => ({
+vi.mock("@sma1lboy/rove-core/orchestrator/index/store.ts", () => ({
   TaskIndexStore: class {
     async load() {}
   },
 }))
-vi.mock("../../src/orchestrator/worktree/manager.ts", () => ({ GitWorktreeManager: class {} }))
-vi.mock("../../src/orchestrator/core.ts", () => ({
+vi.mock("@sma1lboy/rove-core/orchestrator/worktree/manager.ts", () => ({ GitWorktreeManager: class {} }))
+vi.mock("@sma1lboy/rove-core/orchestrator/core.ts", () => ({
   Orchestrator: class {
     openDirectoryTask(args: { dir: string }) {
       return mocks.openDirectoryTask(args)

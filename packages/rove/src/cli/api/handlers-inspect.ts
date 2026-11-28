@@ -14,10 +14,10 @@
  * daemon/host degrades that section to null. `--task-id` narrows every section.
  */
 
+import { foregroundEngineIn, parsePsSnapshot, psSnapshot } from "@sma1lboy/rove-core/engine/foreground.ts"
 import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"
-import { foregroundEngineIn, parsePsSnapshot, psSnapshot } from "../../engine/foreground.ts"
-import { type TaskSessionRow, unregisteredTabIds } from "../../tabs/tab-snapshot.ts"
-import type { TabsState } from "../../tabs/terminal-tabs-core.ts"
+import { type TaskSessionRow, unregisteredTabIds } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
+import type { TabsState } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import { F } from "./flags.ts"
 import type { VerbContext, VerbSpec } from "./types.ts"
 

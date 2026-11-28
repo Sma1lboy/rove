@@ -1,6 +1,6 @@
+import { movePartition } from "@sma1lboy/rove-core/orchestrator/move-partition.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, it } from "vitest"
-import { movePartition } from "../../src/orchestrator/move-partition.ts"
 
 const task = (id: string, extra: object = {}): Task => ({ id, repo: "/repo", kind: "task", ...extra }) as Task
 

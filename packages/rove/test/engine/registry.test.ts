@@ -12,8 +12,7 @@
  *    so auto-title never mis-reads claude's transcripts for an unknown id.
  */
 
-import { describe, expect, it } from "vitest"
-import type { DetectDeps } from "../../src/engine/account-detect.ts"
+import type { DetectDeps } from "@sma1lboy/rove-core/engine/account-detect.ts"
 import {
   EMPTY_HISTORY,
   engineEntry,
@@ -22,7 +21,8 @@ import {
   vendorsWithEffortLevels,
   vendorsWithQuotaProbe,
   vendorsWithTurnReader,
-} from "../../src/engine/registry.ts"
+} from "@sma1lboy/rove-core/engine/registry.ts"
+import { describe, expect, it } from "vitest"
 
 /** A DetectDeps with every binary found and no files/env, overridable per test. */
 function deps(over: Partial<DetectDeps> = {}): DetectDeps {

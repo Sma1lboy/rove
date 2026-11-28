@@ -6,9 +6,6 @@
  * rows' status glyphs read the daemon's row status (`row-status-sync.ts`),
  * not these. */
 
-import type { RowTokenMap } from "@/client/remote-orchestrator"
-import type { Task } from "@sma1lboy/rove-core/types/task.ts"
-import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import type {
   AttentionInboxItem,
   EngineLifecycleMap,
@@ -16,7 +13,10 @@ import type {
   TaskEngineState,
   TaskJobState,
   WorktreeChangesMap,
-} from "../../client/remote-orchestrator-payloads"
+} from "@sma1lboy/rove-client/client/remote-orchestrator-payloads.ts"
+import type { RowTokenMap } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { useAccessor } from "../lib/use-accessor"
 import { useMergedTasks } from "./hub-singleton"
 

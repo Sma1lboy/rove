@@ -1,8 +1,8 @@
+import { CONTRIB_ENGINES, CONTRIB_ENGINE_IDS } from "@sma1lboy/rove-core/engine/contrib-engines.ts"
+import { engineEntry } from "@sma1lboy/rove-core/engine/registry.ts"
+import { classifyScreen } from "@sma1lboy/rove-core/engine/screen-state.ts"
 import { isBuiltinVendor } from "@sma1lboy/rove-core/types/vendor.ts"
 import { describe, expect, it } from "vitest"
-import { CONTRIB_ENGINES, CONTRIB_ENGINE_IDS } from "../../src/engine/contrib-engines.ts"
-import { engineEntry } from "../../src/engine/registry.ts"
-import { classifyScreen } from "../../src/engine/screen-state.ts"
 
 describe("contrib engine catalog", () => {
   it("no contrib id shadows a built-in", () => {

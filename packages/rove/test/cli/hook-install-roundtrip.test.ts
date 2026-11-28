@@ -31,11 +31,11 @@ vi.mock("@sma1lboy/rove-daemon/client/daemon-process", () => ({
 }))
 
 import { runHookSubcommand } from "@/cli/hook-cmd"
-import { CopilotHookAdapter } from "@/engine/copilot-local/hook-adapter"
-import { DevinHookAdapter } from "@/engine/devin-local/hook-adapter"
-import { DroidHookAdapter } from "@/engine/droid-local/hook-adapter"
-import type { EngineHookAdapter } from "@/engine/hook-adapter"
-import { QodercliHookAdapter } from "@/engine/qodercli-local/hook-adapter"
+import { CopilotHookAdapter } from "@sma1lboy/rove-core/engine/copilot-local/hook-adapter.ts"
+import { DevinHookAdapter } from "@sma1lboy/rove-core/engine/devin-local/hook-adapter.ts"
+import { DroidHookAdapter } from "@sma1lboy/rove-core/engine/droid-local/hook-adapter.ts"
+import type { EngineHookAdapter } from "@sma1lboy/rove-core/engine/hook-adapter.ts"
+import { QodercliHookAdapter } from "@sma1lboy/rove-core/engine/qodercli-local/hook-adapter.ts"
 
 /** Pull every `rove hook …` command out of an installed config file, whatever
  *  container shape the engine uses, and return each as the argv

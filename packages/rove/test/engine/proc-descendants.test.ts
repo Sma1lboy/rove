@@ -4,8 +4,8 @@
  */
 
 import { execFileSync, spawn } from "node:child_process"
+import { parsePsSnapshot } from "@sma1lboy/rove-core/engine/foreground.ts"
 import { describe, expect, it, vi } from "vitest"
-import { parsePsSnapshot } from "../../src/engine/foreground"
 import { procDescendantRows } from "../../src/engine/proc-descendants"
 
 /** `ppid args` of every process under `root`, from `ps` (parents list before children). */

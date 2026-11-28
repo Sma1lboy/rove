@@ -1,11 +1,11 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { clearPluginEngines } from "@sma1lboy/rove-core/engine/contrib-engines.ts"
+import { loadPluginEngines } from "@sma1lboy/rove-core/engine/plugin-engines.ts"
+import { engineEntry } from "@sma1lboy/rove-core/engine/registry.ts"
 import { savePluginRegistry } from "@sma1lboy/rove-daemon/plugins/registry"
 import { afterEach, describe, expect, it } from "vitest"
-import { clearPluginEngines } from "../../src/engine/contrib-engines.ts"
-import { loadPluginEngines } from "../../src/engine/plugin-engines.ts"
-import { engineEntry } from "../../src/engine/registry.ts"
 
 const dirs: string[] = []
 function tmp(prefix: string): string {

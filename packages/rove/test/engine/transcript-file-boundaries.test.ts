@@ -1,18 +1,18 @@
 import { mkdtemp, open, rename, stat, utimes, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { describe, expect, it, vi } from "vitest"
 import {
   MAX_JSONL_LINE_CHARS,
   readFirstLineBounded,
   readTextFileBounded,
   readTextFileSyncBounded,
-} from "../../src/engine/file-bounds"
+} from "@sma1lboy/rove-core/engine/file-bounds.ts"
 import {
   ClaudeTurnDetector,
   CodexTurnDetector,
   latestClaudeCompletionMarkerFromJsonl,
-} from "../../src/engine/turn-detector"
+} from "@sma1lboy/rove-core/engine/turn-detector.ts"
+import { describe, expect, it, vi } from "vitest"
 
 const at = "2026-01-01T00:00:00Z"
 const codex = (timestamp: string) =>

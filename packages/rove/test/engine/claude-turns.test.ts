@@ -1,6 +1,6 @@
 /** Per-turn telemetry extraction from Claude's JSONL. */
 
-import { parseClaudeTurns } from "@/engine/claude-code-local/turns"
+import { parseClaudeTurns } from "@sma1lboy/rove-core/engine/claude-code-local/turns.ts"
 import { describe, expect, test } from "vitest"
 
 const SID = "sess-1"

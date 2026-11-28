@@ -13,12 +13,12 @@ vi.mock("@sma1lboy/rove-core/state/repos.ts", () => ({
   getSavedRepos: () => saved.repos,
   addSavedRepo: (path: string) => ({ added: false, path, total: 1 }),
 }))
-vi.mock("../../src/engine/account-detect", () => ({
+vi.mock("@sma1lboy/rove-core/engine/account-detect.ts", () => ({
   availableEngineIds: async () => ["claude"],
 }))
 
+import type { RoveOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
-import type { RoveOrchestrator } from "../../src/client/remote-orchestrator"
 import type { NewTaskDialogOptions, NewTaskInput } from "../../src/tui/component/new-task-dialog/state"
 import { type CreateTaskContext, createTaskFlow } from "../../src/tui/lib/task-create-flow"
 

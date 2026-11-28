@@ -1,6 +1,6 @@
+import { leaves } from "@sma1lboy/rove-core/tabs/split-core.ts"
+import { initialTabs, openContentTab } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import { describe, expect, it } from "vitest"
-import { leaves } from "../../src/tabs/split-core"
-import { initialTabs, openContentTab } from "../../src/tabs/terminal-tabs-core"
 import { closePluginPanes, openPluginPane } from "../../src/tui/workspace/pane-split"
 
 const ARGV = ["sh", "-lc", "exec lazygit"] as const

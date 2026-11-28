@@ -9,8 +9,8 @@
  * need no client, no bus and no harness — only the decoder and a literal.
  */
 
+import { decodeUiPrefsPayload } from "@sma1lboy/rove-client/client/remote-orchestrator-payloads.ts"
 import { describe, expect, it } from "vitest"
-import { decodeUiPrefsPayload } from "../../src/client/remote-orchestrator-payloads.ts"
 
 describe("decodeUiPrefsPayload — backward-compat defaults", () => {
   it("keeps a payload whose theme is null — state.json names no selection", () => {

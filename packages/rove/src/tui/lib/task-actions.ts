@@ -5,9 +5,9 @@
  * callbacks so the flows run under plain vitest (`test/tui/task-actions.test.ts`).
  */
 
-import type { RoveOrchestrator } from "@/client/remote-orchestrator"
-import { availableEngineIds } from "@/engine/account-detect"
-import { engineDisplayName } from "@/engine/interactive-command"
+import type { RoveOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
+import { availableEngineIds } from "@sma1lboy/rove-core/engine/account-detect.ts"
+import { engineDisplayName } from "@sma1lboy/rove-core/engine/interactive-command.ts"
 import { t } from "@sma1lboy/rove-core/i18n/index.ts"
 import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 import type { ToastOptions } from "@sma1lboy/rove-core/lib/notify-state.ts"

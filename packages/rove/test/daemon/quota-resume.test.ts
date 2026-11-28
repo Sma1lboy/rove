@@ -1,3 +1,4 @@
+import { vendorsWithQuotaProbe } from "@sma1lboy/rove-core/engine/registry.ts"
 import type { DaemonOrchestrator, DaemonTask, EngineQuotaUsage } from "@sma1lboy/rove-daemon/daemon/contracts"
 import {
   dueQuotaResumes,
@@ -10,7 +11,6 @@ import type { QuotaUsageCache } from "@sma1lboy/rove-daemon/daemon/quota-usage-c
 import type { DaemonRuntimeAdapter } from "@sma1lboy/rove-daemon/daemon/runtime"
 import { describe, expect, it, vi } from "vitest"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
-import { vendorsWithQuotaProbe } from "../../src/engine/registry.ts"
 
 const NOW = Date.parse("2026-07-27T12:00:00.000Z")
 const PAST = new Date(NOW - 1000).toISOString()

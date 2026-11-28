@@ -11,8 +11,8 @@
  * which outlives daemon and TUI — and the confirm says so.
  */
 
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { type SelfRefreshInputs, planSelfRefresh, relaunchSelf } from "../../cli/self-relaunch"
-import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import type { RestorableRenderer } from "../../lib/restore-terminal"
 
 export type { SelfRefreshInputs } from "../../cli/self-relaunch"

@@ -18,9 +18,14 @@ import {
 } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
 import { recordSlotLabels } from "@sma1lboy/rove-client/keys/keymap-overrides.ts"
 import { PREFIX_TAP_PRESENTATIONS } from "@sma1lboy/rove-client/keys/prefix-tap-presentation.ts"
+import {
+  keybindingRowId,
+  keybindingRows,
+  prefixTapPresentationRowId,
+  rowIndex,
+} from "@sma1lboy/rove-client/settings/model.ts"
 import { tKeys } from "@sma1lboy/rove-core/i18n/index.ts"
 import { tildify } from "@sma1lboy/rove-core/lib/path-home.ts"
-import { keybindingRowId, keybindingRows, prefixTapPresentationRowId, rowIndex } from "../../../settings/model"
 import { userKeybindingsReport } from "../../../tui/context/keybindings-user"
 import { useKeymapVersion } from "../../context/keybindings"
 import { useTheme } from "../../context/theme"

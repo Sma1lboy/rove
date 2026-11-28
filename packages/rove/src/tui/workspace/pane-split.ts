@@ -6,14 +6,14 @@
  * leaf's size, depth cap when unknown) made it a no-op.
  */
 
-import { initialSplit, leaves, removeLeaf, renameLeaf, splitActive } from "../../tabs/split-core"
+import { initialSplit, leaves, removeLeaf, renameLeaf, splitActive } from "@sma1lboy/rove-core/tabs/split-core.ts"
 import {
   type PersistedSplit,
   type TabsState,
   collapseSplit,
   openCommandTab,
   setTabSplit,
-} from "../../tabs/terminal-tabs-core"
+} from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 
 export type PanePlacement = "split" | "tab"
 export type PaneDirection = "right" | "down"

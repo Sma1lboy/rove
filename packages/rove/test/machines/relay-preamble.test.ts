@@ -1,5 +1,5 @@
+import { PreambleStripper, RELAY_PREAMBLE } from "@sma1lboy/rove-core/machines/relay-preamble.ts"
 import { describe, expect, test } from "vitest"
-import { PreambleStripper, RELAY_PREAMBLE } from "../../src/machines/relay-preamble.ts"
 
 describe("the relay preamble", () => {
   test("drops a shell's output before it, even when the marker spans chunks", () => {

@@ -7,9 +7,9 @@ import { spawnSync } from "node:child_process"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { checkoutProgressReader } from "@sma1lboy/rove-core/orchestrator/worktree/checkout-progress.ts"
+import { GitWorktreeManager } from "@sma1lboy/rove-core/orchestrator/worktree/manager.ts"
 import { afterEach, beforeEach, expect, test } from "vitest"
-import { checkoutProgressReader } from "../../src/orchestrator/worktree/checkout-progress.ts"
-import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
 
 let tmpRoot: string
 let repo: string

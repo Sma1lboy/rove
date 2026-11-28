@@ -1,5 +1,5 @@
 /** @jsxImportSource @opentui/react */
-import { engineDisplayName } from "../../engine/interactive-command"
+import { engineDisplayName } from "@sma1lboy/rove-core/engine/interactive-command.ts"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import type { WelcomeEnv } from "../workspace/welcome-pane"

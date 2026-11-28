@@ -23,14 +23,14 @@ const mockMainRoot = vi.fn((path: string) => path)
 // addSavedRepo normalizes to the git toplevel and returns it. Default: the
 // identity case; the subdirectory test below makes it actually normalize.
 const mockAddSavedRepo = vi.fn((path: string) => ({ added: false, path, total: 1 }))
-vi.mock("../../src/engine/account-detect", () => ({
+vi.mock("@sma1lboy/rove-core/engine/account-detect.ts", () => ({
   availableEngineIds: () => mockAvailableEngineIds(),
 }))
 // Reassignable so the "no engine detected" test can flip it to []; every
 // other test resets it to the built-in default in the per-test setup below.
 const mockAvailableEngineIds = vi.fn(async () => ["claude"])
 
-import type { RoveOrchestrator } from "../../src/client/remote-orchestrator"
+import type { RoveOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { type CreateTaskContext, createTaskFlow } from "../../src/tui/lib/task-create-flow"
 
 type AdoptItem = { worktreePath: string; branch: string }

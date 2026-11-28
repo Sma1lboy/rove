@@ -18,10 +18,10 @@
 import { readFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
+import { AUTO_ROUTING_TIERS } from "@sma1lboy/rove-core/engine/auto-routing.ts"
+import { DEFAULT_TIER_RUBRIC } from "@sma1lboy/rove-core/engine/tier-rubric.generated.ts"
 import { describe, expect, it } from "vitest"
-import { AUTO_ROUTING_TIERS } from "../../src/engine/auto-routing.ts"
 import { buildTierRubric, pythonBoundaries, rubricSections } from "../../src/engine/tier-rubric-source.ts"
-import { DEFAULT_TIER_RUBRIC } from "../../src/engine/tier-rubric.generated.ts"
 
 const SOURCE_DIR = join(
   dirname(fileURLToPath(import.meta.url)),

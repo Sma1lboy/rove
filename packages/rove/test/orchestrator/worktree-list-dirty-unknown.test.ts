@@ -10,9 +10,9 @@
  */
 
 import path from "node:path"
+import { listAllAdoptable, listManaged } from "@sma1lboy/rove-core/orchestrator/worktree/manager-list.ts"
+import { managedWorktreeRootsFor } from "@sma1lboy/rove-core/orchestrator/worktree/paths.ts"
 import { describe, expect, it } from "vitest"
-import { listAllAdoptable, listManaged } from "../../src/orchestrator/worktree/manager-list.ts"
-import { managedWorktreeRootsFor } from "../../src/orchestrator/worktree/paths.ts"
 
 const REPO = "/repo"
 

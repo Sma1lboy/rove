@@ -9,12 +9,10 @@
  * `--resume` it after a host restart.
  */
 
-import { withPinnedSessionId } from "@/engine/engine-presets"
-import { interactiveEngineCommand } from "@/engine/interactive-command"
+import { withPinnedSessionId } from "@sma1lboy/rove-core/engine/engine-presets.ts"
+import { interactiveEngineCommand } from "@sma1lboy/rove-core/engine/interactive-command.ts"
 
 import { issueWorktreePrompt } from "@sma1lboy/rove-core/state/issue-chat.ts"
-import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
-import type { Issue } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import {
   type EngineTab,
   type TabsState,
@@ -22,7 +20,9 @@ import {
   initialTabs,
   setTabSpawned,
   tabPtyKey,
-} from "../../tabs/terminal-tabs-core"
+} from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
+import type { Issue } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import { terminalDrawsKitty } from "../lib/terminal-graphics"
 import { defaultShell } from "../panes/terminal/pty-types"
 

@@ -4,7 +4,7 @@
  * built from validated values.
  */
 
-import { vendorsWithTurnReader } from "@sma1lboy/rove/src/engine/registry.ts"
+import { vendorsWithTurnReader } from "@sma1lboy/rove-core/engine/registry.ts"
 import { BridgeError, optInt } from "../protocol.ts"
 import { absPath, flag, optOneOf, optText, tabId, taskId } from "./args.ts"
 import type { Args, OpTable } from "./types.ts"

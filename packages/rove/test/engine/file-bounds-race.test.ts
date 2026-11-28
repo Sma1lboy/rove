@@ -33,8 +33,8 @@ vi.mock("node:fs/promises", async (importOriginal) => {
     },
   }
 })
-import { defaultHistoryDeps, findLatestRolloutForWorktree } from "../../src/engine/codex-local/history"
-import { readFirstLineBounded, readTextFileBounded } from "../../src/engine/file-bounds"
+import { defaultHistoryDeps, findLatestRolloutForWorktree } from "@sma1lboy/rove-core/engine/codex-local/history.ts"
+import { readFirstLineBounded, readTextFileBounded } from "@sma1lboy/rove-core/engine/file-bounds.ts"
 
 afterEach(() => {
   io.afterStat = async () => {}

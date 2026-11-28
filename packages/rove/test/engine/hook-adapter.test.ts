@@ -10,8 +10,8 @@
  * exist for that engine.
  */
 
+import { NoopHookAdapter, createEngineHookAdapter } from "@sma1lboy/rove-core/engine/hook-adapter.ts"
 import { describe, expect, it } from "vitest"
-import { NoopHookAdapter, createEngineHookAdapter } from "../../src/engine/hook-adapter.ts"
 
 describe("createEngineHookAdapter", () => {
   it("resolves copilot to its own wired adapter, not the noop one", () => {

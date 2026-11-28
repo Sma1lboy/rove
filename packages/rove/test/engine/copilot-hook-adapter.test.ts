@@ -11,8 +11,12 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { CopilotHookAdapter, copilotSettingsPath, mergeCopilotHooks } from "@/engine/copilot-local/hook-adapter"
-import { ROVE_HOOK_VERSION } from "@/engine/json-hooks"
+import {
+  CopilotHookAdapter,
+  copilotSettingsPath,
+  mergeCopilotHooks,
+} from "@sma1lboy/rove-core/engine/copilot-local/hook-adapter.ts"
+import { ROVE_HOOK_VERSION } from "@sma1lboy/rove-core/engine/json-hooks.ts"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const PROD = ["rove"]

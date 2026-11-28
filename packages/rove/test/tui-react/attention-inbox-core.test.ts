@@ -1,7 +1,7 @@
+import type { AttentionInboxItem } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, test } from "vitest"
-import type { AttentionInboxItem } from "../../src/client/remote-orchestrator"
 import {
   type InboxRow,
   attentionInboxKey,

@@ -12,7 +12,7 @@
  * hook entry yet and is healthy.
  */
 
-import type { HookConfigIssue } from "../engine/hook-config-check.ts"
+import type { HookConfigIssue } from "@sma1lboy/rove-core/engine/hook-config-check.ts"
 
 /** The one field of a `debug.inspect` tab entry this check reads. */
 interface InspectTabEntry {

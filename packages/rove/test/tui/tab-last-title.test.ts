@@ -1,12 +1,12 @@
-import { describe, expect, it } from "vitest"
-import { tabTitle, visibleNativeStatus } from "../../src/tabs/terminal-tab-split.ts"
+import { tabTitle, visibleNativeStatus } from "@sma1lboy/rove-core/tabs/terminal-tab-split.ts"
 import {
   type TabsState,
   type TerminalTab,
   initialTabs,
   setTabAutoTitle,
   setTabLastTitle,
-} from "../../src/tabs/terminal-tabs-core.ts"
+} from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
+import { describe, expect, it } from "vitest"
 
 /**
  * The Inbox renders tabs it does not host, so it has no LIVE title stream —

@@ -5,10 +5,10 @@
  * Clients hold no connection of their own (`feed.ts`).
  */
 
+import { MachineHub } from "@sma1lboy/rove-client/machines/hub.ts"
 import type { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import type { MachinesPayload } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { startMachineAutoUpdate } from "./auto-update.ts"
-import { MachineHub } from "./hub.ts"
 
 const PUBLISH_DEBOUNCE_MS = 50
 

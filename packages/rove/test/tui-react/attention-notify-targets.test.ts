@@ -1,6 +1,6 @@
+import type { TaskEngineState } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { attentionEdges, attentionKindFor } from "@sma1lboy/rove-core/lib/notify-state.ts"
 import { describe, expect, test } from "vitest"
-import type { TaskEngineState } from "../../src/client/remote-orchestrator"
 import { notifyTargetStates } from "../../src/tui-react/workspace/use-attention"
 
 const es = (state: string, at = 1): TaskEngineState => ({ state, at }) as TaskEngineState

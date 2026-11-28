@@ -1,13 +1,13 @@
 import { mkdir, mkdtemp, rename, stat, utimes, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { describe, expect, it, vi } from "vitest"
 import {
   defaultHistoryDeps,
   findLatestRolloutForWorktree,
   findRolloutFile,
   listSessionIdsForWorktree,
-} from "../../src/engine/codex-local/history"
+} from "@sma1lboy/rove-core/engine/codex-local/history.ts"
+import { describe, expect, it, vi } from "vitest"
 
 const SID = "00000000-0000-0000-0000-000000000001"
 const OTHER = "00000000-0000-0000-0000-000000000002"

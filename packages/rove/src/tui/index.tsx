@@ -28,7 +28,7 @@ export async function startTui(): Promise<void> {
 
   // Plugin engines ([[engines]] in enabled manifests) before the host, so every
   // surface sees them from the first frame.
-  const { loadPluginEngines } = await import("../engine/plugin-engines.ts")
+  const { loadPluginEngines } = await import("@sma1lboy/rove-core/engine/plugin-engines.ts")
   loadPluginEngines()
 
   // Here, not on mount: render tests must not read the operator's engine homes.

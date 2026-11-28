@@ -13,10 +13,10 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import { engineDisplayName } from "@sma1lboy/rove-core/engine/interactive-command.ts"
+import { engineEntry } from "@sma1lboy/rove-core/engine/registry.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { useState } from "react"
-import { engineDisplayName } from "../../engine/interactive-command"
-import { engineEntry } from "../../engine/registry"
 import type { PickerWindow } from "../../tui/component/new-task-dialog/state"
 import { clampCursor, pickerVisibleRows } from "../../tui/component/new-task-dialog/state"
 import { effortLabel } from "../../tui/lib/effort-glyph"

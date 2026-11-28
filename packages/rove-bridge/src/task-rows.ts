@@ -5,6 +5,11 @@
  * the size cap.
  */
 
+import {
+  type RowTokenMap,
+  type WorktreeChangesMap,
+  liveRowTokens,
+} from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { prChip } from "@sma1lboy/rove-client/sidebar/row-chips.ts"
 import type { AttentionInboxItem, TaskPRStatus } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
@@ -12,11 +17,6 @@ import { type TaskStatus, tabStatus, taskStatus } from "@sma1lboy/rove-daemon/da
 import { rollupPr } from "@sma1lboy/rove-daemon/task-tree"
 import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
 import { type ActivityEntry, buildContext } from "@sma1lboy/rove/src/cli/api/context-view.ts"
-import {
-  type RowTokenMap,
-  type WorktreeChangesMap,
-  liveRowTokens,
-} from "@sma1lboy/rove/src/client/remote-orchestrator.ts"
 import type { AttentionRow, MachineTag, PrChipKind, RowChanges, RowTokenChip, TaskRow, TaskRowPr } from "./protocol.ts"
 import type { EngineRow } from "./rove-ops.ts"
 

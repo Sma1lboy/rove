@@ -1,4 +1,4 @@
-import { migrateRoveClientStateLayout } from "../state/layout-migration.ts"
+import { migrateRoveClientStateLayout } from "@sma1lboy/rove-core/state/layout-migration.ts"
 import { migrateRenamedStateKeys } from "../state/state-key-migration.ts"
 
 export function prepareCliStateLayout(env: NodeJS.ProcessEnv = process.env): void {

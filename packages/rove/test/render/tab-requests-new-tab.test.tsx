@@ -9,7 +9,7 @@
  */
 
 import { expect, test } from "bun:test"
-import { type TabsState, initialTabs } from "../../src/tabs/terminal-tabs-core"
+import { type TabsState, initialTabs } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import { requestNewTab } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import { useTabRequests } from "../../src/tui-react/workspace/use-tab-requests"
 import { act, renderComponent } from "./harness"

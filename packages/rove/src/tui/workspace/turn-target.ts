@@ -5,9 +5,14 @@
  * in `turn-polls.ts`'s header).
  */
 
+import { leaves } from "@sma1lboy/rove-core/tabs/split-core.ts"
+import {
+  type TerminalTab,
+  hasEngineLeaf,
+  splitLeafPtyKey,
+  tabPtyKey,
+} from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
-import { leaves } from "../../tabs/split-core"
-import { type TerminalTab, hasEngineLeaf, splitLeafPtyKey, tabPtyKey } from "../../tabs/terminal-tabs-core"
 
 /** The tab's single PTY key; null for a multi-leaf split, which has no single process. */
 export function soloKey(taskId: string, tab: TerminalTab): string | null {

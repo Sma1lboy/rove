@@ -5,6 +5,7 @@
  */
 
 import type { EngineActivityDetail, TaskActivityState } from "@sma1lboy/rove-core/engine/hook-events.ts"
+import { isAddedTab } from "@sma1lboy/rove-core/tabs/tabs-adopt.ts"
 import type { UpdateInfo } from "@sma1lboy/rove-core/version.ts"
 import { logClientError } from "@sma1lboy/rove-daemon/client/client-log"
 import {
@@ -22,7 +23,6 @@ import {
 import type { RowStatusPayload } from "@sma1lboy/rove-daemon/daemon/row-status-store"
 import { parseDaemonStopReason } from "@sma1lboy/rove-daemon/daemon/stop-reason"
 import type { TabsChangedPayload } from "@sma1lboy/rove-daemon/daemon/tabs-store"
-import { isAddedTab } from "../tabs/tabs-adopt.ts"
 import { handleMapChannel } from "./remote-orchestrator-map-events.ts"
 import {
   type ActiveGate,

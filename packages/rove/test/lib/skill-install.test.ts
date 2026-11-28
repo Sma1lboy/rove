@@ -23,7 +23,7 @@ import {
   parseSkillVersion,
   skillOverview,
   skillTargets,
-} from "../../src/lib/skill-install.ts"
+} from "@sma1lboy/rove-core/lib/skill-install.ts"
 
 let fx: ReturnType<typeof skillHomeFixture>
 beforeEach(() => {

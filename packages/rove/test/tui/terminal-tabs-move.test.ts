@@ -7,9 +7,9 @@
  */
 
 import type { TabsSnapshotKv } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
+import { type TabsState, moveTab, rehydrateTabs } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import type { SharedTabs } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { type TabsState, moveTab, rehydrateTabs } from "../../src/tabs/terminal-tabs-core.ts"
 import { resetTabsSyncForTests } from "../../src/tui-react/workspace/tabs-sync.ts"
 import { moveTaskTab } from "../../src/tui-react/workspace/terminal-tabs-move.ts"
 import { tabActivationListeners, tabsByTask, takeTabMove } from "../../src/tui-react/workspace/terminal-tabs-shared.ts"

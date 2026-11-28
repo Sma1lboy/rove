@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest"
-import { parseJsonl as parseClaudeJsonl } from "../../src/engine/claude-code-local/history.ts"
+import { parseJsonl as parseClaudeJsonl } from "@sma1lboy/rove-core/engine/claude-code-local/history.ts"
 import {
   type HistoryDeps,
   listRolloutFiles,
   parseJsonl as parseCodexJsonl,
-} from "../../src/engine/codex-local/history.ts"
-import { MAX_JSONL_LINE_CHARS } from "../../src/engine/file-bounds.ts"
+} from "@sma1lboy/rove-core/engine/codex-local/history.ts"
+import { MAX_JSONL_LINE_CHARS } from "@sma1lboy/rove-core/engine/file-bounds.ts"
+import { describe, expect, it } from "vitest"
 
 /**
  * These cover fix K's defensive bounds: a pathological mega-line must be

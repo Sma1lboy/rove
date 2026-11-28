@@ -16,11 +16,11 @@
  * plain mocks. Hosted session operations are module-mocked.
  */
 
+import { hostedTaskKeys, killHostedSessions, openHostedSessionHost } from "@sma1lboy/rove-core/engine/hosted-session.ts"
+import { DIRTY_WORKTREE_CODE } from "@sma1lboy/rove-core/orchestrator/errors.ts"
 import { beforeEach, describe, expect, test, vi } from "vitest"
-import { hostedTaskKeys, killHostedSessions, openHostedSessionHost } from "../../src/engine/hosted-session"
-import { DIRTY_WORKTREE_CODE } from "../../src/orchestrator/errors"
 
-vi.mock("../../src/engine/hosted-session", () => ({
+vi.mock("@sma1lboy/rove-core/engine/hosted-session.ts", () => ({
   openHostedSessionHost: vi.fn(),
   listHostedSessions: vi.fn(async () => []),
   hostedTaskKeys: vi.fn((_sessions: unknown, taskId: string) => [`${taskId}::tab-1`]),
@@ -29,8 +29,8 @@ vi.mock("../../src/engine/hosted-session", () => ({
 // Rename/branch/vendor flows live in task-actions-rename.test.ts (file split
 // to stay under the ~500-line cap).
 
+import type { RoveOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
-import type { RoveOrchestrator } from "../../src/client/remote-orchestrator"
 import { type TaskActionContext, deleteTaskFlow, forgetProjectFlow } from "../../src/tui/lib/task-actions"
 
 function makeTask(overrides: Omit<Partial<Task>, "id"> & { id: string }): Task {

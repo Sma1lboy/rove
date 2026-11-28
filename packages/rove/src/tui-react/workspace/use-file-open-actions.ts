@@ -8,10 +8,10 @@
  */
 
 import { join } from "node:path"
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { openExternally } from "@sma1lboy/rove-core/lib/open-path-external.ts"
 import { pathLeaf } from "@sma1lboy/rove-core/lib/path-helpers.ts"
 import type { RefObject } from "react"
-import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { resolveEditorLaunch } from "../../lib/editor-launch.ts"
 import type { FocusContextValue } from "../context/focus"
 import { tryPluginFileOpen } from "./plugin-file-open"

@@ -13,9 +13,9 @@
  * exist?" for a file that plainly does.
  */
 
-import { ROVE_HOOK_VERSION } from "@/engine/json-hooks"
+import { ROVE_HOOK_VERSION } from "@sma1lboy/rove-core/engine/json-hooks.ts"
+import { renderPiExtensionSource } from "@sma1lboy/rove-core/engine/pi-local/extension-source.ts"
 import { describe, expect, it } from "vitest"
-import { renderPiExtensionSource } from "../../src/engine/pi-local/extension-source.ts"
 
 interface ExecCall {
   readonly command: string

@@ -4,9 +4,9 @@
  * newer status for the tab, so the death it already answered can't re-draw it.
  */
 
+import type { SectionId } from "@sma1lboy/rove-client/settings/model.ts"
+import { type TerminalTab, tabPtyKeyFor } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import { useEffect, useState } from "react"
-import type { SectionId } from "../../settings/model"
-import { type TerminalTab, tabPtyKeyFor } from "../../tabs/terminal-tabs-core"
 import { engineExitOf } from "../../tui/workspace/engine-exit"
 import { getDefaultLiveEngines } from "../../tui/workspace/live-engine"
 import type { HookTabState } from "../../tui/workspace/turn-state-merge"

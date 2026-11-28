@@ -15,21 +15,17 @@
  * verification). `on*Ready` hand their callback to the parent once per mount.
  */
 
-import { engineLaunchArgv, withPinnedSessionId } from "@/engine/engine-presets"
+import { engineLaunchArgv, withPinnedSessionId } from "@sma1lboy/rove-core/engine/engine-presets.ts"
 import { remoteTaskOf } from "./hub-singleton.ts"
 
-import { getCapabilities } from "@/engine/registry"
 import { prefixAction } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
+import type { SectionId } from "@sma1lboy/rove-client/settings/model.ts"
 import { terminalTabsKey } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
+import { repoEnv } from "@sma1lboy/rove-core/engine/multi-repo-launch.ts"
+import { getCapabilities } from "@sma1lboy/rove-core/engine/registry.ts"
 import { linkedWorktree } from "@sma1lboy/rove-core/machines/remote-workspace.ts"
 import { resolvePreferredVendor } from "@sma1lboy/rove-core/state/vendor-prefs.ts"
-import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
-import { buildDiffReview } from "@sma1lboy/rove-core/worktree/diff-comments.ts"
-import type { TaskRepoView } from "@sma1lboy/rove-daemon/task-tree"
-import { type ReactNode, useEffect, useRef, useState } from "react"
-import { repoEnv } from "../../engine/multi-repo-launch"
-import type { SectionId } from "../../settings/model"
-import { shellTabInput } from "../../tabs/terminal-tab-spawn"
+import { shellTabInput } from "@sma1lboy/rove-core/tabs/terminal-tab-spawn.ts"
 import {
   type EngineTab,
   type TabSpawn,
@@ -46,7 +42,11 @@ import {
   setTabSplit,
   tabCwdFor,
   tabPtyKeyFor,
-} from "../../tabs/terminal-tabs-core"
+} from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
+import { buildDiffReview } from "@sma1lboy/rove-core/worktree/diff-comments.ts"
+import type { TaskRepoView } from "@sma1lboy/rove-daemon/task-tree"
+import { type ReactNode, useEffect, useRef, useState } from "react"
 import { terminalDrawsKitty } from "../../tui/lib/terminal-graphics"
 import { warmHostedShell } from "../../tui/panes/terminal/pty-hosted"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"

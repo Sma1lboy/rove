@@ -11,8 +11,8 @@
 
 import { type TabsSnapshotKv, terminalTabsKey } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
 import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"
-import { absorbTab } from "../../tabs/tabs-adopt"
-import type { CommandTab, EngineTab, TabsState } from "../../tabs/terminal-tabs-core"
+import { absorbTab } from "@sma1lboy/rove-core/tabs/tabs-adopt.ts"
+import type { CommandTab, EngineTab, TabsState } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import {
   knownTabsState,
   reportTabsDelta,

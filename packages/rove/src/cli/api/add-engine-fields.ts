@@ -5,8 +5,7 @@
  * two paths cannot drift on the engine contract.
  */
 
-import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
-import { classifyTier, readClassifierConfig } from "../../engine/auto-routing-classifier.ts"
+import { classifyTier, readClassifierConfig } from "@sma1lboy/rove-core/engine/auto-routing-classifier.ts"
 import {
   type AutoRoutingTier,
   type TierTarget,
@@ -14,9 +13,10 @@ import {
   isAutoRoutingTier,
   readAutoRoutingTable,
   tierBlock,
-} from "../../engine/auto-routing.ts"
-import { protocolEntry, resolveCommandProtocol } from "../../engine/engine-presets.ts"
-import { detectEngineStatus } from "../../engine/engine-status.ts"
+} from "@sma1lboy/rove-core/engine/auto-routing.ts"
+import { protocolEntry, resolveCommandProtocol } from "@sma1lboy/rove-core/engine/engine-presets.ts"
+import { detectEngineStatus } from "@sma1lboy/rove-core/engine/engine-status.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { assertEngineAcceptsEffort, assertEngineAcceptsModel, engineListIds } from "./handlers-engines.ts"
 import { ApiError, type VerbContext, helpStep } from "./types.ts"
 

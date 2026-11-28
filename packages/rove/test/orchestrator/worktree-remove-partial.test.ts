@@ -16,9 +16,9 @@ import { execSync } from "node:child_process"
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import type { WorktreeResidue } from "@sma1lboy/rove-core/orchestrator/worktree/manager-remove.ts"
+import { GitWorktreeManager } from "@sma1lboy/rove-core/orchestrator/worktree/manager.ts"
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest"
-import type { WorktreeResidue } from "../../src/orchestrator/worktree/manager-remove.ts"
-import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
 
 let root: string
 let repo: string

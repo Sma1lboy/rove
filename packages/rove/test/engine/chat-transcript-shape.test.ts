@@ -4,6 +4,8 @@
  * side's block format breaks here and not in a browser.
  */
 
+import { parseJsonl as parseClaude } from "@sma1lboy/rove-core/engine/claude-code-local/history-parse.ts"
+import { parseJsonl as parseCodex } from "@sma1lboy/rove-core/engine/codex-local/history-parse.ts"
 import { describe, expect, it } from "vitest"
 import {
   EMPTY,
@@ -14,8 +16,6 @@ import {
   hitIsOlder,
   locateHit,
 } from "../../../rove-web/src/transcript-data.ts"
-import { parseJsonl as parseClaude } from "../../src/engine/claude-code-local/history-parse.ts"
-import { parseJsonl as parseCodex } from "../../src/engine/codex-local/history-parse.ts"
 
 const SID = "11111111-2222-3333-4444-555555555555"
 const line = (o: unknown) => JSON.stringify(o)

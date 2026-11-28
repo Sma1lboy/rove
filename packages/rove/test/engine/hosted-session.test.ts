@@ -1,4 +1,3 @@
-import { describe, expect, it, vi } from "vitest"
 import {
   type HostedSessionRpc,
   deliverToHostedKey,
@@ -8,7 +7,8 @@ import {
   killHostedSessions,
   listHostedSessions,
   pastePromptWhenEngineUp,
-} from "../../src/engine/hosted-session.ts"
+} from "@sma1lboy/rove-core/engine/hosted-session.ts"
+import { describe, expect, it, vi } from "vitest"
 
 function session(key: string) {
   return { key, alive: true, pid: 42, command: ["engine"], title: "engine" }

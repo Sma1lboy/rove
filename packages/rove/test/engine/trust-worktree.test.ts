@@ -10,17 +10,18 @@ import { createHash } from "node:crypto"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { trustAntigravityWorktree } from "@sma1lboy/rove-core/engine/antigravity-local/trust.ts"
+import { trustCodexWorktree } from "@sma1lboy/rove-core/engine/codex-local/trust.ts"
+import { trustCopilotWorktree } from "@sma1lboy/rove-core/engine/copilot-local/trust.ts"
+import { kimiTrustFilePath, trustKimiWorktree } from "@sma1lboy/rove-core/engine/kimi-local/trust.ts"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { trustAntigravityWorktree } from "../../src/engine/antigravity-local/trust.ts"
 import { trustClaudeWorktree } from "../../src/engine/claude-code-local/trust.ts"
-import { trustCodexWorktree } from "../../src/engine/codex-local/trust.ts"
-import { trustCopilotWorktree } from "../../src/engine/copilot-local/trust.ts"
-import { kimiTrustFilePath, trustKimiWorktree } from "../../src/engine/kimi-local/trust.ts"
+import { corePath } from "../core-package.ts"
 // Static, and deliberately: `registry.ts` and `builtin-engines.ts` form an
 // import cycle, and registry reads BUILTIN_ENGINES at module init. Entering
 // that cycle through builtin-engines resolves it to undefined and throws;
 // entering through registry initializes both. See the guard below.
-import "../../src/engine/registry.ts"
+import "@sma1lboy/rove-core/engine/registry.ts"
 
 const tempDirs: string[] = []
 
@@ -195,7 +196,7 @@ describe("trustCodexWorktree", () => {
   it("parallel spawns for the same worktree append exactly one stanza", async () => {
     const home = tempHome()
     const script = [
-      `import { trustCodexWorktree } from ${JSON.stringify(new URL("../../src/engine/codex-local/trust.ts", import.meta.url).pathname)}`,
+      `import { trustCodexWorktree } from ${JSON.stringify(corePath("engine/codex-local/trust.ts"))}`,
       "trustCodexWorktree(process.argv[1], process.argv[2])",
     ].join("\n")
     const children = Array.from({ length: 6 }, () => {
@@ -300,7 +301,7 @@ describe("BUILTIN_ENGINES trust coverage", () => {
   ]
 
   it("every builtin engine pre-trusts a Rove worktree", async () => {
-    const { BUILTIN_ENGINES } = await import("../../src/engine/builtin-engines.ts")
+    const { BUILTIN_ENGINES } = await import("@sma1lboy/rove-core/engine/builtin-engines.ts")
     const missing = Object.entries(BUILTIN_ENGINES)
       .filter(([, entry]) => !entry.trustWorktree && !entry.trustWorktreeArgv)
       .map(([vendor]) => vendor)

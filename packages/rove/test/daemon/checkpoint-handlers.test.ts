@@ -9,10 +9,10 @@ import { spawnSync } from "node:child_process"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { GitWorktreeManager } from "@sma1lboy/rove-core/orchestrator/worktree/manager.ts"
 import type { DaemonActivityRegistry } from "@sma1lboy/rove-daemon/daemon/activity-registry"
 import type { DaemonHandlerContext } from "@sma1lboy/rove-daemon/daemon/server"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
 import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
 
 let tmpRoot: string

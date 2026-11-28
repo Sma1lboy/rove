@@ -4,7 +4,7 @@ const pty = vi.hoisted(() => ({
   writes: [] as Array<{ key: string; data: string }>,
   sessions: [] as Array<{ key: string; alive: boolean; command: string }>,
 }))
-vi.mock("../../src/engine/hosted-session.ts", async (original) => ({
+vi.mock("@sma1lboy/rove-core/engine/hosted-session.ts", async (original) => ({
   ...(await original<object>()),
   openHostedSessionHost: async () => ({
     rpc: {

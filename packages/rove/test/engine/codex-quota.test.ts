@@ -1,9 +1,9 @@
+import { usageFromRolloutRaw } from "@sma1lboy/rove-core/engine/codex-local/quota.ts"
 // `vitest`, not `bun:test`: only `test/render/**` runs under the Bun runner
 // (it needs OpenTUI's native renderer); everything else — including this
 // directory — is loaded by vitest, which can't resolve `bun:test` at all and
 // fails the whole FILE rather than a single assertion.
 import { describe, expect, it } from "vitest"
-import { usageFromRolloutRaw } from "../../src/engine/codex-local/quota.ts"
 
 const NOW = 1_786_000_000_000
 /** Epoch SECONDS, one hour ahead of NOW — the shape Codex writes. */

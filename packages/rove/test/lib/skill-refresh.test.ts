@@ -14,7 +14,7 @@ vi.mock("node:os", async (importOriginal) => {
   return { ...actual, homedir: () => mocks.home }
 })
 
-import { ROVE_SKILL_VERSION, refreshOutdatedSkills } from "../../src/lib/skill-install.ts"
+import { ROVE_SKILL_VERSION, refreshOutdatedSkills } from "@sma1lboy/rove-core/lib/skill-install.ts"
 
 let fx: ReturnType<typeof skillHomeFixture>
 beforeEach(() => {

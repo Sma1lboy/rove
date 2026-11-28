@@ -10,7 +10,7 @@
  * worker and an approved PR both read as ordinary work in progress.
  */
 
-import type { TaskEngineState } from "@/client/remote-orchestrator"
+import type { TaskEngineState } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { compareRecent } from "@sma1lboy/rove-client/sidebar/groups.ts"
 import { t } from "@sma1lboy/rove-core/i18n/index.ts"
 import { type TaskGroup, deriveTaskGroup, taskGroupRank } from "@sma1lboy/rove-core/lib/task-group.ts"

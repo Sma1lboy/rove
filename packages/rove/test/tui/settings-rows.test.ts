@@ -5,10 +5,6 @@
  * the views rely on and the id-lookup helpers they use instead of arithmetic.
  */
 
-import { LOCALES } from "@sma1lboy/rove-core/i18n/catalog.ts"
-import { ALL_VENDORS } from "@sma1lboy/rove-core/types/vendor.ts"
-import { describe, expect, it } from "vitest"
-import { humanizeSlug } from "../../src/engine/interactive-command.ts"
 import {
   SECTIONS,
   type SettingsRowsInput,
@@ -22,7 +18,11 @@ import {
   rowAt,
   rowIndex,
   sectionRows,
-} from "../../src/settings/model.ts"
+} from "@sma1lboy/rove-client/settings/model.ts"
+import { humanizeSlug } from "@sma1lboy/rove-core/engine/interactive-command.ts"
+import { LOCALES } from "@sma1lboy/rove-core/i18n/catalog.ts"
+import { ALL_VENDORS } from "@sma1lboy/rove-core/types/vendor.ts"
+import { describe, expect, it } from "vitest"
 
 /** Language picker rows sit right after the theme list — count them in the offsets. */
 const LANG = LOCALES.length

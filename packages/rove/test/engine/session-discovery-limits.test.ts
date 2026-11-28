@@ -1,12 +1,12 @@
-import { describe, expect, it } from "vitest"
 import {
   type HistoryDeps,
   findLatestRolloutForWorktree,
   findRolloutFile,
   listSessionIdsForWorktree,
-} from "../../src/engine/codex-local/history"
-import { MAX_JSONL_LINE_CHARS } from "../../src/engine/file-bounds"
-import { CodexTurnDetector, latestCodexCompletionMarkerFromJsonl } from "../../src/engine/turn-detector"
+} from "@sma1lboy/rove-core/engine/codex-local/history.ts"
+import { MAX_JSONL_LINE_CHARS } from "@sma1lboy/rove-core/engine/file-bounds.ts"
+import { CodexTurnDetector, latestCodexCompletionMarkerFromJsonl } from "@sma1lboy/rove-core/engine/turn-detector.ts"
+import { describe, expect, it } from "vitest"
 
 function store(count: number) {
   const id = (n: number) => `00000000-0000-0000-0000-${n.toString().padStart(12, "0")}`

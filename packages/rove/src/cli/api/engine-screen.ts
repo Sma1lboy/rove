@@ -4,12 +4,12 @@
  * but never reported through a hook (`EngineRegistryEntry.errorLine`).
  */
 
+import { protocolEntry } from "@sma1lboy/rove-core/engine/engine-presets.ts"
+import { screenErrorLine } from "@sma1lboy/rove-core/engine/screen-state.ts"
+import { taskEngineArgv } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { PtyPeekResult, SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { type PtyScope, unclaimedSessions } from "@sma1lboy/rove-daemon/daemon/pty-alias"
-import { protocolEntry } from "../../engine/engine-presets.ts"
-import { screenErrorLine } from "../../engine/screen-state.ts"
-import { taskEngineArgv } from "../../tabs/tab-snapshot.ts"
 import { findEngineKey, listSessionsOrNull, openPtyHost } from "./pty-delivery.ts"
 import { type TerminalPeekPage, boundedTail } from "./read-output-page.ts"
 import { ApiError } from "./types.ts"

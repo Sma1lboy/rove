@@ -8,14 +8,14 @@
  * `branchTick`, which re-renders the rows; an unchanged one renders nothing.
  */
 
-import type { TaskEngineState } from "@/client/remote-orchestrator"
+import type { TaskEngineState } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import type { SidebarRow } from "@sma1lboy/rove-client/sidebar/groups.ts"
+import { type WorktreeChanges, pickPushedChanges } from "@sma1lboy/rove-client/worktree/worktree-changes.ts"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { sidebarPollClockSnapshot, subscribeSidebarPollClock } from "../../../tui/lib/sidebar-poll-clock"
 import { spinnerFrameSnapshot, subscribeSpinnerFrame } from "../../../tui/lib/spinner-frame-store"
 import { DONE_PULSE_MS } from "../../../tui/panes/sidebar/row-view"
 import { pollWorktreeChanges, worktreeChanges } from "../../../tui/panes/sidebar/worktree-changes-poller"
-import { type WorktreeChanges, pickPushedChanges } from "../../../worktree/worktree-changes"
 import { useDiffInks } from "../../context/diff-inks"
 import { useTheme } from "../../context/theme"
 

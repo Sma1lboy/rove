@@ -5,12 +5,12 @@
  * {@link SidebarTaskCallbacks}, all REQUIRED except `onLandRequest` and `onForgetProjectRequest`.
  */
 
-import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
+import type { RowTokenMap, TaskEngineState, TaskJobState } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import type { TaskSortMode } from "@sma1lboy/rove-client/sidebar/groups.ts"
+import type { WorktreeChanges } from "@sma1lboy/rove-client/worktree/worktree-changes.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { type MutableRefObject, useCallback } from "react"
 import type { SidebarNav } from "../../tui/panes/sidebar/nav-core"
-import type { WorktreeChanges } from "../../worktree/worktree-changes"
 import { useOptionalKV } from "../context/kv"
 import { useTheme } from "../context/theme"
 import { SidebarTree } from "../panes/sidebar/SidebarTree"

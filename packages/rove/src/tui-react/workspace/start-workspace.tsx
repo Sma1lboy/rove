@@ -5,9 +5,9 @@
  * owns the PTY registry's teardown (see `docs/HARNESS.md` on the coverage gate).
  */
 
+import { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { connectOrStartDaemon } from "@sma1lboy/rove-daemon/client/daemon-process"
 import { CHANNEL_NAMES } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { queryCellPixelSize } from "../../tui/lib/cell-pixel-size"
 import { createTerminalGraphics, installTerminalGraphics } from "../../tui/lib/terminal-graphics"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
@@ -47,7 +47,7 @@ export async function startWorkspaceHost(opts: BootDialogs = {}): Promise<void> 
         }),
       )
       // Other machines running Rove, as the daemon's hub publishes them.
-      const { MachineFeed } = await import("../../machines/feed.ts")
+      const { MachineFeed } = await import("@sma1lboy/rove-client/machines/feed.ts")
       const { setMachineHub } = await import("./hub-singleton.ts")
       const machines = new MachineFeed(orchestrator)
       setMachineHub(machines)

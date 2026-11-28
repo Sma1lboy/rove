@@ -4,11 +4,11 @@
  */
 
 import { homeDir } from "@sma1lboy/rove-core/env.ts"
+import { ulid } from "@sma1lboy/rove-core/orchestrator/index/ulid.ts"
 import { taskCwd } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
 import { deriveTitleFromPrompt } from "@sma1lboy/rove-core/orchestrator/title.ts"
 import { DEFAULT_VENDOR, type VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { ulid } from "../../orchestrator/index/ulid.ts"
 import { applyPostCreateFlags, deliverArmed, persistPrompt } from "./add-delivery.ts"
 import {
   type EngineChoice,

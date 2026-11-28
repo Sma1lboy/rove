@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest"
 import {
   type CopilotHistoryDeps,
   listSessionIdsForWorktree,
   parseEvents,
   parseWorkspaceYaml,
-} from "../../src/engine/copilot-local/history.ts"
-import { copilotUsageToSnapshot } from "../../src/engine/copilot-local/usage.ts"
+} from "@sma1lboy/rove-core/engine/copilot-local/history.ts"
+import { copilotUsageToSnapshot } from "@sma1lboy/rove-core/engine/copilot-local/usage.ts"
+import { describe, expect, it } from "vitest"
 
 /** A fake readFile serving `files` by path suffix; anything else is missing. */
 const readFrom = (files: Record<string, string>) => async (p: string) => {

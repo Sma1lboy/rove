@@ -16,9 +16,9 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import type { EngineTab } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import type { Issue } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import type { EngineTab } from "../../src/tabs/terminal-tabs-core.ts"
 import { buildIssueChatBackgroundSpawn, buildIssueTabSpawn } from "../../src/tui/workspace/issue-chat-spawn.ts"
 
 let tmpHome: string

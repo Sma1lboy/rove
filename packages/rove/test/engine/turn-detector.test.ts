@@ -1,10 +1,10 @@
-import { describe, expect, test } from "vitest"
 import {
   ClaudeTurnDetector,
   CodexTurnDetector,
   latestClaudeCompletionMarkerFromJsonl,
   latestCodexCompletionMarkerFromJsonl,
-} from "../../src/engine/turn-detector"
+} from "@sma1lboy/rove-core/engine/turn-detector.ts"
+import { describe, expect, test } from "vitest"
 
 describe("latestCodexCompletionMarkerFromJsonl", () => {
   test("uses turn.completed as the completion marker (legacy exec --json stream)", () => {

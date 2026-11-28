@@ -24,11 +24,9 @@
 
 import { type DaemonSession, openDaemonSession } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
+import { ensurePluginEnginesLoaded } from "@sma1lboy/rove-core/engine/plugin-engines.ts"
 import { argvHasFlag } from "@sma1lboy/rove-core/lib/argv.ts"
 import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
-import type { MachineEntry } from "@sma1lboy/rove-core/machines/registry.ts"
-import { type ApiEnvelope, ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { ensurePluginEnginesLoaded } from "../engine/plugin-engines.ts"
 import {
   AUTO_MACHINE,
   LOCAL_MACHINE,
@@ -38,7 +36,9 @@ import {
   repoHosts,
   requireMachine,
   routeTarget,
-} from "../machines/forward.ts"
+} from "@sma1lboy/rove-core/machines/forward.ts"
+import type { MachineEntry } from "@sma1lboy/rove-core/machines/registry.ts"
+import { type ApiEnvelope, ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { takeIdentityWarning } from "./api/dispatcher.ts"
 import { VerbArgs, buildCountPlan, parseAgentsSpec, parseFlags, validateAgainstSpec } from "./api/flags.ts"
 import { forwardParams, takeMachineFlag } from "./api/forward-cli.ts"

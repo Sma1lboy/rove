@@ -1,6 +1,6 @@
+import { mergeActivityHooks, roveHookArgs } from "@sma1lboy/rove-core/engine/json-hooks.ts"
 import { LEGACY_PRE_RENAME_RUNTIME_NAME as OLD } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
 import { describe, expect, it } from "vitest"
-import { mergeActivityHooks, roveHookArgs } from "../../src/engine/json-hooks.ts"
 
 const events = [{ event: "SessionStart", verb: "session-start" }] as const
 const group = (command: string) => ({ hooks: [{ type: "command", command }] })

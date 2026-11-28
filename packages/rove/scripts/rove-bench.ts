@@ -63,7 +63,7 @@ function makeRepo(dir: string): string {
 
 /** Tasks as a long-lived install holds them: 20 projects, a third archived, some with prompts and PR state. */
 async function seed(home: string, n: number): Promise<string[]> {
-  const { ulid } = await import("../src/orchestrator/index/ulid.ts")
+  const { ulid } = await import("@sma1lboy/rove-core/orchestrator/index/ulid.ts")
   const repos = Array.from({ length: 20 }, (_, i) => makeRepo(join(home, "repos", `project-${i}`)))
   const tasks = []
   const t0 = Date.parse("2026-01-01T00:00:00Z")

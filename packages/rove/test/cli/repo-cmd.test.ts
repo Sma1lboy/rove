@@ -77,7 +77,7 @@ describe("rove repo set / show / unset round-trip", () => {
     writeFileSync(join(repo, ".rove", "init-prompt.md"), "prompt", "utf8")
     await runRepoSubcommand(["show", repo])
     expect(output()).toContain(".rove/init-prompt.md: present (wins)")
-    const { resolveRepoInit } = await import("../../src/state/repo-init.ts")
+    const { resolveRepoInit } = await import("@sma1lboy/rove-core/state/repo-init.ts")
     expect(resolveRepoInit(repo, repo).initPrompt).toBe("prompt")
   })
 
@@ -88,7 +88,7 @@ describe("rove repo set / show / unset round-trip", () => {
     logSpy.mockClear()
     await runRepoSubcommand(["show", repo])
     expect(output()).toContain(".rove/init-prompt.md: present but empty (ignored)")
-    const { resolveRepoInit } = await import("../../src/state/repo-init.ts")
+    const { resolveRepoInit } = await import("@sma1lboy/rove-core/state/repo-init.ts")
     expect(resolveRepoInit(repo, repo).initPrompt).toBe("user prompt")
   })
 

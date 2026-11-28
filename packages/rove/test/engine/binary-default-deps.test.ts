@@ -53,14 +53,14 @@ vi.mock("node:fs", async (importOriginal) => {
   return { ...actual, ...virtual, default: { ...actual, ...virtual } }
 })
 
-import { ClaudeBinaryNotFoundError, findClaudeBinary } from "../../src/engine/claude-code-local/binary.ts"
-import { findCodexBinary } from "../../src/engine/codex-local/binary.ts"
+import { ClaudeBinaryNotFoundError, findClaudeBinary } from "@sma1lboy/rove-core/engine/claude-code-local/binary.ts"
+import { findCodexBinary } from "@sma1lboy/rove-core/engine/codex-local/binary.ts"
 import {
   CopilotBinaryNotFoundError,
   type BinaryDiscoveryDeps as CopilotDeps,
   findCopilotBinary,
-} from "../../src/engine/copilot-local/binary.ts"
-import { findKimiBinary } from "../../src/engine/kimi-local/binary.ts"
+} from "@sma1lboy/rove-core/engine/copilot-local/binary.ts"
+import { findKimiBinary } from "@sma1lboy/rove-core/engine/kimi-local/binary.ts"
 
 beforeEach(() => {
   files.clear()

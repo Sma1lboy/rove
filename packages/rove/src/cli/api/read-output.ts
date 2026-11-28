@@ -29,14 +29,14 @@
  */
 
 import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
+import { protocolEntry, sessionProtocol } from "@sma1lboy/rove-core/engine/engine-presets.ts"
+import { type EngineHistoryReader, supportsStructuredHistory } from "@sma1lboy/rove-core/engine/registry.ts"
+import { readTabsSnapshot, taskEngineArgv } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
 import type { Message } from "@sma1lboy/rove-core/types/engine.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { canonicalEngineTab } from "@sma1lboy/rove-daemon/daemon/engine-tabs"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
-import { protocolEntry, sessionProtocol } from "../../engine/engine-presets.ts"
-import { type EngineHistoryReader, supportsStructuredHistory } from "../../engine/registry.ts"
-import { readTabsSnapshot, taskEngineArgv } from "../../tabs/tab-snapshot.ts"
 import { engineScreenError, peekTaskTerminal } from "./engine-screen.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ptyScopeOf } from "./pty-scope.ts"

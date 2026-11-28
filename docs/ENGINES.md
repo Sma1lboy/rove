@@ -467,7 +467,7 @@ agent-skills CLI's per-agent table.
 ### Adding a hook to another engine
 
 Hooks are no longer a built-in-only privilege. A shipped catalog entry in
-`packages/rove/src/engine/contrib-engines.ts` may declare a `createHookAdapter`
+`packages/rove-core/src/engine/contrib-engines.ts` may declare a `createHookAdapter`
 alongside its `screenManifest`, and cursor is the worked example
 (`engine/cursor-local/hook-adapter.ts`). Declaring one costs the other catalog
 entries nothing — an engine without it keeps the no-op adapter, installs

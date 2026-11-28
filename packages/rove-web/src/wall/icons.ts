@@ -6,7 +6,7 @@ const mod = Object.values(
     import.meta as unknown as {
       glob: (p: string, o: { eager: true }) => Record<string, Record<string, EngineIconData>>
     }
-  ).glob("../../../rove/src/engine/engine-icons.ts", { eager: true }),
+  ).glob("../../../rove-core/src/engine/engine-icons.ts", { eager: true }),
 )[0] as Record<string, EngineIconData>
 
 export const CLAUDE_ICON = mod.CLAUDE_ICON as EngineIconData

@@ -8,14 +8,25 @@
 
 import { TextAttributes } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
+import {
+  RemoteOrchestrator,
+  type RoveOrchestrator,
+  type UsageSnapshotMap,
+} from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
+import {
+  type NavLevel,
+  SECTIONS,
+  type SectionId,
+  type SettingsRow,
+  rowAt,
+  sectionRows,
+} from "@sma1lboy/rove-client/settings/model.ts"
+import { enginesNeedingHookInstall, enginesWithHooksInstalled } from "@sma1lboy/rove-core/engine/integration-status.ts"
 import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
 import { LOCALE_KEY } from "@sma1lboy/rove-core/lib/persisted-ui-prefs.ts"
 import { PERMISSION_BYPASS_KEY } from "@sma1lboy/rove-core/state/permission-bypass.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/task.ts"
 import { useState } from "react"
-import { RemoteOrchestrator, type RoveOrchestrator, type UsageSnapshotMap } from "../../../client/remote-orchestrator"
-import { enginesNeedingHookInstall, enginesWithHooksInstalled } from "../../../engine/integration-status"
-import { type NavLevel, SECTIONS, type SectionId, type SettingsRow, rowAt, sectionRows } from "../../../settings/model"
 import { toggleKeyHints } from "../../../tui/lib/keyboard-hints"
 import type { KVContext } from "../../context/kv"
 import { useTheme } from "../../context/theme"

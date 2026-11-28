@@ -6,7 +6,7 @@
  * rate limits — dropped; every field this reader touches is verbatim).
  */
 
-import { parseCodexTurns } from "@/engine/codex-local/turns"
+import { parseCodexTurns } from "@sma1lboy/rove-core/engine/codex-local/turns.ts"
 import { describe, expect, test } from "vitest"
 
 const SID = "01a060d6-aae5-7c90-91c0-d5f81da8f343"

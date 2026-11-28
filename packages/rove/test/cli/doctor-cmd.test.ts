@@ -17,13 +17,13 @@ const mocks = vi.hoisted(() => ({
 // set of rows. Stubbing the probe (real ones read this machine's PATH and
 // credential files) keeps the assertions about composition: every id the
 // registry lists gets a row, in that order, with its own account shape.
-vi.mock("../../src/engine/engine-status.ts", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../src/engine/engine-status.ts")>()
+vi.mock("@sma1lboy/rove-core/engine/engine-status.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@sma1lboy/rove-core/engine/engine-status.ts")>()
   return { ...actual, detectEngineStatuses: mocks.detectEngineStatuses }
 })
 
-vi.mock("../../src/engine/engine-presets.ts", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../src/engine/engine-presets.ts")>()
+vi.mock("@sma1lboy/rove-core/engine/engine-presets.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@sma1lboy/rove-core/engine/engine-presets.ts")>()
   return { ...actual, listPresetIds: mocks.listPresetIds }
 })
 
@@ -31,8 +31,8 @@ vi.mock("../../src/engine/engine-presets.ts", async (importOriginal) => {
 // installed CLIs must not widen it: `probeableEngineIds` unions the presets
 // with whatever binary discovery finds, which made this assertion depend on
 // which engines the developer happened to have installed.
-vi.mock("../../src/engine/account-detect.ts", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../src/engine/account-detect.ts")>()
+vi.mock("@sma1lboy/rove-core/engine/account-detect.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@sma1lboy/rove-core/engine/account-detect.ts")>()
   return { ...actual, installedEngineIds: async () => [] }
 })
 
@@ -43,7 +43,7 @@ vi.mock("@sma1lboy/rove-daemon/client", () => ({
   })),
 }))
 
-vi.mock("../../src/lib/skill-install.ts", () => ({
+vi.mock("@sma1lboy/rove-core/lib/skill-install.ts", () => ({
   skillOverview: mocks.skillOverview,
 }))
 

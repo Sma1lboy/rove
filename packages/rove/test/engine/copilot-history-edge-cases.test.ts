@@ -11,7 +11,6 @@
  *     history module) — exercised with a fake deps.rm spy.
  */
 
-import { describe, expect, it } from "vitest"
 import {
   type CopilotHistoryDeps,
   deleteHistory,
@@ -19,7 +18,8 @@ import {
   latestTranscriptMtimeForWorktree,
   parseEvents,
   readHistoryWithMetrics,
-} from "../../src/engine/copilot-local/history.ts"
+} from "@sma1lboy/rove-core/engine/copilot-local/history.ts"
+import { describe, expect, it } from "vitest"
 
 function deps(over: Partial<CopilotHistoryDeps> = {}): CopilotHistoryDeps {
   return {

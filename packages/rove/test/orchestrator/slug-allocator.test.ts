@@ -1,6 +1,6 @@
+import { WorktreeNameTakenError } from "@sma1lboy/rove-core/orchestrator/errors.ts"
+import { SlugAllocator } from "@sma1lboy/rove-core/orchestrator/worktree/slug-allocator.ts"
 import { describe, expect, it } from "vitest"
-import { WorktreeNameTakenError } from "../../src/orchestrator/errors.ts"
-import { SlugAllocator } from "../../src/orchestrator/worktree/slug-allocator.ts"
 
 // A repo path with no managed worktree roots on disk → listWorktreeDirNames
 // returns [], so "occupied" reduces to active + pending slugs and the

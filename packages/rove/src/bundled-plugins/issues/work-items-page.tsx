@@ -10,10 +10,10 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import type { WorkItem } from "@sma1lboy/rove-daemon/daemon/work-items"
 import { type ReactNode, useEffect, useState } from "react"
-import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { hostFn } from "./host"
 
 const samePath = hostFn((h) => h.paths.samePath)

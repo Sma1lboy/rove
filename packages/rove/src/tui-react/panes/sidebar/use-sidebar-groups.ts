@@ -4,7 +4,7 @@
  * own grouping.
  */
 
-import type { TaskEngineState } from "@/client/remote-orchestrator"
+import type { TaskEngineState } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import type { TaskSortMode } from "@sma1lboy/rove-client/sidebar/groups.ts"
 import type { TabsSnapshotKv } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"

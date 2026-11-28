@@ -17,8 +17,8 @@
 import { readFileSync, statSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
+import { CLAUDE_HOOK_EVENT_MAP } from "@sma1lboy/rove-core/engine/claude-code-local/hook-adapter.ts"
 import { describe, expect, test } from "vitest"
-import { CLAUDE_HOOK_EVENT_MAP } from "../../src/engine/claude-code-local/hook-adapter.ts"
 
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url))
 const PLUGIN = join(ROOT, "claude-plugin")

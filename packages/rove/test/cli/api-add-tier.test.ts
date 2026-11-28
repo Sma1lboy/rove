@@ -23,8 +23,8 @@ const classifier = vi.hoisted(() => ({
     | { kind: "declined"; reason: string; detail?: string },
   calls: [] as string[],
 }))
-vi.mock("../../src/engine/auto-routing-classifier.ts", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../src/engine/auto-routing-classifier.ts")>()
+vi.mock("@sma1lboy/rove-core/engine/auto-routing-classifier.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@sma1lboy/rove-core/engine/auto-routing-classifier.ts")>()
   return {
     ...actual,
     readClassifierConfig: () => ({
@@ -40,8 +40,8 @@ vi.mock("../../src/engine/auto-routing-classifier.ts", async (importOriginal) =>
     },
   }
 })
-vi.mock("../../src/engine/engine-status.ts", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../src/engine/engine-status.ts")>()
+vi.mock("@sma1lboy/rove-core/engine/engine-status.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@sma1lboy/rove-core/engine/engine-status.ts")>()
   return {
     ...actual,
     detectEngineStatus: async (vendor: string) => ({

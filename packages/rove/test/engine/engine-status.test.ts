@@ -1,6 +1,10 @@
+import type { DetectDeps } from "@sma1lboy/rove-core/engine/account-detect.ts"
+import {
+  detectEngineStatus,
+  detectEngineStatuses,
+  probeLaunchBinary,
+} from "@sma1lboy/rove-core/engine/engine-status.ts"
 import { describe, expect, it } from "vitest"
-import type { DetectDeps } from "../../src/engine/account-detect.ts"
-import { detectEngineStatus, detectEngineStatuses, probeLaunchBinary } from "../../src/engine/engine-status.ts"
 
 /** Every built-in binary missing, no files/env — overridable per test. */
 function accountDeps(over: Partial<DetectDeps> = {}): DetectDeps {

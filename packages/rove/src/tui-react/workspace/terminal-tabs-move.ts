@@ -6,7 +6,7 @@
  */
 
 import type { TabsSnapshotKv } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
-import { moveTab } from "../../tabs/terminal-tabs-core"
+import { moveTab } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import { knownTabsState, requestTabMove, setTaskTabs, takeUnclaimedTabMove } from "./terminal-tabs-shared"
 
 /** Whether the order changed; false for no such tab, no tabs, or the edge-stop (never wraps). */

@@ -4,14 +4,15 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { promisify } from "node:util"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   ACTIVITY_EXTENSION_FILE,
   PiFamilyHookAdapter,
   piActivityExtensionPath,
   piExtensionsDir,
-} from "../../src/engine/pi-local/hook-adapter.ts"
-import { trustPiWorktree } from "../../src/engine/pi-local/trust.ts"
+} from "@sma1lboy/rove-core/engine/pi-local/hook-adapter.ts"
+import { trustPiWorktree } from "@sma1lboy/rove-core/engine/pi-local/trust.ts"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { corePath } from "../core-package.ts"
 
 // Pin the CLI invocation module whole (same rule as the kimi/codex adapter
 // tests: vi.mock replaces EVERY export, so a new invocation.ts function would
@@ -177,7 +178,7 @@ describe("trustPiWorktree", () => {
   })
 
   it("keeps every worktree when two Rove processes trust at once", async () => {
-    const trust = new URL("../../src/engine/pi-local/trust.ts", import.meta.url).pathname
+    const trust = corePath("engine/pi-local/trust.ts")
     const go = join(home, "go")
     const client = (name: string) => {
       const script = `

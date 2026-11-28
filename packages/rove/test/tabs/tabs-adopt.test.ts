@@ -4,10 +4,10 @@
  * and close.
  */
 
+import { initialSplit, splitActive } from "@sma1lboy/rove-core/tabs/split-core.ts"
+import { absorbTab, adoptTabs } from "@sma1lboy/rove-core/tabs/tabs-adopt.ts"
+import { initialTabs } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import { describe, expect, it } from "vitest"
-import { initialSplit, splitActive } from "../../src/tabs/split-core"
-import { absorbTab, adoptTabs } from "../../src/tabs/tabs-adopt"
-import { initialTabs } from "../../src/tabs/terminal-tabs-core"
 
 describe("adoptTabs", () => {
   it("adopts the live session's own tab id without disturbing the active tab", () => {

@@ -12,6 +12,7 @@
 
 import type { ReadableState } from "@sma1lboy/rove-core/lib/external-store.ts"
 import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
+import { type DiscoverFailure, discoverMachine, learnedFrom } from "@sma1lboy/rove-core/machines/discover.ts"
 import {
   type MachineEntry,
   dedupeMachines,
@@ -21,6 +22,8 @@ import {
   setMachineIdentity,
   updateMachine,
 } from "@sma1lboy/rove-core/machines/registry.ts"
+import type { SshFailureKind } from "@sma1lboy/rove-core/machines/ssh-failure.ts"
+import { type TunnelHandle, startTunnel } from "@sma1lboy/rove-core/machines/tunnel.ts"
 import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
@@ -30,9 +33,6 @@ import type { TaskEngineState } from "../client/remote-orchestrator-payloads.ts"
 import type { RowTokenMap } from "../client/remote-orchestrator-row-tokens.ts"
 import type { WorktreeChangesMap } from "../client/remote-orchestrator-worktree-changes.ts"
 import { RemoteOrchestrator } from "../client/remote-orchestrator.ts"
-import { type DiscoverFailure, discoverMachine, learnedFrom } from "./discover.ts"
-import type { SshFailureKind } from "./ssh-failure.ts"
-import { type TunnelHandle, startTunnel } from "./tunnel.ts"
 
 /** What a machine row in the sidebar renders from. */
 export interface MachineStatus {

@@ -7,9 +7,9 @@
  * tab would read "missing", never set `spawned`, and respawn blank on restart.
  */
 
+import { protocolEntry } from "@sma1lboy/rove-core/engine/engine-presets.ts"
+import { pickUnclaimedSessionId } from "@sma1lboy/rove-core/engine/session-identity.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
-import { protocolEntry } from "./engine-presets.ts"
-import { pickUnclaimedSessionId } from "./session-identity.ts"
 
 /** Session ids this engine recorded for `worktree`, oldest-first; `[]` on error. */
 async function sessionIds(vendor: VendorId | undefined, worktree: string): Promise<readonly string[]> {

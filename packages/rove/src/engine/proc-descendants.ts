@@ -10,8 +10,8 @@
 
 import { existsSync } from "node:fs"
 import { readFile, readdir } from "node:fs/promises"
-import { type PsSnapshot, psSnapshot } from "./foreground"
-import { type ProcRow, serializeProcRows } from "./process-rows.ts"
+import { type PsSnapshot, psSnapshot } from "@sma1lboy/rove-core/engine/foreground.ts"
+import { type ProcRow, serializeProcRows } from "@sma1lboy/rove-core/engine/process-rows.ts"
 
 const procChildrenSupported =
   process.platform === "linux" && existsSync(`/proc/${process.pid}/task/${process.pid}/children`)

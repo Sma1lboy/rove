@@ -17,9 +17,9 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { missingDependenciesCoda } from "@sma1lboy/rove-core/state/repo-init.ts"
 import { quotaResumeContinuePrompt } from "@sma1lboy/rove-daemon/daemon/quota-resume"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
-import { missingDependenciesCoda } from "../../src/state/repo-init.ts"
 
 describe("quota resume (no user text in hand — reads the stored observation)", () => {
   test("a task whose user writes Chinese resumes in Chinese", () => {

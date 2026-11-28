@@ -3,8 +3,8 @@
  * (`actions-core.ts`); only the confirm-dialog wiring lives here.
  */
 
+import type { RoveOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { relaunchSelf } from "../../../cli/self-relaunch"
-import type { RoveOrchestrator } from "../../../client/remote-orchestrator"
 import { type RestorableRenderer, restoreTerminal } from "../../../lib/restore-terminal"
 import { hasRestartableDaemon, removeTasksFileForReset } from "../../../tui/component/settings-dialog/actions-core"
 import type { KVContext } from "../../context/kv"
@@ -107,7 +107,7 @@ export async function installEngineHooks(): Promise<void> {
  */
 export async function uninstallEngineHooks(): Promise<void> {
   try {
-    const { activityHookAdapters } = await import("../../../engine/hook-adapter")
+    const { activityHookAdapters } = await import("@sma1lboy/rove-core/engine/hook-adapter.ts")
     await Promise.all(
       activityHookAdapters().map(async (adapter) => {
         try {

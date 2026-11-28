@@ -14,12 +14,12 @@ import { execFileSync } from "node:child_process"
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { isDirtyOutput } from "@sma1lboy/rove-core/orchestrator/dirty-paths.ts"
+import { isDirty as landIsDirty } from "@sma1lboy/rove-core/orchestrator/land-preflight.ts"
+import { GitWorktreeManager } from "@sma1lboy/rove-core/orchestrator/worktree/manager.ts"
+import { smallIgnoredPaths } from "@sma1lboy/rove-core/orchestrator/worktree/salvage-ignored.ts"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { collectOrphans, markedPids } from "../../src/cli/doctor-orphans.ts"
-import { isDirtyOutput } from "../../src/orchestrator/dirty-paths.ts"
-import { isDirty as landIsDirty } from "../../src/orchestrator/land-preflight.ts"
-import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
-import { smallIgnoredPaths } from "../../src/orchestrator/worktree/salvage-ignored.ts"
 
 const GIT_ENV = {
   ...process.env,

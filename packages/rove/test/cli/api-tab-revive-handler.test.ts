@@ -1,8 +1,8 @@
 /** `tab-revive --restart-exited`: the verb relaunches a session only on positive proof its engine is gone. */
 
+import type { TaskTabRow } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
 import { describe, expect, it } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
-import type { TaskTabRow } from "../../src/tabs/tab-snapshot.ts"
 import { FakeClient, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 const tab = (extra: Partial<TaskTabRow>): TaskTabRow =>

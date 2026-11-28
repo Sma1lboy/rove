@@ -6,13 +6,13 @@
  */
 
 import path from "node:path"
+import { GENERIC_PROTOCOL, resolveCommandProtocol } from "@sma1lboy/rove-core/engine/engine-presets.ts"
 import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import { renameTabsSnapshot } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
 import type { TaskStatus } from "@sma1lboy/rove-core/types/task.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { ReparentResult } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { GENERIC_PROTOCOL, resolveCommandProtocol } from "../../engine/engine-presets.ts"
-import { renameTabsSnapshot } from "../../tabs/tab-snapshot.ts"
 import { ownSession, replyTabOf } from "./dispatcher.ts"
 import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"

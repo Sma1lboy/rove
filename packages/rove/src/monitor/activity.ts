@@ -5,7 +5,7 @@
  * wrapper over `EngineHistoryReader.latestTranscriptMtimeForWorktree`.
  */
 
-import { protocolEntry } from "@/engine/engine-presets"
+import { protocolEntry } from "@sma1lboy/rove-core/engine/engine-presets.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/task.ts"
 
 /**

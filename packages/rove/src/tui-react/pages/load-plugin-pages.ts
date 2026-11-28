@@ -12,15 +12,15 @@
 import { existsSync } from "node:fs"
 import { resolve, sep } from "node:path"
 import { pathToFileURL } from "node:url"
+import { type PluginPageError, pluginPageErrorState } from "@sma1lboy/rove-client/lib/page-errors.ts"
 import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 import { readPluginManifest } from "@sma1lboy/rove-daemon/plugins/manifest"
 import { loadPluginRegistry } from "@sma1lboy/rove-daemon/plugins/registry"
-import { type PluginPageError, pluginPageErrorState } from "../../lib/page-errors"
 import { isPageAction } from "../../tui/panes/sidebar/nav-core"
 import { pageHost } from "./host-api"
 import { type PageComponent, type PageEntry, replacePageSources } from "./registry"
 
-export { pluginPageErrors } from "../../lib/page-errors"
+export { pluginPageErrors } from "@sma1lboy/rove-client/lib/page-errors.ts"
 
 let runtimeReady = false
 

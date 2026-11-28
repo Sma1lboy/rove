@@ -30,7 +30,7 @@ vi.mock("node:os", async (importOriginal) => {
 afterAll(() => {
   rmSync(tmpHome, { recursive: true, force: true })
 })
-import { parsePiSessionJsonl, parsePiSessionRaw } from "../../src/engine/pi-local/history-parse.ts"
+import { parsePiSessionJsonl, parsePiSessionRaw } from "@sma1lboy/rove-core/engine/pi-local/history-parse.ts"
 import {
   type PiHistoryDeps,
   latestTranscriptMtimeForWorktree,
@@ -39,11 +39,11 @@ import {
   sessionDirNamesForWorktree,
   sessionIdFromFileName,
   transcriptPath,
-} from "../../src/engine/pi-local/history.ts"
-import { OMP_SCREEN_MANIFEST, PI_SCREEN_MANIFEST } from "../../src/engine/pi-local/screen.ts"
-import { sniffProtocolFromTitle } from "../../src/engine/protocol-sniff.ts"
-import { engineTitleTurnHint, stripEngineStatusPrefix } from "../../src/engine/registry.ts"
-import { classifyScreen } from "../../src/engine/screen-state.ts"
+} from "@sma1lboy/rove-core/engine/pi-local/history.ts"
+import { OMP_SCREEN_MANIFEST, PI_SCREEN_MANIFEST } from "@sma1lboy/rove-core/engine/pi-local/screen.ts"
+import { sniffProtocolFromTitle } from "@sma1lboy/rove-core/engine/protocol-sniff.ts"
+import { engineTitleTurnHint, stripEngineStatusPrefix } from "@sma1lboy/rove-core/engine/registry.ts"
+import { classifyScreen } from "@sma1lboy/rove-core/engine/screen-state.ts"
 
 describe("pi-family terminal titles", () => {
   it("reads omp's run-state separator", () => {
