@@ -16,9 +16,8 @@ Docs are the source of truth. **If docs and implementation disagree, surface the
 - Bun-workspace monorepo under `packages/`: `rove/` (TUI/CLI, published `@sma1lboy/rove`), `rove-daemon/`, `rove-bridge/` + `rove-web/` (web client), `rove-harness/` (`/harness` + PTY sidecar), `rove-plugin-sdk/`, `rove-weixin/`, `rove-docs/`, `rove-landing/`, `branding/`, `promo-kit/`; native `rove-ios/`, `rove-android/`. Unqualified `src/…`/`test/…` paths mean `packages/rove/`.
 - **`packages/rove` has three test runners; the wrong one looks like a broken environment:** `test/render/**` → `bun test`, `test/daemon/**` → `bun run test:socket`, the rest → vitest (`vi.hoisted is not a function` = wrong runner). Other packages: their own `package.json` `test`. Details: dev-loop.
 - Develop with `dev:sandbox` (throwaway Rove state), never `dev`, which writes the real `~/.rove`.
-- Need a separate checkout? `rove api add --repo <repo> --worktree-only` (cleaned up with the task), never a hand-made `git worktree add`.
 - **Tech stack is locked:** TypeScript + `@opentui/core` + `@opentui/react` + React 19 + Bun. React is the only UI; orchestrator/client reactivity is framework-free observable state.
-- **One visual ground truth for the TUI:** fixed-viewport browser `/harness` → xterm.js → PTY sidecar → real OpenTUI. Not Terminal screenshots, render-test output, or mocks. Live-state bugs: drive a REAL engine through the browser's xterm and read `rove api inspect`. A PR touching TUI/harness source keeps the template's **UI evidence** section with before/after harness screenshots, or `ui-evidence: none — <reason>` ([`docs/HARNESS.md`](./docs/HARNESS.md)). rove-web changes are checked in a real browser instead.
+- **One visual ground truth for the TUI:** fixed-viewport browser `/harness` → xterm.js → PTY sidecar → real OpenTUI. Not Terminal screenshots, render tests or mocks. Live-state bugs: drive a REAL engine in the browser's xterm, read `rove api inspect`. A PR touching TUI/harness source keeps the template's **UI evidence** section with before/after harness screenshots, or `ui-evidence: none — <reason>` ([`docs/HARNESS.md`](./docs/HARNESS.md)). rove-web changes are checked in a real browser instead.
 - **The owner's live web is the test build:** a working rove-web change goes onto it at once (merging can happen alongside), so the owner always runs the newest web; no approval needed. Steps: dev-loop § Live web preview.
 - After editing daemon/orchestrator/engine code, `rove daemon restart` (no hot reload); debug from `<ROVE_HOME>/.rove/daemon.log` first.
 - `refs/` is gitignored and **read-only**; clone list and use in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) §7.
@@ -32,22 +31,23 @@ No Linear. Backlog: `TODO.md`; with the Kanban mod, `rove api issue-*` ([`docs/W
 ## Hard rules
 
 ### How work lands on `main`
-- **Default: PR → merge, no fresh approval needed.** Feature branch (`<area>/<slug>`, e.g. `web/usage-footer`; never a `claude/` prefix) → commits → `bun run pre-pr -- --body-file <body>` green → `gh pr create --body-file <body>` → `rove api pr-attach --url <url>` (else a branchless task's row never shows it) → `gh pr merge --squash --delete-branch` at once. Run `pre-pr` alone or under `set -o pipefail`: `pre-pr | tail && gh pr create` opens a PR on red. `gh pr merge` failed? Check `gh pr view <N> --json state` before retrying; its local half fails when another worktree holds `main`. The owner's PRs start no cloud CI: `pre-pr` IS the gate. Merges ship to npm `next` at once and `nightly` daily; a **stable release is cut only when the owner asks for it in that turn** ([`docs/RELEASING.md`](./docs/RELEASING.md)).
+- **Every change starts in your own checkout off `origin/main`:** `rove api add --repo <repo> --worktree-only`. Never `git worktree add`, or switch branches or leave edits in a shared checkout (it strands other sessions). Merged → `rove api delete --task-id <id> --wait`.
+- **Default: PR → merge, no fresh approval needed.** Feature branch (`<area>/<slug>`, e.g. `web/usage-footer`, no `claude/` prefix) → commits → `bun run pre-pr -- --body-file <body>` green → `gh pr create --body-file <body>` → `rove api pr-attach --url <url>` → `gh pr merge --squash --delete-branch` at once. Run `pre-pr` alone or under `set -o pipefail` (piped, a red run still opens the PR). `gh pr merge` failed? Check `gh pr view <N> --json state` before retrying; its local half fails when another worktree holds `main`. The owner's PRs start no cloud CI: `pre-pr` IS the gate. Merges ship to npm `next` at once and `nightly` daily; a **stable release is cut only when the owner asks for it in that turn** ([`docs/RELEASING.md`](./docs/RELEASING.md)).
 - **Skipping the PR** (local merge/cherry-pick into `main`, or a direct push) needs the owner to say so **in that turn** — never inferred, never carried over. Same quality gates either way.
 - `git fetch` before pushing. Force-push ONLY your own unmerged PR branch, with `--force-with-lease`; never `main`, a shared branch, or reviewed commits.
 
 ### Commits and releases
 - Commit at the end of each green stream (pre-authorized). Message: `<type>: <summary>` + a 2-3 sentence body.
-- **NEVER** add `Co-Authored-By: Claude` / any AI/Anthropic/Claude/Codex/tool attribution or "Generated with" footers — commits, tags, release notes. Thanking human contributors is fine.
+- **NEVER** add `Co-Authored-By: Claude` / any AI/Anthropic/Claude/Codex/tool attribution or "Generated with" footers — commits, tags, release notes.
 - **NEVER** use `--no-verify` / `--no-gpg-sign` or skip hooks. Fix the underlying issue.
 - **Changeset bump is `patch` by default.** Only an EXPLICIT instruction that turn promotes it to `minor`/`major`. A pending changeset with a bigger bump overrides you: check before tagging and surface it.
 
 ### Deletion
-- **NEVER** delete files, branches, worktrees, or run `rm -rf` unless the user explicitly says "delete"/"remove" *in the same turn* — including stale-worktree cleanup. Surface and ask first.
+- **NEVER** delete files, branches, worktrees, or run `rm -rf` unless the user explicitly says "delete"/"remove" *in the same turn* — including stale-worktree cleanup (your own merged task excepted). Surface and ask first.
 
 ### Scope
-- Edit only files within the declared slice; surface cross-slice changes.
-- Fixing one subcommand/file? Confirm whether every similar case needs it before calling it done.
+- Edit only your declared slice; surface cross-slice changes.
+- Fixing one subcommand/file? Check every similar case before calling it done.
 - A file over ~500 lines is a refactor prompt: growing one means you own splitting it along a named seam (dev-loop § File size).
 
 ### Don't touch
