@@ -164,7 +164,7 @@ function Shell({ model }: { model: AppModel }) {
         {/* One bar over both panels: the list's, the open page's, or none. A back swipe keeps the page's until it lands. */}
         {surface && <PhoneBarHost show={surface === "sidebar" ? "list" : "page"} />}
         {!narrow && <SidePanel model={model} task={task} remoteHost={remoteTask?.machine?.label} />}
-        <StatusBar model={model} />
+        <StatusBar model={model} narrow={narrow} />
         <Overlays />
         <PrefixHud model={model} />
         <DocumentTitle model={model} />

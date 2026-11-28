@@ -12,6 +12,7 @@ import type { RailRowProps } from "./rail-view.tsx"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { type RoutinesReply, routineNeedsYou } from "./routines-data.ts"
 import { SettingsDialog } from "./settings-view.tsx"
+import { PHONE_DOWN_GRACE_MS, useDownFor } from "./status-bar.tsx"
 import { useStore } from "./store.ts"
 import { dialog } from "./ui.ts"
 import { EngineIcon } from "./ui/engine-icon.tsx"
@@ -88,15 +89,23 @@ export function PhoneRailRow(props: RailRowProps) {
   )
 }
 
-/** Under the wordmark only while the page can't reach the computer; the computer's name is in Settings → About. */
+/**
+ * Under the wordmark once the page has been unable to reach the computer for a while; the computer's name is in
+ * Settings → About. It floats over the list's top rather than pushing it down.
+ */
 export function PhoneRailNote({ model }: { model: AppModel }) {
   useLocale()
   const conn = useStore(model.client.conn)
-  if (conn.state === "open") return null
+  if (!useDownFor(model.client, PHONE_DOWN_GRACE_MS)) return null
   return (
-    <p className="m-0 truncate px-4 pb-2 font-sans text-meta text-muted" data-rail-note>
-      {t(conn.state === "retrying" ? "rail.reconnecting" : "status.connecting")}
-    </p>
+    <div className="relative z-1 h-0">
+      <p
+        className="absolute inset-x-0 top-0 m-0 truncate bg-paper px-4 pb-2 font-sans text-meta text-muted"
+        data-rail-note
+      >
+        {t(conn.state === "retrying" ? "rail.reconnecting" : "status.connecting")}
+      </p>
+    </div>
   )
 }
 

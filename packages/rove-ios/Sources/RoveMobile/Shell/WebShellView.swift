@@ -20,9 +20,11 @@ struct WebShellView: UIViewRepresentable {
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
         // Pinch and double-tap zoom belong to a browser, not an app; the page fits the screen already.
+        // `viewport-fit=cover` because this view runs edge to edge and never insets its scroll view: without it
+        // (the relay's loader page had none) WebKit reports every `env(safe-area-inset-*)` as 0.
         config.userContentController.addUserScript(WKUserScript(source: """
             const m = document.querySelector('meta[name=viewport]');
-            if (m) m.content += ', maximum-scale=1, user-scalable=no';
+            if (m) m.content += ', viewport-fit=cover, maximum-scale=1, user-scalable=no';
             """, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
         // rove-web keeps `<meta name="theme-color">` on its background (prefs-apply.ts); report it and every change.
         config.userContentController.addUserScript(WKUserScript(source: """
@@ -64,12 +66,17 @@ struct WebShellView: UIViewRepresentable {
     func updateUIView(_ web: WKWebView, context: Context) {
         let c = context.coordinator
         let changed = c.parent.computer != computer || c.parent.reloadToken != reloadToken
+        if c.parent.computer != computer { c.failingSince = nil }
         c.parent = self
         if changed { c.load(web) }
     }
 
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, UIGestureRecognizerDelegate {
         var parent: WebShellView
+        /// When loads began failing; cleared by a load that lands. Back from the background the network often
+        /// isn't up for the first load, so failures shorter than `failGrace` retry quietly instead of showing.
+        var failingSince: Date?
+        private static let failGrace: TimeInterval = 8
 
         init(_ parent: WebShellView) { self.parent = parent }
 
@@ -127,9 +134,17 @@ struct WebShellView: UIViewRepresentable {
         }
 
         func webView(_ web: WKWebView, didFailProvisionalNavigation nav: WKNavigation!, withError error: Error) {
-            let code = (error as NSError).code
-            if code != NSURLErrorCancelled { parent.onFail(error.localizedDescription) }
+            guard (error as NSError).code != NSURLErrorCancelled else { return }
+            let since = failingSince ?? Date()
+            failingSince = since
+            if Date().timeIntervalSince(since) >= Self.failGrace { return parent.onFail(error.localizedDescription) }
+            let url = parent.computer.url
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak web] in
+                if let web, self.parent.computer.url == url { web.load(URLRequest(url: url)) }
+            }
         }
+
+        func webView(_ web: WKWebView, didFinish nav: WKNavigation!) { failingSince = nil }
 
         func webViewWebContentProcessDidTerminate(_ web: WKWebView) { load(web) }
 

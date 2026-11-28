@@ -140,6 +140,9 @@ export function usePhoneBar(slot: BarSlot, spec: PhoneBarSpec | null): void {
 }
 
 const SINK = "duration-220 ease-snap motion-reduce:transition-none"
+/** #root already clears the home indicator, so the bar sits 8px above it; with no indicator, 12px off the edge. */
+const BAR_LIFT = "pb-[max(8px,calc(12px_-_env(safe-area-inset-bottom)))]"
+const BLOB_LIFT = "bottom-[max(8px,calc(12px_-_env(safe-area-inset-bottom)))]"
 const FADE_OUT_MS = 80
 const MELT_MS = 300
 const FADE_IN_MS = 120
@@ -307,7 +310,7 @@ export function PhoneBarHost({ show }: { show: BarSlot | null }) {
   return (
     <div
       // Alone on a page, the bar meets the cards' edges.
-      className={`pointer-events-none absolute inset-x-0 bottom-0 z-2 col-1 row-1 flex items-end gap-2.5 pb-3 transition-[translate,opacity] ${SINK} ${drawn.capsule ? "px-4" : "px-3"} ${want ? "" : "translate-y-4 opacity-0"}`}
+      className={`pointer-events-none absolute inset-x-0 bottom-0 z-2 col-1 row-1 flex items-end gap-2.5 ${BAR_LIFT} transition-[translate,opacity] ${SINK} ${drawn.capsule ? "px-4" : "px-3"} ${want ? "" : "translate-y-4 opacity-0"}`}
       ref={bar}
       inert={!want}
       data-bottom-bar
@@ -319,14 +322,14 @@ export function PhoneBarHost({ show }: { show: BarSlot | null }) {
         <span aria-hidden="true" className="absolute inset-0" data-bar-melt>
           <span
             ref={blur}
-            className={`absolute bottom-3 h-13 backdrop-blur-md backdrop-saturate-150 opaque:hidden ${SQUARE_BAR}`}
+            className={`absolute ${BLOB_LIFT} h-13 backdrop-blur-md backdrop-saturate-150 opaque:hidden ${SQUARE_BAR}`}
           />
           <span
             ref={goo}
             className={`absolute inset-0 [filter:url(#phone-bar-goo)] ${accent ? "" : "opacity-60 opaque:opacity-100"}`}
           >
-            <span className={`absolute bottom-3 h-13 origin-left bg-inset ${BLOB}`} />
-            <span className={`absolute bottom-3 h-13 origin-left ${BLOB} ${accent ? "bg-accent" : "bg-inset"}`} />
+            <span className={`absolute ${BLOB_LIFT} h-13 origin-left bg-inset ${BLOB}`} />
+            <span className={`absolute ${BLOB_LIFT} h-13 origin-left ${BLOB} ${accent ? "bg-accent" : "bg-inset"}`} />
           </span>
           <svg className="absolute size-0" role="presentation">
             <filter id="phone-bar-goo" x="-10%" y="-50%" width="120%" height="200%" colorInterpolationFilters="sRGB">
