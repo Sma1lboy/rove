@@ -9,6 +9,7 @@
     "./*": "./src/*"
   },
   "scripts": {
+    "test": "bun test test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
