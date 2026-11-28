@@ -6,7 +6,7 @@ Native in the app: the QR scanner, the list of paired computers (in the Keychain
 
 ## Pair and open
 
-1. On the computer run `rove --web` with a way for the phone to reach it: `--preset tailscale`, `--preset cf`, `--preset relay`, or `--host <LAN address>` ([WEB.md](WEB.md#security)).
+1. On the computer run `rove --web` and open Settings → Connectors → Phone in its page: **Show QR code** pairs through Rove's hosted relay, with nothing else to set up ([WEB.md](WEB.md#through-an-encrypted-relay)). Other ways in: `--preset tailscale`, `--preset cf`, `--preset relay`, or `--host <LAN address>` ([WEB.md](WEB.md#security)).
 2. In the app, scan the QR code or paste a link. Any link the bridge prints works:
 
    | Link | Opens |
@@ -18,7 +18,7 @@ Native in the app: the QR scanner, the list of paired computers (in the Keychain
 
 3. The app keeps the link in the iOS Keychain and loads it on every launch. The page keeps its own storage between launches as well.
 
-Only `--preset relay` and `rove-bridge` (the `pair:` link) print a QR code today; for the other `rove --web` runs, paste the `open:` link. A `pair:` link from a plain `rove-bridge` has no page behind it: run `rove --web`.
+Settings → Connectors → Phone shows a QR code from any `rove --web` page, and `--preset relay` and `rove-bridge` (the `pair:` link) print one in the terminal; for the other `rove --web` runs, paste the `open:` link. A `pair:` link from a plain `rove-bridge` has no page behind it: run `rove --web`.
 
 Pairing a second computer adds it to the list; pairing the same host and port again replaces its link. Hold two fingers on the page for the list of computers, where you open another, forget one, or pair a new one. A computer that does not answer shows a retry screen with the same list. A phone paired with the earlier native app keeps its computer.
 

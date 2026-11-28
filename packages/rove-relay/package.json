@@ -1,0 +1,11 @@
+{
+  "name": "rove-relay",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Rove's hosted end-to-end encrypted relay (a Cloudflare Worker, vendored from relay-kit).",
+  "type": "module",
+  "scripts": {
+    "build": "mkdir -p public && cp ../rove-web/dist/relay/index.html public/index.html",
+    "deploy": "bun run build && bunx wrangler@4 deploy"
+  }
+}

@@ -56,6 +56,8 @@ export interface BridgeDeps {
   readonly token: string
   /** A per-device token's owner (`auth.ts` devices), or null; absent = only the shared token works. */
   readonly deviceOf?: (presented: string | null) => string | null
+  /** `phone.pair`: mints a device token and returns the relay link that carries it (`run.ts`). */
+  readonly pairPhone?: () => { link: string; device: string; server: string }
   /** Live sockets per credential, so a sign-out ends the connection it holds. */
   readonly sockets?: CredentialSockets
   readonly ops: RoveOps
@@ -319,6 +321,9 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
     case "auth.status":
     case "auth.setMode":
       return authOp(deps.signIn, req.op, a, conn.credential)
+    case "phone.pair":
+      if (!deps.pairPhone) throw new BridgeError("UNSUPPORTED", "this bridge cannot pair a phone")
+      return deps.pairPhone()
     case "push.key":
       return { publicKey: requirePush(deps).publicKey() }
     case "push.status":

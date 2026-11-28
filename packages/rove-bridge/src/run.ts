@@ -7,9 +7,9 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { copyFileSync, existsSync, mkdirSync, readFileSync } from "node:fs"
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { hostname as osHostname } from "node:os"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import { RelayAgent } from "@hsinsekai-nanami/agent"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { ensureDaemonReachable } from "@sma1lboy/rove-daemon/client/daemon-process"
@@ -28,10 +28,25 @@ import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { terminalTabsKey } from "@sma1lboy/rove/src/state/tabs-persistence.ts"
 import type { TabsState } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
 import { CURRENT_VERSION } from "@sma1lboy/rove/src/version.ts"
-import { addDevice, deviceOf, listDevices, loadOrCreateToken, revokeDevice, startupCredentials } from "./auth.ts"
+import {
+  addDevice,
+  deviceOf,
+  listDevices,
+  loadOrCreateToken,
+  relayLink,
+  revokeDevice,
+  startupCredentials,
+} from "./auth.ts"
 import { printBanner } from "./banner.ts"
 import { createAccessVerifier } from "./cf-access.ts"
-import { type BridgeArgs, type BridgeConfig, type TailscaleInfo, parseBridgeArgs } from "./cli-args.ts"
+import {
+  type BridgeArgs,
+  type BridgeConfig,
+  DEFAULT_RELAY_SERVER,
+  type TailscaleInfo,
+  parseBridgeArgs,
+  relayOriginOf,
+} from "./cli-args.ts"
 import { CredentialSockets } from "./credential-sockets.ts"
 import { DispatchFeed } from "./dispatch-feed.ts"
 import { TaskFeed } from "./feed.ts"
@@ -116,9 +131,11 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
   const home = resolveProductHomeDir()
   const bridgeDir = join(home, ".rove", "bridge")
   let args: BridgeArgs
+  let config: BridgeConfig = {}
   try {
+    config = readConfig(join(bridgeDir, "config.json"))
     args = parseBridgeArgs(argv, {
-      config: readConfig(join(bridgeDir, "config.json")),
+      config,
       tailscale: tailscaleInfo,
     })
   } catch (err) {
@@ -354,6 +371,7 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
         },
       })
     : null
+  let relay: { code: string; server: string } | null = null
   const deps: BridgeDeps = {
     // The shared token, never the `--device` one: that device is recognized (and audited) by `deviceOf`.
     token: sharedToken,
@@ -368,6 +386,17 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     rowStatus,
     dispatches,
     deviceOf: (presented) => deviceOf(devicesPath, presented),
+    // Settings → Connectors → Phone: a link for one more phone, through the relay (started now if this run had none).
+    pairPhone: () => {
+      if (!opts.web) throw new BridgeError("UNSUPPORTED", "phone pairing is for the browser client: run `rove --web`")
+      if (!relay) {
+        relay = startRelay(deps, DEFAULT_RELAY_SERVER, bridgeDir, false)
+        saveRelayServer(join(bridgeDir, "config.json"), DEFAULT_RELAY_SERVER)
+      }
+      const device = phoneDeviceName(devicesPath, new Date())
+      const link = relayLink({ server: relay.server, code: relay.code, token: addDevice(devicesPath, device) })
+      return { link, device, server: relay.server }
+    },
     openPty: () => new RoveDaemonClient(ptySocket),
     openMachinePty: async (alias) => {
       const entry = requireMachine(alias)
@@ -414,7 +443,9 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     publicHost: args.publicHost,
     ...(push ? { push } : {}),
   }
-  const relay = args.relayServer ? startRelay(deps, args.relayServer, bridgeDir, args.rotateRelay) : null
+  // A phone paired from Settings saved `relayServer`: a later plain `rove --web` keeps it reachable.
+  const relayServer = args.relayServer ?? (opts.web && config.relayServer ? relayOriginOf(config.relayServer) : null)
+  relay = relayServer ? startRelay(deps, relayServer, bridgeDir, args.rotateRelay) : null
   const servers = args.hosts.map((hostname) => {
     try {
       return startBridgeServer(deps, { hostname, port: args.port })
@@ -436,7 +467,7 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     token,
     servers,
     signIn: signIn?.mode() ?? null,
-    relayCode: relay?.code ?? null,
+    relay,
   })
 }
 
@@ -445,14 +476,44 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
  * sockets with no headers, so this one listener takes the token from `?token=`; the bearer token
  * is still required, the relay's E2E layer is on top of it.
  */
-function startRelay(deps: BridgeDeps, server: string, bridgeDir: string, rotate: boolean): { code: string } {
+function startRelay(
+  deps: BridgeDeps,
+  server: string,
+  bridgeDir: string,
+  rotate: boolean,
+): { code: string; server: string } {
   // Same shape as relay-kit's generateCode (32 random bytes, base64url), owner-only like the token.
   const code = loadOrCreateToken(join(bridgeDir, "relay-code"), rotate)
   // Shares `deps.login` (and its lockout): under this preset it already trusts no forwarded IP.
-  const ingress = startBridgeServer({ ...deps, tokenInQuery: true }, { hostname: "127.0.0.1", port: 0 })
+  const ingress = startBridgeServer(relayIngressDeps(deps), { hostname: "127.0.0.1", port: 0 })
   const agent = new RelayAgent({ serverUrl: server, code, localPort: ingress.port ?? 0, deviceName: osHostname() })
   agent.start()
-  return { code }
+  return { code, server }
+}
+
+/**
+ * The relay agent dials this listener from loopback with no forwarded headers, so every relayed browser would look
+ * like this computer's own: its sockets never get the `open` sign-in mode's tokenless pass, even when the main
+ * listener (a plain local run that started the relay from Settings) does.
+ */
+export function relayIngressDeps(deps: BridgeDeps): BridgeDeps {
+  return {
+    ...deps,
+    tokenInQuery: true,
+    ...(deps.signIn ? { signIn: { ...deps.signIn, opens: () => false } } : {}),
+  }
+}
+
+/** Remembered in `config.json`, so the next start dials the relay a paired phone uses. */
+export function saveRelayServer(configPath: string, server: string): void {
+  const raw: unknown = existsSync(configPath) ? JSON.parse(readFileSync(configPath, "utf8")) : {}
+  const rest = raw && typeof raw === "object" ? raw : {}
+  mkdirSync(dirname(configPath), { recursive: true, mode: 0o700 })
+  writeFileSync(configPath, `${JSON.stringify({ ...rest, relayServer: server }, null, 2)}\n`, { mode: 0o600 })
+}
+
+function phoneDeviceName(devicesPath: string, now: Date): string {
+  return loginDeviceName(devicesPath, now, "phone")
 }
 
 /**
@@ -485,8 +546,11 @@ function printSetup(port: number): void {
   } else lines.push("  cloudflared: not installed; only needed to publish through Cloudflare Access.")
   lines.push(
     "",
-    "  Relay, end-to-end encrypted (no VPN, no Access; the relay sees only ciphertext). Deploy",
-    "  relay-kit's Worker to your own Cloudflare account once, with this machine's page on it:",
+    "  Relay, end-to-end encrypted (no VPN, no Access; the relay sees only ciphertext). Nothing to set up:",
+    "  open Settings → Connectors → Phone in the page and scan the QR code, or run",
+    "    rove --web --preset relay",
+    "  Keep it reachable with no terminal open: rove --web --install",
+    "  To use your own relay instead, deploy relay-kit's Worker to your Cloudflare account once:",
     "    git clone https://github.com/nanami-0713/relay-kit && cd relay-kit/workers/relay",
     "    rove --web --relay-shell public",
     `    printf '\\n[assets]\\ndirectory = "public"\\n' >> wrangler.toml`,

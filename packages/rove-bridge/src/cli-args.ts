@@ -60,6 +60,9 @@ export interface TailscaleInfo {
 
 export const DEFAULT_BRIDGE_PORT = 7878
 
+/** Rove's hosted relay (`packages/rove-relay`): `--preset relay` and Settings' phone pairing use it unless told otherwise. */
+export const DEFAULT_RELAY_SERVER = "https://relay.sma1lboy.me"
+
 export const BRIDGE_USAGE = `usage: rove-bridge [--preset tailscale|cf|relay] [--host <addr>]... [--port <n>]
                   [--public-host <name>] [--cf-team <team>] [--cf-aud <aud>]
                   [--relay-server <url>] [--rotate-relay] [--relay-shell <dir>]
@@ -76,9 +79,10 @@ export const BRIDGE_USAGE = `usage: rove-bridge [--preset tailscale|cf|relay] [-
   --preset cf          listen on 127.0.0.1 for cloudflared; every connection must
                        carry a valid Cloudflare Access JWT. Needs --public-host
                        (the tunnel hostname), --cf-team and --cf-aud.
-  --preset relay       \`rove --web\` only: listen on 127.0.0.1 and dial out to a relay-kit
-                       Worker (--relay-server <url>); the browser reaches this machine
-                       through it, end-to-end encrypted. The bearer token still applies.
+  --preset relay       \`rove --web\` only: listen on 127.0.0.1 and dial out to an end-to-end
+                       encrypted relay, Rove's hosted one unless --relay-server <url> names
+                       your own relay-kit Worker; the browser reaches this machine through it.
+                       The bearer token still applies.
   --rotate-relay       mint a new relay pairing code, unpairing every relay browser
   --relay-shell <dir>  write the page the relay Worker serves (index.html), then exit
   --port <n>           TCP port (default ${DEFAULT_BRIDGE_PORT})
@@ -88,6 +92,9 @@ export const BRIDGE_USAGE = `usage: rove-bridge [--preset tailscale|cf|relay] [-
                        revoke it alone later with --revoke-device <name>
   --list-devices       show the devices that have their own token, then exit
   --revoke-device <n>  revoke one device's token (others keep working), then exit
+  --install            \`rove --web\` only: run \`rove --web\` (with the flags after it) as a
+                       login service (launchd or systemd), restarted when it dies
+  --uninstall          stop and remove that service
   --setup              check Tailscale / cloudflared here and print the exact
                        commands to reach this bridge from a phone; changes nothing
   --set-password       prompt (twice, no echo) for a browser login password; the page
@@ -229,8 +236,6 @@ export function parseBridgeArgs(
   }
 
   if (preset === "relay") {
-    if (!relayServer)
-      throw new Error("--preset relay needs --relay-server <url> (or relayServer in bridge/config.json)")
     if (publicHost !== null) throw new Error("--public-host cannot be combined with --preset relay")
     return {
       ...base,
@@ -239,7 +244,7 @@ export function parseBridgeArgs(
       publicHost: null,
       tls: false,
       cloudflare: null,
-      relayServer: relayOriginOf(relayServer),
+      relayServer: relayOriginOf(relayServer ?? DEFAULT_RELAY_SERVER),
     }
   }
 

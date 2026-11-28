@@ -1,5 +1,11 @@
 import { describe, expect, test } from "vitest"
-import { launchdDaemonPlist, systemdDaemonUnit, windowsRunCommand } from "../../src/cli/daemon-autostart.ts"
+import {
+  launchdDaemonPlist,
+  launchdPlist,
+  systemdDaemonUnit,
+  windowsRunCommand,
+} from "../../src/cli/daemon-autostart.ts"
+import { WEB_SERVICE } from "../../src/cli/web-service.ts"
 
 const ctx = {
   cli: ["/home/me/.bun/bin/bun", "/opt/my rove/rove-run.js"],
@@ -22,6 +28,13 @@ describe("daemon autostart", () => {
     expect(plist).toContain("<key>RunAtLoad</key>\n  <true/>")
     expect(plist).toContain("<string>/a&amp;b</string>")
     expect(plist).not.toContain("KeepAlive")
+  })
+
+  test("the web bridge's launchd agent runs rove --web and comes back when it dies, the way a phone keeps reaching it", () => {
+    const plist = launchdPlist(ctx, WEB_SERVICE)
+    expect(plist).toContain("<string>run.rove.web</string>")
+    expect(plist).toContain("<string>--web</string>")
+    expect(plist).toContain("<key>KeepAlive</key>")
   })
 
   test("the Windows Run entry starts the daemon through the windowless launcher, quoting a path with spaces", () => {

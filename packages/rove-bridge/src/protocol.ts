@@ -53,6 +53,8 @@ export const OPS = [
   // How a browser gets in (`sign-in.ts`): the mode and the ones this run offers, and changing it ({mode, password?}).
   "auth.status",
   "auth.setMode",
+  // Settings → Connectors → Phone: a fresh device token in a relay link to show as a QR code.
+  "phone.pair",
 ] as const
 
 export type Op = (typeof OPS)[number]
