@@ -295,7 +295,7 @@ export function UsageView({ model }: { model: AppModel }) {
                 <h2 className={USG_HEAD}>{t("usage.total")}</h2>
                 <div className={USG_TOTAL}>{compactTokens(total.tokens)}</div>
                 <div className={`mt-1.5 ${USG_DIM}`}>
-                  {`${fill(t("usage.turns"), { count: total.turns })} · ${formatDuration(total.ms)}`}
+                  {`${fill(t(total.turns === 1 ? "usage.turnsOne" : "usage.turns"), { count: total.turns })} · ${formatDuration(total.ms)}`}
                 </div>
               </section>
               <section className={USG_LEAD_CHART}>

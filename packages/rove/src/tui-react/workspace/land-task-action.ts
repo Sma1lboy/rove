@@ -6,6 +6,7 @@
  */
 
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
+import { landRefusalText } from "../../lib/land-refusal"
 
 const LAND_CONFLICT_RE = /LAND_CONFLICT/
 const MAIN_DIRTY_RE = /MAIN_CHECKOUT_DIRTY/
@@ -44,7 +45,7 @@ export async function landTaskAction(deps: LandTaskDeps, taskId: string, branchL
   if (preflight.refusal) {
     // Dirty base keeps its own actionable copy (never `git stash` here).
     if (preflight.refusal === "MAIN_CHECKOUT_DIRTY") deps.notifyNeedsInput(t("worktrees.land.dirtyBase"))
-    else deps.notifyError(t("worktrees.land.failed", { error: preflight.message ?? preflight.refusal }))
+    else deps.notifyError(landRefusalText(t, { ...preflight, refusal: preflight.refusal }, branchLabel))
     return false
   }
   const body = t(preflight.ahead === 1 ? "worktrees.land.confirmBodyOne" : "worktrees.land.confirmBody", {

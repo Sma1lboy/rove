@@ -168,7 +168,7 @@ export function ColumnView({
   )
 }
 
-/** The line between column `index` and the next: drag to move it, double-click to share the width evenly. */
+/** The line between column `index` and the next: drag to move it, double-click to go back to the default widths. */
 export function ColumnDivider({
   taskId,
   kinds,

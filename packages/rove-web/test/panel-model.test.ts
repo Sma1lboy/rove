@@ -125,8 +125,8 @@ describe("the launcher buttons", () => {
 describe("sharing the width", () => {
   const three = () => showKind(showKind(newPanel(), "diff"), "quota")
 
-  test("columns share equally until a divider is dragged", () => {
-    expect(columnWeights(three())).toEqual([1000 / 3, 1000 / 3, 1000 / 3])
+  test("until a divider is dragged, a diff or browser column gets twice a list's share", () => {
+    expect(columnWeights(three())).toEqual([250, 250, 500])
   })
 
   test("a column opened later takes the mean of the others, not a sliver", () => {
@@ -145,9 +145,9 @@ describe("sharing the width", () => {
     expect(quota).toBeCloseTo(diff)
   })
 
-  test("double-clicking a divider goes back to equal shares", () => {
+  test("double-clicking a divider goes back to the default shares", () => {
     const panel = setWidths(three(), [100, 300, 100])
-    expect(columnWeights(resetWidths(panel))[0]).toBeCloseTo(1000 / 3)
+    expect(columnWeights(resetWidths(panel))).toEqual(columnWeights(three()))
     expect(resetWidths(newPanel())).toEqual(newPanel())
   })
 

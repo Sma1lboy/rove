@@ -56,7 +56,7 @@ import {
 import { LINK } from "./ui/text.ts"
 
 export function KanbanView({ model }: { model: AppModel }) {
-  const { kanban, group, common, nav } = useCopy()
+  const { kanban, group, nav } = useCopy()
   const phone = useNarrow()
   const [tick, reload] = useReload(POLL_MS)
   const boards = useBoards(model, tick)
@@ -255,7 +255,7 @@ export function KanbanView({ model }: { model: AppModel }) {
       <ConfirmDialog
         title={fill(kanban.confirmDelete.title, { id: String(issue.id) })}
         body={fill(kanban.confirmDelete.body, { title: issue.title })}
-        confirmLabel={common.confirm}
+        confirmLabel={t("pages.deleteIssue")}
         onConfirm={async () => {
           try {
             await model.client.request("issue.delete", { repo, id: issue.id })

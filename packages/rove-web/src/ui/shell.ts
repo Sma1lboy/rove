@@ -82,7 +82,8 @@ const EDGE = {
 const edge = (side: "left" | "top", active: boolean): string => EDGE[side][active ? 1 : 0]
 export const splitLeafClass = (style: string | null, o: { left: boolean; top: boolean; active: boolean }): string => {
   // `split-leaf` and `is-active` stay: pane-focus.ts finds the active pane by them.
-  const base = `split-leaf absolute box-border flex min-h-0 min-w-0 ${o.active ? "is-active" : ""}`
+  // A split pane's name sits in its top corner (except `rule`, where it rides the border): that row stays clear of output.
+  const base = `split-leaf absolute box-border flex min-h-0 min-w-0 ${o.active ? "is-active" : ""} ${style !== null && style !== "rule" ? "pt-5" : ""}`
   const lit = o.active ? "border-accent" : ""
   if (style === "box")
     return `${base} rounded-[calc(var(--radius)-1px)] border-hairline ${o.active ? "border-accent" : "border-line"}`
@@ -114,10 +115,10 @@ const KEY_LOOK = {
 export const termKey = (look: keyof typeof KEY_LOOK): string =>
   `h-11 min-w-11 touch-manipulation [flex:1_1_0] ${SQUARE} px-0.5 py-0 font-mono text-[15px] ${FONT_RESET} ${PRESS} active:bg-[color-mix(in_srgb,var(--ink)_14%,transparent)] ${KEY_LOOK[look]}`
 
-/** The which-key map, above the rail's last row so that row's keycap badge stays clickable. */
+/** The which-key map, beside the rail so the row it acts on and the foot's keycap badge stay in view. */
 /** `prefix-guide` stays: leave.ts copies it into a ghost that sinks out, and prefix.tsx keeps clicks on it from cancelling the prefix. */
 export const PREFIX_GUIDE =
-  "prefix-guide fixed bottom-19 left-3 z-40 max-h-[60vh] w-[min(560px,calc(100vw-24px))] overflow-y-auto rounded-sm border-hairline border-line bg-surface px-3 py-2 text-meta shadow-popover motion-safe:animate-rise-in [&.is-leaving]:pointer-events-none [&.is-leaving]:animate-sink-out"
+  "prefix-guide fixed bottom-19 left-[calc(var(--rail-w,0px)+12px)] z-40 max-h-[60vh] w-[min(560px,calc(100vw-var(--rail-w,0px)-24px))] overflow-y-auto rounded-sm border-hairline border-line bg-surface px-3 py-2 text-meta shadow-popover motion-safe:animate-rise-in [&.is-leaving]:pointer-events-none [&.is-leaving]:animate-sink-out"
 export const PREFIX_KEY = "min-w-[3ch] text-accent"
 export const PREFIX_GUIDE_HEAD = "mb-1.5 flex justify-between gap-4"
 export const PREFIX_GUIDE_BODY = "columns-[2_220px] gap-x-5"
@@ -144,7 +145,7 @@ export const HELP_ROW = `flex gap-3 py-px ${META}`
 export const HELP_CAP = "min-w-[14ch] text-ink"
 
 /** The prefix HUD, bottom-left over the rail as the TUI's. */
-export const PREFIX_HUD = `keys-only fixed bottom-[34px] left-3 z-40 min-w-55 rounded-sm border-hairline border-line bg-surface px-3 py-2 font-mono text-meta ${FONT_RESET} text-ink shadow-popover`
+export const PREFIX_HUD = `keys-only fixed bottom-[34px] left-[calc(var(--rail-w,0px)+12px)] z-40 min-w-55 rounded-sm border-hairline border-line bg-surface px-3 py-2 font-mono text-meta ${FONT_RESET} text-ink shadow-popover`
 /** A HUD line rises in, then sinks out at `--hud-out`; one brought back after the guide only sinks. */
 export const prefixHudLine = (back: boolean): string =>
   `mb-0.5 ${back ? "motion-safe:[animation:sink-out_140ms_ease-in_var(--hud-out,3860ms)_forwards]" : "motion-safe:[animation:rise-in_140ms_ease-out,sink-out_140ms_ease-in_var(--hud-out,3860ms)_forwards]"}`

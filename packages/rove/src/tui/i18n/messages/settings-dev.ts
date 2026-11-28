@@ -22,7 +22,7 @@ export const en = {
     reloadUnchanged: "Already matches state.json; nothing changed.",
     reloadFailed: "state.json could not be read, nothing changed: {error}",
     doctorHint:
-      "Daemon wedged or unresponsive? Restart backend above does it from here; from a shell it is `rove daemon restart`. Hosted engine sessions stay alive across a daemon restart.",
+      "Daemon wedged or unresponsive? Restart backend does it from here; from a shell it is `rove daemon restart`. Hosted engine sessions stay alive across a daemon restart.",
     experimental: "Experimental",
     remoteHint:
       "Remote projects (SSH): register a project whose git worktrees live on another host, driven from this local Rove. Unfinished — Hosted PTY engine launch over SSH is not implemented, and file/diff panes still degrade. Enables `rove add --remote`.",
@@ -53,7 +53,7 @@ export const zh: typeof en = {
     reloadUnchanged: "已与 state.json 一致，没有变化。",
     reloadFailed: "无法读取 state.json，未做任何改动：{error}",
     doctorHint:
-      "daemon 卡住或无响应？上面的「重启后端」就能在这里完成；在 shell 里则是 `rove daemon restart`。Hosted PTY 引擎会话不会因 daemon 重启而退出。",
+      "daemon 卡住或无响应？「重启后端」就能在这里完成；在 shell 里则是 `rove daemon restart`。Hosted PTY 引擎会话不会因 daemon 重启而退出。",
     experimental: "实验性",
     remoteHint:
       "远程项目（SSH）：注册一个 git worktree + 引擎都通过 SSH 跑在另一台主机上、由本地 Rove 驱动的项目。尚未完成——文件/diff 面板对远程仍会降级。启用 `rove add --remote`。",

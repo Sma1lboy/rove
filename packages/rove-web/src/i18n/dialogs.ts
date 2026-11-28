@@ -1,9 +1,9 @@
 /** `dialog`, `crash`, `whatsNew`, `menu`, `confirm`, `newTask`, `newChat`, `newSession`, `search`, `taskops` messages. English is the source of truth; `zh: typeof en` keeps the shapes locked together. */
 export const en = {
   dialog: {
-    cancel: "cancel",
-    save: "save",
-    close: "close",
+    cancel: "Cancel",
+    save: "Save",
+    close: "Close",
   },
   crash: {
     title: "This page hit an error. Copy the report below before reloading.",

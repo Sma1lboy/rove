@@ -103,4 +103,5 @@ export const HINT = "m-0 flex-none border-t-hairline border-t-line px-2 pt-1.5 p
 export const FIELD = "flex flex-col gap-0.5 px-1.5 py-0.5"
 export const BRANCHES = "min-w-[36ch]"
 /** The Later popover: the time field and its confirm on one line. */
-export const LATER = "flex items-center gap-1.5 p-1.5"
+/** The field keeps the width its examples need; the button goes under it when the popover is too narrow for both. */
+export const LATER = "flex flex-wrap items-center justify-end gap-1.5 p-1.5"

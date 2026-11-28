@@ -72,6 +72,18 @@ export const en = {
     dirtyBase:
       "The base checkout has uncommitted changes — commit them, then land. Never `git stash` here: the stash stack lives in the repo's common dir and is shared by every linked worktree, so a stash can entangle other tasks' work.",
     failed: "Land failed: {error}",
+    /** One line per preflight refusal (`land-preflight.ts`), so no error code reaches the reader. */
+    refusal: {
+      EMPTY_BRANCH: 'Nothing to land: "{branch}" has no commits ahead of {landedOn}.',
+      EMPTY_BRANCH_DIRTY_WORKTREE:
+        'Nothing to land yet: "{branch}" has no commits ahead of {landedOn}, but its worktree has uncommitted changes ({files}). Commit them there, then land.',
+      MISSING_REF: '"{branch}" is gone from the project: it was renamed or deleted outside Rove.',
+      DETACHED_HEAD: "The project checkout is not on a branch. Check one out there, then land.",
+      SAME_BRANCH: 'The project checkout is already on "{branch}", so there is nothing to land it onto.',
+      UNBORN_BASE:
+        "{landedOn} has no commits yet, so there is nothing to merge into. Make the first commit there, then land.",
+      UNREADABLE_BASE: "Could not read the project checkout. Is it still a git repository?",
+    },
     done: 'Landed "{branch}" onto {landedOn} ({commit}).',
     worktreeKept: "Landed, but the worktree was kept: {reason}",
     worktreePathStale: "Landed and removed the worktree, but the task still points at it: {reason}",
@@ -136,6 +148,16 @@ export const zh: typeof en = {
     dirtyBase:
       "基础检出有未提交改动——请先提交再合入。绝不要在这里 `git stash`：stash 栈存放在仓库的 common dir 中，该仓库所有 linked worktree 共享，一次 stash 可能纠缠其他任务的工作。",
     failed: "合入失败：{error}",
+    refusal: {
+      EMPTY_BRANCH: '没有可合入的内容："{branch}" 比 {landedOn} 没有多出任何提交。',
+      EMPTY_BRANCH_DIRTY_WORKTREE:
+        '还没有可合入的内容："{branch}" 比 {landedOn} 没有多出提交，但它的 worktree 里有未提交的改动（{files}）。先在那里提交，再合入。',
+      MISSING_REF: '项目里已经没有 "{branch}" 了：它在 Rove 之外被改名或删除。',
+      DETACHED_HEAD: "项目检出不在任何分支上。先在那里检出一个分支，再合入。",
+      SAME_BRANCH: '项目检出已经在 "{branch}" 上，没有可以合入的目标。',
+      UNBORN_BASE: "{landedOn} 还没有任何提交，没有可合入的目标。先在那里做第一次提交，再合入。",
+      UNREADABLE_BASE: "读不了项目检出。它还是 git 仓库吗？",
+    },
     done: '已把 "{branch}" 合入 {landedOn}（{commit}）。',
     worktreeKept: "已合入，但 worktree 保留了：{reason}",
     worktreePathStale: "已合入并移除 worktree，但任务仍指向它：{reason}",

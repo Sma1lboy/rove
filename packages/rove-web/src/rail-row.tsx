@@ -126,12 +126,20 @@ export function RailRow(props: {
         {props.repo && <span className="max-w-24 truncate text-subtle">{props.repo}</span>}
         {row.level !== undefined && <span className="text-subtle">{row.level}</span>}
         {(task.extraRepoCount ?? 0) > 0 && (
-          <span className="text-subtle" title={t("rail.extraRepos", { count: task.extraRepoCount ?? 0 })}>
+          <span
+            className="text-subtle"
+            title={t(task.extraRepoCount === 1 ? "rail.extraReposOne" : "rail.extraRepos", {
+              count: task.extraRepoCount ?? 0,
+            })}
+          >
             +{task.extraRepoCount}
           </span>
         )}
         {count && (
-          <span className="text-subtle tabular-nums" title={t("rail.todos", count)}>
+          <span
+            className="text-subtle tabular-nums"
+            title={t(count.total === 1 ? "rail.todosOne" : "rail.todos", count)}
+          >
             {count.done}/{count.total}
           </span>
         )}

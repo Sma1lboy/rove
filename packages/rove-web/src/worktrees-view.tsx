@@ -8,12 +8,14 @@
 import { en as wtEn, zh as wtZh } from "@sma1lboy/rove/src/tui/i18n/messages/worktrees.ts"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { ConfirmDialog, errorText } from "./dialogs.tsx"
-import { useLocale } from "./i18n/index.ts"
+import { t, useLocale } from "./i18n/index.ts"
 import { compactAge } from "./inbox.ts"
 import type { AppModel } from "./model.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
+import { requestErrorText } from "./request-error.ts"
 import { landFlow } from "./task-flows.tsx"
 import { dialog, page, toast } from "./ui.ts"
+import { Button } from "./ui/button.tsx"
 import { Legend } from "./ui/legend.tsx"
 import { PAGE_SCROLL, PAGE_TITLE } from "./ui/page.ts"
 import { LINK } from "./ui/text.ts"
@@ -52,31 +54,39 @@ export function WorktreesView({ model }: { model: AppModel }) {
     return last?.projects ?? null
   })
   const [removing, setRemoving] = useState<readonly string[]>([])
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [cursor, setCursor] = useState(0)
   const [tick, setTick] = useState(0)
   const host = useRef<HTMLDivElement>(null)
 
-  // Two passes as the TUI: local signals first, then the slow remote/PR lookups.
+  // Two passes as the TUI: local signals first, then the slow remote/PR lookups. On every (re)connect: a page
+  // restored with the tab mounts before the socket is up.
   // biome-ignore lint/correctness/useExhaustiveDependencies: tick is a trigger the body doesn't read
   useEffect(() => {
     let live = true
-    let full = false
-    const load = (network: boolean) =>
-      requestRemembered<{ projects: Project[] }>(c, "worktrees.list", { network })
-        .then((r) => {
-          if (!live || (!network && full)) return
-          if (network) full = true
-          setProjects(r.projects)
-          if (network) {
-            const listed = new Set(r.projects.flatMap((p) => p.worktrees.map((x) => x.path)))
-            setRemoving((paths) => paths.filter((p) => listed.has(p)))
-          }
-        })
-        .catch(() => {})
-    void load(false)
-    void load(true)
+    const stop = c.onOpen(() => {
+      let full = false
+      const load = (network: boolean) =>
+        requestRemembered<{ projects: Project[] }>(c, "worktrees.list", { network })
+          .then((r) => {
+            if (!live || (!network && full)) return
+            if (network) full = true
+            setLoadError(null)
+            setProjects(r.projects)
+            if (network) {
+              const listed = new Set(r.projects.flatMap((p) => p.worktrees.map((x) => x.path)))
+              setRemoving((paths) => paths.filter((p) => listed.has(p)))
+            }
+          })
+          .catch((err: unknown) => {
+            if (live) setLoadError(requestErrorText(err))
+          })
+      void load(false)
+      void load(true)
+    })
     return () => {
       live = false
+      stop()
     }
   }, [c, tick])
   useEffect(() => host.current?.focus(), [])
@@ -161,8 +171,14 @@ export function WorktreesView({ model }: { model: AppModel }) {
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
     <div className={PAGE_SCROLL} tabIndex={0} ref={host} onKeyDown={onKey}>
       <h1 className={PAGE_TITLE}>{w.title}</h1>
+      {loadError !== null && (
+        <p className="flex flex-wrap items-baseline gap-3 text-error">
+          {fill(w.loadFailed, { message: loadError })}
+          <Button onClick={refetch}>{t("workspace.retry")}</Button>
+        </p>
+      )}
       {projects === null ? (
-        <p className="text-muted">{w.loading}</p>
+        loadError === null && <p className="text-muted">{w.loading}</p>
       ) : visible.length === 0 ? (
         <p className="text-muted">{w.noProjects}</p>
       ) : (

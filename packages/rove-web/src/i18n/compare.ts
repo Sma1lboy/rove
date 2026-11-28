@@ -33,6 +33,7 @@ export const en = {
     archiveBusyBody: "Archive them anyway? They are stopped; their worktrees and branches stay.",
     archiveBusyConfirm: "Archive anyway",
     archived: "archived {count} attempts",
+    archivedOne: "archived 1 attempt",
     archiveFailed: "could not archive: {error}",
   },
 }
@@ -70,6 +71,7 @@ export const zh: typeof en = {
     archiveBusyBody: "仍要归档吗？它们会被停掉，worktree 和分支都保留。",
     archiveBusyConfirm: "仍然归档",
     archived: "已归档 {count} 个方案",
+    archivedOne: "已归档 1 个方案",
     archiveFailed: "无法归档：{error}",
   },
 }

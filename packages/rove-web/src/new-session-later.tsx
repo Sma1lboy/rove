@@ -1,11 +1,12 @@
 /** New session's Later: a time field that starts the session by itself at that time instead of now (in the `⋯` menu). */
 
+import { displayWidth } from "@sma1lboy/rove/src/lib/display-width.ts"
 import { useState } from "react"
 import { t } from "./i18n/index.ts"
 import { parseStartAt } from "./schedule-start.ts"
 import { Button } from "./ui/button.tsx"
 import * as C from "./ui/composer.ts"
-import { INPUT } from "./ui/text.ts"
+import { INPUT_FRAME } from "./ui/text.ts"
 
 export function LaterField(props: {
   /** The time was understood and lies ahead. */
@@ -20,12 +21,15 @@ export function LaterField(props: {
     if (!at) return props.onInvalid(t("newSession.laterBad"))
     props.onSchedule(at)
   }
+  const placeholder = t("newSession.laterPlaceholder")
   return (
     <div className={C.LATER}>
       <input
-        className={`${INPUT} min-w-0 flex-1`}
+        className={`${INPUT_FRAME} flex-1 px-2.5 py-2`}
         value={text}
-        placeholder={t("newSession.laterPlaceholder")}
+        placeholder={placeholder}
+        // Wide enough for the examples it shows, and no narrower: the popover is as wide as its content needs.
+        size={displayWidth(placeholder)}
         aria-label={t("newSession.later")}
         spellCheck={false}
         autoComplete="off"
@@ -44,7 +48,7 @@ export function LaterField(props: {
           submit()
         }}
       />
-      <Button variant="filled" disabled={!text.trim()} onClick={submit}>
+      <Button variant="filled" className="shrink-0" disabled={!text.trim()} onClick={submit}>
         {t("newSession.laterConfirm")}
       </Button>
     </div>

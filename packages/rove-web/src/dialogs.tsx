@@ -15,6 +15,9 @@ import { DIALOG_BODY, DIALOG_HEAD, DIALOG_TITLE, OVERLAY, dialogClass } from "./
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { ACTIONS, INPUT, LINK } from "./ui/text.ts"
 
+/** Buttons read in sentence case; copy shared with the TUI keeps its lowercase there. */
+const sentence = (label: string): string => label.charAt(0).toUpperCase() + label.slice(1)
+
 function errorText(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
 }
@@ -176,7 +179,7 @@ export function ConfirmDialog(props: {
           </button>
           {props.secondary && !escalated && (
             <button type="button" className={buttonClass({ danger: true })} disabled={busy} onClick={() => go(true)}>
-              {props.secondary.label}
+              {sentence(props.secondary.label)}
             </button>
           )}
           <button
@@ -186,7 +189,7 @@ export function ConfirmDialog(props: {
             disabled={busy}
             onClick={() => go(false)}
           >
-            {escalated && props.escalate ? props.escalate.label : props.confirmLabel}
+            {sentence(escalated && props.escalate ? props.escalate.label : props.confirmLabel)}
           </button>
         </div>
       </div>
@@ -259,7 +262,7 @@ export function DialogActions({ busy, submitLabel }: { busy: boolean; submitLabe
         {t("dialog.cancel")}
       </button>
       <button type="submit" className={buttonClass()} disabled={busy}>
-        {submitLabel}
+        {sentence(submitLabel)}
       </button>
     </div>
   )

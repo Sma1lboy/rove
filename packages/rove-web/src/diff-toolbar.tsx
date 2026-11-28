@@ -34,7 +34,11 @@ export function DiffToolbar(props: {
         {t("review.ignoreWs")}
       </Button>
       <span className="flex min-w-0 basis-full flex-wrap items-center gap-x-1.5 text-muted">
-        {t("review.totals", { files: props.files, added: props.added, removed: props.removed })}
+        {t(props.files === 1 ? "review.totalsOne" : "review.totals", {
+          files: props.files,
+          added: props.added,
+          removed: props.removed,
+        })}
         {props.shape && <span>· {props.shape}</span>}
         {props.files > 0 && (
           <span className="whitespace-nowrap">

@@ -4,9 +4,9 @@ import type { IssueBoardColumn } from "@sma1lboy/rove/src/state/issue-board.ts"
 import { useEffect, useState } from "react"
 import type { EngineOption, Issue } from "./kanban-drawer.tsx"
 import type { AppModel } from "./model.ts"
-import { type ComposerEngine, defaultEngineId, offeredEngines } from "./new-session.ts"
 import { errorMessage, mergeRepos, useTaskRepos } from "./pages-kit.ts"
-import { lastReply, remember, requestRemembered } from "./remembered.ts"
+import { lastReply, remember } from "./remembered.ts"
+import { useEngineChoice } from "./task-dialogs.tsx"
 import { KB_CARD_BODY, KB_CARD_FOOT, KB_CARD_HEAD, kbCardClass, kbCardTitleClass } from "./ui/kanban.ts"
 
 export interface Board {
@@ -25,21 +25,10 @@ export const TONE: Record<string, string> = {
   working: "text-accent",
 }
 
+/** The New session composer's engine pick (the one last started on, else Settings' default), so both open on the same engine. */
 export function useEngines(model: AppModel): { engines: readonly EngineOption[]; defaultEngine: string } {
-  type Row = EngineOption & ComposerEngine
-  const [rows, setRows] = useState<readonly Row[]>(() => {
-    const last = lastReply<{ engines: Row[] }>(model, "engines.list")
-    return last ? offeredEngines(last.engines) : []
-  })
-  useEffect(() => {
-    // On every (re)connect: a board restored with the page mounts before the socket is up.
-    return model.client.onOpen(() => {
-      requestRemembered<{ engines: Row[] }>(model, "engines.list")
-        .then((res) => setRows(offeredEngines(res.engines)))
-        .catch(() => {})
-    })
-  }, [model])
-  return { engines: rows, defaultEngine: defaultEngineId(rows) }
+  const { engines, engine } = useEngineChoice(model)
+  return { engines, defaultEngine: engine }
 }
 
 /**

@@ -22,6 +22,7 @@ export function ComposerMore(props: {
 }) {
   const [view, setView] = useState<"root" | "later" | "agent">("root")
   const place = props.agentPlace
+  if (!place && !props.onLater) return null
   return (
     <ChipPopover
       field="more"
