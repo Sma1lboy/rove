@@ -90,19 +90,14 @@ export function PhoneRailRow(props: RailRowProps) {
   )
 }
 
-/** Under the wordmark: which computer this is, whether the page reaches it, and how many tasks it lists. */
-export function PhoneRailNote({ model, count }: { model: AppModel; count: number }) {
+/** Under the wordmark only while the page can't reach the computer; the computer's name is in Settings → About. */
+export function PhoneRailNote({ model }: { model: AppModel }) {
   useLocale()
   const conn = useStore(model.client.conn)
-  const state =
-    conn.state === "open"
-      ? t("rail.connected")
-      : t(conn.state === "retrying" ? "rail.reconnecting" : "status.connecting")
+  if (conn.state === "open") return null
   return (
     <p className="m-0 truncate px-4 pb-2 font-sans text-meta text-muted" data-rail-note>
-      {[conn.hello?.host, state, t(count === 1 ? "rail.taskCount" : "rail.tasksCount", { count })]
-        .filter(Boolean)
-        .join(" · ")}
+      {t(conn.state === "retrying" ? "rail.reconnecting" : "status.connecting")}
     </p>
   )
 }

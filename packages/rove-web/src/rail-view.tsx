@@ -153,7 +153,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         {narrow && <PhoneRoutines model={model} />}
         {narrow && <PhoneExtensions model={model} />}
       </header>
-      {narrow && payload && <PhoneRailNote model={model} count={tasks.length + remoteTasks.length} />}
+      {narrow && payload && <PhoneRailNote model={model} />}
       {moving && (
         <div className={`${RAIL_SEARCH} mono`}>
           <span className="text-accent">{tc("tasks", "moveChip").trim()}</span>

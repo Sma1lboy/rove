@@ -66,6 +66,7 @@ export const en = {
     },
     about: {
       groupRove: "Rove",
+      computer: "Computer",
       daemon: "Daemon",
       daemonCurrent: "rove {version}, same build as this page",
       daemonStale: "rove {version} is out of date; run `rove daemon restart`",
@@ -298,6 +299,7 @@ export const zh: typeof en = {
     },
     about: {
       groupRove: "Rove",
+      computer: "电脑",
       daemon: "守护进程",
       daemonCurrent: "rove {version}，与本页同一版本",
       daemonStale: "rove {version} 版本过旧；运行 `rove daemon restart`",
