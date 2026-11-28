@@ -8,6 +8,16 @@ reasoning is recorded so the next agent has the context.
 The user-facing vocabulary lives in [`../KEYBINDINGS.md`](../KEYBINDINGS.md).
 `F1` renders the live keymap and is authoritative over both.
 
+## Desktop app on macOS: ⌘W closes the window, not the app
+
+**2026-11-28 — owner sign-off.** In the macOS desktop app, ⌘W (File › Close
+Window) and the window's close button used to quit the app, because closing the
+window meant quit. They now close the window only, as Mac apps do: the app and
+its bridge stay up in the Dock, a Dock click reopens the window on the same
+bridge, and ⌘Q quits and stops the bridge. Windows and Linux keep quitting
+when the last window closes, since a windowless app there has nowhere to be
+reopened from. No Rove chord moved; this is the platform's own menu item.
+
 ## PROPOSED: `/` searches file names and text in the Files pane
 
 **2026-11-26 — PROPOSED, owner sign-off pending.** With the Files pane

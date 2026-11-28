@@ -150,9 +150,11 @@ the pairing token; the app never logs it and never writes it down.
 ## Chords
 
 The app adds no Rove chords — the page's keybindings are the keybindings, and the
-menu carries only the platform's own (⌘Q, ⌘W, ⌘R, ⌘±, ⌘M). Closing the window
-quits the app, which stops the bridge it started; the daemon is shared with the
-TUI and keeps running.
+menu carries only the platform's own (⌘Q, ⌘W, ⌘R, ⌘±, ⌘M). On macOS, ⌘W or the
+red button closes the window only: the app stays in the Dock with its bridge
+running, and a Dock click brings the window back. ⌘Q quits and stops the bridge
+it started. On Windows and Linux, closing the last window quits. The daemon is
+shared with the TUI and keeps running either way.
 
 ## Native terminal preview on macOS
 
