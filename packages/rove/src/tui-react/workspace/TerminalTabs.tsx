@@ -16,7 +16,7 @@
  */
 
 import { engineLaunchArgv, withPinnedSessionId } from "@/engine/engine-presets"
-import { remoteTaskOf } from "../../machines/hub-singleton.ts"
+import { remoteTaskOf } from "./hub-singleton.ts"
 
 import { getCapabilities } from "@/engine/registry"
 import { resolvePreferredVendor } from "@/state/vendor-prefs"

@@ -15,7 +15,7 @@ const host = vi.hoisted(() => ({
   /** What the user's editor setting resolves to; null = none installed. The resolution itself is the TUI's (`editor-launch.test.ts`). */
   editor: true,
 }))
-vi.mock("../../src/tui/lib/editor-launch.ts", () => ({
+vi.mock("../../src/lib/editor-launch.ts", () => ({
   resolveEditorLaunch: async (_worktree: string, abs: string, line?: number) =>
     host.editor
       ? {

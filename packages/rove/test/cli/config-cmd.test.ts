@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   binaryAvailable: vi.fn(),
 }))
 
-vi.mock("../../src/tui/lib/editor-launch.ts", () => ({
+vi.mock("../../src/lib/editor-launch.ts", () => ({
   resolveEditorCommand: mocks.resolveEditorCommand,
   binaryAvailable: mocks.binaryAvailable,
 }))

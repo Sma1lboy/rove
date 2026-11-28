@@ -8,7 +8,6 @@
 import type { Task } from "@/types/task"
 import type { BoxRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { type MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useMachineRows } from "../../../machines/hub-singleton"
 import { subscribeBackgroundPolls } from "../../../tui/lib/background-poll"
 import { createSidebarController } from "../../../tui/panes/sidebar/controller"
 import { RECENT_ROW_ID } from "../../../tui/panes/sidebar/tree-core"
@@ -18,6 +17,7 @@ import { useTheme } from "../../context/theme"
 import { useLatest } from "../../lib/use-latest"
 import { useTerminalSize } from "../../lib/use-terminal-size"
 import { ContextMenu } from "../../ui/context-menu"
+import { useMachineRows } from "../../workspace/hub-singleton"
 import {
   SidebarBrandHeader,
   SidebarCreateAction,

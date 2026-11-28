@@ -5,10 +5,10 @@
  */
 
 import { useSyncExternalStore } from "react"
-import type { RemoteOrchestrator } from "../client/remote-orchestrator.ts"
-import type { MachineLayerEntry } from "../tui/panes/sidebar/machine-layer.ts"
-import type { Task } from "../types/task.ts"
-import type { MachineFeed } from "./feed.ts"
+import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
+import type { MachineFeed } from "../../machines/feed.ts"
+import type { MachineLayerEntry } from "../../tui/panes/sidebar/machine-layer.ts"
+import type { Task } from "../../types/task.ts"
 
 let hub: MachineFeed | null = null
 

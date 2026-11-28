@@ -16,9 +16,9 @@ import type {
   TaskJobState,
   WorktreeChangesMap,
 } from "../../client/remote-orchestrator-payloads"
-import { useMergedTasks } from "../../machines/hub-singleton"
 import type { Task } from "../../types/task"
 import { useAccessor } from "../lib/use-accessor"
+import { useMergedTasks } from "./hub-singleton"
 
 export interface UseDaemonStateResult {
   tasks: readonly Task[]

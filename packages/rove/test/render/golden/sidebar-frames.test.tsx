@@ -22,7 +22,7 @@
 import { afterAll, beforeAll, expect, test } from "bun:test"
 import { DEFAULT_SPINNER_FRAMES } from "@/engine/spinner-frames"
 import type { MachineFeed } from "@/machines/feed"
-import { setMachineHub } from "@/machines/hub-singleton"
+import { setMachineHub } from "@/tui-react/workspace/hub-singleton"
 import { currentLang, setLocaleLang } from "@/tui/i18n"
 import type { MachineLayerEntry } from "@/tui/panes/sidebar/machine-layer"
 import { goldenPath, matchGolden } from "../../golden/golden-file"

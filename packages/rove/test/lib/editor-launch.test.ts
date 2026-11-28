@@ -4,8 +4,8 @@ import {
   buildNvimDiffCommand,
   editorWindowLabel,
   relativeToWorktree,
-} from "../../src/tui/lib/editor-launch.ts"
-import { normalizeEditorKind } from "../../src/tui/lib/editor-prefs.ts"
+} from "../../src/lib/editor-launch.ts"
+import { normalizeEditorKind } from "../../src/lib/editor-prefs.ts"
 
 describe("buildEditorCommand", () => {
   it("explicit terminal editors open the shell-quoted path", () => {
