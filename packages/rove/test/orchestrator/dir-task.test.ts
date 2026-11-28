@@ -111,6 +111,7 @@ describe("scratch tasks", () => {
     await orch.setTitle(scratch.id, "my bench")
     const kept = orch.getTask(scratch.id)
     expect(kept?.scratch).toBe(false)
+    expect(kept?.noProject).toBe(true) // still Ungrouped, not its cwd's project
     expect(kept?.title).toBe("my bench")
   })
 
