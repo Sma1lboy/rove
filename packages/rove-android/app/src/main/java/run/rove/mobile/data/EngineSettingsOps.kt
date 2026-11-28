@@ -1,7 +1,9 @@
 package run.rove.mobile.data
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.jsonPrimitive
 import run.rove.mobile.domain.*
 
 // Typed ops for Settings → Engines / Plugins and the task engine history (docs/IOS.md tables).
@@ -17,6 +19,15 @@ suspend fun RoveRepository.setEngineDefault(id: String) { bridge.request("engine
 /** A blank [name] clears the override. */
 suspend fun RoveRepository.renameEngine(id: String, name: String) { bridge.request("engine.rename", args("id" to id, "name" to name)) }
 suspend fun RoveRepository.resetEngine(id: String) { bridge.request("engine.reset", args("id" to id)) }
+
+// Each writes into every engine's own config dir on the Mac; the caller confirms first.
+suspend fun RoveRepository.installHooks() { bridge.request("engines.hooks.install") }
+suspend fun RoveRepository.uninstallHooks() { bridge.request("engines.hooks.uninstall") }
+/** The bridge answers `{error}` rather than failing; a non-null one is thrown so the confirm sheet shows it. */
+suspend fun RoveRepository.installSkill() {
+    val error = bridge.request("skill.install")["error"]?.jsonPrimitive?.contentOrNull
+    if (error != null) throw Exception(error)
+}
 
 suspend fun RoveRepository.pluginList(): PluginsPayload = wireJson.decodeFromJsonElement(bridge.request("plugins.list"))
 suspend fun RoveRepository.setPluginEnabled(id: String, enabled: Boolean) {
