@@ -6,12 +6,13 @@
  */
 
 import { isAbsolute, relative, resolve, sep } from "node:path"
+import { PLACEHOLDER_TASK_TITLE, sanitizeTaskTitle } from "@sma1lboy/rove-core/orchestrator/title.ts"
+import { isGitRepo, isRemoteRepoKey, resolveMainRepoRoot } from "@sma1lboy/rove-core/state/repos.ts"
+import type { Task, TaskId } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import type { SpawnChildInput } from "@sma1lboy/rove-daemon/daemon/child-contracts"
 import type { TaskDispatcher } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { gitRepoOf, lineageRootId, taskCwd } from "@sma1lboy/rove-daemon/task-tree"
-import { isGitRepo, isRemoteRepoKey, resolveMainRepoRoot } from "../state/repos.ts"
-import type { Task, TaskId } from "../types/task.ts"
-import { toTaskId } from "../types/task.ts"
 import { canonPath } from "./core-helpers.ts"
 import type { CreateTaskInput } from "./create-task-input.ts"
 import {
@@ -23,7 +24,6 @@ import {
 } from "./errors.ts"
 import type { TaskCreateInput, TaskIndexStore } from "./index/store.ts"
 import { type LinkedRepo, scanLinkedRepos } from "./linked-repos.ts"
-import { PLACEHOLDER_TASK_TITLE, sanitizeTaskTitle } from "./title.ts"
 import { git, headCommit } from "./worktree/git.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 

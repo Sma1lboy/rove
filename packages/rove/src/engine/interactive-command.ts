@@ -15,9 +15,9 @@ import { argvHasFlag } from "@/cli/argv"
 import { roveCliInvocation } from "@/cli/invocation"
 import { engineEntry } from "@/engine/registry"
 import { permissionBypassEnabled } from "@/state/permission-bypass"
-import { getPersistedString } from "@/state/repos"
-import type { VendorId } from "@/types/task"
-import { coerceVendorId } from "@/types/vendor"
+import { getPersistedString } from "@sma1lboy/rove-core/state/repos.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/task.ts"
+import { coerceVendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 
 /** state.json key holding a vendor's launch-command override string. */
 export function engineCommandKey(vendor: VendorId): string {

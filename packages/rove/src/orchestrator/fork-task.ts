@@ -4,13 +4,13 @@
  * collaborators, not the Orchestrator.
  */
 
-import { isRemoteRepoKey } from "../state/repos.ts"
-import type { Task, TaskId } from "../types/task.ts"
+import { gitRepoOf } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import { isRemoteRepoKey } from "@sma1lboy/rove-core/state/repos.ts"
+import type { Task, TaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { type CreateDeps, createTaskRow } from "./core-create.ts"
 import type { CreateTaskInput } from "./create-task-input.ts"
 import { ForkUnsupportedError, TaskDeletingError, TaskNotFoundError } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
-import { gitRepoOf } from "./task-tree.ts"
 import { type WorkspaceRegistry, workspaceBackendId, workspaceCapabilities } from "./workspace/index.ts"
 import { headCommit } from "./worktree/git.ts"
 

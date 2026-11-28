@@ -9,7 +9,7 @@
  */
 
 import { prChip } from "@/sidebar/row-chips"
-import { TASK_STATUSES, type Task } from "@/types/task"
+import { TASK_STATUSES, type Task } from "@sma1lboy/rove-core/types/task.ts"
 import { pad } from "./golden-file"
 import { task } from "./sidebar-state-matrix"
 

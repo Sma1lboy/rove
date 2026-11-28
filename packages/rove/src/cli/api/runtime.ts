@@ -16,11 +16,17 @@ import {
 } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { engineLaunchArgv, withPinnedSessionId } from "../../engine/engine-presets.ts"
 
+import {
+  inspectRepo,
+  isGitRepo,
+  isRemoteRepoKey,
+  isValidBranchName,
+  resolveMainRepoRoot,
+} from "@sma1lboy/rove-core/state/repos.ts"
 import { launchReposOf, trustExtraRepos } from "../../engine/multi-repo-launch.ts"
 import { buildEngineSessionLaunch } from "../../engine/session-launch.ts"
 import { trustEngineWorktree } from "../../engine/trust-worktree.ts"
 import { persistedMaxLiveEngines } from "../../state/engine-limit.ts"
-import { inspectRepo, isGitRepo, isRemoteRepoKey, isValidBranchName, resolveMainRepoRoot } from "../../state/repos.ts"
 import { type TerminalTab, tabPtyKeyFor } from "../../tabs/terminal-tabs-core.ts"
 import { type DaemonRpc, resolveActiveTaskId } from "../daemon-session.ts"
 
@@ -378,7 +384,7 @@ export const defaultApiRuntime: ApiRuntime = {
   isUsableRepo: async (absPath) => isRemoteRepoKey(absPath) || isGitRepo(absPath),
   isValidBranchName: async (branch) => isValidBranchName(branch),
   defaultVendor: async () => {
-    const { getGlobalDefaultVendor, getLastActiveVendor } = await import("../../state/vendor-prefs.ts")
+    const { getGlobalDefaultVendor, getLastActiveVendor } = await import("@sma1lboy/rove-core/state/vendor-prefs.ts")
     return getLastActiveVendor() ?? getGlobalDefaultVendor()
   },
   readWorktreeChanges: async (worktreePath) =>
@@ -400,7 +406,7 @@ export const defaultApiRuntime: ApiRuntime = {
   listeningPorts: async () => (await import("./listening-ports.ts")).scanListeningPorts(),
   measureCheckout: async (path) => {
     const { measureCheckout } = await import("../../orchestrator/worktree/disk-usage.ts")
-    const { execHostForWorktreePath } = await import("../../exec/resolve.ts")
+    const { execHostForWorktreePath } = await import("@sma1lboy/rove-core/exec/resolve.ts")
     return measureCheckout(execHostForWorktreePath(path), path)
   },
 }

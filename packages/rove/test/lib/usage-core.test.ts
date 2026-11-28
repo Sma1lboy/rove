@@ -1,6 +1,5 @@
-import { describe, expect, it } from "vitest"
-import { displayWidth } from "../../src/lib/display-width.ts"
-import { ratioBar } from "../../src/lib/progress-bar.ts"
+import { displayWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
+import { ratioBar } from "@sma1lboy/rove-core/lib/progress-bar.ts"
 import {
   type FooterChipsView,
   USAGE_BAR_WIDTH,
@@ -9,7 +8,8 @@ import {
   narrowUsageChip,
   usageChipsBudget,
   usageRows,
-} from "../../src/lib/usage-core.ts"
+} from "@sma1lboy/rove-core/lib/usage-core.ts"
+import { describe, expect, it } from "vitest"
 
 const NOW = Date.parse("2026-07-27T12:00:00.000Z")
 

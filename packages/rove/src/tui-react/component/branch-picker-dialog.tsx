@@ -10,6 +10,7 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import { listLocalBranches } from "@sma1lboy/rove-core/worktree/git-snapshot.ts"
 import { useMemo, useState } from "react"
 import {
   type PickerWindow,
@@ -20,7 +21,6 @@ import {
   stripNewlines,
   windowAround,
 } from "../../tui/component/new-task-dialog/state"
-import { listLocalBranches } from "../../worktree/git-snapshot"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"

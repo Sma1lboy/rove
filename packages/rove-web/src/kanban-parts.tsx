@@ -1,6 +1,6 @@
 /** The Kanban page's data hooks and its card (TUI `use-kanban-boards.ts`, `kanban-card.tsx`). */
 
-import type { IssueBoardColumn } from "@sma1lboy/rove/src/state/issue-board.ts"
+import type { IssueBoardColumn } from "@sma1lboy/rove-core/state/issue-board.ts"
 import { useEffect, useState } from "react"
 import type { EngineOption, Issue } from "./kanban-drawer.tsx"
 import type { AppModel } from "./model.ts"

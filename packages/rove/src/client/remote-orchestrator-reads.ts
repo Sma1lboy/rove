@@ -1,8 +1,8 @@
+import type { ReadableState } from "@sma1lboy/rove-core/lib/external-store.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import type { ReadableState } from "../lib/external-store.ts"
 import type { Unsubscribe } from "../orchestrator/core.ts"
-import type { Task } from "../types/task.ts"
 import { deserializeTask } from "./remote-orchestrator-payloads.ts"
 
 /** Replay the task cache, then notify on changes. A failing listener never breaks delivery. */

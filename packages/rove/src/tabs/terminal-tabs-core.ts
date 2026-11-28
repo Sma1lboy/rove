@@ -6,7 +6,7 @@
  * until closed.
  */
 
-import type { VendorId } from "@/types/vendor"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { PersistedSplit } from "./terminal-tab-split"
 
 // Re-exports keep one entry point for importers.

@@ -20,8 +20,8 @@
  * its verb; flags are omitted since subcommands define their own.
  */
 import { existsSync, readFileSync } from "node:fs"
-import type { ProductCliName } from "../product.ts"
-import { ROVE_PRODUCT_NAME } from "../product.ts"
+import type { ProductCliName } from "@sma1lboy/rove-core/product.ts"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 import { generateCompletions, isShellKind, mergeSubVerbs, shippedCompletionsPath } from "./completion-scripts.ts"
 
 /** `--help` is spelled as a flag or as a bare word, as it always was here. */
@@ -100,7 +100,7 @@ export async function runCompletionsSubcommand(
     // and the onboarding graph.
     const [{ installCompletions, settleWelcomeInstall }, { t }] = await Promise.all([
       import("./onboarding.ts"),
-      import("../i18n"),
+      import("@sma1lboy/rove-core/i18n/index.ts"),
     ])
     const completion = installCompletions(shell, deps.home, cliName, shipped)
     settleWelcomeInstall("completions", shell)

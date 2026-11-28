@@ -12,8 +12,8 @@
  * and a system prompt survives compaction where a first message may not.
  */
 
-import { autoStatusEnabled } from "@/state/auto-status"
-import { dispatcherEnabled } from "@/state/dispatcher"
+import { autoStatusEnabled } from "@sma1lboy/rove-core/state/auto-status.ts"
+import { dispatcherEnabled } from "@sma1lboy/rove-core/state/dispatcher.ts"
 import { sessionProtocol } from "./engine-presets.ts"
 import { argvHasFlag, roveApiInvocation } from "./interactive-command.ts"
 

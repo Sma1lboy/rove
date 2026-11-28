@@ -8,11 +8,11 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { BUNDLED_THEME_JSONS } from "@sma1lboy/rove-core/theme/bundled.ts"
+import { resolveThemeSlotHex } from "@sma1lboy/rove-core/theme/hex.ts"
+import { loadUserThemes } from "@sma1lboy/rove-core/theme/loader.ts"
 import { type MockInstance, afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { runThemeSubcommand } from "../../src/cli/theme.ts"
-import { BUNDLED_THEME_JSONS } from "../../src/theme/bundled.ts"
-import { resolveThemeSlotHex } from "../../src/theme/hex.ts"
-import { loadUserThemes } from "../../src/theme/loader.ts"
 
 const VALID_THEME = {
   defs: { bg: "#000000", fg: "#ffffff" },

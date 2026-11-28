@@ -1,5 +1,10 @@
+import {
+  coerceVendorId,
+  isBuiltinVendor,
+  nextVendorWithin,
+  resolvePersistedVendor,
+} from "@sma1lboy/rove-core/types/vendor.ts"
 import { describe, expect, it } from "vitest"
-import { coerceVendorId, isBuiltinVendor, nextVendorWithin, resolvePersistedVendor } from "../../src/types/vendor.ts"
 
 describe("nextVendorWithin", () => {
   it("cycles within a subset, wrapping around", () => {

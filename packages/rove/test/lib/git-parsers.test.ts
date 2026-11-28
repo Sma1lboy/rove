@@ -17,8 +17,13 @@
  *     onto its status row.
  */
 
+import {
+  type NumstatRow,
+  parseNumstatRows,
+  parsePorcelainRows,
+  unquoteGitPath,
+} from "@sma1lboy/rove-core/lib/git-parsers.ts"
 import { describe, expect, test } from "vitest"
-import { type NumstatRow, parseNumstatRows, parsePorcelainRows, unquoteGitPath } from "../../src/lib/git-parsers"
 
 describe("unquoteGitPath", () => {
   test("decodes escaped quote and backslash", () => {

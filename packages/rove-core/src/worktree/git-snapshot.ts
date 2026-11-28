@@ -14,8 +14,8 @@
 
 import { spawnSync } from "node:child_process"
 import * as fs from "node:fs"
-import { t } from "@/i18n"
-import { recordSpawn } from "@/lib/spawn-profile"
+import { t } from "../i18n"
+import { recordSpawn } from "../lib/spawn-profile"
 
 /** Default base ref when the user leaves the branch field blank or HEAD can't be read. */
 export const DEFAULT_BASE_REF = "main"

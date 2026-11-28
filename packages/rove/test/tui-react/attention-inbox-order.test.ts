@@ -1,3 +1,4 @@
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { ATTENTION_INBOX_STATES } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { describe, expect, test } from "vitest"
 import type { AttentionInboxItem } from "../../src/client/remote-orchestrator"
@@ -9,7 +10,6 @@ import {
   sortAttentionInbox,
   visitResolvedEpisodes,
 } from "../../src/tui-react/workspace/attention-inbox-core"
-import { toTaskId } from "../../src/types/task"
 
 const item = (
   taskId: string,

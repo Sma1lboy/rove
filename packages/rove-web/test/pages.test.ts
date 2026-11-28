@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { withImagePlaceholders as tuiWithImagePlaceholders } from "@sma1lboy/rove/src/state/issue-chat.ts"
+import { withImagePlaceholders as tuiWithImagePlaceholders } from "@sma1lboy/rove-core/state/issue-chat.ts"
 import { nextPlaceholderIndex, withImagePlaceholders } from "../src/kanban-attach.ts"
 
 describe("story description attachments", () => {

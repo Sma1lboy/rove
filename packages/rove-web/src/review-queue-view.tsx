@@ -4,7 +4,7 @@
  * `r` rereads past the 60 s cache, q/Esc close. Nothing here writes to GitHub.
  */
 
-import { relativeAge } from "@sma1lboy/rove/src/lib/relative-time.ts"
+import { relativeAge } from "@sma1lboy/rove-core/lib/relative-time.ts"
 import { useEffect, useRef, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"

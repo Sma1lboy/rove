@@ -6,9 +6,9 @@
  * so adding a subcommand updates help in one place.
  */
 
-import type { ProductCliName } from "../product.ts"
-import { ROVE_PRODUCT_NAME } from "../product.ts"
-import { CURRENT_VERSION } from "../version.ts"
+import type { ProductCliName } from "@sma1lboy/rove-core/product.ts"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
+import { CURRENT_VERSION } from "@sma1lboy/rove-core/version.ts"
 
 /** The full `rove help` text (no trailing newline). */
 export function topLevelUsage(cliName: ProductCliName = ROVE_PRODUCT_NAME): string {

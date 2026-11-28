@@ -10,11 +10,12 @@
  * `onSplitChange`.
  */
 
-import type { EngineTerminalPresentation } from "@/types/terminal-presentation"
 import { TextAttributes } from "@opentui/core"
+import { SPLIT_STYLE_KEY, normalizeSplitStyle } from "@sma1lboy/rove-core/state/split-style.ts"
+import type { EngineTerminalPresentation } from "@sma1lboy/rove-core/types/terminal-presentation.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { prefixAction } from "../../keys/keymap-dispatch"
-import { SPLIT_STYLE_KEY, normalizeSplitStyle } from "../../state/split-style"
 import {
   type SplitLeaf,
   type SplitNode,
@@ -37,7 +38,6 @@ import { defaultShell } from "../../tui/panes/terminal/pty-types"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { getDefaultLiveEngines } from "../../tui/workspace/live-engine"
 import { type SplitDivider, groupChrome, leafOnEdge, paneBoxProps, paneChrome } from "../../tui/workspace/split-chrome"
-import type { VendorId } from "../../types/vendor"
 import { RenameTaskDialog } from "../component/rename-task-dialog"
 import { bindByIds } from "../context/keybindings"
 import { useKV } from "../context/kv"

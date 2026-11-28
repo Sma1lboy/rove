@@ -7,12 +7,12 @@
  * module-level constant — that freezes the language.
  */
 
+import { currentLang, localeState, setLocaleLang, t, tKeys } from "@sma1lboy/rove-core/i18n/index.ts"
 import { useCallback } from "react"
-import { currentLang, localeState, setLocaleLang, t, tKeys } from "../../i18n"
 import { useAccessor } from "../lib/use-accessor"
 
-export { DEFAULT_LOCALE, isLocaleId } from "../../i18n/catalog"
-export type { LocaleId } from "../../i18n/catalog"
+export { DEFAULT_LOCALE, isLocaleId } from "@sma1lboy/rove-core/i18n/catalog.ts"
+export type { LocaleId } from "@sma1lboy/rove-core/i18n/catalog.ts"
 export { currentLang, setLocaleLang, t, tKeys }
 
 /** Subscribe the component to the active language. */

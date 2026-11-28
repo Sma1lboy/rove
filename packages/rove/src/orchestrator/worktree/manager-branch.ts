@@ -1,7 +1,7 @@
 /** `manager.ts`'s branch verbs (exists, upstream, delete, rename): orthogonal
  *  to worktree lifecycle, sharing only run-git via {@link BranchDeps}. */
 
-import type { ExecHost } from "../../exec/exec-host.ts"
+import type { ExecHost } from "@sma1lboy/rove-core/exec/exec-host.ts"
 import { anchorBranchTip } from "./branch-anchor.ts"
 import type { ExecCtx } from "./exec-deps.ts"
 import { GitCommandError, type GitRunOpts, type GitRunResult } from "./git.ts"

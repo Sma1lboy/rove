@@ -16,8 +16,8 @@ import { engineEntry } from "@/engine/registry"
 import { controlsOwnSession } from "@/engine/session-identity"
 import { describe, expect, it, vi } from "vitest"
 
-vi.mock("@/state/repos", async (orig) => ({
-  ...(await orig<typeof import("@/state/repos")>()),
+vi.mock("@sma1lboy/rove-core/state/repos.ts", async (orig) => ({
+  ...(await orig<typeof import("@sma1lboy/rove-core/state/repos.ts")>()),
   getPersistedString: (key: string) => (key === "engineProtocol.claudecpa" ? "claude" : ""),
   getCustomEngineIds: () => ["claudecpa"],
 }))

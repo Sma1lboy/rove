@@ -4,7 +4,8 @@
  * lazy: nothing is read until the owning section is first opened.
  */
 
-import { errorMessage } from "@/lib/error-message"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/task.ts"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { BUNDLED_PLUGINS, isBundledPluginInstalled, setBundledPluginInstalled } from "../../../bundled-plugins"
 import { type PluginInstallPreview, preparePluginInstall } from "../../../cli/plugin-install"
@@ -22,7 +23,6 @@ import {
   setPluginSetting,
 } from "../../../lib/plugins-core"
 import type { SectionId } from "../../../settings/model"
-import type { VendorId } from "../../../types/task"
 import { useT } from "../../i18n"
 import { registerBundledPlugins } from "../../pages/bundled-pages"
 import { loadPluginPages } from "../../pages/load-plugin-pages"

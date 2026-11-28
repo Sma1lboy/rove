@@ -6,12 +6,12 @@
 
 import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
+import { expandTilde } from "@sma1lboy/rove-core/lib/path-home.ts"
 import {
   DELIVERY_OUTCOMES,
   DELIVERY_SUMMARY_MAX_CHARS,
   MAX_DELIVERIES_PER_TASK,
 } from "@sma1lboy/rove-daemon/daemon/contracts"
-import { expandTilde } from "../../lib/path-home.ts"
 import { assertNotEmptyDoneReport } from "./empty-success-guard.ts"
 import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"

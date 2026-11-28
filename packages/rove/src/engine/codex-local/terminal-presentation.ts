@@ -3,7 +3,7 @@ import type {
   TerminalPresentationPalette,
   TerminalRgb,
   TerminalStyleRewrite,
-} from "@/types/terminal-presentation"
+} from "@sma1lboy/rove-core/types/terminal-presentation.ts"
 
 const HEX_RE = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i
 

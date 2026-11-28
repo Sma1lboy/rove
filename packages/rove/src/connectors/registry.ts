@@ -11,7 +11,7 @@ import type {
   ChatConnectorModule,
   ChatConnectorSettings,
   ChatConnectorStatus,
-} from "./chat-connector.ts"
+} from "@sma1lboy/rove-core/connectors/chat-connector.ts"
 
 const CONNECTOR_LOADERS: Readonly<Record<string, () => Promise<ChatConnectorModule>>> = {
   weixin: async () => (await import("rove-weixin")).default,

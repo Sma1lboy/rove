@@ -5,7 +5,7 @@
  * frames what comes back.
  */
 
-import { errorMessage } from "@/lib/error-message"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 import {
   type ApiEnvelope,
   type ApiErrorBody,

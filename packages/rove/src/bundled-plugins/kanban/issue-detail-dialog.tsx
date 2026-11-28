@@ -22,11 +22,11 @@
 
 import { TextAttributes, type TextareaRenderable } from "@opentui/core"
 import { usePaste } from "@opentui/react"
+import type { IssueChatPlacement } from "@sma1lboy/rove-core/state/issue-chat.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/task.ts"
 import type { IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import { useRef, useState } from "react"
-import type { IssueChatPlacement } from "../../state/issue-chat"
 import type { DialogContext } from "../../tui-react/ui/dialog"
-import type { VendorId } from "../../types/task"
 import { host, hostFn } from "./host"
 import type { IssueDetailOptions, IssueDetailOutcome, IssueDraft } from "./issue-detail-contract"
 import { IssueEventsSection } from "./issue-detail-parts"

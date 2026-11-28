@@ -32,9 +32,9 @@
  */
 
 import { readFileSync } from "node:fs"
-import { kvStatePath } from "../env.ts"
-import { isObject } from "../lib/is-object.ts"
-import { updateStateFile } from "./store.ts"
+import { kvStatePath } from "@sma1lboy/rove-core/env.ts"
+import { isObject } from "@sma1lboy/rove-core/lib/is-object.ts"
+import { updateStateFile } from "@sma1lboy/rove-core/state/store.ts"
 
 /**
  * Key prefixes that changed name after shipping, oldest first.

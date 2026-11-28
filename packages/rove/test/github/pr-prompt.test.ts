@@ -2,8 +2,13 @@ import { execFileSync } from "node:child_process"
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import {
+  type PRPromptState,
+  buildPRPrompt,
+  gatherPRPromptState,
+  renderPRPrompt,
+} from "@sma1lboy/rove-core/github/pr-prompt.ts"
 import { describe, expect, test } from "vitest"
-import { type PRPromptState, buildPRPrompt, gatherPRPromptState, renderPRPrompt } from "../../src/github/pr-prompt"
 
 /** Pinned git state, so the override tests assert only template selection. */
 const STATE: PRPromptState = { branch: "feature/x", targetBranch: "main", hasUpstream: false, dirtyCount: 0 }

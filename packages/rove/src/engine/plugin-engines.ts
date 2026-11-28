@@ -6,10 +6,10 @@
  * blocks a launch.
  */
 
+import { getCustomEngineIds } from "@sma1lboy/rove-core/state/repos.ts"
 import { type PluginEngine, readPluginManifest } from "@sma1lboy/rove-daemon/plugins/manifest"
 import { loadPluginRegistry } from "@sma1lboy/rove-daemon/plugins/registry"
 import { bypassFlag } from "../cli/argv.ts"
-import { getCustomEngineIds } from "../state/repos.ts"
 import { resetAvailableVendorsCache } from "./account-detect.ts"
 import {
   CONTRIB_ENGINE_IDS,

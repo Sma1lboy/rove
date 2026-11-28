@@ -1,3 +1,5 @@
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, test } from "vitest"
 import {
   buildTreeRows,
@@ -5,8 +7,6 @@ import {
   rowLiveBranchPath,
   worktreeRowLabel,
 } from "../../src/tui/panes/sidebar/tree-core"
-import type { Task } from "../../src/types/task"
-import { toTaskId } from "../../src/types/task"
 
 /**
  * What the tree's `/` search can FIND, and what its project headers are

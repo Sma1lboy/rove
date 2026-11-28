@@ -13,8 +13,8 @@
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
+import { loadUserThemes } from "@sma1lboy/rove-core/theme/loader.ts"
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
-import { loadUserThemes } from "../../src/theme/loader"
 
 let tmpRoot: string
 let prevHome: string | undefined

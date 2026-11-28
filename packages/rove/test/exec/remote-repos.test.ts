@@ -1,9 +1,8 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { kvStatePath } from "../../src/env.ts"
-import type { RemoteSpec } from "../../src/exec/exec-host.ts"
+import { kvStatePath } from "@sma1lboy/rove-core/env.ts"
+import type { RemoteSpec } from "@sma1lboy/rove-core/exec/exec-host.ts"
 import {
   execHostForRepo,
   execHostForWorktreePath,
@@ -11,7 +10,7 @@ import {
   remoteKeyForRepo,
   remoteSpecFromConfig,
   worktreeUsable,
-} from "../../src/exec/resolve.ts"
+} from "@sma1lboy/rove-core/exec/resolve.ts"
 import {
   addRemoteRepo,
   getRemoteRepoConfig,
@@ -20,10 +19,11 @@ import {
   isRemoteRepoKey,
   remoteRepoKey,
   resolveRepoRoot,
-} from "../../src/state/repos.ts"
+} from "@sma1lboy/rove-core/state/repos.ts"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const getKeychainPassword = vi.hoisted(() => vi.fn((_ref: { service: string; account: string }) => "s3cret"))
-vi.mock("../../src/exec/keychain.ts", () => ({ getKeychainPassword }))
+vi.mock("@sma1lboy/rove-core/exec/keychain.ts", () => ({ getKeychainPassword }))
 
 let home: string
 const ORIGINAL = process.env.ROVE_HOME_DIR

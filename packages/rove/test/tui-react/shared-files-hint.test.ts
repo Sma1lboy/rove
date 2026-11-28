@@ -1,5 +1,5 @@
+import { t } from "@sma1lboy/rove-core/i18n/index.ts"
 import { expect, test } from "vitest"
-import { t } from "../../src/i18n"
 import { showSharedFilesHint } from "../../src/tui-react/workspace/shared-files-hint"
 
 test("the shared-files hint is persisted once across tab mounts", () => {

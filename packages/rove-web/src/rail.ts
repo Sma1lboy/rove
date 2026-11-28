@@ -4,7 +4,7 @@
  * rows draw live in `rail-glyphs.ts`.
  */
 
-import { fuzzyMatch } from "@sma1lboy/rove/src/lib/fuzzy.ts"
+import { fuzzyMatch } from "@sma1lboy/rove-core/lib/fuzzy.ts"
 import type { TabRow, TaskRow } from "rove-bridge/protocol"
 import { t } from "./i18n/index.ts"
 import { mergedLabel, repoLabel } from "./rail-labels.ts"

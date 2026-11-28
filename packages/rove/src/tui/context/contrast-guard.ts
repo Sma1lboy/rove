@@ -8,7 +8,7 @@
  */
 
 import { RGBA } from "@opentui/core"
-import { contrastRatioTriplet, ensureContrastInts, relativeLuminance } from "../../theme/color-math"
+import { contrastRatioTriplet, ensureContrastInts, relativeLuminance } from "@sma1lboy/rove-core/theme/color-math.ts"
 
 /** WCAG AA normal-text floor: `textMuted` carries real content, so 4.5:1, not the 3:1 large-text concession. */
 export const HOST_TEXT_MIN_CONTRAST = 4.5

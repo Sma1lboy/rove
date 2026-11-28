@@ -11,7 +11,7 @@
     "still:glyph": "remotion still src/index.ts glyph-k ../../docs/assets/brand/glyph-k.png --frame=80",
     "still:docs": "remotion still src/index.ts docs-fan-out ../../docs/assets/fan-out.png && remotion still src/index.ts docs-task-model ../../docs/assets/task-model.png && remotion still src/index.ts docs-detach-survives ../../docs/assets/detach-survives.png",
     "still:promo": "remotion still src/index.ts promo-social ../../docs/assets/brand/promo-social.png && remotion still src/index.ts promo-engines ../../docs/assets/brand/promo-engines.png && remotion still src/index.ts promo-plugins ../../docs/assets/brand/promo-plugins.jpg --image-format=jpeg --jpeg-quality=90 && remotion still src/index.ts promo-detach ../../docs/assets/brand/promo-detach.png",
-    "gif:bracket":"remotion render src/index.ts bracket-chip ../../docs/assets/brand/bracket-chip.gif --codec=gif --every-nth-frame=3",
+    "gif:bracket": "remotion render src/index.ts bracket-chip ../../docs/assets/brand/bracket-chip.gif --codec=gif --every-nth-frame=3",
     "gif:bracket:original": "remotion render src/index.ts bracket-chip-original ../../docs/assets/brand/bracket-chip-original.gif --codec=gif --every-nth-frame=2",
     "gif:bracket:vortex": "remotion render src/index.ts bracket-chip-vortex ../../docs/assets/brand/bracket-chip-vortex.gif --codec=gif --every-nth-frame=3",
     "gif:grid": "remotion render src/index.ts pane-grid ../../docs/assets/brand/pane-grid.gif --codec=gif",
@@ -32,6 +32,7 @@
   "dependencies": {
     "@remotion/cli": "4.0.524",
     "@remotion/google-fonts": "4.0.524",
+    "@sma1lboy/rove-core": "workspace:*",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "remotion": "4.0.524"

@@ -29,9 +29,9 @@ vi.mock("../../src/engine/hosted-session", () => ({
 // Rename/branch/vendor flows live in task-actions-rename.test.ts (file split
 // to stay under the ~500-line cap).
 
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import type { RoveOrchestrator } from "../../src/client/remote-orchestrator"
 import { type TaskActionContext, deleteTaskFlow, forgetProjectFlow } from "../../src/tui/lib/task-actions"
-import type { Task } from "../../src/types/task"
 
 function makeTask(overrides: Omit<Partial<Task>, "id"> & { id: string }): Task {
   return {

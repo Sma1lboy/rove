@@ -5,9 +5,9 @@
  * is git work in the repo that cut it.
  */
 
+import { isRemoteRepoKey } from "@sma1lboy/rove-core/state/repos.ts"
+import type { Task, TaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { gitRepoOf, subtreeIds } from "@sma1lboy/rove-daemon/task-tree"
-import { isRemoteRepoKey } from "../state/repos.ts"
-import type { Task, TaskId } from "../types/task.ts"
 import { normalizeMainRepo, titleFromRepo } from "./core-helpers.ts"
 import { MoveRefusedError, TaskDeletingError, TaskNotFoundError } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"

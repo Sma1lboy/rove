@@ -1,6 +1,6 @@
 /** What the Routines page's run log reads of a run: its outcome class, source and how long it took. */
 
-import type { AutomationRun } from "@sma1lboy/rove/src/automations/automation-run-core.ts"
+import type { AutomationRun } from "@sma1lboy/rove-core/automations/automation-run-core.ts"
 
 /** `ok` reached an engine (or a script exited 0), `blocked` waits on a person or a limit, `failed` needs a look, `skipped` was healthy or a miss. */
 export const OUTCOMES = ["ok", "blocked", "failed", "skipped"] as const

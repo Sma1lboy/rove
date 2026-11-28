@@ -5,9 +5,9 @@
  * `read-output.ts`, which re-exports this module as the one import site.
  */
 
+import type { Message } from "@sma1lboy/rove-core/types/engine.ts"
 import type { PtySessionExit } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { terminalRows } from "@sma1lboy/rove-daemon/daemon/terminal-rows"
-import type { Message } from "../../types/engine.ts"
 import { ApiError } from "./types.ts"
 
 // ── Bounds (deterministic paging) ────────────────────────────────────────────

@@ -7,7 +7,7 @@
  * tab would read "missing", never set `spawned`, and respawn blank on restart.
  */
 
-import type { VendorId } from "../types/vendor.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { protocolEntry } from "./engine-presets.ts"
 import { pickUnclaimedSessionId } from "./session-identity.ts"
 

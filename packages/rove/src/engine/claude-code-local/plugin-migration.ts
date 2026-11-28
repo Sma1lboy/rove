@@ -13,7 +13,7 @@
 
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
-import { isObject } from "../../lib/is-object.ts"
+import { isObject } from "@sma1lboy/rove-core/lib/is-object.ts"
 import { hasRoveActivityHooks } from "../json-hooks.ts"
 import { vendorConfigHome, vendorWriteHomeDeps } from "../vendor-home.ts"
 import { CLAUDE_HOOK_EVENT_MAP, claudeSettingsPath } from "./hook-adapter.ts"

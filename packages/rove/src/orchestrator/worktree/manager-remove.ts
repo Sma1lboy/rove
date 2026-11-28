@@ -20,7 +20,7 @@
  */
 
 import path from "node:path"
-import type { ExecHost } from "../../exec/exec-host.ts"
+import type { ExecHost } from "@sma1lboy/rove-core/exec/exec-host.ts"
 import { DIRTY_WORKTREE_CODE, describeDirtyWorktreeWork } from "../errors.ts"
 import { GitCommandError, type GitRunOpts, type GitRunResult } from "./git.ts"
 import { type BranchDeps, deleteBranchAnchored } from "./manager-branch.ts"

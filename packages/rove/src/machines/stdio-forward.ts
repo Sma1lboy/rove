@@ -12,13 +12,18 @@
 import { type ChildProcess, spawn } from "node:child_process"
 import { mkdirSync, rmSync } from "node:fs"
 import { type Server, createServer } from "node:net"
+import type { MachineConfig } from "@sma1lboy/rove-core/machines/registry.ts"
+import {
+  localDaemonSocketPath,
+  localPtySocketPath,
+  machineSocketDir,
+  machineSshArgs,
+} from "@sma1lboy/rove-core/machines/ssh-args.ts"
+import { isWindowsMachine } from "@sma1lboy/rove-core/machines/windows-remote.ts"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { logClientError } from "@sma1lboy/rove-daemon/client/client-log"
 import { remoteRove } from "./discover.ts"
-import type { MachineConfig } from "./registry.ts"
 import { PreambleStripper } from "./relay-preamble.ts"
-import { localDaemonSocketPath, localPtySocketPath, machineSocketDir, machineSshArgs } from "./ssh-args.ts"
-import { isWindowsMachine } from "./windows-remote.ts"
 
 /**
  * Hubs that cannot use `ssh -L sock:sock`, machines whose sockets ssh cannot

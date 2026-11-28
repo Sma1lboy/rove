@@ -9,9 +9,9 @@
  * (or a sentinel); a tab's `${taskId}::${tabId}` composite names a PTY, not a row.
  */
 
-import { isSharedChild } from "@/orchestrator/task-tree"
-import type { Task } from "@/types/task"
-import type { VendorId } from "../../../types/vendor"
+import { isSharedChild } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { type SidebarGroup, type SidebarGroupInput, buildSidebarGroups } from "./project-groups"
 import { RECENT_ROW_ID } from "./tree-ids"
 

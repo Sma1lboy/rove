@@ -1,4 +1,4 @@
-import type { EngineUsageSnapshot } from "@/types/engine"
+import type { EngineUsageSnapshot } from "@sma1lboy/rove-core/types/engine.ts"
 
 export interface CodexUsageSnapshotOpts {
   readonly contextWindowTokens?: number

@@ -5,8 +5,8 @@
  */
 
 import { RGBA } from "@opentui/core"
+import { normalizeRunningTitle } from "@sma1lboy/rove-core/state/running-title.ts"
 import { describe, expect, it } from "vitest"
-import { normalizeRunningTitle } from "../../src/state/running-title"
 import {
   SHIMMER_CELLS_PER_TICK,
   SHIMMER_HALF_WIDTH,

@@ -12,11 +12,11 @@
  */
 
 import { type RGBA, TextAttributes } from "@opentui/core"
+import { displayWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
+import { tildify } from "@sma1lboy/rove-core/lib/path-home.ts"
 import type { ReactNode } from "react"
 import type { EngineAccount, EngineStatus } from "../../../engine/engine-status"
 import type { EngineIntegration } from "../../../engine/integration-status"
-import { displayWidth } from "../../../lib/display-width"
-import { tildify } from "../../../lib/path-home"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 

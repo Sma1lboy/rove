@@ -5,8 +5,8 @@
  * `use-fix-ci.ts`), read from its own catalogs.
  */
 
-import { isDiskFull } from "@sma1lboy/rove/src/lib/error-message.ts"
-import { landRefusalText } from "@sma1lboy/rove/src/lib/land-refusal.ts"
+import { isDiskFull } from "@sma1lboy/rove-core/lib/error-message.ts"
+import { landRefusalText } from "@sma1lboy/rove-core/lib/land-refusal.ts"
 import type { TaskRow } from "rove-bridge/protocol"
 import { BridgeRequestError } from "./bridge.ts"
 import { ConfirmDialog, errorText } from "./dialogs.tsx"

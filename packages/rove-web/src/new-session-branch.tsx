@@ -1,6 +1,6 @@
 /** The composer's branch chips: the Worktree toggle and where the worktree is cut from (this machine), or the remote's base ref. */
 
-import { filterBranches } from "@sma1lboy/rove/src/lib/branch-match.ts"
+import { filterBranches } from "@sma1lboy/rove-core/lib/branch-match.ts"
 import { useState } from "react"
 import { t } from "./i18n/index.ts"
 import { BranchIcon } from "./new-session-icons.tsx"

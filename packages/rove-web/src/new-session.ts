@@ -1,6 +1,6 @@
 /** Pure rules of the New session composer: what the model chip offers and what Start sends. Names come from the engine registry. */
 
-import { deriveTitleFromPrompt } from "@sma1lboy/rove/src/orchestrator/title.ts"
+import { deriveTitleFromPrompt } from "@sma1lboy/rove-core/orchestrator/title.ts"
 import { splitRepoRow } from "./new-task-paths.ts"
 
 /** The slice of an `engines.list` row the composer reads. */

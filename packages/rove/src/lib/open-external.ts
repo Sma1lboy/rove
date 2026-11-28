@@ -6,7 +6,7 @@
  * them), so "preview an image" means handing it to the system.
  */
 
-import { spawnDetached } from "./spawn-detached"
+import { spawnDetached } from "@sma1lboy/rove-core/lib/spawn-detached.ts"
 
 /** Pure: the platform's open-with-default-app argv. */
 export function systemOpenArgv(absPath: string, platform: NodeJS.Platform = process.platform): readonly string[] {

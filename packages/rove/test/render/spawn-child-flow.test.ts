@@ -5,10 +5,10 @@
  */
 
 import { beforeEach, describe, expect, test } from "bun:test"
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { forkFirstTab } from "../../src/tui-react/workspace/fork-chat-tab"
 import { runSpawnChild } from "../../src/tui-react/workspace/quick-fork"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
-import { type Task, toTaskId } from "../../src/types/task"
 
 function stub(fail?: Error) {
   const spawned: unknown[] = []

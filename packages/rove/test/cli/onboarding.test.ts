@@ -37,7 +37,7 @@ vi.mock("node:os", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:os")>()
   return { ...actual, homedir: () => mocks.home ?? actual.homedir() }
 })
-vi.mock("../../src/state/store.ts", () => ({
+vi.mock("@sma1lboy/rove-core/state/store.ts", () => ({
   getPersistedBool: mocks.getPersistedBool,
   setPersistedBool: mocks.setPersistedBool,
   loadStateFile: mocks.loadStateFile,

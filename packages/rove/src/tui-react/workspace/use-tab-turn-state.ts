@@ -11,9 +11,10 @@
  * TerminalTabs remounts per task, so switches re-seed.
  */
 
+import { attentionEdges, chipAttentionKind } from "@sma1lboy/rove-core/lib/notify-state.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { TabStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { useEffect, useMemo, useRef } from "react"
-import { attentionEdges, chipAttentionKind } from "../../lib/notify-state"
 import { createTabIdentityObserver } from "../../tabs/terminal-tab-identity"
 import { type TabsState, type TerminalTab, setTabLastTitle, setTabLiveVendor } from "../../tabs/terminal-tabs-core"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
@@ -21,7 +22,6 @@ import { InterruptObserver } from "../../tui/workspace/interrupt-observer"
 import { getDefaultLiveEngines } from "../../tui/workspace/live-engine"
 import type { HookTabState } from "../../tui/workspace/turn-state-merge"
 import { soloKey } from "../../tui/workspace/turn-target"
-import type { VendorId } from "../../types/vendor"
 import type { NotificationsContext } from "../context/notifications"
 import { useLatest } from "../lib/use-latest"
 import { useRowStatusMap } from "./row-status-sync"

@@ -1,7 +1,7 @@
 /** Framework-free file tree logic: pure functions over `Row`, plus one fs.watch helper. */
 
 import { watch } from "node:fs"
-import type { FileStatus } from "../../../worktree/git-status"
+import type { FileStatus } from "@sma1lboy/rove-core/worktree/git-status.ts"
 import type { Row } from "./rows"
 
 /** Colour role, not a color, so a theme switch recolours existing rows; `added`/`removed` are the diff pair. */

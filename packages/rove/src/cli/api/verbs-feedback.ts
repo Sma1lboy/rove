@@ -7,7 +7,7 @@
  * see one canonical list.
  */
 
-import { DEFAULT_FEEDBACK_KIND, FEEDBACK_KINDS } from "../../lib/feedback.ts"
+import { DEFAULT_FEEDBACK_KIND, FEEDBACK_KINDS } from "@sma1lboy/rove-core/lib/feedback.ts"
 import { feedback } from "./handlers-fanout.ts"
 import type { VerbSpec } from "./types.ts"
 

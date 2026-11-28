@@ -10,8 +10,8 @@
  * session is tens of MB.
  */
 
-import type { ContentBlock } from "@/types/content"
-import type { EngineHistory, EngineUsageSnapshot, Message } from "@/types/engine"
+import type { ContentBlock } from "@sma1lboy/rove-core/types/content.ts"
+import type { EngineHistory, EngineUsageSnapshot, Message } from "@sma1lboy/rove-core/types/engine.ts"
 import { isJsonlLineWithinBound } from "../file-bounds"
 import { createAppendParseCache, sortByTimestamp } from "../history-cache"
 import { normalizePiContent } from "./normalize"

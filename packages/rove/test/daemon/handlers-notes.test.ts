@@ -7,8 +7,8 @@
  * must not error the agent that filed the note.
  */
 
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, it } from "vitest"
-import type { Task } from "../../src/types/task.ts"
 import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
 
 const MAIN: Task = { ...TASK, id: "m1", kind: "dir", title: "repo" } as Task

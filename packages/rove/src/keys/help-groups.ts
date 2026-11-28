@@ -5,7 +5,7 @@
  * `keys.category` entries the catalog needs and can't import an opentui component.
  */
 
-import { fuzzyMatch } from "../lib/fuzzy"
+import { fuzzyMatch } from "@sma1lboy/rove-core/lib/fuzzy.ts"
 import type { RoveBinding, RoveBindingScope } from "./keybindings"
 import { findBinding } from "./keybindings"
 import type { BindingReachability } from "./keymap-reachability"

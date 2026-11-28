@@ -7,8 +7,8 @@
  * there; `machines.engines` reads which engines that machine can launch.
  */
 
+import { CURRENT_VERSION, isNewerSemver } from "@sma1lboy/rove-core/version.ts"
 import type { MachineReason, MachineStatus } from "@sma1lboy/rove/src/machines/hub.ts"
-import { CURRENT_VERSION, isNewerSemver } from "@sma1lboy/rove/src/version.ts"
 import { BridgeError } from "../protocol.ts"
 import { flag } from "./args.ts"
 import { attempt, machineOf } from "./machine-outcome.ts"

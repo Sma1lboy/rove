@@ -14,9 +14,9 @@ import { spawn } from "node:child_process"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import { fileURLToPath } from "node:url"
+import { readSecret, resolveSecret, secretHint, secretStatus, writeSecret } from "@sma1lboy/rove-core/state/secrets.ts"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { readSecret, resolveSecret, secretHint, secretStatus, writeSecret } from "../../src/state/secrets.ts"
+import { corePath } from "../core-package.ts"
 
 let tmpHome: string
 let originalHome: string | undefined
@@ -144,8 +144,7 @@ describe("concurrent writers", () => {
     // shared wall-clock instant: a synchronous `execFileSync` in a loop runs
     // them one after another, which is exactly the shape that passes whether
     // or not the lock exists.
-    const here = path.dirname(fileURLToPath(import.meta.url))
-    const module = path.join(here, "..", "..", "src", "state", "secrets.ts")
+    const module = corePath("state/secrets.ts")
     const writers = ["ALPHA", "BRAVO", "CHARLIE", "DELTA", "ECHO", "FOXTROT", "GOLF", "HOTEL"]
     const startAt = String(Date.now() + 1500)
     const children = writers.map((name) =>

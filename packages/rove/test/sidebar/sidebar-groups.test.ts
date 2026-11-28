@@ -1,3 +1,5 @@
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, it } from "vitest"
 import {
   type SidebarRow,
@@ -8,8 +10,6 @@ import {
   sidebarProjectKey,
   sidebarProjectLabel,
 } from "../../src/sidebar/groups.ts"
-import type { Task } from "../../src/types/task.ts"
-import { toTaskId } from "../../src/types/task.ts"
 
 it("uses one sidebar identity and basename for Windows repo spellings", () => {
   expect(sidebarProjectKey("c:\\Projects\\demo\\")).toBe(sidebarProjectKey("C:/Projects/demo"))

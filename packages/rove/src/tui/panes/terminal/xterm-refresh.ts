@@ -1,4 +1,4 @@
-import type { TerminalStyleRewrite } from "@/types/terminal-presentation"
+import type { TerminalStyleRewrite } from "@sma1lboy/rove-core/types/terminal-presentation.ts"
 import {
   DEFAULT_TERMINAL_COLORS,
   type TerminalDefaultColors,

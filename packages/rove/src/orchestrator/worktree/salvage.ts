@@ -26,7 +26,7 @@
  * branch and timestamp — what a user who lost work remembers.
  */
 
-import type { ExecHost } from "../../exec/exec-host.ts"
+import type { ExecHost } from "@sma1lboy/rove-core/exec/exec-host.ts"
 import type { GitRunOpts, GitRunResult } from "./git.ts"
 import { smallIgnoredPaths } from "./salvage-ignored.ts"
 

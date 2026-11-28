@@ -1,6 +1,6 @@
 /**
  * Daemon-side watcher for the persisted UI prefs in the shared KV blob
- * (`~/.config/rove/state.json`, written by `packages/rove/src/state/store.ts`).
+ * (`~/.config/rove/state.json`, written by `packages/rove-core/src/state/store.ts`).
  * A pane host that read them once at boot would miss a theme switch made in
  * another session, so this watches the file and publishes a `ui-prefs`
  * payload every subscribed pane applies live.

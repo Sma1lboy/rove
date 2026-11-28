@@ -17,12 +17,12 @@
  * guards via `src/lib/poll-scheduling.ts`.
  */
 
-import { readOnlyGitProcessEnv } from "@/lib/git-env"
-import { recordSpawn } from "@/lib/spawn-profile"
-import { computeNextAllowedAt, createBackgroundPoller, spawnCapture } from "../../../lib/background-poll"
+import { computeNextAllowedAt, createBackgroundPoller, spawnCapture } from "@sma1lboy/rove-core/lib/background-poll.ts"
+import { readOnlyGitProcessEnv } from "@sma1lboy/rove-core/lib/git-env.ts"
+import { recordSpawn } from "@sma1lboy/rove-core/lib/spawn-profile.ts"
 import { type WorktreeChanges, parsePorcelain, sameWorktreeChanges } from "../../../worktree/worktree-changes"
 
-export { shouldPoll } from "../../../lib/background-poll"
+export { shouldPoll } from "@sma1lboy/rove-core/lib/background-poll.ts"
 
 /** Kill a git status that runs longer than this; the repo is too big to poll. */
 export const POLL_TIMEOUT_MS = 4_000

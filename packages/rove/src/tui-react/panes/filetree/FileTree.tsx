@@ -10,10 +10,18 @@
  * keep no-change refreshes from re-rendering (see rows.ts).
  */
 
-import { errorMessage } from "@/lib/error-message"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import { openExternally } from "@sma1lboy/rove-core/lib/open-path-external.ts"
+import {
+  type GitScope,
+  type StatusEntry,
+  listFiles,
+  resolveBase,
+  statusFiles,
+  statusFilesBranch,
+} from "@sma1lboy/rove-core/worktree/git-status.ts"
 import { readRoveEnv } from "@sma1lboy/rove-daemon/compat-env"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { openExternally } from "../../../lib/open-path-external"
 import { remoteChanges, remoteFiles } from "../../../machines/remote-worktree.ts"
 import { cachedFileList, rememberFileList } from "../../../tui/panes/filetree/file-list-cache"
 import { type FileTreeTab, fileSearchBindings, fileTreeBindings } from "../../../tui/panes/filetree/keys-core"
@@ -35,14 +43,6 @@ import {
   statusRows,
 } from "../../../tui/panes/filetree/rows"
 import { type TreeNode, buildTree } from "../../../tui/panes/filetree/tree"
-import {
-  type GitScope,
-  type StatusEntry,
-  listFiles,
-  resolveBase,
-  statusFiles,
-  statusFilesBranch,
-} from "../../../worktree/git-status"
 import { useBindings } from "../../lib/keymap"
 import { useLatest } from "../../lib/use-latest"
 import { useTerminalSize } from "../../lib/use-terminal-size"

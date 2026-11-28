@@ -6,7 +6,12 @@
  * rides along in an unrelated change and is only noticed on screen.
  */
 
-import { DEFAULT_TAB_STRIP_MODE, TAB_STRIP_MODES, resolveTabStripMode, tabStripVisible } from "@/state/tab-strip"
+import {
+  DEFAULT_TAB_STRIP_MODE,
+  TAB_STRIP_MODES,
+  resolveTabStripMode,
+  tabStripVisible,
+} from "@sma1lboy/rove-core/state/tab-strip.ts"
 import { describe, expect, it } from "vitest"
 
 describe("the default mode", () => {

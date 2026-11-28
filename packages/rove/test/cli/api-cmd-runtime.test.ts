@@ -30,8 +30,8 @@ const mocks = vi.hoisted(() => ({
   publishCliTabSnapshot: vi.fn(),
 }))
 
-vi.mock("../../src/state/repos.ts", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../src/state/repos.ts")>()
+vi.mock("@sma1lboy/rove-core/state/repos.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@sma1lboy/rove-core/state/repos.ts")>()
   return {
     ...actual,
     resolveMainRepoRoot: mocks.resolveMainRepoRoot,
@@ -43,7 +43,7 @@ vi.mock("../../src/worktree/worktree-changes.ts", () => ({
   readWorktreeChanges: mocks.readWorktreeChanges,
 }))
 
-vi.mock("../../src/lib/feedback.ts", () => ({
+vi.mock("@sma1lboy/rove-core/lib/feedback.ts", () => ({
   DEFAULT_FEEDBACK_KIND: "bug",
   FEEDBACK_KINDS: ["bug", "idea", "question"],
   isFeedbackKind: (value: string) => ["bug", "idea", "question"].includes(value),

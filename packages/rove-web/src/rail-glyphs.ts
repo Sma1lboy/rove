@@ -1,6 +1,6 @@
 /** Status marks a rail row draws: the dot look, the tone palette, and the rollups over a folded group. */
 
-import { type DotLook, dotLook } from "@sma1lboy/rove/src/lib/status-dots.ts"
+import { type DotLook, dotLook } from "@sma1lboy/rove-core/lib/status-dots.ts"
 import type { RowStatus, TaskRow, TaskRowPr } from "rove-bridge/protocol"
 
 export type Tone = "accent" | "muted" | "attention" | "warning" | "success" | "info" | "ink"

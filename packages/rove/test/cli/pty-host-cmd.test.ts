@@ -16,9 +16,9 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { CURRENT_VERSION } from "@sma1lboy/rove-core/version.ts"
 import { defaultPtyHostLogPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { CURRENT_VERSION } from "../../src/version.ts"
 
 const mocks = vi.hoisted(() => ({
   startPtyHostServer: vi.fn(),

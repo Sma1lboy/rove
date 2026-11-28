@@ -4,13 +4,13 @@
  * `tui/lib/task-actions` + `tui/lib/task-create-flow`.
  */
 
+import { resolvePreferredVendor, setLastActiveVendor } from "@sma1lboy/rove-core/state/vendor-prefs.ts"
+import type { Task, VendorId } from "@sma1lboy/rove-core/types/task.ts"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { isDeleteBranchOnTaskDeleteEnabled } from "../../state/task-delete-branch.ts"
-import { resolvePreferredVendor, setLastActiveVendor } from "../../state/vendor-prefs.ts"
 import { openTaskEngine } from "../../tui/lib/open-task-engine"
 import type { ChildrenPrompt, ConfirmPrompt, TextPromptOpts } from "../../tui/lib/task-actions"
 import type { CreateTaskContext } from "../../tui/lib/task-create-flow"
-import type { Task, VendorId } from "../../types/task.ts"
 import { RenameTaskDialog } from "../component/rename-task-dialog"
 import type { DialogContext } from "./dialog"
 import { DialogChoice } from "./dialog-choice"

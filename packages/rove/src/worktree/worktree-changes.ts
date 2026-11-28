@@ -19,9 +19,9 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { readOnlyGitProcessEnv } from "@/lib/git-env"
-import { parsePorcelainRows } from "@/lib/git-parsers"
-import { recordSpawn } from "@/lib/spawn-profile"
+import { readOnlyGitProcessEnv } from "@sma1lboy/rove-core/lib/git-env.ts"
+import { parsePorcelainRows } from "@sma1lboy/rove-core/lib/git-parsers.ts"
+import { recordSpawn } from "@sma1lboy/rove-core/lib/spawn-profile.ts"
 import type { WorktreeChanges } from "@sma1lboy/rove-daemon/daemon/contracts"
 
 export type { WorktreeChanges }

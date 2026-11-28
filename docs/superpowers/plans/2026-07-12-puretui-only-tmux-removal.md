@@ -276,7 +276,7 @@ git commit -m "refactor: make task lifecycle PTY-only" -m "Route daemon session 
 - Delete: `packages/rove/src/tui/direct.ts`
 - Modify: `packages/rove/src/tui/index.tsx`
 - Modify: `packages/rove/src/tui/context/keybindings-user.ts`
-- Modify: `packages/rove/src/state/keybindings-file.ts`
+- Modify: `packages/rove-core/src/state/keybindings-file.ts`
 - Modify: `packages/rove/src/tui-react/component/help-dialog.tsx`
 - Modify: `packages/rove/src/tui-react/component/settings-dialog/sections-misc.tsx`
 - Modify matching CLI/settings/help tests.

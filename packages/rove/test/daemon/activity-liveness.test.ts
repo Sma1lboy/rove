@@ -1,3 +1,4 @@
+import type { TaskActivityState } from "@sma1lboy/rove-core/engine/hook-events.ts"
 import { readActivityLiveness } from "@sma1lboy/rove-daemon/daemon/activity-liveness"
 import {
   type ActivityLivenessProbe,
@@ -7,7 +8,6 @@ import {
 } from "@sma1lboy/rove-daemon/daemon/activity-registry"
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import type { TaskActivityState } from "../../src/engine/hook-events.ts"
 
 const TTL = 1_000
 

@@ -5,6 +5,9 @@
  * per-project picks live in state/vendor-prefs.ts).
  */
 
+import { getGlobalDefaultVendor, setGlobalDefaultVendor } from "@sma1lboy/rove-core/state/vendor-prefs.ts"
+import { DEFAULT_TASK_VENDOR, type VendorId } from "@sma1lboy/rove-core/types/task.ts"
+import { ALL_VENDORS, isBuiltinVendor } from "@sma1lboy/rove-core/types/vendor.ts"
 import { useEffect, useState } from "react"
 import { installedEngineIds } from "../../../engine/account-detect"
 import { ENGINE_PROTOCOLS, engineProtocolKey } from "../../../engine/engine-presets"
@@ -16,9 +19,6 @@ import {
   humanizeSlug,
 } from "../../../engine/interactive-command"
 import { engineEntry } from "../../../engine/registry"
-import { getGlobalDefaultVendor, setGlobalDefaultVendor } from "../../../state/vendor-prefs"
-import { DEFAULT_TASK_VENDOR, type VendorId } from "../../../types/task"
-import { ALL_VENDORS, isBuiltinVendor } from "../../../types/vendor"
 import type { KVContext } from "../../context/kv"
 import { t } from "../../i18n"
 import type { DialogContext } from "../../ui/dialog"

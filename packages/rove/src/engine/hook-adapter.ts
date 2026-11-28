@@ -14,8 +14,8 @@
  * have one. Everything else gets {@link NoopHookAdapter}.
  */
 
-import type { VendorId } from "../types/vendor.ts"
-import type { EngineActivityDetail, EngineActivityKind } from "./hook-events.ts"
+import type { EngineActivityDetail, EngineActivityKind } from "@sma1lboy/rove-core/engine/hook-events.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { HookEditOutcome } from "./json-hooks.ts"
 import { engineEntry, identifiableEngineIds } from "./registry.ts"
 

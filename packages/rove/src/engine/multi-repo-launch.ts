@@ -4,10 +4,10 @@
  * `addDirArgv` (applied by the launch builder), this env, and one prompt line.
  */
 
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { type TaskRepoView, taskRepos } from "@sma1lboy/rove-daemon/task-tree"
-import type { VendorId } from "../types/vendor.ts"
 import { trustEngineWorktree } from "./trust-worktree.ts"
 
 /**

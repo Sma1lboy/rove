@@ -10,11 +10,9 @@
 import { spawn } from "node:child_process"
 import { mkdirSync } from "node:fs"
 import { posix } from "node:path"
-import { PRE_RENAME_VERSION_KEY } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
-import { shQuote } from "../exec/exec-host.ts"
-import { type MachineConfig, sshTargetOf } from "./registry.ts"
-import { machineSocketDir, machineSshArgs } from "./ssh-args.ts"
-import { type SshFailureKind, classifySshFailure, sshFailureRemedy } from "./ssh-failure.ts"
+import { shQuote } from "@sma1lboy/rove-core/exec/exec-host.ts"
+import { type MachineConfig, sshTargetOf } from "@sma1lboy/rove-core/machines/registry.ts"
+import { machineSocketDir, machineSshArgs } from "@sma1lboy/rove-core/machines/ssh-args.ts"
 import {
   WINDOWS_LOCATE_ROVE,
   WINDOWS_ROVE_MISSING,
@@ -24,7 +22,9 @@ import {
   isWindowsPath,
   windowsNoRoveMessage,
   windowsRoveCommand,
-} from "./windows-remote.ts"
+} from "@sma1lboy/rove-core/machines/windows-remote.ts"
+import { PRE_RENAME_VERSION_KEY } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
+import { type SshFailureKind, classifySshFailure, sshFailureRemedy } from "./ssh-failure.ts"
 
 export interface RemoteDaemonStatus {
   readonly socketPath: string

@@ -6,12 +6,12 @@
  * `SidebarTaskCallbacks` prevents.
  */
 
-import type { Task } from "@/types/task"
-import type { VendorId } from "@/types/vendor"
+import { MUTED_TASKS_KEY, mutedTaskIds, toggleMutedTask } from "@sma1lboy/rove-core/lib/notify-state.ts"
+import { RAIL_FOLD_STYLE_KEY } from "@sma1lboy/rove-core/state/sidebar-collapsed.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { MutableRefObject } from "react"
-import { MUTED_TASKS_KEY, mutedTaskIds, toggleMutedTask } from "../../lib/notify-state"
 import type { TaskSortMode } from "../../sidebar/groups"
-import { RAIL_FOLD_STYLE_KEY } from "../../state/sidebar-collapsed.ts"
 import type { FocusContextValue } from "../context/focus"
 import { useKV } from "../context/kv"
 import {

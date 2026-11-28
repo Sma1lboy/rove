@@ -11,7 +11,7 @@
  */
 
 import { createInterface } from "node:readline"
-import { t } from "../i18n"
+import { t } from "@sma1lboy/rove-core/i18n/index.ts"
 
 export type DoctorFix =
   | {

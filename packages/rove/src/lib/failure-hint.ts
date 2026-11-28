@@ -1,4 +1,4 @@
-import { t } from "../i18n"
+import { t } from "@sma1lboy/rove-core/i18n/index.ts"
 
 /** Preserve RPC remediation when present; unknown failures start with read-only diagnosis. */
 export function failureHint(error: unknown, cliName = "rove"): string {

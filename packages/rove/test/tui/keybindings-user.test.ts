@@ -17,7 +17,7 @@ const fileState = vi.hoisted(() => ({
   warnings: [] as string[],
 }))
 
-vi.mock("../../src/state/keybindings-file", () => ({
+vi.mock("@sma1lboy/rove-core/state/keybindings-file.ts", () => ({
   readKeybindingsFile: vi.fn(() => ({
     path: "/home/user/.rove/settings/keybindings.yaml",
     exists: fileState.exists,
@@ -154,7 +154,7 @@ describe("applyUserKeybindings", () => {
   })
 
   test("the report is cached — a second call does not re-read the file", async () => {
-    const { readKeybindingsFile } = await import("../../src/state/keybindings-file")
+    const { readKeybindingsFile } = await import("@sma1lboy/rove-core/state/keybindings-file.ts")
     fileState.doc = { bindings: { [ID]: "ctrl+r" } }
     userKb.reloadUserKeybindings()
     vi.mocked(readKeybindingsFile).mockClear()

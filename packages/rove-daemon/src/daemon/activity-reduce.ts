@@ -2,7 +2,7 @@
  * Pure half of the activity registry: `(state, event) → state`, nothing to
  * mount. `activity-registry.ts` holds the live map, timers and subscribers and
  * re-exports these names. Being stateless is what lets
- * `rove/src/engine/hook-events.ts` re-export {@link reduceActivity} (rove
+ * `rove-core/src/engine/hook-events.ts` re-export {@link reduceActivity} (rove
  * depends on rove-daemon, never the reverse), so it is the one definition.
  */
 

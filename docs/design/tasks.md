@@ -9,7 +9,7 @@
 >
 > The material below is kept to explain earlier tradeoffs and migrations, not
 > to prescribe implementation. On-disk current types:
-> [`packages/rove/src/types/task.ts`](../../packages/rove/src/types/task.ts).
+> [`packages/rove-core/src/types/task.ts`](../../packages/rove-core/src/types/task.ts).
 
 ---
 
@@ -232,7 +232,7 @@ truth, the index is just a manifest.
 > `SpawnOpts.cwd` / `ROVE_RESUME_CWD` env-var back-channel. That whole
 > interface is gone as of v0.6 — see the explicit "don't drag the whole port
 > back" warning in
-> [`packages/rove/src/types/engine.ts`](../../packages/rove/src/types/engine.ts).
+> [`packages/rove-core/src/types/engine.ts`](../../packages/rove-core/src/types/engine.ts).
 > `ROVE_RESUME_CWD` has zero references left in the codebase. The engine CLI
 > runs interactively in a Hosted PTY session that the shared session-launch
 > builder starts with `task.worktreePath` as its process cwd — there is no

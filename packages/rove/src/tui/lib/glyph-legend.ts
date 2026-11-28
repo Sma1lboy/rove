@@ -4,7 +4,7 @@
  * `tsc` until it is placed here or deliberately left out with `null`.
  */
 
-import type { GlyphSet } from "../../lib/glyphs"
+import type { GlyphSet } from "@sma1lboy/rove-core/lib/glyphs.ts"
 
 export type GlyphLegendGroup = "rows" | "inbox"
 

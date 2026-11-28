@@ -4,7 +4,7 @@
  * floods the new composer.
  */
 import { HANDOFF_EXCERPT_CHARS, buildHandoffPrompt, handoffContext } from "@/engine/session-handoff"
-import type { Message } from "@/types/engine"
+import type { Message } from "@sma1lboy/rove-core/types/engine.ts"
 import { describe, expect, it } from "vitest"
 
 const msg = (role: Message["role"], text: string): Message => ({

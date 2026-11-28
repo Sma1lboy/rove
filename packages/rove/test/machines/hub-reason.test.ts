@@ -21,7 +21,7 @@ vi.mock("../../src/machines/tunnel.ts", () => ({
     stop: () => {},
   }),
 }))
-vi.mock("../../src/machines/registry.ts", async (importOriginal) => ({
+vi.mock("@sma1lboy/rove-core/machines/registry.ts", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   updateMachine: () => {},
 }))
@@ -42,8 +42,8 @@ vi.mock("../../src/client/remote-orchestrator.ts", () => {
   }
 })
 
+import type { MachineEntry } from "@sma1lboy/rove-core/machines/registry.ts"
 import { MachineHub } from "../../src/machines/hub.ts"
-import type { MachineEntry } from "../../src/machines/registry.ts"
 
 const sockets = { daemon: "/r/d.sock", pty: "/r/p.sock" }
 const status = (hub: MachineHub) => hub.machinesSignal().get()[0]

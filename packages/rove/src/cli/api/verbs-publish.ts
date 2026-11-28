@@ -6,9 +6,9 @@
  * (`machines/forward.ts` turns a forwarded `land` into this).
  */
 
-import { errorMessage } from "@/lib/error-message"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import { runAsync } from "@sma1lboy/rove-core/lib/run-async.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { runAsync } from "../../lib/run-async.ts"
 import { F } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"

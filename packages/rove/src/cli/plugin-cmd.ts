@@ -6,7 +6,8 @@ import { failureHint } from "../lib/failure-hint"
 
 import { spawnSync } from "node:child_process"
 import { readFileSync, rmSync } from "node:fs"
-import { errorMessage } from "@/lib/error-message"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 import { defaultDaemonSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import { isBuiltinModId } from "@sma1lboy/rove-daemon/plugins/builtin-mods"
 import { buildPluginEnv } from "@sma1lboy/rove-daemon/plugins/env"
@@ -26,7 +27,6 @@ import {
   removePluginEntry,
   savePluginRegistry,
 } from "@sma1lboy/rove-daemon/plugins/registry"
-import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { flagValue } from "./argv.ts"
 import { resolvePluginBinPath } from "./plugin-bin-path.ts"
 import { builtinModRows, setBuiltinMod } from "./plugin-builtin.ts"

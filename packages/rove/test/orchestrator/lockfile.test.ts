@@ -1,8 +1,8 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { LockfileError, acquire, isProcessAlive, release } from "@sma1lboy/rove-core/orchestrator/index/lockfile.ts"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { LockfileError, acquire, isProcessAlive, release } from "../../src/orchestrator/index/lockfile.ts"
 
 describe("isProcessAlive", () => {
   it("returns true for the current process", () => {

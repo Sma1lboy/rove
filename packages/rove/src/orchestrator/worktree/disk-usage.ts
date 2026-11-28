@@ -5,8 +5,8 @@
  */
 
 import path from "node:path"
-import type { ExecHost } from "../../exec/exec-host.ts"
-import { READ_ONLY_GIT_ENV } from "../../lib/git-env.ts"
+import type { ExecHost } from "@sma1lboy/rove-core/exec/exec-host.ts"
+import { READ_ONLY_GIT_ENV } from "@sma1lboy/rove-core/lib/git-env.ts"
 import { duKb, parseIgnoredPaths } from "./salvage-ignored.ts"
 
 export interface CheckoutUsage {

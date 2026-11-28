@@ -11,7 +11,7 @@ import {
   EMPTY_DRAFT,
   canSubmitDraft,
   firstIncompleteField,
-} from "@sma1lboy/rove/src/automations/automation-composer-core.ts"
+} from "@sma1lboy/rove-core/automations/automation-composer-core.ts"
 import {
   CRON_SEGMENTS,
   describeCronWith,
@@ -20,7 +20,7 @@ import {
   setSegment,
   splitCron,
   stepSegment,
-} from "@sma1lboy/rove/src/automations/cron-core.ts"
+} from "@sma1lboy/rove-core/automations/cron-core.ts"
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
 import { deviceHint } from "./key-hints.ts"

@@ -10,11 +10,11 @@
 import { existsSync } from "node:fs"
 import { copyFile, readFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
+import { LockfileError, acquire } from "@sma1lboy/rove-core/orchestrator/index/lockfile.ts"
+import type { Task, TaskTombstone } from "@sma1lboy/rove-core/types/task.ts"
 import { logClient } from "@sma1lboy/rove-daemon/client/client-log"
 import { defaultClientLogPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import { DAEMON_MIGRATION_MARKER } from "../../state/layout-migration.ts"
-import type { Task, TaskTombstone } from "../../types/task.ts"
-import { LockfileError, acquire } from "./lockfile.ts"
 import { coerceTask } from "./store-codec-rows.ts"
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))

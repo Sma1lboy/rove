@@ -7,15 +7,15 @@
  * `waiting-on-you` means.
  */
 
+import { TASK_GROUPS } from "@sma1lboy/rove-core/lib/task-group.ts"
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, it } from "vitest"
-import { TASK_GROUPS } from "../../src/lib/task-group.ts"
 import {
   compareTaskGroup,
   taskGroupIn,
   taskGroupLabel,
   taskGroupTone,
 } from "../../src/tui/panes/sidebar/task-group-view.ts"
-import { type Task, toTaskId } from "../../src/types/task.ts"
 
 const NOW = 1_800_000_000_000
 

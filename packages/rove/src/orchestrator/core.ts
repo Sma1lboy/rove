@@ -4,12 +4,21 @@
  * Interactive engine processes and Terminal Tab state have separate owners.
  */
 
+import { type ReadableState, type StateCell, createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
+import { gitRepoOf, pickRepos } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import { PLACEHOLDER_TASK_TITLE } from "@sma1lboy/rove-core/orchestrator/title.ts"
+import type {
+  Task,
+  TaskId,
+  TaskPRStatus,
+  TaskStatus,
+  TaskWorkerReport,
+  VendorId,
+} from "@sma1lboy/rove-core/types/task.ts"
 import type { MigratedChildInput } from "@sma1lboy/rove-daemon/daemon/child-contracts"
 import type { LandPreflightResult, ReparentResult, TaskPtyAlias } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
-import { type ReadableState, type StateCell, createStateCell } from "../lib/external-store.ts"
 import { readLastActiveTaskId, writeLastActiveTaskId } from "../state/last-active.ts"
-import type { Task, TaskId, TaskPRStatus, TaskStatus, TaskWorkerReport, VendorId } from "../types/task.ts"
 import type { AdoptableWorktree } from "../types/worktree.ts"
 import { WorkspaceCheckpoints } from "./checkpoints.ts"
 import { type OpenDirectoryTaskInput, adoptScratchRepoRow, openDirectoryTaskRow } from "./core-create.ts"
@@ -28,8 +37,6 @@ import { ProjectCoordinator } from "./projects.ts"
 import { type SpawnChildInput, type SpawnChildResult, spawnChildTaskRow } from "./spawn-child.ts"
 import { TaskDeletionCoordinator, type TaskDeletionOpts } from "./task-deletion.ts"
 import { TaskEditor } from "./task-editor.ts"
-import { gitRepoOf, pickRepos } from "./task-tree.ts"
-import { PLACEHOLDER_TASK_TITLE } from "./title.ts"
 import {
   type WorkspaceRegistry,
   createWorkspaceRegistry,

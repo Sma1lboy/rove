@@ -7,9 +7,9 @@
  * a gated install must stay inspectable and recoverable.
  */
 
-import { ROVE_PRODUCT_NAME } from "../product.ts"
-import { loadStateFile, patchStateFile } from "../state/store.ts"
-import { BREAKING_VERSIONS, CURRENT_VERSION, compareSemver } from "../version.ts"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
+import { loadStateFile, patchStateFile } from "@sma1lboy/rove-core/state/store.ts"
+import { BREAKING_VERSIONS, CURRENT_VERSION, compareSemver } from "@sma1lboy/rove-core/version.ts"
 
 export const LAST_RUN_VERSION_KEY = "app.lastRunVersion"
 

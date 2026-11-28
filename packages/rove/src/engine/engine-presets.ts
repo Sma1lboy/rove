@@ -25,8 +25,8 @@
 
 import { randomUUID } from "node:crypto"
 import { type EngineRegistryEntry, engineEntry } from "@/engine/registry"
-import { getCustomEngineIds, getPersistedString } from "@/state/repos"
-import { BUILTIN_VENDORS, type VendorId, isBuiltinVendor } from "@/types/vendor"
+import { getCustomEngineIds, getPersistedString } from "@sma1lboy/rove-core/state/repos.ts"
+import { BUILTIN_VENDORS, type VendorId, isBuiltinVendor } from "@sma1lboy/rove-core/types/vendor.ts"
 import { isContribEngine } from "./contrib-engines.ts"
 import { vendorFromArgv } from "./foreground.ts"
 import {

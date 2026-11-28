@@ -10,7 +10,7 @@
  * `overlaySelection`, so it survives snapshot refreshes.
  */
 
-import { charWidth } from "../../../lib/display-width"
+import { charWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
 import type { TerminalSnapshotWindow } from "./pty-types"
 import { ATTR, type Chunk, type RGB } from "./sgr"
 import { type RowWrapFlags, isWrapContinuation } from "./terminal-wrap"

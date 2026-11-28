@@ -11,8 +11,8 @@
  */
 
 import { describe, expect, test } from "bun:test"
+import type { TaskStatus } from "@sma1lboy/rove-core/types/task.ts"
 import { StatusPickerDialogView } from "../../src/tui-react/component/status-picker-dialog"
-import type { TaskStatus } from "../../src/types/task"
 import { type RenderHandle, act, renderComponent } from "./harness"
 
 function mount(current: TaskStatus = "in_progress"): Promise<RenderHandle> & { picked: TaskStatus[] } {

@@ -1,5 +1,5 @@
+import { CURRENT_VERSION } from "@sma1lboy/rove-core/version.ts"
 import { describe, expect, it } from "vitest"
-import { CURRENT_VERSION } from "../../src/version.ts"
 import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
 
 /**

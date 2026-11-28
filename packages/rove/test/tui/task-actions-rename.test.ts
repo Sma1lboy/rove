@@ -14,6 +14,7 @@ vi.mock("../../src/engine/account-detect", () => ({
   availableEngineIds: vi.fn(async () => ["claude", "codex"]),
 }))
 
+import type { Task, TaskStatus } from "@sma1lboy/rove-core/types/task.ts"
 import type { RoveOrchestrator } from "../../src/client/remote-orchestrator"
 import {
   type TaskActionContext,
@@ -23,7 +24,6 @@ import {
   renameTaskFlow,
   setStatusFlow,
 } from "../../src/tui/lib/task-actions"
-import type { Task, TaskStatus } from "../../src/types/task"
 
 function makeTask(overrides: Omit<Partial<Task>, "id"> & { id: string }): Task {
   return {

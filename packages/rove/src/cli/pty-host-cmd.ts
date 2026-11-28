@@ -4,13 +4,13 @@
  * restart` never ends running engine sessions.
  */
 
+import { CURRENT_VERSION } from "@sma1lboy/rove-core/version.ts"
 import { installDaemonCrashHandlers } from "@sma1lboy/rove-daemon/daemon/crash-log"
 import { rotateLogIfNeeded } from "@sma1lboy/rove-daemon/daemon/log-rotate"
 import { defaultPtyHostLogPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import { dropParentAgentSession } from "@sma1lboy/rove-daemon/daemon/pty-env"
 import { formatPtyHostLine } from "@sma1lboy/rove-daemon/daemon/pty-host-log"
 import { startPtyHostServer } from "@sma1lboy/rove-daemon/daemon/pty-server"
-import { CURRENT_VERSION } from "../version.ts"
 
 export async function runPtyHostSubcommand(_argv: readonly string[]): Promise<void> {
   // `pty.log` is our inherited stdout/stderr append fd, so boot is the ONLY safe

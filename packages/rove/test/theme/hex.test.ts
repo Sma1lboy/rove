@@ -1,6 +1,6 @@
+import { BUNDLED_THEME_JSONS } from "@sma1lboy/rove-core/theme/bundled.ts"
+import { normalizeHex, resolveThemeSlotHex } from "@sma1lboy/rove-core/theme/hex.ts"
 import { describe, expect, test } from "vitest"
-import { BUNDLED_THEME_JSONS } from "../../src/theme/bundled"
-import { normalizeHex, resolveThemeSlotHex } from "../../src/theme/hex"
 import type { ThemeJson } from "../../src/tui/context/theme-core"
 
 describe("normalizeHex", () => {

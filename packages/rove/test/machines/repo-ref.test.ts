@@ -2,7 +2,6 @@ import { execFileSync } from "node:child_process"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { describe, expect, test } from "vitest"
 import {
   cloneDirFor,
   cloneRepo,
@@ -10,7 +9,8 @@ import {
   parseRepoRef,
   pickCheckout,
   repoIdOf,
-} from "../../src/machines/repo-ref.ts"
+} from "@sma1lboy/rove-core/machines/repo-ref.ts"
+import { describe, expect, test } from "vitest"
 
 const none = () => false
 

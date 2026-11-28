@@ -11,7 +11,7 @@
 import { existsSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import type { BuiltinVendorId } from "@/types/vendor"
+import type { BuiltinVendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { argvHasFlag, bypassFlag } from "../cli/argv.ts"
 import { roveCliInvocation } from "../cli/invocation.ts"
 import {

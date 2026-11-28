@@ -8,13 +8,13 @@
 import type { RoveOrchestrator } from "@/client/remote-orchestrator"
 import { availableEngineIds } from "@/engine/account-detect"
 import { engineDisplayName } from "@/engine/interactive-command"
-import { t } from "@/i18n"
-import { errorMessage } from "@/lib/error-message"
-import type { ToastOptions } from "@/lib/notify-state"
-import { DEFAULT_TASK_VENDOR, type Task, type TaskStatus, type VendorId } from "@/types/task"
-import { nextVendorWithin } from "@/types/vendor"
+import { t } from "@sma1lboy/rove-core/i18n/index.ts"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import type { ToastOptions } from "@sma1lboy/rove-core/lib/notify-state.ts"
+import { getSavedRepos, isRemoteRepoKey } from "@sma1lboy/rove-core/state/repos.ts"
+import { DEFAULT_TASK_VENDOR, type Task, type TaskStatus, type VendorId } from "@sma1lboy/rove-core/types/task.ts"
+import { nextVendorWithin } from "@sma1lboy/rove-core/types/vendor.ts"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
-import { getSavedRepos, isRemoteRepoKey } from "../../state/repos.ts"
 
 export interface TaskActionLogger {
   error(message?: unknown, ...optionalParams: unknown[]): void

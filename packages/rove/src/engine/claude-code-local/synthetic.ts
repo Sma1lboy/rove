@@ -1,5 +1,5 @@
-import type { ContentBlock } from "@/types/engine"
-import { isObject } from "../../lib/is-object.ts"
+import { isObject } from "@sma1lboy/rove-core/lib/is-object.ts"
+import type { ContentBlock } from "@sma1lboy/rove-core/types/engine.ts"
 
 /**
  * Injected transcript records Claude Code excludes from human turns (its

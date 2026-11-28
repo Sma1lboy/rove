@@ -13,13 +13,13 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { useState } from "react"
 import { engineDisplayName } from "../../engine/interactive-command"
 import { engineEntry } from "../../engine/registry"
 import type { PickerWindow } from "../../tui/component/new-task-dialog/state"
 import { clampCursor, pickerVisibleRows } from "../../tui/component/new-task-dialog/state"
 import { effortLabel } from "../../tui/lib/effort-glyph"
-import type { VendorId } from "../../types/vendor"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"

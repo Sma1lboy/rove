@@ -1,9 +1,9 @@
 /** `rove api tab-revive` — reopen a Terminal Tab whose session is gone. The open itself is `tab-revive.ts`. */
 
+import { taskCwd } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
-import { taskCwd } from "../../orchestrator/task-tree.ts"
-import type { VendorId } from "../../types/vendor.ts"
 import { F } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ptyScopeOf } from "./pty-scope.ts"

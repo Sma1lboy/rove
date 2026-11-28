@@ -8,7 +8,7 @@
  * `test/i18n/catalog.test.ts`; this script is the fast local pre-commit run.
  */
 
-import { CATALOGS, LOCALES, en } from "../src/i18n/catalog.ts"
+import { CATALOGS, LOCALES, en } from "@sma1lboy/rove-core/i18n/catalog.ts"
 
 function flatten(obj: unknown, prefix = ""): Record<string, string> {
   const out: Record<string, string> = {}

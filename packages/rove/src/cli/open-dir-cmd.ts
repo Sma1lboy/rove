@@ -11,9 +11,9 @@
 
 import { statSync } from "node:fs"
 import { resolve } from "node:path"
+import { expandTilde } from "@sma1lboy/rove-core/lib/path-home.ts"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 import { pathSyntax } from "@sma1lboy/rove-daemon/path-identity"
-import { expandTilde } from "../lib/path-home.ts"
-import { ROVE_PRODUCT_NAME } from "../product.ts"
 
 /**
  * True for EXPLICIT path syntax (`.`, `..`, `./x`, `/abs`, `~/x`). Narrow on
@@ -40,8 +40,8 @@ export function isPathLikeArg(arg: string): boolean {
  * in `monorepo/packages/app` must not re-target the whole monorepo.
  */
 async function projectRootFor(dir: string): Promise<string | null> {
-  const { isGitRepo, resolveRepoRoot } = await import("../state/repos.ts")
-  const { projectRejection } = await import("../state/project-eligibility.ts")
+  const { isGitRepo, resolveRepoRoot } = await import("@sma1lboy/rove-core/state/repos.ts")
+  const { projectRejection } = await import("@sma1lboy/rove-core/state/project-eligibility.ts")
   const top = resolveRepoRoot(dir)
   if (top !== dir) return null
   // `explicit`: the user typed the path. `derived` (for inferred repos) would

@@ -13,9 +13,15 @@
  * Must stay importable from vitest and MUST NOT import from `src/tui/`.
  */
 
-import type { EngineCapabilities, EngineIdentity, EngineQuotaUsage, EngineUsageSnapshot, Message } from "@/types/engine"
-import { BUILTIN_VENDORS, type VendorId, isBuiltinVendor } from "@/types/vendor"
-import type { RemoteNotesFile } from "../machines/remote-workspace.ts"
+import type { RemoteNotesFile } from "@sma1lboy/rove-core/machines/remote-workspace.ts"
+import type {
+  EngineCapabilities,
+  EngineIdentity,
+  EngineQuotaUsage,
+  EngineUsageSnapshot,
+  Message,
+} from "@sma1lboy/rove-core/types/engine.ts"
+import { BUILTIN_VENDORS, type VendorId, isBuiltinVendor } from "@sma1lboy/rove-core/types/vendor.ts"
 import type {
   BobAccount,
   ClaudeAccount,

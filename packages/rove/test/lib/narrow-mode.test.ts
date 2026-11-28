@@ -1,5 +1,10 @@
+import {
+  NARROW_BREAKPOINT,
+  isNarrowWidth,
+  narrowSurface,
+  setNarrowBreakpoint,
+} from "@sma1lboy/rove-core/lib/narrow-mode.ts"
 import { afterEach, describe, expect, it } from "vitest"
-import { NARROW_BREAKPOINT, isNarrowWidth, narrowSurface, setNarrowBreakpoint } from "../../src/lib/narrow-mode"
 
 describe("isNarrowWidth", () => {
   afterEach(() => setNarrowBreakpoint(undefined))

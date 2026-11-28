@@ -31,7 +31,7 @@
  * `wd_<lowercased basename>_<sha256(realpath)[:12]>` (`kimi-local/trust.ts`).
  */
 
-import type { VendorId } from "../types/vendor.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { protocolEntry } from "./engine-presets.ts"
 
 export function trustEngineWorktree(vendor: VendorId | undefined, worktreePath: string): void {

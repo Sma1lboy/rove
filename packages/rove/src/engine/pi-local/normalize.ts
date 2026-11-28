@@ -4,7 +4,7 @@
  * `image` and unknown blocks are dropped silently, as in claude's normalizer.
  */
 
-import type { ContentBlock } from "@/types/content"
+import type { ContentBlock } from "@sma1lboy/rove-core/types/content.ts"
 
 /** Coerce a pi `content` field (string | block[]) into neutral blocks. */
 export function normalizePiContent(content: unknown): ContentBlock[] {

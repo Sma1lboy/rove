@@ -12,8 +12,13 @@
 
 import { type NativeResourceOwner, SyntaxStyle } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
+import {
+  type BumpGroup,
+  type NoteScope,
+  TUI_NOTE_CLIENTS,
+  groupReleaseNotes,
+} from "@sma1lboy/rove-core/lib/release-note-clients.ts"
 import { useMemo, useState } from "react"
-import { type BumpGroup, type NoteScope, TUI_NOTE_CLIENTS, groupReleaseNotes } from "../../lib/release-note-clients"
 import type { Theme } from "../../tui/context/theme-core"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"

@@ -4,6 +4,8 @@
  * for a second Enter just because the task is absent from the current snapshot.
  */
 
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, test, vi } from "vitest"
 import { TaskDeletingError } from "../../src/orchestrator/errors"
 import {
@@ -11,8 +13,6 @@ import {
   activationErrorMessage,
   firstSelectableTask,
 } from "../../src/tui-react/workspace/use-task-selection"
-import type { Task } from "../../src/types/task"
-import { toTaskId } from "../../src/types/task"
 
 function task(id: string, worktreePath: string): Task {
   return {

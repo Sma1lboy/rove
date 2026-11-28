@@ -5,7 +5,7 @@
  * machine's task starts from the composer.
  */
 
-import { filterBranches } from "@sma1lboy/rove/src/lib/branch-match.ts"
+import { filterBranches } from "@sma1lboy/rove-core/lib/branch-match.ts"
 import { useEffect, useRef, useState } from "react"
 import { ChipRow } from "./chip-row.tsx"
 import { DialogActions, DialogShell, useSubmit } from "./dialogs.tsx"

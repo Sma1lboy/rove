@@ -15,6 +15,8 @@ import { afterAll, beforeAll, beforeEach, expect, test } from "bun:test"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import type { TaskEngineState } from "../../src/client/remote-orchestrator"
 import { useFocus } from "../../src/tui-react/context/focus"
 import { useKV } from "../../src/tui-react/context/kv"
@@ -23,8 +25,6 @@ import { type SidebarHostState, useSidebarHostState } from "../../src/tui-react/
 import { useDialog } from "../../src/tui-react/ui/dialog"
 import { useWorkspaceKeybindings } from "../../src/tui-react/workspace/host-keybindings"
 import type { HostPagesState } from "../../src/tui-react/workspace/host-pages"
-import type { Task } from "../../src/types/task"
-import { toTaskId } from "../../src/types/task"
 import { act, renderComponent } from "./harness"
 
 // `useSidebarHostState` PERSISTS the chosen sort through KVProvider, which

@@ -14,7 +14,7 @@ import { execFile } from "node:child_process"
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs"
 import { delimiter, dirname, isAbsolute, join } from "node:path"
 import { promisify } from "node:util"
-import { roveStateDir } from "../env.ts"
+import { roveStateDir } from "@sma1lboy/rove-core/env.ts"
 import type { EngineModel } from "./registry.ts"
 
 const run = promisify(execFile)

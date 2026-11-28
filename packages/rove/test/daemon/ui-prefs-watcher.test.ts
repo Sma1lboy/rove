@@ -20,6 +20,7 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { patchStateFile } from "@sma1lboy/rove-core/state/store.ts"
 import { type ChannelEvent, DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import type { UiPrefsPayload } from "@sma1lboy/rove-daemon/daemon/protocol"
 import {
@@ -28,7 +29,6 @@ import {
   startUiPrefsWatcher,
 } from "@sma1lboy/rove-daemon/daemon/ui-prefs-watcher"
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
-import { patchStateFile } from "../../src/state/store.ts"
 
 let tmpHome: string
 let statePath: string

@@ -1,7 +1,7 @@
 /** How to re-invoke the active public CLI as a subprocess (packaged bin, or the dev runtime). */
 
 import { fileURLToPath } from "node:url"
-import { ROVE_PRODUCT_NAME } from "../product.ts"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 
 /**
  * argv prefix that runs the active CLI. Append the subcommand + flags:

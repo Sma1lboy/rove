@@ -5,7 +5,7 @@
  * is the TUI's own `worktrees.*` catalog.
  */
 
-import { en as wtEn, zh as wtZh } from "@sma1lboy/rove/src/i18n/messages/worktrees.ts"
+import { en as wtEn, zh as wtZh } from "@sma1lboy/rove-core/i18n/messages/worktrees.ts"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { ConfirmDialog, errorText } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"

@@ -1,4 +1,4 @@
-import { tabStripVisible } from "@sma1lboy/rove/src/state/tab-strip.ts"
+import { tabStripVisible } from "@sma1lboy/rove-core/state/tab-strip.ts"
 import type { TabRow, TaskRow } from "rove-bridge/protocol"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"

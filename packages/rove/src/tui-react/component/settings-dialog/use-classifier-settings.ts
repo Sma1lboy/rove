@@ -15,9 +15,9 @@
  * path the base cycle is not currently pointing at.
  */
 
+import { type SecretSource, secretStatus, writeSecret } from "@sma1lboy/rove-core/state/secrets.ts"
 import { readClassifierConfig } from "../../../engine/auto-routing-classifier"
 import { displayEndpoint } from "../../../settings/model"
-import { type SecretSource, secretStatus, writeSecret } from "../../../state/secrets"
 import type { KVContext } from "../../context/kv"
 import { useT } from "../../i18n"
 import type { DialogContext } from "../../ui/dialog"

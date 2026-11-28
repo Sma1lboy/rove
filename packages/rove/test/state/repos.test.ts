@@ -29,7 +29,6 @@ import { spawnSync } from "node:child_process"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import { afterEach, beforeEach, describe, expect, test } from "vitest"
 import {
   addRemoteRepo,
   addSavedRepo,
@@ -41,7 +40,8 @@ import {
   removeSavedRepo,
   statePath,
   storedRepos,
-} from "../../src/state/repos.ts"
+} from "@sma1lboy/rove-core/state/repos.ts"
+import { afterEach, beforeEach, describe, expect, test } from "vitest"
 
 let tmpHome: string
 let originalHome: string | undefined

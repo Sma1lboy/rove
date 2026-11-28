@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest"
 import {
   type KeychainDeps,
   type KeychainRef,
@@ -6,7 +5,8 @@ import {
   getKeychainPassword,
   remoteKeychainRef,
   setKeychainPassword,
-} from "../../src/exec/keychain.ts"
+} from "@sma1lboy/rove-core/exec/keychain.ts"
+import { describe, expect, it } from "vitest"
 
 const REF: KeychainRef = { service: "rove-remote-ssh", account: "dev@box:2222" }
 

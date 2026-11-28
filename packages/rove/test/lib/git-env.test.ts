@@ -1,5 +1,5 @@
+import { readOnlyGitProcessEnv } from "@sma1lboy/rove-core/lib/git-env.ts"
 import { describe, expect, test } from "vitest"
-import { readOnlyGitProcessEnv } from "../../src/lib/git-env"
 
 describe("read-only git env", () => {
   test("merges over an existing process env", () => {

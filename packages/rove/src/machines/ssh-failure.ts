@@ -4,7 +4,7 @@
  * user to search for the cause Rove already had in hand.
  */
 
-import { WINDOWS_SSHD_STEPS } from "./windows-remote.ts"
+import { WINDOWS_SSHD_STEPS } from "@sma1lboy/rove-core/machines/windows-remote.ts"
 
 export type SshFailureKind =
   | "unresolved"

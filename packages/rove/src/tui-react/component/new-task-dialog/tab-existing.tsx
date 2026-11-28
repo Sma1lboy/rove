@@ -2,8 +2,8 @@
 /** Existing tab: first message, repo input with saved/browse dropdown, base-branch picker.
  *  JSX only; behavior lives in the view-model. */
 
+import { DEFAULT_BASE_REF } from "@sma1lboy/rove-core/worktree/git-snapshot.ts"
 import { type ExistingIntent, splitRepoRow } from "../../../tui/component/new-task-dialog/state"
-import { DEFAULT_BASE_REF } from "../../../worktree/git-snapshot"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { ChipRow, DialogField, DialogSection } from "../../ui/dialog-parts"

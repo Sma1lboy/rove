@@ -1,6 +1,6 @@
 /** New session's Later: a time field that starts the session by itself at that time instead of now (in the `⋯` menu). */
 
-import { displayWidth } from "@sma1lboy/rove/src/lib/display-width.ts"
+import { displayWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
 import { useState } from "react"
 import { t } from "./i18n/index.ts"
 import { parseStartAt } from "./schedule-start.ts"

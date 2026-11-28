@@ -6,10 +6,10 @@
  * `tree-core`, the module that re-exports the tree's whole vocabulary.
  */
 
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, test } from "vitest"
 import { parseRowId, rowLiveBranchPath, tabRowId, worktreeRowLabel } from "../../src/tui/panes/sidebar/tree-core"
-import type { Task } from "../../src/types/task"
-import { toTaskId } from "../../src/types/task"
 
 function task(id: string, over: Partial<Task> = {}): Task {
   return {

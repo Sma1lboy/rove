@@ -9,7 +9,7 @@
  * would clear the composer instead of stopping the turn.
  */
 
-import type { EngineCapabilities, EngineIdentity } from "@/types/engine"
+import type { EngineCapabilities, EngineIdentity } from "@sma1lboy/rove-core/types/engine.ts"
 
 export const piCapabilities: EngineCapabilities = { interruptSequence: "\u001b" }
 export const ompCapabilities: EngineCapabilities = {

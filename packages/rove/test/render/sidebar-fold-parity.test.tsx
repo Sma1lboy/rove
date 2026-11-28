@@ -17,12 +17,12 @@
  */
 
 import { expect, test } from "bun:test"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { CollapsedRail } from "../../src/tui-react/panes/sidebar/collapsed-rail"
 import { useSidebarGroups } from "../../src/tui-react/panes/sidebar/use-sidebar-groups"
 import { tabsByTask as tabStore } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import { type TreeTab, buildTreeRows } from "../../src/tui/panes/sidebar/tree-core"
-import type { Task } from "../../src/types/task"
-import { toTaskId } from "../../src/types/task"
 import { renderComponent } from "./harness"
 
 function task(id: string, over: Partial<Task> = {}): Task {

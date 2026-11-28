@@ -13,6 +13,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { BUILTIN_VENDORS } from "@sma1lboy/rove-core/types/vendor.ts"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
   protocolUpgradeFromLiveSession,
@@ -21,7 +22,6 @@ import {
   sniffProtocolFromTitle,
 } from "../../src/engine/protocol-sniff.ts"
 import { engineEntry } from "../../src/engine/registry.ts"
-import { BUILTIN_VENDORS } from "../../src/types/vendor.ts"
 
 describe("sniffProtocolFromTitle", () => {
   it("names the vendor whose status glyph is UNIQUE to it", () => {

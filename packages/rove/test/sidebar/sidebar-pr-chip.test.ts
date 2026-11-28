@@ -1,5 +1,5 @@
 import { prChip, sidebarPrChip } from "@/sidebar/row-chips"
-import type { Task } from "@/types/task"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, test } from "vitest"
 
 const status = (checkState: string, lifecycle = "open") => ({ lifecycle, checkState }) as never

@@ -1,6 +1,6 @@
+import { displayWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
 import { Terminal } from "@xterm/headless"
 import { describe, expect, it } from "vitest"
-import { displayWidth } from "../../src/lib/display-width"
 import { ATTR, type Chunk } from "../../src/tui/panes/terminal/sgr"
 import {
   type CellPoint,

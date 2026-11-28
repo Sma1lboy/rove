@@ -6,7 +6,7 @@
  */
 
 import type { BorderCharacters, BorderSides, RGBA } from "@opentui/core"
-import type { SplitStyle } from "../../state/split-style"
+import type { SplitStyle } from "@sma1lboy/rove-core/state/split-style.ts"
 import type { SplitNode } from "../../tabs/split-core"
 
 export type SplitDivider = "left" | "top"

@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@fontsource/jetbrains-mono": "^5.2.8",
+    "@sma1lboy/rove-core": "workspace:*",
     "@sma1lboy/rove-daemon": "workspace:*",
     "@tailwindcss/vite": "^4.3.2",
     "@tanstack/react-router": "1.170.36",
@@ -60,9 +61,6 @@
     "vitest": "^4.1.11"
   },
   "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "lightningcss"
-    ]
+    "onlyBuiltDependencies": ["esbuild", "lightningcss"]
   }
 }

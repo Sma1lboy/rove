@@ -1,7 +1,7 @@
+import { displayWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, it } from "vitest"
 import { renderExport } from "../../src/cli/export-cmd.ts"
-import { displayWidth } from "../../src/lib/display-width.ts"
-import { type Task, toTaskId } from "../../src/types/task.ts"
 
 function task(overrides: Partial<Task> = {}): Task {
   return {

@@ -12,8 +12,8 @@
  * UI still looks identical, but the production leak silently returns.
  */
 
+import { displayWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
 import { describe, expect, test } from "vitest"
-import { displayWidth } from "../../src/lib/display-width.ts"
 import {
   type Row,
   reconcileRows,

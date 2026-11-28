@@ -80,7 +80,7 @@ describe("daemon activity state", () => {
   })
 
   // Why: the reducer now has ONE definition (rove-daemon activity-reduce;
-  // rove/src/engine/hook-events.ts re-exports it). These two behaviors were
+  // rove-core/src/engine/hook-events.ts re-exports it). These two behaviors were
   // paid for with production bugs and were only pinned on the rove side —
   // this is the daemon path they actually ship on.
   it("a Stop on a COLD registry completes the turn — it outlived a daemon restart", () => {

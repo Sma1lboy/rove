@@ -7,6 +7,7 @@
 
 import { engineLaunchArgv, withPinnedSessionId } from "../../engine/engine-presets"
 
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import {
   type CommandTab,
   type EngineTab,
@@ -15,7 +16,6 @@ import {
   reopenTabs,
 } from "../../tabs/terminal-tabs-core"
 import { type TabsSnapshotKv, terminalTabsKey } from "../../tabs/terminal-tabs-persist"
-import type { VendorId } from "../../types/vendor"
 import {
   commitTaskTabs,
   forgetTaskTabsView,

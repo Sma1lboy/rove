@@ -14,8 +14,8 @@ import { spawnSync } from "node:child_process"
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
-import { type MachineConfig, sshTargetOf } from "./registry.ts"
-import { machineIdentityFile } from "./ssh-args.ts"
+import { type MachineConfig, sshTargetOf } from "@sma1lboy/rove-core/machines/registry.ts"
+import { machineIdentityFile } from "@sma1lboy/rove-core/machines/ssh-args.ts"
 
 export interface ReverseTunnelPorts {
   /** Port on the OTHER machine's loopback that leads back here. */

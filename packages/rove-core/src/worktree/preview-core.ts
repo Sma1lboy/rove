@@ -3,9 +3,9 @@
  * Vitest-safe: no @opentui imports (SyntaxStyle lives in `./preview-syntax`).
  */
 
-import { unquoteGitPath } from "@/lib/git-parsers"
-import { readWorktreeFile, runWorktreeGit, worktreeFileSize } from "@/worktree/content"
 import { t } from "../i18n"
+import { unquoteGitPath } from "../lib/git-parsers"
+import { readWorktreeFile, runWorktreeGit, worktreeFileSize } from "./content"
 
 /**
  * Map a file to an opentui tree-sitter grammar name: by extension, else (an

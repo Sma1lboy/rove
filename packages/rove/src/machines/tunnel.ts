@@ -17,9 +17,14 @@
 import { spawn } from "node:child_process"
 import { mkdirSync, rmSync } from "node:fs"
 import { connect as netConnect } from "node:net"
-import { homeDir } from "../env.ts"
-import type { MachineConfig } from "./registry.ts"
-import { localDaemonSocketPath, localPtySocketPath, machineSocketDir, machineSshArgs } from "./ssh-args.ts"
+import { homeDir } from "@sma1lboy/rove-core/env.ts"
+import type { MachineConfig } from "@sma1lboy/rove-core/machines/registry.ts"
+import {
+  localDaemonSocketPath,
+  localPtySocketPath,
+  machineSocketDir,
+  machineSshArgs,
+} from "@sma1lboy/rove-core/machines/ssh-args.ts"
 import { ensureStdioForwards, relayAnswers, stopStdioForwards, useStdioTransport } from "./stdio-forward.ts"
 
 /** Owner-only, like every other directory under `<home>/.rove`: the sockets in

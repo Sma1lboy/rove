@@ -12,11 +12,11 @@
  * correctly.
  */
 import { expect, test } from "bun:test"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { useBindings } from "../../src/tui-react/lib/keymap"
 import { SidebarTree } from "../../src/tui-react/panes/sidebar/SidebarTree"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
-import type { Task } from "../../src/types/task"
-import { toTaskId } from "../../src/types/task"
 import { act, renderComponent, waitForFrameText } from "./harness"
 
 function task(id: string, over: Partial<Task> = {}): Task {

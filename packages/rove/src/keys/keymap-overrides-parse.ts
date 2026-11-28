@@ -37,7 +37,7 @@
  *     is no `lctrl`/`rcmd` syntax.
  */
 
-import { isObject } from "../lib/is-object"
+import { isObject } from "@sma1lboy/rove-core/lib/is-object.ts"
 
 /** One requested override after extraction: `keys: []` means "unbind". */
 export type KeymapOverrideEntry = { id: string; keys: string[] }

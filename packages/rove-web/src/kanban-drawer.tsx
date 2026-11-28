@@ -7,7 +7,7 @@
  * the board owns the writes.
  */
 
-import { relativeAge } from "@sma1lboy/rove/src/lib/relative-time.ts"
+import { relativeAge } from "@sma1lboy/rove-core/lib/relative-time.ts"
 import { type ClipboardEvent, type DragEvent, type KeyboardEvent, useEffect, useRef, useState } from "react"
 import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"

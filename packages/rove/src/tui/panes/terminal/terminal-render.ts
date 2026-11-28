@@ -1,4 +1,4 @@
-import { charWidth } from "../../../lib/display-width.ts"
+import { charWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
 import type { CursorPos } from "./pty"
 import { ATTR, type Chunk, type RGB } from "./sgr"
 

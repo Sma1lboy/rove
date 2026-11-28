@@ -6,8 +6,8 @@
  * unit tests, like `sync-base-action.ts`.
  */
 
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
-import type { Task } from "../../types/task"
 
 const BUSY_RE = /\bTASK_BUSY: /
 const REFUSAL_RE = /\bTASK_BUSY: ([\s\S]*)$/

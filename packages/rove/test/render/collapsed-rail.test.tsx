@@ -9,9 +9,9 @@
  */
 
 import { expect, test } from "bun:test"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { CollapsedRail } from "../../src/tui-react/panes/sidebar/collapsed-rail"
 import { buildSidebarGroups } from "../../src/tui/panes/sidebar/project-groups"
-import type { Task } from "../../src/types/task"
 import { renderComponent } from "./harness"
 
 /**

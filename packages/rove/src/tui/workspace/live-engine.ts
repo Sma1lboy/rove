@@ -7,9 +7,9 @@
  * tab-strip titles) share ONE probe instead of racing reconciles.
  */
 
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { type PsSnapshot, foregroundEngineIn, parsePsSnapshot } from "../../engine/foreground"
 import { descendantSnapshot } from "../../engine/proc-descendants"
-import type { VendorId } from "../../types/vendor"
 import type { TaskPtyLike } from "../panes/terminal/pty-types"
 import { getDefaultPtyRegistry } from "../panes/terminal/registry"
 

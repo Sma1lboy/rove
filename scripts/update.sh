@@ -253,7 +253,7 @@ PID=$!
 
 if [ -t 1 ]; then
   # ponytail: braille spinner, same glyph set as the TUI's DEFAULT_SPINNER_FRAMES
-  # (packages/rove/src/engine/spinner-frames.ts) — keep the two in sync by eye.
+  # (packages/rove-core/src/engine/spinner-frames.ts) — keep the two in sync by eye.
   set -- ⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏
   while kill -0 "$PID" 2>/dev/null; do
     frame=$1

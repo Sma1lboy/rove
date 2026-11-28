@@ -15,6 +15,7 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import type { TaskPRStatus } from "@sma1lboy/rove-core/types/task.ts"
 import { SESSION_PR_CAP } from "@sma1lboy/rove-daemon/daemon/session-prs"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Orchestrator } from "../../src/orchestrator/core.ts"
@@ -26,7 +27,6 @@ import {
 } from "../../src/orchestrator/errors.ts"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 import type { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
-import type { TaskPRStatus } from "../../src/types/task.ts"
 
 let home: string
 let store: TaskIndexStore

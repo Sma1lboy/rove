@@ -8,8 +8,8 @@
  * box printed `8/3/2026`, an en UI on a `zh-CN` box printed `2026/8/3`.
  */
 
+import { currentLang, setLocaleLang, t } from "@sma1lboy/rove-core/i18n/index.ts"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
-import { currentLang, setLocaleLang, t } from "../../src/i18n"
 import { formatRunStatus, formatWhen } from "../../src/tui-react/component/automations-format"
 
 const NOW = new Date(2026, 6, 31, 10, 0, 0).getTime()

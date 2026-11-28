@@ -2,7 +2,9 @@ import { spawn } from "node:child_process"
 import { mkdtemp, readFile, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { pathToFileURL } from "node:url"
 import { afterEach, expect, it } from "vitest"
+import { corePath } from "../core-package.ts"
 
 let home: string | undefined
 afterEach(async () => {
@@ -11,7 +13,7 @@ afterEach(async () => {
 
 it("serializes independent settings writers through the complete read-mutate-write", async () => {
   home = await mkdtemp(join(tmpdir(), "rove-settings-writers-"))
-  const store = new URL("../../src/state/store.ts", import.meta.url).href
+  const store = pathToFileURL(corePath("state/store.ts")).href
   const source = `
     import { updateStateFile } from ${JSON.stringify(store)};
     const key = process.env.TEST_STATE_KEY;

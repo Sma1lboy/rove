@@ -11,10 +11,10 @@
  * input, never hides it — claude lists three aliases and takes any full id.
  */
 
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { useEffect, useMemo, useState } from "react"
 import { type EngineModel, engineEntry } from "../../engine/registry"
 import { type PickerWindow, clampCursor, stripNewlines, windowAround } from "../../tui/component/new-task-dialog/state"
-import type { VendorId } from "../../types/vendor"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { DialogField, DialogSection } from "../ui/dialog-parts"

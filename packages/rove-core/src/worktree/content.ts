@@ -1,9 +1,9 @@
 /** Soft-failing Worktree reads (git output, file text); local vs SSH stays behind ExecHost. */
 
-import { errorMessage } from "@/lib/error-message"
 import { readHeadSha, resolveGitDirs } from "@sma1lboy/rove-daemon/daemon/worktree-probe"
 import type { ExecResult } from "../exec/exec-host.ts"
 import { execHostForWorktreePath } from "../exec/resolve.ts"
+import { errorMessage } from "../lib/error-message"
 import { READ_ONLY_GIT_ENV } from "../lib/git-env.ts"
 import { recordSpawn } from "../lib/spawn-profile.ts"
 

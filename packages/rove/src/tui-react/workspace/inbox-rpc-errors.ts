@@ -1,5 +1,5 @@
-import { userFacingErrorMessage } from "@/lib/error-message"
-import { t } from "../../i18n"
+import { t } from "@sma1lboy/rove-core/i18n/index.ts"
+import { userFacingErrorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 
 export type InboxRpcAction = "mark read" | "dismiss"
 

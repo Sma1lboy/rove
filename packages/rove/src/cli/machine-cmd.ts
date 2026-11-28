@@ -8,9 +8,6 @@
  * with the specific remedy.
  */
 
-import { type DiscoverResult, learnedFrom, sshServerIsWindows } from "../machines/discover.ts"
-import { checkHostKey } from "../machines/host-key.ts"
-import { INBOUND_CLASSES, deniedClasses, setInbound } from "../machines/inbound.ts"
 import {
   type MachineConfig,
   addMachine,
@@ -26,8 +23,16 @@ import {
   setMachineIdentity,
   sshTargetOf,
   updateMachine,
-} from "../machines/registry.ts"
-import { readMachines } from "../machines/registry.ts"
+} from "@sma1lboy/rove-core/machines/registry.ts"
+import { readMachines } from "@sma1lboy/rove-core/machines/registry.ts"
+import { machineSocketDir } from "@sma1lboy/rove-core/machines/ssh-args.ts"
+import { isWindowsMachine } from "@sma1lboy/rove-core/machines/windows-remote.ts"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
+import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"
+import { CURRENT_VERSION } from "@sma1lboy/rove-core/version.ts"
+import { type DiscoverResult, learnedFrom, sshServerIsWindows } from "../machines/discover.ts"
+import { checkHostKey } from "../machines/host-key.ts"
+import { INBOUND_CLASSES, deniedClasses, setInbound } from "../machines/inbound.ts"
 import {
   installReverseTunnel,
   reverseTunnelArgv,
@@ -35,11 +40,6 @@ import {
   uninstallReverseTunnel,
 } from "../machines/reverse-tunnel.ts"
 import { type SetupRuntime, establishMachine } from "../machines/setup.ts"
-import { machineSocketDir } from "../machines/ssh-args.ts"
-import { isWindowsMachine } from "../machines/windows-remote.ts"
-import { ROVE_PRODUCT_NAME } from "../product.ts"
-import { loadStateFile } from "../state/store.ts"
-import { CURRENT_VERSION } from "../version.ts"
 import { argvHasFlag } from "./argv.ts"
 import { defaultFixRuntime } from "./doctor-fix.ts"
 import { machineMcp } from "./machine-mcp.ts"

@@ -13,8 +13,8 @@
  * `autoEffort.*` up to v0.9.220; `state/state-key-migration.ts` moves them.
  */
 
-import { getPersistedString } from "@/state/repos"
-import type { VendorId } from "@/types/vendor"
+import { getPersistedString } from "@sma1lboy/rove-core/state/repos.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { protocolEntry } from "./engine-presets.ts"
 
 export const AUTO_ROUTING_TIERS = ["swift", "standard", "deep"] as const

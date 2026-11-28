@@ -4,11 +4,11 @@
  * goes away. With none registered the local task array passes through as is.
  */
 
+import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, it } from "vitest"
 import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator.ts"
-import { createStateCell } from "../../src/lib/external-store.ts"
 import { MachineFeed } from "../../src/machines/feed.ts"
-import type { Task } from "../../src/types/task.ts"
 
 const task = (id: string, extra: Partial<Task> = {}) => ({ id, title: id, repo: "/r", ...extra }) as Task
 

@@ -23,11 +23,11 @@ import { afterAll, afterEach, beforeAll, expect, test } from "bun:test"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
-import { createStateCell } from "../../src/lib/external-store"
 import { WorkspaceRoot } from "../../src/tui-react/workspace/host"
 import { setUiEventReporter } from "../../src/tui-react/workspace/terminal-tabs-shared"
-import { type Task, toTaskId } from "../../src/types/task"
 import { act, renderComponent, waitForFrameText } from "./harness"
 
 // Same per-FILE env capture as host-version-skew-banner: KVProvider persists

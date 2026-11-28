@@ -5,7 +5,7 @@
  * decides its schema group.
  */
 
-import { TASK_ACTIVITY_STATES } from "../../engine/hook-events.ts"
+import { TASK_ACTIVITY_STATES } from "@sma1lboy/rove-core/engine/hook-events.ts"
 import { ACTIVITY_STATES_DOC } from "./activity-view.ts"
 import { F } from "./flags.ts"
 import { handlePtyList } from "./handler-helpers.ts"

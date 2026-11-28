@@ -36,24 +36,24 @@ vi.mock("node:readline", () => ({
   })),
 }))
 
-vi.mock("../../src/exec/exec-host.ts", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../src/exec/exec-host.ts")>()
+vi.mock("@sma1lboy/rove-core/exec/exec-host.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@sma1lboy/rove-core/exec/exec-host.ts")>()
   return {
     ...actual,
     RemoteExecHost: vi.fn().mockImplementation(() => ({ run: mocks.run })),
   }
 })
 
-vi.mock("../../src/exec/keychain.ts", () => ({
+vi.mock("@sma1lboy/rove-core/exec/keychain.ts", () => ({
   isKeychainSupported: mocks.isKeychainSupported,
   setKeychainPassword: mocks.setKeychainPassword,
   getKeychainPassword: mocks.getKeychainPassword,
   remoteKeychainRef: mocks.remoteKeychainRef,
 }))
 
+import { getRemoteRepos, getSavedRepos } from "@sma1lboy/rove-core/state/repos.ts"
+import { updateStateFile } from "@sma1lboy/rove-core/state/store.ts"
 import { runAddRemote } from "../../src/cli/add-remote.ts"
-import { getRemoteRepos, getSavedRepos } from "../../src/state/repos.ts"
-import { updateStateFile } from "../../src/state/store.ts"
 
 let home: string
 let originalHome: string | undefined

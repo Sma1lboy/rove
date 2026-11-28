@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest"
 import {
   TITLE_CHAR_CAP,
   deriveTitleFromPrompt,
   isPlaceholderDerivedBranch,
   sanitizeTaskTitle,
-} from "../../src/orchestrator/title.ts"
+} from "@sma1lboy/rove-core/orchestrator/title.ts"
+import { describe, expect, it } from "vitest"
 
 describe("isPlaceholderDerivedBranch", () => {
   it("recognizes the convention-era placeholder shapes", () => {

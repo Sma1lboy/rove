@@ -22,8 +22,8 @@
  */
 
 import path from "node:path"
+import { LockfileError, acquire, release } from "@sma1lboy/rove-core/orchestrator/index/lockfile.ts"
 import { defaultDeliveryLockDir } from "@sma1lboy/rove-daemon/daemon/paths"
-import { LockfileError, acquire, release } from "../orchestrator/index/lockfile.ts"
 
 /** Wait before writing unserialised. Well above one delivery's critical section
  *  (`SUBMIT_DELAY_MS` + two RPCs) so back-to-back sends queue; short enough

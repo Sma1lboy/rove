@@ -3,12 +3,12 @@
  * at one cell, and a spinner frame must never read as a settled badge.
  */
 
+import { charWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
+import { GLYPH_SETS, type GlyphSet } from "@sma1lboy/rove-core/lib/glyphs.ts"
+import { GLYPH_SET_NAMES } from "@sma1lboy/rove-core/state/glyph-set.ts"
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, it } from "vitest"
-import { charWidth } from "../../src/lib/display-width.ts"
-import { GLYPH_SETS, type GlyphSet } from "../../src/lib/glyphs.ts"
-import { GLYPH_SET_NAMES } from "../../src/state/glyph-set.ts"
 import { buildSidebarRowView } from "../../src/tui/panes/sidebar/row-view.ts"
-import { type Task, toTaskId } from "../../src/types/task.ts"
 
 const cells = (s: string): number => [...s].reduce((n, ch) => n + charWidth(ch.codePointAt(0) ?? 0), 0)
 

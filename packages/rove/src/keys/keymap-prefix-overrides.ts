@@ -3,7 +3,7 @@
  * Kept apart from direct-chord overrides so each parser has one grammar.
  */
 
-import { isObject } from "../lib/is-object"
+import { isObject } from "@sma1lboy/rove-core/lib/is-object.ts"
 import { type AppliedOverride, type KeymapOverrideEntry, normalizeChord } from "./keymap-overrides"
 
 export type PrefixOverridableBinding = {

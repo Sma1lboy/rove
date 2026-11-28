@@ -7,7 +7,7 @@
  * given; no module state, no console output.
  */
 
-import type { KeybindingsFile } from "../state/keybindings-file"
+import type { KeybindingsFile } from "@sma1lboy/rove-core/state/keybindings-file.ts"
 import { DEFAULT_PREFIX_CONFIGURATION, type PrefixConfiguration, prefixFirstStrokes } from "./keymap-dispatch"
 import {
   type AppliedOverride,

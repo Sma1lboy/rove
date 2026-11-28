@@ -8,7 +8,7 @@
  */
 
 import { TextAttributes } from "@opentui/core"
-import { approxCellWidth } from "../../lib/display-width"
+import { approxCellWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
 import { mixInk } from "../../tui/lib/breathe"
 import {
   SIDEBAR_HOVER_TOOLTIP_MAX_WIDTH,

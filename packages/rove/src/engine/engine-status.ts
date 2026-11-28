@@ -18,7 +18,7 @@
 import { spawn, spawnSync } from "node:child_process"
 import { statSync } from "node:fs"
 import path from "node:path"
-import type { VendorId } from "@/types/vendor"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type {
   BinaryStatus,

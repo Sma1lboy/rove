@@ -8,8 +8,8 @@
 import { stat } from "node:fs/promises"
 import * as claudeHistory from "@/engine/claude-code-local/history"
 import * as codexHistory from "@/engine/codex-local/history"
-import type { VendorId } from "@/types/vendor"
-import { isObject } from "../lib/is-object"
+import { isObject } from "@sma1lboy/rove-core/lib/is-object.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { isJsonlLineWithinBound, readTextFileIfRegular } from "./file-bounds"
 import { engineEntry } from "./registry.ts"
 

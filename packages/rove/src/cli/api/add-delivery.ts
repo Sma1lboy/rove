@@ -4,9 +4,9 @@
  * prompt's delivery, and the stored brief.
  */
 
+import type { TaskStatus } from "@sma1lboy/rove-core/types/task.ts"
 import { deliveryFooter } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { roveApiInvocation } from "../../engine/interactive-command.ts"
-import type { TaskStatus } from "../../types/task.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { type DeliveredPrompt, type PromptTarget, type VerbContext, promptMayHaveLanded } from "./types.ts"
 

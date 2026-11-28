@@ -11,8 +11,8 @@
 
 import { spawn } from "node:child_process"
 import { homedir } from "node:os"
-import type { ContextPart } from "@/types/engine"
-import { isObject } from "../../lib/is-object.ts"
+import type { ContextPart } from "@sma1lboy/rove-core/types/engine.ts"
+import { isObject } from "@sma1lboy/rove-core/lib/is-object.ts"
 import { findClaudeBinary } from "./binary.ts"
 
 export interface ProbedContext {

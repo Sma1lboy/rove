@@ -13,7 +13,7 @@ import { spawn } from "node:child_process"
 import { appendFileSync, chmodSync, existsSync, mkdirSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname } from "node:path"
-import { type MachineConfig, sshTargetOf } from "./registry.ts"
+import { type MachineConfig, sshTargetOf } from "@sma1lboy/rove-core/machines/registry.ts"
 
 export interface SshDestination {
   /** The known_hosts lookup name: `host`, `[host]:port`, or the HostKeyAlias. */

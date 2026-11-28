@@ -3,6 +3,7 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
+import { corePath } from "../core-package.ts"
 
 const source = new URL("../../src/", import.meta.url).pathname
 
@@ -28,7 +29,7 @@ function runCleanup(stored: (home: string) => string | undefined) {
       import { vendorConfigHome } from ${JSON.stringify(`${source}engine/vendor-home.ts`)};
       if (homedir() !== process.env.FIXTURE_HOME) throw Error('unsafe home');
       for (const v of ['claude','codex','kimi','copilot']) if (!vendorConfigHome(v).startsWith(homedir() + '/')) throw Error('unsafe profile');
-      const { setPersistedString } = await import(${JSON.stringify(`${source}state/repos.ts`)});
+      const { setPersistedString } = await import(${JSON.stringify(corePath("state/repos.ts"))});
       const { ensureGlobalRoveHooks } = await import(${JSON.stringify(`${source}cli/hook-cmd.ts`)});
       const stored = ${JSON.stringify(stored(home)) ?? "undefined"};
       if (stored !== undefined) setPersistedString('externalWorktreeSync', stored);

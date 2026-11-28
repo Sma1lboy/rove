@@ -8,8 +8,8 @@
  * notifications provider, which sits below KV.
  */
 
+import { tildify } from "@sma1lboy/rove-core/lib/path-home.ts"
 import { useEffect } from "react"
-import { tildify } from "../../lib/path-home"
 import { t } from "../i18n"
 import { useOptionalKV } from "./kv"
 import { useOptionalNotifications } from "./notifications"

@@ -5,7 +5,7 @@
  * belong here.
  */
 
-import { remoteShellInput } from "../machines/remote-workspace.ts"
+import { remoteShellInput } from "@sma1lboy/rove-core/machines/remote-workspace.ts"
 
 /** What a tab's PTY should spawn: an argv, plus optional bytes typed into
  *  it right after spawn (`TaskPtyOpts.initialInput`). */

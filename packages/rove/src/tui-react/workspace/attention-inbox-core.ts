@@ -1,7 +1,7 @@
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { attentionInboxItemKey, isRoutineInboxState } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { AttentionInboxItem } from "../../client/remote-orchestrator"
 import { compareRecent } from "../../sidebar/groups"
-import type { Task } from "../../types/task"
 import { type InboxVisit, inboxVisitIndex } from "./inbox-visits"
 
 export const attentionInboxKey = attentionInboxItemKey

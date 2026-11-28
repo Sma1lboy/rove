@@ -5,10 +5,10 @@
  * alive in a fallback shell. Only the process table separates them.
  */
 
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { PtyPeekResult } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import { terminalRows } from "@sma1lboy/rove-daemon/daemon/terminal-rows"
-import type { VendorId } from "../types/vendor.ts"
 import type { PsSnapshot } from "./foreground.ts"
 import { awaitUnblockedScreen } from "./hosted-screen-readiness.ts"
 import {

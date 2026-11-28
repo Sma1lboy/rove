@@ -4,7 +4,7 @@
  * One terminal cell is `CELL_PX` wide.
  */
 
-import { NARROW_BREAKPOINT, narrowSurface } from "@sma1lboy/rove/src/lib/narrow-mode.ts"
+import { NARROW_BREAKPOINT, narrowSurface } from "@sma1lboy/rove-core/lib/narrow-mode.ts"
 import { useSyncExternalStore } from "react"
 import { createStore } from "./store.ts"
 import { type PageId, compareGroup, page, sessionsRepo } from "./ui.ts"

@@ -26,11 +26,11 @@ import {
   EDITOR_KIND_KEY,
   type EditorKind,
   normalizeEditorKind,
-} from "@/lib/editor-prefs"
-import { readOnlyGitProcessEnv } from "@/lib/git-env"
-import { quoteShellArg as shellQuote } from "@/lib/shell-command"
-import { recordSpawn } from "@/lib/spawn-profile"
-import { getPersistedString } from "@/state/repos"
+} from "@sma1lboy/rove-core/lib/editor-prefs.ts"
+import { readOnlyGitProcessEnv } from "@sma1lboy/rove-core/lib/git-env.ts"
+import { quoteShellArg as shellQuote } from "@sma1lboy/rove-core/lib/shell-command.ts"
+import { recordSpawn } from "@sma1lboy/rove-core/lib/spawn-profile.ts"
+import { getPersistedString } from "@sma1lboy/rove-core/state/repos.ts"
 import { pathSyntax, pathWithin } from "@sma1lboy/rove-daemon/path-identity"
 
 /** Token replaced with the (shell-quoted) file path in a custom command. */

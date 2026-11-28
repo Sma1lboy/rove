@@ -17,10 +17,10 @@
 import { existsSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
+import type { EngineActivityDetail, EngineActivityKind } from "@sma1lboy/rove-core/engine/hook-events.ts"
 import { roveHookInvocation } from "../../cli/invocation.ts"
 import { type FlatHookFormat, mergeFlatHooks, parseFlatHooks } from "../flat-hooks.ts"
 import type { EngineHookAdapter, EngineSessionRef } from "../hook-adapter.ts"
-import type { EngineActivityDetail, EngineActivityKind } from "../hook-events.ts"
 import { editJsonSettings } from "../json-hook-adapter.ts"
 import type { HookEditOutcome, HookEventSpec, HookSettingsParse } from "../json-hooks.ts"
 

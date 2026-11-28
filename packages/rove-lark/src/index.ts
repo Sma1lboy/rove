@@ -1,6 +1,6 @@
 /** Public entry: the Lark chat connector module Rove's connector registry loads. */
 
-import type { ChatConnectorModule } from "@sma1lboy/rove/src/connectors/chat-connector.ts"
+import type { ChatConnectorModule } from "@sma1lboy/rove-core/connectors/chat-connector.ts"
 import { runLarkCli } from "./cli.ts"
 import { connectLark } from "./connect.ts"
 import { createLarkConnector } from "./connector.ts"

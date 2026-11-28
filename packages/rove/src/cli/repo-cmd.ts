@@ -9,9 +9,9 @@
 
 import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
-import { errorMessage } from "@/lib/error-message"
-import { expandTilde } from "../lib/path-home.ts"
-import { ROVE_PRODUCT_NAME } from "../product.ts"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import { expandTilde } from "@sma1lboy/rove-core/lib/path-home.ts"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 import { SUBCOMMAND_VERBS } from "./subcommands.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME
@@ -107,7 +107,9 @@ export async function runRepoSubcommand(args: readonly string[]): Promise<void> 
   // Accept-set shared with `rove completions` (`subcommands.ts`).
   if (!SUBCOMMAND_VERBS.repo.includes(verb)) usageError(`unknown verb "${verb}"`)
 
-  const { getRepoInitOverride, setRepoInitOverride, resolveRepoRoot } = await import("../state/repos.ts")
+  const { getRepoInitOverride, setRepoInitOverride, resolveRepoRoot } = await import(
+    "@sma1lboy/rove-core/state/repos.ts"
+  )
 
   if (verb === "show") {
     const [pathArg] = rest.filter((a) => !a.startsWith("-"))

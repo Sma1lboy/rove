@@ -13,13 +13,13 @@
  */
 
 import path from "node:path"
+import type { ExecHost } from "@sma1lboy/rove-core/exec/exec-host.ts"
+import { READ_ONLY_GIT_ENV } from "@sma1lboy/rove-core/lib/git-env.ts"
 import type {
   CheckpointRecord,
   RewindResult,
   TakeCheckpointResult,
 } from "@sma1lboy/rove-daemon/daemon/checkpoint-contracts"
-import type { ExecHost } from "../../exec/exec-host.ts"
-import { READ_ONLY_GIT_ENV } from "../../lib/git-env.ts"
 import type { AdoptableWorktree, WorktreeInfo, WorktreeManager } from "../../types/worktree.ts"
 import { parseDirtyPaths } from "../dirty-paths.ts"
 import { checkoutProgressReader } from "./checkout-progress.ts"

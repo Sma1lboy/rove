@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs"
+import { createRequire } from "node:module"
 import path from "node:path"
 import { defineConfig } from "vitest/config"
 
@@ -60,12 +61,18 @@ export default defineConfig({
     // them in the denominator made the % measure the runtime, not the tests.
     coverage: {
       provider: "v8",
-      // Daemon tests live under this package but execute source from the
-      // sibling rove-daemon workspace. The opt-in socket-coverage track must
-      // explicitly allow and include that external root; ordinary rove
-      // coverage keeps its existing package-local scope.
-      allowExternal: includeDaemonCoverage,
-      include: includeDaemonCoverage ? [path.resolve(__dirname, "../rove-daemon/src/**/*.ts")] : ["src/**/*.ts"],
+      // Tests here also execute sibling workspaces' source: rove-core always,
+      // rove-daemon on the opt-in socket-coverage track.
+      allowExternal: true,
+      include: includeDaemonCoverage
+        ? [path.resolve(__dirname, "../rove-daemon/src/**/*.ts")]
+        : [
+            "src/**/*.ts",
+            path.join(
+              path.dirname(createRequire(import.meta.url).resolve("@sma1lboy/rove-core/package.json")),
+              "src/**/*.ts",
+            ),
+          ],
       reporter: ["text-summary", "json-summary", "lcov"],
       reportsDirectory: includeDaemonCoverage ? "./coverage-daemon" : "./coverage",
     },

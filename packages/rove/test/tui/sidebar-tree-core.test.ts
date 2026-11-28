@@ -1,3 +1,5 @@
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, test } from "vitest"
 import {
   RECENT_ROW_ID,
@@ -9,8 +11,6 @@ import {
   treeFlatIds,
   withRecentRow,
 } from "../../src/tui/panes/sidebar/tree-core"
-import type { Task } from "../../src/types/task"
-import { toTaskId } from "../../src/types/task"
 
 function task(id: string, over: Partial<Task> = {}): Task {
   return {

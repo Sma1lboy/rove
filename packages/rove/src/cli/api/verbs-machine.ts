@@ -1,6 +1,6 @@
 /** Verbs that act on a registered machine from this one. */
 
-import { errorMessage } from "../../lib/error-message.ts"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 import { requireMachine } from "../../machines/forward.ts"
 import { upgradeMachine } from "../../machines/upgrade.ts"
 import { ApiError, type VerbSpec } from "./types.ts"

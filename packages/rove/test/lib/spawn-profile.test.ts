@@ -34,7 +34,7 @@ describe("spawn profile", () => {
   it("writes one JSON line per spawn, carrying the site, argv and cwd", async () => {
     const target = join(dir, "spawns.log")
     process.env.ROVE_SPAWN_PROFILE = target
-    const { recordSpawn, spawnProfileOn } = await import("../../src/lib/spawn-profile.ts")
+    const { recordSpawn, spawnProfileOn } = await import("@sma1lboy/rove-core/lib/spawn-profile.ts")
     expect(spawnProfileOn).toBe(true)
 
     recordSpawn("sidebar.worktreeChanges", ["git", "status", "--porcelain=v1"], "/wt/a")
@@ -59,7 +59,7 @@ describe("spawn profile", () => {
 
   it("touches no disk when the variable is unset", async () => {
     Reflect.deleteProperty(process.env, "ROVE_SPAWN_PROFILE")
-    const { recordSpawn, spawnProfileOn } = await import("../../src/lib/spawn-profile.ts")
+    const { recordSpawn, spawnProfileOn } = await import("@sma1lboy/rove-core/lib/spawn-profile.ts")
     expect(spawnProfileOn).toBe(false)
 
     recordSpawn("sidebar.worktreeChanges", ["git", "status"], "/wt/a")
@@ -71,7 +71,7 @@ describe("spawn profile", () => {
   it("survives an unwritable target instead of taking the process down", async () => {
     // A directory where the log file should be: every append throws.
     process.env.ROVE_SPAWN_PROFILE = dir
-    const { recordSpawn } = await import("../../src/lib/spawn-profile.ts")
+    const { recordSpawn } = await import("@sma1lboy/rove-core/lib/spawn-profile.ts")
     expect(() => recordSpawn("tui.gitSnapshot", ["git", "status"], "/wt/a")).not.toThrow()
   })
 })

@@ -3,9 +3,9 @@
  * forwarded into each session whose workspace is there (`machines/remote-mcp.ts`). With no name, lists them.
  */
 
-import { getMachine, updateMachine } from "../machines/registry.ts"
+import { getMachine, updateMachine } from "@sma1lboy/rove-core/machines/registry.ts"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 import { forwardedMcp } from "../machines/remote-mcp.ts"
-import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { argvHasFlag } from "./argv.ts"
 
 export function machineMcp(argv: readonly string[], fail: (message: string) => never): void {

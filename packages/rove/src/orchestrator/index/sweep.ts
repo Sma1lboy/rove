@@ -11,7 +11,7 @@
 
 import { existsSync, readFileSync, readdirSync, statSync, unlinkSync } from "node:fs"
 import { join } from "node:path"
-import { isProcessAlive, releaseSync } from "./lockfile.ts"
+import { isProcessAlive, releaseSync } from "@sma1lboy/rove-core/orchestrator/index/lockfile.ts"
 
 /** Younger files may be another process's in-flight save; a real save
  *  renames in well under a second. */

@@ -12,10 +12,12 @@
  */
 
 import { basename } from "node:path"
+import { taskWorktreePaths } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import { PLACEHOLDER_TASK_TITLE } from "@sma1lboy/rove-core/orchestrator/title.ts"
+import type { Task, TaskId, VendorId } from "@sma1lboy/rove-core/types/task.ts"
+import { DEFAULT_TASK_VENDOR } from "@sma1lboy/rove-core/types/task.ts"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { gitRepoOf } from "@sma1lboy/rove-daemon/task-tree"
-import type { Task, TaskId, VendorId } from "../types/task.ts"
-import { DEFAULT_TASK_VENDOR } from "../types/task.ts"
 import type { AdoptableWorktree } from "../types/worktree.ts"
 import { deriveConventionBranch, inferBranchStyle, uniqueBranchName } from "./branch-style.ts"
 import { ForkUnsupportedError, InvalidWorktreeNameError } from "./errors.ts"
@@ -27,8 +29,6 @@ import {
   rollbackWorktree,
   scaleProgress,
 } from "./multi-repo.ts"
-import { taskWorktreePaths } from "./task-tree.ts"
-import { PLACEHOLDER_TASK_TITLE } from "./title.ts"
 import { type WorkspaceRegistry, workspaceBackendId } from "./workspace/index.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 import { SlugAllocator } from "./worktree/slug-allocator.ts"

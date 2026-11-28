@@ -1,5 +1,5 @@
-import { errorMessage } from "@/lib/error-message"
-import type { TaskStatus } from "../types/task.ts"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import type { TaskStatus } from "@sma1lboy/rove-core/types/task.ts"
 
 /** Thrown when a state-machine transition is illegal. */
 export class IllegalTransitionError extends Error {

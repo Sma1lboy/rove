@@ -1,7 +1,7 @@
 /**
  * Pure scheduling core for subprocess-backed background polling. Lives in
  * `rove-daemon` because both sides need it and `rove` depends on
- * `rove-daemon`, never the reverse; `rove/src/lib/poll-scheduling.ts`
+ * `rove-daemon`, never the reverse; `rove-core/src/lib/poll-scheduling.ts`
  * re-exports it.
  *
  * The three guards (bindings differ only in where a finished value goes):

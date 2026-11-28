@@ -7,12 +7,17 @@
  */
 
 import { createInterface } from "node:readline"
-import { errorMessage } from "@/lib/error-message"
-import { remoteControlSocketPath } from "../env.ts"
-import { RemoteExecHost, type RemoteSpec } from "../exec/exec-host.ts"
-import { getKeychainPassword, isKeychainSupported, remoteKeychainRef, setKeychainPassword } from "../exec/keychain.ts"
-import { ROVE_PRODUCT_NAME } from "../product.ts"
-import { addRemoteRepo, isRemoteProjectsEnabled } from "../state/repos.ts"
+import { remoteControlSocketPath } from "@sma1lboy/rove-core/env.ts"
+import { RemoteExecHost, type RemoteSpec } from "@sma1lboy/rove-core/exec/exec-host.ts"
+import {
+  getKeychainPassword,
+  isKeychainSupported,
+  remoteKeychainRef,
+  setKeychainPassword,
+} from "@sma1lboy/rove-core/exec/keychain.ts"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
+import { addRemoteRepo, isRemoteProjectsEnabled } from "@sma1lboy/rove-core/state/repos.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME
 

@@ -4,9 +4,9 @@
  * maths is shared with the TUI (`src/theme/color-math.ts`), so a page never restates it.
  */
 
-import { resolveThemeSlotHex } from "@sma1lboy/rove/src/theme/hex.ts"
-import { paletteInks, rgbToHex, taskHex } from "@sma1lboy/rove/src/theme/palette-hex.ts"
-import type { ThemeJson } from "@sma1lboy/rove/src/theme/theme-data.ts"
+import { resolveThemeSlotHex } from "@sma1lboy/rove-core/theme/hex.ts"
+import { paletteInks, rgbToHex, taskHex } from "@sma1lboy/rove-core/theme/palette-hex.ts"
+import type { ThemeJson } from "@sma1lboy/rove-core/theme/theme-data.ts"
 
 export type ThemeMode = "dark" | "light"
 

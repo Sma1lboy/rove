@@ -8,12 +8,12 @@
  */
 
 import type { TaskEngineState } from "@/client/remote-orchestrator"
-import type { TaskActivityState } from "@/engine/hook-events"
 import { SidebarTree } from "@/tui-react/panes/sidebar/SidebarTree"
 import { resetRowStatusForTests } from "@/tui-react/workspace/row-status-sync"
 import { tabsByTask } from "@/tui-react/workspace/terminal-tabs-shared"
 import type { MachineLayerEntry } from "@/tui/panes/sidebar/machine-layer"
-import { type Task, toTaskId } from "@/types/task"
+import type { TaskActivityState } from "@sma1lboy/rove-core/engine/hook-events.ts"
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import type { RowStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import type { ReactNode } from "react"
 

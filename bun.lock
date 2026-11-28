@@ -17,6 +17,7 @@
       "dependencies": {
         "@remotion/cli": "4.0.524",
         "@remotion/google-fonts": "4.0.524",
+        "@sma1lboy/rove-core": "workspace:*",
         "react": "19.0.0",
         "react-dom": "19.0.0",
         "remotion": "4.0.524",
@@ -67,6 +68,7 @@
       },
       "devDependencies": {
         "@biomejs/biome": "1.9.4",
+        "@sma1lboy/rove-core": "0.0.0",
         "@sma1lboy/rove-daemon": "0.7.23",
         "@tsconfig/bun": "1.0.11",
         "@types/bun": "1.3.14",
@@ -94,11 +96,26 @@
         "@hsinsekai-nanami/agent": "0.2.4",
         "@hsinsekai-nanami/core": "0.2.2",
         "@sma1lboy/rove": "workspace:*",
+        "@sma1lboy/rove-core": "workspace:*",
         "@sma1lboy/rove-daemon": "workspace:*",
         "uqr": "^0.1.3",
       },
       "devDependencies": {
         "@hsinsekai-nanami/client": "0.2.4",
+        "@tsconfig/bun": "1.0.11",
+        "@types/bun": "1.3.14",
+        "@types/node": "25.6.2",
+        "typescript": "5.8.2",
+      },
+    },
+    "packages/rove-core": {
+      "name": "@sma1lboy/rove-core",
+      "version": "0.0.0",
+      "dependencies": {
+        "@sma1lboy/rove": "workspace:*",
+        "@sma1lboy/rove-daemon": "workspace:*",
+      },
+      "devDependencies": {
         "@tsconfig/bun": "1.0.11",
         "@types/bun": "1.3.14",
         "@types/node": "25.6.2",
@@ -159,6 +176,7 @@
       "version": "0.0.12",
       "dependencies": {
         "@fontsource/jetbrains-mono": "^5.2.8",
+        "@sma1lboy/rove-core": "workspace:*",
         "@sma1lboy/rove-daemon": "workspace:*",
         "@tailwindcss/vite": "^4.3.2",
         "@tanstack/react-router": "1.170.36",
@@ -202,6 +220,7 @@
       "version": "0.0.5",
       "dependencies": {
         "@sma1lboy/rove": "workspace:*",
+        "@sma1lboy/rove-core": "workspace:*",
         "@sma1lboy/rove-daemon": "workspace:*",
       },
       "devDependencies": {
@@ -244,6 +263,7 @@
       "devDependencies": {
         "@hsinsekai-nanami/client": "0.2.4",
         "@sma1lboy/rove": "workspace:*",
+        "@sma1lboy/rove-core": "workspace:*",
         "@tailwindcss/vite": "^4.3.3",
         "@types/bun": "1.3.14",
         "@types/react": "^19.2.17",
@@ -260,6 +280,7 @@
       "version": "0.0.70",
       "dependencies": {
         "@sma1lboy/rove": "workspace:*",
+        "@sma1lboy/rove-core": "workspace:*",
         "@sma1lboy/rove-daemon": "workspace:*",
         "qrcode-terminal": "^0.12.0",
       },
@@ -1011,6 +1032,8 @@
     "@sma1lboy/opentui-rove-linux-x64": ["@sma1lboy/opentui-rove-linux-x64@0.8.4-rove.1", "", { "os": "linux", "cpu": "x64" }, "sha512-u7FRn6GCdIlUW3tgKg5eDcP6J2dQTjO//YKexmJY/9PgORmCP5aWVv4fRCOk4sxcsOduFRInW5iWkWK7iCe27g=="],
 
     "@sma1lboy/rove": ["@sma1lboy/rove@workspace:packages/rove"],
+
+    "@sma1lboy/rove-core": ["@sma1lboy/rove-core@workspace:packages/rove-core"],
 
     "@sma1lboy/rove-daemon": ["@sma1lboy/rove-daemon@workspace:packages/rove-daemon"],
 

@@ -5,7 +5,7 @@
  * open is reported to the daemon (`ui.viewing`), which decides every row's status.
  */
 
-import { type ModPaneView, parseModUiPayload } from "@sma1lboy/rove/src/lib/mods-core.ts"
+import { type ModPaneView, parseModUiPayload } from "@sma1lboy/rove-core/lib/mods-core.ts"
 import type { TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
 import { applyTasksPatch, isTasksPatch } from "rove-bridge/tasks-patch"
 import type { BridgeClient } from "./bridge.ts"

@@ -26,7 +26,7 @@
  *   session_before_compact / session_compact → pre-compact / post-compact
  */
 
-import type { VendorId } from "../../types/vendor.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { ROVE_HOOK_VERSION } from "../json-hooks.ts"
 
 export interface ExtensionSourceOptions {

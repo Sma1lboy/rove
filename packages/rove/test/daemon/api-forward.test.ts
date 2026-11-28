@@ -1,14 +1,14 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
+import { addMachine, listMachines } from "@sma1lboy/rove-core/machines/registry.ts"
+import { localDaemonSocketPath } from "@sma1lboy/rove-core/machines/ssh-args.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import type { DaemonServer } from "@sma1lboy/rove-daemon/daemon/server"
 import { startDaemonServer } from "@sma1lboy/rove-daemon/daemon/server"
 import { afterEach, describe, expect, it } from "vitest"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
-import { addMachine, listMachines } from "../../src/machines/registry.ts"
 import { sendFileToMachine } from "../../src/machines/send-file.ts"
-import { localDaemonSocketPath } from "../../src/machines/ssh-args.ts"
-import type { Task } from "../../src/types/task.ts"
 import { type DaemonHarness, bootDaemonHarness, fakeOrchestrator } from "./harness.ts"
 
 const REMOTE_TASK: Task = {

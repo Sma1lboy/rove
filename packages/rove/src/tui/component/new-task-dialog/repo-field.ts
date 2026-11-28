@@ -12,8 +12,8 @@
  * never the reverse — which is why Tab completion lives here.
  */
 
+import { joinDrill } from "@sma1lboy/rove-core/lib/path-helpers.ts"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
-import { joinDrill } from "../../../lib/path-helpers"
 import { type PickerMode, isRepoPathInput, splitRepoRow } from "./state"
 
 /**

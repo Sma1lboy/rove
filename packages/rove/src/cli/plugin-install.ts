@@ -16,6 +16,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync } from 
 import { mkdtempSync } from "node:fs"
 import { basename, join, resolve } from "node:path"
 import { createInterface } from "node:readline/promises"
+import { CURRENT_VERSION, compareSemver } from "@sma1lboy/rove-core/version.ts"
 import {
   PLUGIN_MANIFEST_FILENAMES,
   type ParsedPluginManifest,
@@ -36,7 +37,6 @@ import {
   savePluginRegistry,
   upsertPluginEntry,
 } from "@sma1lboy/rove-daemon/plugins/registry"
-import { CURRENT_VERSION, compareSemver } from "../version.ts"
 
 const GITHUB_SPEC_RE = /^([A-Za-z0-9-]+)\/([A-Za-z0-9._-]+)(\/.+)?$/
 

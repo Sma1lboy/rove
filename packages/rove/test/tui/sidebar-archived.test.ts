@@ -4,12 +4,12 @@
  * tree, and the row menu that hides or restores them.
  */
 
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, test, vi } from "vitest"
 import { archiveTaskAction } from "../../src/tui-react/workspace/archive-task-action"
 import { buildSidebarGroups } from "../../src/tui/panes/sidebar/project-groups"
 import { treeMenuItems } from "../../src/tui/panes/sidebar/tree-menu"
-import type { Task } from "../../src/types/task"
-import { toTaskId } from "../../src/types/task"
 
 function task(id: string, over: Partial<Task> = {}): Task {
   return {

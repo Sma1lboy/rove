@@ -1,5 +1,5 @@
+import type { MachineConfig } from "@sma1lboy/rove-core/machines/registry.ts"
 import { describe, expect, test } from "vitest"
-import type { MachineConfig } from "../../src/machines/registry.ts"
 import { launchdPlist, reverseTunnelArgv, systemdUnit } from "../../src/machines/reverse-tunnel.ts"
 
 const mac = { host: "192.168.1.107", user: "me", auth: { kind: "key", keyPath: "/home/me/.ssh/hub" } } as MachineConfig

@@ -18,7 +18,6 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { type TaskActivityState, isEngineActivityKind, reduceActivity } from "@/engine/hook-events"
 import { ROVE_HOOK_VERSION } from "@/engine/json-hooks"
 import {
   OpencodeFamilyHookAdapter,
@@ -26,6 +25,7 @@ import {
   opencodeFamilyPluginPath,
 } from "@/engine/opencode-local/hook-adapter"
 import { renderOpencodePluginSource } from "@/engine/opencode-local/plugin-source"
+import { type TaskActivityState, isEngineActivityKind, reduceActivity } from "@sma1lboy/rove-core/engine/hook-events.ts"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const INVOCATION = ["rove"]

@@ -5,7 +5,7 @@
  * stopping it short of the machine running out of memory.
  */
 
-import { loadStateFile } from "./store"
+import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"
 
 export const MAX_LIVE_ENGINES_KEY = "engine.maxLiveSessions"
 

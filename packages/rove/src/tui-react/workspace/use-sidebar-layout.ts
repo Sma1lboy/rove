@@ -8,8 +8,8 @@
  * folded).
  */
 
-import { createStateCell } from "../../lib/external-store"
-import { SIDEBAR_COLLAPSED_KEY, SIDEBAR_WIDTH_KEY } from "../../state/sidebar-collapsed.ts"
+import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
+import { SIDEBAR_COLLAPSED_KEY, SIDEBAR_WIDTH_KEY } from "@sma1lboy/rove-core/state/sidebar-collapsed.ts"
 import { resolveSidebarWidth } from "../../tui/panes/sidebar/view-core"
 import { useKV } from "../context/kv"
 import { useAccessor } from "../lib/use-accessor"

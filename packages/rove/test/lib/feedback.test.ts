@@ -1,5 +1,5 @@
+import { environmentBlock, issueCreateArgv, newIssueUrl, submitFeedback } from "@sma1lboy/rove-core/lib/feedback.ts"
 import { describe, expect, it, vi } from "vitest"
-import { environmentBlock, issueCreateArgv, newIssueUrl, submitFeedback } from "../../src/lib/feedback.ts"
 
 const ENV = "---\nReported from Rove:\n- rove: 9.9.9"
 const ok = (stdout: string) => ({ ok: true, stdout, stderr: "" })

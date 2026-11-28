@@ -12,9 +12,9 @@
 import { withPinnedSessionId } from "@/engine/engine-presets"
 import { interactiveEngineCommand } from "@/engine/interactive-command"
 
-import type { VendorId } from "@/types/vendor"
+import { issueWorktreePrompt } from "@sma1lboy/rove-core/state/issue-chat.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { Issue } from "@sma1lboy/rove-daemon/daemon/issues-store"
-import { issueWorktreePrompt } from "../../state/issue-chat"
 import {
   type EngineTab,
   type TabsState,

@@ -2,14 +2,14 @@ import { execFileSync } from "node:child_process"
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { describe, expect, it } from "vitest"
-import type { ExecHost, ExecResult } from "../../src/exec/exec-host.ts"
+import type { ExecHost, ExecResult } from "@sma1lboy/rove-core/exec/exec-host.ts"
 import {
   readLocalWorktreeHead,
   readWorktreeFile,
   runWorktreeGit,
   worktreeFilePath,
-} from "../../src/worktree/content.ts"
+} from "@sma1lboy/rove-core/worktree/content.ts"
+import { describe, expect, it } from "vitest"
 
 function fakeExecHost(result: ExecResult = { stdout: "", stderr: "", exitCode: 0 }) {
   const runs: Array<{

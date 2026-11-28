@@ -5,12 +5,6 @@
  */
 
 import { accessSync, constants as fsConstants, mkdirSync } from "node:fs"
-import { errorMessage } from "@/lib/error-message"
-import {
-  PREFIX_TAP_PRESENTATION_KEY,
-  type PrefixTapPresentation,
-  normalizePrefixTapPresentation,
-} from "../../../keys/prefix-tap-presentation"
 import {
   DEFAULT_EDITOR_KIND,
   EDITOR_CUSTOM_KEY,
@@ -18,49 +12,74 @@ import {
   EDITOR_KIND_KEY,
   type EditorKind,
   normalizeEditorKind,
-} from "../../../lib/editor-prefs"
-import { FINISHED_ALERTS_KEY } from "../../../lib/notify-state"
-import { RELEASE_CHANNELS, type ReleaseChannel } from "../../../release-channels.ts"
-import { AUTO_STATUS_KEY } from "../../../state/auto-status"
-import { COLORBLIND_KEY, type ColorblindMode, DEFAULT_COLORBLIND, normalizeColorblind } from "../../../state/colorblind"
-import { DISPATCHER_KEY } from "../../../state/dispatcher"
-import { DEFAULT_GLYPH_SET, GLYPH_SET_KEY, type GlyphSetName, normalizeGlyphSet } from "../../../state/glyph-set"
+} from "@sma1lboy/rove-core/lib/editor-prefs.ts"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import { FINISHED_ALERTS_KEY } from "@sma1lboy/rove-core/lib/notify-state.ts"
+import { RELEASE_CHANNELS, type ReleaseChannel } from "@sma1lboy/rove-core/release-channels.ts"
+import { AUTO_STATUS_KEY } from "@sma1lboy/rove-core/state/auto-status.ts"
+import {
+  COLORBLIND_KEY,
+  type ColorblindMode,
+  DEFAULT_COLORBLIND,
+  normalizeColorblind,
+} from "@sma1lboy/rove-core/state/colorblind.ts"
+import { DISPATCHER_KEY } from "@sma1lboy/rove-core/state/dispatcher.ts"
+import {
+  DEFAULT_GLYPH_SET,
+  GLYPH_SET_KEY,
+  type GlyphSetName,
+  normalizeGlyphSet,
+} from "@sma1lboy/rove-core/state/glyph-set.ts"
 import {
   DEFAULT_RUNNING_TITLE,
   RUNNING_TITLE_KEY,
   type RunningTitle,
   normalizeRunningTitle,
-} from "../../../state/running-title"
-import { DEFAULT_SCROLLBACK_ROWS, SCROLLBACK_ROWS_KEY, normalizeScrollbackRows } from "../../../state/scrollback"
-import { RAIL_FOLD_STYLE_KEY } from "../../../state/sidebar-collapsed.ts"
+} from "@sma1lboy/rove-core/state/running-title.ts"
+import {
+  DEFAULT_SCROLLBACK_ROWS,
+  SCROLLBACK_ROWS_KEY,
+  normalizeScrollbackRows,
+} from "@sma1lboy/rove-core/state/scrollback.ts"
+import { RAIL_FOLD_STYLE_KEY } from "@sma1lboy/rove-core/state/sidebar-collapsed.ts"
 import {
   DEFAULT_SOUND_VOLUME,
   SOUND_VOLUME_KEY,
   nextSoundVolume,
   normalizeSoundVolume,
-} from "../../../state/sound-volume"
-import { SPLIT_STYLE_KEY, type SplitStyle, normalizeSplitStyle } from "../../../state/split-style"
+} from "@sma1lboy/rove-core/state/sound-volume.ts"
+import { SPLIT_STYLE_KEY, type SplitStyle, normalizeSplitStyle } from "@sma1lboy/rove-core/state/split-style.ts"
 import {
   TAB_STRIP_HIDE_SINGLE_KEY,
   TAB_STRIP_MODES,
   TAB_STRIP_MODE_KEY,
   type TabStripMode,
   resolveTabStripMode,
-} from "../../../state/tab-strip"
-import { DEFAULT_TASK_COLORS, TASK_COLORS_KEY, type TaskColors, normalizeTaskColors } from "../../../state/task-colors"
+} from "@sma1lboy/rove-core/state/tab-strip.ts"
+import {
+  DEFAULT_TASK_COLORS,
+  TASK_COLORS_KEY,
+  type TaskColors,
+  normalizeTaskColors,
+} from "@sma1lboy/rove-core/state/task-colors.ts"
 import {
   UPDATE_CHANNEL_KEY,
   UPDATE_NOTIFY_KEY,
   normalizeReleaseChannel,
   updateNotifyEnabled,
-} from "../../../state/update-channel"
-import { USAGE_SHOWS, USAGE_SHOW_KEY, type UsageShow, normalizeUsageShow } from "../../../state/usage-show"
+} from "@sma1lboy/rove-core/state/update-channel.ts"
+import {
+  USAGE_SHOWS,
+  USAGE_SHOW_KEY,
+  type UsageShow,
+  normalizeUsageShow,
+} from "@sma1lboy/rove-core/state/usage-show.ts"
 import {
   DEFAULT_WORKING_BORDER,
   WORKING_BORDER_KEY,
   type WorkingBorder,
   normalizeWorkingBorder,
-} from "../../../state/working-border"
+} from "@sma1lboy/rove-core/state/working-border.ts"
 import {
   PROJECT_DIR_TOKEN,
   PROJECT_SIBLING_BASE,
@@ -70,8 +89,13 @@ import {
   hasProjectDirToken,
   normalizeWorktreeBase,
   worktreeBaseKindOf,
-} from "../../../state/worktree-base"
-import { channelOf } from "../../../version"
+} from "@sma1lboy/rove-core/state/worktree-base.ts"
+import { channelOf } from "@sma1lboy/rove-core/version.ts"
+import {
+  PREFIX_TAP_PRESENTATION_KEY,
+  type PrefixTapPresentation,
+  normalizePrefixTapPresentation,
+} from "../../../keys/prefix-tap-presentation"
 import type { KVContext } from "../../context/kv"
 import { useT } from "../../i18n"
 import {

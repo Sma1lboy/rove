@@ -1,6 +1,6 @@
 /** One engine's detail, shared by the desktop's open row and the phone's sheet: the row's shape, its health, the detection facts and the rename form. */
 
-import { type EngineHealthTone, engineHealth } from "@sma1lboy/rove/src/engine/engine-health.ts"
+import { type EngineHealthTone, engineHealth } from "@sma1lboy/rove-core/engine/engine-health.ts"
 import { useState } from "react"
 import { t } from "./i18n/index.ts"
 import { ts } from "./settings-copy.ts"

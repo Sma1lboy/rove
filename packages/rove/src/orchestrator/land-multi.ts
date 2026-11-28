@@ -11,6 +11,9 @@
  * a later repo.
  */
 
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import { pickRepos } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import type { Task, TaskId } from "@sma1lboy/rove-core/types/task.ts"
 import type {
   LandPreflightResult,
   LandRepoPreflight,
@@ -18,12 +21,9 @@ import type {
   LandResult,
 } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { TaskRepoView } from "@sma1lboy/rove-daemon/task-tree"
-import { errorMessage } from "../lib/error-message.ts"
-import type { Task, TaskId } from "../types/task.ts"
 import { LandConflictError } from "./errors.ts"
 import { baseRepoCtx, landGit, landPreflight, landRefusalError } from "./land-preflight.ts"
 import { type LandDeps, type LandTaskOpts, finishLanded, landTask } from "./land.ts"
-import { pickRepos } from "./task-tree.ts"
 import { type WorktreeExecDeps, defaultExecDeps } from "./worktree/exec-deps.ts"
 
 export interface LandAllDeps extends Omit<LandDeps, "clearWorktreePath" | "sharesWorktree"> {

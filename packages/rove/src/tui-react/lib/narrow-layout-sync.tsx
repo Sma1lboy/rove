@@ -1,6 +1,6 @@
-import { setNarrowBreakpoint } from "../../lib/narrow-mode"
+import { setNarrowBreakpoint } from "@sma1lboy/rove-core/lib/narrow-mode.ts"
 /** @jsxImportSource @opentui/react */
-import { NARROW_BELOW_KEY } from "../../state/narrow-layout"
+import { NARROW_BELOW_KEY } from "@sma1lboy/rove-core/state/narrow-layout.ts"
 import { useOptionalKV } from "../context/kv"
 
 /**

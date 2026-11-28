@@ -7,13 +7,13 @@
  */
 
 import { spawn } from "node:child_process"
+import { updaterShell, updaterShellFailureHint } from "@sma1lboy/rove-core/lib/updater-shell.ts"
 import { restartDaemon } from "@sma1lboy/rove-daemon/client/daemon-process"
 import { relaunchSelf } from "@sma1lboy/rove/src/cli/self-relaunch.ts"
-import { updaterShell, updaterShellFailureHint } from "@sma1lboy/rove/src/lib/updater-shell.ts"
 
-import { DEFAULT_RELEASE_CHANNEL, type ReleaseChannel } from "@sma1lboy/rove/src/release-channels.ts"
-import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
-import { normalizeReleaseChannel, preferredReleaseChannel } from "@sma1lboy/rove/src/state/update-channel.ts"
+import { DEFAULT_RELEASE_CHANNEL, type ReleaseChannel } from "@sma1lboy/rove-core/release-channels.ts"
+import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"
+import { normalizeReleaseChannel, preferredReleaseChannel } from "@sma1lboy/rove-core/state/update-channel.ts"
 import {
   CURRENT_VERSION,
   type NotesLocale,
@@ -23,7 +23,7 @@ import {
   fetchReleaseNotes,
   fetchReleaseNotesRange,
   updateCommandFor,
-} from "@sma1lboy/rove/src/version.ts"
+} from "@sma1lboy/rove-core/version.ts"
 import { BridgeError, optBool } from "../protocol.ts"
 import { optOneOf, text } from "./args.ts"
 import type { OpTable } from "./types.ts"

@@ -5,6 +5,9 @@
  * each other. Re-exported from `remote-orchestrator.ts`.
  */
 
+import type { EngineActivityDetail, TaskActivityState } from "@sma1lboy/rove-core/engine/hook-events.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import type {
   ChannelPayloads,
   EngineQuotaUsage,
@@ -12,9 +15,6 @@ import type {
   SerializedTask,
   UiPrefsPayload,
 } from "@sma1lboy/rove-daemon/daemon/protocol"
-import type { EngineActivityDetail, TaskActivityState } from "../engine/hook-events.ts"
-import type { Task } from "../types/task.ts"
-import { toTaskId } from "../types/task.ts"
 
 /** Per-task engine activity, accumulated from the daemon's `engine-state` channel. */
 export interface TaskEngineState {

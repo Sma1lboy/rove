@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest"
 import {
   type ExecResult,
   LocalExecHost,
@@ -9,7 +8,8 @@ import {
   shJoin,
   shQuote,
   sshConnectArgs,
-} from "../../src/exec/exec-host.ts"
+} from "@sma1lboy/rove-core/exec/exec-host.ts"
+import { describe, expect, it } from "vitest"
 
 const KEY_SPEC: RemoteSpec = {
   host: "box.example.com",

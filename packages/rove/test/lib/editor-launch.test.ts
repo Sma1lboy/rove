@@ -1,3 +1,4 @@
+import { normalizeEditorKind } from "@sma1lboy/rove-core/lib/editor-prefs.ts"
 import { describe, expect, it } from "vitest"
 import {
   buildEditorCommand,
@@ -5,7 +6,6 @@ import {
   editorWindowLabel,
   relativeToWorktree,
 } from "../../src/lib/editor-launch.ts"
-import { normalizeEditorKind } from "../../src/lib/editor-prefs.ts"
 
 describe("buildEditorCommand", () => {
   it("explicit terminal editors open the shell-quoted path", () => {

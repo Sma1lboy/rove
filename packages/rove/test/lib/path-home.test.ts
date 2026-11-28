@@ -10,8 +10,8 @@
 
 import path from "node:path"
 import { resolve } from "node:path"
+import { expandTilde } from "@sma1lboy/rove-core/lib/path-home.ts"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
-import { expandTilde } from "../../src/lib/path-home.ts"
 
 let prevHome: string | undefined
 const HOME = path.join(path.sep, "tmp", "rove-home-fixture")

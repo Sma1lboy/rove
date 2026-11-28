@@ -1,4 +1,4 @@
-import type { TerminalStyleRewrite } from "@/types/terminal-presentation"
+import type { TerminalStyleRewrite } from "@sma1lboy/rove-core/types/terminal-presentation.ts"
 import { ATTR, type Chunk, type RGB, ansi256ToRgb } from "./sgr"
 
 const XTERM_COLOR_MODE_DEFAULT = 0

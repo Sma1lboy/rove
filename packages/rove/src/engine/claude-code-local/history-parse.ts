@@ -4,8 +4,8 @@
  * `sortByTimestamp` reorders the same objects, keeping identities stable.
  */
 
-import type { Message } from "@/types/engine"
-import { isObject } from "../../lib/is-object.ts"
+import { isObject } from "@sma1lboy/rove-core/lib/is-object.ts"
+import type { Message } from "@sma1lboy/rove-core/types/engine.ts"
 import { isJsonlLineWithinBound } from "../file-bounds"
 import { createAppendParseCache, sortByTimestamp } from "../history-cache"
 import { normalizeClaudeContent } from "./normalize"

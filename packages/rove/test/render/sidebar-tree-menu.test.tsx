@@ -9,11 +9,11 @@
  */
 
 import { expect, test } from "bun:test"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { SidebarTree } from "../../src/tui-react/panes/sidebar/SidebarTree"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import { BUNDLED_THEMES, DEFAULT_THEME, applyDisplayOverlay, resolveTheme } from "../../src/tui/context/theme-core"
-import type { Task } from "../../src/types/task"
-import { toTaskId } from "../../src/types/task"
 import { act, renderComponent, settle } from "./harness"
 
 function task(id: string, over: Partial<Task> = {}): Task {

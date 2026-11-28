@@ -8,7 +8,7 @@
 
 import { constants, accessSync, statSync } from "node:fs"
 import { isAbsolute } from "node:path"
-import { ROVE_PRODUCT_NAME } from "../product.ts"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 
 function isRunnableFile(path: string): boolean {
   try {

@@ -13,8 +13,8 @@
 
 import { readFileSync, readdirSync } from "node:fs"
 import { join } from "node:path"
-import { errorMessage } from "@/lib/error-message"
 import { roveStateDir } from "../env"
+import { errorMessage } from "../lib/error-message"
 import { validateTheme } from "./schema"
 import type { ThemeJson } from "./theme-data"
 

@@ -1,5 +1,5 @@
+import { charWidth, displayWidth, padEndCells } from "@sma1lboy/rove-core/lib/display-width.ts"
 import { describe, expect, it } from "vitest"
-import { charWidth, displayWidth, padEndCells } from "../../src/lib/display-width.ts"
 
 /**
  * Cell-width contract for `charWidth`/`displayWidth`. These feed the

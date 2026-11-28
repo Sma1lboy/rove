@@ -8,7 +8,7 @@
  */
 
 import { afterEach, expect, test } from "bun:test"
-import { isNarrowWidth, setNarrowBreakpoint } from "../../src/lib/narrow-mode"
+import { isNarrowWidth, setNarrowBreakpoint } from "@sma1lboy/rove-core/lib/narrow-mode.ts"
 import { useKV } from "../../src/tui-react/context/kv"
 import { NarrowLayoutSync } from "../../src/tui-react/lib/narrow-layout-sync"
 import { useTerminalSize } from "../../src/tui-react/lib/use-terminal-size"

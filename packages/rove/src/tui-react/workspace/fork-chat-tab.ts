@@ -5,7 +5,7 @@
  */
 
 import { engineLaunchArgv, withPinnedSessionId } from "@/engine/engine-presets"
-import type { VendorId } from "@/types/vendor"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import {
   type EngineTab,
   type TabsState,

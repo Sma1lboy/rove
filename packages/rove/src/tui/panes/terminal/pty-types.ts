@@ -1,5 +1,5 @@
-import type { TerminalStyleRewrite } from "@/types/terminal-presentation"
 import { parse } from "@ansi-tools/parser"
+import type { TerminalStyleRewrite } from "@sma1lboy/rove-core/types/terminal-presentation.ts"
 import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { TerminalDefaultColors } from "@sma1lboy/rove-daemon/daemon/terminal-colors"
 import type { MouseTransition, TerminalInputModes } from "./keys-pure"

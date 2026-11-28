@@ -5,8 +5,8 @@
  * window is a made-up number wearing a tone colour.
  */
 
+import { contextChip } from "@sma1lboy/rove-core/lib/usage-core.ts"
 import { describe, expect, test } from "vitest"
-import { contextChip } from "../../src/lib/usage-core"
 
 describe("contextChip", () => {
   test("absent data renders nothing — three ways", () => {

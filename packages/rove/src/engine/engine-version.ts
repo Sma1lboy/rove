@@ -7,7 +7,7 @@
 
 import { spawn } from "node:child_process"
 import path from "node:path"
-import type { VendorId } from "@/types/vendor"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { BinaryStatus } from "./account-detect"
 import type { EngineStatus } from "./engine-status"
 import { engineEntry } from "./registry"

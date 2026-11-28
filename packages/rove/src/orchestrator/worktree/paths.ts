@@ -9,6 +9,9 @@
 
 import fs from "node:fs"
 import path from "node:path"
+import { execHostForRepo } from "@sma1lboy/rove-core/exec/resolve.ts"
+import { getRemoteRepoConfig, isRemoteRepoKey } from "@sma1lboy/rove-core/state/repos.ts"
+import { getWorktreeBaseOverride } from "@sma1lboy/rove-core/state/worktree-base.ts"
 import {
   defaultLocalWorktreesRoot,
   legacyLocalWorktreesRoot,
@@ -16,9 +19,6 @@ import {
   worktreeRootFor as worktreeRootForBase,
 } from "@sma1lboy/rove-daemon/daemon/worktree-paths"
 import { pathWithin } from "@sma1lboy/rove-daemon/path-identity"
-import { execHostForRepo } from "../../exec/resolve.ts"
-import { getRemoteRepoConfig, isRemoteRepoKey } from "../../state/repos.ts"
-import { getWorktreeBaseOverride } from "../../state/worktree-base.ts"
 
 /** Re-exported from the shared derivation so the daemon and this module
  *  can't disagree about the layout. */

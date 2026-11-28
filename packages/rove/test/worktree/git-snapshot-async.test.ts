@@ -2,9 +2,9 @@ import { execFileSync } from "node:child_process"
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import * as async from "@sma1lboy/rove-core/worktree/git-snapshot-async.ts"
+import * as sync from "@sma1lboy/rove-core/worktree/git-snapshot.ts"
 import { describe, expect, it } from "vitest"
-import * as sync from "../../src/worktree/git-snapshot"
-import * as async from "../../src/worktree/git-snapshot-async"
 
 const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd, stdio: "ignore" })

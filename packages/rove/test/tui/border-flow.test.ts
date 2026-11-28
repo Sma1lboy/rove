@@ -4,8 +4,8 @@
  */
 
 import { RGBA } from "@opentui/core"
+import { normalizeWorkingBorder } from "@sma1lboy/rove-core/state/working-border.ts"
 import { describe, expect, it } from "vitest"
-import { normalizeWorkingBorder } from "../../src/state/working-border"
 import { FLOW_CELLS_PER_TICK, flowInk, flowPalette, flowPhase, perimeter } from "../../src/tui/lib/border-flow"
 
 describe("border flow", () => {

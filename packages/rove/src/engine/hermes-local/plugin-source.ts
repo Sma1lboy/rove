@@ -19,7 +19,7 @@
  * not the pane's session. Only the interactive platforms report.
  */
 
-import type { VendorId } from "../../types/vendor.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { ROVE_HOOK_VERSION } from "../json-hooks.ts"
 
 export interface HermesPluginSourceOptions {

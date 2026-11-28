@@ -6,12 +6,12 @@
 
 import { RGBA } from "@opentui/core"
 
-import { parseRgbLiteral } from "../../theme/color-literal"
-import type { ColorValue, FocusAccentSlot, ThemeJson, ThemeMode } from "../../theme/theme-data"
+import { parseRgbLiteral } from "@sma1lboy/rove-core/theme/color-literal.ts"
+import type { ColorValue, FocusAccentSlot, ThemeJson, ThemeMode } from "@sma1lboy/rove-core/theme/theme-data.ts"
 import { turnHue } from "../lib/breathe"
 import { ensureContrast } from "./contrast-guard"
 
-export * from "../../theme/theme-data"
+export * from "@sma1lboy/rove-core/theme/theme-data.ts"
 
 /** Slot names mirror opencode's so lifted components compile; missing slots fall back to a related one. */
 export type Theme = {

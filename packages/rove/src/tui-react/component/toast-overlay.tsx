@@ -7,8 +7,8 @@
  */
 
 import { TextAttributes } from "@opentui/core"
-import { charWidth, displayWidth } from "../../lib/display-width"
-import { truncateEndCells } from "../../lib/truncate"
+import { charWidth, displayWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
+import { truncateEndCells } from "@sma1lboy/rove-core/lib/truncate.ts"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"

@@ -17,10 +17,10 @@
  */
 
 import { describe, expect, it } from "bun:test"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 import { ShowWorkspace } from "../../src/tui-react/workspace/show-workspace"
 import { setTaskTabs, tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
-import type { Task } from "../../src/types/task"
 import { act, renderComponent } from "./harness"
 
 const EMPTY_MAP = new Map<string, never>()

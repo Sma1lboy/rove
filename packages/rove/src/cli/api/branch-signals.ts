@@ -8,8 +8,8 @@
  */
 
 import { spawnSync } from "node:child_process"
+import { readOnlyGitProcessEnv } from "@sma1lboy/rove-core/lib/git-env.ts"
 import { DEFAULT_BASE_REF_CANDIDATES } from "@sma1lboy/rove-daemon/daemon/worktree-probe"
-import { readOnlyGitProcessEnv } from "../../lib/git-env.ts"
 
 export interface BranchSignals {
   /** Base ref the signals were computed against; null = none resolvable. */

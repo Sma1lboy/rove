@@ -4,6 +4,9 @@
  * the wire (wire shapes live in `-payloads.ts`, which re-exports these).
  */
 
+import type { ReadableState } from "@sma1lboy/rove-core/lib/external-store.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import type { UpdateInfo } from "@sma1lboy/rove-core/version.ts"
 import type { ChannelName, NoticeEventPayload, SubscribeRole } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type {
   CellPixelSize,
@@ -16,10 +19,7 @@ import type {
 import type { RowStatusPayload } from "@sma1lboy/rove-daemon/daemon/row-status-store"
 import type { TabsChangedPayload } from "@sma1lboy/rove-daemon/daemon/tabs-store"
 import type { ModPaneView } from "@sma1lboy/rove-daemon/plugins/mod-tree"
-import type { ReadableState } from "../lib/external-store.ts"
 import type { CommandTab, EngineTab } from "../tabs/terminal-tabs-core.ts"
-import type { Task } from "../types/task.ts"
-import type { UpdateInfo } from "../version.ts"
 import type {
   ActiveGate,
   AttentionInboxItem,

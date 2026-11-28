@@ -10,11 +10,11 @@ import { execSync } from "node:child_process"
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { FileTree } from "../../src/tui-react/panes/filetree/FileTree"
 import { HostFilesPane } from "../../src/tui-react/workspace/host-files-pane"
 import { HostSidebar, type HostSidebarProps } from "../../src/tui-react/workspace/host-sidebar"
-import type { Task } from "../../src/types/task"
-import { toTaskId } from "../../src/types/task"
 import { act, isolateHome, renderComponent, settle, waitForFrameText } from "./harness"
 
 const NOOP = (): void => {}

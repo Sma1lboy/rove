@@ -13,14 +13,14 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import {
   appendAttachmentRefs,
   asAttachmentPath,
   asAttachmentPaths,
   attachmentLabel,
   captureClipboardAttachment,
-} from "../../src/lib/attachments"
+} from "@sma1lboy/rove-core/lib/attachments.ts"
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 
 const exists = (known: string[]) => (p: string) => known.includes(p)
 

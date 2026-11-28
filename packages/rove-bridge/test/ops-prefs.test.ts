@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import { PROJECT_SIBLING_BASE } from "@sma1lboy/rove/src/state/worktree-base.ts"
-import { BUNDLED_THEME_JSONS } from "@sma1lboy/rove/src/theme/bundled.ts"
+import { PROJECT_SIBLING_BASE } from "@sma1lboy/rove-core/state/worktree-base.ts"
+import { BUNDLED_THEME_JSONS } from "@sma1lboy/rove-core/theme/bundled.ts"
 import { createDevOps } from "../src/ops/dev.ts"
 import { type PrefsDeps, createPrefsOps } from "../src/ops/prefs.ts"
 import { type RoutingDeps, createRoutingOps } from "../src/ops/routing.ts"

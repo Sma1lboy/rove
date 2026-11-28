@@ -6,13 +6,13 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { addSavedRepo } from "@sma1lboy/rove-core/state/repos.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { normalizeMainRepo } from "../../src/orchestrator/core-helpers.ts"
 import { Orchestrator } from "../../src/orchestrator/core.ts"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 import type { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
-import { addSavedRepo } from "../../src/state/repos.ts"
-import type { Task } from "../../src/types/task.ts"
 
 let home: string
 let repoA: string

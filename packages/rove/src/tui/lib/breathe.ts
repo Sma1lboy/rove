@@ -7,7 +7,13 @@
  */
 
 import { RGBA } from "@opentui/core"
-import { type Oklch, inkAtHueInts, oklchCusp, toOklch as toOklchInts, turnHueInts } from "../../theme/color-math"
+import {
+  type Oklch,
+  inkAtHueInts,
+  oklchCusp,
+  toOklch as toOklchInts,
+  turnHueInts,
+} from "@sma1lboy/rove-core/theme/color-math.ts"
 
 export { oklchCusp }
 

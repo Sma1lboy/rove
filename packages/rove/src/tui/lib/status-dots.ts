@@ -7,7 +7,7 @@
  * ink, so where the web fades a dot this lights or drops it, and a waiting dip dims the whole mark.
  */
 
-import { DIM, type DotLook, STEP_MS, dotLevels, waitingDips } from "@/lib/status-dots"
+import { DIM, type DotLook, STEP_MS, dotLevels, waitingDips } from "@sma1lboy/rove-core/lib/status-dots.ts"
 
 /** A working dot lights once its level clears this: low enough that some dot is always lit. */
 const WORKING_LIT = DIM + (1 - DIM) * 0.25

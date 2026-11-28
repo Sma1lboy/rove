@@ -6,7 +6,7 @@
  */
 
 import { RGBA } from "@opentui/core"
-import { SEMANTIC_GUARD_DEG, hueDistance, hueOfInts, taskColorInts } from "../../theme/color-math"
+import { SEMANTIC_GUARD_DEG, hueDistance, hueOfInts, taskColorInts } from "@sma1lboy/rove-core/theme/color-math.ts"
 import type { Theme } from "../context/theme-core"
 
 export { SEMANTIC_GUARD_DEG, hueDistance }

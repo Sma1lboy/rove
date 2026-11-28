@@ -3,12 +3,12 @@
  * half-succeed, and that per-sibling bookkeeping lives here.
  */
 
+import { homeDir } from "@sma1lboy/rove-core/env.ts"
+import { taskCwd } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import { deriveTitleFromPrompt } from "@sma1lboy/rove-core/orchestrator/title.ts"
+import { DEFAULT_VENDOR, type VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { homeDir } from "../../env.ts"
 import { ulid } from "../../orchestrator/index/ulid.ts"
-import { taskCwd } from "../../orchestrator/task-tree.ts"
-import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
-import { DEFAULT_VENDOR, type VendorId } from "../../types/vendor.ts"
 import { applyPostCreateFlags, deliverArmed, persistPrompt } from "./add-delivery.ts"
 import {
   type EngineChoice,

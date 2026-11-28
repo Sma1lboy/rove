@@ -1,3 +1,5 @@
+import { taskCwd } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/task.ts"
 import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
 import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
@@ -23,9 +25,7 @@ import { enginePresence } from "../engine/session-engine-presence.ts"
 import { buildEngineSessionLaunch } from "../engine/session-launch.ts"
 import { trustEngineWorktree } from "../engine/trust-worktree.ts"
 import { TaskDeletingError } from "../orchestrator/errors.ts"
-import { taskCwd } from "../orchestrator/task-tree.ts"
 import type { PromptDeliveryIntent } from "../state/repo-init.ts"
-import type { VendorId } from "../types/task.ts"
 
 async function getTask(link: DaemonRpcClient, taskId: string): Promise<SerializedTask> {
   const { task } = await link.request<{ task: SerializedTask }>("task.get", {

@@ -13,8 +13,8 @@
 
 import type { Renderable } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
+import { isNarrowWidth } from "@sma1lboy/rove-core/lib/narrow-mode.ts"
 import { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
-import { isNarrowWidth } from "../../lib/narrow-mode"
 import { useTheme } from "../context/theme"
 import { ModalScopeContext, useBindings } from "../lib/keymap"
 import { useLatest } from "../lib/use-latest"

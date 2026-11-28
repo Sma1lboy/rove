@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { approxCellWidth } from "../../src/lib/display-width"
+import { approxCellWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
 import { spacedTitle, truncateTitle } from "../../src/tui/panes/sidebar/labels"
 
 describe("sidebar row labels", () => {

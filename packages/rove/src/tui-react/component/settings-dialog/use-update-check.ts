@@ -3,9 +3,9 @@
  * answer for the row to show. A found update hands off to the Update page (the install flow lives there).
  */
 
+import type { ReleaseChannel } from "@sma1lboy/rove-core/release-channels.ts"
+import { type UpdateInfo, checkLatestVersion } from "@sma1lboy/rove-core/version.ts"
 import { useState } from "react"
-import type { ReleaseChannel } from "../../../release-channels.ts"
-import { type UpdateInfo, checkLatestVersion } from "../../../version"
 
 type Checked = { readonly channel: ReleaseChannel; readonly info: UpdateInfo | null }
 

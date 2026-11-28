@@ -5,12 +5,12 @@
  * this one list, so a page is either fully present or absent.
  */
 
+import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import type { ReactNode } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import type { TaskEngineState } from "../../client/remote-orchestrator-payloads"
-import { createStateCell } from "../../lib/external-store"
 import type { PageAction } from "../../tui/panes/sidebar/nav-core"
-import type { Task } from "../../types/task"
 import { useAccessor } from "../lib/use-accessor"
 
 /** What the host hands every page. */

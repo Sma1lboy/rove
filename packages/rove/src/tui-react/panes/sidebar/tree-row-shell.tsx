@@ -6,9 +6,9 @@
 
 import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
 import { type BoxRenderable, MouseButton } from "@opentui/core"
+import { charWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
+import type { TreeGuide } from "@sma1lboy/rove-core/lib/tree-guides.ts"
 import type { ReactNode } from "react"
-import { charWidth } from "../../../lib/display-width"
-import type { TreeGuide } from "../../../lib/tree-guides"
 import { SIDEBAR_WIDTH } from "../../../tui/panes/sidebar/view-core"
 import type { WorktreeChanges } from "../../../worktree/worktree-changes"
 import { useTheme } from "../../context/theme"

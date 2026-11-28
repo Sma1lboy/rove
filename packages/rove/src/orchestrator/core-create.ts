@@ -4,19 +4,19 @@
  * Orchestrator, so the Orchestrator stays a thin delegator.
  */
 
+import { PLACEHOLDER_TASK_TITLE, sanitizeTaskTitle } from "@sma1lboy/rove-core/orchestrator/title.ts"
+import { isRemoteRepoKey } from "@sma1lboy/rove-core/state/repos.ts"
+import { resolvePreferredVendor } from "@sma1lboy/rove-core/state/vendor-prefs.ts"
+import type { Task, TaskId, TaskRoutineLink, VendorId } from "@sma1lboy/rove-core/types/task.ts"
+import { DEFAULT_TASK_VENDOR, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { lineageRootId } from "@sma1lboy/rove-daemon/task-tree"
 import type { TaskWorkspace } from "@sma1lboy/rove-daemon/workspace"
-import { isRemoteRepoKey } from "../state/repos.ts"
-import { resolvePreferredVendor } from "../state/vendor-prefs.ts"
-import type { Task, TaskId, TaskRoutineLink, VendorId } from "../types/task.ts"
-import { DEFAULT_TASK_VENDOR, toTaskId } from "../types/task.ts"
 import { canonPath, normalizeMainRepo, randomDirTaskSuffix, repoWorkingDir, titleFromRepo } from "./core-helpers.ts"
 import type { CreateTaskInput } from "./create-task-input.ts"
 import { RemoteParentUnsupportedError, TaskDeletingError, TaskNotFoundError } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
 import { planExtraRepos } from "./multi-repo.ts"
 import type { ProjectCoordinator } from "./projects.ts"
-import { PLACEHOLDER_TASK_TITLE, sanitizeTaskTitle } from "./title.ts"
 
 /** The store alone — all a directory/scratch row needs. */
 export interface StoreDeps {

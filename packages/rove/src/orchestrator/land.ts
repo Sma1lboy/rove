@@ -5,13 +5,13 @@
  * resolve. Git CLI through the same {@link ExecHost} as the worktree manager.
  */
 
+import type { ExecHost } from "@sma1lboy/rove-core/exec/exec-host.ts"
+import { gitRepoOf } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import type { Task, TaskId } from "@sma1lboy/rove-core/types/task.ts"
 import type { LandResult } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { pathWithin, samePath } from "@sma1lboy/rove-daemon/path-identity"
-import type { ExecHost } from "../exec/exec-host.ts"
-import type { Task, TaskId } from "../types/task.ts"
 import { GitCommandFailedError, LandConflictError } from "./errors.ts"
 import { baseRepoCtx, landGit as git, landPreflight, landRefusalError } from "./land-preflight.ts"
-import { gitRepoOf } from "./task-tree.ts"
 import { workspaceCapabilities } from "./workspace/index.ts"
 import { type WorktreeExecDeps, defaultExecDeps } from "./worktree/exec-deps.ts"
 import type { WorktreeResidue } from "./worktree/manager-remove.ts"

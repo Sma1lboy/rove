@@ -5,8 +5,8 @@
  * filter, windowed cursor, and the multi-select import commit.
  */
 
-import type { VendorId } from "@/types/vendor"
 import type { AdoptableWorktree } from "@/types/worktree"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
   type NewTaskInput,

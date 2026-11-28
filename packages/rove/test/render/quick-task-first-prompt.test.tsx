@@ -3,9 +3,9 @@ import { afterEach, beforeEach, expect, test } from "bun:test"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { useEffect, useState } from "react"
 import { type QuickForkOrchestrator, useQuickFork } from "../../src/tui-react/workspace/quick-fork"
-import { type Task, toTaskId } from "../../src/types/task"
 import { act, renderComponent } from "./harness"
 
 const originalHome = process.env.ROVE_HOME_DIR

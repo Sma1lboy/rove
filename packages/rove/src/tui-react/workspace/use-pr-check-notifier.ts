@@ -6,10 +6,10 @@
  * The SELECTED task toasts too: check state has no middle-column indicator.
  */
 
+import { rollupPr } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import type { PRCheckState, Task } from "@sma1lboy/rove-core/types/task.ts"
 import { useEffect, useRef } from "react"
 import { checkResolutionNotify } from "../../monitor/pr-status"
-import { rollupPr } from "../../orchestrator/task-tree"
-import type { PRCheckState, Task } from "../../types/task"
 import type { NotificationsContext } from "../context/notifications"
 import { useT } from "../i18n"
 import { useLatest } from "../lib/use-latest"

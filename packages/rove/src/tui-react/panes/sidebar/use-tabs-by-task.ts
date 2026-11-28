@@ -11,8 +11,8 @@
  *      the snapshot.
  */
 
-import type { Task } from "@/types/task"
-import { DEFAULT_TASK_VENDOR } from "@/types/task"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { DEFAULT_TASK_VENDOR } from "@sma1lboy/rove-core/types/task.ts"
 import { useEffect, useMemo, useState } from "react"
 import { conversationTitle, tabTitleStable } from "../../../tabs/terminal-tab-split"
 import { tabPtyKeyFor } from "../../../tabs/terminal-tabs-core"

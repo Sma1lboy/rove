@@ -5,9 +5,9 @@
  * daemon is the only writer; everything else changes tabs through `tabs.apply`.
  */
 
+import { loadStateFile, patchStateFile } from "@sma1lboy/rove-core/state/store.ts"
 import type { SharedTabs } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import type { TabsPersistence } from "@sma1lboy/rove-daemon/daemon/tabs-store"
-import { loadStateFile, patchStateFile } from "./store.ts"
 
 export const TERMINAL_TABS_PREFIX = "terminalTabs."
 

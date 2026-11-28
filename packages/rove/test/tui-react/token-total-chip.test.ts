@@ -10,7 +10,7 @@
  */
 
 import { daemonRuntime } from "@/core/daemon-runtime"
-import type { EngineUsageSnapshot } from "@/types/engine"
+import type { EngineUsageSnapshot } from "@sma1lboy/rove-core/types/engine.ts"
 import { describe, expect, test, vi } from "vitest"
 
 vi.mock("@/engine/registry", async (importOriginal) => {

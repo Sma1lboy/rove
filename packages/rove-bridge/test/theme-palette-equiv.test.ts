@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
-import { paletteInks, rgbToHex, taskHex } from "@sma1lboy/rove/src/theme/palette-hex.ts"
-import { BUNDLED_THEMES, type ThemeJson } from "@sma1lboy/rove/src/theme/theme-data.ts"
+import { paletteInks, rgbToHex, taskHex } from "@sma1lboy/rove-core/theme/palette-hex.ts"
+import { BUNDLED_THEMES, type ThemeJson } from "@sma1lboy/rove-core/theme/theme-data.ts"
 import { diffInks, resolveTheme } from "@sma1lboy/rove/src/tui/context/theme-core.ts"
 import { taskColor } from "@sma1lboy/rove/src/tui/lib/task-color.ts"
 import { palette, taskColors } from "../src/ops/theme-palette.ts"

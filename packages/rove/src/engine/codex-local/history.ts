@@ -21,7 +21,7 @@
  */
 
 import { unlink } from "node:fs/promises"
-import type { EngineHistory, Message } from "@/types/engine"
+import type { EngineHistory, Message } from "@sma1lboy/rove-core/types/engine.ts"
 import { parseRolloutRaw } from "./history-parse"
 import { type HistoryDeps, defaultHistoryDeps, findLatestRolloutForWorktree, findRolloutFile } from "./session-files"
 

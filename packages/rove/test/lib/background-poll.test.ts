@@ -4,8 +4,8 @@
  * repaints every tick again.
  */
 
+import { createBackgroundPoller, subscribeBackgroundPolls } from "@sma1lboy/rove-core/lib/background-poll.ts"
 import { afterEach, describe, expect, test, vi } from "vitest"
-import { createBackgroundPoller, subscribeBackgroundPolls } from "../../src/lib/background-poll"
 
 describe("subscribeBackgroundPolls", () => {
   // A frozen clock makes each run's duration 0, so the cadence floor never drops a poll.

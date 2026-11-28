@@ -5,10 +5,10 @@
  * indexes one flat id list of tasks.
  */
 
-import type { Task } from "@/types/task"
 import type { BoxRenderable, ScrollBoxRenderable } from "@opentui/core"
+import { subscribeBackgroundPolls } from "@sma1lboy/rove-core/lib/background-poll.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { type MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { subscribeBackgroundPolls } from "../../../lib/background-poll"
 import { createSidebarController } from "../../../tui/panes/sidebar/controller"
 import { RECENT_ROW_ID } from "../../../tui/panes/sidebar/tree-core"
 import { SIDEBAR_WIDTH } from "../../../tui/panes/sidebar/view-core"

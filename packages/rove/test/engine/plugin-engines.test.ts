@@ -1,6 +1,7 @@
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { BUILTIN_VENDORS } from "@sma1lboy/rove-core/types/vendor.ts"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { RESERVED_ENGINE_IDS, parsePluginManifest } from "../../../rove-daemon/src/plugins/manifest.ts"
 import { savePluginRegistry } from "../../../rove-daemon/src/plugins/registry.ts"
@@ -14,7 +15,6 @@ import {
 } from "../../src/engine/contrib-engines.ts"
 import { loadPluginEngines, reloadPluginEngines } from "../../src/engine/plugin-engines.ts"
 import { engineEntry } from "../../src/engine/registry.ts"
-import { BUILTIN_VENDORS } from "../../src/types/vendor.ts"
 
 const MANIFEST = `
 id = "acme-engines"

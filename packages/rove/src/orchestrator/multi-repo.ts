@@ -5,9 +5,9 @@
  * everything here is all-or-nothing around it.
  */
 
+import { isGitRepo, isRemoteRepoKey } from "@sma1lboy/rove-core/state/repos.ts"
+import type { Task, TaskExtraRepo } from "@sma1lboy/rove-core/types/task.ts"
 import { MULTI_REPO_CAP, repoNameOf, uniqueRepoName } from "@sma1lboy/rove-daemon/task-tree"
-import { isGitRepo, isRemoteRepoKey } from "../state/repos.ts"
-import type { Task, TaskExtraRepo } from "../types/task.ts"
 import { uniqueBranchName } from "./branch-style.ts"
 import { canonPath, normalizeMainRepo } from "./core-helpers.ts"
 import { ExtraRepoNotGitError, RemoteExtraUnsupportedError, RepoDuplicateError, TooManyReposError } from "./errors.ts"

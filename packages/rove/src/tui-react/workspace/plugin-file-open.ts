@@ -8,8 +8,8 @@
 
 import { basename } from "node:path"
 import { roveCliInvocation } from "@/cli/invocation"
+import { spawnDetached } from "@sma1lboy/rove-core/lib/spawn-detached.ts"
 import { findFileHandler } from "@sma1lboy/rove-daemon/plugins/settings-env"
-import { spawnDetached } from "../../lib/spawn-detached"
 
 /** True when a plugin claimed the file (and its action was fired). */
 export function tryPluginFileOpen(absPath: string): boolean {

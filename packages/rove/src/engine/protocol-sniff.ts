@@ -23,7 +23,7 @@
  * trusts only evidence about the session running now.
  */
 
-import { BUILTIN_VENDORS, type VendorId, isBuiltinVendor } from "@/types/vendor"
+import { BUILTIN_VENDORS, type VendorId, isBuiltinVendor } from "@sma1lboy/rove-core/types/vendor.ts"
 import { GENERIC_PROTOCOL, getEngineProtocol, resolveCommandProtocol } from "./engine-presets.ts"
 import { engineEntry } from "./registry.ts"
 

@@ -6,8 +6,8 @@
  * React-free core (git IO injectable, vitest-able); `useCreatePR` binds the locale.
  */
 
+import { buildPRPrompt, gatherPRPromptState } from "@sma1lboy/rove-core/github/pr-prompt.ts"
 import type { MutableRefObject } from "react"
-import { buildPRPrompt, gatherPRPromptState } from "../../github/pr-prompt"
 import { useT } from "../i18n"
 
 export type CreatePRDeps = {

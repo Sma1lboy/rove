@@ -2,9 +2,9 @@ import { execFileSync } from "node:child_process"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import type { MachineEntry } from "@sma1lboy/rove-core/machines/registry.ts"
 import { describe, expect, test } from "vitest"
 import { pickMachine, repoHosts } from "../../src/machines/forward.ts"
-import type { MachineEntry } from "../../src/machines/registry.ts"
 
 const machine = (alias: string) => ({ alias, host: alias, auth: { kind: "agent" } }) as unknown as MachineEntry
 const reads = (loads: Record<string, number | null>) => async (e: MachineEntry) => loads[e.alias] ?? null

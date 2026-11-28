@@ -14,7 +14,7 @@ import type { RelayTransport } from "./relay-transport.ts"
 
 const STORAGE_KEY = "rove.relay"
 const ASSET_URL = /url\(((?:\/relay-client)?\/assets\/[^)]+)\)/g
-// Match claude theme paper tokens (`packages/rove/src/theme/claude.json`) before rove-web mounts.
+// Match claude theme paper tokens (`packages/rove-core/src/theme/claude.json`) before rove-web mounts.
 const PAPER_DARK = "#141413"
 const PAPER_LIGHT = "#faf9f5"
 

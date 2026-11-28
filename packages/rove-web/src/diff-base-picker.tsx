@@ -1,6 +1,6 @@
 /** `main → All changes ▾`: one menu for what the diff shows, and against which branch, tag or commit (a typed ref works too). */
 
-import { matchBranch } from "@sma1lboy/rove/src/lib/branch-match.ts"
+import { matchBranch } from "@sma1lboy/rove-core/lib/branch-match.ts"
 import { useEffect, useState } from "react"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"

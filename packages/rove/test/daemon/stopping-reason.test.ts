@@ -13,8 +13,8 @@
  * ordering mistake would silently send `{}` forever.
  */
 
+import { CURRENT_VERSION } from "@sma1lboy/rove-core/version.ts"
 import { afterEach, describe, expect, it } from "vitest"
-import { CURRENT_VERSION } from "../../src/version.ts"
 import { type DaemonHarness, bootDaemonHarness, waitFor } from "./harness.ts"
 
 describe("daemon.stopping reason", () => {

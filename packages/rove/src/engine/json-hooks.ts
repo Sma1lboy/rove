@@ -10,11 +10,11 @@
  * {@link HookEventSpec}[]. Pure (no I/O).
  */
 
+import type { EngineActivityKind } from "@sma1lboy/rove-core/engine/hook-events.ts"
+import { isObject } from "@sma1lboy/rove-core/lib/is-object.ts"
+import { type QuoteShellArgvOptions, quoteShellArgv } from "@sma1lboy/rove-core/lib/shell-command.ts"
 import { LEGACY_PRE_RENAME_RUNTIME_NAME as OLD } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
 import { roveHookInvocation } from "../cli/invocation.ts"
-import { isObject } from "../lib/is-object.ts"
-import { type QuoteShellArgvOptions, quoteShellArgv } from "../lib/shell-command.ts"
-import type { EngineActivityKind } from "./hook-events.ts"
 
 /**
  * Shape version of the hooks Rove writes into an engine's config, stamped

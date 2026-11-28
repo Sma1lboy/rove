@@ -1,4 +1,3 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   CURRENT_VERSION,
   PACKAGE_NAME,
@@ -13,7 +12,8 @@ import {
   isNewerSemver,
   owningNpmPrefix,
   recommendedGlobalInstallCommand,
-} from "../src/version.ts"
+} from "@sma1lboy/rove-core/version.ts"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 // The npm version check is suppressed in dev, and `bun run dev` exports
 // ROVE_DEV=1 — so a run started from inside a Rove session must clear it, or
@@ -268,7 +268,7 @@ describe("repo slug + static commands", () => {
     ).toBe("/Users/x/.nvm/versions/node/v22.0.0")
     // bun global installs and dev checkouts have no npm prefix to pin.
     expect(owningNpmPrefix("/Users/x/.bun/install/global/node_modules/pkg/dist/version.js")).toBeNull()
-    expect(owningNpmPrefix("/Users/x/src/rove/packages/rove/src/version.ts")).toBeNull()
+    expect(owningNpmPrefix("/Users/x/src/rove/packages/rove-core/src/version.ts")).toBeNull()
     expect(owningNpmPrefix("/lib/node_modules/pkg/dist/version.js")).toBeNull()
   })
 })

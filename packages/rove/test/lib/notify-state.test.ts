@@ -8,7 +8,6 @@
  * framework-free.
  */
 
-import { describe, expect, it } from "vitest"
 import {
   addUnread,
   attentionEdges,
@@ -19,7 +18,8 @@ import {
   shouldPlaySound,
   shouldShowToast,
   unreadKey,
-} from "../../src/lib/notify-state"
+} from "@sma1lboy/rove-core/lib/notify-state.ts"
+import { describe, expect, it } from "vitest"
 
 const input = (kind: "done" | "needs_input" | "error", tabId = "tab-1") =>
   ({ kind, taskId: "task-1", tabId, title: "t" }) as const

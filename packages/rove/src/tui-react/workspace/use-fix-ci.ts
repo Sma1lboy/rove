@@ -13,8 +13,8 @@
  * `useFixCI` binds the live locale.
  */
 
+import { type CIFailingChecksRead, buildCIPromptForWorktree } from "@sma1lboy/rove-core/github/ci-prompt.ts"
 import type { MutableRefObject } from "react"
-import { type CIFailingChecksRead, buildCIPromptForWorktree } from "../../github/ci-prompt"
 import { useT } from "../i18n"
 
 /** The row facts the prompt names — read at call time, not captured. */

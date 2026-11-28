@@ -1,0 +1,24 @@
+{
+  "name": "@sma1lboy/rove-core",
+  "version": "0.0.0",
+  "description": "Rove's UI-free core: state, engine and worktree logic shared by the CLI, TUI, web bridge and clients.",
+  "type": "module",
+  "packageManager": "bun@1.3.13",
+  "exports": {
+    "./package.json": "./package.json",
+    "./*": "./src/*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sma1lboy/rove": "workspace:*",
+    "@sma1lboy/rove-daemon": "workspace:*"
+  },
+  "devDependencies": {
+    "@tsconfig/bun": "1.0.11",
+    "@types/bun": "1.3.14",
+    "@types/node": "25.6.2",
+    "typescript": "5.8.2"
+  }
+}

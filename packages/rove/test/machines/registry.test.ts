@@ -6,7 +6,6 @@
  * which is why the identity rule can be tested at all.
  */
 
-import { describe, expect, it } from "vitest"
 import {
   type MachineConfig,
   type MachineEntry,
@@ -16,7 +15,8 @@ import {
   isValidMachineAlias,
   parseSshTarget,
   sshTargetOf,
-} from "../../src/machines/registry.ts"
+} from "@sma1lboy/rove-core/machines/registry.ts"
+import { describe, expect, it } from "vitest"
 
 describe("parseSshTarget", () => {
   it("reads user@host:port", () => {

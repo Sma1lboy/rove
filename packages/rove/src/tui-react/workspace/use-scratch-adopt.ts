@@ -19,19 +19,19 @@
  * Cost: one lsof per scratch task per tick, and scratch tasks are rare.
  */
 
+import { t } from "@sma1lboy/rove-core/i18n/index.ts"
+import { getSavedRepos, isGitRepo, resolveMainRepoRoot } from "@sma1lboy/rove-core/state/repos.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { useEffect } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { processCwd } from "../../engine/process-cwd"
-import { t } from "../../i18n"
 import { canonPath } from "../../orchestrator/core-helpers"
 import { repoBasename } from "../../sidebar/groups"
-import { getSavedRepos, isGitRepo, resolveMainRepoRoot } from "../../state/repos"
 import { tabPtyKey } from "../../tabs/terminal-tabs-core"
 import type { TabsSnapshotKv } from "../../tabs/terminal-tabs-persist"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { getDefaultLiveEngines } from "../../tui/workspace/live-engine"
 import { type ScratchOwnerTask, decideScratchAdopt } from "../../tui/workspace/scratch-adopt"
-import type { Task } from "../../types/task"
 import { useLatest } from "../lib/use-latest"
 import { foldScratchShell } from "./scratch-fold"
 

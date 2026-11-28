@@ -15,9 +15,9 @@
  * Labels are i18n KEYS; the renderer runs them through `t()`.
  */
 
-import { rollupPr } from "@/orchestrator/task-tree"
-import { isRemoteRepoKey } from "@/state/repos"
-import type { Task } from "@/types/task"
+import { rollupPr } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import { isRemoteRepoKey } from "@sma1lboy/rove-core/state/repos.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
 import type { TreeRow } from "./tree-core"
 

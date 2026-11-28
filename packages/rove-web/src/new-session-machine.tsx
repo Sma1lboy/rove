@@ -1,7 +1,7 @@
 /** The New session composer's other-machine parts: the machine chip, that machine's project list, a branch chip that takes a typed ref, and Start there. */
 
-import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/i18n/messages/tasks.ts"
-import { isDiskFull } from "@sma1lboy/rove/src/lib/error-message.ts"
+import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove-core/i18n/messages/tasks.ts"
+import { isDiskFull } from "@sma1lboy/rove-core/lib/error-message.ts"
 import { useEffect, useState } from "react"
 import { BridgeRequestError } from "./bridge.ts"
 import { t, useLocale } from "./i18n/index.ts"

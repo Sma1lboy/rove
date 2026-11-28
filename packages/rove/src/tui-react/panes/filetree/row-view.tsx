@@ -8,8 +8,8 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import { displayWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
 import { memo } from "react"
-import { displayWidth } from "../../../lib/display-width"
 import { type StatWidths, statCell, statusToken } from "../../../tui/panes/filetree/pane-core"
 import { type Row, truncatePathTail } from "../../../tui/panes/filetree/rows"
 import { useDiffInks } from "../../context/diff-inks"

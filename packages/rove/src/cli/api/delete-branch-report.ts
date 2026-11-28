@@ -12,8 +12,8 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { readOnlyGitProcessEnv } from "../../lib/git-env.ts"
-import { runAsync } from "../../lib/run-async.ts"
+import { readOnlyGitProcessEnv } from "@sma1lboy/rove-core/lib/git-env.ts"
+import { runAsync } from "@sma1lboy/rove-core/lib/run-async.ts"
 
 /** A remote delete is a network round-trip; bound it so a stalled auth
  *  prompt or an unreachable host cannot hang a cleanup script forever. */

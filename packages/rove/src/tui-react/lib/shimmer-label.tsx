@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 import { type RGBA, TextAttributes } from "@opentui/core"
-import { charWidth } from "../../lib/display-width"
+import { charWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
 import { SHIMMER_CREST, shimmerInk, shimmerIntensity } from "../../tui/lib/shimmer"
 
 /** `label` as per-glyph spans lit by the shimmer band at `tick`; wide glyphs count by cells. */

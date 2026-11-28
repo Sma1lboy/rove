@@ -2,9 +2,9 @@
 
 import { existsSync, mkdirSync, writeFileSync } from "node:fs"
 import { dirname } from "node:path"
-import { kvStatePath } from "../env.ts"
+import { kvStatePath } from "@sma1lboy/rove-core/env.ts"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 import { binaryAvailable, resolveEditorCommand } from "../lib/editor-launch.ts"
-import { ROVE_PRODUCT_NAME } from "../product.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME
 

@@ -1,5 +1,5 @@
+import { runAsync } from "@sma1lboy/rove-core/lib/run-async.ts"
 import { describe, expect, it } from "vitest"
-import { runAsync } from "../../src/lib/run-async.ts"
 
 describe("runAsync", () => {
   it("writes input to the child's stdin and closes it", async () => {

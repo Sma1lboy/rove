@@ -8,14 +8,14 @@
  * the real tree, keys pressed through the mock input.
  */
 import { expect, test } from "bun:test"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { useRef } from "react"
 import { useFocus } from "../../src/tui-react/context/focus"
 import { SidebarTree } from "../../src/tui-react/panes/sidebar/SidebarTree"
 import { useDialog } from "../../src/tui-react/ui/dialog"
 import { useWorkspaceKeybindings } from "../../src/tui-react/workspace/host-keybindings"
 import type { HostPagesState } from "../../src/tui-react/workspace/host-pages"
-import type { Task } from "../../src/types/task"
-import { toTaskId } from "../../src/types/task"
 import { act, renderComponent } from "./harness"
 
 function task(id: string): Task {

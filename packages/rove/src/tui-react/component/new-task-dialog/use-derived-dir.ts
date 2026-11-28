@@ -5,8 +5,8 @@
  * Pure plumbing from `src/lib/path-helpers.ts`.
  */
 
+import { filterSubdirs, listSubdirs, splitPathForDirSuggest } from "@sma1lboy/rove-core/lib/path-helpers.ts"
 import { useMemo } from "react"
-import { filterSubdirs, listSubdirs, splitPathForDirSuggest } from "../../../lib/path-helpers"
 
 export function useDerivedDir(value: string) {
   const split = useMemo(() => splitPathForDirSuggest(value), [value])

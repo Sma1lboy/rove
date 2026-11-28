@@ -7,11 +7,11 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { patchStateFile } from "@sma1lboy/rove-core/state/store.ts"
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import { startStateWatcher } from "@sma1lboy/rove-daemon/daemon/state-watcher"
 import { defaultUiPrefsStatePath } from "@sma1lboy/rove-daemon/daemon/ui-prefs-watcher"
 import { afterEach, beforeEach, expect, test, vi } from "vitest"
-import { patchStateFile } from "../../src/state/store.ts"
 
 let home: string
 let savedHome: string | undefined

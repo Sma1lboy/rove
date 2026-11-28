@@ -6,9 +6,9 @@
  * `get-task` / `collect`.
  */
 
-import { TASK_ACTIVITY_STATES, type TaskActivityState } from "@/engine/hook-events"
-import { type TaskActivitySignal, type TaskGroup, taskGroupOf } from "@/lib/task-group"
-import { rollupPr } from "@/orchestrator/task-tree"
+import { TASK_ACTIVITY_STATES, type TaskActivityState } from "@sma1lboy/rove-core/engine/hook-events.ts"
+import { type TaskActivitySignal, type TaskGroup, taskGroupOf } from "@sma1lboy/rove-core/lib/task-group.ts"
+import { rollupPr } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
 import type { AttentionInboxItem, Gate } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 

@@ -7,7 +7,7 @@
  *   - any unknown block type
  */
 
-import type { ContentBlock } from "@/types/content"
+import type { ContentBlock } from "@sma1lboy/rove-core/types/content.ts"
 
 /**
  * Coerce a Claude `content` field into neutral blocks. Shapes on disk:

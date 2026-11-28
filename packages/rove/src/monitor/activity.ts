@@ -6,7 +6,7 @@
  */
 
 import { protocolEntry } from "@/engine/engine-presets"
-import type { VendorId } from "@/types/task"
+import type { VendorId } from "@sma1lboy/rove-core/types/task.ts"
 
 /**
  * Newest transcript mtime (epoch ms) for `worktree` under `vendor`, or 0 =

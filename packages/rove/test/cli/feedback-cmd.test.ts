@@ -13,8 +13,8 @@ const mocks = vi.hoisted(() => ({
   submitFeedback: vi.fn(),
 }))
 
-vi.mock("../../src/lib/feedback.ts", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../src/lib/feedback.ts")>()
+vi.mock("@sma1lboy/rove-core/lib/feedback.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@sma1lboy/rove-core/lib/feedback.ts")>()
   return { ...actual, submitFeedback: mocks.submitFeedback }
 })
 

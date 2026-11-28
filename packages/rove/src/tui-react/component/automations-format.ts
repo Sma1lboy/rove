@@ -6,8 +6,8 @@
  * block, so the reverse edge would be a cycle.
  */
 
-import { intlLocale, t } from "../../i18n"
-import { relativeBuckets } from "../../lib/relative-time"
+import { intlLocale, t } from "@sma1lboy/rove-core/i18n/index.ts"
+import { relativeBuckets } from "@sma1lboy/rove-core/lib/relative-time.ts"
 
 /** `in 5m` / `12m ago` / a date once it is more than a day out. `\u2014` when
  *  the timestamp is missing or unparsable — an absence, never a fake "now".

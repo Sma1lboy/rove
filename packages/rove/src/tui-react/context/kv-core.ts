@@ -14,13 +14,18 @@
  *     including other processes' keys.
  */
 
+import { kvStatePath } from "@sma1lboy/rove-core/env.ts"
+import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
+import { SIDEBAR_COLLAPSED_KEY, SIDEBAR_WIDTH_KEY } from "@sma1lboy/rove-core/state/sidebar-collapsed.ts"
+import {
+  loadStateFile,
+  readStateFileStrict,
+  replaceStateFile,
+  updateStateFile,
+} from "@sma1lboy/rove-core/state/store.ts"
 import { logClientError } from "@sma1lboy/rove-daemon/client/client-log"
 import { isUnpublishedStateKey } from "@sma1lboy/rove-daemon/daemon/state-watcher"
-import { kvStatePath } from "../../env.ts"
-import { createStateCell } from "../../lib/external-store"
 import { FILES_OPEN_KEY } from "../../state/files-pane.ts"
-import { SIDEBAR_COLLAPSED_KEY, SIDEBAR_WIDTH_KEY } from "../../state/sidebar-collapsed.ts"
-import { loadStateFile, readStateFileStrict, replaceStateFile, updateStateFile } from "../../state/store.ts"
 import { TERMINAL_TABS_PREFIX } from "../../state/tabs-persistence.ts"
 
 const WRITE_DEBOUNCE_MS = 250

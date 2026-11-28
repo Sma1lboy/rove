@@ -4,11 +4,11 @@
  * answers "no machines" (pane hosts, test renders).
  */
 
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { useSyncExternalStore } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import type { MachineFeed } from "../../machines/feed.ts"
 import type { MachineLayerEntry } from "../../tui/panes/sidebar/machine-layer.ts"
-import type { Task } from "../../types/task.ts"
 
 let hub: MachineFeed | null = null
 

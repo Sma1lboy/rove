@@ -4,7 +4,7 @@
  * is the data layer (also Settings → Marketplace).
  */
 
-import { ROVE_PRODUCT_NAME } from "../product.ts"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 
 const SEARCH_TIMEOUT_MS = 5_000
 const CLI_NAME = ROVE_PRODUCT_NAME

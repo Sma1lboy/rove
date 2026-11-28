@@ -10,6 +10,7 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import type { Task, TaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { serializeTask } from "@sma1lboy/rove-daemon/daemon/serialize-task"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
@@ -17,7 +18,6 @@ import { type SelfSessionProbe, resetVerifiedSelfSession, verifiedSelfSession } 
 import { Orchestrator } from "../../src/orchestrator/core.ts"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 import type { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
-import type { Task, TaskId } from "../../src/types/task.ts"
 import { FakeClient, expectApiError, recordingDelivery, stubRuntime } from "./api-handler-fixtures.ts"
 
 const DURABLE_WRITE_TIMEOUT_MS = 30_000

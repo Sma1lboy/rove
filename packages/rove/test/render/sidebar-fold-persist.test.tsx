@@ -5,11 +5,11 @@ import { afterEach, beforeEach, expect, test } from "bun:test"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { SidebarTree } from "../../src/tui-react/panes/sidebar/SidebarTree"
 import { COLLAPSED_TASKS_KEY } from "../../src/tui-react/panes/sidebar/use-tree-state"
 import { resetRowStatusForTests } from "../../src/tui-react/workspace/row-status-sync"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
-import { type Task, toTaskId } from "../../src/types/task"
 import { renderComponent, waitForFrameText } from "./harness"
 
 function task(id: string, over: Partial<Task> = {}): Task {

@@ -5,8 +5,8 @@
  */
 
 import { RGBA } from "@opentui/core"
+import { DEFAULT_SPINNER_FRAMES } from "@sma1lboy/rove-core/engine/spinner-frames.ts"
 import { describe, expect, it } from "vitest"
-import { DEFAULT_SPINNER_FRAMES } from "../../src/engine/spinner-frames"
 import { BREATH_TICKS, breathColor, breathGlyph } from "../../src/tui/lib/breathe"
 import { SPINNER_TICK_CYCLE } from "../../src/tui/panes/sidebar/row-view"
 

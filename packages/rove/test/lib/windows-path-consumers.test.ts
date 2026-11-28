@@ -1,10 +1,10 @@
+import { splitPathForDirSuggest } from "@sma1lboy/rove-core/lib/path-helpers.ts"
+import { tildify } from "@sma1lboy/rove-core/lib/path-home.ts"
 import { matchTaskByCwd, tasksAtWorktreePath } from "@sma1lboy/rove-daemon/daemon/cwd-task"
 import { expect, it } from "vitest"
 import { isForeignDaemonHome } from "../../../rove-daemon/src/daemon/protocol-compat"
 import { sameHistoryWorktree } from "../../src/engine/history-worktree"
 import { relativeToWorktree } from "../../src/lib/editor-launch"
-import { splitPathForDirSuggest } from "../../src/lib/path-helpers"
-import { tildify } from "../../src/lib/path-home"
 
 it("attributes Windows hooks to the most specific saved worktree", () => {
   const tasks = [

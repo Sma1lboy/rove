@@ -9,10 +9,10 @@
  * notifies as without it.
  */
 
+import type { ReadableState } from "@sma1lboy/rove-core/lib/external-store.ts"
+import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import type { RemoteOrchestrator } from "../client/remote-orchestrator.ts"
-import type { ReadableState } from "../lib/external-store.ts"
-import { createStateCell } from "../lib/external-store.ts"
-import type { Task } from "../types/task.ts"
 import { type MachineStatus, type RemoteLive, stampOrigin } from "./hub.ts"
 
 const NO_LIVE: RemoteLive = { activity: new Map(), changes: new Map(), tokens: new Map() }

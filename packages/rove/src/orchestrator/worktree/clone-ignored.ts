@@ -20,8 +20,8 @@
 
 import fs from "node:fs/promises"
 import path from "node:path"
-import type { ExecHost } from "../../exec/exec-host.ts"
-import { READ_ONLY_GIT_ENV } from "../../lib/git-env.ts"
+import type { ExecHost } from "@sma1lboy/rove-core/exec/exec-host.ts"
+import { READ_ONLY_GIT_ENV } from "@sma1lboy/rove-core/lib/git-env.ts"
 import { DEFAULT_CLONE_DIRS, isCloneIgnoredEnabled, resolveCloneDirs } from "../../state/worktree-clone.ts"
 
 export interface CloneIgnoredDeps {

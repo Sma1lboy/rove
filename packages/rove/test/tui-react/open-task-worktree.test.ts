@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock("node:fs", () => ({ existsSync: mocks.existsSync }))
-vi.mock("../../src/worktree/worktree-opener", () => ({
+vi.mock("@sma1lboy/rove-core/worktree/worktree-opener.ts", () => ({
   detectWorktreeOpener: mocks.detectWorktreeOpener,
   openWorktree: mocks.openWorktree,
 }))

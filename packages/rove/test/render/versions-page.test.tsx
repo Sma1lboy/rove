@@ -10,9 +10,9 @@
  */
 
 import { expect, test } from "bun:test"
-import { currentLang, setLocaleLang } from "../../src/i18n"
+import { currentLang, setLocaleLang } from "@sma1lboy/rove-core/i18n/index.ts"
+import type { ReleaseNotes, ReleaseSummary } from "@sma1lboy/rove-core/version.ts"
 import { VersionsPage } from "../../src/tui-react/component/versions-page"
-import type { ReleaseNotes, ReleaseSummary } from "../../src/version.ts"
 import { act, renderComponent, waitForFrameText } from "./harness"
 
 const SUMMARIES: ReleaseSummary[] = [

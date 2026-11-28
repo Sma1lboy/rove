@@ -3,9 +3,9 @@
  * that sit on them (selection, cursor) → retained row buffers.
  */
 
-import { profileSpan } from "@/lib/render-profile"
 import type { BoxRenderable } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
+import { profileSpan } from "@sma1lboy/rove-core/lib/render-profile.ts"
 import { useLayoutEffect, useMemo, useState } from "react"
 import type { TerminalRow } from "../../../tui/panes/terminal/pty"
 import { type TerminalRenderColors, overlayCursor } from "../../../tui/panes/terminal/terminal-render"

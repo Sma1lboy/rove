@@ -18,7 +18,7 @@
  * conversation and are dropped rather than rendered.
  */
 
-import type { ContentBlock, EngineUsageSnapshot, Message } from "@/types/engine"
+import type { ContentBlock, EngineUsageSnapshot, Message } from "@sma1lboy/rove-core/types/engine.ts"
 import type { EngineHistoryReader } from "../registry.ts"
 import { bobQuery } from "./db.ts"
 

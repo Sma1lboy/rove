@@ -16,11 +16,11 @@
 import { existsSync, mkdirSync, readFileSync } from "node:fs"
 import { hostname } from "node:os"
 import { join } from "node:path"
-import { shQuote } from "../exec/exec-host.ts"
+import { shQuote } from "@sma1lboy/rove-core/exec/exec-host.ts"
+import { type MachineConfig, sshTargetOf } from "@sma1lboy/rove-core/machines/registry.ts"
+import { hubKeyPath, machineSshArgs } from "@sma1lboy/rove-core/machines/ssh-args.ts"
+import { isWindowsMachine, windowsAuthorizeKeySteps } from "@sma1lboy/rove-core/machines/windows-remote.ts"
 import { type DiscoverFailure, type DiscoverResult, discoverMachine, remoteRove } from "./discover.ts"
-import { type MachineConfig, sshTargetOf } from "./registry.ts"
-import { hubKeyPath, machineSshArgs } from "./ssh-args.ts"
-import { isWindowsMachine, windowsAuthorizeKeySteps } from "./windows-remote.ts"
 
 export type SetupFix =
   | {

@@ -1,8 +1,8 @@
+import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
+import type { MachineEntry } from "@sma1lboy/rove-core/machines/registry.ts"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { createStateCell } from "../../src/lib/external-store.ts"
 import { type AutoUpdateDeps, startMachineAutoUpdate } from "../../src/machines/auto-update.ts"
 import type { MachineStatus } from "../../src/machines/hub.ts"
-import type { MachineEntry } from "../../src/machines/registry.ts"
 
 const deck = { alias: "deck", host: "steamdeck.local" } as unknown as MachineEntry
 const row = (version: string): MachineStatus => ({ alias: "deck", hostLabel: "deck", state: "online", version })

@@ -1,6 +1,6 @@
 import { homedir } from "node:os"
+import { homeDir, kvStatePath, roveSettingsDir, roveStateDir } from "@sma1lboy/rove-core/env.ts"
 import { afterEach, describe, expect, test } from "vitest"
-import { homeDir, kvStatePath, roveSettingsDir, roveStateDir } from "../src/env.ts"
 
 const ORIGINAL = {
   ROVE_HOME_DIR: process.env.ROVE_HOME_DIR,

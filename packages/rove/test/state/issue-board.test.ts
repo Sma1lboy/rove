@@ -7,8 +7,6 @@
  * renders straight from these buckets, so a regression here IS a wrong board.
  */
 
-import type { Issue } from "@sma1lboy/rove-daemon/daemon/issues-store"
-import { describe, expect, test } from "vitest"
 import {
   COLUMN_CAP,
   applyBoardAttention,
@@ -16,7 +14,9 @@ import {
   compareIssues,
   issueColumnKey,
   moveBoardSelection,
-} from "../../src/state/issue-board"
+} from "@sma1lboy/rove-core/state/issue-board.ts"
+import type { Issue } from "@sma1lboy/rove-daemon/daemon/issues-store"
+import { describe, expect, test } from "vitest"
 
 function issue(over: Partial<Issue> & { id: number }): Issue {
   return { title: `t${over.id}`, status: "open", created: "2026-07-01", body: "", ...over }

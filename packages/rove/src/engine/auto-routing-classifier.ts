@@ -29,8 +29,8 @@
  * generated from `docs/design/auto-routing/` into `tier-rubric.generated.ts`.
  */
 
-import { getPersistedValue } from "@/state/repos"
-import { resolveSecret } from "@/state/secrets"
+import { getPersistedValue } from "@sma1lboy/rove-core/state/repos.ts"
+import { resolveSecret } from "@sma1lboy/rove-core/state/secrets.ts"
 import { type TierVerdict, readJevAnswer, readPlainAnswer } from "./tier-answer.ts"
 import type { TierRubric } from "./tier-rubric-types.ts"
 import { DEFAULT_TIER_RUBRIC } from "./tier-rubric.generated.ts"

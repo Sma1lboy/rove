@@ -1,11 +1,11 @@
 /** @jsxImportSource @opentui/react */
 /** The web composer's sky, drawn in braille: the same frames, 64 × 20 cells. */
 
+import { ACCENT, COLS, INK, ROWS } from "@sma1lboy/rove-core/lib/celestial/grid.ts"
+import { orbitFrame } from "@sma1lboy/rove-core/lib/celestial/orbit.ts"
+import { cometFrame, ringsFrame } from "@sma1lboy/rove-core/lib/celestial/scenes.ts"
 import { useEffect, useMemo, useState } from "react"
 import { brailleRows } from "../../lib/celestial/braille"
-import { ACCENT, COLS, INK, ROWS } from "../../lib/celestial/grid"
-import { orbitFrame } from "../../lib/celestial/orbit"
-import { cometFrame, ringsFrame } from "../../lib/celestial/scenes"
 import { useTheme } from "../context/theme"
 
 const SCENES = [orbitFrame, cometFrame, ringsFrame] as const

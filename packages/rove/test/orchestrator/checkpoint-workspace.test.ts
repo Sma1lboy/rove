@@ -7,11 +7,11 @@ import { spawnSync } from "node:child_process"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { Orchestrator } from "../../src/orchestrator/core.ts"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
-import type { Task } from "../../src/types/task.ts"
 
 const DURABLE_WRITE_TIMEOUT_MS = 30_000
 

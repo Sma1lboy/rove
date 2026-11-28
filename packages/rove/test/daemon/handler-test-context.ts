@@ -1,3 +1,4 @@
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
 import type { DaemonActivityRegistry } from "@sma1lboy/rove-daemon/daemon/activity-registry"
 import type { AttentionInboxStore } from "@sma1lboy/rove-daemon/daemon/attention-inbox"
@@ -21,7 +22,6 @@ import { TabCloseBroker } from "@sma1lboy/rove-daemon/daemon/tab-close-broker"
 import type { WorkItemCache } from "@sma1lboy/rove-daemon/daemon/work-items"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
 import type { Orchestrator } from "../../src/orchestrator/core.ts"
-import type { Task } from "../../src/types/task.ts"
 
 export interface RecordedHandlerEffects {
   readonly published: Array<{ channel: string; payload: unknown }>

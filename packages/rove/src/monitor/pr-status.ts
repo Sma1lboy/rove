@@ -10,8 +10,8 @@
  * `provider: "github"`.
  */
 
-import { applyJitter, exponentialBackoff } from "@/lib/poll-scheduling"
-import type { PRCheckState, PRLifecycleState, TaskPRStatus } from "@/types/task"
+import { applyJitter, exponentialBackoff } from "@sma1lboy/rove-core/lib/poll-scheduling.ts"
+import type { PRCheckState, PRLifecycleState, TaskPRStatus } from "@sma1lboy/rove-core/types/task.ts"
 import type { PrViewErrorKind } from "@sma1lboy/rove-daemon/daemon/pr-status-collector"
 
 export type { PrViewErrorKind }

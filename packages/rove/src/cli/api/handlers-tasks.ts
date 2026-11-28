@@ -5,14 +5,14 @@
  * in `handlers-lifecycle.ts`.
  */
 
+import { taskCwd } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import { deriveTitleFromPrompt } from "@sma1lboy/rove-core/orchestrator/title.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { type SkipVerdict, deliveryFooter } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { roveApiInvocation } from "../../engine/interactive-command.ts"
-import { taskCwd } from "../../orchestrator/task-tree.ts"
-import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
-import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { activityView, readActivityRegistry } from "./activity-view.ts"
 import {

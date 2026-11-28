@@ -9,10 +9,10 @@
  * Exit 2 on a bad flag/format.
  */
 
-import { displayWidth } from "../lib/display-width.ts"
-import { ROVE_PRODUCT_NAME } from "../product.ts"
-import type { Task } from "../types/task.ts"
-import { DEFAULT_TASK_VENDOR } from "../types/task.ts"
+import { displayWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { DEFAULT_TASK_VENDOR } from "@sma1lboy/rove-core/types/task.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME
 

@@ -1,16 +1,8 @@
 /** In-place task-field setters for the {@link Orchestrator}: each a small
  *  guard around one `store` mutation (branch renames also touch git). */
 
-import type { AutoFixState } from "@sma1lboy/rove-daemon/auto-fix-ci"
-import type { ReparentResult, TaskDispatcher } from "@sma1lboy/rove-daemon/daemon/contracts"
-import { SESSION_PR_CAP } from "@sma1lboy/rove-daemon/daemon/session-prs"
-import { samePath } from "@sma1lboy/rove-daemon/path-identity"
-import { detectLanguage } from "@sma1lboy/rove-daemon/prompts/observed-language"
-import { type TaskTodo, type TodoOp, applyTodoOps, checkNotes } from "@sma1lboy/rove-daemon/task-notes"
-import { childrenOf, lineageRootId, subtreeIds } from "@sma1lboy/rove-daemon/task-tree"
-import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
-import { samePrStatus } from "../monitor/pr-status.ts"
-import { isRemoteRepoKey } from "../state/repos.ts"
+import { isPlaceholderDerivedBranch, sanitizeTaskTitle } from "@sma1lboy/rove-core/orchestrator/title.ts"
+import { isRemoteRepoKey } from "@sma1lboy/rove-core/state/repos.ts"
 import type {
   Task,
   TaskId,
@@ -21,8 +13,17 @@ import type {
   TaskStatus,
   TaskWorkerReport,
   VendorId,
-} from "../types/task.ts"
-import { toTaskId } from "../types/task.ts"
+} from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
+import type { AutoFixState } from "@sma1lboy/rove-daemon/auto-fix-ci"
+import type { ReparentResult, TaskDispatcher } from "@sma1lboy/rove-daemon/daemon/contracts"
+import { SESSION_PR_CAP } from "@sma1lboy/rove-daemon/daemon/session-prs"
+import { samePath } from "@sma1lboy/rove-daemon/path-identity"
+import { detectLanguage } from "@sma1lboy/rove-daemon/prompts/observed-language"
+import { type TaskTodo, type TodoOp, applyTodoOps, checkNotes } from "@sma1lboy/rove-daemon/task-notes"
+import { childrenOf, lineageRootId, subtreeIds } from "@sma1lboy/rove-daemon/task-tree"
+import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
+import { samePrStatus } from "../monitor/pr-status.ts"
 import { deriveConventionBranch, inferBranchStyle, uniqueBranchName } from "./branch-style.ts"
 import {
   IllegalTransitionError,
@@ -33,7 +34,6 @@ import {
 } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
 import { holdProjectPlace, movePartition, projectOf } from "./move-partition.ts"
-import { isPlaceholderDerivedBranch, sanitizeTaskTitle } from "./title.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 
 export class TaskEditor {

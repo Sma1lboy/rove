@@ -6,7 +6,7 @@
 
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { pathRejection, projectRejection } from "@/state/project-eligibility"
+import { pathRejection, projectRejection } from "@sma1lboy/rove-core/state/project-eligibility.ts"
 import { describe, expect, it } from "vitest"
 
 /** The repo this test runs in — a real checkout at a durable path. */

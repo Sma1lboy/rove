@@ -16,8 +16,8 @@
  */
 
 import { join } from "node:path"
+import type { EngineActivityDetail, EngineActivityKind } from "@sma1lboy/rove-core/engine/hook-events.ts"
 import type { EngineSessionRef } from "../hook-adapter.ts"
-import type { EngineActivityDetail, EngineActivityKind } from "../hook-events.ts"
 import { JsonHookAdapter } from "../json-hook-adapter.ts"
 import type { HookEventSpec } from "../json-hooks.ts"
 import { vendorConfigHome } from "../vendor-home.ts"

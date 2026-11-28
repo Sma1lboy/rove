@@ -8,8 +8,8 @@
 
 import { RGBA } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
+import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
 import { type ReactNode, createContext, useContext, useEffect, useMemo, useState } from "react"
-import { createStateCell } from "../../lib/external-store"
 import {
   BUNDLED_THEMES,
   DEFAULT_THEME,

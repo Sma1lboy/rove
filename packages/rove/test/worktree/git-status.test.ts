@@ -19,8 +19,8 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { beforeEach, describe, expect, test, vi } from "vitest"
 
-vi.mock("../../src/worktree/content", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../src/worktree/content")>()
+vi.mock("@sma1lboy/rove-core/worktree/content.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@sma1lboy/rove-core/worktree/content.ts")>()
   return {
     ...actual,
     runWorktreeGit: vi.fn(),
@@ -29,7 +29,7 @@ vi.mock("../../src/worktree/content", async (importOriginal) => {
   }
 })
 
-import { readLocalWorktreeHead, readWorktreeFile, runWorktreeGit } from "../../src/worktree/content"
+import { readLocalWorktreeHead, readWorktreeFile, runWorktreeGit } from "@sma1lboy/rove-core/worktree/content.ts"
 import {
   attachUntrackedChildren,
   listFiles,
@@ -40,7 +40,7 @@ import {
   resolveBase,
   statusFiles,
   statusFilesBranch,
-} from "../../src/worktree/git-status"
+} from "@sma1lboy/rove-core/worktree/git-status.ts"
 
 const runGit = vi.mocked(runWorktreeGit)
 const readFile = vi.mocked(readWorktreeFile)

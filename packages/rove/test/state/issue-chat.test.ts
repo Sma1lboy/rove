@@ -9,16 +9,16 @@
  * every story-spawned agent is told to do.
  */
 
-import type { Issue } from "@sma1lboy/rove-daemon/daemon/issues-store"
-import { issueMergePrompt } from "@sma1lboy/rove-daemon/prompts/issue-prompts"
-import { describe, expect, test } from "vitest"
 import {
   issueChatTaskTitle,
   issueProjectPrompt,
   issueWorktreePrompt,
   nextPlaceholderIndex,
   withImagePlaceholders,
-} from "../../src/state/issue-chat"
+} from "@sma1lboy/rove-core/state/issue-chat.ts"
+import type { Issue } from "@sma1lboy/rove-daemon/daemon/issues-store"
+import { issueMergePrompt } from "@sma1lboy/rove-daemon/prompts/issue-prompts"
+import { describe, expect, test } from "vitest"
 
 const story: Issue = {
   id: 7,

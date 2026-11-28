@@ -10,8 +10,8 @@ import { spawnSync } from "node:child_process"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { LocalExecHost } from "@sma1lboy/rove-core/exec/exec-host.ts"
 import { afterEach, beforeEach, expect, test, vi } from "vitest"
-import { LocalExecHost } from "../../src/exec/exec-host.ts"
 import {
   CHECKPOINT_RETENTION,
   type CheckpointDeps,

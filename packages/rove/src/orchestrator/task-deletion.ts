@@ -1,10 +1,10 @@
-import { errorMessage } from "../lib/error-message.ts"
-import type { Task, TaskId } from "../types/task.ts"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import { deletionTargets, gitRepoOf, taskRepos, taskWorktreePaths } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import type { Task, TaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { canonPath } from "./core-helpers.ts"
 import { type DirtyFinding, DirtyWorktreeError, WorktreeRemoveFailedError } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
 import { holdProjectPlace } from "./move-partition.ts"
-import { deletionTargets, gitRepoOf, taskRepos, taskWorktreePaths } from "./task-tree.ts"
 import {
   type WorkspaceBackend,
   type WorkspaceRegistry,

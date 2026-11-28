@@ -4,7 +4,7 @@
  * survives. Off unless the value is literally `true`. Read fresh per delete.
  */
 
-import { loadStateFile } from "./store.ts"
+import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"
 
 export const WORKTREE_DELETE_BRANCH_KEY = "worktree.deleteBranch"
 

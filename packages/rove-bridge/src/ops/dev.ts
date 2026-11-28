@@ -6,9 +6,9 @@
 
 import { unlinkSync } from "node:fs"
 import { join } from "node:path"
+import { roveStateDir } from "@sma1lboy/rove-core/env.ts"
+import { replaceStateFile } from "@sma1lboy/rove-core/state/store.ts"
 import { restartDaemon } from "@sma1lboy/rove-daemon/client/daemon-process"
-import { roveStateDir } from "@sma1lboy/rove/src/env.ts"
-import { replaceStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { BridgeError } from "../protocol.ts"
 import type { OpTable } from "./types.ts"
 

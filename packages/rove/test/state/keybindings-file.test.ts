@@ -16,8 +16,8 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { readKeybindingsFile, resetKeybindingsFileCache } from "@sma1lboy/rove-core/state/keybindings-file.ts"
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
-import { readKeybindingsFile, resetKeybindingsFileCache } from "../../src/state/keybindings-file.ts"
 
 let tmpHome: string
 let originalHome: string | undefined

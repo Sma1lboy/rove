@@ -20,7 +20,7 @@ import {
   resolveCloneTarget,
   validateCloneTarget,
   validateGitUrl,
-} from "@/worktree/clone"
+} from "@sma1lboy/rove-core/worktree/clone.ts"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
 describe("deriveFolderName", () => {

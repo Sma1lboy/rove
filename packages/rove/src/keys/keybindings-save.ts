@@ -6,7 +6,7 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname } from "node:path"
-import { readKeybindingsFile, resetKeybindingsFileCache } from "../state/keybindings-file"
+import { readKeybindingsFile, resetKeybindingsFileCache } from "@sma1lboy/rove-core/state/keybindings-file.ts"
 import { defaultKeymapCopy } from "./keybindings"
 import { KEYBINDINGS_STARTER } from "./keybindings-starter"
 import { type KeybindingEdit, editKeybindingsYaml } from "./keybindings-write"

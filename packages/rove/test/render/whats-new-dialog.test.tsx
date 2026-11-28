@@ -23,10 +23,10 @@
  */
 
 import { afterEach, expect, test } from "bun:test"
+import { currentLang, setLocaleLang } from "@sma1lboy/rove-core/i18n/index.ts"
+import type { ReleaseNotesRangeItem } from "@sma1lboy/rove-core/version.ts"
 import { useState } from "react"
-import { currentLang, setLocaleLang } from "../../src/i18n"
 import { WhatsNewDialogView, useWhatsNewDialog } from "../../src/tui-react/component/whats-new-dialog"
-import type { ReleaseNotesRangeItem } from "../../src/version.ts"
 import { act, renderComponent, waitForFrameText } from "./harness"
 
 const restore = currentLang()

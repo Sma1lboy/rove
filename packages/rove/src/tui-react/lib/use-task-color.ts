@@ -1,5 +1,5 @@
 import type { RGBA } from "@opentui/core"
-import { DEFAULT_TASK_COLORS, TASK_COLORS_KEY, normalizeTaskColors } from "../../state/task-colors"
+import { DEFAULT_TASK_COLORS, TASK_COLORS_KEY, normalizeTaskColors } from "@sma1lboy/rove-core/state/task-colors.ts"
 import { taskColor } from "../../tui/lib/task-color"
 import { useOptionalKV } from "../context/kv"
 import { useTheme } from "../context/theme"

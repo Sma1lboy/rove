@@ -10,24 +10,28 @@
 import { existsSync, realpathSync, statSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, extname, join, sep } from "node:path"
-import type { SharedTabs, TabOp } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import {
   type CIFailingCheck,
   type CIFailingChecksRead,
   buildCIPromptForWorktree,
-} from "@sma1lboy/rove/src/github/ci-prompt.ts"
-import { buildPRPrompt } from "@sma1lboy/rove/src/github/pr-prompt.ts"
-import { openExternally, revealInFileManager } from "@sma1lboy/rove/src/lib/open-path-external.ts"
+} from "@sma1lboy/rove-core/github/ci-prompt.ts"
+import { buildPRPrompt } from "@sma1lboy/rove-core/github/pr-prompt.ts"
+import { openExternally, revealInFileManager } from "@sma1lboy/rove-core/lib/open-path-external.ts"
 import {
   expandHome,
   filterSubdirs,
   listSubdirs,
   splitPathForDirSuggest,
   stripTrailingSlash,
-} from "@sma1lboy/rove/src/lib/path-helpers.ts"
+} from "@sma1lboy/rove-core/lib/path-helpers.ts"
+import {
+  type WorktreeOpener,
+  detectWorktreeOpener,
+  openWorktree,
+} from "@sma1lboy/rove-core/worktree/worktree-opener.ts"
+import type { SharedTabs, TabOp } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import type { TabsState } from "@sma1lboy/rove/src/tabs/terminal-tab-shapes.ts"
 import { moveTab } from "@sma1lboy/rove/src/tabs/terminal-tabs-core.ts"
-import { type WorktreeOpener, detectWorktreeOpener, openWorktree } from "@sma1lboy/rove/src/worktree/worktree-opener.ts"
 import { BridgeError, optStr } from "../protocol.ts"
 import { flag, isAbsPath, oneOf, tabId, taskId } from "./args.ts"
 import { effortLevel, engineId, model, optModel, taskOpDeps } from "./tasks-shared.ts"

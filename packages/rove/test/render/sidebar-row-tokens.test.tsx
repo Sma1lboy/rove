@@ -8,10 +8,10 @@
  * everywhere except the terminal.
  */
 import { expect, test } from "bun:test"
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import type { RowToken } from "../../src/client/remote-orchestrator"
 import { SidebarTree } from "../../src/tui-react/panes/sidebar/SidebarTree"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
-import { type Task, toTaskId } from "../../src/types/task"
 import { renderComponent } from "./harness"
 
 const NOW = Date.now()

@@ -187,8 +187,8 @@ async function benchBranches(n: number): Promise<void> {
     ["update-ref", "--stdin"],
     Array.from({ length: n }, (_, i) => `create refs/heads/feat/b-${i} ${head}\n`).join(""),
   )
-  const snap = await import("../src/worktree/git-snapshot.ts")
-  const asnap = await import("../src/worktree/git-snapshot-async.ts")
+  const snap = await import("@sma1lboy/rove-core/worktree/git-snapshot.ts")
+  const asnap = await import("@sma1lboy/rove-core/worktree/git-snapshot-async.ts")
   record("branches: sync list, blocks its caller (ms)", n, await timed(7, () => snap.listLocalBranches(repo)))
   record("branches: async list (ms)", n, await timed(7, () => asnap.listLocalBranches(repo)))
   record("branches: repo check (ms)", n, await timed(7, () => asnap.validateRepoPath(repo)))

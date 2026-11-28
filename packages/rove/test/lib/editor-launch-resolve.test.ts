@@ -16,10 +16,10 @@ const state = vi.hoisted(() => ({
   diffExitCode: 1, // `git diff --quiet` exit code (1 = has a diff)
 }))
 
-vi.mock("../../src/state/repos", () => ({
+vi.mock("@sma1lboy/rove-core/state/repos.ts", () => ({
   getPersistedString: (key: string) => state.persisted[key],
 }))
-vi.mock("../../src/lib/git-env", () => ({ readOnlyGitProcessEnv: () => ({}) }))
+vi.mock("@sma1lboy/rove-core/lib/git-env.ts", () => ({ readOnlyGitProcessEnv: () => ({}) }))
 const editorLaunch = await import("../../src/lib/editor-launch")
 
 let prevVisual: string | undefined

@@ -10,7 +10,7 @@
  */
 
 import { expect, test } from "bun:test"
-import { createStateCell } from "../../src/lib/external-store"
+import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
 import { AutomationsPage } from "../../src/tui-react/component/automations-page"
 import { renderComponent, settle, waitForFrameText } from "./harness"
 

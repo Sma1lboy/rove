@@ -6,7 +6,7 @@
  * for the contract. Claude needs no terminal-presentation adjustments.
  */
 
-import type { EngineCapabilities, EngineIdentity } from "@/types/engine"
+import type { EngineCapabilities, EngineIdentity } from "@sma1lboy/rove-core/types/engine.ts"
 
 export const claudeCapabilities: EngineCapabilities = {
   // Claude Code's own "esc to interrupt" hint, sent as the byte the terminal

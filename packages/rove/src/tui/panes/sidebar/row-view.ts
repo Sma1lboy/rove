@@ -1,10 +1,10 @@
-import { t } from "@/i18n"
-import { DEFAULT_GLYPHS, type GlyphSet } from "@/lib/glyphs"
 import { type RowTone, rowStatusGlyph } from "@/lib/row-status-glyph"
 import type { SidebarTone } from "@/sidebar/row-chips"
 import { breathGlyph } from "@/tui/lib/breathe"
-import type { Task } from "@/types/task"
-import { isBuiltinVendor } from "@/types/vendor"
+import { t } from "@sma1lboy/rove-core/i18n/index.ts"
+import { DEFAULT_GLYPHS, type GlyphSet } from "@sma1lboy/rove-core/lib/glyphs.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { isBuiltinVendor } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { RowStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 
 export type { SidebarTone }

@@ -7,6 +7,7 @@
  * not these. */
 
 import type { RowTokenMap } from "@/client/remote-orchestrator"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import type {
   AttentionInboxItem,
@@ -16,7 +17,6 @@ import type {
   TaskJobState,
   WorktreeChangesMap,
 } from "../../client/remote-orchestrator-payloads"
-import type { Task } from "../../types/task"
 import { useAccessor } from "../lib/use-accessor"
 import { useMergedTasks } from "./hub-singleton"
 

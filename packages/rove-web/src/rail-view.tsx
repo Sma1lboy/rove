@@ -1,6 +1,6 @@
 /** The Tasks rail: wordmark + inbox count, then project → task → child task rows (TUI `tree-panel`). */
 
-import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/i18n/messages/tasks.ts"
+import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove-core/i18n/messages/tasks.ts"
 import type { MouseEvent } from "react"
 import { useRef } from "react"
 import type { TasksPayload } from "rove-bridge/protocol"

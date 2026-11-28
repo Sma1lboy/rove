@@ -9,9 +9,9 @@
  *   - Path-browse mode (typing `/`, `~/`, `C:\`): verbatim path + matching subfolders.
  */
 
+import { pathLeaf, stripTrailingSlash } from "@sma1lboy/rove-core/lib/path-helpers.ts"
+import { tildify } from "@sma1lboy/rove-core/lib/path-home.ts"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
-import { pathLeaf, stripTrailingSlash } from "../../../lib/path-helpers"
-import { tildify } from "../../../lib/path-home"
 import { splitRepoRow } from "../../../tui/component/new-task-dialog/state"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"

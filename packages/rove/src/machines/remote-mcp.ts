@@ -10,8 +10,8 @@
 
 import { spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
-import { type MachineMcp, getMachine } from "./registry.ts"
-import { machineSshArgs } from "./ssh-args.ts"
+import { type MachineMcp, getMachine } from "@sma1lboy/rove-core/machines/registry.ts"
+import { machineSshArgs } from "@sma1lboy/rove-core/machines/ssh-args.ts"
 
 export interface ForwardedMcp {
   /** The server's name in the session: `<name>-<machine>`, so it never reads as this machine's own. */

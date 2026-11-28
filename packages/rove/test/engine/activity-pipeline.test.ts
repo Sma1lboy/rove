@@ -17,16 +17,16 @@
  * If any hop grows a private re-mapping, these assertions are where it shows.
  */
 
+import { isEngineActivityKind } from "@sma1lboy/rove-core/engine/hook-events.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { DaemonActivityRegistry } from "@sma1lboy/rove-daemon/daemon/activity-registry"
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import { tabStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { describe, expect, it } from "vitest"
 import type { TaskEngineState } from "../../src/client/remote-orchestrator.ts"
 import { ClaudeHookAdapter, claudeVerbForHookEvent } from "../../src/engine/claude-code-local/hook-adapter.ts"
-import { isEngineActivityKind } from "../../src/engine/hook-events.ts"
 import { buildSidebarRowView } from "../../src/tui/panes/sidebar/row-view.ts"
-import type { Task } from "../../src/types/task.ts"
-import { toTaskId } from "../../src/types/task.ts"
 
 function task(): Task {
   return {

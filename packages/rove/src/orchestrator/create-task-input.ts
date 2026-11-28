@@ -3,8 +3,14 @@
  * way: it imports nothing from the Orchestrator class.
  */
 
-import type { ProjectIntent } from "../state/project-eligibility.ts"
-import type { TaskDispatcher, TaskId, TaskRoutineLink, TaskWorkspace, VendorId } from "../types/task.ts"
+import type { ProjectIntent } from "@sma1lboy/rove-core/state/project-eligibility.ts"
+import type {
+  TaskDispatcher,
+  TaskId,
+  TaskRoutineLink,
+  TaskWorkspace,
+  VendorId,
+} from "@sma1lboy/rove-core/types/task.ts"
 import type { ExtraRepoInput } from "./multi-repo.ts"
 
 /** Input to {@link Orchestrator.createTask}. */

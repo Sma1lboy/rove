@@ -11,8 +11,8 @@
  * doesn't re-acquire (that is `resetToken`'s job).
  */
 
-import { errorMessage } from "@/lib/error-message"
 import { useRenderer } from "@opentui/react"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 import { useCallback, useEffect, useRef, useState } from "react"
 import type {
   CursorPos,

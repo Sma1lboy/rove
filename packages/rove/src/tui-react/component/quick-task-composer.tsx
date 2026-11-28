@@ -14,11 +14,11 @@
  */
 
 import { usePaste } from "@opentui/react"
+import { asAttachmentPaths, attachmentLabel, captureClipboardAttachment } from "@sma1lboy/rove-core/lib/attachments.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/task.ts"
+import { nextVendorWithin } from "@sma1lboy/rove-core/types/vendor.ts"
 import { useState } from "react"
-import { asAttachmentPaths, attachmentLabel, captureClipboardAttachment } from "../../lib/attachments"
 import { isBlankText, stripNewlines } from "../../tui/component/new-task-dialog/state"
-import type { VendorId } from "../../types/task"
-import { nextVendorWithin } from "../../types/vendor"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"

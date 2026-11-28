@@ -28,7 +28,7 @@
 import { readdir, stat } from "node:fs/promises"
 import { homedir, tmpdir } from "node:os"
 import path from "node:path"
-import type { Message } from "@/types/engine"
+import type { Message } from "@sma1lboy/rove-core/types/engine.ts"
 import { realPathOrSelf } from "../../lib/real-path.ts"
 import { readTextFileIfRegular } from "../file-bounds.ts"
 import { vendorAgentDir } from "../vendor-home.ts"

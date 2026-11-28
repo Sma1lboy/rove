@@ -7,8 +7,8 @@
  * drains its colour.
  */
 
-import { rollupPr } from "@/orchestrator/task-tree"
-import type { Task, TaskPRStatus } from "@/types/task"
+import { rollupPr } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import type { Task, TaskPRStatus } from "@sma1lboy/rove-core/types/task.ts"
 
 export type SidebarTone = "success" | "warning" | "primary" | "textMuted" | "error"
 

@@ -11,9 +11,9 @@
  */
 
 import type { TaskEngineState } from "@/client/remote-orchestrator"
-import { t } from "@/i18n"
-import { type TaskGroup, deriveTaskGroup, taskGroupRank } from "@/lib/task-group"
-import type { Task } from "@/types/task"
+import { t } from "@sma1lboy/rove-core/i18n/index.ts"
+import { type TaskGroup, deriveTaskGroup, taskGroupRank } from "@sma1lboy/rove-core/lib/task-group.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { compareRecent } from "../../../sidebar/groups"
 import type { SidebarTone } from "./row-view"
 

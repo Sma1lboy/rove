@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test"
-import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/i18n/messages/tasks.ts"
+import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove-core/i18n/messages/tasks.ts"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import type { TaskRow } from "rove-bridge/protocol"

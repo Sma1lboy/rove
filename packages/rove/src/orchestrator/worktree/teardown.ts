@@ -7,8 +7,8 @@
  * removal the user already confirmed — the outcome is reported, not thrown.
  */
 
-import type { ExecHost } from "../../exec/exec-host.ts"
-import { REPO_CONFIG_DIRS } from "../../lib/repo-config-file.ts"
+import type { ExecHost } from "@sma1lboy/rove-core/exec/exec-host.ts"
+import { REPO_CONFIG_DIRS } from "@sma1lboy/rove-core/lib/repo-config-file.ts"
 
 export const TEARDOWN_SCRIPT = "teardown.sh"
 export const TEARDOWN_TIMEOUT_MS = 60_000

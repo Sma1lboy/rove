@@ -5,10 +5,10 @@
  * this is the CLI's placement, serialization and failure handling.
  */
 
+import { PLACEHOLDER_TASK_TITLE } from "@sma1lboy/rove-core/orchestrator/title.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { withDeliveryLock } from "../../engine/delivery-lock.ts"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
-import { PLACEHOLDER_TASK_TITLE } from "../../orchestrator/title.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { dispatcherEnvPayload } from "./dispatcher.ts"
 import { ptyScopeOf } from "./pty-scope.ts"

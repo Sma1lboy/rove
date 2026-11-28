@@ -2,9 +2,9 @@
 
 import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
 import type { UsageSnapshotMap } from "@/client/remote-orchestrator-payloads"
-import type { ReadableState } from "@/lib/external-store"
-import type { Task } from "@/types/task"
-import type { VendorId } from "@/types/vendor"
+import type { ReadableState } from "@sma1lboy/rove-core/lib/external-store.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { TaskSortMode } from "../../../sidebar/groups"
 import type { TaskCopyField } from "../../../tui/lib/task-actions"
 import type { SidebarNav } from "../../../tui/panes/sidebar/nav-core"

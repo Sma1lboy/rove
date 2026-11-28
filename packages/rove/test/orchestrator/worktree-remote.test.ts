@@ -1,5 +1,5 @@
+import type { ExecHost, ExecResult } from "@sma1lboy/rove-core/exec/exec-host.ts"
 import { describe, expect, it } from "vitest"
-import type { ExecHost, ExecResult } from "../../src/exec/exec-host.ts"
 import type { WorktreeExecDeps } from "../../src/orchestrator/worktree/exec-deps.ts"
 import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
 

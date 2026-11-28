@@ -7,12 +7,13 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import { LOCALES, type LocaleId } from "@sma1lboy/rove-core/i18n/catalog.ts"
+import { displayWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
+import { usageRows } from "@sma1lboy/rove-core/lib/usage-core.ts"
+import type { UsageShow } from "@sma1lboy/rove-core/state/usage-show.ts"
 import { useMemo } from "react"
 import type { UsageSnapshotMap } from "../../../client/remote-orchestrator"
 import { engineDisplayName } from "../../../engine/interactive-command"
-import { LOCALES, type LocaleId } from "../../../i18n/catalog"
-import { displayWidth } from "../../../lib/display-width"
-import { usageRows } from "../../../lib/usage-core"
 import {
   type NavLevel,
   SECTIONS,
@@ -23,7 +24,6 @@ import {
   languageRowId,
   rowIndex,
 } from "../../../settings/model"
-import type { UsageShow } from "../../../state/usage-show"
 import { keyHintsToggleOn, toggleKeyHints } from "../../../tui/lib/keyboard-hints"
 import { useKV } from "../../context/kv"
 import { useTheme } from "../../context/theme"
