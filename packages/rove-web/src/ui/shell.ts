@@ -2,9 +2,10 @@
 
 import { PRESS, SQUARE, glass } from "./glass.ts"
 
-/** Faint hairline shared by the docked rail edge and side-panel column dividers. */
+/** Faint hairline shared by the docked rail edge, the side panel's edge and its column dividers. */
 export const PANE_HAIRLINE = {
   railRight: "rail-open:[border-right:var(--hairline)_solid_var(--line-faint)]",
+  panelLeft: "wide:[border-left:var(--hairline)_solid_var(--line-faint)] panel-expanded:[border-left:0]",
   dividerBefore:
     "before:absolute before:inset-y-0 before:left-[calc(var(--divider)/2)] before:[border-left:var(--hairline)_solid_var(--line-faint)] before:content-[''] hover:before:border-l-line-active active:before:border-l-line-active",
 } as const
@@ -64,8 +65,7 @@ export const RAIL_FRAME = [
  */
 export const WORKSPACE_FRAME =
   "rail-folded:col-2 panel-expanded:invisible panel-expanded:col-2 narrow-sidebar:hidden narrow-content:motion-safe:animate-push-in narrow-back:motion-safe:animate-push-in narrow-back:z-1 narrow-back:col-1 narrow-back:translate-x-(--back-x) narrow-back:bg-paper narrow-back:shadow-dialog"
-export const SIDE_PANEL_FRAME =
-  "rail-folded:col-3 panel-expanded:z-2 panel-expanded:col-[2/-1] panel-expanded:bg-paper panel-expanded:pl-2"
+export const SIDE_PANEL_FRAME = `${PANE_HAIRLINE.panelLeft} rail-folded:col-3 panel-expanded:z-2 panel-expanded:col-[2/-1] panel-expanded:bg-paper panel-expanded:pl-2`
 
 /** The rail head's chips: a fingertip target on touch. */
 export const HEAD_CHIP = `${HIT} touch:after:-inset-x-1.5 touch:after:-inset-y-3`
@@ -166,9 +166,12 @@ export const PLACEHOLDER_BOX = `${PLACEHOLDER} flex flex-col items-center gap-3 
 /** The content column: the workspace's top bar over its pane (`workspace` stays: pane-focus.ts and commands.ts find it). */
 /** `isolate`: the terminal's own layers (a leaving terminal's cover at z-6) stay under the folded rail floating over it. */
 export const WORKSPACE = "workspace isolate row-1 flex min-h-0 min-w-0 flex-col gap-1.5 px-1 pt-2 pb-1"
-/** On a phone the pane is the page itself: no frame, so the composer and keys sit on the page, not in a box. */
+/**
+ * The pane is the page itself, as Claude Desktop's conversation: no visible frame, only the hairlines that part regions.
+ * The border stays, transparent, for the working-flow ring to draw in.
+ */
 export const PANE =
-  "flex min-h-0 flex-1 overflow-hidden rounded-md border-hairline border-line bg-paper focus-within:border-focus narrow:rounded-none narrow:border-0"
+  "flex min-h-0 flex-1 overflow-hidden rounded-md border-hairline border-transparent bg-paper narrow:rounded-none narrow:border-0"
 /** The selected task is working: under the flow pref its border runs in the task's colour. */
 export const PANE_WORKING =
   "working-flow:border-transparent working-flow:[background:linear-gradient(var(--paper),var(--paper))_0_0/100%_100%_padding-box,linear-gradient(90deg,var(--line),var(--task-ink,var(--focus)),var(--line),var(--task-ink,var(--focus)),var(--line))_0_0/300%_100%_border-box] working-flow:motion-safe:animate-flow-border"

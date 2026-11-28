@@ -21,8 +21,8 @@
 
 :root {
   --paper: #141413;
-  /* The docked rail: claude dark's page a step darker (`sidebarOf`, prefs-theme.ts). */
-  --sidebar: #0d0d0d;
+  /* The docked rail: claude dark's page a hair darker (`sidebarOf`, prefs-theme.ts). */
+  --sidebar: #121211;
   --surface: #1a1917;
   --inset: #2b2a27;
   /* One step past inset: a selected or cursor row, which a pointer hover (`--hover`) must not look like. */
