@@ -11,6 +11,7 @@
 
 import { homedir } from "node:os"
 import { join } from "node:path"
+import { bypassFlag } from "../cli/argv.ts"
 import { trustAntigravityWorktree } from "./antigravity-local/trust.ts"
 import {
   AMP,
@@ -104,6 +105,7 @@ export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
     screenManifest: CURSOR,
     // `--model` per cursor-agent 2026.09.15 `--help`; its list verb needs a login, so no list.
     modelArgv: (base, model) => [...base, "--model", model],
+    permissionBypass: bypassFlag("--force", "-f", "--yolo"),
     createHookAdapter: () => new CursorHookAdapter(),
     skillsDir: () => skillsDirUnder(join(homedir(), ".cursor")),
   },
@@ -166,6 +168,7 @@ export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
     modelArgv: (base, model) => [...base, "--model", model],
     effortLevels: ["low", "medium", "high", "xhigh", "max"],
     effortArgv: (base, level) => [...base, "--effort", level],
+    permissionBypass: bypassFlag("--dangerously-skip-permissions"),
     skillsDir: () => skillsDirUnder(join(homedir(), ".gemini", "antigravity")),
   },
   // Hook schemas and screen strings below are documentation-derived, not captured.

@@ -49,11 +49,11 @@ describe("generalRows", () => {
 })
 
 describe("engineRows", () => {
-  it("is one row per engine, then the add row, then the integration and skill buttons", () => {
+  it("is one row per engine, then the add row, the integration and skill buttons, then the bypass switch", () => {
     const customs = ["aider", "goose"]
     const list = [...ALL_VENDORS, ...customs]
     const rows = engineRows(list)
-    expect(rows.length).toBe(ALL_VENDORS.length + customs.length + 4)
+    expect(rows.length).toBe(ALL_VENDORS.length + customs.length + 5)
     // Engine row index === its position in the engine list (the section's <For> order).
     expect(list.map((vendor) => rowIndex(rows, engineRowId(vendor)))).toEqual(list.map((_, i) => i))
     expect(rows.slice(0, list.length).map((row) => row.kind === "engine" && row.vendor)).toEqual(list)
@@ -64,12 +64,13 @@ describe("engineRows", () => {
     expect(rowAt(rows, list.length + 1)?.kind).toBe("engineHooksInstall")
     expect(rowAt(rows, list.length + 2)?.kind).toBe("engineHooksUninstall")
     expect(rowAt(rows, list.length + 3)?.kind).toBe("engineSkillInstall")
+    expect(rowAt(rows, list.length + 4)?.kind).toBe("enginePermissionBypass")
   })
 
   it("with zero custom engines still ends with the add row", () => {
     const rows = engineRows(ALL_VENDORS)
-    expect(rows.length).toBe(ALL_VENDORS.length + 4)
-    expect(rows.at(-4)?.kind).toBe("engineAdd")
+    expect(rows.length).toBe(ALL_VENDORS.length + 5)
+    expect(rows.at(-5)?.kind).toBe("engineAdd")
   })
 })
 

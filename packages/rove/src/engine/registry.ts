@@ -159,6 +159,16 @@ export interface EngineRegistryEntry {
    * task. Must leave a value the user's command override already sets alone.
    */
   readonly hostedStartArgv?: (argv: readonly string[]) => readonly string[]
+  /**
+   * Permission bypass added to every hosted launch while Settings → Engines →
+   * skip permission prompts is on (the default): an unattended task stalls on
+   * the first approval nobody answers. `argv` is appended unless the command
+   * already carries any of the `present` flags (the user chose a mode).
+   */
+  readonly permissionBypass?: {
+    readonly argv: (argv: readonly string[]) => readonly string[]
+    readonly present: readonly string[]
+  }
   /** Transcript store reader. Empty (not claude's!) for custom engines. */
   readonly history: EngineHistoryReader
   /**

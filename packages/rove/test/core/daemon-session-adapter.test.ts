@@ -163,7 +163,8 @@ describe("daemon session adapter", () => {
       startTaskSessionWithPromptAdapter(link("s-1"), "task-1", "full prompt", { resumedPrompt: "as before" }),
     ).resolves.toEqual({ started: true, resumed: true })
     expect(mocks.buildLaunch).toHaveBeenCalledOnce()
-    expect(launchedArgv(0)).toEqual(["claude", "--resume", "s-1"])
+    expect(launchedArgv(0)[0]).toBe("claude")
+    expect(launchedArgv(0).slice(-2)).toEqual(["--resume", "s-1"])
     expect(launchedPrompt(0)).toBe("as before")
   })
 

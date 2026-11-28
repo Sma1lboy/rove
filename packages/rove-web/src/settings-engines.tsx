@@ -13,10 +13,11 @@ import { useEngineIcons } from "./engine-icons.ts"
 import { t } from "./i18n/index.ts"
 import { useNarrow } from "./layout.ts"
 import type { AppModel } from "./model.ts"
+import { setPref, usePrefs } from "./prefs.ts"
 import { ts } from "./settings-copy.ts"
 import { EngineFacts, EngineRename, type EngineSetting, type Run, TONE, health } from "./settings-engine-detail.tsx"
 import { EnginesPhone } from "./settings-engines-phone.tsx"
-import { Group, Row, SectionPending, useSectionReply } from "./settings-rows.tsx"
+import { Group, Row, SectionPending, Toggle, useSectionReply } from "./settings-rows.tsx"
 import { installSkill } from "./skill-status.ts"
 import { toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
@@ -83,6 +84,7 @@ export function EnginesSection({ model }: { model: AppModel }) {
       )}
       <Integrations engines={engines} run={run} />
       <SkillSection engines={engines} client={client} reload={load} />
+      <PermissionBypass client={client} />
     </>
   )
 }
@@ -229,6 +231,19 @@ function SkillSection(props: { engines: readonly EngineSetting[]; client: Bridge
           <span className={ENG_UPTODATE}>{ts("engines.integrations.upToDate")}</span>
         ) : null}
       </Row>
+    </Group>
+  )
+}
+
+function PermissionBypass({ client }: { client: BridgeClient }) {
+  const { prefs } = usePrefs()
+  return (
+    <Group title={ts("engines.permissionsTitle")} hint={ts("engines.permissionBypassHint")}>
+      <Toggle
+        label={ts("engines.permissionBypass")}
+        checked={prefs.permissionBypass}
+        onChange={(next) => void setPref(client, "permissionBypass", next)}
+      />
     </Group>
   )
 }

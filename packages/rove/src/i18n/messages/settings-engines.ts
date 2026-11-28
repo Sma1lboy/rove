@@ -97,6 +97,10 @@ export const en = {
       noneInstalled: "Nothing to remove",
     },
     addEngine: "+ Add engine",
+    permissionsTitle: "Permissions",
+    permissionBypass: "Skip permission prompts",
+    permissionBypassHint:
+      "Starts Claude, Codex, Antigravity and Cursor with their skip-permissions flag so unattended sessions don't stall on an approval. Left alone if your launch command already picks a mode.",
     launchCommandTitle: "{name} launch command",
     displayNameTitle: "{name} display name (blank = default)",
     addTitle: "Add engine",
@@ -214,6 +218,10 @@ export const zh: typeof en = {
       noneInstalled: "没有可移除的",
     },
     addEngine: "+ 添加引擎",
+    permissionsTitle: "权限",
+    permissionBypass: "跳过权限确认",
+    permissionBypassHint:
+      "启动 Claude、Codex、Antigravity、Cursor 时带上它们跳过权限确认的参数，免得无人值守的会话卡在审批上。启动命令里已经选了权限模式的不再追加。",
     launchCommandTitle: "{name} 的启动命令",
     displayNameTitle: "{name} 的显示名称（留空 = 默认）",
     addTitle: "添加引擎",

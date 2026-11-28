@@ -34,6 +34,7 @@ import { AUTO_STATUS_KEY } from "@sma1lboy/rove/src/state/auto-status.ts"
 import { COLORBLIND_KEY, DEFAULT_COLORBLIND, normalizeColorblind } from "@sma1lboy/rove/src/state/colorblind.ts"
 import { DISPATCHER_KEY } from "@sma1lboy/rove/src/state/dispatcher.ts"
 import { DEFAULT_GLYPH_SET, GLYPH_SET_KEY, normalizeGlyphSet } from "@sma1lboy/rove/src/state/glyph-set.ts"
+import { PERMISSION_BYPASS_KEY } from "@sma1lboy/rove/src/state/permission-bypass.ts"
 import {
   DEFAULT_RUNNING_TITLE,
   RUNNING_TITLE_KEY,
@@ -238,6 +239,7 @@ export const PREF_DEFS: Readonly<Record<string, PrefDef>> = {
   dispatcher: bool(DISPATCHER_KEY, false),
   updateChannel: choice(UPDATE_CHANNEL_KEY, RELEASE_CHANNELS, (raw) => normalizeReleaseChannel(raw) ?? channelOf()),
   updateNotify: bool(UPDATE_NOTIFY_KEY, true),
+  permissionBypass: bool(PERMISSION_BYPASS_KEY, true),
 }
 
 /** Read-only facts the rows show next to a knob; never an editable value. */
