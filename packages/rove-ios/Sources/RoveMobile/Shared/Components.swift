@@ -110,6 +110,39 @@ struct PrimaryBar: View {
     }
 }
 
+/// rove-web's phone button (ui/phone.tsx `PhoneActions`, ui/glass.ts): a rounded square, 52 pt at radius 14 or 44 pt at
+/// radius 12 when `compact` (meta type); accent-filled when `primary`, neutral glass otherwise; sans semibold body type.
+struct PhoneButton: View {
+    var label: String
+    var primary = false
+    var compact = false
+    var enabled = true
+    var systemImage: String? = nil
+    /// Accessibility identifier: an English constant, never derived from the (localized) label.
+    var identifier: String
+    var action: () -> Void
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: compact ? 12 : 14, style: .continuous)
+        Button { Haptic.play(); action() } label: {
+            HStack(spacing: 8) {
+                if let systemImage { Image(systemName: systemImage) }
+                Text(label).lineLimit(1)
+            }
+            .font(Theme.face(compact ? 14 : 16, .semibold))
+            .foregroundStyle(primary ? Theme.paper : Theme.ink)
+            .padding(.horizontal, compact ? 12 : 14)
+            .frame(maxWidth: compact ? nil : .infinity, minHeight: compact ? 44 : 52)
+            .background { shape.fill(primary ? Theme.accent : Theme.glassFill).shadow(color: Theme.glassShadow, radius: 4, y: 2) }
+            .overlay { if !primary { shape.strokeBorder(Theme.glassEdge, lineWidth: 0.5) } }
+            .opacity(enabled ? 1 : 0.5)
+        }
+        .buttonStyle(.pressable)
+        .disabled(!enabled)
+        .accessibilityIdentifier(identifier)
+    }
+}
+
 /// Sheet chrome: mono title row with a `close` text button, scrolling body, optional primary bar.
 /// Solid paper, no system navigation bar.
 struct SheetScaffold<Content: View>: View {

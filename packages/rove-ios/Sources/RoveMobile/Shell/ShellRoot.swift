@@ -1,5 +1,4 @@
 import SwiftUI
-import AVFoundation
 import Observation
 
 /// The paired computers, newest first; the first is the one on screen. Keychain only: each link is a password.
@@ -49,13 +48,15 @@ struct ShellRoot: View {
     @State private var switching = false
     /// Not kept: a relaunch is back on pairing.
     @State private var demo = false
+    /// The page's own background (its `theme-color`), which follows the theme picked in rove-web; paper until it says.
+    @State private var page: UIColor?
 
     var body: some View {
         Group {
             if let computer = model.current {
                 WebShellView(computer: computer, reloadToken: reload,
                              onFail: { msg in Task { @MainActor in failure = msg } },
-                             onSwitch: { switching = true })
+                             onSwitch: { switching = true }, onPage: { page = $0 })
                     .ignoresSafeArea()
                     .overlay { if let failure { failed(computer, failure) } }
                     .sheet(isPresented: $switching) {
@@ -65,17 +66,20 @@ struct ShellRoot: View {
             } else if demo {
                 VStack(spacing: 0) {
                     DemoStrip(status: String(localized: "demo · not connected to a computer"),
-                              action: String(localized: "connect a computer")) { demo = false }
-                    WebShellView(computer: DemoWeb.computer, reloadToken: 0, onFail: { _ in }, onSwitch: {})
+                              action: String(localized: "connect a computer"), fill: pageColor) { demo = false; page = nil }
+                    WebShellView(computer: DemoWeb.computer, reloadToken: 0, onFail: { _ in }, onSwitch: {},
+                                 onPage: { page = $0 })
                         .ignoresSafeArea(edges: [.horizontal, .bottom])
                 }
             } else {
                 ShellPairingView(model: model, onDone: nil, onDemo: { demo = true })
             }
         }
-        .background(Theme.paper.ignoresSafeArea())
+        .background(pageColor.ignoresSafeArea())
         .onOpenURL { try? model.pair($0.absoluteString) }
     }
+
+    private var pageColor: Color { page.map(Theme.color) ?? Theme.paper }
 
     private func failed(_ computer: ShellComputer, _ message: String) -> some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -84,10 +88,8 @@ struct ShellRoot: View {
             Hint(text: String(localized: "Is rove --web still running on that computer, and is this phone on the same network or tailnet?"))
             ErrorLine(text: message)
             Spacer()
-            PrimaryBar(label: String(localized: "retry"), identifier: "retryButton") { reload += 1 }
-            Button { Haptic.play(); switching = true } label: { TileLabel(text: String(localized: "computers")) }
-                .buttonStyle(.pressable)
-                .accessibilityIdentifier("computersButton")
+            PhoneButton(label: String(localized: "retry"), primary: true, identifier: "retryButton") { reload += 1 }
+            PhoneButton(label: String(localized: "computers"), identifier: "computersButton") { switching = true }
         }
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -148,7 +150,6 @@ struct ShellPairingView: View {
     @State private var scanning = false
 
     private static let privacyPolicy = URL(string: "https://rove.run/privacy")!
-    private var cameraAvailable: Bool { AVCaptureDevice.default(for: .video) != nil }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -162,15 +163,9 @@ struct ShellPairingView: View {
                             .font(Theme.face(16)).foregroundStyle(Theme.ink)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    if cameraAvailable {
-                        Button { Haptic.play(); scanning = true } label: {
-                            Label(String(localized: "scan qr code"), systemImage: "qrcode.viewfinder")
-                                .font(Theme.mono(15, .semibold)).foregroundStyle(Theme.ink)
-                                .frame(maxWidth: .infinity, minHeight: 56).tile()
-                        }
-                        .buttonStyle(.pressable)
-                        .accessibilityIdentifier("scanButton")
-                    }
+                    // Shown without a camera too: the scanner says why it can't scan.
+                    PhoneButton(label: String(localized: "scan qr code"), systemImage: "qrcode.viewfinder",
+                                identifier: "scanButton") { scanning = true }
                     FormSection(label: String(localized: "or paste the link")) {
                         FieldBox {
                             TextField("", text: $text, prompt: Text(verbatim: "http://host:7878/#token=…").foregroundStyle(Theme.muted), axis: .vertical)
@@ -178,12 +173,9 @@ struct ShellPairingView: View {
                                 .lineLimit(1...4)
                                 .accessibilityIdentifier("pairingField")
                         }
-                        HStack {
-                            Button { Haptic.play(); text = UIPasteboard.general.string ?? text } label: { TileLabel(text: String(localized: "paste")) }
-                                .buttonStyle(.pressable)
-                            Spacer()
+                        PhoneButton(label: String(localized: "paste"), compact: true, identifier: "pasteButton") {
+                            text = UIPasteboard.general.string ?? text
                         }
-                        if !cameraAvailable { Hint(text: String(localized: "no camera here — paste the link instead")) }
                     }
                 }
                 .padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 24)
@@ -191,16 +183,11 @@ struct ShellPairingView: View {
             .scrollDismissesKeyboard(.interactively)
             VStack(alignment: .leading, spacing: 8) {
                 if let error { ErrorLine(text: error).accessibilityIdentifier("pairingError") }
-                PrimaryBar(label: String(localized: "connect"),
-                           enabled: !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                           identifier: "connectButton") { pair(text) }
+                PhoneButton(label: String(localized: "connect"), primary: true,
+                            enabled: !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                            identifier: "connectButton") { pair(text) }
                 if let onDemo {
-                    Button { Haptic.play(); onDemo() } label: {
-                        Text("try a demo").font(Theme.mono(15, .semibold)).foregroundStyle(Theme.ink)
-                            .frame(maxWidth: .infinity, minHeight: 48).tile()
-                    }
-                    .buttonStyle(.pressable)
-                    .accessibilityIdentifier("demoButton")
+                    PhoneButton(label: String(localized: "try a demo"), identifier: "demoButton") { onDemo() }
                 }
                 Link(destination: Self.privacyPolicy) {
                     Text("privacy policy").font(Theme.mono(13)).foregroundStyle(Theme.muted)
@@ -213,9 +200,9 @@ struct ShellPairingView: View {
         .background(Theme.paper.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $scanning) {
+            // Not `quillSheetChrome()`: that reads the native app's `AppModel`, which the shell doesn't have.
             QRScannerView { code in scanning = false; text = code; pair(code) }
-                .ignoresSafeArea()
-                .quillSheetChrome()
+                .presentationBackground(Theme.paper)
         }
     }
 
