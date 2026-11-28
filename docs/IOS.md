@@ -372,7 +372,7 @@ xcodegen generate
 xcodebuild -scheme RoveMobile -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build test
 ```
 
-The simulator has no camera: paste the link, or launch with `-pairLink <link>` (`xcrun simctl launch booted run.rove.mobile -pairLink 'http://127.0.0.1:7878/#token=…'`). `-resetPairing` forgets every computer first. `ShellFlowTests` drives the shell against a real `rove --web` when `TEST_RUNNER_ROVE_WEB_LINK` is set, and is skipped otherwise.
+The simulator has no camera: paste the link, or launch with `-pairLink <link>` (`xcrun simctl launch booted run.rove.app -pairLink 'http://127.0.0.1:7878/#token=…'`). `-resetPairing` forgets every computer first. `ShellFlowTests` drives the shell against a real `rove --web` when `TEST_RUNNER_ROVE_WEB_LINK` is set, and is skipped otherwise.
 
 Running on a physical iPhone needs your own signing team in Xcode; the repo ships no signing configuration.
 
