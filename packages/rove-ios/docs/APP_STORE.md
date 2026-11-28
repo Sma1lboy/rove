@@ -1,6 +1,6 @@
 # App Store listing and release copy
 
-Everything App Store Connect, External TestFlight, and the 1.0 launch need for **Rove Mobile** (`run.rove.mobile`). Copy-paste the plain-text blocks as-is (no Markdown is rendered in App Store Connect fields). Check every `TODO(owner):` before submitting.
+Everything App Store Connect, External TestFlight, and the 1.0 launch need for **Rove Mobile** (`run.rove.app`). Copy-paste the plain-text blocks as-is (no Markdown is rendered in App Store Connect fields). Check every `TODO(owner):` before submitting.
 
 For App Review instructions and reviewer walkthrough, see [`REVIEW_NOTES.md`](./REVIEW_NOTES.md).
 

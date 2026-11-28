@@ -10,7 +10,7 @@ settings:
     SWIFT_VERSION: "5.0"
     CODE_SIGN_STYLE: Automatic
     CODE_SIGN_IDENTITY: "-"
-    DEVELOPMENT_TEAM: ""
+    DEVELOPMENT_TEAM: 68562FABX7
     TARGETED_DEVICE_FAMILY: "1"
     SWIFT_EMIT_LOC_STRINGS: YES
     LOCALIZATION_PREFERS_STRING_CATALOGS: YES
@@ -39,7 +39,7 @@ targets:
       - package: SwiftTerm
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: run.rove.mobile
+        PRODUCT_BUNDLE_IDENTIFIER: run.rove.app
         PRODUCT_NAME: RoveMobile
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "2026112702"
@@ -69,7 +69,7 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         CFBundleIconName: AppIcon
         CFBundleURLTypes:
-          - CFBundleURLName: run.rove.mobile
+          - CFBundleURLName: run.rove.app
             CFBundleURLSchemes:
               - rove
         # The terminal's typeface (Terminal/TerminalFont.swift); OFL-1.1, Fonts/OFL.txt.
@@ -85,7 +85,7 @@ targets:
       - target: RoveMobile
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: run.rove.mobile.tests
+        PRODUCT_BUNDLE_IDENTIFIER: run.rove.app.tests
         GENERATE_INFOPLIST_FILE: YES
   RoveMobileUITests:
     type: bundle.ui-testing
@@ -96,7 +96,7 @@ targets:
       - target: RoveMobile
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: run.rove.mobile.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: run.rove.app.uitests
         GENERATE_INFOPLIST_FILE: YES
 schemes:
   RoveMobile:
