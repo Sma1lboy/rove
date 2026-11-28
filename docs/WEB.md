@@ -400,8 +400,13 @@ service:
 
 ```bash
 rove --web --install     # launchd agent (macOS) or systemd user unit (Linux)
-rove --web --uninstall
+rove --web --stop        # stop it now; it comes back at the next login
+rove --web --start       # start it again
+rove --web --uninstall   # stop it and remove the service
 ```
+
+Each Rove home (`ROVE_HOME_DIR`) gets its own service, so installing from a
+sandbox home never replaces the default one.
 
 It starts at login, restarts when it dies, and logs to
 `<home>/.rove/bridge/web.log`, where the relay link is printed too. It is a

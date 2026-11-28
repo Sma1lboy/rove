@@ -1,10 +1,11 @@
 /**
- * `rove --web --install` / `--uninstall`: keep `rove --web` running as a login service (a launchd agent on macOS, a
+ * `rove --web --install` / `--uninstall` / `--stop` / `--start`: keep `rove --web` running as a login service (a launchd agent on macOS, a
  * systemd user unit on Linux), restarted when it dies, logging to `<home>/.rove/bridge/web.log`. It dials the relay
  * a phone pairs through, so the phone reaches this computer whenever it is on, with no terminal left open.
  */
 
 import { spawnSync } from "node:child_process"
+import { createHash } from "node:crypto"
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
@@ -26,11 +27,21 @@ const withFlags = (flags: readonly string[]): LoginService => ({
   ...WEB_SERVICE,
   args: [...WEB_SERVICE.args, ...flags],
 })
-const SYSTEMD_UNIT = "rove-web.service"
+/**
+ * One service per Rove home: a sandbox or second home (`ROVE_HOME_DIR`) gets its own name, so installing there never
+ * replaces the default home's service, which lives in the same `~/Library/LaunchAgents` or systemd directory.
+ */
+export function serviceNames(roveHome: string | undefined): { label: string; unit: string } {
+  if (!roveHome) return { label: WEB_SERVICE.launchdLabel, unit: "rove-web.service" }
+  const tag = createHash("sha256").update(roveHome).digest("hex").slice(0, 8)
+  return { label: `${WEB_SERVICE.launchdLabel}.${tag}`, unit: `rove-web-${tag}.service` }
+}
+
+const names = () => serviceNames(readRoveHomeDirEnv())
 
 function servicePath(platform: NodeJS.Platform): string | null {
-  if (platform === "linux") return join(homedir(), ".config", "systemd", "user", SYSTEMD_UNIT)
-  if (platform === "darwin") return join(homedir(), "Library", "LaunchAgents", `${WEB_SERVICE.launchdLabel}.plist`)
+  if (platform === "linux") return join(homedir(), ".config", "systemd", "user", names().unit)
+  if (platform === "darwin") return join(homedir(), "Library", "LaunchAgents", `${names().label}.plist`)
   return null
 }
 
@@ -74,15 +85,15 @@ async function install(platform: NodeJS.Platform, flags: readonly string[]): Pro
   }
   mkdirSync(dirname(path), { recursive: true })
   mkdirSync(dirname(ctx.logPath), { recursive: true, mode: 0o700 })
-  const service = withFlags(flags)
+  const service = { ...withFlags(flags), launchdLabel: names().label }
   writeFileSync(path, platform === "linux" ? systemdUnit(ctx, service) : launchdPlist(ctx, service))
   if (platform === "darwin") {
-    run("launchctl", ["bootout", `${gui()}/${WEB_SERVICE.launchdLabel}`])
+    run("launchctl", ["bootout", `${gui()}/${names().label}`])
     const load = run("launchctl", ["bootstrap", gui(), path])
     if (!load.ok) throw new Error(`wrote ${path}, but launchd did not load it: ${load.out}`)
   } else {
     const reload = run("systemctl", ["--user", "daemon-reload"])
-    const enable = reload.ok ? run("systemctl", ["--user", "enable", "--now", SYSTEMD_UNIT]) : reload
+    const enable = reload.ok ? run("systemctl", ["--user", "enable", "--now", names().unit]) : reload
     if (!enable.ok) throw new Error(`wrote ${path}, but systemd did not start it: ${enable.out}`)
   }
   return `rove --web now runs in the background and starts when you log in (${path}).\nLog: ${ctx.logPath}\nPair a phone in the page's Settings → Connectors → Phone, or from the link in the log.`
@@ -91,17 +102,52 @@ async function install(platform: NodeJS.Platform, flags: readonly string[]): Pro
 function uninstall(platform: NodeJS.Platform): string {
   const path = servicePath(platform)
   if (!path || !existsSync(path)) return "rove --web is not installed as a login service."
-  if (platform === "darwin") run("launchctl", ["bootout", `${gui()}/${WEB_SERVICE.launchdLabel}`])
-  else run("systemctl", ["--user", "disable", "--now", SYSTEMD_UNIT])
+  if (platform === "darwin") run("launchctl", ["bootout", `${gui()}/${names().label}`])
+  else run("systemctl", ["--user", "disable", "--now", names().unit])
   rmSync(path)
   if (platform === "linux") run("systemctl", ["--user", "daemon-reload"])
   return `Stopped and removed the rove --web login service (${path}).`
 }
 
-/** Handles `--install` / `--uninstall`; false when `args` asks for neither. */
+/** Stops the service now; it stays installed and comes back at the next login, or with `--start`. */
+function stop(platform: NodeJS.Platform): string {
+  const path = servicePath(platform)
+  if (!path || !existsSync(path))
+    return "rove --web is not installed as a login service; stop a terminal run with Ctrl-C."
+  const res =
+    platform === "darwin"
+      ? run("launchctl", ["bootout", `${gui()}/${names().label}`])
+      : run("systemctl", ["--user", "stop", names().unit])
+  // launchd answers "No such process" when it was already stopped.
+  if (!res.ok && !/no such process|not loaded|could not find/i.test(res.out))
+    throw new Error(`could not stop it: ${res.out}`)
+  return "Stopped rove --web. It starts again at your next login, or now with `rove --web --start`; `--uninstall` removes it."
+}
+
+function start(platform: NodeJS.Platform): string {
+  const path = servicePath(platform)
+  if (!path || !existsSync(path)) return "rove --web is not installed as a login service: run `rove --web --install`."
+  const res =
+    platform === "darwin"
+      ? run("launchctl", ["bootstrap", gui(), path])
+      : run("systemctl", ["--user", "start", names().unit])
+  // Bootstrapping a loaded service fails with "already" / EIO (5): it is running, which is what was asked.
+  if (!res.ok && !/already|input\/output error/i.test(res.out)) throw new Error(`could not start it: ${res.out}`)
+  return `rove --web is running. Log: ${context().logPath}`
+}
+
+/** Handles `--install` / `--uninstall` / `--stop` / `--start`; false when `args` asks for none. */
 export async function webServiceCommand(args: readonly string[], platform = process.platform): Promise<boolean> {
   if (argvHasFlag(args, "--uninstall")) {
     console.log(uninstall(platform))
+    return true
+  }
+  if (argvHasFlag(args, "--stop")) {
+    console.log(stop(platform))
+    return true
+  }
+  if (argvHasFlag(args, "--start")) {
+    console.log(start(platform))
     return true
   }
   if (!argvHasFlag(args, "--install")) return false
