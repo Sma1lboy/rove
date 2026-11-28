@@ -12,7 +12,7 @@ import {
 } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import type { TerminalDefaultColors } from "@sma1lboy/rove-daemon/daemon/terminal-colors"
-import { readPersistedTerminalDefaultColors } from "../tui/lib/terminal-colors.ts"
+import { readPersistedTerminalDefaultColors } from "../theme/terminal-colors.ts"
 import { BUILTIN_VENDORS, type VendorId } from "../types/vendor.ts"
 import { withDeliveryLock } from "./delivery-lock.ts"
 import { PASTE_READY_POLL_MS, PASTE_READY_TIMEOUT_MS, bracketedPasteActive, encodePaste } from "./paste-readiness.ts"

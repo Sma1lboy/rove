@@ -1,5 +1,5 @@
 /**
- * Opentui-free hex resolver for theme slots. `resolveTheme()` (theme-core.ts)
+ * Opentui-free hex resolver for theme slots. `resolveTheme()` (`tui/context/theme-core.ts`)
  * returns `@opentui/core` RGBA, which CLI / external-styling code must not
  * load; this resolves one slot to `#rrggbb` with the same semantics (def
  * refs, slot refs, `{dark,light}`, circular-ref protection), except that
@@ -7,8 +7,8 @@
  * for external styling, skipping beats painting black.
  */
 
-import type { ThemeJson } from "../theme-core"
 import { type ColorLiteral, parseRgbLiteral } from "./color-literal"
+import type { ThemeJson } from "./theme-data"
 
 type Variant = { dark: string; light: string }
 type ColorValue = string | Variant

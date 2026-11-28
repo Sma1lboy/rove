@@ -1,12 +1,12 @@
 /**
  * The bundled theme JSONs as a plain map — the SINGLE owner of the static
- * JSON imports. `theme-core.ts` re-exports this map as `BUNDLED_THEMES`
+ * JSON imports. `theme-data.ts` exports this map as `BUNDLED_THEMES`
  * for the theme providers; off-render callers (e.g. resolving tmux border
  * colors at session-build time) import it here directly, as does `cli/theme.ts`
  * for the bundled NAMES — this map is the only place that list exists.
  */
 
-import type { ThemeJson } from "../theme-core"
+import type { ThemeJson } from "./theme-data"
 
 import claude from "./claude.json" with { type: "json" }
 import conductor from "./conductor.json" with { type: "json" }

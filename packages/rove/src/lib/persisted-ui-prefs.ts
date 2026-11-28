@@ -2,11 +2,11 @@
  * Read the UI prefs (theme, transparency, focus accent, locale) the outer TUI
  * persisted to `state.json`, for subprocess hosts that can't share its runtime.
  * READ-ONLY by contract: the outer app owns `state.json` (writer: the KV store,
- * `tui/context/kv.tsx`); a subprocess write would race it.
+ * `tui-react/context/kv.tsx`); a subprocess write would race it.
  */
 
 import { readFileSync } from "node:fs"
-import { kvStatePath } from "../../env.ts"
+import { kvStatePath } from "../env.ts"
 import {
   DEFAULT_THEME_MODE,
   FOCUS_ACCENT_SLOTS,
@@ -14,8 +14,8 @@ import {
   THEME_MODE_PREFERENCES,
   type ThemeModePreference,
   hasBundledTheme,
-} from "../context/theme-core"
-import { DEFAULT_LOCALE, type LocaleId, isLocaleId } from "../i18n/catalog"
+} from "../theme/theme-data"
+import { DEFAULT_LOCALE, type LocaleId, isLocaleId } from "../tui/i18n/catalog"
 
 /** state.json key holding the persisted UI language. */
 export const LOCALE_KEY = "locale"

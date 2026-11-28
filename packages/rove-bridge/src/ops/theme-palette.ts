@@ -4,8 +4,8 @@
  * maths is the TUI's own (`diffInks`, `taskColor`), run here so a page never restates it.
  */
 
+import { resolveThemeSlotHex } from "@sma1lboy/rove/src/theme/hex.ts"
 import { type Theme, type ThemeJson, diffInks, resolveTheme } from "@sma1lboy/rove/src/tui/context/theme-core.ts"
-import { resolveThemeSlotHex } from "@sma1lboy/rove/src/tui/context/theme/hex.ts"
 import { taskColor } from "@sma1lboy/rove/src/tui/lib/task-color.ts"
 
 export type ThemeMode = "dark" | "light"

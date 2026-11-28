@@ -14,9 +14,9 @@
 import { readFileSync, readdirSync } from "node:fs"
 import { join } from "node:path"
 import { errorMessage } from "@/lib/error-message"
-import { roveStateDir } from "../../../env"
-import type { ThemeJson } from "../theme-core"
+import { roveStateDir } from "../env"
 import { validateTheme } from "./schema"
+import type { ThemeJson } from "./theme-data"
 
 export function userThemesDir(): string {
   return join(roveStateDir(), "themes")

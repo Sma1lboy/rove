@@ -115,7 +115,7 @@ filing fiction:
 # file exists + size/shape is what you think
 ls -la packages/rove/src/<path>
 # the function/string/registry you're pointing at really lives there
-grep -rn "BUNDLED_THEMES" packages/rove/src/tui/context/theme/
+grep -rn "BUNDLED_THEMES" packages/rove/src/theme/
 # the thing you claim is MISSING really is absent (greenfield framing)
 find packages -iname '*completion*' | grep -v node_modules    # empty => "no completions exist"
 ```

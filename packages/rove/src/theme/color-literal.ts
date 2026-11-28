@@ -1,7 +1,7 @@
 /**
  * Parser for `rgb()` / `rgba()` literals, accepted wherever a theme JSON takes
  * `#hex`. Dependency-free so BOTH resolvers share one copy: `resolveTheme()`
- * (`../theme-core`, opentui `RGBA`) and `resolveThemeSlotHex()` (`./hex`,
+ * (`tui/context/theme-core.ts`, opentui `RGBA`) and `resolveThemeSlotHex()` (`./hex`,
  * `#rrggbb` for code that must not load the TUI runtime).
  *
  *     rgb(134, 225, 252)

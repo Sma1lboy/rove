@@ -19,6 +19,7 @@ import {
   EDITOR_KIND_KEY,
   normalizeEditorKind,
 } from "@sma1lboy/rove/src/lib/editor-prefs.ts"
+import { defaultTransparentBackground } from "@sma1lboy/rove/src/lib/persisted-ui-prefs.ts"
 import { RELEASE_CHANNELS } from "@sma1lboy/rove/src/release-channels.ts"
 import { AUTO_STATUS_KEY } from "@sma1lboy/rove/src/state/auto-status.ts"
 import { COLORBLIND_KEY, DEFAULT_COLORBLIND, normalizeColorblind } from "@sma1lboy/rove/src/state/colorblind.ts"
@@ -85,7 +86,6 @@ import {
 } from "@sma1lboy/rove/src/tui/context/theme-core.ts"
 import { DEFAULT_LOCALE, LOCALES, isLocaleId } from "@sma1lboy/rove/src/tui/i18n/catalog.ts"
 import { FINISHED_ALERTS_KEY } from "@sma1lboy/rove/src/tui/lib/notify-state.ts"
-import { defaultTransparentBackground } from "@sma1lboy/rove/src/tui/lib/persisted-ui-prefs.ts"
 import {
   DEFAULT_PREFIX_TAP_PRESENTATION,
   PREFIX_TAP_PRESENTATIONS,

@@ -10,9 +10,9 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { type MockInstance, afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { runThemeSubcommand } from "../../src/cli/theme.ts"
-import { BUNDLED_THEME_JSONS } from "../../src/tui/context/theme/bundled.ts"
-import { resolveThemeSlotHex } from "../../src/tui/context/theme/hex.ts"
-import { loadUserThemes } from "../../src/tui/context/theme/loader.ts"
+import { BUNDLED_THEME_JSONS } from "../../src/theme/bundled.ts"
+import { resolveThemeSlotHex } from "../../src/theme/hex.ts"
+import { loadUserThemes } from "../../src/theme/loader.ts"
 
 const VALID_THEME = {
   defs: { bg: "#000000", fg: "#ffffff" },

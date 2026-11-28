@@ -48,7 +48,7 @@ missing `borderActive` falls through to `border`, missing `border`
 falls through to `text`). The full slot list with fallbacks lives in
 [`packages/rove/src/tui/context/theme-core.ts`](../packages/rove/src/tui/context/theme-core.ts).
 The canonical example is
-[`packages/rove/src/tui/context/theme/claude.json`](../packages/rove/src/tui/context/theme/claude.json).
+[`packages/rove/src/theme/claude.json`](../packages/rove/src/theme/claude.json).
 Copy it as a starting point.
 
 ## CLI

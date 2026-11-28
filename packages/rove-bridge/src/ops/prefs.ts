@@ -9,9 +9,9 @@
  */
 
 import { type StateSnapshot, loadStateFile, updateStateFile } from "@sma1lboy/rove/src/state/store.ts"
+import { BUNDLED_THEME_JSONS } from "@sma1lboy/rove/src/theme/bundled.ts"
+import { loadUserThemes } from "@sma1lboy/rove/src/theme/loader.ts"
 import type { ThemeJson } from "@sma1lboy/rove/src/tui/context/theme-core.ts"
-import { BUNDLED_THEME_JSONS } from "@sma1lboy/rove/src/tui/context/theme/bundled.ts"
-import { loadUserThemes } from "@sma1lboy/rove/src/tui/context/theme/loader.ts"
 import { GLYPH_SETS } from "@sma1lboy/rove/src/tui/lib/glyphs.ts"
 import { BridgeError } from "../protocol.ts"
 import { PREF_DEFS, type PrefDef, checkPrefValue, prefInfo } from "./prefs-defs.ts"

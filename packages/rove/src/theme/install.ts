@@ -6,10 +6,10 @@
 
 import { existsSync, mkdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import type { ThemeJson } from "../theme-core"
 import { userThemesDir } from "./loader"
 import { validateTheme } from "./schema"
 import { parseTerminalScheme, themeFromTerminalScheme } from "./terminal-scheme"
+import type { ThemeJson } from "./theme-data"
 
 /** Served from rove.run/themes (sources in `packages/rove-landing/themes/`), not bundled. */
 export const HOSTED_THEMES = [
@@ -59,7 +59,7 @@ export function parseThemeSource(text: string): { theme: ThemeJson; fromScheme: 
 
 /**
  * A name safe to turn into `<userThemesDir()>/<name>.json`. `join()` resolves `..`, so without this
- * `remove '../../x/notes'` would unlink a file outside the themes dir.
+ * `remove '../tui/x/notes'` would unlink a file outside the themes dir.
  */
 export function isThemeName(name: string | undefined): name is string {
   return !!name && /^[a-zA-Z0-9._-]+$/.test(name) && name !== "." && name !== ".."

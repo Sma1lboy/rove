@@ -1,5 +1,5 @@
 /**
- * Hand-rolled `ThemeJson` validator for bundled (`src/tui/context/theme/*.json`)
+ * Hand-rolled `ThemeJson` validator for bundled (`src/theme/*.json`)
  * and user (`~/.rove/themes/*.json`) themes; the shape is small enough not to
  * justify a validator dependency.
  *
@@ -8,7 +8,7 @@
  * a `{ dark, light }` object of strings.
  *
  * Deliberately NOT enforced:
- *   - Required slots: `resolveTheme` (theme-core.ts) falls back, so a sparse
+ *   - Required slots: `resolveTheme` (`tui/context/theme-core.ts`) falls back, so a sparse
  *     user theme is a feature.
  *   - Hex format: a non-`#` string is a def-ref, EXCEPT an `rgb(…)`/`rgba(…)`
  *     that failed to parse (rejected by name, see `badRgbLiteral`).
@@ -17,9 +17,9 @@
  *   - `$schema` content: editor autocomplete only.
  */
 
-import { isObject } from "../../../lib/is-object"
-import type { ThemeJson } from "../theme-core"
+import { isObject } from "../lib/is-object"
 import { isRgbLiteral, parseRgbLiteral } from "./color-literal"
+import type { ThemeJson } from "./theme-data"
 
 const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
 

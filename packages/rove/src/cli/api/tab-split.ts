@@ -23,7 +23,7 @@ import {
   splitLeafPtyKey,
   tabPtyKeyFor,
 } from "../../tabs/terminal-tabs-core.ts"
-import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
+import { readPersistedTerminalDefaultColors } from "../../theme/terminal-colors.ts"
 import { killTaskSessions } from "./pty-delivery.ts"
 import { ensureHostFor, sessionFailed } from "./session-failed.ts"
 import { type TabsRpc, patchTabSplit, readDaemonTabs } from "./tab-snapshot.ts"

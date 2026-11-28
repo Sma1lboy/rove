@@ -6,15 +6,15 @@
  * names that directory, which the page hands to an agent asked to write a theme.
  */
 
-import type { ThemeJson } from "@sma1lboy/rove/src/tui/context/theme-core.ts"
 import {
   HOSTED_THEMES,
   ThemeInstallError,
   hostedThemeUrl,
   parseTheme,
   writeUserTheme,
-} from "@sma1lboy/rove/src/tui/context/theme/install.ts"
-import { loadUserThemes, userThemesDir } from "@sma1lboy/rove/src/tui/context/theme/loader.ts"
+} from "@sma1lboy/rove/src/theme/install.ts"
+import { loadUserThemes, userThemesDir } from "@sma1lboy/rove/src/theme/loader.ts"
+import type { ThemeJson } from "@sma1lboy/rove/src/tui/context/theme-core.ts"
 import { BridgeError } from "../protocol.ts"
 import { palette } from "./theme-palette.ts"
 import type { OpTable } from "./types.ts"

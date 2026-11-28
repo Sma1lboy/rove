@@ -5,11 +5,11 @@
  * one and not the others is the drift this file exists to catch.
  */
 import { describe, expect, test } from "vitest"
+import { isRgbLiteral, parseRgbLiteral } from "../../src/theme/color-literal"
+import { resolveThemeSlotHex } from "../../src/theme/hex"
+import { validateTheme } from "../../src/theme/schema"
 import type { ThemeJson } from "../../src/tui/context/theme-core"
 import { resolveTheme } from "../../src/tui/context/theme-core"
-import { isRgbLiteral, parseRgbLiteral } from "../../src/tui/context/theme/color-literal"
-import { resolveThemeSlotHex } from "../../src/tui/context/theme/hex"
-import { validateTheme } from "../../src/tui/context/theme/schema"
 
 const themeOf = (value: string): ThemeJson => ({ theme: { accent: value } }) as unknown as ThemeJson
 

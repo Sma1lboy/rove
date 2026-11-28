@@ -5,8 +5,8 @@
  * Opentui-free: the CLI imports it.
  */
 
-import type { ThemeJson } from "../theme-core"
 import { normalizeHex } from "./hex"
+import type { ThemeJson } from "./theme-data"
 
 export interface TerminalScheme {
   readonly background: string
