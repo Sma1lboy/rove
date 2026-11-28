@@ -197,7 +197,7 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
         {/* Wraps by whole groups: a long repo name pushes the engine chips to a second row rather than off the edge. */}
         <box flexDirection="row" flexWrap="wrap" justifyContent="space-between" columnGap={1} flexShrink={0}>
           <box flexDirection="row" columnGap={1} flexShrink={0}>
-            {chip("repo", vm.noFolder ? t("newTask.noFolder") : splitRepoRow(vm.repo.trim()).base)}
+            {chip("repo", vm.noFolder ? t("newTask.chooseFolder") : splitRepoRow(vm.repo.trim()).base)}
             {vm.extraCandidates.length > 0 && !project && !vm.noFolder
               ? chip("extras", vm.extraPicked.length > 0 ? `+${vm.extraPicked.length}` : "+")
               : null}

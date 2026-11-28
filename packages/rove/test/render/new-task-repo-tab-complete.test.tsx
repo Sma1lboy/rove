@@ -150,10 +150,9 @@ test("saved mode: Tab finishes the name, the NEXT Tab leaves the field", async (
   act(() => h.destroy())
 })
 
-test("Tab still advances when the dropdown has nothing to offer", async () => {
-  // The guard is the picker's own render condition: no visible suggestion,
-  // no completion, and the key keeps its old job. Without this the field
-  // would swallow Tab and trap focus whenever a query matched nothing.
+test("Tab still advances when a search matches no saved folder without corrupting the selection", async () => {
+  // The search box only filters the list; an unmatched query never overwrites
+  // the currently selected folder and never traps Tab.
   const dir = repo("solo")
   const h = await mount(dir)
 
@@ -163,10 +162,8 @@ test("Tab still advances when the dropdown has nothing to offer", async () => {
 
   await pressTab(h)
   await commit(h)
-  // Focus reached `from branch`, whose Enter commits — and the invalid repo
-  // is refused there, on screen, instead of the key vanishing.
-  expect(h.submitted).toHaveLength(0)
-  expect(await h.frame()).toContain("no-such-repo-anywhere")
+  expect(h.submitted).toHaveLength(1)
+  expect(h.submitted[0]).toMatchObject({ repo: dir })
   act(() => h.destroy())
 })
 

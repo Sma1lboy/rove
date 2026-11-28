@@ -35,12 +35,69 @@ function PickerItem(props: { focused: boolean; children: ReactNode }) {
   )
 }
 
+/** A pinned row rendered above or below the windowed slice, addressed by its absolute cursor index. */
+export type PinnedPickerRow = PickerRow & { readonly index: number }
+
+function PickerRowView(props: {
+  row: PickerRow
+  absoluteIndex: number
+  isCursor: boolean
+  focused: boolean
+  onPick: (absoluteIndex: number) => void
+}) {
+  const { theme } = useTheme()
+  const { row, absoluteIndex, isCursor, focused, onPick } = props
+  const fg = isCursor ? theme.primary : row.accent ? theme.accent : theme.textMuted
+  const attributes = isCursor ? TextAttributes.BOLD : undefined
+  // No `dim` = ONE text node: two nodes in a flex row measure and clip differently.
+  if (!row.dim) {
+    return (
+      <PickerItem focused={isCursor && focused}>
+        <text fg={fg} attributes={attributes} wrapMode="none" onMouseUp={() => onPick(absoluteIndex)}>
+          {isCursor ? "▸ " : "  "}
+          {row.body}
+        </text>
+      </PickerItem>
+    )
+  }
+  return (
+    <PickerItem focused={isCursor && focused}>
+      <box flexDirection="row" onMouseUp={() => onPick(absoluteIndex)}>
+        <text fg={fg} attributes={attributes} wrapMode="none" flexShrink={0}>
+          {isCursor ? "▸ " : "  "}
+          {row.body}
+        </text>
+        {/* Right-aligned by a growing spacer, not by padding the string:
+          the gap is whatever the row has left over, so the tails share
+          one right edge however ragged the names are. */}
+        <box flexGrow={1} />
+        {/* The tail is the first thing to go on a narrow card: it is the
+          half the row can lose and still be identifiable.
+          The separating space is INSIDE the text, not `paddingLeft`:
+          padding is part of the box being shrunk, so on a row wide
+          enough to close the gap it went to zero and the body ran
+          straight into the directory (`…(current dir)/var/folders/…`).
+          A leading space in the string shrinks with the string. */}
+        <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
+          {` ${row.dim}`}
+        </text>
+      </box>
+    </PickerItem>
+  )
+}
+
 export function PickerList(props: {
   window: PickerWindow
   cursor: number
   focused?: boolean
+  /** Offset added to `window.start + i` when pinned rows precede the windowed slice. */
+  indexOffset?: number
+  /** Rows pinned above the windowed slice (always visible, e.g. `No folder`). */
+  pinnedTop?: readonly PinnedPickerRow[]
   /** Pre-windowed rows; same length/order as `window.items`. */
   rows: readonly PickerRow[]
+  /** Rows pinned below the windowed slice (always visible, e.g. `+ Open folder…`). */
+  pinnedBottom?: readonly PinnedPickerRow[]
   onPick: (absoluteIndex: number) => void
   /** Extra line under the list (e.g. the adopt "N selected" hint). */
   footer?: ReactNode
@@ -48,55 +105,38 @@ export function PickerList(props: {
 }) {
   const { theme } = useTheme()
   const t = useT()
-  const focus = useDialogFocus<BoxRenderable>(props.focused !== false)
+  const listFocused = props.focused !== false
+  const focus = useDialogFocus<BoxRenderable>(listFocused)
+  const offset = props.indexOffset ?? 0
   const below = props.window.total - props.window.start - props.window.items.length
   return (
     <box {...focus} gap={0} flexShrink={0} paddingLeft={2} paddingBottom={props.paddingBottom}>
+      {props.pinnedTop?.map((row) => (
+        <PickerRowView
+          key={row.key}
+          row={row}
+          absoluteIndex={row.index}
+          isCursor={row.index === props.cursor}
+          focused={listFocused}
+          onPick={props.onPick}
+        />
+      ))}
       {props.window.start > 0 ? (
         <text fg={theme.textMuted} wrapMode="none">
           {t("newTask.picker.moreAbove", { count: props.window.start })}
         </text>
       ) : null}
       {props.rows.map((row, i) => {
-        const absoluteIndex = props.window.start + i
-        const isCursor = absoluteIndex === props.cursor
-        const fg = isCursor ? theme.primary : row.accent ? theme.accent : theme.textMuted
-        const attributes = isCursor ? TextAttributes.BOLD : undefined
-        // No `dim` = ONE text node: two nodes in a flex row measure and clip
-        // differently.
-        if (!row.dim) {
-          return (
-            <PickerItem key={row.key} focused={isCursor && props.focused !== false}>
-              <text fg={fg} attributes={attributes} wrapMode="none" onMouseUp={() => props.onPick(absoluteIndex)}>
-                {isCursor ? "▸ " : "  "}
-                {row.body}
-              </text>
-            </PickerItem>
-          )
-        }
+        const absoluteIndex = offset + props.window.start + i
         return (
-          <PickerItem key={row.key} focused={isCursor && props.focused !== false}>
-            <box flexDirection="row" onMouseUp={() => props.onPick(absoluteIndex)}>
-              <text fg={fg} attributes={attributes} wrapMode="none" flexShrink={0}>
-                {isCursor ? "▸ " : "  "}
-                {row.body}
-              </text>
-              {/* Right-aligned by a growing spacer, not by padding the string:
-                the gap is whatever the row has left over, so the tails share
-                one right edge however ragged the names are. */}
-              <box flexGrow={1} />
-              {/* The tail is the first thing to go on a narrow card: it is the
-                half the row can lose and still be identifiable.
-                The separating space is INSIDE the text, not `paddingLeft`:
-                padding is part of the box being shrunk, so on a row wide
-                enough to close the gap it went to zero and the body ran
-                straight into the directory (`…(current dir)/var/folders/…`).
-                A leading space in the string shrinks with the string. */}
-              <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
-                {` ${row.dim}`}
-              </text>
-            </box>
-          </PickerItem>
+          <PickerRowView
+            key={row.key}
+            row={row}
+            absoluteIndex={absoluteIndex}
+            isCursor={absoluteIndex === props.cursor}
+            focused={listFocused}
+            onPick={props.onPick}
+          />
         )
       })}
       {below > 0 ? (
@@ -104,6 +144,16 @@ export function PickerList(props: {
           {t("newTask.picker.moreBelow", { count: below })}
         </text>
       ) : null}
+      {props.pinnedBottom?.map((row) => (
+        <PickerRowView
+          key={row.key}
+          row={row}
+          absoluteIndex={row.index}
+          isCursor={row.index === props.cursor}
+          focused={listFocused}
+          onPick={props.onPick}
+        />
+      ))}
       {props.footer}
     </box>
   )

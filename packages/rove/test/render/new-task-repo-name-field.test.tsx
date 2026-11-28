@@ -1,26 +1,17 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The Existing tab's repo field shows a NAME, with the directory demoted to
- * muted text at the row's right edge — while the value it submits stays a
- * full path.
- *
- * The split is only worth having if both halves hold at once, and the two
- * halves fail in opposite directions:
- *   - render only → the field could show a bare name and SUBMIT a bare name,
- *     which resolves to nothing (or, with ~100 flat repos under one parent,
- *     to the wrong one).
- *   - submit only → the path could still be sitting in the editable cell,
- *     which is the thing being changed.
- * So each test below reads the frame AND the submitted value.
- *
- * Real `git init` temp dirs because the tab validates the path and reads its
- * branches synchronously; a fake path renders the error state instead of the
- * fields.
+ * Render contract for the New task folder picker popover:
+ *   - Clean search input (`Search folders...`) with `No folder`, `Recent`, and `Open folder…`.
+ *   - Unique basenames render cleanly without full path clutter; duplicate basenames
+ *     show their parent directory muted so each row stays distinguishable and submits its own path.
+ *   - `Open folder…` opens the in-TUI folder browser starting at the active folder's parent,
+ *     marks git repos, and lets the user pick a sibling or nested folder directly.
+ *   - Typing a path directly in the search box still browses subdirectories verbatim.
  */
 
 import { expect, test } from "bun:test"
 import { execSync } from "node:child_process"
-import { mkdtempSync } from "node:fs"
+import { mkdirSync, mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { NewTaskDialogView } from "../../src/tui-react/component/new-task-dialog/dialog"
@@ -33,21 +24,15 @@ isolateHome()
 function repoUnderLongParent(name: string): string {
   const parent = mkdtempSync(join(tmpdir(), "rove-reponame-with-a-deliberately-long-parent-path-"))
   const dir = join(parent, name)
-  execSync(`mkdir -p ${dir}`, { shell: "/bin/sh" })
+  mkdirSync(dir, { recursive: true })
   execSync("git init -q -b main && git -c user.email=t@t -c user.name=t commit -q --allow-empty -m init", { cwd: dir })
   return dir
 }
 
-function repo(name: string): string {
-  const parent = mkdtempSync(join(tmpdir(), "rove-reponame-"))
+function repo(name: string, parentDir?: string): string {
+  const parent = parentDir ?? mkdtempSync(join(tmpdir(), "rove-reponame-"))
   const dir = join(parent, name)
-  execSync(
-    `mkdir -p ${dir} && git init -q -b main && git -c user.email=t@t -c user.name=t commit -q --allow-empty -m init`,
-    {
-      cwd: parent,
-      shell: "/bin/sh",
-    },
-  )
+  mkdirSync(dir, { recursive: true })
   execSync("git init -q -b main && git -c user.email=t@t -c user.name=t commit -q --allow-empty -m init", { cwd: dir })
   return dir
 }
@@ -67,19 +52,6 @@ async function mount(defaultRepo: string, savedRepos: readonly string[] = [], wi
   return { ...handle, submitted }
 }
 
-/** Where a string sits in the frame — the anchor a click needs. */
-function locate(frameText: string, needle: string): { x: number; y: number } {
-  const lines = frameText.split("\n")
-  for (let y = 0; y < lines.length; y++) {
-    const x = lines[y]?.indexOf(needle) ?? -1
-    if (x >= 0) return { x, y }
-  }
-  throw new Error(`not on screen: ${needle}`)
-}
-
-/** Tab `times` stops along the field chain: tabs → depth → engine → model → repo
- *  → baseRef (auto routing ships configured, so the depth row renders; claude,
- *  the default engine, declares a model flag, so the model row does too). */
 async function pressTab(handle: { mockInput: { pressTab: () => void } }, times: number) {
   for (let i = 0; i < times; i++) {
     act(() => handle.mockInput.pressTab())
@@ -87,15 +59,6 @@ async function pressTab(handle: { mockInput: { pressTab: () => void } }, times: 
   }
 }
 
-/**
- * Stops from the dialog's opening field (`tabs`) to each input — COUNTED from
- * the focus chain, not hard-coded.
- *
- * They were 4 and 5, which silently meant the wrong field the moment the
- * depth/model/effort rows were removed (2026-09): Enter landed somewhere that
- * does not submit, and six tests failed complaining about repo names. Deriving
- * them keeps this file honest the next time a field comes or goes.
- */
 function stopsTo(target: Field, extrasVisible = false): number {
   let field: Field = "prompt"
   for (let i = 1; i <= 24; i++) {
@@ -110,32 +73,40 @@ function stopsTo(target: Field, extrasVisible = false): number {
   }
   throw new Error(`the focus chain never reaches ${target}`)
 }
-/** Enter on the branch field moves to the first-message field; Enter there creates. */
+
 async function commit(h: { mockInput: { pressEnter: () => void } }) {
   for (let i = 0; i < 2; i++) {
     act(() => h.mockInput.pressEnter())
     await settle()
   }
 }
+
+async function click(h: Awaited<ReturnType<typeof mount>>, needle: string) {
+  const lines = (await h.frame()).split("\n")
+  const hit = lines.flatMap((line, y) => (line.includes(needle) ? [{ x: line.indexOf(needle), y }] : []))[0]
+  if (!hit) throw new Error(`not on screen: ${needle}`)
+  await h.mockMouse.click(hit.x + 1, hit.y)
+  await settle()
+}
+
 const TO_REPO = stopsTo("repo")
 const TO_BASE_REF = stopsTo("baseRef")
 
-test("a resolved repo shows its NAME, not its path, and still submits the path", async () => {
+test("a resolved repo shows its clean NAME with ✓ in Recent, and submits the full path", async () => {
   const dir = repo("quokka")
   const h = await mount(dir)
-  // The name is on screen (its chip) before the field is even focused.
   expect(await h.frame()).toContain("quokka")
   await pressTab(h, TO_REPO)
   const f = await h.frame()
+  expect(f).toContain("REPO")
+  expect(f).toContain("Search folders...")
   expect(f).toContain("quokka")
-  // The directory is still visible — demoted, not deleted. It may be clipped
-  // at the card edge (it is the half designed to give way), so assert its
-  // head, which is the part that always renders.
+  expect(f).toContain("✓")
+  expect(f).toContain("+ Open folder…")
+  // Unique basename stays clean — no noisy parent path dumped beside it.
   const parent = dir.slice(0, dir.lastIndexOf("/") + 1)
-  expect(f).toContain(parent.slice(0, 40))
+  expect(f).not.toContain(parent.slice(0, 30))
 
-  // …and the value that leaves the dialog is the whole path. Enter on the
-  // branch field is the commit.
   await pressTab(h, TO_BASE_REF - TO_REPO)
   await commit(h)
   expect(h.submitted).toHaveLength(1)
@@ -143,80 +114,106 @@ test("a resolved repo shows its NAME, not its path, and still submits the path",
   act(() => h.destroy())
 })
 
-test("a basename shared by two saved repos keeps the PATH — it identifies nothing", async () => {
+test("duplicate basenames show their parent directories and submit the chosen path unambiguously", async () => {
   const a = repo("app")
   const b = repo("app")
   const h = await mount(a, [a, b])
 
-  // Showing a name is only worth it when the name says WHICH repo. With two
-  // saved `app`s it doesn't, so the field falls back to the path rather than
-  // displaying a label that matches both. (~100 flat repos under one parent
-  // makes this the ordinary case, not a corner.)
   await pressTab(h, TO_REPO)
-  expect(await h.frame()).toContain(a.slice(0, 40))
+  const f = await h.frame()
+  // Both share the basename `app`, so their parent dirs render muted to tell them apart.
+  expect(f).toContain("app")
+  expect(f).toContain(a.slice(0, 20))
 
-  // And it still submits the repo it was opened on, not the other `app`.
-  // The other `app` is offered as an extra, a stop before the branch field.
-  await pressTab(h, stopsTo("baseRef", true) - TO_REPO)
+  // Pick the second `app` (cursor starts on `a` at index 1, so one Down lands on `b`).
+  act(() => h.mockInput.pressArrow("down"))
+  await settle()
+  act(() => h.mockInput.pressEnter())
+  await settle()
+  // Extra repos stop sits before baseRef; walk to baseRef and commit.
+  await pressTab(h, 1)
   await commit(h)
-  expect(h.submitted[0]).toMatchObject({ repo: a })
+  expect(h.submitted).toHaveLength(1)
+  expect(h.submitted[0]).toMatchObject({ repo: b })
   act(() => h.destroy())
 })
 
-test("typing an ambiguous name refuses to guess, and says so", async () => {
-  const a = repo("app")
-  const b = repo("app")
-  const h = await mount(a, [a, b])
+test("Open folder… browses sibling directories and picks an unsaved git repo directly", async () => {
+  const parent = mkdtempSync(join(tmpdir(), "rove-siblings-"))
+  const first = repo("alpha", parent)
+  const sibling = repo("beta-sibling", parent)
+  const h = await mount(first, [first])
 
-  // Type the bare shared name, then try to create. Resolving it to the
-  // alphabetically-first match would silently open the wrong repo.
   await pressTab(h, TO_REPO)
-  // ctrl+u clears the line in one keystroke — 80 backspaces is 80 renders and
-  // overruns the per-test budget.
-  await act(async () => h.mockInput.typeText("\x15"))
-  await settle()
-  await act(async () => h.mockInput.typeText("app"))
-  await settle()
+  await click(h, "Open folder…")
+  const browseFrame = await h.frame()
+  // Starts in `alpha`'s parent directory, listing sibling `beta-sibling/` with a git badge.
+  expect(browseFrame).toContain("beta-sibling/")
+  expect(browseFrame).toContain("git")
+  expect(browseFrame).toContain("← Back")
 
-  // Leave the field by CLICKING the next one, because Tab no longer leaves an
-  // unfinished name behind — it completes the highlighted row to its full
-  // path first, which is a different (and answered) question. The guard is
-  // about text that reaches the commit still naming two repos, and this is
-  // the route that still gets it there.
-  const chip = locate(await h.frame(), "  main  ")
-  await h.mockMouse.click(chip.x + 3, chip.y)
-  await settle()
+  await click(h, "beta-sibling/")
+  expect(await h.frame()).toContain("beta-sibling")
+  // Picking `beta-sibling` advanced directly to `baseRef`; Enter picks branch, second Enter commits.
   await commit(h)
-
-  expect(h.submitted).toHaveLength(0)
-  expect(await h.frame()).toContain("more than one saved repo is named app")
+  expect(h.submitted).toHaveLength(1)
+  expect(h.submitted[0]).toMatchObject({ repo: sibling })
   act(() => h.destroy())
 })
 
-test("a path being typed renders VERBATIM — the field does not rewrite mid-keystroke", async () => {
+test("Open folder… steps in with l, steps back with h, confirms with enter, and accepts a pasted filepath", async () => {
+  const root = mkdtempSync(join(tmpdir(), "rove-hl-"))
+  const outer = join(root, "group")
+  const nested = repo("nested-app", outer)
+  const pasted = repo("pasted-app", root)
+  const h = await mount("", [])
+
+  await pressTab(h, TO_REPO)
+  await click(h, "+ Open folder…")
+  // Paste a quoted filepath into Open folder… and confirm with Enter.
+  await act(async () => h.mockInput.typeText(`"${pasted}"`))
+  await settle()
+  act(() => h.mockInput.pressEnter())
+  await settle()
+  expect(await h.frame()).toContain("pasted-app")
+
+  // Reopen Open folder… from `pasted-app`: lands in `root` with `group/` listed and key hint shown.
+  await click(h, "pasted-app")
+  await click(h, "+ Open folder…")
+  const rootFrame = await h.frame()
+  expect(rootFrame).toContain("h/← back · l/→ open · enter select · esc return")
+  expect(rootFrame).toContain("group/")
+  // Move up from `pasted-app/` to `group/`, step IN with `l`, step BACK with `h`, step IN again with `l`, then confirm with Enter.
+  act(() => h.mockInput.pressArrow("up"))
+  await settle()
+  act(() => h.mockInput.pressKey("l"))
+  await settle()
+  expect(await h.frame()).toContain("nested-app/")
+  act(() => h.mockInput.pressKey("h"))
+  await settle()
+  expect(await h.frame()).toContain("▸ group/")
+  act(() => h.mockInput.pressKey("l"))
+  await settle()
+  act(() => h.mockInput.pressEnter())
+  await settle()
+  await commit(h)
+  expect(h.submitted).toHaveLength(1)
+  expect(h.submitted[0]).toMatchObject({ repo: nested })
+  act(() => h.destroy())
+})
+
+test("a path being typed renders verbatim and submits that path after Tab completion", async () => {
   const dir = repo("typed")
   const h = await mount(dir)
 
-  // Clear the field and type a path that is not (yet) any known repo. An
-  // unresolved value must render exactly as typed: splitting a half-typed
-  // path would leave the field disagreeing with the keys that produced it,
-  // and typing a path is still the only way to reach a repo the saved list
-  // has never seen.
   await pressTab(h, TO_REPO)
-  await act(async () => h.mockInput.typeText("\x15"))
-  await settle()
   const partial = `${dir.slice(0, dir.lastIndexOf("/") + 1)}ty`
   await act(async () => h.mockInput.typeText(partial))
   await settle()
-  // The tail of what was typed is on screen verbatim — the field did not
-  // swallow the directory half mid-keystroke.
-  expect(await h.frame()).toContain(partial.slice(0, 40))
+  const f = await h.frame()
+  expect(f).toContain("typed/")
+  expect(f).toContain(partial.slice(-24))
 
-  // Completing it to the real repo submits that full path. Two Tabs, not
-  // one: the first finishes the highlighted directory in place (that is the
-  // field's own completion), and only the second — with nothing left to
-  // finish — moves to the branch field. The trailing slash the walk leaves
-  // in the box does not travel with the value.
   await act(async () => h.mockInput.typeText("ped"))
   await settle()
   await pressTab(h, 2)
@@ -226,11 +223,6 @@ test("a path being typed renders VERBATIM — the field does not rewrite mid-key
 })
 
 test("a long directory never eats into the name", async () => {
-  // Regression, caught in the harness and invisible to every test above: with
-  // the input on `flexGrow`, a long directory compressed it below the name's
-  // length — and an input narrower than its content scrolls to the cursor, so
-  // `fixture-repo` rendered as `ture-repo`. Silent: no ellipsis, nothing that
-  // reads as truncation, just a different repo name on screen.
   const dir = repoUnderLongParent("fixture-repo")
   const h = await mount(dir)
 

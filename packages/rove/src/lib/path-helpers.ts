@@ -7,6 +7,7 @@
 
 import * as fs from "node:fs"
 import * as os from "node:os"
+import * as path from "node:path"
 import { pathSyntax } from "@sma1lboy/rove-daemon/path-identity"
 import { tildify } from "./path-home"
 
@@ -123,4 +124,26 @@ export function joinPicked(typedValue: string, baseExpanded: string, name: strin
     return tildify(out)
   }
   return out
+}
+
+/** True when `dir` contains a `.git` entry (folder or worktree link file). */
+export function isGitDir(dir: string): boolean {
+  if (!dir) return false
+  try {
+    return fs.existsSync(path.join(dir, ".git"))
+  } catch {
+    return false
+  }
+}
+
+/** Parent directory with a trailing separator; root stays root (`/` or `C:\`). */
+export function parentDir(dir: string): string {
+  const syn = pathSyntax(dir)
+  const sep = syn.sep
+  const clean = stripTrailingSlash(dir)
+  const root = syn.parse(clean).root
+  if (!clean || clean === root) return root || sep
+  const parent = syn.dirname(clean)
+  if (parent === root) return root
+  return parent.endsWith(sep) ? parent : `${parent}${sep}`
 }

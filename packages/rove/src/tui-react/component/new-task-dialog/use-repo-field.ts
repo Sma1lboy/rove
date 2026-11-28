@@ -1,171 +1,329 @@
 /**
- * The Existing tab's "WHICH repository" field: text, resolution, both
- * suggestion lists, cursor, and every route that changes the answer.
+ * The Existing tab's folder picker state: selected folder, pure search query,
+ * saved/path-browse/folder-browse modes, cursor, and every route that changes the answer.
  *
- * The field holds exactly what it shows (a NAME once chosen, free text while
- * typing), never a derived display: an opentui `<input>` adopts `value` as
- * its edit buffer, so showing one string while state holds another writes the
- * shown one back and they oscillate. Paths are derived at the boundaries
- * (`repo-field.ts`).
+ * The `<input>` holds ONLY the user's search query (or a pasted/typed path),
+ * never the selected repo's name — so opening the picker starts with an empty
+ * `Search folders...` box, duplicate basenames never collide, and `selectedRepo`
+ * always carries the real canonical path.
  */
 
-import { useMemo, useState } from "react"
+import * as os from "node:os"
+import { samePath } from "@sma1lboy/rove-daemon/path-identity"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { t } from "../../../i18n"
-import { expandHome, joinPicked, stripTrailingSlash } from "../../../lib/path-helpers"
 import {
-  type RepoResolution,
-  completeRepoInput,
-  nameOrPath,
-  resolveRepoInput,
-  splitRepoInput,
-} from "../../../tui/component/new-task-dialog/repo-field"
+  expandHome,
+  filterSubdirs,
+  isGitDir,
+  joinDrill,
+  joinPicked,
+  listSubdirs,
+  parentDir,
+  pathLeaf,
+  stripTrailingSlash,
+} from "../../../lib/path-helpers"
+import {
+  BROWSE_BACK_ROW,
+  BROWSE_SELECT_HERE_ROW,
+  BROWSE_UP_ROW,
+  NO_FOLDER,
+  OPEN_FOLDER_ROW,
+  buildSavedPicker,
+  duplicateBasenames,
+  initialBrowseDir,
+  stripPathQuotes,
+} from "../../../tui/component/new-task-dialog/folder-picker"
 import {
   type PickerWindow,
   clampCursor,
   computeRepoOptions,
-  filterRepos,
-  pickerModeFor,
+  isRepoPathInput,
   stripNewlines,
   windowAround,
 } from "../../../tui/component/new-task-dialog/state"
 import { useDerivedDir } from "./use-derived-dir"
 
-/** The picker row and field value for No folder: an empty field means a session in no project. */
-export const NO_FOLDER = ""
+export { BROWSE_BACK_ROW, BROWSE_SELECT_HERE_ROW, BROWSE_UP_ROW, NO_FOLDER, OPEN_FOLDER_ROW }
+
+export type FolderPickerMode = "saved" | "path-browse" | "folder-browse"
 
 export type RepoFieldOpts = {
-  /** Seeds the field and heads the saved list; `NO_FOLDER` opens on No folder. */
+  /** Seeds the selected folder and heads the saved list; `NO_FOLDER` opens on No folder. */
   defaultRepo: string
-  /** User-curated repo list (`/add-repo`). */
+  /** User-curated repo list (`rove add`). */
   savedRepos: readonly string[]
   /** Rows the picker may paint — the terminal-height budget from the caller. */
   pickerRows: number
-  /** A DIFFERENT repo is now in the field (any route). */
+  /** Whether the folder picker currently holds focus. */
+  focused: boolean
+  /** A DIFFERENT repo is now selected (any route). */
   onChanged: () => void
-  /** Enter / a click has answered the field with `repo` (state still holds the old value); move focus along. */
+  /** Enter / a click has answered the field with `repo`; move focus along. */
   onAnswered: (repo: string) => void
 }
 
+function indexOfSelected(selected: string, items: readonly string[]): number {
+  if (!selected) return Math.max(0, items.indexOf(NO_FOLDER))
+  const found = items.findIndex((item) => item !== NO_FOLDER && item !== OPEN_FOLDER_ROW && samePath(item, selected))
+  return found >= 0 ? found : 0
+}
+
+/** Pick initial cursor inside `dir`: highlight `highlightLeaf` if present, else the first subfolder, else `..`/0. */
+function browseCursorFor(dir: string, highlightLeaf?: string): number {
+  const hasParent = parentDir(dir) !== dir
+  const subdirs = filterSubdirs(listSubdirs(dir), "")
+  const offset = hasParent ? 1 : 0
+  if (highlightLeaf) {
+    const idx = subdirs.findIndex((name) => name === highlightLeaf)
+    if (idx >= 0) return offset + idx
+  }
+  return subdirs.length > 0 ? offset : 0
+}
+
 export function useRepoField(opts: RepoFieldOpts) {
-  // Seeded from the caller's PATH, shown as a name from the first frame. A
-  // basename shared with another saved repo would be ambiguous, so that case
-  // keeps the path.
-  const [repo, setRepo] = useState(() =>
-    opts.defaultRepo ? nameOrPath(opts.defaultRepo, computeRepoOptions(opts.defaultRepo, opts.savedRepos)) : NO_FOLDER,
-  )
-  // On the field's current answer: a prefilled project sits under the No folder row.
-  const [repoCursor, setRepoCursor] = useState(() => (opts.defaultRepo.trim() ? 1 : 0))
-  // The field filters the picker only once typed in; a prefilled or picked answer lists everything.
-  const [repoTyped, setRepoTyped] = useState(false)
-  // "Selected, not drilled" latch — collapses the suggestion dropdown after
-  // Enter/click; typing resumes browsing.
+  const [selectedRepo, setSelectedRepo] = useState(() => opts.defaultRepo.trim())
+  const [addedRepos, setAddedRepos] = useState<readonly string[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
+  // Sync mirror of `searchQuery` so rapid paste/type never lets `h`/`l` key bindings eat chars mid-burst.
+  const searchQueryRef = useRef("")
+  const [browsingDir, setBrowsingDir] = useState<string | null>(null)
   const [repoPicked, setRepoPicked] = useState(false)
 
   const repoOptions = useMemo(
-    () => computeRepoOptions(opts.defaultRepo, opts.savedRepos),
-    [opts.defaultRepo, opts.savedRepos],
+    () => computeRepoOptions(opts.defaultRepo, [...addedRepos, ...opts.savedRepos]),
+    [opts.defaultRepo, addedRepos, opts.savedRepos],
   )
-  const mode = pickerModeFor(repo, repoOptions)
-  const repoResolution: RepoResolution = resolveRepoInput(repo, repoOptions)
-  // The chosen NAME's directory, shown beside it. Empty when the field holds
-  // a path — it'd print the same string twice.
-  const repoDir =
-    repoResolution.kind === "path" && repoResolution.path !== repo.trim()
-      ? splitRepoInput(repoResolution.path, true).dir
-      : ""
-  const { split: subdirSplit, filtered: subdirFiltered } = useDerivedDir(repo)
-  // No folder heads the list while the query is empty or matches its label, as in the web's picker.
-  const query = repoTyped ? repo.trim().toLowerCase() : ""
-  const savedFiltered = useMemo(
-    () => [
-      ...(t("newTask.noFolder").toLowerCase().includes(query) ? [NO_FOLDER] : []),
-      ...filterRepos(repoOptions, query),
-    ],
-    [repoOptions, query],
+  const duplicateNames = useMemo(() => duplicateBasenames(repoOptions), [repoOptions])
+
+  const trimmedQuery = searchQuery.trim()
+  const mode: FolderPickerMode =
+    browsingDir !== null ? "folder-browse" : isRepoPathInput(trimmedQuery) ? "path-browse" : "saved"
+
+  const saved = useMemo(
+    () =>
+      buildSavedPicker({
+        noFolderLabel: t("newTask.noFolder"),
+        repoOptions,
+        query: mode === "saved" ? searchQuery : "",
+      }),
+    [repoOptions, mode, searchQuery],
   )
-  const activeList = mode === "browse" ? subdirFiltered : savedFiltered
-  const activeWindow: PickerWindow = windowAround(activeList, repoCursor, opts.pickerRows)
 
-  // Downstream needs a PATH: resolve, expand, and strip the trailing slash
-  // Tab-completion leaves in the FIELD on purpose (it keeps the picker on the
-  // children). An ambiguous name resolves to "".
-  const expandedRepo = repoResolution.kind === "path" ? stripTrailingSlash(expandHome(repoResolution.path)) : ""
+  const [repoCursor, setRepoCursor] = useState(() => indexOfSelected(opts.defaultRepo.trim(), saved.items))
 
-  /** Every write to the field goes through here: the caller hangs per-repo
-   *  state off `onChanged`, which a direct `setRepo` would leave stale. */
-  function changeRepo(next: string): void {
-    setRepo(next)
+  // Reopen cleanly whenever focus enters the folder chip: empty search box,
+  // back on the saved list, cursor resting on the currently selected folder.
+  const wasFocused = useRef(opts.focused)
+  useEffect(() => {
+    if (opts.focused && !wasFocused.current) {
+      searchQueryRef.current = ""
+      setSearchQuery("")
+      setBrowsingDir(null)
+      setRepoPicked(false)
+      const fresh = buildSavedPicker({
+        noFolderLabel: t("newTask.noFolder"),
+        repoOptions,
+        query: "",
+      })
+      setRepoCursor(indexOfSelected(selectedRepo, fresh.items))
+    }
+    wasFocused.current = opts.focused
+  }, [opts.focused, repoOptions, selectedRepo])
+
+  // Directory listing for both `path-browse` (typed path) and `folder-browse` (Open folder…).
+  const dirInput =
+    mode === "folder-browse"
+      ? isRepoPathInput(trimmedQuery)
+        ? trimmedQuery
+        : `${browsingDir}${searchQuery}`
+      : mode === "path-browse"
+        ? searchQuery
+        : ""
+  const { split: subdirSplit, filtered: subdirFiltered } = useDerivedDir(dirInput)
+  const browseDirBase = mode === "folder-browse" ? subdirSplit.base || browsingDir || "" : subdirSplit.base
+  // Hide `..` while actively filtering or pasting a path so row 0 is the matched folder and Enter confirms it.
+  const browseHasParent =
+    mode === "folder-browse" && !trimmedQuery && browseDirBase !== "" && parentDir(browseDirBase) !== browseDirBase
+
+  const gitDirs = useMemo(() => {
+    const out = new Set<string>()
+    if (mode === "saved" || !browseDirBase) return out
+    for (const name of subdirFiltered) {
+      if (isGitDir(`${browseDirBase}${name}`)) out.add(name)
+    }
+    return out
+  }, [mode, browseDirBase, subdirFiltered])
+
+  const browseMiddle = useMemo(
+    () => (mode === "folder-browse" ? [...(browseHasParent ? [BROWSE_UP_ROW] : []), ...subdirFiltered] : []),
+    [mode, browseHasParent, subdirFiltered],
+  )
+  const browseItems = useMemo(
+    () => (mode === "folder-browse" ? [...browseMiddle, BROWSE_SELECT_HERE_ROW, BROWSE_BACK_ROW] : []),
+    [mode, browseMiddle],
+  )
+
+  const activeList = mode === "folder-browse" ? browseItems : mode === "path-browse" ? subdirFiltered : saved.items
+  const listCap = Math.max(2, opts.pickerRows - 2)
+
+  // Window only the scrollable middle rows so `No folder` / `+ Open folder…` (and
+  // `Use this folder` / `← Back` in browse mode) stay pinned visible.
+  const recentOffset = saved.showNoFolder ? 1 : 0
+  const recentCursor = clampCursor(repoCursor - recentOffset, saved.recent.length)
+  const recentWindow: PickerWindow = windowAround(saved.recent, recentCursor, listCap)
+  const browseCursor = clampCursor(repoCursor, browseMiddle.length)
+  const browseWindow: PickerWindow = windowAround(browseMiddle, browseCursor, listCap)
+  const pathBrowseWindow: PickerWindow = windowAround(subdirFiltered, repoCursor, listCap)
+
+  const expandedRepo = selectedRepo ? stripTrailingSlash(expandHome(selectedRepo)) : ""
+
+  function commitSelection(nextPath: string, advance: boolean): void {
+    const clean = nextPath === NO_FOLDER ? NO_FOLDER : stripTrailingSlash(expandHome(nextPath.trim()))
+    if (clean && !repoOptions.some((r) => samePath(r, clean))) {
+      setAddedRepos((prev) => (prev.some((r) => samePath(r, clean)) ? prev : [clean, ...prev]))
+    }
+    setSelectedRepo(clean)
+    searchQueryRef.current = ""
+    setSearchQuery("")
+    setBrowsingDir(null)
+    setRepoPicked(true)
     opts.onChanged()
+    if (advance) opts.onAnswered(clean)
   }
 
-  /** Every pick route funnels here: the picker deals in paths, the field in
-   *  names. */
-  function pickRepo(path: string): string {
-    const next = path === NO_FOLDER ? NO_FOLDER : nameOrPath(path, repoOptions)
-    changeRepo(next)
-    // The list is whole again, so the cursor follows the pick into it.
-    setRepoTyped(false)
-    setRepoCursor(Math.max(0, [NO_FOLDER, ...repoOptions].indexOf(path)))
-    return next
-  }
-
-  function setRepoText(v: string): void {
-    setRepoTyped(true)
+  function enterBrowseDir(dir: string, highlightLeaf?: string): void {
+    setBrowsingDir(dir)
+    searchQueryRef.current = ""
+    setSearchQuery("")
     setRepoPicked(false)
-    changeRepo(stripNewlines(v))
-    setRepoCursor(0)
+    setRepoCursor(browseCursorFor(dir, highlightLeaf))
   }
 
-  /**
-   * Tab = shell completion; returns whether it consumed the key. Guarded by
-   * the picker's render condition (`tab-existing.tsx`): it only completes
-   * toward something VISIBLE, so a collapsed/empty dropdown lets focus move
-   * on — which is what makes the second Tab advance.
-   */
-  function completeRepo(): boolean {
-    if (repoPicked) return false
-    const done = completeRepoInput({
-      value: repo,
-      mode,
-      highlighted: activeList[repoCursor],
-      baseExpanded: subdirSplit.base,
-      repoOptions,
-    })
-    if (!done) return false
-    changeRepo(done.value)
-    setRepoPicked(done.collapse)
-    setRepoCursor(0)
+  function openFolderBrowser(): void {
+    const start = initialBrowseDir(selectedRepo, opts.defaultRepo, os.homedir())
+    const seed = selectedRepo.trim() || opts.defaultRepo.trim()
+    enterBrowseDir(start, seed ? pathLeaf(stripTrailingSlash(seed)) : undefined)
+  }
+
+  /** Step back one level (`h` / `←` / `Backspace` on empty input), keeping cursor on the folder we just left. */
+  function stepUpBrowse(): boolean {
+    if (mode !== "folder-browse" || !browseDirBase) return false
+    const up = parentDir(browseDirBase)
+    if (up === browseDirBase) return false
+    const leftLeaf = pathLeaf(stripTrailingSlash(browseDirBase))
+    enterBrowseDir(up, leftLeaf || undefined)
     return true
   }
 
-  // Enter on the repo field — pure selection, never commits.
-  function onRepoSubmit(): void {
-    if (mode === "browse") {
+  /** Step forward one level (`l` / `→` / `Tab`) into the highlighted subfolder (or back on `..`). */
+  function stepIntoBrowse(): boolean {
+    if (mode !== "folder-browse") return false
+    const picked = browseItems[repoCursor]
+    if (!picked || picked === BROWSE_SELECT_HERE_ROW || picked === BROWSE_BACK_ROW) return false
+    if (picked === BROWSE_UP_ROW) return stepUpBrowse()
+    enterBrowseDir(`${browseDirBase}${picked}/`)
+    return true
+  }
+
+  function exitBrowse(): boolean {
+    if (browsingDir === null) return false
+    setBrowsingDir(null)
+    searchQueryRef.current = ""
+    setSearchQuery("")
+    const fresh = buildSavedPicker({
+      noFolderLabel: t("newTask.noFolder"),
+      repoOptions,
+      query: "",
+    })
+    setRepoCursor(indexOfSelected(selectedRepo, fresh.items))
+    return true
+  }
+
+  function setSearchText(v: string): void {
+    const raw = stripNewlines(v)
+    const cleaned = isRepoPathInput(stripPathQuotes(raw).trim()) ? stripPathQuotes(raw) : raw
+    setRepoPicked(false)
+    searchQueryRef.current = cleaned
+    setSearchQuery(cleaned)
+    setRepoCursor(0)
+  }
+
+  function completeRepo(): boolean {
+    if (repoPicked) return false
+    if (mode === "path-browse") {
       const picked = subdirFiltered[repoCursor]
-      let next = repo
-      if (picked) {
-        // Enter selects and advances; drilling is Tab's job.
-        next = pickRepo(joinPicked(repo, subdirSplit.base, picked))
-        setRepoCursor(0)
-        setRepoPicked(true)
+      if (!picked) {
+        // Nothing left to drill: adopt the typed path as the selection before Tab advances.
+        if (trimmedQuery) commitSelection(trimmedQuery, false)
+        return false
       }
-      opts.onAnswered(next)
+      const next = joinDrill(searchQuery, subdirSplit.base, picked)
+      if (next === searchQuery) return false
+      setSearchQuery(next)
+      setRepoCursor(0)
+      return true
+    }
+    if (mode === "folder-browse") return stepIntoBrowse()
+    // Saved mode: Tab completes only while actively filtering a repo; an empty
+    // search box lets Tab walk straight on to the next composer chip.
+    if (!trimmedQuery) return false
+    const picked = saved.items[repoCursor]
+    if (picked === undefined || picked === OPEN_FOLDER_ROW) return false
+    commitSelection(picked, false)
+    return true
+  }
+
+  function activateIndex(absoluteIndex: number): void {
+    if (mode === "path-browse") {
+      const picked = subdirFiltered[absoluteIndex]
+      if (picked) {
+        commitSelection(joinPicked(searchQuery, subdirSplit.base, picked), true)
+        return
+      }
+      if (trimmedQuery) {
+        commitSelection(trimmedQuery, true)
+      }
       return
     }
-    const picked = activeList[repoCursor]
-    opts.onAnswered(picked === undefined ? repo : pickRepo(picked))
+    if (mode === "folder-browse") {
+      const picked = browseItems[absoluteIndex]
+      if (picked === undefined) {
+        if (isRepoPathInput(trimmedQuery)) commitSelection(trimmedQuery, true)
+        return
+      }
+      if (picked === BROWSE_UP_ROW) {
+        stepUpBrowse()
+        return
+      }
+      if (picked === BROWSE_SELECT_HERE_ROW) {
+        if (browseDirBase) commitSelection(browseDirBase, true)
+        return
+      }
+      if (picked === BROWSE_BACK_ROW) {
+        exitBrowse()
+        return
+      }
+      // Enter confirms the highlighted folder directly (`l` / `→` / `Tab` drills into subfolders).
+      commitSelection(`${browseDirBase}${picked}`, true)
+      return
+    }
+    const picked = saved.items[absoluteIndex]
+    if (picked === undefined) return
+    if (picked === OPEN_FOLDER_ROW) {
+      openFolderBrowser()
+      return
+    }
+    commitSelection(picked, true)
+  }
+
+  function onRepoSubmit(): void {
+    activateIndex(repoCursor)
   }
 
   function selectRepoAt(absoluteIndex: number): void {
-    const picked = activeList[absoluteIndex]
-    if (picked === undefined) return
-    if (mode === "browse") {
-      opts.onAnswered(pickRepo(joinPicked(repo, subdirSplit.base, picked)))
-      setRepoPicked(true)
-      setRepoCursor(absoluteIndex)
-      return
-    }
-    opts.onAnswered(pickRepo(picked))
+    setRepoCursor(absoluteIndex)
+    activateIndex(absoluteIndex)
   }
 
   function moveRepoCursor(delta: 1 | -1): void {
@@ -173,24 +331,36 @@ export function useRepoField(opts: RepoFieldOpts) {
     setRepoCursor((c) => clampCursor(c + delta, activeList.length))
   }
 
-  /** An ambiguous name was refused at submit — put the list back on screen,
-   *  where the directories that tell the matches apart are visible. */
   function reopenPicker(): void {
     setRepoPicked(false)
   }
 
   return {
-    repo,
-    repoDir,
-    repoOptions,
-    repoResolution,
+    /** Selected canonical repo path (or `""` for No folder). */
+    repo: selectedRepo,
+    searchQuery,
+    isSearchEmpty: () => searchQueryRef.current === "",
+    browsingDir,
+    browseDirBase,
     mode,
+    repoOptions,
+    duplicateNames,
+    showNoFolder: saved.showNoFolder,
+    recentOffset,
+    recentWindow,
+    browseWindow,
+    browseMiddleLength: browseMiddle.length,
+    pathBrowseWindow,
+    gitDirs,
     activeList,
-    activeWindow,
     repoCursor,
     repoPicked,
     expandedRepo,
-    setRepoText,
+    setSearchText,
+    openFolderBrowser,
+    stepUpBrowse,
+    stepIntoBrowse,
+    exitBrowse,
     completeRepo,
     onRepoSubmit,
     selectRepoAt,
