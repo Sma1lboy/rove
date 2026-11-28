@@ -6,6 +6,7 @@ import { failureHint } from "../lib/failure-hint"
 
 import { spawnSync } from "node:child_process"
 import { readFileSync, rmSync } from "node:fs"
+import { flagValue } from "@sma1lboy/rove-core/lib/argv.ts"
 import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 import { defaultDaemonSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
@@ -27,7 +28,6 @@ import {
   removePluginEntry,
   savePluginRegistry,
 } from "@sma1lboy/rove-daemon/plugins/registry"
-import { flagValue } from "./argv.ts"
 import { resolvePluginBinPath } from "./plugin-bin-path.ts"
 import { builtinModRows, setBuiltinMod } from "./plugin-builtin.ts"
 import { PluginCliError, installPlugin, linkPlugin } from "./plugin-install.ts"
@@ -209,7 +209,7 @@ async function openPane(pluginId: string, entrypoint: string, taskFlag: string |
   if (!pane) throw new PluginCliError(`no pane \`${entrypoint}\` in \`${pluginId}\`; declare it under [[panes]]`)
   assertPlatformSupported(`${pluginId}.${pane.id}`, pane, loaded.manifest)
 
-  const { openDaemonSession, resolveActiveTaskId } = await import("./daemon-session.ts")
+  const { openDaemonSession, resolveActiveTaskId } = await import("@sma1lboy/rove-core/client/daemon-session.ts")
   const session = await openDaemonSession({ mode: "start" })
   try {
     const taskId = taskFlag ?? (await resolveActiveTaskId(session.client))

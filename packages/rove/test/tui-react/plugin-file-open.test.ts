@@ -19,7 +19,7 @@ vi.mock("@sma1lboy/rove-daemon/plugins/settings-env", () => ({
   findFileHandler: mocks.findFileHandler,
 }))
 
-vi.mock("../../src/cli/invocation", () => ({
+vi.mock("@sma1lboy/rove-core/lib/invocation.ts", () => ({
   roveCliInvocation: mocks.roveCliInvocation,
 }))
 

@@ -8,16 +8,16 @@
  * tab by the caller, as to any exact tab.
  */
 
+import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import { taskCwd } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { withDeliveryLock } from "../../engine/delivery-lock.ts"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
-import type { DaemonRpc } from "../daemon-session.ts"
+import { applyTabOps, readDaemonTabs, taskEngineArgv } from "../../tabs/tab-snapshot.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
 import { ensureHostFor } from "./session-failed.ts"
-import { applyTabOps, readDaemonTabs, taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type ApiRuntime, type PromptTarget, helpStep } from "./types.ts"
 
 /** Fields of the old conversation a replaced engine tab must not inherit. */

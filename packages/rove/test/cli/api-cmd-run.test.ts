@@ -15,7 +15,7 @@ const fake = vi.hoisted(() => ({
   closed: 0,
 }))
 
-vi.mock("../../src/cli/daemon-session.ts", () => ({
+vi.mock("@sma1lboy/rove-core/client/daemon-session.ts", () => ({
   // Re-exported through this module, so the mock has to carry it: without it a
   // verb using the implicit target dies on the mock itself, and its real
   // no-target refusal is never reached.
@@ -109,7 +109,7 @@ describe("runApiSubcommand", () => {
   })
 
   test("an offline verb emits its JSON result without touching the daemon", async () => {
-    const { openDaemonSession } = await import("../../src/cli/daemon-session.ts")
+    const { openDaemonSession } = await import("@sma1lboy/rove-core/client/daemon-session.ts")
     await runApiSubcommand(["schema"])
     expect(openDaemonSession).not.toHaveBeenCalled()
     const out = JSON.parse(stdoutText())
@@ -223,7 +223,7 @@ describe("runApiSubcommand", () => {
   })
 
   test("a bad enum value is rejected locally, with recovery, before any daemon call", async () => {
-    const { openDaemonSession } = await import("../../src/cli/daemon-session.ts")
+    const { openDaemonSession } = await import("@sma1lboy/rove-core/client/daemon-session.ts")
     await expect(runApiSubcommand(["engine-report", "--kind", "bogus"])).rejects.toThrow("exit(2)")
     const err = stderrJson().error
     expect(err.code).toBe("BAD_FLAG")

@@ -3,11 +3,11 @@
  * bridge's `api.invoke`: argv or params in, one versioned envelope out.
  */
 
+import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import { ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { describe, expect, it, vi } from "vitest"
 import { executeVerb } from "../../src/cli/api/invoke.ts"
 import { REMOTE_CALLER } from "../../src/cli/api/types.ts"
-import type { DaemonRpc } from "../../src/cli/daemon-session.ts"
 
 function fakeClient() {
   const request = vi.fn(async (_name: string, _payload?: unknown) => ({ notes: [] }))

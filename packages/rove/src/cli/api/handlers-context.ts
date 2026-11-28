@@ -8,9 +8,9 @@
  * rather than `collect`'s per-task `taskTabs` hop.
  */
 
+import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import type { AttentionInboxItem, Gate } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import type { DaemonRpc } from "../daemon-session.ts"
 import {
   type ActivityEntry,
   CONTEXT_TASK_LIMIT,

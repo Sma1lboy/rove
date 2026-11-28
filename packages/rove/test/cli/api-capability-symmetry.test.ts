@@ -20,7 +20,7 @@
 
 import { describe, expect, it } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
-import { publishCliTabSnapshot } from "../../src/cli/api/tab-snapshot.ts"
+import { publishCliTabSnapshot } from "../../src/tabs/tab-snapshot.ts"
 import { FakeClient, expectApiError, recordingTearDown, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 import { mintEngineTab, tabsDaemon } from "./tabs-daemon-fake.ts"
 

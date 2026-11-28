@@ -5,7 +5,7 @@
  */
 
 import { type ChildProcess, spawn } from "node:child_process"
-import { ApiError } from "../cli/api/types.ts"
+import { ApiError } from "@sma1lboy/rove-core/lib/api-error.ts"
 import { GH_ENV, GITHUB_HOST } from "./run-tool.ts"
 
 export interface LoginState {

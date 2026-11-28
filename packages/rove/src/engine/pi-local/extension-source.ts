@@ -31,7 +31,7 @@ import { ROVE_HOOK_VERSION } from "../json-hooks.ts"
 
 export interface ExtensionSourceOptions {
   readonly vendor: VendorId
-  /** argv prefix that reaches `rove hook <verb>` (see `cli/invocation.ts`). */
+  /** argv prefix that reaches `rove hook <verb>` (see `rove-core/src/lib/invocation.ts`). */
   readonly invocation: readonly string[]
   /** Install the high-volume tool family too (plugin-gated by the caller). */
   readonly toolEvents?: boolean

@@ -22,6 +22,9 @@
  *     (exit codes unchanged). The executor is shared: `api/invoke.ts`.
  */
 
+import { type DaemonSession, openDaemonSession } from "@sma1lboy/rove-core/client/daemon-session.ts"
+import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
+import { argvHasFlag } from "@sma1lboy/rove-core/lib/argv.ts"
 import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 import type { MachineEntry } from "@sma1lboy/rove-core/machines/registry.ts"
 import { type ApiEnvelope, ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
@@ -55,9 +58,6 @@ import { API_SCHEMA_VERSION, apiUsage, fullSchema, schemaIndex, verbHelp, verbSc
 import { ApiError, requireVerbInstalled, verbInstalled } from "./api/types.ts"
 import type { ApiRuntime, DeliveredPrompt, ParsedArgs, PromptDeliveryOps, PromptTarget, VerbSpec } from "./api/types.ts"
 import { API_VERBS, VERBS, VERB_GROUPS, findVerb, unknownVerbError } from "./api/verbs.ts"
-import { argvHasFlag } from "./argv.ts"
-import { type DaemonSession, openDaemonSession } from "./daemon-session.ts"
-import type { DaemonRpc } from "./daemon-session.ts"
 
 /** `--envelope`: every outcome is one {@link ApiEnvelope} on stdout, as over the socket and bridge. */
 let envelopeMode = false

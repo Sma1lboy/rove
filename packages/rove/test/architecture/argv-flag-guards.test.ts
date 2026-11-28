@@ -7,7 +7,7 @@
  * launch), double `--append-system-prompt` injection, and a `--port=N` that
  * bound the default port with no error.
  * The rule: presence checks go through `argvHasFlag`, value reads through
- * `flagValue` (both in src/cli/argv.ts). A check that genuinely must match
+ * `flagValue` (both in rove-core/src/lib/argv.ts). A check that genuinely must match
  * ONLY the bare token needs an allowlist entry here with its reason.
  */
 
@@ -83,7 +83,7 @@ describe("argv flag guards recognize the attached --flag=value form", () => {
 
     expect(
       offenders,
-      `exact-token argv flag check misses the attached --flag=value form; use argvHasFlag / flagValue (src/cli/argv.ts) or allowlist with a reason: ${offenders.join(", ")}`,
+      `exact-token argv flag check misses the attached --flag=value form; use argvHasFlag / flagValue (rove-core/src/lib/argv.ts) or allowlist with a reason: ${offenders.join(", ")}`,
     ).toEqual([])
   })
 

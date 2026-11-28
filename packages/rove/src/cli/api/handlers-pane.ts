@@ -4,21 +4,21 @@
  * attached TUI performs the split/tab; the daemon only validates + broadcasts.
  */
 
+import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import { taskCwd } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
 import { SHELL_TASK_TITLE } from "@sma1lboy/rove-core/orchestrator/title.ts"
 import { resolvePreferredVendor } from "@sma1lboy/rove-core/state/vendor-prefs.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import type { DaemonRpc } from "../daemon-session.ts"
+import { wireSplit } from "../../tabs/split-wire.ts"
+import { readDaemonTabs } from "../../tabs/tab-snapshot.ts"
 import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
 import { conversationHome, failSharedChild, spawnSharedChild, withFirstConversationLock } from "./shared-child.ts"
-import { wireSplit } from "./split-wire.ts"
 import type { LaunchSpec } from "./tab-launch.ts"
 import type { NewTabKind } from "./tab-new.ts"
-import { readDaemonTabs } from "./tab-snapshot.ts"
 import type { SplitEdit } from "./tab-split.ts"
 import { ApiError, type VerbContext, type VerbSpec, helpStep } from "./types.ts"
 

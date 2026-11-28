@@ -17,13 +17,13 @@ import { RoveKeymap } from "@sma1lboy/rove-client/keys/keybindings-table.ts"
 import type { KeybindingEdit } from "@sma1lboy/rove-client/keys/keybindings-write.ts"
 import { prefixFirstStrokes } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
 import { normalizeChord } from "@sma1lboy/rove-client/keys/keymap-overrides.ts"
+import { roveCliInvocation } from "@sma1lboy/rove-core/lib/invocation.ts"
 import { spawnDetached } from "@sma1lboy/rove-core/lib/spawn-detached.ts"
 import {
   type KeybindingsFile,
   readKeybindingsFile,
   resetKeybindingsFileCache,
 } from "@sma1lboy/rove-core/state/keybindings-file.ts"
-import { roveCliInvocation } from "@sma1lboy/rove/src/cli/invocation.ts"
 import { BridgeError, str } from "../protocol.ts"
 import type { Args, OpTable } from "./types.ts"
 

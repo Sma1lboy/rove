@@ -4,12 +4,12 @@
  * prompt is pasted into a running turn; Claude Code folds it into the running turn.
  */
 
+import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import { canonicalEngineTab } from "@sma1lboy/rove-daemon/daemon/engine-tabs"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import type { DaemonRpc } from "../daemon-session.ts"
+import { readTabsSnapshot } from "../../tabs/tab-snapshot.ts"
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
-import { readTabsSnapshot } from "./tab-snapshot.ts"
 import { ApiError, type VerbContext, type VerbSpec, helpStep } from "./types.ts"
 
 interface QueueAddReply {

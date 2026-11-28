@@ -7,7 +7,7 @@
  */
 
 import { basename } from "node:path"
-import { roveCliInvocation } from "@/cli/invocation"
+import { roveCliInvocation } from "@sma1lboy/rove-core/lib/invocation.ts"
 import { spawnDetached } from "@sma1lboy/rove-core/lib/spawn-detached.ts"
 import { findFileHandler } from "@sma1lboy/rove-daemon/plugins/settings-env"
 

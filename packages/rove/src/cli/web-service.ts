@@ -9,11 +9,11 @@ import { createHash } from "node:crypto"
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
+import { argvHasFlag } from "@sma1lboy/rove-core/lib/argv.ts"
+import { roveCliInvocation } from "@sma1lboy/rove-core/lib/invocation.ts"
 import { readRoveHomeDirEnv } from "@sma1lboy/rove-daemon/compat-env"
 import { defaultDaemonLogPath } from "@sma1lboy/rove-daemon/daemon/paths"
-import { argvHasFlag } from "./argv.ts"
 import { type AutostartContext, type LoginService, launchdPlist, systemdUnit } from "./daemon-autostart.ts"
-import { roveCliInvocation } from "./invocation.ts"
 
 export const WEB_SERVICE: LoginService = {
   description: "Rove web (rove --web)",

@@ -15,8 +15,8 @@ import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import type { TaskRepoView } from "@sma1lboy/rove-daemon/task-tree"
 import { engineLaunchArgv } from "../../engine/engine-presets.ts"
 import { type EngineSessionLaunch, buildEngineSessionLaunch } from "../../engine/session-launch.ts"
+import { readTabsSnapshot } from "../../tabs/tab-snapshot.ts"
 import { type EngineTab, engineTabArgv } from "../../tabs/terminal-tabs-core.ts"
-import { readTabsSnapshot } from "./tab-snapshot.ts"
 
 /** One freeze-restored tab: the id a caller addresses it by, plus the
  *  conversation id `--resume` would reopen (absent when none was pinned). */

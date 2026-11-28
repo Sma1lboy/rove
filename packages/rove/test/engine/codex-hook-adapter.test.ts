@@ -11,7 +11,7 @@ import { CodexHookAdapter, ROVE_CODEX_HOOK_EVENTS } from "../../src/engine/codex
 // added to invocation.ts must be stubbed here too, or json-hooks' default-arg
 // call becomes undefined() and editJsonSettings' best-effort catch silently
 // eats it (that exact gap shipped red CI once).
-vi.mock("../../src/cli/invocation.ts", () => ({
+vi.mock("@sma1lboy/rove-core/lib/invocation.ts", () => ({
   roveCliInvocation: () => ["rove"],
   roveHookInvocation: () => ["rove"],
 }))

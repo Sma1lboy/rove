@@ -8,6 +8,7 @@
  * with the specific remedy.
  */
 
+import { argvHasFlag } from "@sma1lboy/rove-core/lib/argv.ts"
 import {
   type MachineConfig,
   addMachine,
@@ -32,7 +33,6 @@ import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"
 import { CURRENT_VERSION } from "@sma1lboy/rove-core/version.ts"
 import { type DiscoverResult, learnedFrom, sshServerIsWindows } from "../machines/discover.ts"
 import { checkHostKey } from "../machines/host-key.ts"
-import { INBOUND_CLASSES, deniedClasses, setInbound } from "../machines/inbound.ts"
 import {
   installReverseTunnel,
   reverseTunnelArgv,
@@ -40,7 +40,7 @@ import {
   uninstallReverseTunnel,
 } from "../machines/reverse-tunnel.ts"
 import { type SetupRuntime, establishMachine } from "../machines/setup.ts"
-import { argvHasFlag } from "./argv.ts"
+import { INBOUND_CLASSES, deniedClasses, setInbound } from "./api/inbound.ts"
 import { defaultFixRuntime } from "./doctor-fix.ts"
 import { machineMcp } from "./machine-mcp.ts"
 import { machinePrimary } from "./machine-primary.ts"

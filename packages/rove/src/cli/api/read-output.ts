@@ -28,6 +28,7 @@
  * its terminal.
  */
 
+import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import type { Message } from "@sma1lboy/rove-core/types/engine.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { canonicalEngineTab } from "@sma1lboy/rove-daemon/daemon/engine-tabs"
@@ -35,7 +36,7 @@ import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { protocolEntry, sessionProtocol } from "../../engine/engine-presets.ts"
 import { type EngineHistoryReader, supportsStructuredHistory } from "../../engine/registry.ts"
-import type { DaemonRpc } from "../daemon-session.ts"
+import { readTabsSnapshot, taskEngineArgv } from "../../tabs/tab-snapshot.ts"
 import { engineScreenError, peekTaskTerminal } from "./engine-screen.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
@@ -56,7 +57,6 @@ import {
   encodeCursor,
 } from "./read-output-page.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
-import { readTabsSnapshot, taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 
 // Re-exported so `@/cli/api/read-output` stays the one import site.

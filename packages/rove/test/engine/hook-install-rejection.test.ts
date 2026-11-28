@@ -21,7 +21,7 @@ import { type MockInstance, afterEach, beforeEach, describe, expect, it, vi } fr
 import { CodexHookAdapter } from "../../src/engine/codex-local/hook-adapter.ts"
 import { parseHookSettings } from "../../src/engine/json-hooks.ts"
 
-vi.mock("../../src/cli/invocation.ts", () => ({
+vi.mock("@sma1lboy/rove-core/lib/invocation.ts", () => ({
   roveCliInvocation: () => ["rove"],
   roveHookInvocation: () => ["rove"],
 }))

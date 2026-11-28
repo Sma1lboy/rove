@@ -11,9 +11,9 @@
  * built-in default.
  */
 
-import { argvHasFlag } from "@/cli/argv"
-import { roveCliInvocation } from "@/cli/invocation"
 import { engineEntry } from "@/engine/registry"
+import { argvHasFlag } from "@sma1lboy/rove-core/lib/argv.ts"
+import { roveCliInvocation } from "@sma1lboy/rove-core/lib/invocation.ts"
 import { permissionBypassEnabled } from "@sma1lboy/rove-core/state/permission-bypass.ts"
 import { getPersistedString } from "@sma1lboy/rove-core/state/repos.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/task.ts"

@@ -2,13 +2,13 @@ import { EventEmitter } from "node:events"
 import { PassThrough } from "node:stream"
 import { type ApiEnvelope, ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { describe, expect, it, onTestFinished, vi } from "vitest"
+import { inboundClassOf, inboundRefusal } from "../../src/cli/api/inbound.ts"
 import { executeVerb } from "../../src/cli/api/invoke.ts"
 import { REMOTE_CALLER, daemonCaller } from "../../src/cli/api/types.ts"
 import { applyToken, autoSyncSignedOut } from "../../src/github/credentials.ts"
 import { DeviceLogin, type LoginProcess, parseDeviceOutput } from "../../src/github/login.ts"
 import type { RunTool, ToolResult } from "../../src/github/run-tool.ts"
 import { githubStatus, parseAuthStatus, parseSshProbe } from "../../src/github/status.ts"
-import { inboundClassOf, inboundRefusal } from "../../src/machines/inbound.ts"
 
 const result = (over: Partial<ToolResult>): ToolResult => ({
   code: 0,

@@ -5,7 +5,6 @@ import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { type PtyScope, type TeardownScope, hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import type { TaskRepoView } from "@sma1lboy/rove-daemon/task-tree"
-import { markCliTabSession, publishCliTabSnapshot, readDaemonTabs } from "../cli/api/tab-snapshot.ts"
 import { engineLaunchArgv, engineResumeArgv, withPinnedSessionId } from "../engine/engine-presets.ts"
 import {
   awaitEngineProcess,
@@ -26,6 +25,7 @@ import { buildEngineSessionLaunch } from "../engine/session-launch.ts"
 import { trustEngineWorktree } from "../engine/trust-worktree.ts"
 import { TaskDeletingError } from "../orchestrator/errors.ts"
 import type { PromptDeliveryIntent } from "../state/repo-init.ts"
+import { markCliTabSession, publishCliTabSnapshot, readDaemonTabs } from "../tabs/tab-snapshot.ts"
 
 async function getTask(link: DaemonRpcClient, taskId: string): Promise<SerializedTask> {
   const { task } = await link.request<{ task: SerializedTask }>("task.get", {

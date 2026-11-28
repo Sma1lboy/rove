@@ -27,8 +27,8 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-vi.mock("../../src/cli/invocation.ts", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../src/cli/invocation.ts")>()
+vi.mock("@sma1lboy/rove-core/lib/invocation.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@sma1lboy/rove-core/lib/invocation.ts")>()
   return { ...actual, roveCliInvocation: () => ["bun", ...actual.roveCliInvocation().slice(1)] }
 })
 

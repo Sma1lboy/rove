@@ -24,7 +24,7 @@ import { ROVE_HOOK_VERSION } from "../json-hooks.ts"
 
 export interface HermesPluginSourceOptions {
   readonly vendor: VendorId
-  /** argv prefix that reaches `rove hook <verb>` (see `cli/invocation.ts`). */
+  /** argv prefix that reaches `rove hook <verb>` (see `rove-core/src/lib/invocation.ts`). */
   readonly invocation: readonly string[]
 }
 

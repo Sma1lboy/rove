@@ -11,11 +11,11 @@ import {
 } from "@sma1lboy/rove-core/lib/feedback.ts"
 import { taskRepos } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { taskEngineArgv } from "../../tabs/tab-snapshot.ts"
 import { activityView, readActivityRegistry } from "./activity-view.ts"
 import { daemonOf, repoFilter } from "./handler-helpers.ts"
 import { readRunnability } from "./handlers-runnability.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
-import { taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type VerbContext } from "./types.ts"
 
 export async function collect(ctx: VerbContext): Promise<unknown> {

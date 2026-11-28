@@ -1,5 +1,7 @@
 /** How to re-invoke the active public CLI as a subprocess (packaged bin, or the dev runtime). */
 
+import { createRequire } from "node:module"
+import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 
@@ -23,9 +25,7 @@ export function roveCliInvocation(options: { sameInstall?: boolean } = {}): stri
     if (isBuilt) return [process.execPath, fileURLToPath(new URL(`./${cliName}-run.js`, import.meta.url))]
   }
   if (isBuilt) return [cliName]
-  const entryName = "rove.ts"
-  const entry = fileURLToPath(new URL(`./${entryName}`, import.meta.url))
-  return [process.execPath, "--conditions=browser", entry]
+  return [process.execPath, "--conditions=browser", devCliEntry()]
 }
 
 /**
@@ -37,4 +37,9 @@ export function roveHookInvocation(): string[] {
   if (import.meta.url.endsWith(".js")) return [ROVE_PRODUCT_NAME]
   if (Bun.which(ROVE_PRODUCT_NAME)) return [ROVE_PRODUCT_NAME]
   return roveCliInvocation()
+}
+
+/** The CLI's source entry, found through the package so it holds wherever this file lives. */
+function devCliEntry(): string {
+  return join(dirname(createRequire(import.meta.url).resolve("@sma1lboy/rove/package.json")), "src/cli/rove.ts")
 }

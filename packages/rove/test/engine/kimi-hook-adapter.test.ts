@@ -14,7 +14,7 @@ import {
 // Pin the CLI invocation module whole (same rule as codex-hook-adapter.test:
 // vi.mock replaces EVERY export; a new invocation.ts function must be stubbed
 // here too or default-arg calls become undefined()).
-vi.mock("../../src/cli/invocation.ts", () => ({
+vi.mock("@sma1lboy/rove-core/lib/invocation.ts", () => ({
   roveCliInvocation: () => ["rove"],
   roveHookInvocation: () => ["rove"],
 }))

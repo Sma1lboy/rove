@@ -5,10 +5,10 @@
  */
 
 import { resolve } from "node:path"
+import { argvHasFlag } from "@sma1lboy/rove-core/lib/argv.ts"
 import { repoIdentity } from "@sma1lboy/rove-core/machines/repo-identity.ts"
 import { primaryCheckouts, repoIdOf, setPrimaryCheckout } from "@sma1lboy/rove-core/machines/repo-ref.ts"
 import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
-import { argvHasFlag } from "./argv.ts"
 
 export function machinePrimary(argv: readonly string[], fail: (message: string) => never): void {
   const clear = argvHasFlag(argv, "--clear")

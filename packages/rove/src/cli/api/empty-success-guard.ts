@@ -1,8 +1,8 @@
 /** The `send` / `report` guard against a success report from a worker whose branch has no commits. */
 
+import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
-import type { DaemonRpc } from "../daemon-session.ts"
 import { ownSession } from "./dispatcher.ts"
 import { ApiError, type VerbContext } from "./types.ts"
 

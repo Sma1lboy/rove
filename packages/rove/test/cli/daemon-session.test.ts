@@ -1,5 +1,5 @@
 /**
- * Unit tests for the daemon session boilerplate (`cli/daemon-session.ts`):
+ * Unit tests for the daemon session boilerplate (`rove-core/src/client/daemon-session.ts`):
  * connect-or-start vs require-running mode selection, and the one
  * guarantee callers lean on — the socket is closed on EVERY exit path
  * (success, thrown error, absent daemon). A leaked socket from a
@@ -16,8 +16,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@sma1lboy/rove-daemon/client/daemon-process", () => mocks)
 
+import { openDaemonSession, resolveActiveTaskId } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
-import { openDaemonSession, resolveActiveTaskId } from "../../src/cli/daemon-session.ts"
 
 function fakeClient(): RoveDaemonClient & { close: ReturnType<typeof vi.fn> } {
   return { close: vi.fn() } as unknown as RoveDaemonClient & { close: ReturnType<typeof vi.fn> }

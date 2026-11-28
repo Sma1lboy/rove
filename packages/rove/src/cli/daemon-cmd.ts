@@ -1,6 +1,7 @@
 /** `rove daemon <command>` — daemon lifecycle. `argv` is already trimmed of the `daemon` verb. */
 
 import type { ChatConnector } from "@sma1lboy/rove-core/connectors/chat-connector.ts"
+import { argvHasFlag, switchFlag } from "@sma1lboy/rove-core/lib/argv.ts"
 import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 import { CURRENT_VERSION } from "@sma1lboy/rove-core/version.ts"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
@@ -18,7 +19,6 @@ import { refreshOutdatedSkills } from "../lib/skill-install.ts"
 import { RELAY_PREAMBLE } from "../machines/relay-preamble.ts"
 import { sweepIndexLeftovers } from "../orchestrator/index/sweep.ts"
 import { migrateRoveDaemonStateLayout } from "../state/layout-migration.ts"
-import { argvHasFlag, switchFlag } from "./argv.ts"
 import { resolvePluginBinPath } from "./plugin-bin-path.ts"
 import { SUBCOMMAND_VERBS } from "./subcommands.ts"
 
