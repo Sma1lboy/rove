@@ -167,7 +167,8 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
     // The task rollup comes only from TASK-level events (no `tabId`); the
     // daemon owns the rollup rule (activity-rollup.ts) — don't re-derive it.
     const prevTaskState = signals.engineStateAcc().get(p.taskId)?.state
-    if (!tabId) {
+    // An idle event for a task with no rollup entry changes nothing; publishing anyway wakes every subscriber.
+    if (!tabId && (p.state !== "idle" || signals.engineStateAcc().has(p.taskId))) {
       const next = new Map(signals.engineStateAcc())
       if (p.state === "idle") next.delete(p.taskId)
       else next.set(p.taskId, entry)
