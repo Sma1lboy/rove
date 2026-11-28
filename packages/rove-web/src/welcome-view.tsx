@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react"
 import { CelestialPlate } from "./celestial/plate.tsx"
 import { t, useLocale } from "./i18n/index.ts"
+import { isTouch } from "./key-hints.ts"
 import type { AppModel } from "./model.ts"
 import { startShell } from "./new-session-shell.ts"
 import { startNewTask } from "./new-session-view.tsx"
@@ -45,7 +46,12 @@ interface Check {
   readonly label: string
   readonly fix: string
   readonly run: () => void
+  /** Said instead of the fix button where that button cannot work. */
+  readonly instead?: string
 }
+
+/** The program a sign-in line runs, by name: a person types `claude`, not the path Rove found it at. */
+const programName = (line: string): string => line.replace(/^'|'$/g, "").split("/").pop() || line
 
 /** What a first task needs, in the order to set it up; each unmet one carries the action that fixes it here. */
 function checksFor(env: WelcomeEnv, model: AppModel): Check[] {
@@ -73,6 +79,10 @@ function checksFor(env: WelcomeEnv, model: AppModel): Check[] {
             ? t("firstRun.loginUnknown", { list: names(env.engines) })
             : t(login ? "firstRun.loginMissing" : "firstRun.loginWaiting", { list: names(env.signedOut) }),
       fix: t("firstRun.loginFix", { name: login?.name ?? "" }),
+      // A phone has no use for a shell session: the login happens on the computer Rove runs on.
+      ...(isTouch() && login
+        ? { instead: t("firstRun.loginFixTouch", { command: programName(login.signIn ?? login.id) }) }
+        : {}),
       // The engine's own CLI asks for the login; a shell in a No folder session runs it.
       run: () =>
         void startShell((op, args) => model.client.request(op, args), null, login?.signIn ?? login?.id ?? "")
@@ -147,8 +157,11 @@ export function WelcomePane({ model }: { model: AppModel }) {
                   <span className={`mono ${CK_GLYPH} ${check.ok ? "text-success" : "text-warning"}`} aria-hidden>
                     {check.ok ? "✓" : "✗"}
                   </span>
-                  <span className={`min-w-0 flex-1 ${check.ok ? "text-subtle" : "text-ink"}`}>{check.label}</span>
-                  {check === next && (
+                  <span className={`min-w-0 flex-1 ${check.ok ? "text-subtle" : "text-ink"}`}>
+                    {check.label}
+                    {check === next && check.instead && <span className="block text-muted">{check.instead}</span>}
+                  </span>
+                  {check === next && !check.instead && (
                     <Button variant="action" onClick={check.run}>
                       {check.fix}
                     </Button>
