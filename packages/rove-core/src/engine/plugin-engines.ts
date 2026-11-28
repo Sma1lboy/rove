@@ -11,6 +11,7 @@ import { getCustomEngineIds } from "@sma1lboy/rove-core/state/repos.ts"
 import { type PluginEngine, readPluginManifest } from "@sma1lboy/rove-daemon/plugins/manifest"
 import { loadPluginRegistry } from "@sma1lboy/rove-daemon/plugins/registry"
 import { resetAvailableVendorsCache } from "./account-detect.ts"
+import { ACP_ENGINE_ENTRY, ACP_PROTOCOL } from "./acp-local/adapter.ts"
 import {
   CONTRIB_ENGINE_IDS,
   type ContribEngineSpec,
@@ -41,7 +42,20 @@ export function loadPluginEngines(homeDir?: string): readonly string[] {
           const identity = {
             shortName: engine.identity?.shortName ?? engine.name,
           }
+          const acpBase =
+            engine.protocol === ACP_PROTOCOL
+              ? {
+                  history: ACP_ENGINE_ENTRY.history,
+                  createTurnDetector: ACP_ENGINE_ENTRY.createTurnDetector,
+                  capabilities: ACP_ENGINE_ENTRY.capabilities,
+                  hostedStartArgv: ACP_ENGINE_ENTRY.hostedStartArgv,
+                  permissionBypass: ACP_ENGINE_ENTRY.permissionBypass,
+                  firstMessageArgv: ACP_ENGINE_ENTRY.firstMessageArgv,
+                  sessionIdentity: ACP_ENGINE_ENTRY.sessionIdentity,
+                }
+              : {}
           const ok = registerPluginEngine(engine.id, {
+            ...acpBase,
             displayName: engine.name,
             defaultCommand: engine.command,
             ...(engine.processNames ? { processNames: engine.processNames } : {}),

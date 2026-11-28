@@ -34,6 +34,7 @@ you need git-level isolation and a separate branch.
 | Kilo | contrib | binary only | ✓ (screen-based, plus a lifecycle plugin) | — | — | — |
 | MastraCode | contrib | binary only | ✓ (hook-based) | — | — | — |
 | Amp, Cline, Kiro CLI, Maki | contrib | binary only | ✓ (screen-based) | — | — | — |
+| Any ACP-compatible CLI | `acp` protocol | binary only | ✓ (OSC 7501 + markers) | ✓ | — | — |
 | Anything you register | custom | binary only | — | — | — | — |
 
 A model is pinned per task in the engine's own spelling (see
@@ -557,9 +558,10 @@ engine** asks for each. Or by hand:
 Being in `customEngineIds` *is* the registration.
 
 `engineProtocol.<id>` is optional and says "talk to my binary the way you talk
-to `claude`". Set it when your CLI is a wrapper around a built-in (a
+to `claude`" (or `"acp"` for any Agent Client Protocol agent). Set it when your CLI is a wrapper around a built-in (a
 different binary name, a fixed set of flags, a company shim) so the transcript
 reader, workspace-trust pre-answer, and first-message delivery all apply.
+Set `"engineProtocol.<id>": "acp"` for any CLI that speaks the Agent Client Protocol (JSON-RPC 2.0 over stdio): Rove wraps the launch through `rove _acp-bridge`, negotiates `initialize` and `session/new` (or `session/load` on resume), maps Ctrl+C to `session/cancel`, reports activity over OSC 7501 without screen scraping, and writes normalized session transcripts under `~/.rove/acp-sessions/` so `rove api read-output`, Chat, auto-title, and handoff work out of the box.
 Leave it out and the preset gets the **generic** protocol: it launches and
 runs fine with settle-then-paste delivery, but Rove reads no history,
 pre-answers no trust dialog, and shows no working badge (the activity
@@ -623,6 +625,7 @@ Engines own their own history. Rove reads it, never writes it.
 | `kimi` | `~/.kimi-code/session_index.jsonl` maps each session to its dir; the stream is `<sessionDir>/agents/main/wire.jsonl` |
 | `bob` | one SQLite database, `~/.bob/db/bob.db` — `tasks` keyed by workspace, `messages` per task. No per-session file, so nothing to hand another engine in a handoff |
 | `pi`, `omp` | `<agent dir>/sessions/<encoded-cwd>/<timestamp>_<session id>.jsonl` — `~/.pi/agent` and `~/.omp/agent` unless `PI_CODING_AGENT_DIR` says otherwise. pi encodes the cwd as an absolute path, OMP as one relative to your home (or the temp root); Rove reads both spellings |
+| `acp` | `~/.rove/acp-sessions/<encoded-cwd>/<sessionId>.jsonl` — written incrementally by Rove's ACP stdio host as the agent emits `session/update` notifications |
 
 That's why a crash never loses a conversation, and why history survives
 `rove reset` and a machine reboot.

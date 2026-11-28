@@ -54,6 +54,7 @@ import { type BridgeDeps, startBridgeServer } from "./server.ts"
 import { printSetup } from "./setup.ts"
 import { createSignIn } from "./sign-in.ts"
 import { TabFeed } from "./tab-feed.ts"
+import { createBridgeTranscriptFeed } from "./transcript-feed.ts"
 import { usageStore } from "./usage-store.ts"
 import { createWebLogin, loginDeviceName } from "./web-login.ts"
 import type { WebRoot } from "./web-static.ts"
@@ -226,7 +227,7 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
   const syncStatus = async (): Promise<void> => {
     try {
       await statusClient.subscribe({
-        channels: ["row.status", "dispatch.snapshot", "panel.show", "tabs.changed"],
+        channels: ["row.status", "dispatch.snapshot", "panel.show", "tabs.changed", "engine-state", "engine.lifecycle"],
         role: "pane",
       })
       await rowStatus.resync()
@@ -247,6 +248,9 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     machineOf,
     forward: (alias, verb, params) => forwardVerb(requireMachine(alias), verb, params),
   })
+  const transcripts = createBridgeTranscriptFeed({ api, machineOf })
+  statusClient.onChannel("engine-state", (ev) => transcripts.poke(ev.taskId))
+  statusClient.onChannel("engine.lifecycle", (ev) => transcripts.poke(ev.taskId))
   const ops = createRoveOps(
     verbClient,
     {
@@ -360,6 +364,7 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     panels,
     mods,
     tabs,
+    transcripts,
     rowStatus,
     dispatches,
     deviceOf: (presented) => deviceOf(devicesPath, presented),

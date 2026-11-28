@@ -212,6 +212,7 @@ command = ["aider"]              # launch argv; argv[0] is the binary
 # model_flag = "--model"         # lets a session pin a model: `<flag> <model>` is appended
 # models_command = ["aider", "--list-models"]  # Rove runs it to suggest models — see below
 # permission_bypass_flag = "--yes-always"  # appended while Settings → Engines → Skip permission prompts is on
+# protocol = "acp"                 # speak Agent Client Protocol over stdio; structured history and activity without screen rules
 
 [engines.identity]               # optional product identity for UI labels
 short_name = "Aider"             # falls back to `name`

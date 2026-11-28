@@ -31,6 +31,7 @@ import type {
   EngineAccountStatus,
   KimiAccount,
 } from "./account-detect.ts"
+import { ACP_ENGINE_ENTRY, ACP_PROTOCOL } from "./acp-local/adapter.ts"
 import type { EngineTurnReader } from "./agent-turn.ts"
 import { BUILTIN_ENGINES } from "./builtin-engines.ts"
 import { CONTRIB_ENGINE_IDS, contribEngineEntry, isContribEngine, pluginEngineIds } from "./contrib-engines.ts"
@@ -296,6 +297,7 @@ function customEngineEntry(vendor: VendorId): EngineRegistryEntry {
  */
 export function engineEntry(vendor: VendorId): EngineRegistryEntry {
   if (isBuiltinVendor(vendor)) return BUILTIN_ENGINES[vendor]
+  if (vendor === ACP_PROTOCOL) return ACP_ENGINE_ENTRY
   const custom = customEngineEntry(vendor)
   // Contrib engines: the empty entry overlaid with catalog identity + screen manifest.
   return isContribEngine(vendor) ? contribEngineEntry(vendor, custom) : custom
