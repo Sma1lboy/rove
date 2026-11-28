@@ -11,7 +11,7 @@ import { createActivityObserverIo } from "./activity-observer-io.ts"
 import { startActivityObserver } from "./activity-observer.ts"
 import type { DaemonActivityRegistry } from "./activity-registry.ts"
 import { DEFAULT_AUTO_FIX_TICK_MS, needsPrPoll, startAutoFixRunner } from "./auto-fix-ci.ts"
-import { type ConversationOf, DEFAULT_AUTO_TITLE_POLL_MS, startAutoTitlePoller } from "./auto-title-poller.ts"
+import { DEFAULT_AUTO_TITLE_POLL_MS, pinnedConversation, startAutoTitlePoller } from "./auto-title-poller.ts"
 import type { DispatchRunnability } from "./automation-dispatch.ts"
 import { DEFAULT_AUTOMATION_TICK_MS, startAutomationRunner } from "./automation-runner.ts"
 import type { AutomationsStore } from "./automations-store.ts"
@@ -21,6 +21,7 @@ import type { DaemonOrchestrator, UpdateInfo } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import { resolvePtyOwner } from "./cwd-task.ts"
 import { type DeliveryDeps, sweepStalledDeliveries } from "./delivery-ops.ts"
+import { syncEngineTitle } from "./engine-title-sync.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import {
   DEFAULT_KEYBINDINGS_DEBOUNCE_MS,
@@ -36,6 +37,7 @@ import { type QuotaUsageCache, startQuotaUsagePoller } from "./quota-usage-cache
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 import { DEFAULT_SCHEDULED_START_TICK_MS, startScheduledStartRunner } from "./scheduled-start.ts"
 import { DEFAULT_STATE_DEBOUNCE_MS, startStateWatcher } from "./state-watcher.ts"
+import type { SharedTabs } from "./tabs-ops.ts"
 import { startTicker } from "./ticker.ts"
 import {
   DEFAULT_TRANSCRIPT_ACTIVITY_TICK_MS,
@@ -69,10 +71,8 @@ export interface DaemonCollectorOptions {
   readonly ownerOf?: PtyOwnerResolver
   /** Each walked tab's foreground engine (null = none), every observer tick. */
   readonly onLiveEngine?: (taskId: string, tabId: string, vendor: string | null) => void
-  /** Each walked tab's OSC title, every observer tick. */
-  readonly onEngineTitle?: (taskId: string, tabId: string, title: string) => void | Promise<void>
-  /** The conversation a task's own engine tab pinned; names a task that shares its directory. */
-  readonly conversationOf?: ConversationOf
+  /** A task's shared tabs: names a task that shares its directory, and says which tab's OSC title names it. */
+  readonly tabsOf?: (taskId: string) => SharedTabs | null
 }
 
 /** What the automation sweep needs; omitted in tests that don't exercise it. */
@@ -217,6 +217,18 @@ export function startDaemonCollectors(
     ? watchProgramStatus(receiveStatus, { homeDir: options.homeDir })
     : async () => {}
   const upgradeProtocol = createProtocolUpgradeReporter(orch, runtime)
+  const { tabsOf } = options
+  const conversationTitle = runtime.conversationTitle?.bind(runtime)
+  const engineTitle =
+    tabsOf && conversationTitle
+      ? (taskId: string, tabId: string, title: string) =>
+          syncEngineTitle(
+            { orch, tabsOf, conversationTitle, defaultVendor: runtime.defaultTaskVendor },
+            taskId,
+            tabId,
+            title,
+          ).catch((err) => logDaemonError("engine-title-sync", err))
+      : undefined
   // First tick immediately (restart seeding), then the slow poll.
   const stopActivityObserver = activity
     ? startActivityObserver(
@@ -225,7 +237,7 @@ export function startDaemonCollectors(
           ...createActivityObserverIo(options.homeDir, runtime, activity, ownerOf),
           onEngineEvidence: (taskId, tabId, evidence) => {
             options.onLiveEngine?.(taskId, tabId, evidence.walkVendor)
-            const titled = options.onEngineTitle?.(taskId, tabId, evidence.title)
+            const titled = engineTitle?.(taskId, tabId, evidence.title)
             const upgraded = upgradeProtocol(taskId, tabId, evidence)
             return titled ? Promise.all([titled, upgraded]).then(() => undefined) : upgraded
           },
@@ -255,7 +267,7 @@ export function startDaemonCollectors(
     options.autoTitlePollMs ?? DEFAULT_AUTO_TITLE_POLL_MS,
     // A rename rides the task push, so the consumer to gate on is task.snapshot.
     () => hasSubscribersFor("task.snapshot"),
-    options.conversationOf,
+    tabsOf ? (taskId) => pinnedConversation(tabsOf(taskId)) : undefined,
   )
 
   const stopUiPrefsWatcher = startUiPrefsWatcher(bus, {

@@ -11,7 +11,6 @@ import { ptyHostHasLiveSessions, sweepPtyHostSessions } from "../client/pty-proc
 import { tightenInstalledPluginPermissions } from "../plugins/permissions.ts"
 import { maybeStartPluginHost } from "../plugins/runtime.ts"
 import { createActivityObserverIo } from "./activity-observer-io.ts"
-import { pinnedConversation } from "./auto-title-poller.ts"
 import type { CellPixelSize } from "./channels-events.ts"
 import { type ClientState, broadcast, handleClientLine, writeFrame } from "./client-connection.ts"
 import { ClientWriter } from "./client-writer.ts"
@@ -20,7 +19,6 @@ import type { DaemonOrchestrator } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import type { DeliveryDeps } from "./delivery-ops.ts"
 import { createDirectLink } from "./direct-link.ts"
-import { syncEngineTitle } from "./engine-title-sync.ts"
 import { DaemonEventBus } from "./event-bus.ts"
 import { GraphicsImageIds } from "./graphics-ids.ts"
 import { pasteQueued } from "./handlers-queue.ts"
@@ -295,33 +293,13 @@ async function startOwnedServer(
   const ownerOf: PtyOwnerResolver = (taskId, tabId, at) => stores.aliases.ownerOf(taskId, tabId, at)
   // Per-tick work is gated on subscribers so a gui-less daemon never polls
   // npm / git / gh for nobody.
-  const conversationOf = (taskId: string) => pinnedConversation(stores.tabs.get(taskId).state)
-  const engineTitleSync =
-    (conversationTitle: NonNullable<typeof runtime.conversationTitle>) =>
-    (taskId: string, tabId: string, title: string) =>
-      syncEngineTitle(
-        {
-          orch,
-          tabsOf: (id) => stores.tabs.get(id).state,
-          conversationTitle,
-          defaultVendor: runtime.defaultTaskVendor,
-        },
-        taskId,
-        tabId,
-        title,
-      ).catch((err) => logDaemonError("engine-title-sync", err))
+  const tabsOf = (taskId: string) => stores.tabs.get(taskId).state
   const stopCollectors = startDaemonCollectors(
     orch,
     runtime,
     bus,
     (channel) => lifetime.hasSubscribersFor(channel),
-    {
-      ...options,
-      ownerOf,
-      conversationOf,
-      onLiveEngine: rowStatus.setEngine.bind(rowStatus),
-      ...(runtime.conversationTitle ? { onEngineTitle: engineTitleSync(runtime.conversationTitle) } : {}),
-    },
+    { ...options, ownerOf, tabsOf, onLiveEngine: rowStatus.setEngine.bind(rowStatus) },
     quotaUsage,
     {
       store: automations,

@@ -315,11 +315,7 @@ export class Orchestrator {
 
   // Pure forwarding to TaskEditor; the rules are documented on its methods.
 
-  setTitle = (
-    id: TaskId | string,
-    title: string,
-    opts?: { keepScratch?: boolean; fromEngine?: boolean },
-  ): Promise<void> => this.editor.setTitle(id, title, opts)
+  setTitle = (...args: Parameters<TaskEditor["setTitle"]>): Promise<void> => this.editor.setTitle(...args)
   setBranch = (id: TaskId | string, branch: string): Promise<void> => this.editor.setBranch(id, branch)
   /** Record the language a task's user writes in, from their own prompt text. */
   observeLanguage = (id: TaskId | string, text: string): Promise<void> => this.editor.observeLanguage(id, text)
