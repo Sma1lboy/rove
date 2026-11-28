@@ -100,7 +100,7 @@ function SectionList(props: {
         {SECTION_GROUPS.map((group) => (
           <PhoneGroup key={group.id} label={t(`settings.groups.${group.id}`)}>
             {group.sections.map((id) => (
-              <Button key={id} variant="row" className={PHONE_ROW} onClick={() => props.onPick(id)}>
+              <Button key={id} variant="row" className={PHONE_ROW} data-section={id} onClick={() => props.onPick(id)}>
                 <SectionIcon id={id} />
                 {sectionName(id)}
                 <Chevron right className={SETTINGS_NAV_CHEVRON} />
@@ -122,6 +122,7 @@ function SectionList(props: {
               <Button
                 key={id}
                 variant="row"
+                data-section={id}
                 className={settingsNavItemClass(props.current === id, group.id === "more")}
                 aria-current={props.current === id ? "page" : undefined}
                 onClick={() => props.onPick(id)}

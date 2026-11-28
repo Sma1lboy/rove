@@ -76,6 +76,10 @@ It checks image references and capture metadata, not image authenticity or
 whether the changed behavior is visible. Review the actual images before merge;
 a passing render test or generic visual journey does not replace these captures.
 
+rove-web changes are not covered by this check. For them, `bun run tour --compare main --share`
+shoots every web screen on both builds and publishes only the ones that changed; link that page in
+the PR ([`agents/dev-loop.md`](agents/dev-loop.md) § Screenshot tour).
+
 ## Golden ground truth
 
 Some behavior is a table, not a sentence. Where a surface has a state

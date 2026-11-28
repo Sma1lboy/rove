@@ -82,6 +82,20 @@ The owner's machine only. The owner's live web is the test build: rove-web.sma1l
 
 `bun run build`, then `bun --filter rove-harness web:shots` shoots rove-web's pages (desktop 1440 and phone 390) on the isolated visual fixture and compares them with the last run's. It prints `{ dir, from, to, changed, added }`: `changed` lists the shots that differ by more than rounding noise, between commits `from` and `to`. The new shots are in `<dir>/current`, the ones they were compared with in `<dir>/previous`; `ROVE_WEB_SHOTS_DIR` moves `<dir>` (default `.scratch/web-shots`). A failed run leaves both as they were and writes `failed-<scene>-<viewport>.png`. It is not a `pre-pr` gate: a daily routine runs it against `main`. Known noise: the terminal prompt in `workspace-desktop` sometimes draws at another weight (about 300 pixels, over the 50-pixel noise threshold, so it can land in `changed`). Shots of a page that no longer exists stay in `current`.
 
+## Screenshot tour
+
+`bun run tour` from the repo root shoots every page, dialog, menu and Settings section of rove-web, desktop (1440×900) and phone (390, touch), into `.scratch/tour/<time>/` with an `index.html` grid. A run takes about four minutes and needs no build first.
+
+- **What it shoots** is `MANIFEST` in `packages/rove-harness/e2e/tour/manifest.ts`: one entry per screen, with the clicks and keys that reach it. A new screen is one new entry. The run prints `manifest misses: …` when rove-web has a page (`PAGE_IDS` in `ui.ts`) or a Settings section (`SECTION_GROUPS`) no entry reaches. Steps name a control by its text, `aria-label` or `title`, an i18n key (`{ t: "rail.settings" }`) or CSS; a menu or dialog's entry wins over a same-named one under it. Give a control a `data-*` attribute when nothing else names it (`data-section` on Settings' sections, `data-field` on the New task chips).
+- **Isolation.** Each run seeds three throwaway homes under the system temp dir (empty, signed-in-by-token, and a full one: two projects, five bash tasks with diffs, inbox rows, routines, kanban cards and a Compare round), starts one `rove --web` per home, and at the end stops those bridges, the homes' daemons and PTY hosts, and deletes the homes (`--keep` leaves them). Tasks run `bash`, never an engine; no entry may click *New conversation*, *Start session* or *Retry*, which start one.
+- **Steady shots.** Git dates are pinned, the page's clock stands still 12 minutes after seeding and `Math.random` is seeded. A shot waits for its target to show, then for the bridge's WebSocket to go quiet for 300 ms, then for two captures in a row to match.
+- `--viewports desktop|phone`, `--variants light,zh` (the entries marked `variants`, in light theme or Chinese), `--only <regex>` (entry ids), `--out <dir>`.
+- `--electron` runs the real desktop shell instead (desktop only) and captures its window with the frame and traffic lights through `screencapture -l`, plus the three states of the install window. macOS only. The window opens without taking focus, so its traffic lights are grey.
+- `--compare [ref]` (default `main`) checks the ref out to a temp worktree, runs `bun install` there, shoots both, and writes `compare.html` listing only the shots that changed (more than 50 pixels off by more than 24 per channel), were added or went away. The manifest is always this checkout's; an entry the old build cannot reach fails on that side. Use it as a PR's UI evidence.
+- `--share` publishes the grid (or the compare page) through `~/.local/bin/brand-studio-share` when that exists: JPEGs inlined, split into rounds of one series under the share host's 4 MB page limit. It prints the `/s/<slug>` link.
+
+It does not replace `web:shots` (one shot per page, compared with the last run, run by a daily routine) or the TUI harness.
+
 ## Diagrams in `docs/`
 
 Mermaid (` ```mermaid ` fences); ASCII only for ≤3 nodes with no states.
