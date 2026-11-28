@@ -47,11 +47,22 @@ export function answer(op: string, args: Obj = {}, now = Date.now()): Json {
     const key = fields.map((f) => String(args[String(f)] ?? "")).join(":")
     entry = entry[key] ?? entry["*"] ?? {}
   }
+  // The Inbox peek reads the screen, not the transcript the in-app demo shows.
+  if (op === "output.read" && args.source === "terminal") return { source: "terminal", terminal: { tail: PEEK_TAIL } }
   const result = resolve(entry, now)
   return op === "tasks.subscribe" || op === "tasks.list"
     ? { ...(result as Obj), tasks: [...((result as Obj).tasks as Json[]), failingChecksRow(now), laterRow(now)] }
     : result
 }
+
+const PEEK_TAIL = [
+  "",
+  "● Updated the refund webhook check to reject replays older than five minutes.",
+  "  tests: 14 passed",
+  "",
+  "Ready for review. Want me to open a PR?",
+  "",
+]
 
 /** Served only here: the in-app demo's rows also draw Android's golden images. */
 function failingChecksRow(now: number): Obj {

@@ -1258,6 +1258,16 @@
         }
       }
     },
+    "hide" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收起"
+          }
+        }
+      }
+    },
     "Info" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1674,6 +1684,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "没有可读的失败检查日志——运行记录可能已过期，或检查已不再是红的"
+          }
+        }
+      }
+    },
+    "no output yet" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还没有输出"
           }
         }
       }
@@ -2214,6 +2234,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在重新打开…"
+          }
+        }
+      }
+    },
+    "reply to this session" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回复这个会话"
           }
         }
       }

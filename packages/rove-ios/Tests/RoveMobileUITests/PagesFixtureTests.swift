@@ -172,6 +172,23 @@ final class PagesFixtureTests: XCTestCase {
         XCTAssertTrue(log.entries().contains { $0.op == "task.startScheduledNow" && $0.args["taskId"] as? String == "T-LATER" })
     }
 
+    func testReplyToAFinishedTurnFromTheInbox() throws {
+        let url = try fixture()
+        let log = try XCTUnwrap(FixtureLog(socketURL: url))
+        pair(url)
+        waitFor(element("inboxButton"), "inbox button").tap()
+        waitFor(element("peek-T-REV\u{0}tab-1"), "reply toggle").tap()
+        let tail = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Want me to open a PR?")).firstMatch
+        waitFor(tail, "peek tail", timeout: 8)
+        let field = waitFor(element("peekField"), "reply field")
+        field.tap()
+        field.typeText("yes, open it")
+        checkpoint("fx-inbox-peek")
+        element("peekSend").tap()
+        let sent = NSPredicate { _, _ in log.entries().contains { $0.op == "tab.send" && $0.args["prompt"] as? String == "yes, open it" } }
+        wait(for: [XCTNSPredicateExpectation(predicate: sent, object: nil)], timeout: 8)
+    }
+
     func testLandAsksTheBridgeBeforeConfirming() throws {
         let url = try fixture()
         let log = try XCTUnwrap(FixtureLog(socketURL: url))
