@@ -25,6 +25,9 @@ const ROW_TONE = {
   /** The sheet's own action at its foot (Ack all): centred, in the accent. */
   action: "justify-center font-semibold text-accent",
 } as const
+/** A two-line row (a PR: its title over its state), the whole of it the tap. */
+const STACK =
+  "flex min-h-11 w-full flex-none flex-col justify-center gap-1 rounded-sm px-2 py-2 text-left font-sans text-ink hover:bg-hover active:bg-hover focus-visible:bg-hover focus-visible:outline-none disabled:opacity-60"
 /** Between two groups of rows. */
 export const SHEET_SEP = "mx-2 my-1 h-px flex-none border-none bg-line"
 const CHECK =
@@ -100,10 +103,10 @@ export function Sheet(props: {
 
 /** One choice or action in a sheet: a full-width 44px row. */
 export function SheetRow(
-  props: Omit<ComponentProps<"button">, "className" | "type"> & { tone?: keyof typeof ROW_TONE },
+  props: Omit<ComponentProps<"button">, "className" | "type"> & { tone?: keyof typeof ROW_TONE; stacked?: boolean },
 ) {
-  const { tone = "ink", ...rest } = props
-  return <button type="button" className={`${ROW} ${ROW_TONE[tone]}`} {...rest} />
+  const { tone = "ink", stacked = false, ...rest } = props
+  return <button type="button" className={stacked ? STACK : `${ROW} ${ROW_TONE[tone]}`} {...rest} />
 }
 
 /** The current pick's mark at a sheet row's end. */

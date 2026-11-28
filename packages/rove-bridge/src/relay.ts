@@ -41,6 +41,29 @@ export function relayIngressDeps(deps: BridgeDeps): BridgeDeps {
   }
 }
 
+/**
+ * One relay agent per home: two agents on one code take the pairing from each other, and every switch drops the
+ * paired phones. The first live bridge holds it (`relay-agent.pid`); a later one leaves the relay to it.
+ * ponytail: a pid reused by an unrelated process after a crash keeps the claim until that process exits.
+ */
+export function claimRelay(bridgeDir: string, pid = process.pid): boolean {
+  const lock = join(bridgeDir, "relay-agent.pid")
+  const holder = existsSync(lock) ? Number(readFileSync(lock, "utf8")) : 0
+  if (holder > 0 && holder !== pid && alive(holder)) return false
+  writeFileSync(lock, String(pid), { mode: 0o600 })
+  return true
+}
+
+function alive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (err) {
+    // EPERM: alive, someone else's.
+    return (err as NodeJS.ErrnoException).code === "EPERM"
+  }
+}
+
 /** Remembered in `config.json`, so the next start dials the relay a paired phone uses. */
 export function saveRelayServer(configPath: string, server: string): void {
   const raw: unknown = existsSync(configPath) ? JSON.parse(readFileSync(configPath, "utf8")) : {}

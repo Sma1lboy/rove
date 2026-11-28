@@ -28,8 +28,6 @@ export const en = {
     pr: {
       state: { open: "open", merged: "merged", closed: "closed" },
       many: "{count} PRs in this task and its children",
-      openGitHub: "Open on GitHub",
-      openForge: "Open in browser",
       checks: {
         conflict: "conflicts with its base",
         failing: "checks failing",
@@ -108,8 +106,6 @@ export const zh: typeof en = {
     pr: {
       state: { open: "进行中", merged: "已合并", closed: "已关闭" },
       many: "这个任务及子任务共 {count} 个 PR",
-      openGitHub: "在 GitHub 上打开",
-      openForge: "在浏览器中打开",
       checks: { conflict: "与基础分支冲突", failing: "检查未通过", passing: "检查已通过", pending: "检查进行中" },
     },
     searchPlaceholder: "模糊搜索",

@@ -19,16 +19,17 @@ import { GROW, useGrow } from "./grow.ts"
  * control that is held to talk and tapped to type, and Send (greyed until a file is attached); a draft, or the tap, turns it into attach, a message field with
  * the mic inside it, and Send. All of it sits in one glass capsule (glass.ts) on the pane's own ground, the key row's twin. The bar's height never
  * changes, so the terminal is fitted once and never reflows while you compose: a longer message grows the capsule
- * upward over the terminal's last rows (grow.ts), and the attachment chips float above the capsule. Display-size text: iOS zooms the page into
+ * upward over the terminal's last rows (grow.ts), and so does a row of attachment previews at the capsule's top. Display-size text: iOS zooms the page into
  * any field under 16px it focuses.
  */
 /** One line tall for good: the capsule stands on its bottom edge and overflows upward. */
 const BAR = "relative z-5 hidden h-[calc(60px+2*var(--hairline))] items-end px-0.5 py-1.5 touch:flex"
-const CHIPS = "absolute inset-x-2.5 bottom-full z-5 mb-2.5"
+/** Its own first line in the capsule: previews over the terminal's text would hide it. */
+const CHIPS = "basis-full px-1.5 pt-1.5 pb-1"
 const SUGGEST = "absolute inset-x-2.5 bottom-full z-6 mb-2.5"
 /** The one capsule: on the key row's own left and right edges, with its corners. */
 /** Focused, its edge only firms up: the accent is Send's and recording's. */
-const ROW = `relative flex min-w-0 flex-1 items-end gap-0.5 rounded-[14px] p-0.5 ${glass()} focus-within:border-line-active`
+const ROW = `relative flex min-w-0 flex-1 flex-wrap items-end gap-0.5 rounded-[14px] p-0.5 ${glass()} focus-within:border-line-active`
 /** The field, bare inside the capsule: the mic sits at its right end. */
 const FIELD_BOX = "flex min-h-11 min-w-0 flex-1 items-end has-[textarea:disabled]:opacity-60"
 /** One line is the 44px of the controls beside it; each further line adds 22px, up to the cap. */
@@ -309,7 +310,7 @@ export function TermComposerBar(props: {
   busy: boolean
   /** Something to send: text or an attachment. */
   ready: boolean
-  /** Chips for what is attached, floated above the field. */
+  /** Previews of what is attached, a line of their own above the field. */
   attached?: ReactNode
   /** The file picker, boxed in `composerAttach`. */
   attach: ReactNode

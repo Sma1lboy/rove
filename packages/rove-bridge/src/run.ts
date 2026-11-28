@@ -47,7 +47,7 @@ import { runPasswordAction } from "./password-cmd.ts"
 import { PromptFeed } from "./prompts.ts"
 import { BridgeError } from "./protocol.ts"
 import { PushHub, sharedCredential } from "./push.ts"
-import { phoneDeviceName, saveRelayServer, startRelay } from "./relay.ts"
+import { claimRelay, phoneDeviceName, saveRelayServer, startRelay } from "./relay.ts"
 import { createRoveOps } from "./rove-ops.ts"
 import { RowStatusFeed } from "./row-status.ts"
 import { type BridgeDeps, startBridgeServer } from "./server.ts"
@@ -367,6 +367,8 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     pairPhone: () => {
       if (!opts.web) throw new BridgeError("UNSUPPORTED", "phone pairing is for the browser client: run `rove --web`")
       if (!relay) {
+        if (!claimRelay(bridgeDir))
+          throw new BridgeError("RELAY_HELD", "another rove --web on this computer holds the relay: pair from that one")
         relay = startRelay(deps, DEFAULT_RELAY_SERVER, bridgeDir, false)
         saveRelayServer(join(bridgeDir, "config.json"), DEFAULT_RELAY_SERVER)
       }
@@ -420,9 +422,6 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     publicHost: args.publicHost,
     ...(push ? { push } : {}),
   }
-  // A phone paired from Settings saved `relayServer`: a later plain `rove --web` keeps it reachable.
-  const relayServer = args.relayServer ?? (opts.web && config.relayServer ? relayOriginOf(config.relayServer) : null)
-  relay = relayServer ? startRelay(deps, relayServer, bridgeDir, args.rotateRelay) : null
   const servers = args.hosts.map((hostname) => {
     try {
       return startBridgeServer(deps, { hostname, port: args.port })
@@ -434,6 +433,12 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
       process.exit(2)
     }
   })
+  // After the bind: a duplicate bridge that exits on a taken port must not dial the relay and take the live one's pairing.
+  // A phone paired from Settings saved `relayServer`: a later plain `rove --web` keeps it reachable.
+  const relayServer = args.relayServer ?? (opts.web && config.relayServer ? relayOriginOf(config.relayServer) : null)
+  if (relayServer && !claimRelay(bridgeDir))
+    console.error(`${opts.name}: another bridge in ${home} holds the relay; this one is not the relay agent`)
+  else if (relayServer) relay = startRelay(deps, relayServer, bridgeDir, args.rotateRelay)
 
   printBanner({
     name: opts.name,
