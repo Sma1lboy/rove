@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 137 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 138 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -261,7 +261,7 @@ turn either. These five carry almost all traffic:
 
 ```text
 add      --repo(REQ) --prompt --title --command --count --agents --activate --no-worktree --handoff-from --no-dispatcher
-send     --prompt|--prompt-file(REQ) --task-id --tab --plain --expect-report --if-runnable --unarchive
+send     --prompt|--prompt-file(REQ) --task-id --tab --plain --expect-report --if-runnable
 get-task --task-id(REQ)          list  (no flags)
 collect  --group <groupId> | --task-ids <csv> | --repo
 ```
@@ -587,10 +587,8 @@ To hide a finished row WITHOUT deleting anything, use `archive --task-id ID`: th
 children leave the sidebar and the default `list`, while the Worktree, branch and sessions
 stay. It is refused with `TASK_BUSY` while an engine in the subtree is running or waiting on
 you (`--force` hides it anyway and stops nothing). `unarchive` brings it back; `list
---archived` finds archived tasks. Sending to an archived task still delivers and restarts its
-engine while keeping it hidden — the `send` reply carries `archived: true` and a one-line
-`warning`; pass `send --unarchive` to restore the task (and its archived children) before
-delivering.
+--archived` finds archived tasks. `send` and `tab-revive` to an archived task are refused
+with `TASK_ARCHIVED` and start nothing; `unarchive` it first.
 
 **Deleting still needs the user to ask for it in that turn** — say what you
 would remove and wait. `--delete-branch` (or `--force` on a dirty Worktree)

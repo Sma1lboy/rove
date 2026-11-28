@@ -7,6 +7,7 @@
 
 import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import { roveApiInvocation } from "@sma1lboy/rove-core/engine/interactive-command.ts"
+import { taskArchivedError } from "@sma1lboy/rove-core/lib/api-error.ts"
 import { taskCwd } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
 import { deriveTitleFromPrompt } from "@sma1lboy/rove-core/orchestrator/title.ts"
 import { taskEngineArgv } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
@@ -168,12 +169,11 @@ async function sendNow(ctx: VerbContext, rollback: ReplaceRollback): Promise<unk
     )
   }
   // `--repo`: a project has no standing conversation, so the prompt opens a session of its own in that checkout.
-  const unarchive = ctx.args.bool("unarchive") === true
   const rawRepo = ctx.args.str("repo")
   const viaProject = rawRepo === undefined ? undefined : ctx.args.repoPath("repo", rawRepo)
-  if (viaProject && (ctx.args.str("task-id") || tab || replace || unarchive)) {
+  if (viaProject && (ctx.args.str("task-id") || tab || replace)) {
     throw new ApiError(
-      "--repo starts a new session in that project's checkout; it conflicts with --task-id, --tab, --replace and --unarchive",
+      "--repo starts a new session in that project's checkout; it conflicts with --task-id, --tab and --replace",
       "CONFLICTING_FLAGS",
       helpStep("send"),
     )
@@ -194,6 +194,8 @@ async function sendNow(ctx: VerbContext, rollback: ReplaceRollback): Promise<unk
     taskId = sendTo.taskId
     tab = sendTo.tab
     res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+    // Before --replace or any delivery: archiving stopped its sessions and a send must not start one.
+    if (res.task.archived === true) throw taskArchivedError(taskId)
     if (replace && tab) prompt = [await handoffBrief(ctx, res.task, tab, "send"), prompt].filter(Boolean).join("\n\n")
     // Before ANY delivery path (--plain included: a verbatim false claim is the
     // same false claim) — a refused report must never reach the coordinator.
@@ -218,24 +220,10 @@ async function sendNow(ctx: VerbContext, rollback: ReplaceRollback): Promise<unk
       nextCommandArgs: ["api", "get-task", "--task-id", taskId],
     })
   }
-  const wasArchived = res.task.archived === true
-  let staysArchived = wasArchived
-  const ensureUnarchived = async (): Promise<void> => {
-    if (!unarchive) return
-    await daemon.request<{ archived: string[] }>("task.archive", { taskId, archived: false, force: false })
-    staysArchived = false
-  }
   const plain = ctx.args.bool("plain") ? prompt : await withPeerProvenance(daemon, taskId, prompt)
   // `--queue` on a busy tab: the daemon holds it until the turn ends, so owed gate answers stay owed too.
   const held = await queueIfBusy(ctx, daemon, res.task, tab, plain)
-  if (held) {
-    await ensureUnarchived()
-    return {
-      ...held,
-      ...(unarchive && wasArchived ? { unarchived: true } : {}),
-      ...(staysArchived ? archivedSendNotice(taskId, "queued") : {}),
-    }
-  }
+  if (held) return held
   // Read BEFORE delivery: a paste into a failed session still "lands", and the
   // caller has to be told what it landed in.
   const target = await activityView(await readActivityRegistry(daemon), res.task, tab)
@@ -287,7 +275,6 @@ async function sendNow(ctx: VerbContext, rollback: ReplaceRollback): Promise<unk
   }
   let delivered: Awaited<ReturnType<typeof ctx.runtime.deliverPrompt>>
   try {
-    await ensureUnarchived()
     delivered = await ctx.runtime.deliverPrompt(
       daemon,
       {
@@ -349,29 +336,10 @@ async function sendNow(ctx: VerbContext, rollback: ReplaceRollback): Promise<unk
     ...(target && TARGET_FAILED.has(target.state)
       ? { targetState: target.state, ...(target.detail ? { targetDetail: target.detail } : {}) }
       : {}),
-    ...(unarchive && wasArchived ? { unarchived: true } : {}),
-    ...(staysArchived ? archivedSendNotice(taskId, delivered.started ? "started" : "delivered") : {}),
   }
 }
 
 const TARGET_FAILED = new Set(["error", "dead"])
-
-/** One-line notice attached to a `send` reply when the target task remains archived. */
-function archivedSendNotice(
-  taskId: string,
-  outcome: "started" | "delivered" | "queued",
-): { readonly archived: true; readonly warning: string } {
-  const action =
-    outcome === "started"
-      ? "the message was delivered and its engine restarted"
-      : outcome === "queued"
-        ? "the message was queued"
-        : "the message was delivered"
-  return {
-    archived: true,
-    warning: `task ${taskId} is archived: ${action}, but the task stays hidden; pass --unarchive to bring it back`,
-  }
-}
 
 /** `send.admit`: either the daemon refused the tick, or it claimed the tab (and armed a delivery when one is owed). */
 interface AdmitReply {

@@ -1,5 +1,6 @@
 /** `rove api tab-revive` — reopen a Terminal Tab whose session is gone. The open itself is `tab-revive.ts`. */
 
+import { taskArchivedError } from "@sma1lboy/rove-core/lib/api-error.ts"
 import { taskCwd } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
 import { taskEngineArgv } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
@@ -14,7 +15,7 @@ export const TAB_REVIVE_VERB: VerbSpec = {
   name: "tab-revive",
   group: "drive",
   summary:
-    "Reopen one Terminal Tab's own session when no PTY runs in it: a dead or freeze-restored tab, or one whose key the PTY host lost (a host restart that dropped its freeze records). A running tab is left alone (`revived: false, alive: true`). With --restart-exited, an engine tab whose session is alive but whose engine has exited (get-task .tabs[].engineAlive false: only the fallback shell is left) is closed and relaunched like a dead one; an engine still running, or a shell tab, is still left alone. An engine tab resumes its persisted conversation (`resumed: true`) or, with none recorded, starts a fresh one with no first message — the task's original prompt is never replayed; it respects engine.maxLiveSessions. A shell or command tab runs its recorded command in the task's worktree. Refused: a tab id the task does not hold (TAB_NOT_FOUND), a split leaf (`tab-split --action reset` is its reopen), and viewport or preview tabs (TAB_NOT_REVIVABLE). A task on another registered machine runs there, like every verb. Returns { taskId, tabId, revived, resumed, sessionId? }.",
+    "Reopen one Terminal Tab's own session when no PTY runs in it: a dead or freeze-restored tab, or one whose key the PTY host lost (a host restart that dropped its freeze records). A running tab is left alone (`revived: false, alive: true`). With --restart-exited, an engine tab whose session is alive but whose engine has exited (get-task .tabs[].engineAlive false: only the fallback shell is left) is closed and relaunched like a dead one; an engine still running, or a shell tab, is still left alone. An engine tab resumes its persisted conversation (`resumed: true`) or, with none recorded, starts a fresh one with no first message — the task's original prompt is never replayed; it respects engine.maxLiveSessions. A shell or command tab runs its recorded command in the task's worktree. Refused: a tab id the task does not hold (TAB_NOT_FOUND), a split leaf (`tab-split --action reset` is its reopen), viewport or preview tabs (TAB_NOT_REVIVABLE), and any tab of an archived task (TASK_ARCHIVED). A task on another registered machine runs there, like every verb. Returns { taskId, tabId, revived, resumed, sessionId? }.",
   flags: [
     F.taskId(true),
     {
@@ -57,13 +58,7 @@ export const TAB_REVIVE_VERB: VerbSpec = {
     }
     const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
     // Archiving ended the task's sessions; looking at it must not start one again.
-    if (task.archived === true) {
-      throw new ApiError(`task ${taskId} is archived; its sessions stay stopped`, "TASK_ARCHIVED", {
-        taskId,
-        hint: "unarchive the task first, then revive the tab",
-        nextCommandArgs: ["api", "unarchive", "--task-id", taskId],
-      })
-    }
+    if (task.archived === true) throw taskArchivedError(taskId)
     const scope = await ptyScopeOf(daemon, task)
     if (hostedKeyFor(taskId, tabId, scope) === null) {
       throw new ApiError(`tab ${tabId} on task ${taskId} belongs to a child task's conversation`, "TAB_NOT_FOUND", {

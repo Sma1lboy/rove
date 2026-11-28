@@ -1145,7 +1145,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 ## drive
 
 - `send [--task-id ID] (--prompt TEXT | --prompt-file PATH) [--tab TAB]
-  [--replace [--command CMD]] [--plain] [--allow-empty] [--expect-report] [--if-runnable] [--queue] [--unarchive]`: paste a
+  [--replace [--command CMD]] [--plain] [--allow-empty] [--expect-report] [--if-runnable] [--queue]`: paste a
   follow-up into a task's running engine (one full turn). `--prompt-file`
   reads the text from a file (`-` = stdin) so the shell never sees it:
   backticks inside a double-quoted `--prompt` are command substitution, and
@@ -1307,19 +1307,14 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   conversation to send to: `send --repo PATH` saves `PATH` as a project if it
   is not one, starts a new session in its own checkout (no worktree) and
   delivers there. The reply's `taskId` is the new session, with
-  `newSession: true`. `--repo` conflicts with `--task-id`, `--tab`,
-  `--replace` and `--unarchive` (`CONFLICTING_FLAGS`).
+  `newSession: true`. `--repo` conflicts with `--task-id`, `--tab` and
+  `--replace` (`CONFLICTING_FLAGS`).
 
-  **Sending to an archived task is allowed, and warns the sender.** Archiving
-  stops the task's engines while keeping its conversation; a later `send`
-  delivers as usual (restarting the engine if stopped), while the task stays
-  archived (hidden from the sidebar, the web rail, default `list`, and the
-  Inbox). The reply then carries `archived: true` and a one-line `warning`
-  telling the caller the task stays hidden and naming `--unarchive`. Pass
-  `--unarchive` to restore the task and its archived descendants (same
-  semantics as `unarchive`) before delivering; when the task was archived the
-  reply carries `unarchived: true` instead of `archived`/`warning`. A live
-  target is unchanged even when the `[ROVE PEER]` sender is itself archived.
+  **Sending to an archived task is refused.** Whatever picks the target
+  (`--task-id`, `--tab`, the active task, the dispatcher reply, `--queue`),
+  an archived one fails with `TASK_ARCHIVED` before anything is delivered,
+  queued or started; run `unarchive --task-id ID` first. An archived
+  `[ROVE PEER]` sender still reaches a live target.
 
   **Delivery result fields.** Before writing a byte, delivery waits for the
   engine to announce bracketed paste (DECSET 2004), which is the engine
@@ -2173,13 +2168,10 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   Archiving also ends the task's sessions: every engine and shell process
   of the task is stopped. The worktree, branch, transcript and each tab's
   conversation stay, so after `unarchive` a tab reopens the conversation it
-  had. Opening an archived task starts nothing: `tab-revive` is refused with
-  `TASK_ARCHIVED`, and the TUI and the web client show it read-only (the web
+  had. Nothing starts a session for an archived task: `send` and `tab-revive` are
+  refused with `TASK_ARCHIVED`, the PTY host refuses to spawn under it, and the TUI and the web client show it read-only (the web
   shows its conversation) with an Unarchive button instead of a terminal. Every verb that takes `--task-id` (`get-task`, `context`, `collect`,
-  `digest`, `delete`) keeps working on the task by id. A `send` delivers and
-  starts the engine again while leaving the task archived, returning
-  `archived: true` and a one-line `warning`; pass `send --unarchive` to bring
-  the task (and its archived descendants) back before delivering. `list --archived` lists only archived tasks.
+  `digest`, `delete`) keeps working on the task by id. `list --archived` lists only archived tasks.
   The Inbox leaves out an archived task's rows, an open decision gate
   included; they are kept and show again after `unarchive`.
   Both verbs act on the task and every descendant (child tasks,
