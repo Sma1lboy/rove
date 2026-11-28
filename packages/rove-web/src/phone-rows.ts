@@ -1,8 +1,7 @@
-/** What the phone's lists show that the desktop rail does not, as pure rules: a session row's second line and age, and the pages extensions add. */
+/** What the phone's lists show that the desktop rail does not, as pure rules: a session row's second line, and the pages extensions add. */
 
 import type { ModPaneView } from "@sma1lboy/rove/src/tui/panes/mods/mods-core.ts"
 import type { TaskRow } from "rove-bridge/protocol"
-import { compactAge } from "./inbox.ts"
 import { createStore } from "./store.ts"
 import type { PageId } from "./ui.ts"
 
@@ -13,13 +12,6 @@ import type { PageId } from "./ui.ts"
 export function sessionLine2(task: Pick<TaskRow, "branch" | "changes">): { branch: string; behind: string | null } {
   const behind = task.changes && "behind" in task.changes ? (task.changes.behind ?? 0) : 0
   return { branch: task.branch, behind: behind > 0 ? `↓${behind}` : null }
-}
-
-/** How long the row has been in its state (`16m`), `—` with no reading. Aged here from the episode's start when the bridge sends it. */
-export function sessionAge(task: Pick<TaskRow, "activity">, now: number): string {
-  const activity = task.activity
-  if (!activity) return "—"
-  return compactAge(activity.since !== undefined ? now - activity.since : activity.forMs)
 }
 
 export interface ExtPage {

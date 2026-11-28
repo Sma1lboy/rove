@@ -1,6 +1,6 @@
 /**
- * The phone's list rows, after the old iPhone app's task list: a mark, two lines, and a right column. A session row
- * leads with its engine's mark and ends with its status dots over its age; a routine row does the same for its last run.
+ * The phone's list rows, after the old iPhone app's task list: a mark, two lines, and the status dots. A session row
+ * leads with its engine's mark; a routine row ends with its last run's dots.
  */
 
 import type { ComponentProps, MouseEvent, ReactNode } from "react"
@@ -20,12 +20,14 @@ export function ScriptMark() {
   )
 }
 
+/** The mark drops its 1px optical nudge here: on the row's centre with the title and the dots. */
 const ROW =
-  "flex min-h-15 w-full items-center gap-3 px-3 py-2 text-left active:bg-hover focus-visible:bg-hover focus-visible:outline-none"
-const LINE2 = "flex min-w-0 items-center gap-1.5 font-mono text-[13px] leading-[1.3] text-muted"
+  "flex min-h-15 w-full items-center gap-3 px-3 py-2 text-left active:bg-hover focus-visible:bg-hover focus-visible:outline-none [&>svg]:translate-y-0"
+/** Hidden while empty, so a one-line row's title sits on the row's centre. */
+const LINE2 = "flex min-w-0 items-center gap-1.5 font-mono text-[13px] leading-[1.3] text-muted empty:hidden"
 
 /**
- * One two-line row: `mark`, then the title over a muted mono line, then `top` over `bottom` at the right edge.
+ * One row: `mark`, then the title over a muted mono line, then `status` at the right edge, all on the row's centre.
  * The whole row is one target; a long press opens its menu (`onContextMenu`).
  */
 export function PhoneStatusRow(
@@ -38,11 +40,10 @@ export function PhoneStatusRow(
     dim?: boolean
     selected?: boolean
     line2: ReactNode
-    top: ReactNode
-    bottom?: string | undefined
+    status: ReactNode
   },
 ) {
-  const { lead, mark, title, dim, selected, line2, top, bottom, ...rest } = props
+  const { lead, mark, title, dim, selected, line2, status, ...rest } = props
   return (
     <button
       type="button"
@@ -56,10 +57,7 @@ export function PhoneStatusRow(
         <span className={`row-title truncate font-sans text-title ${dim ? "text-muted" : "text-ink"}`}>{title}</span>
         <span className={LINE2}>{line2}</span>
       </span>
-      <span className="flex flex-none flex-col items-end gap-0.5 font-mono leading-[1.3]">
-        <span className="text-[13px] text-muted tabular-nums">{top}</span>
-        {bottom && <span className="max-w-24 truncate text-[12px] text-subtle tabular-nums">{bottom}</span>}
-      </span>
+      {status}
     </button>
   )
 }
@@ -67,10 +65,9 @@ export function PhoneStatusRow(
 const HEAD_BUTTON =
   "flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-1.5 border-none bg-transparent p-0 text-left text-inherit [font:inherit] hover:text-ink"
 
-/** A group's header: its name in capitals (a tap folds it), then how many rows it holds and a ⋯ for its actions. */
+/** A group's header: its name in capitals (a tap folds it), then a ⋯ for its actions. */
 export function PhoneGroupHead(props: {
   label: string
-  count: number
   collapsed: boolean
   foldLabel: string
   onToggle: () => void
@@ -89,9 +86,6 @@ export function PhoneGroupHead(props: {
         <span className="truncate tracking-[0.06em] uppercase">{props.label}</span>
         {props.collapsed && <Chevron right />}
       </button>
-      <span className="flex-none font-normal tabular-nums" data-group-count>
-        {String(props.count).padStart(2, "0")}
-      </span>
       {props.more && (
         <button
           type="button"

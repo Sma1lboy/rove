@@ -134,8 +134,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
   }, [wanted, reply])
 
   // The selected routine's runs feed its Enter key, precheck and responses; the log reads its own.
-  // A phone's rows each show their last run's age, so it reads every routine's runs.
-  const selectedRuns = useRoutineRuns(c, phone ? rows.map((r) => r.id) : selected ? [selected.id] : [], tick)
+  const selectedRuns = useRoutineRuns(c, selected ? [selected.id] : [], tick)
   const [sheet, setSheet] = useState(false)
   const runs = selected ? (selectedRuns[selected.id] ?? []) : []
 
@@ -375,8 +374,6 @@ export function RoutinesView({ model }: { model: AppModel }) {
           sections={sections}
           lastRunStatus={lastRunStatus}
           icons={icons}
-          runs={selectedRuns}
-          now={now}
           line2={(routine) => `${cron(routine)} · ${routine.enabled ? when(routine.nextRunAt) : auto.paused}`}
           engine={(routine) => engineOf(routine)?.short}
           onPick={(routine) => {
@@ -391,7 +388,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
               section.rows.length === 0 ? null : (
                 <section key={section.key}>
                   <h2 className={`${KICKER} ${RT_GROUP} ${section === sections[0] ? "text-error" : "text-muted"}`}>
-                    {t(section.key)} <span className="mono">{section.rows.length}</span>
+                    {t(section.key)}
                   </h2>
                   {section.rows.map((routine) => {
                     const index = rows.indexOf(routine)

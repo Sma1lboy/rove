@@ -80,8 +80,6 @@ export type NavRow =
       readonly kind: "state"
       readonly state: RailState
       readonly label: string
-      /** The tasks listed under it, folded or not. */
-      readonly count: number
     })
   /** One pane of a split tab, a quiet row one level under its task (`rail-panes.ts`). */
   | (Remote & {

@@ -196,6 +196,7 @@ function RunRow(props: {
   const duration = runDurationMs(run)
   const taskId = run.taskId
   const line = [
+    props.when(run.at),
     t(`runLog.source.${SOURCES[run.trigger]}`),
     duration !== null ? formatDuration(duration) : null,
     state === "awaiting" ? auto.responseAwaiting : state === "missing" ? auto.responseMissing : null,
@@ -206,8 +207,7 @@ function RunRow(props: {
       mark={null}
       title={`#${run.runNumber} ${props.status}`}
       line2={<span className="min-w-0 truncate">{line.filter(Boolean).join(" · ")}</span>}
-      top={<LookDots look={routineLook(run.status, true)} />}
-      bottom={props.when(run.at)}
+      status={<LookDots look={routineLook(run.status, true)} />}
       disabled={!taskId}
       onClick={() => taskId && props.open(taskId)}
     />

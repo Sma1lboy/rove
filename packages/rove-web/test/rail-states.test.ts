@@ -66,12 +66,10 @@ describe("the by-state rail", () => {
     ).toEqual(["needs", "round", "a1", "a2", "working", "solo"])
   })
 
-  test("a header counts its tasks even folded, and folding it hides them", () => {
+  test("folding a header hides its tasks", () => {
     const rows = railStateRows(
       input([task("a", { rowStatus: status("running") }), task("b", { rowStatus: status("running") })]),
     ).rows
-    const head = rows[0]
-    expect(head?.kind === "state" && head.count).toBe(2)
     expect(foldProjects(rows, new Set(["state:working"])).map((row) => row.id)).toEqual(["state:working"])
   })
 })

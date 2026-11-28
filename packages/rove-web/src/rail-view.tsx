@@ -25,12 +25,12 @@ import { repoLabel } from "./rail-labels.ts"
 import { peekRail, railFolded, railPeek } from "./rail-layout.ts"
 import { PaneRowView, openPane } from "./rail-pane-row.tsx"
 import { withPanes } from "./rail-panes.ts"
-import { PhoneExtensions, PhoneRailNote, PhoneRailRow, PhoneRoutines, groupCounts } from "./rail-phone.tsx"
+import { PhoneExtensions, PhoneRailNote, PhoneRailRow, PhoneRoutines } from "./rail-phone.tsx"
 import { pickClick, pickEscape, pickRowMenu, railPick } from "./rail-pick.tsx"
 import { RoundRowView } from "./rail-round-row.tsx"
 import { RailRow } from "./rail-row.tsx"
 import { SearchChip } from "./rail-search.tsx"
-import { railStateRows, rowRepo, withStateCounts } from "./rail-states.ts"
+import { railStateRows, rowRepo } from "./rail-states.ts"
 import { type NavRow, type RowFold, foldProjects, railRows } from "./rail.ts"
 import { type ProjectInfo, projectMenu, rowSwipe, taskMenu, ungroupedMenu } from "./row-actions.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
@@ -88,7 +88,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   // Archived tasks are not listed: the palette finds them by title and brings one back.
   const rows = filters.search.active
     ? built.rows
-    : foldProjects(withPanes(withStateCounts(built.rows), tabs), filters.collapsed)
+    : foldProjects(withPanes(built.rows, tabs), filters.collapsed)
   const stops = (all: readonly NavRow[]) =>
     all.filter((row) => row.kind !== "project" && row.kind !== "state" && row.kind !== "round")
   const words = (locale === "zh" ? tasksZh : tasksEn).machine
@@ -118,7 +118,6 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const peek = useStore(railPeek) && folded
   const recent = narrow ? (tasks.find((task) => task.id === selection.taskId && !task.deleting) ?? null) : null
   const Row = narrow ? PhoneRailRow : RailRow
-  const counts = narrow ? groupCounts(built.rows) : undefined
 
   return (
     <nav
@@ -210,7 +209,6 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
             <Row
               key={row.id}
               row={row}
-              count={counts?.get(row.id)}
               guides={row.kind === "task" && row.depth > 1 ? treeGuides(rows, i) : undefined}
               cloud={rowCloud(row, machines, words)}
               repo={byState && row.kind === "task" && row.depth === 1 ? rowRepo(row.task) : undefined}
