@@ -428,6 +428,15 @@ button:focus-visible {
   --animate-bubble-in: bubble-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
   /* Three dots taking turns: the wait while a take is turned into text. */
   --animate-dot: dot 1s ease-in-out infinite;
+  /* A QR code settles in where its placeholder was. */
+  --animate-qr-in: qr-in 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  @keyframes qr-in {
+    from {
+      opacity: 0;
+      scale: 0.92;
+      filter: blur(4px);
+    }
+  }
   @keyframes fade-in {
     from {
       opacity: 0;
