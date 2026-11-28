@@ -739,10 +739,13 @@ upgrade that crossed six releases is readable all the way down.
 A fresh install never sees it; there is no earlier version to have changed
 from. Neither does a downgrade.
 
-Each release lists the changes for the terminal first: entries tagged `tui`,
-`cli` or `daemon`, and untagged ones. Changes tagged only for other clients
-(the web, the phone apps) fold under one "Also in this release" line; click it
-to expand them. The Update and Versions pages show notes the same way.
+Each release groups entries into scope sections with the terminal's sections
+first — Terminal (TUI), Command line, Background service and untagged Other —
+each with its count and without redundant inline client tags. Changes tagged
+only for other clients (Phone & iPhone app, Web, Android app) fold under one
+"Also in this release" line; click it to expand them. Patch-only bump headings
+are omitted unless a release includes a minor or major bump. The Update and
+Versions pages show notes the same way.
 
 The dialog chrome follows your UI language (Settings → Appearance → Language).
 The release notes themselves are whatever was published to the
