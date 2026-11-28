@@ -167,7 +167,7 @@ export function assertEngineAcceptsModel(engine: VendorId, model: string, recove
   if (engineEntry(engine).modelArgv) return
   throw new ApiError(`engine ${engine} declares no model flag — it does not accept a model`, "BAD_MODEL", {
     engine,
-    hint: "Only engines that declare a model flag accept one (claude, codex, kimi, pi, omp today); `engine-list` shows `models` per engine.",
+    hint: "Only engines that declare a model flag accept one; `engine-list` shows `models` per engine.",
     nextCommandArgs: [...recover],
   })
 }

@@ -25,12 +25,15 @@ you need git-level isolation and a separate branch.
 | Pi | `pi` | — | ✓ | ✓ | `off`/`minimal`/`low`/`medium`/`high`/`xhigh`/`max` | `--model` (pattern or `provider/id`; listed by `pi --list-models`) |
 | OMP | `omp` | — | ✓ | ✓ | `off`/`minimal`/`low`/`medium`/`high`/`xhigh`/`max` | `--model=` (pattern or `provider/id`; listed by `omp models --json`) |
 | IBM Bob | `bob` | signed in / out | ✓ (screen-based) | ✓ | — | — |
-| Cursor Agent | `cursor` | binary only | ✓ (screen-based, plus a session hook) | — | — | — |
+| Cursor Agent | `cursor` | binary only | ✓ (screen-based, plus a session hook) | — | — | `--model` (not listed: its list verb needs a login) |
+| Antigravity | `antigravity` | binary only | ✓ (screen-based) | — | `low`/`medium`/`high`/`xhigh`/`max` | `--model` (listed by `agy models`) |
+| OpenCode | `opencode` | binary only | ✓ (screen-based, plus a lifecycle plugin) | — | — | `--model` (`provider/model`; listed by `opencode models`) |
+| Gemini CLI | `gemini` | binary only | ✓ (screen-based) | — | — | `--model` (from its docs, untested) |
 | Droid, Devin, Qoder CLI | contrib | binary only | ✓ (screen-based, plus a session hook) | — | — | — |
 | Grok CLI, Hermes Agent | contrib | binary only | ✓ (screen-based, plus a session hook) | — | — | — |
-| OpenCode, Kilo | contrib | binary only | ✓ (screen-based, plus a lifecycle plugin) | — | — | — |
+| Kilo | contrib | binary only | ✓ (screen-based, plus a lifecycle plugin) | — | — | — |
 | MastraCode | contrib | binary only | ✓ (hook-based) | — | — | — |
-| Gemini CLI, Amp, Cline, Kiro CLI, Maki, Antigravity | contrib | binary only | ✓ (screen-based) | — | — | — |
+| Amp, Cline, Kiro CLI, Maki | contrib | binary only | ✓ (screen-based) | — | — | — |
 | Anything you register | custom | binary only | — | — | — | — |
 
 A model is pinned per task in the engine's own spelling (see
@@ -115,7 +118,8 @@ Claude Code accepts `low`, `medium`, `high`, `xhigh`, `max`, passed as
 `--effort <level>`. Codex accepts `none`, `low`, `medium`, `high`, `xhigh`,
 `max`, passed as `-c model_reasoning_effort=<level>`. Pi and OMP take `off`,
 `minimal`, `low`, `medium`, `high`, `xhigh`, `max` as `--thinking <level>` —
-`minimal` in place of Codex's `none`, plus `off`. The remaining engines have no effort flag Rove
+`minimal` in place of Codex's `none`, plus `off`. Antigravity takes `low`,
+`medium`, `high`, `xhigh`, `max` as `--effort <level>`. The remaining engines have no effort flag Rove
 can drive; a selected effort is ignored there rather than passed through.
 
 Three places select one:
@@ -141,10 +145,10 @@ A task can pin a model the same way it pins an effort. The value is passed
 to the engine **verbatim**, in that engine's own spelling — a claude alias
 or full id, a codex slug, a pi/omp fuzzy pattern or `provider/id` — so the
 list an engine can print is a set of suggestions, never a closed list.
-`rove api engine-list` shows each engine's `models`: what `pi --list-models`
-or `omp models --json` answered, a short alias list for claude and codex,
-and `null` for an engine Rove cannot list (kimi's aliases live in its own
-config; copilot has no model flag).
+`rove api engine-list` shows each engine's `models`: what `pi --list-models`,
+`omp models --json`, `agy models` or `opencode models` answered, a short
+alias list for claude and codex, and `null` for an engine Rove cannot list
+(kimi's aliases live in its own config; copilot has no model flag).
 
 The same three places select one:
 
@@ -155,8 +159,8 @@ The same three places select one:
   row in the change-engine picker; empty = the engine's default);
 - `rove api update --task-id ID --model MODEL` from a shell.
 
-An engine that declares no model flag (copilot, contrib, custom) refuses a
-model up front (`BAD_MODEL`) instead of dropping it at launch.
+An engine that declares no model flag (copilot, custom, and the contrib
+engines with — in the table's Model flag column) refuses a model up front (`BAD_MODEL`) instead of dropping it at launch.
 
 A pinned model and effort belong to the engine they were picked for:
 switching a task to another engine without picking new ones clears them, so
