@@ -7,8 +7,8 @@
 
 import { type KeyEvent, decodePasteBytes } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
+import { asAttachmentPaths } from "@sma1lboy/rove-core/lib/attachments.ts"
 import { useEffect, useMemo } from "react"
-import { asAttachmentPaths } from "../../../lib/attachments"
 import {
   COPY_CHORDS,
   DEFAULT_PAGE_SIZE,

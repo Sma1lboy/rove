@@ -1,6 +1,6 @@
+import type { Task, TaskStatus } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, it } from "vitest"
 import { type StatusRuleOrchestrator, maybeAutoStart } from "../../src/monitor/status-rules.ts"
-import type { Task, TaskStatus } from "../../src/types/task.ts"
 
 /**
  * Auto-start rule (web-kanban.md M5, judge-free revision). Load-bearing:

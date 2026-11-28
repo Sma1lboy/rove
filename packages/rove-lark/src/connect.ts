@@ -4,7 +4,7 @@
  */
 
 import { spawnSync } from "node:child_process"
-import type { ChatConnectOutcome } from "@sma1lboy/rove/src/connectors/chat-connector.ts"
+import type { ChatConnectOutcome } from "@sma1lboy/rove-core/connectors/chat-connector.ts"
 import { LARK_CLI, authStatus, botInfo } from "./lark-cli.ts"
 import { DEFAULT_TONE, type LarkConfig, type LarkStore } from "./store.ts"
 

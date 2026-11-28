@@ -15,8 +15,8 @@
  *     rejected with a one-line reason suitable for `console.warn`.
  */
 
+import { isHex, validateTheme } from "@sma1lboy/rove-core/theme/schema.ts"
 import { describe, expect, test } from "vitest"
-import { isHex, validateTheme } from "../../src/theme/schema"
 
 describe("isHex", () => {
   test("accepts 3, 6, and 8 digit hex", () => {

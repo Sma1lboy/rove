@@ -4,10 +4,10 @@
  * in argv. Each machine's credentials stay in that machine's `gh` store.
  */
 
+import { type MachineEntry, dedupeMachines, listMachines } from "@sma1lboy/rove-core/machines/registry.ts"
 import type { ApiEnvelope } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { ApiError } from "../cli/api/types.ts"
 import { forwardVerb, requireMachine } from "../machines/forward.ts"
-import { type MachineEntry, dedupeMachines, listMachines } from "../machines/registry.ts"
 import { DeviceLogin, spawnGhLogin } from "./login.ts"
 import { GH_ENV, GITHUB_HOST, type RunTool, runTool } from "./run-tool.ts"
 import { type GithubStatus, githubStatus } from "./status.ts"

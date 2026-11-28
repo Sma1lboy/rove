@@ -8,8 +8,8 @@
  * to the TUI's `t` and locale.
  */
 
-import { intlLocale, t } from "@/i18n"
-import { type SchedulePreview, previewScheduleWith } from "../../automations/cron-core"
+import { type SchedulePreview, previewScheduleWith } from "@sma1lboy/rove-core/automations/cron-core.ts"
+import { intlLocale, t } from "@sma1lboy/rove-core/i18n/index.ts"
 
 export {
   COMPOSER_FIELDS,
@@ -19,8 +19,8 @@ export {
   canSubmitDraft,
   firstIncompleteField,
   nextComposerField,
-} from "../../automations/automation-composer-core"
-export type { SchedulePreview } from "../../automations/cron-core"
+} from "@sma1lboy/rove-core/automations/automation-composer-core.ts"
+export type { SchedulePreview } from "@sma1lboy/rove-core/automations/cron-core.ts"
 
 /** See {@link previewScheduleWith}. */
 export function previewSchedule(expression: string, nowMs: number): SchedulePreview {

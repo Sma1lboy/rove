@@ -9,7 +9,7 @@ import { protocolEntry } from "@/engine/engine-presets"
 import { engineSessionIdFromTitle } from "@/engine/registry"
 import { discoverSessionId, engineSessionExists } from "@/engine/session-discovery"
 import { deriveTitleFromSessionId } from "@/monitor/auto-title"
-import type { VendorId } from "@/types/vendor"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { useEffect, useState } from "react"
 import {
   type EngineTab,

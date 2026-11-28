@@ -11,9 +11,9 @@
  * `attention`, or a running row reads as settled.
  */
 
-import { DEFAULT_SPINNER_FRAMES } from "@/engine/spinner-frames"
-import { TERMINAL_CLOUD_DOT_ROWS, brailleOf } from "@/lib/cloud-dots"
-import type { GlyphSetName } from "@/state/glyph-set"
+import { DEFAULT_SPINNER_FRAMES } from "../engine/spinner-frames"
+import type { GlyphSetName } from "../state/glyph-set"
+import { TERMINAL_CLOUD_DOT_ROWS, brailleOf } from "./cloud-dots"
 
 export interface GlyphSet {
   /** Running rows; stepped by `breathGlyph`. */

@@ -6,9 +6,9 @@
  * exit 2) and the printed output contract per format.
  */
 
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { type MockInstance, afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import type { Task } from "../../src/types/task.ts"
-import { toTaskId } from "../../src/types/task.ts"
 
 const fake = vi.hoisted(() => ({
   tasks: [] as unknown[],

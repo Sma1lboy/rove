@@ -8,7 +8,7 @@
  * work. Skipped when another ref reaches the tip (the `--no-ff` merge case).
  */
 
-import type { ExecHost } from "../../exec/exec-host.ts"
+import type { ExecHost } from "@sma1lboy/rove-core/exec/exec-host.ts"
 import type { GitRunOpts, GitRunResult } from "./git.ts"
 import { type SalvageRecord, salvageRef } from "./salvage.ts"
 

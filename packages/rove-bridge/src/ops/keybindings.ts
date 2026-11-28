@@ -8,6 +8,12 @@
  * chords in the keymap grammar; the TUI's own writer checks it and refuses what the loader would drop.
  */
 
+import { spawnDetached } from "@sma1lboy/rove-core/lib/spawn-detached.ts"
+import {
+  type KeybindingsFile,
+  readKeybindingsFile,
+  resetKeybindingsFileCache,
+} from "@sma1lboy/rove-core/state/keybindings-file.ts"
 import { roveCliInvocation } from "@sma1lboy/rove/src/cli/invocation.ts"
 import { PREFIX_KEY_ID } from "@sma1lboy/rove/src/keys/chord-recorder.ts"
 import { editableBindings } from "@sma1lboy/rove/src/keys/editable-bindings.ts"
@@ -18,12 +24,6 @@ import { RoveKeymap } from "@sma1lboy/rove/src/keys/keybindings-table.ts"
 import type { KeybindingEdit } from "@sma1lboy/rove/src/keys/keybindings-write.ts"
 import { prefixFirstStrokes } from "@sma1lboy/rove/src/keys/keymap-dispatch.ts"
 import { normalizeChord } from "@sma1lboy/rove/src/keys/keymap-overrides.ts"
-import { spawnDetached } from "@sma1lboy/rove/src/lib/spawn-detached.ts"
-import {
-  type KeybindingsFile,
-  readKeybindingsFile,
-  resetKeybindingsFileCache,
-} from "@sma1lboy/rove/src/state/keybindings-file.ts"
 import { BridgeError, str } from "../protocol.ts"
 import type { Args, OpTable } from "./types.ts"
 

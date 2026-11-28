@@ -6,8 +6,8 @@
  * to the current version.
  */
 
-import { type StateSnapshot, loadStateFile, patchStateFile } from "../state/store.ts"
-import { CURRENT_VERSION, compareSemver } from "../version.ts"
+import { type StateSnapshot, loadStateFile, patchStateFile } from "@sma1lboy/rove-core/state/store.ts"
+import { CURRENT_VERSION, compareSemver } from "@sma1lboy/rove-core/version.ts"
 import { LAST_RUN_VERSION_KEY } from "./reset-gate.ts"
 
 export const WHATS_NEW_SEEN_KEY = "app.whatsNewSeenVersion"

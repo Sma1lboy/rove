@@ -16,10 +16,10 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import { relativeAge } from "@sma1lboy/rove-core/lib/relative-time.ts"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { type ReactNode, useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
-import { relativeAge } from "../../lib/relative-time"
 import { dirtyRefusalReason } from "../../orchestrator/errors"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
 import type { WorktreeAuditRow, WorktreeProject } from "../../types/worktree"

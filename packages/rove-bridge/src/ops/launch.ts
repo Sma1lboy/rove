@@ -5,9 +5,9 @@
  * executable. The editor comes from the Mac's own Settings, the pane's argv from its plugin manifest.
  */
 
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 import { defaultDaemonSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import { listPaneLaunches } from "@sma1lboy/rove-daemon/plugins/pane-command"
-import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove/src/product.ts"
 import { BridgeError, optStr, str } from "../protocol.ts"
 import { flag, tabId, taskId } from "./args.ts"
 import type { OpTable } from "./types.ts"

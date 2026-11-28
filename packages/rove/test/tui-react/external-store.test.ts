@@ -1,9 +1,9 @@
-import { describe, expect, it, vi } from "vitest"
 import {
   clearRecentStateChangesForTest,
   createStateCell,
   recentStateChangesForDiagnostics,
-} from "../../src/lib/external-store"
+} from "@sma1lboy/rove-core/lib/external-store.ts"
+import { describe, expect, it, vi } from "vitest"
 
 describe("createStateCell", () => {
   it("notifies subscribers on change and stops after unsubscribe", () => {

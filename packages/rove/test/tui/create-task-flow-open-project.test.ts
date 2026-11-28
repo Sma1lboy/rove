@@ -9,7 +9,7 @@
 import { beforeEach, describe, expect, test, vi } from "vitest"
 
 const saved = vi.hoisted(() => ({ repos: ["/repos/codefox"] }))
-vi.mock("../../src/state/repos", () => ({
+vi.mock("@sma1lboy/rove-core/state/repos.ts", () => ({
   getSavedRepos: () => saved.repos,
   addSavedRepo: (path: string) => ({ added: false, path, total: 1 }),
 }))
@@ -17,10 +17,10 @@ vi.mock("../../src/engine/account-detect", () => ({
   availableEngineIds: async () => ["claude"],
 }))
 
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import type { RoveOrchestrator } from "../../src/client/remote-orchestrator"
 import type { NewTaskDialogOptions, NewTaskInput } from "../../src/tui/component/new-task-dialog/state"
 import { type CreateTaskContext, createTaskFlow } from "../../src/tui/lib/task-create-flow"
-import type { Task } from "../../src/types/task"
 
 /** `Task.id` is a branded string; tests name rows with plain literals. */
 const SESSION = { id: "session-codefox", kind: "dir", repo: "/repos/codefox" } as unknown as Task

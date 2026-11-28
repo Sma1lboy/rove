@@ -31,7 +31,7 @@
   function icon(name) {
     return '<svg class="d-ic d-ic-' + name + '" aria-hidden="true"><use href="#ic-' + name + '"/></svg>';
   }
-  /* A row's status as the web client's 3×3 dot mark, ported from packages/rove/src/lib/status-dots.ts
+  /* A row's status as the web client's 3×3 dot mark, ported from packages/rove-core/src/lib/status-dots.ts
      (after ELYTerminal's session orb, MIT). Every mark steps on one 80 ms clock: work ripples out
      from the centre, a wait dips twice a round, a settled state draws its shape dot by dot and holds. */
   var STEP_MS = 80;
@@ -73,7 +73,7 @@
     });
   }, STEP_MS);
 
-  /* The small cloud the web rail puts on a task that lives on another machine (rove/src/lib/cloud-dots.ts). */
+  /* The small cloud the web rail puts on a task that lives on another machine (rove-core/src/lib/cloud-dots.ts). */
   var CLOUD = ['..##..', '##..#.', '#....#', '.####.'].map(function (row, y) {
     return row.split('').map(function (cell, x) {
       return cell === '#' ? '<circle cx="' + (x * 2 + 0.75) + '" cy="' + (y * 2 + 0.75) + '" r=".75"/>' : '';

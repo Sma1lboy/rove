@@ -8,7 +8,7 @@
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { setTimeout as sleep } from "node:timers/promises"
-import { roveStateDir } from "@sma1lboy/rove/src/env.ts"
+import { roveStateDir } from "@sma1lboy/rove-core/env.ts"
 import { BridgeError } from "../protocol.ts"
 import { flag, tabId, taskId } from "./args.ts"
 import type { Args, BridgeApi, OpTable } from "./types.ts"

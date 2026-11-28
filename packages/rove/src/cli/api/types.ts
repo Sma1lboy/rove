@@ -3,6 +3,7 @@
  * (`ApiRuntime`, `PromptDeliveryOps`) — importable without the dispatcher.
  */
 
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { AliasTask, PtyScope, TeardownScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import {
   type BuiltinModId,
@@ -11,7 +12,6 @@ import {
   isBuiltinModInstalled,
 } from "@sma1lboy/rove-daemon/plugins/builtin-mods"
 import type { CheckoutUsage } from "../../orchestrator/worktree/disk-usage.ts"
-import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import type { VerbArgs } from "./flags.ts"
 import type { ListeningSocket } from "./listening-ports.ts"

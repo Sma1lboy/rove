@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/react */
 /** The pages the host itself ships, registered as the `core` source. */
 
-import { t } from "../../i18n"
+import { t } from "@sma1lboy/rove-core/i18n/index.ts"
 import { AutomationsPage } from "../component/automations-page"
 import { type PageEntry, type PageProps, setPageSource } from "./registry"
 

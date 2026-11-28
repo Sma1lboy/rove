@@ -8,6 +8,8 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import { displayWidth, padEndCells } from "@sma1lboy/rove-core/lib/display-width.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { ReactNode } from "react"
 import { useEffect, useState } from "react"
 import { humanOnlyFix, noEngineFix } from "../../cli/doctor-fix"
@@ -17,8 +19,6 @@ import { formatChord } from "../../keys/chord-glyphs"
 import { legendCap } from "../../keys/help-groups"
 import { findBinding } from "../../keys/keybindings"
 import { currentPrefixConfiguration } from "../../keys/keymap-dispatch"
-import { displayWidth, padEndCells } from "../../lib/display-width"
-import type { VendorId } from "../../types/vendor"
 import { DoctorSuggestions } from "../component/doctor-suggestions"
 import type { QuickTaskResult } from "../component/quick-task-composer"
 import { useOptionalFocus } from "../context/focus"

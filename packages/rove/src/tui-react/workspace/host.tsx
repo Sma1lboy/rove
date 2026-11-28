@@ -7,11 +7,15 @@
  */
 
 import { useRenderer } from "@opentui/react"
+import { isNarrowWidth } from "@sma1lboy/rove-core/lib/narrow-mode.ts"
+import { linkedWorktree } from "@sma1lboy/rove-core/machines/remote-workspace.ts"
+import {
+  DEFAULT_WORKING_BORDER,
+  WORKING_BORDER_KEY,
+  normalizeWorkingBorder,
+} from "@sma1lboy/rove-core/state/working-border.ts"
 import { isValidElement, useEffect, useRef, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
-import { isNarrowWidth } from "../../lib/narrow-mode"
-import { linkedWorktree } from "../../machines/remote-workspace.ts"
-import { DEFAULT_WORKING_BORDER, WORKING_BORDER_KEY, normalizeWorkingBorder } from "../../state/working-border"
 import { PrefixHud } from "../component/prefix-hud"
 import { ToastOverlay } from "../component/toast-overlay"
 import { useWhatsNewDialog } from "../component/whats-new-dialog"

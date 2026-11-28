@@ -12,9 +12,9 @@ import { execFileSync } from "node:child_process"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { getRepoInitOverride, setRepoInitOverride } from "@sma1lboy/rove-core/state/repos.ts"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
 import { resolveEngineLaunchInit, resolveRepoInit } from "../../src/state/repo-init.ts"
-import { getRepoInitOverride, setRepoInitOverride } from "../../src/state/repos.ts"
 
 let tmpHome: string
 let originalHome: string | undefined

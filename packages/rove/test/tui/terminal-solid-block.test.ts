@@ -1,7 +1,7 @@
+import type { TerminalStyleRewrite } from "@sma1lboy/rove-core/types/terminal-presentation.ts"
 import { Terminal } from "@xterm/headless"
 import { describe, expect, it } from "vitest"
 import { xtermLineToChunks } from "../../src/tui/panes/terminal/xterm-chunks"
-import type { TerminalStyleRewrite } from "../../src/types/terminal-presentation"
 
 async function rowFor(
   bytes: string,

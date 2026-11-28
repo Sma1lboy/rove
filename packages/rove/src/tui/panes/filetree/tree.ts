@@ -1,6 +1,6 @@
 /** Directory tree for the file-tree pane; git-independent. */
 
-import { compareFileEntries } from "../../../lib/file-order"
+import { compareFileEntries } from "@sma1lboy/rove-core/lib/file-order.ts"
 
 export type TreeNode = {
   /** Path segment (last component). Empty for the root. */

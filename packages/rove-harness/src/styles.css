@@ -2,7 +2,7 @@
 
 /*
  * rove-harness — claude theme (dark).
- * Palette mirrors packages/rove/src/theme/claude.json so the
+ * Palette mirrors packages/rove-core/src/theme/claude.json so the
  * web UI is visually the same product as the TUI. Do not invent colors here.
  */
 @theme {

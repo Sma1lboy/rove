@@ -5,7 +5,7 @@
  * yields `null` (the dashboard omits Codex).
  */
 
-import type { EngineQuotaUsage, EngineQuotaWindow } from "@/types/engine"
+import type { EngineQuotaUsage, EngineQuotaWindow } from "@sma1lboy/rove-core/types/engine.ts"
 import { isJsonlLineWithinBound } from "../file-bounds"
 import { type HistoryDeps, defaultHistoryDeps, listRolloutFiles } from "./history"
 

@@ -12,7 +12,8 @@
  */
 
 import { fileURLToPath } from "node:url"
-import pkg from "../package.json" with { type: "json" }
+// The CLI package's manifest: its version is the product version.
+import pkg from "@sma1lboy/rove/package.json" with { type: "json" }
 import { isDev } from "./env.ts"
 import { DEFAULT_RELEASE_CHANNEL, type ReleaseChannel, channelFor } from "./release-channels.ts"
 

@@ -6,10 +6,10 @@
  * dead-shell banner, F5 reset) is documented on `use-terminal-pty.ts`.
  */
 
-import type { EngineTerminalPresentation } from "@/types/terminal-presentation"
 import type { BoxRenderable } from "@opentui/core"
+import { asAttachmentPaths } from "@sma1lboy/rove-core/lib/attachments.ts"
+import type { EngineTerminalPresentation } from "@sma1lboy/rove-core/types/terminal-presentation.ts"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { asAttachmentPaths } from "../../../lib/attachments"
 import { requireMachine } from "../../../machines/forward"
 import { sendFileToMachine } from "../../../machines/send-file"
 import { ImeCursorRetention } from "../../../tui/panes/terminal/ime-cursor"

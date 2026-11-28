@@ -17,8 +17,8 @@ import { constants, accessSync } from "node:fs"
 import { homedir } from "node:os"
 import { basename, delimiter, dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 import pkg from "../../package.json" with { type: "json" }
-import { ROVE_PRODUCT_NAME } from "../product.ts"
 
 /** Point Rove at a specific Bun binary (skips every other candidate). */
 export const BUN_OVERRIDE_ENV = "ROVE_BUN"

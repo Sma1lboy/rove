@@ -4,14 +4,14 @@
  * still-running parent-keyed PTY comes and goes here.
  */
 
+import { PLACEHOLDER_TASK_TITLE, sanitizeTaskTitle } from "@sma1lboy/rove-core/orchestrator/title.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import type { MigratedChildInput } from "@sma1lboy/rove-daemon/daemon/child-contracts"
 import type { TaskPtyAlias } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { lineageRootId } from "@sma1lboy/rove-daemon/task-tree"
-import type { Task } from "../types/task.ts"
 import { TaskDeletingError, TaskNotFoundError } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
 import { sharedChildRow } from "./spawn-child.ts"
-import { PLACEHOLDER_TASK_TITLE, sanitizeTaskTitle } from "./title.ts"
 
 /** The parent's directory as recorded: a boot-time migration must not run `git worktree add`. */
 export async function createMigratedChildRow(

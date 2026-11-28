@@ -7,9 +7,9 @@
  * or get walled off after a harmless patch (trust erosion).
  */
 
+import { breakingVersionsCrossed } from "@sma1lboy/rove-core/version.ts"
 import { describe, expect, test } from "vitest"
 import { resetGateBlockers } from "../../src/cli/reset-gate.ts"
-import { breakingVersionsCrossed } from "../../src/version.ts"
 
 const BREAKING = ["0.8.0", "0.9.5"]
 

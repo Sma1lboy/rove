@@ -18,10 +18,10 @@
  */
 
 import { homedir } from "node:os"
-import { errorMessage } from "@/lib/error-message"
-import { getCustomEngineIds, getDisabledEngineIds } from "@/state/repos"
-import type { VendorId } from "@/types/vendor"
-import { isObject } from "../lib/is-object"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import { isObject } from "@sma1lboy/rove-core/lib/is-object.ts"
+import { getCustomEngineIds, getDisabledEngineIds } from "@sma1lboy/rove-core/state/repos.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { BinaryNotFoundError } from "./binary-discovery"
 import { findBobBinary } from "./bob-local/binary"
 import { findClaudeBinary } from "./claude-code-local/binary"

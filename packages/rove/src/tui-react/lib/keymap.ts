@@ -10,9 +10,9 @@
  * `modalOwner` and settled by `insertRegistration`, not by order.
  */
 
-import { profileTick } from "@/lib/render-profile"
 import type { KeyEvent, KeyHandler } from "@opentui/core"
 import { flushSync, useRenderer } from "@opentui/react"
+import { profileTick } from "@sma1lboy/rove-core/lib/render-profile.ts"
 import { createContext, useContext, useEffect, useRef, useSyncExternalStore } from "react"
 import { type CtrlHoldDetector, createCtrlHoldDetector } from "../../keys/ctrl-hold"
 import {

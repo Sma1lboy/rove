@@ -1,5 +1,5 @@
+import { updaterShell, updaterShellFailureHint } from "@sma1lboy/rove-core/lib/updater-shell.ts"
 import { describe, expect, it } from "vitest"
-import { updaterShell, updaterShellFailureHint } from "../../src/lib/updater-shell.ts"
 
 describe("updaterShell", () => {
   it("stays bare `sh` on POSIX — never $SHELL", () => {

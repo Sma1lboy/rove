@@ -1,7 +1,7 @@
 /** What a bridge start prints: where it listens, and the links to open or pair with. */
 
 import { join } from "node:path"
-import { CURRENT_VERSION } from "@sma1lboy/rove/src/version.ts"
+import { CURRENT_VERSION } from "@sma1lboy/rove-core/version.ts"
 import { renderUnicodeCompact } from "uqr"
 import { pairingUrl, relayLink, webUrl } from "./auth.ts"
 import type { BridgeArgs } from "./cli-args.ts"

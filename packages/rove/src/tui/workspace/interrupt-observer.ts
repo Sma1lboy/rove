@@ -15,8 +15,8 @@
  * move away from `running` in the window disarms; Stop always wins.
  */
 
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { engineTitleTurnHint } from "../../engine/registry"
-import type { VendorId } from "../../types/vendor"
 
 /**
  * Must outlive a natural end's title→Stop gap (a spawned `rove hook` + one

@@ -18,11 +18,11 @@
  */
 
 import { readFileSync } from "node:fs"
+import { ENGINE_ACTIVITY_KINDS } from "@sma1lboy/rove-core/engine/hook-events.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { type SkillCopyState, engineSkillDir, readSkillCopy } from "../lib/skill-install.ts"
-import type { VendorId } from "../types/vendor.ts"
 import { type EngineHookAdapter, activityHookAdapters } from "./hook-adapter.ts"
 import { hookConfigIssues } from "./hook-config-check.ts"
-import { ENGINE_ACTIVITY_KINDS } from "./hook-events.ts"
 import { ROVE_HOOK_VERSION } from "./json-hooks.ts"
 import { engineEntry } from "./registry.ts"
 

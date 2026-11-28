@@ -5,13 +5,13 @@
  * `[text](url)`, `` `code` `` and `**bold**` — built as React elements, never as HTML.
  */
 
-import { en as upEn, zh as upZh } from "@sma1lboy/rove/src/i18n/messages/update.ts"
+import { en as upEn, zh as upZh } from "@sma1lboy/rove-core/i18n/messages/update.ts"
 import {
   type BumpGroup,
   type NoteScope,
   WEB_NOTE_CLIENTS,
   groupReleaseNotes,
-} from "@sma1lboy/rove/src/lib/release-note-clients.ts"
+} from "@sma1lboy/rove-core/lib/release-note-clients.ts"
 import type { ReactNode } from "react"
 import { useLocale } from "./i18n/index.ts"
 import {

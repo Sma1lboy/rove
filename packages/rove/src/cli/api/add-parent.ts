@@ -5,11 +5,11 @@
  * `task.spawn`; everything else is `task.create`.
  */
 
+import { isRemoteRepoKey } from "@sma1lboy/rove-core/state/repos.ts"
 import { resolvePtyOwner } from "@sma1lboy/rove-daemon/daemon/cwd-task"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { lineageRootId } from "@sma1lboy/rove-daemon/task-tree"
-import { isRemoteRepoKey } from "../../state/repos.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { verifiedSelfSession } from "./dispatcher.ts"
 import { ApiError, type VerbContext, helpStep } from "./types.ts"

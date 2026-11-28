@@ -8,16 +8,11 @@
 
 import { type DiffRenderable, TextAttributes } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
-import { useEffect, useMemo, useRef, useState } from "react"
-import { execHostForWorktreePath } from "../../exec/resolve"
-import { bindByIds } from "../../keys/keybindings"
-import { errorMessage } from "../../lib/error-message"
-import { formatBytes } from "../../lib/format-bytes"
-import { openWithSystemViewer } from "../../lib/open-external"
-import { remotePreview } from "../../machines/remote-worktree.ts"
-import { buildSyntaxStyle } from "../../tui/ops/preview-syntax"
-import { worktreeFilePath } from "../../worktree/content"
-import type { DiffReviewApi } from "../../worktree/diff-comments"
+import { execHostForWorktreePath } from "@sma1lboy/rove-core/exec/resolve.ts"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import { formatBytes } from "@sma1lboy/rove-core/lib/format-bytes.ts"
+import { worktreeFilePath } from "@sma1lboy/rove-core/worktree/content.ts"
+import type { DiffReviewApi } from "@sma1lboy/rove-core/worktree/diff-comments.ts"
 import {
   type PatchNote,
   type PreviewData,
@@ -28,7 +23,12 @@ import {
   loadPreviewData,
   patchFirstLine,
   unifiedDiffFiles,
-} from "../../worktree/preview-core"
+} from "@sma1lboy/rove-core/worktree/preview-core.ts"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { bindByIds } from "../../keys/keybindings"
+import { openWithSystemViewer } from "../../lib/open-external"
+import { remotePreview } from "../../machines/remote-worktree.ts"
+import { buildSyntaxStyle } from "../../tui/ops/preview-syntax"
 import { useDiffInks } from "../context/diff-inks"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"

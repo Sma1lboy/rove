@@ -2,8 +2,8 @@ import { execFileSync } from "node:child_process"
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { matchRepo, normalizeRemoteUrl, unpushedCommits } from "@sma1lboy/rove-core/machines/repo-identity.ts"
 import { describe, expect, test } from "vitest"
-import { matchRepo, normalizeRemoteUrl, unpushedCommits } from "../../src/machines/repo-identity.ts"
 
 describe("normalizeRemoteUrl", () => {
   test("every common form of one GitHub remote compares equal", () => {

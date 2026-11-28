@@ -21,8 +21,10 @@ beforeAll(() => {
   vi.stubEnv("ROVE_DEV", "0")
   return () => vi.unstubAllEnvs()
 })
+import { computeNextAllowedAt, shouldPoll } from "@sma1lboy/rove-core/lib/poll-scheduling.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { type Binding, type RegisteredBinding, dispatchKeyEvent } from "../../src/keys/keymap-dispatch"
-import { computeNextAllowedAt, shouldPoll } from "../../src/lib/poll-scheduling"
 import { breathGlyph } from "../../src/tui/lib/breathe"
 import { buildSidebarRowView, withSpinnerFrame } from "../../src/tui/panes/sidebar/row-view"
 import {
@@ -30,8 +32,6 @@ import {
   POLL_TIMEOUT_MS,
   SLOW_REPO_RETRY_MS,
 } from "../../src/tui/panes/sidebar/worktree-changes-poller"
-import type { Task } from "../../src/types/task"
-import { toTaskId } from "../../src/types/task"
 
 function task(overrides: Omit<Partial<Task>, "id"> & { id?: string } = {}): Task {
   return {

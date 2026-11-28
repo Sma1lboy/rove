@@ -1,5 +1,5 @@
+import { formatBytes } from "@sma1lboy/rove-core/lib/format-bytes.ts"
 import { describe, expect, test } from "vitest"
-import { formatBytes } from "../../src/lib/format-bytes.ts"
 
 describe("formatBytes", () => {
   test("picks a sane unit", () => {

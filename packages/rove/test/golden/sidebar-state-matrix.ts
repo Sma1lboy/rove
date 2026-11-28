@@ -20,13 +20,13 @@
  * while investigating a diff.
  */
 
-import { DEFAULT_SPINNER_FRAMES } from "@/engine/spinner-frames"
 import type { SidebarRowView } from "@/tui/panes/sidebar/row-view"
 import { buildSidebarRowView, rowIsLoading, withSpinnerFrame } from "@/tui/panes/sidebar/row-view"
 import { tabRowActivity } from "@/tui/panes/sidebar/tree-core"
 import { truncateBranchLabel } from "@/tui/panes/sidebar/view-core"
-import { type Task, type TaskDeletionPhase, type TaskStatus, toTaskId } from "@/types/task"
-import { BUILTIN_VENDORS } from "@/types/vendor"
+import { DEFAULT_SPINNER_FRAMES } from "@sma1lboy/rove-core/engine/spinner-frames.ts"
+import { type Task, type TaskDeletionPhase, type TaskStatus, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
+import { BUILTIN_VENDORS } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { RowStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { pad } from "./golden-file"
 

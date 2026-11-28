@@ -1,3 +1,4 @@
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 /**
  * Inbox card presentation — the glyph/word/resume-note mapping.
  *
@@ -9,7 +10,6 @@
  */
 import { describe, expect, it } from "vitest"
 import { itemGlyph, itemStateKey, quotaResumeNote } from "../../src/tui-react/workspace/inbox-item-view"
-import type { Task } from "../../src/types/task"
 
 const t = (key: string, params?: Record<string, string>) => (params ? `${key}:${Object.values(params).join(",")}` : key)
 const armed = (resumeAt: string) => ({ quotaResume: { resumeAt } }) as Pick<Task, "quotaResume">

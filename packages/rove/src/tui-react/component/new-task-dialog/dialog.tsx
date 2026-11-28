@@ -9,9 +9,9 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import { DEFAULT_BASE_REF } from "@sma1lboy/rove-core/worktree/git-snapshot.ts"
 import { type DialogTab, splitRepoRow } from "../../../tui/component/new-task-dialog/state"
 import { effortLabel } from "../../../tui/lib/effort-glyph"
-import { DEFAULT_BASE_REF } from "../../../worktree/git-snapshot"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { useTerminalSize } from "../../lib/use-terminal-size"

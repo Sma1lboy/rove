@@ -16,9 +16,9 @@
 
 import { existsSync } from "node:fs"
 import { dirname, join } from "node:path"
+import type { EngineActivityDetail } from "@sma1lboy/rove-core/engine/hook-events.ts"
 import { type FlatHookFormat, mergeFlatHooks, parseFlatHooks } from "../flat-hooks.ts"
 import type { EngineHookAdapter, EngineSessionRef } from "../hook-adapter.ts"
-import type { EngineActivityDetail } from "../hook-events.ts"
 import { editJsonSettings } from "../json-hook-adapter.ts"
 import type { HookEditOutcome, HookEventSpec, HookSettingsParse } from "../json-hooks.ts"
 import { vendorConfigHome } from "../vendor-home.ts"

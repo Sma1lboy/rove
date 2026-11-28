@@ -4,10 +4,10 @@
  */
 
 import { availableEngineIds } from "@/engine/account-detect"
-import { t } from "@/i18n"
-import { errorMessage } from "@/lib/error-message"
-import { addSavedRepo, getSavedRepos, resolveMainRepoRoot } from "@/state/repos"
-import { DEFAULT_TASK_VENDOR, type VendorId } from "@/types/task"
+import { t } from "@sma1lboy/rove-core/i18n/index.ts"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import { addSavedRepo, getSavedRepos, resolveMainRepoRoot } from "@sma1lboy/rove-core/state/repos.ts"
+import { DEFAULT_TASK_VENDOR, type VendorId } from "@sma1lboy/rove-core/types/task.ts"
 import type { NewTaskDialogOptions, NewTaskInput } from "../component/new-task-dialog/state"
 import type { TaskActionContext } from "./task-actions"
 

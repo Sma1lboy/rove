@@ -5,11 +5,11 @@
  */
 
 import { expect, test } from "bun:test"
-import { createStateCell } from "../../src/lib/external-store"
-import { patchStateFile } from "../../src/state/store"
+import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
+import { patchStateFile } from "@sma1lboy/rove-core/state/store.ts"
+import type { EngineQuotaUsage } from "@sma1lboy/rove-core/types/engine.ts"
 import type { RemoteOrchestrator } from "../../src/tui-react/../client/remote-orchestrator"
 import { WorkspaceFrame } from "../../src/tui-react/workspace/host-footer"
-import type { EngineQuotaUsage } from "../../src/types/engine"
 import { isolateHome, renderComponent } from "./harness"
 
 /** Minimal stand-in: the footer reads the quota map and the per-session

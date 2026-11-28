@@ -13,8 +13,8 @@
 
 import { readdir } from "node:fs/promises"
 import { join } from "node:path"
-import { parseNumstatRows, parsePorcelainRows, unquoteGitPath } from "@/lib/git-parsers"
 import { execHostForWorktreePath } from "../exec/resolve.ts"
+import { parseNumstatRows, parsePorcelainRows, unquoteGitPath } from "../lib/git-parsers"
 import { readLocalWorktreeHead, readWorktreeFile, runWorktreeGit } from "./content.ts"
 
 /**

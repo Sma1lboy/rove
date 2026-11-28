@@ -12,88 +12,88 @@
  * commands, classifier endpoints and secrets.
  */
 
-import { DEFAULT_LOCALE, LOCALES, isLocaleId } from "@sma1lboy/rove/src/i18n/catalog.ts"
-import {
-  DEFAULT_PREFIX_TAP_PRESENTATION,
-  PREFIX_TAP_PRESENTATIONS,
-  PREFIX_TAP_PRESENTATION_KEY,
-  normalizePrefixTapPresentation,
-} from "@sma1lboy/rove/src/keys/prefix-tap-presentation.ts"
+import { DEFAULT_LOCALE, LOCALES, isLocaleId } from "@sma1lboy/rove-core/i18n/catalog.ts"
 import {
   DEFAULT_EDITOR_KIND,
   EDITOR_CUSTOM_KEY,
   EDITOR_KINDS,
   EDITOR_KIND_KEY,
   normalizeEditorKind,
-} from "@sma1lboy/rove/src/lib/editor-prefs.ts"
-import { FINISHED_ALERTS_KEY } from "@sma1lboy/rove/src/lib/notify-state.ts"
-import { defaultTransparentBackground } from "@sma1lboy/rove/src/lib/persisted-ui-prefs.ts"
-import { RELEASE_CHANNELS } from "@sma1lboy/rove/src/release-channels.ts"
-import { appearanceChoices } from "@sma1lboy/rove/src/settings/appearance.ts"
-import { AUTO_STATUS_KEY } from "@sma1lboy/rove/src/state/auto-status.ts"
-import { COLORBLIND_KEY, DEFAULT_COLORBLIND, normalizeColorblind } from "@sma1lboy/rove/src/state/colorblind.ts"
-import { DISPATCHER_KEY } from "@sma1lboy/rove/src/state/dispatcher.ts"
-import { DEFAULT_GLYPH_SET, GLYPH_SET_KEY, normalizeGlyphSet } from "@sma1lboy/rove/src/state/glyph-set.ts"
-import { PERMISSION_BYPASS_KEY } from "@sma1lboy/rove/src/state/permission-bypass.ts"
+} from "@sma1lboy/rove-core/lib/editor-prefs.ts"
+import { FINISHED_ALERTS_KEY } from "@sma1lboy/rove-core/lib/notify-state.ts"
+import { defaultTransparentBackground } from "@sma1lboy/rove-core/lib/persisted-ui-prefs.ts"
+import { RELEASE_CHANNELS } from "@sma1lboy/rove-core/release-channels.ts"
+import { AUTO_STATUS_KEY } from "@sma1lboy/rove-core/state/auto-status.ts"
+import { COLORBLIND_KEY, DEFAULT_COLORBLIND, normalizeColorblind } from "@sma1lboy/rove-core/state/colorblind.ts"
+import { DISPATCHER_KEY } from "@sma1lboy/rove-core/state/dispatcher.ts"
+import { DEFAULT_GLYPH_SET, GLYPH_SET_KEY, normalizeGlyphSet } from "@sma1lboy/rove-core/state/glyph-set.ts"
 import {
   DEFAULT_RUNNING_TITLE,
   RUNNING_TITLE_KEY,
   normalizeRunningTitle,
-} from "@sma1lboy/rove/src/state/running-title.ts"
+} from "@sma1lboy/rove-core/state/running-title.ts"
 import {
   DEFAULT_SCROLLBACK_ROWS,
   SCROLLBACK_ROWS_KEY,
   SCROLLBACK_ROWS_MAX,
   SCROLLBACK_ROWS_MIN,
   normalizeScrollbackRows,
-} from "@sma1lboy/rove/src/state/scrollback.ts"
-import { RAIL_FOLD_STYLE_KEY } from "@sma1lboy/rove/src/state/sidebar-collapsed.ts"
+} from "@sma1lboy/rove-core/state/scrollback.ts"
+import { RAIL_FOLD_STYLE_KEY } from "@sma1lboy/rove-core/state/sidebar-collapsed.ts"
 import {
   DEFAULT_SOUND_VOLUME,
   SOUND_VOLUME_KEY,
   SOUND_VOLUME_STEPS,
   normalizeSoundVolume,
-} from "@sma1lboy/rove/src/state/sound-volume.ts"
-import { SPLIT_STYLE_KEY, normalizeSplitStyle } from "@sma1lboy/rove/src/state/split-style.ts"
+} from "@sma1lboy/rove-core/state/sound-volume.ts"
+import { SPLIT_STYLE_KEY, normalizeSplitStyle } from "@sma1lboy/rove-core/state/split-style.ts"
 import {
   STATUS_MARKS,
   STATUS_MARK_KEY,
   STATUS_MARK_NOTICE_KEY,
   normalizeStatusMark,
-} from "@sma1lboy/rove/src/state/status-mark.ts"
-import type { StateSnapshot } from "@sma1lboy/rove/src/state/store.ts"
+} from "@sma1lboy/rove-core/state/status-mark.ts"
+import type { StateSnapshot } from "@sma1lboy/rove-core/state/store.ts"
 import {
   TAB_STRIP_HIDE_SINGLE_KEY,
   TAB_STRIP_MODES,
   TAB_STRIP_MODE_KEY,
   resolveTabStripMode,
-} from "@sma1lboy/rove/src/state/tab-strip.ts"
-import { DEFAULT_TASK_COLORS, TASK_COLORS_KEY, normalizeTaskColors } from "@sma1lboy/rove/src/state/task-colors.ts"
+} from "@sma1lboy/rove-core/state/tab-strip.ts"
+import { DEFAULT_TASK_COLORS, TASK_COLORS_KEY, normalizeTaskColors } from "@sma1lboy/rove-core/state/task-colors.ts"
 import {
   UPDATE_CHANNEL_KEY,
   UPDATE_NOTIFY_KEY,
   normalizeReleaseChannel,
-} from "@sma1lboy/rove/src/state/update-channel.ts"
-import { USAGE_SHOWS, USAGE_SHOW_KEY, normalizeUsageShow } from "@sma1lboy/rove/src/state/usage-show.ts"
+} from "@sma1lboy/rove-core/state/update-channel.ts"
+import { USAGE_SHOWS, USAGE_SHOW_KEY, normalizeUsageShow } from "@sma1lboy/rove-core/state/usage-show.ts"
 import {
   DEFAULT_WORKING_BORDER,
   WORKING_BORDER_KEY,
   normalizeWorkingBorder,
-} from "@sma1lboy/rove/src/state/working-border.ts"
+} from "@sma1lboy/rove-core/state/working-border.ts"
 import {
   PROJECT_SIBLING_BASE,
   WORKTREE_BASE_CUSTOM_KEY,
   WORKTREE_BASE_KEY,
   type WorktreeBaseKind,
   worktreeBaseKindOf,
-} from "@sma1lboy/rove/src/state/worktree-base.ts"
+} from "@sma1lboy/rove-core/state/worktree-base.ts"
 import {
   DEFAULT_THEME,
   DEFAULT_THEME_MODE,
   FOCUS_ACCENT_SLOTS,
   THEME_MODE_PREFERENCES,
-} from "@sma1lboy/rove/src/theme/theme-data.ts"
-import { channelOf } from "@sma1lboy/rove/src/version.ts"
+} from "@sma1lboy/rove-core/theme/theme-data.ts"
+import { channelOf } from "@sma1lboy/rove-core/version.ts"
+import {
+  DEFAULT_PREFIX_TAP_PRESENTATION,
+  PREFIX_TAP_PRESENTATIONS,
+  PREFIX_TAP_PRESENTATION_KEY,
+  normalizePrefixTapPresentation,
+} from "@sma1lboy/rove/src/keys/prefix-tap-presentation.ts"
+import { appearanceChoices } from "@sma1lboy/rove/src/settings/appearance.ts"
+import { PERMISSION_BYPASS_KEY } from "@sma1lboy/rove/src/state/permission-bypass.ts"
 import { BridgeError } from "../protocol.ts"
 
 export type Scalar = string | number | boolean

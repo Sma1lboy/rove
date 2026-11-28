@@ -4,7 +4,7 @@
  * worktree, a branch with unmerged commits).
  */
 
-import { errorMessage } from "@/lib/error-message"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 import type { LandResult } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { TeardownScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"

@@ -17,12 +17,12 @@
  * has and the target lacks, so ignored files are never in its way.
  */
 
+import type { ExecHost } from "@sma1lboy/rove-core/exec/exec-host.ts"
 import type {
   CheckpointRecord,
   RewindResult,
   TakeCheckpointResult,
 } from "@sma1lboy/rove-daemon/daemon/checkpoint-contracts"
-import type { ExecHost } from "../../exec/exec-host.ts"
 import type { GitRunOpts, GitRunResult } from "./git.ts"
 
 /** The git primitive checkpoints borrow from the manager (same shape as `SalvageDeps`). */

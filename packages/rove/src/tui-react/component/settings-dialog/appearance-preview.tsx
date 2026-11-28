@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 import { TextAttributes } from "@opentui/core"
-import { GLYPH_SETS } from "../../../lib/glyphs"
+import { GLYPH_SETS } from "@sma1lboy/rove-core/lib/glyphs.ts"
 import type { AppearanceSetting, AppearanceSnapshot } from "../../../settings/appearance"
 import { diffInks } from "../../../tui/context/theme-core"
 import { TASK_PARTNER_HUE_DEG } from "../../../tui/lib/border-flow"

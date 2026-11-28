@@ -7,9 +7,9 @@
  * launch the pins on an engine nobody checked them against.
  */
 
+import { DEFAULT_TASK_VENDOR } from "@sma1lboy/rove-core/types/task.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { Automation } from "@sma1lboy/rove-daemon/daemon/contracts"
-import { DEFAULT_TASK_VENDOR } from "../../types/task.ts"
-import type { VendorId } from "../../types/vendor.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { assertEngineAcceptsEffort, assertEngineAcceptsModel, taskEngine } from "./handlers-engines.ts"
 import type { VerbContext } from "./types.ts"

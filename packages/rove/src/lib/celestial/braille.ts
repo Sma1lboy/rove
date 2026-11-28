@@ -1,4 +1,4 @@
-import { COLS, NONE, ROWS } from "./grid.ts"
+import { COLS, NONE, ROWS } from "@sma1lboy/rove-core/lib/celestial/grid.ts"
 
 /** One run of braille characters sharing an ink. */
 export interface BrailleRun {

@@ -1,5 +1,5 @@
+import { currentLang, setLocaleLang } from "@sma1lboy/rove-core/i18n/index.ts"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
-import { currentLang, setLocaleLang } from "../../src/i18n"
 import {
   COMPOSER_FIELDS,
   type ComposerDraft,

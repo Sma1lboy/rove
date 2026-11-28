@@ -3,10 +3,10 @@ import { afterAll, beforeAll, expect, test } from "bun:test"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { type KVContext, useKV } from "../../src/tui-react/context/kv"
 import { AttentionInboxPane } from "../../src/tui-react/workspace/AttentionInboxPane"
 import { readInboxVisits, writeInboxVisit } from "../../src/tui-react/workspace/inbox-visits"
-import { type Task, toTaskId } from "../../src/types/task"
 import { act, renderComponent } from "./harness"
 
 let previousHome: string | undefined

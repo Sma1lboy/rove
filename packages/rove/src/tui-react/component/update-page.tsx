@@ -9,9 +9,7 @@
 
 import { TextAttributes } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
-import { useEffect, useState } from "react"
-import { openWithSystemViewer } from "../../lib/open-external.ts"
-import { preferredReleaseChannel } from "../../state/update-channel.ts"
+import { preferredReleaseChannel } from "@sma1lboy/rove-core/state/update-channel.ts"
 import {
   CURRENT_VERSION,
   type ReleaseNotesRangeItem,
@@ -20,7 +18,9 @@ import {
   fetchReleaseNotesRange,
   releasePageUrl,
   updateCommandFor,
-} from "../../version.ts"
+} from "@sma1lboy/rove-core/version.ts"
+import { useEffect, useState } from "react"
+import { openWithSystemViewer } from "../../lib/open-external.ts"
 import { useTheme } from "../context/theme"
 import { currentLang, useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"

@@ -10,11 +10,11 @@
 
 import { planRound } from "@/core/round"
 import { type RoundOrchestrator, runQuickForkRound } from "@/tui-react/workspace/quick-fork-round"
-import type { Task } from "@/types/task"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, it, vi } from "vitest"
 
-vi.mock("@/state/repos", () => ({ addSavedRepo: () => {} }))
-vi.mock("@/state/vendor-prefs", () => ({ setLastActiveVendor: () => {} }))
+vi.mock("@sma1lboy/rove-core/state/repos.ts", () => ({ addSavedRepo: () => {} }))
+vi.mock("@sma1lboy/rove-core/state/vendor-prefs.ts", () => ({ setLastActiveVendor: () => {} }))
 
 describe("planRound", () => {
   it("a single attempt is not a round", () => {

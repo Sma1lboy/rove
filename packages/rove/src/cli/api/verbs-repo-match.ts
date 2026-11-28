@@ -6,8 +6,7 @@
  * `rove api repo-list --machine <alias>` read.
  */
 
-import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { normalizeRemoteUrl, repoIdentity } from "../../machines/repo-identity.ts"
+import { normalizeRemoteUrl, repoIdentity } from "@sma1lboy/rove-core/machines/repo-identity.ts"
 import {
   type Checkout,
   findCheckouts,
@@ -15,8 +14,9 @@ import {
   pickCheckout,
   primaryCheckouts,
   repoIdOf,
-} from "../../machines/repo-ref.ts"
-import { getSavedRepos } from "../../state/repos.ts"
+} from "@sma1lboy/rove-core/machines/repo-ref.ts"
+import { getSavedRepos } from "@sma1lboy/rove-core/state/repos.ts"
+import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 

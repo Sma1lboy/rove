@@ -8,9 +8,9 @@
  * adds `error_type`/permission decoding + legacy `WorktreeCreate` cleanup).
  */
 
-import type { VendorId } from "../types/vendor.ts"
+import type { EngineActivityDetail, EngineActivityKind } from "@sma1lboy/rove-core/engine/hook-events.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { EngineHookAdapter, EngineSessionRef } from "./hook-adapter.ts"
-import type { EngineActivityDetail, EngineActivityKind } from "./hook-events.ts"
 import {
   GATED_TOOL_VERBS,
   type HookEditOutcome,

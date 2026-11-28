@@ -11,10 +11,10 @@ import { promises as fs, readFileSync } from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { promisify } from "node:util"
+import { getPersistedString } from "@sma1lboy/rove-core/state/repos.ts"
 import type { CheckpointRecord, TakeCheckpointResult } from "@sma1lboy/rove-daemon/daemon/checkpoint-contracts"
 import { LAUNCH_PREFIX_FILE } from "@sma1lboy/rove-daemon/daemon/pty-host-types"
 import { WORKSPACE_CAPABILITIES } from "@sma1lboy/rove-daemon/workspace"
-import { getPersistedString } from "../../state/repos.ts"
 import { worktreePathFor } from "../worktree/paths.ts"
 import type {
   DisposeTarget,

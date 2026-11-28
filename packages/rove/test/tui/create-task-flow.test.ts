@@ -14,7 +14,7 @@
 
 import { describe, expect, test, vi } from "vitest"
 
-vi.mock("../../src/state/repos", () => ({
+vi.mock("@sma1lboy/rove-core/state/repos.ts", () => ({
   getSavedRepos: () => ["/repo"],
   addSavedRepo: (p: string) => mockAddSavedRepo(p),
   resolveMainRepoRoot: (p: string) => mockMainRoot(p),

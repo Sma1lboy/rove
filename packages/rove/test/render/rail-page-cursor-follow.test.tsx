@@ -12,8 +12,8 @@
  */
 
 import { expect, test } from "bun:test"
+import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
 import { KanbanPage } from "../../src/bundled-plugins/kanban/kanban-page"
-import { createStateCell } from "../../src/lib/external-store"
 import { AutomationsPage } from "../../src/tui-react/component/automations-page"
 import { act, isolateHome, renderComponent, waitForFrameText } from "./harness"
 

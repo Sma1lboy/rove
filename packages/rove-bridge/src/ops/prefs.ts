@@ -8,11 +8,11 @@
  * A running TUI picks every key up live from the daemon's `state` push.
  */
 
-import { GLYPH_SETS } from "@sma1lboy/rove/src/lib/glyphs.ts"
-import { type StateSnapshot, loadStateFile, updateStateFile } from "@sma1lboy/rove/src/state/store.ts"
-import { BUNDLED_THEME_JSONS } from "@sma1lboy/rove/src/theme/bundled.ts"
-import { loadUserThemes } from "@sma1lboy/rove/src/theme/loader.ts"
-import type { ThemeJson } from "@sma1lboy/rove/src/theme/theme-data.ts"
+import { GLYPH_SETS } from "@sma1lboy/rove-core/lib/glyphs.ts"
+import { type StateSnapshot, loadStateFile, updateStateFile } from "@sma1lboy/rove-core/state/store.ts"
+import { BUNDLED_THEME_JSONS } from "@sma1lboy/rove-core/theme/bundled.ts"
+import { loadUserThemes } from "@sma1lboy/rove-core/theme/loader.ts"
+import type { ThemeJson } from "@sma1lboy/rove-core/theme/theme-data.ts"
 import { BridgeError } from "../protocol.ts"
 import { PREF_DEFS, type PrefDef, checkPrefValue, prefInfo } from "./prefs-defs.ts"
 import { palette, taskColors } from "./theme-palette.ts"

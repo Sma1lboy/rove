@@ -1,8 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /** A muted task stops toasting while it keeps its unread dot; its failures still show, and other tasks are untouched. */
 import { expect, test } from "bun:test"
+import { MUTED_TASKS_KEY, toggleMutedTask } from "@sma1lboy/rove-core/lib/notify-state.ts"
 import { useEffect } from "react"
-import { MUTED_TASKS_KEY, toggleMutedTask } from "../../src/lib/notify-state"
 import { ToastOverlay } from "../../src/tui-react/component/toast-overlay"
 import { useKV } from "../../src/tui-react/context/kv"
 import { useNotifications } from "../../src/tui-react/context/notifications"

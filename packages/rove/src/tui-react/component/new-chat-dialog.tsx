@@ -16,8 +16,8 @@
  * `use-tab-dialogs.ts`.
  */
 
-import { DEFAULT_TASK_VENDOR } from "@/types/task"
-import { ALL_VENDORS, type VendorId } from "@/types/vendor"
+import { DEFAULT_TASK_VENDOR } from "@sma1lboy/rove-core/types/task.ts"
+import { ALL_VENDORS, type VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { useState } from "react"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"

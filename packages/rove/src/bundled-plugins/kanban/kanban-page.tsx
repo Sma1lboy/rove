@@ -13,12 +13,12 @@
  */
 
 import { type BoxRenderable, TextAttributes } from "@opentui/core"
+import type { TaskGroup } from "@sma1lboy/rove-core/lib/task-group.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/task.ts"
 import type { Issue, IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import type { RemoteOrchestrator, TaskEngineState } from "../../client/remote-orchestrator"
-import type { TaskGroup } from "../../lib/task-group"
 import type { IssueChatStart } from "../../tui-react/workspace/use-issue-chat"
-import type { VendorId } from "../../types/task"
 import { host, hostFn } from "./host"
 import { IssueDetailDialog } from "./issue-detail-dialog"
 import { KanbanBoard, needsSingleLane } from "./kanban-board"

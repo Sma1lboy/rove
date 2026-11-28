@@ -5,7 +5,7 @@
  * in `turn-polls.ts`'s header).
  */
 
-import type { VendorId } from "@/types/vendor"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { leaves } from "../../tabs/split-core"
 import { type TerminalTab, hasEngineLeaf, splitLeafPtyKey, tabPtyKey } from "../../tabs/terminal-tabs-core"
 

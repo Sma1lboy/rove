@@ -5,10 +5,10 @@
  * `Orchestrator.ensureWorktree` does.
  */
 
+import type { Task, TaskId } from "@sma1lboy/rove-core/types/task.ts"
 import type { CheckpointOrchestrator } from "@sma1lboy/rove-daemon/daemon/checkpoint-contracts"
 import { gitRepoOf } from "@sma1lboy/rove-daemon/task-tree"
 import { workspaceBackendId, workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
-import type { Task, TaskId } from "../types/task.ts"
 import type { TaskIndexStore } from "./index/store.ts"
 import type { WorkspaceCheckpointer, WorkspaceRegistry } from "./workspace/index.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"

@@ -1,5 +1,9 @@
+import {
+  buildOpenWorktreeCommand,
+  detectWorktreeOpener,
+  openWorktree,
+} from "@sma1lboy/rove-core/worktree/worktree-opener.ts"
 import { describe, expect, it, vi } from "vitest"
-import { buildOpenWorktreeCommand, detectWorktreeOpener, openWorktree } from "../../src/worktree/worktree-opener.ts"
 
 describe("detectWorktreeOpener", () => {
   it("honors ROVE_OPEN_EDITOR", () => {

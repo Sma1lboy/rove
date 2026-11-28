@@ -6,8 +6,8 @@
 
 import { lstatSync, readdirSync, realpathSync } from "node:fs"
 import { join } from "node:path"
+import { isGitRepo, resolveRepoRoot } from "@sma1lboy/rove-core/state/repos.ts"
 import { pathWithin, samePath } from "@sma1lboy/rove-daemon/path-identity"
-import { isGitRepo, resolveRepoRoot } from "../state/repos.ts"
 
 export interface LinkedRepo {
   /** Entry name in the workspace root. */

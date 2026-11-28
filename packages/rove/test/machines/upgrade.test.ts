@@ -1,5 +1,5 @@
+import type { MachineEntry } from "@sma1lboy/rove-core/machines/registry.ts"
 import { describe, expect, it } from "vitest"
-import type { MachineEntry } from "../../src/machines/registry.ts"
 import { upgradeMachine } from "../../src/machines/upgrade.ts"
 
 const deck = { alias: "deck", host: "steamdeck.local" } as unknown as MachineEntry

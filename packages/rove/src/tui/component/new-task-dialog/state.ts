@@ -13,10 +13,10 @@
  */
 
 import { matchPathGlob } from "@/lib/path-glob"
-import type { VendorId } from "@/types/vendor"
 import type { AdoptableWorktree } from "@/types/worktree"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
+import { DEFAULT_BASE_REF } from "@sma1lboy/rove-core/worktree/git-snapshot.ts"
 import { pathIdentity, pathSyntax, samePath } from "@sma1lboy/rove-daemon/path-identity"
-import { DEFAULT_BASE_REF } from "../../../worktree/git-snapshot"
 
 /* --------------------------------------------------------------------- */
 /*  Public types                                                          */
@@ -328,7 +328,7 @@ export function filterRepos(all: readonly string[], query: string): readonly str
   return all.filter((p) => p.toLowerCase().includes(q))
 }
 
-export { filterBranches } from "@/lib/branch-match"
+export { filterBranches } from "@sma1lboy/rove-core/lib/branch-match.ts"
 
 /** Cap visible rows (80+ branches mustn't push the dialog off-screen), scrolled to keep the cursor in view. */
 export function windowAround(list: readonly string[], cursor: number, cap = PICKER_MAX_VISIBLE): PickerWindow {

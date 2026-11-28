@@ -6,6 +6,7 @@
  * a sidebar tab row derives — the same chain the golden stakes anchor.
  */
 
+import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
 import { startActivityObserver } from "@sma1lboy/rove-daemon/daemon/activity-observer"
 import { DaemonActivityRegistry } from "@sma1lboy/rove-daemon/daemon/activity-registry"
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
@@ -18,7 +19,6 @@ import type {
 } from "../../src/client/remote-orchestrator-payloads"
 import { foregroundEngineIn, parsePsSnapshot } from "../../src/engine/foreground"
 import { engineTitleTurnHint } from "../../src/engine/registry"
-import { createStateCell } from "../../src/lib/external-store"
 import { tabRowActivity } from "../../src/tui/panes/sidebar/tree-core"
 
 const TASK = "task-1"

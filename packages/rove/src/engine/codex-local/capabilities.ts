@@ -1,4 +1,4 @@
-import type { EngineCapabilities, EngineIdentity } from "@/types/engine"
+import type { EngineCapabilities, EngineIdentity } from "@sma1lboy/rove-core/types/engine.ts"
 import { codexTerminalPresentation } from "./terminal-presentation"
 
 export const codexCapabilities: EngineCapabilities = {

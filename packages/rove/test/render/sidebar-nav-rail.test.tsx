@@ -10,9 +10,9 @@
  */
 
 import { expect, test } from "bun:test"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { SidebarTree } from "../../src/tui-react/panes/sidebar/SidebarTree"
-import type { Task } from "../../src/types/task"
-import { toTaskId } from "../../src/types/task"
 import { renderComponent } from "./harness"
 
 function task(id: string, over: Partial<Task> = {}): Task {

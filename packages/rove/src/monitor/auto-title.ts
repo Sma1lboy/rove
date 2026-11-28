@@ -9,9 +9,9 @@
  */
 
 import { protocolEntry } from "@/engine/engine-presets"
-import { deriveTitleFromPrompt } from "@/orchestrator/title"
-import type { Message } from "@/types/engine"
-import { DEFAULT_TASK_VENDOR, type VendorId } from "@/types/task"
+import { deriveTitleFromPrompt } from "@sma1lboy/rove-core/orchestrator/title.ts"
+import type { Message } from "@sma1lboy/rove-core/types/engine.ts"
+import { DEFAULT_TASK_VENDOR, type VendorId } from "@sma1lboy/rove-core/types/task.ts"
 
 const MAX_SESSIONS_SCANNED = 8
 

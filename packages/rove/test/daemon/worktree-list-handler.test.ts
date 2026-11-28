@@ -14,6 +14,7 @@ import { execSync } from "node:child_process"
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { addSavedRepo } from "@sma1lboy/rove-core/state/repos.ts"
 import {
   type DaemonHandlerContext,
   createDaemonHandlerRegistry,
@@ -21,7 +22,6 @@ import {
 } from "@sma1lboy/rove-daemon/daemon/server"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
-import { addSavedRepo } from "../../src/state/repos.ts"
 
 /**
  * The wire contract, spelled out rather than imported: the RPC layer rebuilds

@@ -3,9 +3,9 @@
  *  `./api-add-parallel.test.ts`. */
 
 import { tmpdir } from "node:os"
+import { homeDir } from "@sma1lboy/rove-core/env.ts"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
-import { homeDir } from "../../src/env.ts"
 import {
   FakeClient,
   expectApiError,

@@ -1,8 +1,8 @@
 /** @jsxImportSource @opentui/react */
 import { expect, test } from "bun:test"
+import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
+import { patchStateFile } from "@sma1lboy/rove-core/state/store.ts"
 import type { UsageSnapshotMap } from "../../src/client/remote-orchestrator-payloads"
-import { createStateCell } from "../../src/lib/external-store"
-import { patchStateFile } from "../../src/state/store"
 import { SidebarUsageLines } from "../../src/tui-react/panes/sidebar/usage-lines"
 import { isolateHome, renderComponent } from "./harness"
 

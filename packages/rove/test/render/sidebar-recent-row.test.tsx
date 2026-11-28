@@ -9,9 +9,9 @@ import { afterAll, describe, expect, it } from "bun:test"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { HostSidebar, type HostSidebarProps } from "../../src/tui-react/workspace/host-sidebar"
-import type { Task } from "../../src/types/task"
-import { toTaskId } from "../../src/types/task"
 import { act, renderComponent } from "./harness"
 
 const NOOP = (): void => {}

@@ -1,7 +1,12 @@
+import { updaterShell } from "@sma1lboy/rove-core/lib/updater-shell.ts"
+import {
+  PACKAGE_NAME,
+  UPDATE_COMMAND,
+  UPDATE_SCRIPT_URL,
+  recommendedGlobalInstallCommand,
+} from "@sma1lboy/rove-core/version.ts"
 import { describe, expect, it, vi } from "vitest"
 import { parseUpdateArgs, runUpdateSubcommand, updatePlan } from "../../src/cli/update.ts"
-import { updaterShell } from "../../src/lib/updater-shell.ts"
-import { PACKAGE_NAME, UPDATE_COMMAND, UPDATE_SCRIPT_URL, recommendedGlobalInstallCommand } from "../../src/version.ts"
 
 describe("updatePlan", () => {
   it("delegates to the GitHub-hosted update script", () => {

@@ -10,7 +10,7 @@
  * multiplies cost by block count. `model` is the last one seen.
  */
 
-import { isObject } from "../../lib/is-object"
+import { isObject } from "@sma1lboy/rove-core/lib/is-object.ts"
 import type { AgentTurn } from "../agent-turn.ts"
 import { isJsonlLineWithinBound, readTextFileBounded } from "../file-bounds.ts"
 import { isSyntheticClaudeRecord, trackClaudeSideRequest } from "./synthetic.ts"

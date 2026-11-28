@@ -1,5 +1,5 @@
-import { profileSpan, profileTick } from "@/lib/render-profile"
 import { type BoxRenderable, FrameBufferRenderable, RGBA, type RenderContext } from "@opentui/core"
+import { profileSpan, profileTick } from "@sma1lboy/rove-core/lib/render-profile.ts"
 import type { TerminalRow } from "../../../tui/panes/terminal/pty-types"
 import type { RGB } from "../../../tui/panes/terminal/sgr"
 import {

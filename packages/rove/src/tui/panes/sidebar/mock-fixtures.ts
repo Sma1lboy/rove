@@ -5,8 +5,8 @@
  * Paths point under /mock so the git pollers fail closed (chips hidden).
  */
 
-import type { Task } from "@/types/task"
-import { toTaskId } from "@/types/task"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 
 const MOCK_SIDEBAR_REPO = "/mock/repos/rove"
 

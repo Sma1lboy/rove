@@ -1,6 +1,6 @@
+import { readRemoteWorkspace, removeRemoteLink } from "@sma1lboy/rove-core/machines/remote-workspace.ts"
 import { WORKSPACE_CAPABILITIES } from "@sma1lboy/rove-daemon/workspace"
 import { forwardVerb, requireMachine } from "../../machines/forward.ts"
-import { readRemoteWorkspace, removeRemoteLink } from "../../machines/remote-workspace.ts"
 import type { DisposeTarget, WorkspaceBackend, WorkspaceHandle } from "./types.ts"
 
 /**

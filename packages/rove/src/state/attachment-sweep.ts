@@ -6,8 +6,8 @@
 
 import { readFileSync, readdirSync, statSync, unlinkSync } from "node:fs"
 import { join } from "node:path"
-import { promptAttachmentsDir, roveStateDir } from "../env"
-import { loadStateFile } from "./store"
+import { promptAttachmentsDir, roveStateDir } from "@sma1lboy/rove-core/env.ts"
+import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"
 
 export const ATTACHMENT_KEEP_DAYS_KEY = "attachments.keepDays"
 const DEFAULT_KEEP_DAYS = 30

@@ -4,7 +4,7 @@
  */
 
 import { reconcileStableRows } from "@/lib/stable-rows"
-import type { Task } from "@/types/task"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { pathIdentity, pathSyntax } from "@sma1lboy/rove-daemon/path-identity"
 
 /**

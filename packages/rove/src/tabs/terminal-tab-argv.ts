@@ -13,7 +13,7 @@ import {
 import { trustEngineWorktree } from "@/engine/trust-worktree"
 import { engineForkArgv, engineResumeArgv, withPinnedSessionId } from "../engine/engine-presets"
 
-import type { VendorId } from "../types/vendor"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { TabSpawn } from "./terminal-tab-spawn"
 import type { EngineTab, TabsState, TerminalTab } from "./terminal-tabs-core"
 

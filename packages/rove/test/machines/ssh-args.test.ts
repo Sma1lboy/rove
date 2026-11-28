@@ -7,9 +7,9 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
+import type { MachineConfig } from "@sma1lboy/rove-core/machines/registry.ts"
+import { hubKeyPath, machineSocketDir, machineSshArgs } from "@sma1lboy/rove-core/machines/ssh-args.ts"
 import { describe, expect, it } from "vitest"
-import type { MachineConfig } from "../../src/machines/registry.ts"
-import { hubKeyPath, machineSocketDir, machineSshArgs } from "../../src/machines/ssh-args.ts"
 
 const HOME = "/tmp/rove-home"
 const config: MachineConfig = { host: "narwhal", auth: { kind: "key" } }

@@ -4,7 +4,7 @@
  * prompt the user is writing; nothing here runs it or hands it to the Mac as a command.
  */
 
-import { type StateSnapshot, loadStateFile, updateStateFile } from "@sma1lboy/rove/src/state/store.ts"
+import { type StateSnapshot, loadStateFile, updateStateFile } from "@sma1lboy/rove-core/state/store.ts"
 import { BridgeError } from "../protocol.ts"
 import { text } from "./args.ts"
 import type { OpTable } from "./types.ts"

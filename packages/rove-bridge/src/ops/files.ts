@@ -4,15 +4,15 @@
  * (`state.json` key `diffComments.<taskId>`), read and written through the TUI's own helpers.
  */
 
-import { isRemoteWorkspace } from "@sma1lboy/rove/src/machines/remote-workspace.ts"
-import { updateStateFile } from "@sma1lboy/rove/src/state/store.ts"
+import { isRemoteWorkspace } from "@sma1lboy/rove-core/machines/remote-workspace.ts"
+import { updateStateFile } from "@sma1lboy/rove-core/state/store.ts"
 import {
   type DiffComment,
   diffCommentsKey,
   formatDiffComments,
   unsentComments,
-} from "@sma1lboy/rove/src/worktree/diff-comments.ts"
-import { listFiles } from "@sma1lboy/rove/src/worktree/git-status.ts"
+} from "@sma1lboy/rove-core/worktree/diff-comments.ts"
+import { listFiles } from "@sma1lboy/rove-core/worktree/git-status.ts"
 import { BridgeError, optInt } from "../protocol.ts"
 import { absPath, bool, flag, optText, sendReason, tabId, taskId, text } from "./args.ts"
 import type { Args, BridgeApi, OpSpec, OpTable } from "./types.ts"

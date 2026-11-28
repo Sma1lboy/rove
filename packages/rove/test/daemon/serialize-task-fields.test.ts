@@ -22,10 +22,10 @@
  * carries it.
  */
 
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { serializeTask } from "@sma1lboy/rove-daemon/daemon/serialize-task"
 import { describe, expect, it } from "vitest"
-import type { Task } from "../../src/types/task.ts"
 
 type DeepRequired<T> = {
   [K in keyof T]-?: NonNullable<T[K]> extends string | number | boolean

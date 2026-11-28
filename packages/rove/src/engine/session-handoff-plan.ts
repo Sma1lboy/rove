@@ -6,7 +6,7 @@
  * are read, never its UI state.
  */
 
-import type { VendorId } from "@/types/vendor"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { engineCanFork, getEngineProtocol, protocolEntry } from "./engine-presets"
 import { engineDisplayName } from "./interactive-command"
 import { buildHandoffPrompt, handoffContext } from "./session-handoff"

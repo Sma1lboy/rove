@@ -6,7 +6,7 @@
 
 import { existsSync } from "node:fs"
 import { join } from "node:path"
-import { ROVE_PRODUCT_NAME } from "../product.ts"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 
 /**
  * The built client: `dist/web` beside the npm bundle (`dist/cli`), or the

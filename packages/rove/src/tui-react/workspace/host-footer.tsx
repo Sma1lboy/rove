@@ -5,11 +5,11 @@
  * Quota and Settings live in the rail's foot.
  */
 
+import { isNarrowWidth } from "@sma1lboy/rove-core/lib/narrow-mode.ts"
+import { contextChip } from "@sma1lboy/rove-core/lib/usage-core.ts"
+import { USAGE_SHOW_KEY, normalizeUsageShow } from "@sma1lboy/rove-core/state/usage-show.ts"
 import type { ReactNode } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
-import { isNarrowWidth } from "../../lib/narrow-mode"
-import { contextChip } from "../../lib/usage-core"
-import { USAGE_SHOW_KEY, normalizeUsageShow } from "../../state/usage-show"
 import { StatusKeyHintBar, useStatusKeyHintItems } from "../component/keyboard-hints"
 import { ShortcutRevealProvider } from "../component/shortcut-reveal"
 import { useOptionalKV } from "../context/kv"

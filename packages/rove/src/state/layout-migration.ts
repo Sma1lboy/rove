@@ -24,8 +24,8 @@ import {
 } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
+import { ROVE_CONFIG_DIR_BASENAME, ROVE_STATE_DIR_BASENAME } from "@sma1lboy/rove-core/product.ts"
 import { readRoveHomeDirEnv } from "@sma1lboy/rove-daemon/compat-env"
-import { ROVE_CONFIG_DIR_BASENAME, ROVE_STATE_DIR_BASENAME } from "../product.ts"
 
 const CLIENT_MIGRATION_MARKER = ".layout-client-migration-v1"
 const PLUGIN_MIGRATION_MARKER = ".layout-plugins-migration-v1"

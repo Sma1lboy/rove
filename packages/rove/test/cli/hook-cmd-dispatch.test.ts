@@ -61,8 +61,8 @@ vi.mock("../../src/engine/hook-adapter.ts", () => ({
 
 const HOOK_VENDORS = ["claude", "codex", "kimi", "pi", "omp", "cursor"]
 
+import { getPersistedString, setPersistedString } from "@sma1lboy/rove-core/state/repos.ts"
 import { ensureGlobalRoveHooks, runHookSubcommand } from "../../src/cli/hook-cmd.ts"
-import { getPersistedString, setPersistedString } from "../../src/state/repos.ts"
 
 let home: string
 let originalHome: string | undefined

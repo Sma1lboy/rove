@@ -10,8 +10,8 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { type ExecResult, LocalExecHost, RemoteExecHost, type RemoteSpec } from "@sma1lboy/rove-core/exec/exec-host.ts"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
-import { type ExecResult, LocalExecHost, RemoteExecHost, type RemoteSpec } from "../../src/exec/exec-host.ts"
 
 let dir: string
 

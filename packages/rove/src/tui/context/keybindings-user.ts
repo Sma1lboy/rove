@@ -11,13 +11,13 @@
  * pristine defaults whatever the developer's own file says.
  */
 
+import { readKeybindingsFile, resetKeybindingsFileCache } from "@sma1lboy/rove-core/state/keybindings-file.ts"
 import { RoveKeymap, bumpKeymapVersion, resetKeymapToDefaults } from "../../keys/keybindings"
 import { type UserKeybindingsReport, resolveUserKeybindings } from "../../keys/keybindings-resolve"
 import { type KeybindingSaveResult, writeKeybindingEdits } from "../../keys/keybindings-save"
 import type { KeybindingEdit } from "../../keys/keybindings-write"
 import { configurePrefix, resetPrefixConfiguration } from "../../keys/keymap-dispatch"
 import type { PluginKeyBinding } from "../../keys/keymap-plugin-bindings"
-import { readKeybindingsFile, resetKeybindingsFileCache } from "../../state/keybindings-file"
 
 export type { UserKeybindingsReport }
 

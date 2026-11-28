@@ -9,7 +9,7 @@
  * watchdog (~10 min) or the next event; the poll's `done` is ignored meanwhile.
  */
 
-import type { EngineActivityDetail, TaskActivityState } from "../../engine/hook-events.ts"
+import type { EngineActivityDetail, TaskActivityState } from "@sma1lboy/rove-core/engine/hook-events.ts"
 import type { ChatTabTurnState } from "../../engine/turn-detector.ts"
 
 /** The slice of the client's `TaskEngineState` this merge consumes. */

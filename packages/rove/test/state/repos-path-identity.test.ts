@@ -1,7 +1,6 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { afterEach, beforeEach, expect, it, vi } from "vitest"
 import {
   addSavedRepo,
   getRepoInitOverride,
@@ -9,7 +8,8 @@ import {
   setRepoInitOverride,
   statePath,
   storedRepos,
-} from "../../src/state/repos"
+} from "@sma1lboy/rove-core/state/repos.ts"
+import { afterEach, beforeEach, expect, it, vi } from "vitest"
 
 let home: string
 beforeEach(() => {

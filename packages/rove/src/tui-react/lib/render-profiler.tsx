@@ -1,4 +1,4 @@
-import { profileTick, renderProfileOn } from "@/lib/render-profile"
+import { profileTick, renderProfileOn } from "@sma1lboy/rove-core/lib/render-profile.ts"
 import { Profiler, type ReactNode } from "react"
 
 function countCommit(id: string): void {

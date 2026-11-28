@@ -1,9 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterEach, beforeEach, describe, expect, it, test } from "vitest"
-import { kvStatePath } from "../../src/env"
-import { createKvCore } from "../../src/tui-react/context/kv-core"
+import { kvStatePath } from "@sma1lboy/rove-core/env.ts"
 import {
   type DiffComment,
   buildDiffReview,
@@ -15,7 +13,9 @@ import {
   formatDiffComments,
   unifiedDiffRows,
   unsentComments,
-} from "../../src/worktree/diff-comments"
+} from "@sma1lboy/rove-core/worktree/diff-comments.ts"
+import { afterEach, beforeEach, describe, expect, it, test } from "vitest"
+import { createKvCore } from "../../src/tui-react/context/kv-core"
 
 function comment(over: Partial<DiffComment>): DiffComment {
   return { id: "c1", filePath: "a.ts", line: 1, body: "note", createdAt: 1, ...over }

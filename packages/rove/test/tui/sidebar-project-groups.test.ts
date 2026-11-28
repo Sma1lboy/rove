@@ -9,11 +9,11 @@
  * what is pinned here is the answer they share.
  */
 
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, test } from "vitest"
 import { buildSidebarGroups } from "../../src/tui/panes/sidebar/project-groups"
 import { SCRATCH_SECTION_ID } from "../../src/tui/panes/sidebar/tree-ids"
-import type { Task } from "../../src/types/task"
-import { toTaskId } from "../../src/types/task"
 
 function task(id: string, over: Partial<Task> = {}): Task {
   return {

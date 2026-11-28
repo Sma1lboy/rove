@@ -1,7 +1,7 @@
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { serializeTask } from "@sma1lboy/rove-daemon/daemon/serialize-task"
 import { describe, expect, it } from "vitest"
-import type { Task } from "../../src/types/task.ts"
-import { toTaskId } from "../../src/types/task.ts"
 
 describe("task wire title", () => {
   it("an empty title serializes with a display fallback — no consumer can render blank", () => {

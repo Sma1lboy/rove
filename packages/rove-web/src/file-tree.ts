@@ -1,6 +1,6 @@
 /** Flat worktree paths → the visible rows of a collapsible tree (TUI Files › All). */
 
-import { compareFileEntries } from "@sma1lboy/rove/src/lib/file-order.ts"
+import { compareFileEntries } from "@sma1lboy/rove-core/lib/file-order.ts"
 
 export interface TreeRow {
   /** Directory paths end in `/`, the TUI's combined-pathspec spelling. */

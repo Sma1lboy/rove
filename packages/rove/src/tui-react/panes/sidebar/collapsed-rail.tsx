@@ -14,10 +14,10 @@
  * `hairline` has no room for either.
  */
 
-import type { Task } from "@/types/task"
 import { type RGBA, TextAttributes } from "@opentui/core"
+import { displayWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { Fragment, useMemo } from "react"
-import { displayWidth } from "../../../lib/display-width"
 import { breathColor } from "../../../tui/lib/breathe"
 import type { SidebarGroup } from "../../../tui/panes/sidebar/project-groups"
 import { buildSidebarRowView, rowIsLoading, withSpinnerFrame } from "../../../tui/panes/sidebar/row-view"

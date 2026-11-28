@@ -4,8 +4,8 @@
  * row that still needs eyes must not be stopped by accident).
  */
 
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, it } from "vitest"
-import type { Task } from "../../src/types/task.ts"
 import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
 
 const PARENT = { ...TASK, id: "p" } as Task

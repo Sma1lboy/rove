@@ -7,10 +7,10 @@
 
 import { closeSync, openSync, readSync } from "node:fs"
 import { basename } from "node:path"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import type { MachineEntry } from "@sma1lboy/rove-core/machines/registry.ts"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
-import { errorMessage } from "../lib/error-message.ts"
 import { machineDaemonSocket } from "./forward.ts"
-import type { MachineEntry } from "./registry.ts"
 
 /** One call's share of the file. */
 const PART_BYTES = 1024 * 1024

@@ -8,7 +8,6 @@
  * muted task keeps only the unread mark, plus an error's toast.
  */
 import { useRenderer } from "@opentui/react"
-import { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import {
   FINISHED_ALERTS_KEY,
   MUTED_TASKS_KEY,
@@ -23,13 +22,14 @@ import {
   shouldAlert,
   shouldPlaySound,
   shouldShowToast,
-} from "../../lib/notify-state"
-import { loadStateFile } from "../../state/store"
+} from "@sma1lboy/rove-core/lib/notify-state.ts"
+import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"
+import { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import { writeThroughRenderer } from "../../tui/lib/screen-refresh"
 import { pulse as pulseSound } from "../../tui/lib/sound"
 import { useOptionalKV } from "./kv"
 
-export type { NotificationKind, Toast, NotifyInput } from "../../lib/notify-state"
+export type { NotificationKind, Toast, NotifyInput } from "@sma1lboy/rove-core/lib/notify-state.ts"
 
 export interface NotificationsContext {
   readonly toasts: readonly Toast[]

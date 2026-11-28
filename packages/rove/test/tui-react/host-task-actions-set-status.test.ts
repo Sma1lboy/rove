@@ -50,9 +50,9 @@ vi.mock("../../src/tui-react/ui/task-dialog-adapters", () => ({
   })),
 }))
 
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 import { useWorkspaceTaskActions } from "../../src/tui-react/workspace/host-task-actions"
-import { type Task, toTaskId } from "../../src/types/task"
 
 const DIALOG = { id: "dialog" } as never
 

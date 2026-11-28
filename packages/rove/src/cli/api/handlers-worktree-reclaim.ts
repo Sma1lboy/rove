@@ -5,7 +5,7 @@
  * directory is reported as skipped, and the rest are still removed.
  */
 
-import { errorMessage } from "@/lib/error-message"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 import { tasksAtWorktreePath } from "@sma1lboy/rove-daemon/daemon/cwd-task"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { readActivityRegistry } from "./activity-view.ts"

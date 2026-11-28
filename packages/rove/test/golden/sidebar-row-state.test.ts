@@ -22,12 +22,12 @@
  * then read the diff — every moved line should be one you meant to move.
  */
 
-import { DEFAULT_SPINNER_FRAMES } from "@/engine/spinner-frames"
-import { currentLang, setLocaleLang } from "@/i18n"
-import { DEFAULT_GLYPHS } from "@/lib/glyphs"
 import { buildSidebarRowView } from "@/tui/panes/sidebar/row-view"
 import { truncateBranchLabel } from "@/tui/panes/sidebar/view-core"
-import { type Task, toTaskId } from "@/types/task"
+import { DEFAULT_SPINNER_FRAMES } from "@sma1lboy/rove-core/engine/spinner-frames.ts"
+import { currentLang, setLocaleLang } from "@sma1lboy/rove-core/i18n/index.ts"
+import { DEFAULT_GLYPHS } from "@sma1lboy/rove-core/lib/glyphs.ts"
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { afterAll, beforeAll, expect, test } from "vitest"
 import { goldenDocument, goldenPath, matchGolden } from "./golden-file"
 import { prChipBlock, statusChipBlock } from "./sidebar-chip-blocks"

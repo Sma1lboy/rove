@@ -7,8 +7,9 @@
  * on the expanded repo path.
  */
 
+import { expandHome } from "@sma1lboy/rove-core/lib/path-helpers.ts"
+import { DEFAULT_BASE_REF, getCurrentBranch, listLocalBranches } from "@sma1lboy/rove-core/worktree/git-snapshot.ts"
 import { useEffect, useMemo, useState } from "react"
-import { expandHome } from "../../../lib/path-helpers"
 import {
   type PickerWindow,
   clampCursor,
@@ -17,7 +18,6 @@ import {
   stripNewlines,
   windowAround,
 } from "../../../tui/component/new-task-dialog/state"
-import { DEFAULT_BASE_REF, getCurrentBranch, listLocalBranches } from "../../../worktree/git-snapshot"
 
 export type BranchFieldOpts = {
   /** Absolute repo path the branch list is read from; "" while unresolved. */

@@ -14,7 +14,7 @@
 
 import { afterEach, expect, test } from "bun:test"
 import type { CapturedFrame } from "@opentui/core"
-import { currentLang, setLocaleLang } from "../../src/i18n"
+import { currentLang, setLocaleLang } from "@sma1lboy/rove-core/i18n/index.ts"
 import { UpdatePage } from "../../src/tui-react/component/update-page"
 import { setTransparentBackground } from "../../src/tui-react/context/theme"
 import { BUNDLED_THEMES, DEFAULT_THEME, applyDisplayOverlay, resolveTheme } from "../../src/tui/context/theme-core"

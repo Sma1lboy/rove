@@ -11,11 +11,11 @@ import { spawnSync } from "node:child_process"
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 import { ensureDaemonReachable, resolveRoveSpawn } from "@sma1lboy/rove-daemon/client/daemon-process"
 import { readRoveHomeDirEnv } from "@sma1lboy/rove-daemon/compat-env"
 import { defaultDaemonLogPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import { shellQuote, xml } from "../machines/reverse-tunnel.ts"
-import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { roveCliInvocation } from "./invocation.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME

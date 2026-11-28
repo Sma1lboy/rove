@@ -5,7 +5,7 @@
  * Types only, so the core↔shapes pair erases at build time and can't cycle.
  */
 
-import type { VendorId } from "@/types/vendor"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { PersistedSplit } from "./terminal-tab-split"
 
 interface TabBase {

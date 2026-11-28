@@ -8,7 +8,7 @@
  * empty string never renders as a filename.
  */
 
-import { parsePorcelainRows } from "../lib/git-parsers.ts"
+import { parsePorcelainRows } from "@sma1lboy/rove-core/lib/git-parsers.ts"
 
 /** Paths from `git status --porcelain` output, unquoted, in `git status` order. */
 export function parseDirtyPaths(stdout: string): string[] {

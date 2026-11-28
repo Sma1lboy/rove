@@ -2,13 +2,13 @@ import { execFileSync } from "node:child_process"
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { addSavedRepo } from "@sma1lboy/rove-core/state/repos.ts"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
   listUnreadableWorktreesAdapter,
   listWorktreeProjectsAdapter,
   removeWorktreeAdapter,
 } from "../../src/core/daemon-worktree-adapter.ts"
-import { addSavedRepo } from "../../src/state/repos.ts"
 
 const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, {

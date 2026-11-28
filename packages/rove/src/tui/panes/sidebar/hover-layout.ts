@@ -1,4 +1,4 @@
-import { approxCellWidth } from "../../../lib/display-width"
+import { approxCellWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
 
 // Cell measurement lives in the shared width module; re-exported here so
 // importers (tests, panes) reach it from one place.

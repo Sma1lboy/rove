@@ -4,8 +4,8 @@
  * disagree in either language. Only copy that describes the page itself lives in `en.ts`.
  */
 
-import { en as settingsEn, zh as settingsZh } from "@sma1lboy/rove/src/i18n/messages/settings.ts"
-import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/i18n/messages/tasks.ts"
+import { en as settingsEn, zh as settingsZh } from "@sma1lboy/rove-core/i18n/messages/settings.ts"
+import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove-core/i18n/messages/tasks.ts"
 import { tFrom } from "./i18n/index.ts"
 
 const SETTINGS = { en: settingsEn, zh: settingsZh }

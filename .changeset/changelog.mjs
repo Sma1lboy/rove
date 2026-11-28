@@ -6,13 +6,13 @@
  * A body's leading client tags (`[web][ios] …`) become `**web · ios** …`: bold
  * reads as a label on GitHub and in both clients' renderers, where `[web]`
  * would sit next to the PR link's `[#123](…)` and read as a broken link.
- * Clients parse it back (packages/rove/src/lib/release-note-clients.ts).
+ * Clients parse it back (packages/rove-core/src/lib/release-note-clients.ts).
  */
 import changelogGithub from "@changesets/changelog-github"
 
 const THANKS = /Thanks (\[@[^\]]+\]\([^)]+\))! - /
 
-/** Kept in step with NOTE_CLIENTS in packages/rove/src/lib/release-note-clients.ts. */
+/** Kept in step with NOTE_CLIENTS in packages/rove-core/src/lib/release-note-clients.ts. */
 export const CLIENTS = ["web", "tui", "ios", "android", "cli", "daemon"]
 const TAGS = /^\s*((?:\[[a-z]+\][ \t]*)+)/
 /** The `author:` / `pr:` / `commit:` override lines changelog-github reads before the summary. */
@@ -24,7 +24,9 @@ export function leadingClientTags(summary) {
   const m = TAGS.exec(summary.slice(head.length))
   if (!m) return null
   const names = [...m[1].matchAll(/\[([a-z]+)\]/g)].map((t) => t[1])
-  return names.every((n) => CLIENTS.includes(n)) ? { names, head, rest: summary.slice(head.length + m[0].length) } : null
+  return names.every((n) => CLIENTS.includes(n))
+    ? { names, head, rest: summary.slice(head.length + m[0].length) }
+    : null
 }
 
 const getReleaseLine = async (changeset, type, options) => {

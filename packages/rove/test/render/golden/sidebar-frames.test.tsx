@@ -20,11 +20,11 @@
  */
 
 import { afterAll, beforeAll, expect, test } from "bun:test"
-import { DEFAULT_SPINNER_FRAMES } from "@/engine/spinner-frames"
-import { currentLang, setLocaleLang } from "@/i18n"
 import type { MachineFeed } from "@/machines/feed"
 import { setMachineHub } from "@/tui-react/workspace/hub-singleton"
 import type { MachineLayerEntry } from "@/tui/panes/sidebar/machine-layer"
+import { DEFAULT_SPINNER_FRAMES } from "@sma1lboy/rove-core/engine/spinner-frames.ts"
+import { currentLang, setLocaleLang } from "@sma1lboy/rove-core/i18n/index.ts"
 import { goldenPath, matchGolden } from "../../golden/golden-file"
 import { act, renderComponent, settle } from "../harness"
 import { SCENES, SCENE_HEIGHT, SCENE_WIDTH, type Scene } from "./sidebar-scenes"

@@ -8,6 +8,8 @@
  *  - plugin manifest settings: stored values become env vars of plugin-authored commands.
  */
 
+import { FEEDBACK_KINDS, isFeedbackKind } from "@sma1lboy/rove-core/lib/feedback.ts"
+import { CURRENT_VERSION } from "@sma1lboy/rove-core/version.ts"
 import { isDaemonVersionStale } from "@sma1lboy/rove-daemon/daemon/protocol"
 import {
   BUILTIN_MODS,
@@ -18,9 +20,7 @@ import {
 } from "@sma1lboy/rove-daemon/plugins/builtin-mods"
 import { loadPluginRegistry } from "@sma1lboy/rove-daemon/plugins/registry"
 import { engineDisplayName } from "@sma1lboy/rove/src/engine/interactive-command.ts"
-import { FEEDBACK_KINDS, isFeedbackKind } from "@sma1lboy/rove/src/lib/feedback.ts"
 import { type PluginRowView, readPluginRows, setPluginEnabled } from "@sma1lboy/rove/src/lib/plugins-core.ts"
-import { CURRENT_VERSION } from "@sma1lboy/rove/src/version.ts"
 import { BridgeError } from "../protocol.ts"
 import { type UsageStore, usageStore } from "../usage-store.ts"
 import { bool, flag, optText, tabId, taskId, text } from "./args.ts"

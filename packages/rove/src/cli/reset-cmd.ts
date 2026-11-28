@@ -4,7 +4,9 @@ import { readFileSync } from "node:fs"
 import { unlink } from "node:fs/promises"
 import { join } from "node:path"
 import { createInterface } from "node:readline"
-import { errorMessage } from "@/lib/error-message"
+import { kvStatePath, legacyRoveKvStatePath, legacyRoveStateDir, roveStateDir } from "@sma1lboy/rove-core/env.ts"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 import { stopDaemonProcess } from "@sma1lboy/rove-daemon/daemon/lifecycle"
 import {
   defaultDaemonPidPath,
@@ -14,8 +16,6 @@ import {
   defaultPtyHostSocketPath,
 } from "@sma1lboy/rove-daemon/daemon/paths"
 import { clearFrozenSessions } from "@sma1lboy/rove-daemon/daemon/pty-freeze-store"
-import { kvStatePath, legacyRoveKvStatePath, legacyRoveStateDir, roveStateDir } from "../env.ts"
-import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { stopLegacyTmux } from "./legacy-tmux.ts"
 import { stampResetGate } from "./reset-gate.ts"
 

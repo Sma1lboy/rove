@@ -9,9 +9,7 @@
  */
 
 import * as os from "node:os"
-import { samePath } from "@sma1lboy/rove-daemon/path-identity"
-import { useEffect, useMemo, useRef, useState } from "react"
-import { t } from "../../../i18n"
+import { t } from "@sma1lboy/rove-core/i18n/index.ts"
 import {
   expandHome,
   filterSubdirs,
@@ -22,7 +20,9 @@ import {
   parentDir,
   pathLeaf,
   stripTrailingSlash,
-} from "../../../lib/path-helpers"
+} from "@sma1lboy/rove-core/lib/path-helpers.ts"
+import { samePath } from "@sma1lboy/rove-daemon/path-identity"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   BROWSE_BACK_ROW,
   BROWSE_SELECT_HERE_ROW,

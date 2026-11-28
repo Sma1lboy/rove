@@ -8,8 +8,8 @@
  */
 
 import path from "node:path"
-import type { ExecHost } from "../../exec/exec-host.ts"
-import { READ_ONLY_GIT_ENV } from "../../lib/git-env.ts"
+import type { ExecHost } from "@sma1lboy/rove-core/exec/exec-host.ts"
+import { READ_ONLY_GIT_ENV } from "@sma1lboy/rove-core/lib/git-env.ts"
 
 /** KB, per top-level entry. 64 MB: a year of `.scratch/` markdown is
  *  single-digit MB; this repo's `node_modules/` is ~1.4 GB. */

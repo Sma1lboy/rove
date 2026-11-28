@@ -1,7 +1,12 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { type CIFailingCheck, buildCIPrompt, buildCIPromptForWorktree, renderCIPrompt } from "@/github/ci-prompt"
+import {
+  type CIFailingCheck,
+  buildCIPrompt,
+  buildCIPromptForWorktree,
+  renderCIPrompt,
+} from "@sma1lboy/rove-core/github/ci-prompt.ts"
 import { describe, expect, it } from "vitest"
 
 const check = (over: Partial<CIFailingCheck> = {}): CIFailingCheck => ({

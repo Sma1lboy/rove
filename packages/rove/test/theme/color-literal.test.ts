@@ -1,3 +1,6 @@
+import { isRgbLiteral, parseRgbLiteral } from "@sma1lboy/rove-core/theme/color-literal.ts"
+import { resolveThemeSlotHex } from "@sma1lboy/rove-core/theme/hex.ts"
+import { validateTheme } from "@sma1lboy/rove-core/theme/schema.ts"
 /**
  * `rgb()` / `rgba()` theme literals, checked at all THREE places a theme
  * colour is read — the parser, the opentui resolver the TUI renders from,
@@ -5,9 +8,6 @@
  * one and not the others is the drift this file exists to catch.
  */
 import { describe, expect, test } from "vitest"
-import { isRgbLiteral, parseRgbLiteral } from "../../src/theme/color-literal"
-import { resolveThemeSlotHex } from "../../src/theme/hex"
-import { validateTheme } from "../../src/theme/schema"
 import type { ThemeJson } from "../../src/tui/context/theme-core"
 import { resolveTheme } from "../../src/tui/context/theme-core"
 

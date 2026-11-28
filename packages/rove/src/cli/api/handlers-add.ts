@@ -9,13 +9,13 @@
  * bookkeeping lives here.
  */
 
+import { homeDir } from "@sma1lboy/rove-core/env.ts"
+import { isDiskFull } from "@sma1lboy/rove-core/lib/error-message.ts"
+import { taskCwd } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import { deriveTitleFromPrompt } from "@sma1lboy/rove-core/orchestrator/title.ts"
+import { DEFAULT_VENDOR, type VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { pathWithin } from "@sma1lboy/rove-daemon/path-identity"
-import { homeDir } from "../../env.ts"
-import { isDiskFull } from "../../lib/error-message.ts"
-import { taskCwd } from "../../orchestrator/task-tree.ts"
-import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
-import { DEFAULT_VENDOR, type VendorId } from "../../types/vendor.ts"
 import { applyPostCreateFlags, deliverArmed, persistPrompt } from "./add-delivery.ts"
 import { addInPlainFolder, isDirectory } from "./add-dir-session.ts"
 import {

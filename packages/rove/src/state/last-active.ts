@@ -5,7 +5,7 @@
  * construction so a restart restores focus instead of "first task".
  */
 
-import { loadStateFile, patchStateFile } from "./store.ts"
+import { loadStateFile, patchStateFile } from "@sma1lboy/rove-core/state/store.ts"
 
 const LAST_ACTIVE_TASK_KEY = "lastActive.taskId"
 

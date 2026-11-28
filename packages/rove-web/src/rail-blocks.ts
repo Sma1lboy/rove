@@ -1,6 +1,6 @@
 /** The rail's rows as nested blocks: drag steps, where a drop lands, and the child rows' tree guides. */
 
-import { type TreeGuide, treeGuides as sharedTreeGuides } from "@sma1lboy/rove/src/lib/tree-guides.ts"
+import { type TreeGuide, treeGuides as sharedTreeGuides } from "@sma1lboy/rove-core/lib/tree-guides.ts"
 import type { TaskRow } from "rove-bridge/protocol"
 import type { NavRow } from "./rail.ts"
 

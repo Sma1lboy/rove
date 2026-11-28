@@ -5,7 +5,7 @@
  */
 
 import type { TaskEngineState } from "@/client/remote-orchestrator"
-import type { Task } from "@/types/task"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { useMemo } from "react"
 import type { TaskSortMode } from "../../../sidebar/groups"
 import type { TabsSnapshotKv } from "../../../tabs/terminal-tabs-persist"

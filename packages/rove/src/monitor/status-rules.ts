@@ -10,8 +10,8 @@
  * engine's next turn starts. Opt-in via `experimental.autoStatus`, read per event.
  */
 
-import { autoStatusEnabled } from "@/state/auto-status"
-import type { Task, TaskStatus } from "@/types/task"
+import { autoStatusEnabled } from "@sma1lboy/rove-core/state/auto-status.ts"
+import type { Task, TaskStatus } from "@sma1lboy/rove-core/types/task.ts"
 
 /** The minimal (structural) orchestrator surface the rule needs. */
 export interface StatusRuleOrchestrator {

@@ -1,5 +1,5 @@
+import { pathRejection } from "@sma1lboy/rove-core/state/project-eligibility.ts"
 import { describe, expect, it } from "vitest"
-import { pathRejection } from "../../src/state/project-eligibility"
 
 describe("project admission across path spellings", () => {
   it.each([

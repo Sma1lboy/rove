@@ -1,9 +1,9 @@
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 /** @jsxImportSource @opentui/react */
 import { useEffect, useState } from "react"
 import { type EngineStatus, detectEngineStatus } from "../../engine/engine-status"
 import { createEngineHookAdapter } from "../../engine/hook-adapter"
 import { type EngineIntegration, engineIntegrations } from "../../engine/integration-status"
-import type { VendorId } from "../../types/vendor"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 

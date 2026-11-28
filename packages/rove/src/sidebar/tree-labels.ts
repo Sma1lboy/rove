@@ -5,9 +5,9 @@
  */
 
 import { homedir } from "node:os"
-import type { Task } from "@/types/task"
-import { tildify } from "../lib/path-home"
-import { truncateStart } from "../lib/truncate"
+import { tildify } from "@sma1lboy/rove-core/lib/path-home.ts"
+import { truncateStart } from "@sma1lboy/rove-core/lib/truncate.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { repoBasename } from "./groups"
 
 /** Widest path label a worktree row renders before tail-truncation — the

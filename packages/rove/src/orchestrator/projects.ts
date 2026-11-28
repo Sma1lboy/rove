@@ -5,8 +5,8 @@
  * main-repo key.
  */
 
-import { type ProjectIntent, projectRejection, rejectionReason } from "../state/project-eligibility.ts"
-import { addSavedRepo, isGitRepo, removeSavedRepo, storedRepos } from "../state/repos.ts"
+import { type ProjectIntent, projectRejection, rejectionReason } from "@sma1lboy/rove-core/state/project-eligibility.ts"
+import { addSavedRepo, isGitRepo, removeSavedRepo, storedRepos } from "@sma1lboy/rove-core/state/repos.ts"
 import { normalizeMainRepo } from "./core-helpers.ts"
 
 export class ProjectCoordinator {

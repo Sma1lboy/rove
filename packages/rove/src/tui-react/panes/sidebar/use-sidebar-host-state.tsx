@@ -12,9 +12,9 @@
  * a product decision, not cleanup.
  */
 
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { useState } from "react"
 import type { TaskSortMode } from "../../../sidebar/groups"
-import type { Task } from "../../../types/task.ts"
 import type { KVContext } from "../../context/kv"
 import { t } from "../../i18n"
 

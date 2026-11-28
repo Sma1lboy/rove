@@ -4,12 +4,12 @@
  * attached TUI performs the split/tab; the daemon only validates + broadcasts.
  */
 
+import { taskCwd } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import { SHELL_TASK_TITLE } from "@sma1lboy/rove-core/orchestrator/title.ts"
+import { resolvePreferredVendor } from "@sma1lboy/rove-core/state/vendor-prefs.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { taskCwd } from "../../orchestrator/task-tree.ts"
-import { SHELL_TASK_TITLE } from "../../orchestrator/title.ts"
-import { resolvePreferredVendor } from "../../state/vendor-prefs.ts"
-import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"

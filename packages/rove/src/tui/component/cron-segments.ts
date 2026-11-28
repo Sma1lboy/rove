@@ -5,8 +5,8 @@
  * web client); this file binds the description to the TUI's `t`.
  */
 
-import { t } from "@/i18n"
-import { describeCronWith } from "../../automations/cron-core"
+import { describeCronWith } from "@sma1lboy/rove-core/automations/cron-core.ts"
+import { t } from "@sma1lboy/rove-core/i18n/index.ts"
 
 export {
   CRON_SEGMENTS,
@@ -18,7 +18,7 @@ export {
   setSegment,
   splitCron,
   stepSegment,
-} from "../../automations/cron-core"
+} from "@sma1lboy/rove-core/automations/cron-core.ts"
 
 /** See {@link describeCronWith}. */
 export function describeCron(expression: string): string | null {

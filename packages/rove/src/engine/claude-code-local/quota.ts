@@ -10,8 +10,8 @@
 
 import { homedir, userInfo } from "node:os"
 import path from "node:path"
-import { spawnCapture } from "../../lib/poll-scheduling.ts"
-import type { EngineQuotaUsage, EngineQuotaWindow } from "../../types/engine.ts"
+import { spawnCapture } from "@sma1lboy/rove-core/lib/poll-scheduling.ts"
+import type { EngineQuotaUsage, EngineQuotaWindow } from "@sma1lboy/rove-core/types/engine.ts"
 import { readTextFileBounded } from "../file-bounds"
 import { vendorConfigHome } from "../vendor-home.ts"
 

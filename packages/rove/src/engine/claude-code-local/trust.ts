@@ -10,7 +10,7 @@
 
 import { existsSync, lstatSync } from "node:fs"
 import path from "node:path"
-import { isObject } from "../../lib/is-object.ts"
+import { isObject } from "@sma1lboy/rove-core/lib/is-object.ts"
 import { realPathOrSelf } from "../../lib/real-path.ts"
 import { updateSharedJsonSync } from "../shared-config-write.ts"
 import { claudeGlobalConfigPath, vendorConfigHome, vendorWriteHomeDeps } from "../vendor-home.ts"

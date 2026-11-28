@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest"
 
-import { approxCharCells } from "../../src/lib/display-width"
-import { truncateEnd, truncateEndCells, truncateStart } from "../../src/lib/truncate"
+import { approxCharCells } from "@sma1lboy/rove-core/lib/display-width.ts"
+import { truncateEnd, truncateEndCells, truncateStart } from "@sma1lboy/rove-core/lib/truncate.ts"
 
 describe("truncateEnd — keep the prefix", () => {
   test("returns the string unchanged when it fits the budget", () => {

@@ -5,13 +5,13 @@
  * a NaN or negative reaching xterm-headless is undefined behavior.
  */
 
-import { describe, expect, it } from "vitest"
 import {
   DEFAULT_SCROLLBACK_ROWS,
   SCROLLBACK_ROWS_MAX,
   SCROLLBACK_ROWS_MIN,
   normalizeScrollbackRows,
-} from "../../src/state/scrollback"
+} from "@sma1lboy/rove-core/state/scrollback.ts"
+import { describe, expect, it } from "vitest"
 
 describe("normalizeScrollbackRows", () => {
   it("falls back to the default for missing or garbage values", () => {

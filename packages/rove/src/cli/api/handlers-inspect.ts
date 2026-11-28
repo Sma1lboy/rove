@@ -14,8 +14,8 @@
  * daemon/host degrades that section to null. `--task-id` narrows every section.
  */
 
+import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"
 import { foregroundEngineIn, parsePsSnapshot, psSnapshot } from "../../engine/foreground.ts"
-import { loadStateFile } from "../../state/store.ts"
 import type { TabsState } from "../../tabs/terminal-tabs-core.ts"
 import { F } from "./flags.ts"
 import { type TaskSessionRow, unregisteredTabIds } from "./tab-snapshot.ts"

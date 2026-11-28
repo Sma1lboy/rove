@@ -4,8 +4,8 @@
  */
 
 import { type OptimizedBuffer, type RGBA, type Renderable, TargetChannel } from "@opentui/core"
-import { charWidth } from "../../lib/display-width"
-import { truncateEndCells } from "../../lib/truncate"
+import { charWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
+import { truncateEndCells } from "@sma1lboy/rove-core/lib/truncate.ts"
 import { flowInk, flowPalette, flowPhase, perimeter } from "../../tui/lib/border-flow"
 import { mixInk } from "../../tui/lib/breathe"
 

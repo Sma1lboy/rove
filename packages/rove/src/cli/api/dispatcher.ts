@@ -6,11 +6,11 @@
  * routing.
  */
 
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 import { resolvePtyOwner } from "@sma1lboy/rove-daemon/daemon/cwd-task"
 import { DISPATCH_PROMPT_HEAD_CHARS } from "@sma1lboy/rove-daemon/daemon/dispatch-ledger"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { roveApiInvocation } from "../../engine/interactive-command.ts"
-import { ROVE_PRODUCT_NAME } from "../../product.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
 import { taskEngineArgv } from "./tab-snapshot.ts"

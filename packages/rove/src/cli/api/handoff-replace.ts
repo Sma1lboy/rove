@@ -8,12 +8,12 @@
  * tab by the caller, as to any exact tab.
  */
 
+import { taskCwd } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { withDeliveryLock } from "../../engine/delivery-lock.ts"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
-import { taskCwd } from "../../orchestrator/task-tree.ts"
-import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
 import { ensureHostFor } from "./session-failed.ts"

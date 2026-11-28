@@ -7,10 +7,10 @@
  */
 
 import { type BoxRenderable, MouseButton, TextAttributes } from "@opentui/core"
+import type { TaskGroup } from "@sma1lboy/rove-core/lib/task-group.ts"
+import type { BoardColumnKey } from "@sma1lboy/rove-core/state/issue-board.ts"
 import type { Issue } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { ReactNode } from "react"
-import type { TaskGroup } from "../../lib/task-group"
-import type { BoardColumnKey } from "../../state/issue-board"
 import { host, hostFn } from "./host"
 
 const taskGroupLabel = hostFn((h) => h.tasks.taskGroupLabel)

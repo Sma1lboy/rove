@@ -7,7 +7,7 @@
  * writes `app.lastRunVersion` — read after it, every upgrade would be greeted.
  */
 
-import { type StateSnapshot, loadStateFile, patchStateFile } from "../state/store.ts"
+import { type StateSnapshot, loadStateFile, patchStateFile } from "@sma1lboy/rove-core/state/store.ts"
 import type { ShellKind } from "./completion-scripts.ts"
 import { detectShell } from "./onboarding.ts"
 import { LAST_RUN_VERSION_KEY } from "./reset-gate.ts"

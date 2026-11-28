@@ -13,6 +13,8 @@
  * sequences render.
  */
 
+import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import {
   type ActivityLivenessProbe,
   DaemonActivityRegistry,
@@ -27,10 +29,8 @@ import type {
   OrchestratorSignals,
   TaskEngineState,
 } from "../../src/client/remote-orchestrator-payloads"
-import { createStateCell } from "../../src/lib/external-store"
 import { buildSidebarRowView } from "../../src/tui/panes/sidebar/row-view"
 import { tabRowActivity } from "../../src/tui/panes/sidebar/tree-core"
-import { type Task, toTaskId } from "../../src/types/task"
 
 const TASK_ID = "task-1"
 

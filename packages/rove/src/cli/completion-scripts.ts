@@ -11,7 +11,7 @@
  */
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
-import type { ProductCliName } from "../product.ts"
+import type { ProductCliName } from "@sma1lboy/rove-core/product.ts"
 import { SUBCOMMAND_VERBS, TOP_LEVEL_SUBCOMMANDS } from "./subcommands.ts"
 
 /** Shells rove generates completions for; also the install/detect vocabulary. */

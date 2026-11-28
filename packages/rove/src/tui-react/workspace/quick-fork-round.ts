@@ -11,13 +11,13 @@
  * `cli/api/handlers-add.ts`.
  */
 
-import { errorMessage } from "@/lib/error-message"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import { addSavedRepo } from "@sma1lboy/rove-core/state/repos.ts"
+import { setLastActiveVendor } from "@sma1lboy/rove-core/state/vendor-prefs.ts"
+import type { Task, VendorId } from "@sma1lboy/rove-core/types/task.ts"
 import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
 import { startTaskSessionWithPromptAdapter } from "../../core/daemon-session-adapter"
 import { planRound } from "../../core/round"
-import { addSavedRepo } from "../../state/repos"
-import { setLastActiveVendor } from "../../state/vendor-prefs"
-import type { Task, VendorId } from "../../types/task"
 
 export interface RoundOrchestrator {
   createTask(input: {

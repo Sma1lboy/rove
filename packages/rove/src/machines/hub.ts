@@ -10,18 +10,8 @@
  * machine's PTY host directly over the forwarded socket.
  */
 
-import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
-import { logClient, logClientError } from "@sma1lboy/rove-daemon/client/client-log"
-import type { ChannelName } from "@sma1lboy/rove-daemon/daemon/protocol"
-import type { TaskEngineState } from "../client/remote-orchestrator-payloads.ts"
-import type { RowTokenMap } from "../client/remote-orchestrator-row-tokens.ts"
-import type { WorktreeChangesMap } from "../client/remote-orchestrator-worktree-changes.ts"
-import { RemoteOrchestrator } from "../client/remote-orchestrator.ts"
-import type { ReadableState } from "../lib/external-store.ts"
-import { createStateCell } from "../lib/external-store.ts"
-import { loadStateFile } from "../state/store.ts"
-import type { Task } from "../types/task.ts"
-import { type DiscoverFailure, discoverMachine, learnedFrom } from "./discover.ts"
+import type { ReadableState } from "@sma1lboy/rove-core/lib/external-store.ts"
+import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
 import {
   type MachineEntry,
   dedupeMachines,
@@ -30,7 +20,17 @@ import {
   readMachines,
   setMachineIdentity,
   updateMachine,
-} from "./registry.ts"
+} from "@sma1lboy/rove-core/machines/registry.ts"
+import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { logClient, logClientError } from "@sma1lboy/rove-daemon/client/client-log"
+import type { ChannelName } from "@sma1lboy/rove-daemon/daemon/protocol"
+import type { TaskEngineState } from "../client/remote-orchestrator-payloads.ts"
+import type { RowTokenMap } from "../client/remote-orchestrator-row-tokens.ts"
+import type { WorktreeChangesMap } from "../client/remote-orchestrator-worktree-changes.ts"
+import { RemoteOrchestrator } from "../client/remote-orchestrator.ts"
+import { type DiscoverFailure, discoverMachine, learnedFrom } from "./discover.ts"
 import type { SshFailureKind } from "./ssh-failure.ts"
 import { type TunnelHandle, startTunnel } from "./tunnel.ts"
 

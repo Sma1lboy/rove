@@ -12,8 +12,8 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { engineEntry, identifiableEngineIds } from "../engine/registry.ts"
-import type { VendorId } from "../types/vendor.ts"
 
 /**
  * SKILL.md guidance version this build expects. Bump in lockstep with the

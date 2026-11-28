@@ -17,12 +17,12 @@
  * the last one focused anywhere, as a starting point.
  */
 
+import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
 import { logClientError } from "@sma1lboy/rove-daemon/client/client-log"
 import type { SharedTabs, TabOp, TabRow } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import { applyTabOps, diffTabs } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import { useEffect } from "react"
 import type { TabsTransport } from "../../client/remote-orchestrator-tabs"
-import { createStateCell } from "../../lib/external-store"
 import type { TabsState, TerminalTab } from "../../tabs/terminal-tabs-core"
 
 /** Per-task tab state as this TUI renders it: the daemon's tabs, this TUI's own active tab.

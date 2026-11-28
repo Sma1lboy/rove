@@ -11,9 +11,9 @@
  * which needs bun's runner.
  */
 import { describe, expect, it } from "bun:test"
+import { DEFAULT_GLYPHS } from "@sma1lboy/rove-core/lib/glyphs.ts"
+import { chipAttentionKind } from "@sma1lboy/rove-core/lib/notify-state.ts"
 import type { TabStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
-import { DEFAULT_GLYPHS } from "../../src/lib/glyphs"
-import { chipAttentionKind } from "../../src/lib/notify-state"
 import { rowStatusGlyph } from "../../src/lib/row-status-glyph"
 import { notifyTurns } from "../../src/tui-react/workspace/use-tab-turn-state"
 

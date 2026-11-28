@@ -9,10 +9,11 @@
 
 import { AUTO_ROUTING_TIERS, readAutoRoutingTable } from "@/engine/auto-routing"
 import { engineEntry } from "@/engine/registry"
-import { type VendorId, nextVendorWithin, prevVendorWithin } from "@/types/vendor"
 import type { AdoptableWorktree } from "@/types/worktree"
+import { t } from "@sma1lboy/rove-core/i18n/index.ts"
+import { type VendorId, nextVendorWithin, prevVendorWithin } from "@sma1lboy/rove-core/types/vendor.ts"
+import { DEFAULT_BASE_REF, validateRepoPath } from "@sma1lboy/rove-core/worktree/git-snapshot.ts"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { t } from "../../../i18n"
 import {
   type DialogTab,
   type ExistingIntent,
@@ -26,7 +27,6 @@ import {
   prevDialogTab,
   stripNewlines,
 } from "../../../tui/component/new-task-dialog/state"
-import { DEFAULT_BASE_REF, validateRepoPath } from "../../../worktree/git-snapshot"
 import { useBindings } from "../../lib/keymap"
 import { useTerminalSize } from "../../lib/use-terminal-size"
 import { engineAcceptsModel, useModelField } from "../model-field"

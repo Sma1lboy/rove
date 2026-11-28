@@ -1,7 +1,7 @@
-import { readOnlyGitProcessEnv } from "@/lib/git-env"
-import { recordSpawn } from "@/lib/spawn-profile"
 import { spawnCapture } from "../lib/background-poll"
+import { readOnlyGitProcessEnv } from "../lib/git-env"
 import { readFirstNonEmptyRepoFile } from "../lib/repo-config-file.ts"
+import { recordSpawn } from "../lib/spawn-profile"
 
 export interface PRPromptState {
   readonly branch: string

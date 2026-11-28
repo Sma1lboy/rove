@@ -20,17 +20,17 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { DiffRenderable } from "@opentui/core"
-import { useRef, useState } from "react"
-import { ToastOverlay } from "../../src/tui-react/component/toast-overlay"
-import { PreviewScreen } from "../../src/tui-react/ops/preview"
-import { useDiffReview } from "../../src/tui-react/ops/preview-review"
 import {
   type DiffComment,
   type DiffCommentsKv,
   buildDiffReview,
   diffCommentsKey,
   unsentComments,
-} from "../../src/worktree/diff-comments"
+} from "@sma1lboy/rove-core/worktree/diff-comments.ts"
+import { useRef, useState } from "react"
+import { ToastOverlay } from "../../src/tui-react/component/toast-overlay"
+import { PreviewScreen } from "../../src/tui-react/ops/preview"
+import { useDiffReview } from "../../src/tui-react/ops/preview-review"
 import { act, renderComponent, waitForFrameText } from "./harness"
 
 const DIFF = ["--- a/a.ts", "+++ b/a.ts", "@@ -1,1 +1,3 @@", " const a = 1", "+const b = 2", "+const c = 3"].join("\n")

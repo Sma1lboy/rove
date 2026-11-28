@@ -3,9 +3,9 @@
  * create-before-snapshot path is testable without mounting the full PTY host.
  */
 
-import { errorMessage, isDiskFull, userFacingErrorMessage } from "../../lib/error-message.ts"
+import { errorMessage, isDiskFull, userFacingErrorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { TASK_DELETING_CODE, TaskDeletingError } from "../../orchestrator/errors.ts"
-import type { Task } from "../../types/task.ts"
 
 /**
  * Toast wording by failure shape: mid-delete ("wait"), no git repo

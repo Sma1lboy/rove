@@ -6,9 +6,9 @@
 
 import { unlinkSync } from "node:fs"
 import { join } from "node:path"
+import { roveStateDir } from "@sma1lboy/rove-core/env.ts"
 import { RemoteOrchestrator } from "../../../client/remote-orchestrator"
 import type { RoveOrchestrator } from "../../../client/remote-orchestrator"
-import { roveStateDir } from "../../../env"
 
 /**
  * "Restart backend" is only offered when attached to a real daemon.

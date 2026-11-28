@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { CURRENT_VERSION } from "@sma1lboy/rove-core/version.ts"
 import { preRenameConfigDir, preRenameStateDir } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
 import { afterAll, beforeAll, describe, expect, test } from "vitest"
-import { CURRENT_VERSION } from "../../src/version.ts"
 import { type BehaviorEnv, makeBehaviorEnv, runRove } from "./harness.ts"
 
 describe("rove CLI compatibility entry", () => {

@@ -5,12 +5,12 @@
  * has one implementation and the confirm can't drift from the merge.
  */
 
-import type { ExecHost } from "../exec/exec-host.ts"
-import { READ_ONLY_GIT_ENV } from "../lib/git-env.ts"
-import type { Task } from "../types/task.ts"
+import type { ExecHost } from "@sma1lboy/rove-core/exec/exec-host.ts"
+import { READ_ONLY_GIT_ENV } from "@sma1lboy/rove-core/lib/git-env.ts"
+import { gitRepoOf } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { isDirtyOutput, parseDirtyPaths } from "./dirty-paths.ts"
 import { EmptyBranchDirtyWorktreeError, EmptyBranchError, MainCheckoutDirtyError, MissingRefError } from "./errors.ts"
-import { gitRepoOf } from "./task-tree.ts"
 import { type WorktreeExecDeps, defaultExecDeps } from "./worktree/exec-deps.ts"
 import { GitWorktreeManager } from "./worktree/manager.ts"
 

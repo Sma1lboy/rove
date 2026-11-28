@@ -8,13 +8,13 @@ import { afterEach, beforeEach, expect, test } from "bun:test"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import type { QuickTaskResult } from "../../src/tui-react/component/quick-task-composer"
 import {
   type QuickForkOrchestrator,
   type UseQuickForkResult,
   useQuickFork,
 } from "../../src/tui-react/workspace/quick-fork"
-import { type Task, toTaskId } from "../../src/types/task"
 import { act, renderComponent } from "./harness"
 
 let savedHome: string | undefined

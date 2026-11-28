@@ -1,6 +1,6 @@
 /** Snapshot refresh for {@link XtermTaskPty}: scrollback cache, anchor marker, snapshot metadata. */
 
-import type { TerminalStyleRewrite } from "@/types/terminal-presentation"
+import type { TerminalStyleRewrite } from "@sma1lboy/rove-core/types/terminal-presentation.ts"
 import type { IMarker, Terminal as XtermHeadless } from "@xterm/headless"
 import type { CursorPos, TerminalRow, TerminalSnapshotWindow } from "./pty-types"
 import { TerminalCursorSettlement } from "./terminal-cursor-settlement"

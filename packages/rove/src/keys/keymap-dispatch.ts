@@ -4,7 +4,7 @@
  * React hook + renderer install and re-exports from here.
  */
 
-import { isDev } from "../env.ts"
+import { isDev } from "@sma1lboy/rove-core/env.ts"
 import type { KeyEvent } from "./key-event"
 import { matchKey } from "./keymap-match"
 import { inputPassthroughReachable, prefixReachable, scanReachability } from "./keymap-reachability"

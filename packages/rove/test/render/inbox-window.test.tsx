@@ -13,11 +13,11 @@
 
 import { expect, test } from "bun:test"
 import { TextAttributes } from "@opentui/core"
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import type { AttentionInboxItem } from "../../src/client/remote-orchestrator"
 import type { KVContext } from "../../src/tui-react/context/kv"
 import { AttentionInboxPane } from "../../src/tui-react/workspace/AttentionInboxPane"
 import { writeInboxVisit } from "../../src/tui-react/workspace/inbox-visits"
-import { type Task, toTaskId } from "../../src/types/task"
 import { renderComponent, settle } from "./harness"
 
 function task(id: string, over: Partial<Task> = {}): Task {

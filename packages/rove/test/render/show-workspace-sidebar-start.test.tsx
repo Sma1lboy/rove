@@ -1,5 +1,6 @@
 /** @jsxImportSource @opentui/react */
 import { afterEach, describe, expect, it, spyOn } from "bun:test"
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 import * as engines from "../../src/engine/account-detect"
@@ -13,7 +14,6 @@ import {
   takeNewTab,
 } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import { defaultShell } from "../../src/tui/panes/terminal/pty-types"
-import { type Task, toTaskId } from "../../src/types/task"
 import { act, renderComponent, waitForFrameText } from "./harness"
 
 const restore: (() => void)[] = []

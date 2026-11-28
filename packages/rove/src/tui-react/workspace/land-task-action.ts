@@ -5,8 +5,8 @@
  * conflict, dirty base). React-free.
  */
 
+import { landRefusalText } from "@sma1lboy/rove-core/lib/land-refusal.ts"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
-import { landRefusalText } from "../../lib/land-refusal"
 
 const LAND_CONFLICT_RE = /LAND_CONFLICT/
 const MAIN_DIRTY_RE = /MAIN_CHECKOUT_DIRTY/

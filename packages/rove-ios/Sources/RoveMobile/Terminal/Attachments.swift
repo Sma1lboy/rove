@@ -2,7 +2,7 @@ import Foundation
 import UIKit
 
 /// What `attachment.put` accepts and how its reference is spelled for an engine — the same
-/// `images[0]: /path` / `pdf[1]: /path` lines the TUI composer appends (`packages/rove/src/lib/attachments.ts`).
+/// `images[0]: /path` / `pdf[1]: /path` lines the TUI composer appends (`packages/rove-core/src/lib/attachments.ts`).
 enum AttachmentLogic {
     /// Mirrors the bridge's raw cap (the frame limit is 8 MiB once base64-encoded).
     static let maxBytes = 5 * 1024 * 1024

@@ -8,10 +8,10 @@
  * confirm step and no danger tone.
  */
 
+import { TASK_STATUSES, type TaskStatus } from "@sma1lboy/rove-core/types/task.ts"
 import { useState } from "react"
 import type { PickerWindow } from "../../tui/component/new-task-dialog/state"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
-import { TASK_STATUSES, type TaskStatus } from "../../types/task"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"

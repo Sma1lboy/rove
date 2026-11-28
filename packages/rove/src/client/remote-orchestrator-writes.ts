@@ -4,6 +4,8 @@
  * is async and can find the daemon gone.
  */
 
+import type { CIFailingCheck, CIFailingChecksRead } from "@sma1lboy/rove-core/github/ci-prompt.ts"
+import type { Task, TaskId, TaskStatus, VendorId } from "@sma1lboy/rove-core/types/task.ts"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { TaskDeleteOptions } from "@sma1lboy/rove-daemon/daemon/child-contracts"
 import type { Automation, AutomationRun, AutomationRunStatus } from "@sma1lboy/rove-daemon/daemon/contracts"
@@ -11,13 +13,11 @@ import type { RepoIssues } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { TeardownScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import type { WorkItem } from "@sma1lboy/rove-daemon/daemon/work-items"
-import type { CIFailingCheck, CIFailingChecksRead } from "../github/ci-prompt.ts"
 import type { LandPreflight } from "../orchestrator/land-preflight.ts"
 import type { LandResult } from "../orchestrator/land.ts"
 import type { SpawnChildInput, SpawnChildResult } from "../orchestrator/spawn-child.ts"
 import type { WorktreeResidue } from "../orchestrator/worktree/manager-remove.ts"
 import type { StoredFieldNote } from "../state/field-notes.ts"
-import type { Task, TaskId, TaskStatus, VendorId } from "../types/task.ts"
 import type { AdoptableWorktree, WorktreeProject } from "../types/worktree.ts"
 import type { RecentTaskEvent } from "./remote-orchestrator-payloads.ts"
 import { deserializeTask } from "./remote-orchestrator-payloads.ts"

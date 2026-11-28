@@ -33,7 +33,7 @@ const csp = [
   "base-uri 'none'",
   "form-action 'none'",
 ].join("; ")
-// Tokens mirror rove-web's default `claude` theme (`packages/rove/src/theme/claude.json` + `prefs-theme.ts` quietInks)
+// Tokens mirror rove-web's default `claude` theme (`packages/rove-core/src/theme/claude.json` + `prefs-theme.ts` quietInks)
 // and are prefixed `--rs-*` so they never collide with `tailwind.css` once the app stylesheet mounts.
 const css = [
   ":root{--rs-paper:#141413;--rs-surface:#1a1917;--rs-line:#3a3835;--rs-ink:#eae7df;--rs-muted:#a9a39a;--rs-subtle:#9d9a95;--rs-accent:#cc785c;--rs-error:#ec6f74;--rs-hover:rgba(234,231,223,.07);color-scheme:dark}",

@@ -13,7 +13,7 @@
  * `turn_id`, so it goes to the open turn.
  */
 
-import { isObject } from "../../lib/is-object"
+import { isObject } from "@sma1lboy/rove-core/lib/is-object.ts"
 import type { AgentTurn } from "../agent-turn.ts"
 import { isJsonlLineWithinBound, readTextFileBounded } from "../file-bounds.ts"
 import { codexUsageToSnapshot } from "./usage.ts"

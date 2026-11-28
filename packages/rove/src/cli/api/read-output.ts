@@ -28,13 +28,13 @@
  * its terminal.
  */
 
+import type { Message } from "@sma1lboy/rove-core/types/engine.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { canonicalEngineTab } from "@sma1lboy/rove-daemon/daemon/engine-tabs"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { protocolEntry, sessionProtocol } from "../../engine/engine-presets.ts"
 import { type EngineHistoryReader, supportsStructuredHistory } from "../../engine/registry.ts"
-import type { Message } from "../../types/engine.ts"
-import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { engineScreenError, peekTaskTerminal } from "./engine-screen.ts"
 import { daemonOf } from "./handler-helpers.ts"

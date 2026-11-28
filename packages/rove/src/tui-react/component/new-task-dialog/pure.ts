@@ -1,8 +1,8 @@
 /** Framework-free new-task dialog helpers, testable without mounting
  *  (`test/tui-react/new-task-pure.test.ts`). No React, no fs. */
 
-import { DEFAULT_TASK_VENDOR } from "@/types/task"
-import { ALL_VENDORS, type VendorId } from "@/types/vendor"
+import { DEFAULT_TASK_VENDOR } from "@sma1lboy/rove-core/types/task.ts"
+import { ALL_VENDORS, type VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 
 /** Detected vendors, or the full list when none — the selector is never
  *  empty, so task creation is never blocked. */

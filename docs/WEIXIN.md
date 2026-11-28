@@ -239,7 +239,7 @@ and the routine hand-off. It is bundled into the `rove` CLI at build time, so
 `npm i -g @sma1lboy/rove` includes it; it is not published on its own.
 
 Rove itself only defines a generic chat-connector contract
-(`packages/rove/src/connectors/chat-connector.ts`) and a registry that names the
+(`packages/rove-core/src/connectors/chat-connector.ts`) and a registry that names the
 connector package (`packages/rove/src/connectors/registry.ts`). The daemon starts
 every registered connector after it is listening and stays up while one asks it
 to. Dependencies point one way: `rove-weixin` uses Rove's public pieces (the

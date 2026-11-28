@@ -16,7 +16,7 @@
  */
 
 import { createHash } from "node:crypto"
-import type { Message } from "@/types/engine"
+import type { Message } from "@sma1lboy/rove-core/types/engine.ts"
 
 export interface AppendParseCacheOptions<S, C> {
   /** Fold state for an empty transcript (before any complete line). */

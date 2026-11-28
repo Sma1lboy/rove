@@ -8,6 +8,22 @@
  */
 
 import { hostname } from "node:os"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import {
+  type MachineEntry,
+  dedupeMachines,
+  listMachines,
+  updateMachine,
+} from "@sma1lboy/rove-core/machines/registry.ts"
+import {
+  type RepoIdentity,
+  isLocalCheckout,
+  repoIdentity,
+  unpushedCommits,
+} from "@sma1lboy/rove-core/machines/repo-identity.ts"
+import { findCheckouts, parseRepoRef } from "@sma1lboy/rove-core/machines/repo-ref.ts"
+import { localDaemonSocketPath, localPtySocketPath } from "@sma1lboy/rove-core/machines/ssh-args.ts"
+import { getSavedRepos } from "@sma1lboy/rove-core/state/repos.ts"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { connectIfRunning } from "@sma1lboy/rove-daemon/client/daemon-process"
 import {
@@ -20,13 +36,7 @@ import {
 import { type MachineLoad, readMachineLoad } from "@sma1lboy/rove-daemon/machine-load"
 import { recordSend } from "../cli/api/dispatcher.ts"
 import { ApiError } from "../cli/api/types.ts"
-import { errorMessage } from "../lib/error-message.ts"
-import { getSavedRepos } from "../state/repos.ts"
 import { discoverMachine, learnedFrom } from "./discover.ts"
-import { type MachineEntry, dedupeMachines, listMachines, updateMachine } from "./registry.ts"
-import { type RepoIdentity, isLocalCheckout, repoIdentity, unpushedCommits } from "./repo-identity.ts"
-import { findCheckouts, parseRepoRef } from "./repo-ref.ts"
-import { localDaemonSocketPath, localPtySocketPath } from "./ssh-args.ts"
 import { ensureForwards } from "./tunnel.ts"
 
 /** `--machine local` names this machine explicitly. */

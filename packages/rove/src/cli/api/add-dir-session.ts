@@ -5,10 +5,10 @@
  */
 
 import { statSync } from "node:fs"
+import { homeDir } from "@sma1lboy/rove-core/env.ts"
+import { deriveTitleFromPrompt } from "@sma1lboy/rove-core/orchestrator/title.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { homeDir } from "../../env.ts"
-import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
-import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { applyPostCreateFlags, deliverArmed, persistPrompt } from "./add-delivery.ts"
 import { effortFor, engineChoice, launchedEngine, modelFor } from "./add-engine-fields.ts"

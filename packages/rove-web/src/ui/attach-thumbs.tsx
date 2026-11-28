@@ -1,4 +1,4 @@
-import { formatBytes } from "@sma1lboy/rove/src/lib/format-bytes.ts"
+import { formatBytes } from "@sma1lboy/rove-core/lib/format-bytes.ts"
 import { useState } from "react"
 import { t } from "../i18n/index.ts"
 

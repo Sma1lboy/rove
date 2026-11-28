@@ -8,14 +8,14 @@
  * no real git, no timing.
  */
 
+import type { ExecHost, ExecResult } from "@sma1lboy/rove-core/exec/exec-host.ts"
+import { READ_ONLY_GIT_ENV } from "@sma1lboy/rove-core/lib/git-env.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, it } from "vitest"
-import type { ExecHost, ExecResult } from "../../src/exec/exec-host.ts"
-import { READ_ONLY_GIT_ENV } from "../../src/lib/git-env.ts"
 import { landTask } from "../../src/orchestrator/land.ts"
 import type { WorktreeExecDeps } from "../../src/orchestrator/worktree/exec-deps.ts"
 import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
-import type { Task } from "../../src/types/task.ts"
-import { toTaskId } from "../../src/types/task.ts"
 
 interface RecordedRun {
   readonly argv: readonly string[]

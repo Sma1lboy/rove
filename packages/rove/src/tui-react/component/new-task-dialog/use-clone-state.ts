@@ -4,9 +4,18 @@
  * in `src/tui/component/new-task-dialog/clone.ts`.
  */
 
-import type { VendorId } from "@/types/vendor"
+import { expandHome, joinPicked } from "@sma1lboy/rove-core/lib/path-helpers.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
+import {
+  cloneRepo,
+  deriveFolderName,
+  findAvailableFolderName,
+  resolveCloneTarget,
+  validateCloneTarget,
+  validateGitUrl,
+} from "@sma1lboy/rove-core/worktree/clone.ts"
+import { DEFAULT_BASE_REF } from "@sma1lboy/rove-core/worktree/git-snapshot.ts"
 import { useEffect, useState } from "react"
-import { expandHome, joinPicked } from "../../../lib/path-helpers"
 import { completeRepoInput } from "../../../tui/component/new-task-dialog/repo-field"
 import {
   type Field,
@@ -17,15 +26,6 @@ import {
   stripNewlines,
   windowAround,
 } from "../../../tui/component/new-task-dialog/state"
-import {
-  cloneRepo,
-  deriveFolderName,
-  findAvailableFolderName,
-  resolveCloneTarget,
-  validateCloneTarget,
-  validateGitUrl,
-} from "../../../worktree/clone"
-import { DEFAULT_BASE_REF } from "../../../worktree/git-snapshot"
 import { t } from "../../i18n"
 import { useTerminalSize } from "../../lib/use-terminal-size"
 import { useDerivedDir } from "./use-derived-dir"

@@ -1,5 +1,5 @@
+import { UPDATE_DELAY_KEY, updateDelayHours } from "@sma1lboy/rove-core/state/update-channel.ts"
 import { describe, expect, it } from "vitest"
-import { UPDATE_DELAY_KEY, updateDelayHours } from "../../src/state/update-channel.ts"
 
 describe("update.delayHours", () => {
   it("reads a hand-edited value", () => {

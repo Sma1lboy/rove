@@ -19,11 +19,11 @@
  *  - `sweepBar`, which belongs to a different module entirely.
  */
 
+import { sweepBar } from "@sma1lboy/rove-core/lib/progress-bar.ts"
+import type { Task, TaskStatus } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, it } from "vitest"
-import { sweepBar } from "../../src/lib/progress-bar.ts"
 import { anyRowLoading, buildSidebarRowView, rowIsLoading } from "../../src/tui/panes/sidebar/row-view.ts"
-import type { Task, TaskStatus } from "../../src/types/task.ts"
-import { toTaskId } from "../../src/types/task.ts"
 
 function task(overrides: Omit<Partial<Task>, "id"> & { id?: string } = {}): Task {
   return {

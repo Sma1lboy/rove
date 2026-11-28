@@ -12,9 +12,9 @@
 
 import { stat } from "node:fs/promises"
 import { join } from "node:path"
-import { readOnlyGitProcessEnv } from "@/lib/git-env"
-import { recordSpawn } from "@/lib/spawn-profile"
-import { createBackgroundPoller, spawnCapture } from "../../../lib/background-poll"
+import { createBackgroundPoller, spawnCapture } from "@sma1lboy/rove-core/lib/background-poll.ts"
+import { readOnlyGitProcessEnv } from "@sma1lboy/rove-core/lib/git-env.ts"
+import { recordSpawn } from "@sma1lboy/rove-core/lib/spawn-profile.ts"
 
 /** Kill a ref read that runs longer than this — O(1) commands, tight leash. */
 const BRANCH_POLL_TIMEOUT_MS = 2_000

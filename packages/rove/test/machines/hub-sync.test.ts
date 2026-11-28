@@ -9,8 +9,8 @@ import { describe, expect, it, vi } from "vitest"
 const discover = vi.hoisted(() => vi.fn(async () => ({ ok: false as const, code: "SSH_FAILED", message: "down" })))
 vi.mock("../../src/machines/discover.ts", () => ({ discoverMachine: discover, learnedFrom: () => ({}) }))
 
+import type { MachineEntry } from "@sma1lboy/rove-core/machines/registry.ts"
 import { MachineHub } from "../../src/machines/hub.ts"
-import type { MachineEntry } from "../../src/machines/registry.ts"
 
 const box: MachineEntry = { alias: "box", host: "box", auth: { kind: "key" } }
 const aliases = (hub: MachineHub) =>

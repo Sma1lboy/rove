@@ -105,14 +105,9 @@ worktree on the shared branch name. `taskRepos(task)` (in `rove-daemon`'s
     than testing `task.kind`.
   - `src/client/` — framework-free remote Orchestrator client and channel
     stores.
-  - `src/i18n/` — the message catalogs and `t()`, shared by the TUI, the CLI
-    and the web client.
   - `src/settings/` — the settings-dialog row model and appearance choices,
     framework-free so the bridge reads the same data as the TUI.
   - `src/assets/` — bundled binary assets (the notification chime).
-  - `src/theme/` — opentui-free theme data: the JSON shape, bundled palettes,
-    loader, installer and hex resolver that `rove api` and the bridge read.
-    Resolving to drawable colors (opentui `RGBA`, no React) is `tui/context/theme-core.ts`.
   - `src/tabs/` — the terminal-tab model (tabs, splits, argv, titles) shared
     by the TUI, `rove api` and the web client.
   - `src/keys/` — the keybinding model: bindings table, chord matching,
@@ -131,6 +126,19 @@ worktree on the shared branch name. `taskRepos(task)` (in `rove-daemon`'s
     (`test/architecture/bundled-plugins.test.ts`). The board logic and copy
     they share with `rove --web` stay in core (`state/issue-board.ts`, the
     `kanban` / `workItems` catalogs).
+- `packages/rove-core/` — `@sma1lboy/rove-core`, the UI-free core the CLI,
+  TUI, bridge and clients share. Not published: the CLI build bundles it. It
+  keeps `packages/rove/src`'s layout (`lib/`, `state/`, `types/`, `worktree/`,
+  `machines/`, `github/`, `exec/`, parts of `engine/` and `orchestrator/`,
+  `env.ts`, `version.ts`, …), so a module is imported as
+  `@sma1lboy/rove-core/<path>.ts`. It grows bottom-up: a file moves here only
+  with everything it imports. Also here:
+  - `src/i18n/` — the message catalogs and `t()`, shared by the TUI, the CLI
+    and the web client.
+  - `src/theme/` — opentui-free theme data: the JSON shape, bundled palettes,
+    loader, installer and hex resolver that `rove api` and the bridge read.
+    Resolving to drawable colors (opentui `RGBA`, no React) is
+    `rove/src/tui/context/theme-core.ts`.
 - `packages/rove-daemon/` — Unix-socket daemon protocol/server, standalone
   PTY Host implementation, and the plugin core
   (`src/plugins/`: manifest, registry, event derivation, daemon-side host —
@@ -233,6 +241,13 @@ this capability refuse capped launches rather than opening without admission.
   package (`test/architecture/core-off-tui.test.ts`).
 - Clients (`rove-web`, `rove-bridge`, `rove-lark`, `rove-weixin`) never import
   `@sma1lboy/rove/src/tui*` (`test/architecture/clients-off-tui.test.ts`).
+- Package layering: `rove-daemon` ← `rove-core` ← `rove` (CLI, TUI) and the
+  clients. `rove-core` imports nothing from `@sma1lboy/rove` but its
+  `package.json`, which carries the product version
+  (`test/architecture/core-off-tui.test.ts`).
+- A package reaches another only through its package name, never a relative
+  `../other-package/` path (`test/architecture/no-relative-package-crossing.test.ts`,
+  shrink-only list of older offenders).
 
 ## 6. State
 

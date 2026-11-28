@@ -4,12 +4,12 @@
  * the list; the agent deletes only what the user confirms there.
  */
 
-import { userFacingErrorMessage } from "@/lib/error-message"
+import { userFacingErrorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { defaultDaemonSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import type { ApiEnvelope } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { useEffect, useRef } from "react"
-import type { Task } from "../../types/task"
 import type { KVContext } from "../context/kv"
 import { useOptionalNotifications } from "../context/notifications"
 import { t } from "../i18n"

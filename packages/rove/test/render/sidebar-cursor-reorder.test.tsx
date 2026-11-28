@@ -1,10 +1,10 @@
 /** @jsxImportSource @opentui/react */
 import { expect, test } from "bun:test"
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { useState } from "react"
 import { SidebarTree } from "../../src/tui-react/panes/sidebar/SidebarTree"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import { MAIN_BRANCH_POLL_MS } from "../../src/tui/panes/sidebar/view-core"
-import { type Task, toTaskId } from "../../src/types/task"
 import { act, renderComponent } from "./harness"
 
 const projects: Task[] = ["alpha", "bravo", "charlie"].map((id) => ({

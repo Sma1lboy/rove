@@ -6,7 +6,7 @@
  * the registry entry.
  */
 
-import type { EngineUsageSnapshot } from "@/types/engine"
+import type { EngineUsageSnapshot } from "@sma1lboy/rove-core/types/engine.ts"
 
 export interface AgentTurn {
   /** Dedupe key across re-reads (every Stop re-reads from the top): the SAME

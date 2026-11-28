@@ -17,9 +17,9 @@
  * acts on it.
  */
 
-import type { TaskActivityState } from "@/engine/hook-events"
-import { rollupPr } from "@/orchestrator/task-tree"
-import type { TaskExtraRepo, TaskPRStatus, TaskStatus, TaskWorkerReport } from "@/types/task"
+import type { TaskActivityState } from "../engine/hook-events"
+import { rollupPr } from "../orchestrator/task-tree"
+import type { TaskExtraRepo, TaskPRStatus, TaskStatus, TaskWorkerReport } from "../types/task"
 
 /** In RANK order (most-needs-you first); array order IS {@link taskGroupRank}. */
 export const TASK_GROUPS = [

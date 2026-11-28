@@ -17,8 +17,8 @@
  */
 
 import { describe, expect, test } from "bun:test"
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { runAgainTask } from "../../src/tui-react/workspace/quick-fork"
-import { type Task, toTaskId } from "../../src/types/task"
 import { isolateHome } from "./harness"
 
 isolateHome()

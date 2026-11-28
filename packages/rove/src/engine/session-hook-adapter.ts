@@ -22,7 +22,7 @@
 
 import { existsSync } from "node:fs"
 import { dirname } from "node:path"
-import type { VendorId } from "../types/vendor.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { EngineSessionRef } from "./hook-adapter.ts"
 import { JsonHookAdapter } from "./json-hook-adapter.ts"
 import type { HookEditOutcome, HookEventSpec } from "./json-hooks.ts"

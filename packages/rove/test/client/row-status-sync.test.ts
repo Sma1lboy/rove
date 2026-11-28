@@ -5,13 +5,13 @@
  * the real event decoder.
  */
 
+import { DEFAULT_GLYPHS } from "@sma1lboy/rove-core/lib/glyphs.ts"
 import type { RowStatusPayload } from "@sma1lboy/rove-daemon/daemon/row-status-store"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { handleOrchestratorEvent } from "../../src/client/remote-orchestrator-events.ts"
 import type { OrchestratorSignals } from "../../src/client/remote-orchestrator-payloads.ts"
 import type { RowStatusTransport } from "../../src/client/remote-orchestrator-row-status.ts"
 import { RowStatusChannel } from "../../src/client/remote-orchestrator-row-status.ts"
-import { DEFAULT_GLYPHS } from "../../src/lib/glyphs.ts"
 import { rowStatusGlyph } from "../../src/lib/row-status-glyph.ts"
 import {
   acceptRemoteActivity,

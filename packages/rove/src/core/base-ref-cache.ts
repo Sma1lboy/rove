@@ -25,6 +25,8 @@
 
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
+import { readOnlyGitProcessEnv } from "@sma1lboy/rove-core/lib/git-env.ts"
+import { spawnCapture } from "@sma1lboy/rove-core/lib/poll-scheduling.ts"
 import {
   DEFAULT_BASE_REF_CANDIDATES,
   type GitDirs,
@@ -32,8 +34,6 @@ import {
   readRefSha,
   resolveGitDirs,
 } from "@sma1lboy/rove-daemon/daemon/worktree-probe"
-import { readOnlyGitProcessEnv } from "../lib/git-env.ts"
-import { spawnCapture } from "../lib/poll-scheduling.ts"
 
 /** How long a resolution (including "none") is trusted. Exported as a test seam. */
 export const BASE_REF_TTL_MS = 5 * 60_000

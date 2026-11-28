@@ -1,6 +1,6 @@
 /** Path / repo-key normalisation for the {@link Orchestrator} that reads no orchestrator state. */
 
-import { getRemoteRepoConfig, isRemoteRepoKey, resolveRepoRoot } from "../state/repos.ts"
+import { getRemoteRepoConfig, isRemoteRepoKey, resolveRepoRoot } from "@sma1lboy/rove-core/state/repos.ts"
 import { canonicalize } from "./worktree/paths.ts"
 
 /** Resolve symlinks (macOS `/var` → `/private/var`) so caller-form and git-form

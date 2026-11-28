@@ -5,9 +5,9 @@
  * real host. See `docs/design/remote-projects.md`.
  */
 
-import type { ExecHost } from "../../exec/exec-host.ts"
-import { execHostForRepo, execHostForWorktreePath } from "../../exec/resolve.ts"
-import { getRemoteRepoConfig } from "../../state/repos.ts"
+import type { ExecHost } from "@sma1lboy/rove-core/exec/exec-host.ts"
+import { execHostForRepo, execHostForWorktreePath } from "@sma1lboy/rove-core/exec/resolve.ts"
+import { getRemoteRepoConfig } from "@sma1lboy/rove-core/state/repos.ts"
 
 export interface WorktreeExecDeps {
   /** ExecHost for a project KEY (local path or `ssh://…`). */

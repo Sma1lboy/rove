@@ -7,7 +7,7 @@
  * the CLOCK the overlay reads (see {@link setPrefixHudClock}).
  */
 
-import { type ReadableState, createStateCell } from "../lib/external-store"
+import { type ReadableState, createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
 
 export { PREFIX_GUIDE_DELAY_MS, PREFIX_HUD_TTL_MS } from "./prefix-hud-timing"
 

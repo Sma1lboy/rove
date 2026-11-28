@@ -8,12 +8,6 @@
  * {@link coerceTask} writes fine and vanishes on the next daemon restart.
  */
 
-import { coerceAutoFix } from "@sma1lboy/rove-daemon/auto-fix-ci"
-import { SESSION_PR_CAP, canonicalPrUrl } from "@sma1lboy/rove-daemon/daemon/session-prs"
-import { pathSyntax, samePath } from "@sma1lboy/rove-daemon/path-identity"
-import { MAX_NOTES, coerceTodos } from "@sma1lboy/rove-daemon/task-notes"
-import { MULTI_REPO_CAP, REPO_NAME_RE } from "@sma1lboy/rove-daemon/task-tree"
-import { isWorkspaceBackendId } from "@sma1lboy/rove-daemon/workspace"
 import type {
   Task,
   TaskDeletionState,
@@ -29,9 +23,15 @@ import type {
   TaskStatus,
   TaskWorkerReport,
   TaskWorkspace,
-} from "../../types/task.ts"
-import { toTaskId } from "../../types/task.ts"
-import { coerceVendorId } from "../../types/vendor.ts"
+} from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
+import { coerceVendorId } from "@sma1lboy/rove-core/types/vendor.ts"
+import { coerceAutoFix } from "@sma1lboy/rove-daemon/auto-fix-ci"
+import { SESSION_PR_CAP, canonicalPrUrl } from "@sma1lboy/rove-daemon/daemon/session-prs"
+import { pathSyntax, samePath } from "@sma1lboy/rove-daemon/path-identity"
+import { MAX_NOTES, coerceTodos } from "@sma1lboy/rove-daemon/task-notes"
+import { MULTI_REPO_CAP, REPO_NAME_RE } from "@sma1lboy/rove-daemon/task-tree"
+import { isWorkspaceBackendId } from "@sma1lboy/rove-daemon/workspace"
 
 /**
  * Coerce one persisted task entry into a v3 {@link Task}. Tolerant of

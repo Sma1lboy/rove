@@ -8,11 +8,11 @@
  * new-conversation pair rides every task row.
  */
 
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, test } from "vitest"
 import { findBinding } from "../../src/keys/keybindings"
 import type { TreeRow } from "../../src/tui/panes/sidebar/tree-core"
 import { treeMenuItems } from "../../src/tui/panes/sidebar/tree-menu"
-import { type Task, toTaskId } from "../../src/types/task"
 
 function task(over: Partial<Task> = {}): Task {
   return {

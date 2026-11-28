@@ -5,9 +5,9 @@
  * path names nothing on this disk.
  */
 
+import type { StatusEntry } from "@sma1lboy/rove-core/worktree/git-status.ts"
+import type { PreviewData } from "@sma1lboy/rove-core/worktree/preview-core.ts"
 import type { ApiParams } from "@sma1lboy/rove-daemon/daemon/protocol"
-import type { StatusEntry } from "../worktree/git-status.ts"
-import type { PreviewData } from "../worktree/preview-core.ts"
 import type { DiffScope, WorktreeDiff } from "../worktree/review-read.ts"
 import { forwardVerb, requireMachine } from "./forward.ts"
 

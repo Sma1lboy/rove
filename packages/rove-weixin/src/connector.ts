@@ -5,8 +5,8 @@
  * bypasses any verb's checks.
  */
 
+import type { ChatConnector, ChatConnectorContext } from "@sma1lboy/rove-core/connectors/chat-connector.ts"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
-import type { ChatConnector, ChatConnectorContext } from "@sma1lboy/rove/src/connectors/chat-connector.ts"
 import { type WeixinBridge, startWeixinBridge } from "./bridge.ts"
 import { createRoveOps } from "./ops.ts"
 import { WeixinStore } from "./store.ts"

@@ -8,7 +8,7 @@
 
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
-import { roveStateDir } from "../env.ts"
+import { roveStateDir } from "@sma1lboy/rove-core/env.ts"
 import { realPathOrSelf } from "../lib/real-path.ts"
 
 /** How many of the newest notes a fresh session is seeded with. */

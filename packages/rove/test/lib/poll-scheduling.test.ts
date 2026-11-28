@@ -9,14 +9,14 @@
  * "failures never deliver a value" contract.
  */
 
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import {
   applyJitter,
   computeNextAllowedAt,
   decodeCapturedChunks,
   exponentialBackoff,
   maybeStartScheduledRun,
-} from "../../src/lib/poll-scheduling.ts"
+} from "@sma1lboy/rove-core/lib/poll-scheduling.ts"
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 
 const CFG = { timeoutMs: 30, slowRetryMs: 60_000, minIntervalMs: 0 }
 

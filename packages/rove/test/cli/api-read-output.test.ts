@@ -5,6 +5,7 @@
  * or vendor transcript files.
  */
 
+import type { Message } from "@sma1lboy/rove-core/types/engine.ts"
 import { beforeEach, describe, expect, it } from "vitest"
 import {
   DEFAULT_PAGE_MESSAGES,
@@ -21,7 +22,6 @@ import {
   readTaskOutput,
 } from "../../src/cli/api/read-output.ts"
 import type { EngineHistoryReader } from "../../src/engine/registry.ts"
-import type { Message } from "../../src/types/engine.ts"
 import { expectApiError } from "./api-handler-fixtures.ts"
 
 const WORKTREE = "/wt/task-1"

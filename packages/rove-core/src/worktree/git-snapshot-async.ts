@@ -5,7 +5,7 @@
  */
 
 import { execFile } from "node:child_process"
-import { recordSpawn } from "@/lib/spawn-profile"
+import { recordSpawn } from "../lib/spawn-profile"
 import { type GitAnswer, branchOf, branchesOf, isUnborn, pathProblem, repoProblem } from "./git-snapshot"
 
 function git(repo: string, args: readonly string[]): Promise<GitAnswer> {

@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest"
 import { parseResetsAtMs, usageFromClaudePayload } from "../../src/engine/claude-code-local/quota.ts"
 
 const spawnCapture = vi.hoisted(() => vi.fn())
-vi.mock("../../src/lib/poll-scheduling.ts", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../src/lib/poll-scheduling.ts")>()),
+vi.mock("@sma1lboy/rove-core/lib/poll-scheduling.ts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sma1lboy/rove-core/lib/poll-scheduling.ts")>()),
   spawnCapture,
 }))
 

@@ -10,9 +10,9 @@
  */
 
 import { basename } from "node:path"
-import { recordSpawn } from "../lib/spawn-profile.ts"
-import { loadStateFile } from "../state/store.ts"
-import type { VendorId } from "../types/vendor"
+import { recordSpawn } from "@sma1lboy/rove-core/lib/spawn-profile.ts"
+import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { type ProcRow, PsProbeUnavailableError } from "./process-rows.ts"
 import { engineEntry, identifiableEngineIds } from "./registry"
 

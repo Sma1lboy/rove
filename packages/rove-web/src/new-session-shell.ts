@@ -1,6 +1,6 @@
 /** The engine menu's Shell row: a terminal instead of an agent, started in the same three places a session can live. */
 
-import { deriveTitleFromPrompt } from "@sma1lboy/rove/src/orchestrator/title.ts"
+import { deriveTitleFromPrompt } from "@sma1lboy/rove-core/orchestrator/title.ts"
 import { useState } from "react"
 import { t } from "./i18n/index.ts"
 import { type StartInput, spawnArgs } from "./new-session.ts"

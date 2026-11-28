@@ -5,12 +5,12 @@
  */
 
 import { afterEach, expect, test } from "bun:test"
-import { DEFAULT_GLYPHS } from "../../src/lib/glyphs"
+import { DEFAULT_GLYPHS } from "@sma1lboy/rove-core/lib/glyphs.ts"
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { SidebarTree } from "../../src/tui-react/panes/sidebar/SidebarTree"
 import { resetRowStatusForTests } from "../../src/tui-react/workspace/row-status-sync"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import { dotsGlyph, litDots } from "../../src/tui/lib/status-dots"
-import { type Task, toTaskId } from "../../src/types/task"
 import { renderComponent, waitForFrameText } from "./harness"
 
 function task(id: string, over: Partial<Task> = {}): Task {

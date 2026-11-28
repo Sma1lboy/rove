@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
-import { FEEDBACK_KINDS, type FeedbackKind, isFeedbackKind, submitFeedback } from "../lib/feedback.ts"
-import { ROVE_PRODUCT_NAME } from "../product.ts"
+import { FEEDBACK_KINDS, type FeedbackKind, isFeedbackKind, submitFeedback } from "@sma1lboy/rove-core/lib/feedback.ts"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME
 

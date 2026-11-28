@@ -10,8 +10,8 @@ import { execSync } from "node:child_process"
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { cloneRepo } from "@sma1lboy/rove-core/worktree/clone.ts"
 import { afterAll, beforeAll, describe, expect, test } from "vitest"
-import { cloneRepo } from "../../src/worktree/clone.ts"
 
 let root: string
 let origin: string

@@ -13,16 +13,20 @@
  * Images need no side channel: `images[N]: /path` lines live in the issue BODY.
  */
 
-import { userFacingErrorMessage } from "@/lib/error-message"
+import { userFacingErrorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import { taskCwd } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import {
+  type IssueChatPlacement,
+  issueChatTaskTitle,
+  issueProjectPrompt,
+} from "@sma1lboy/rove-core/state/issue-chat.ts"
+import { addSavedRepo } from "@sma1lboy/rove-core/state/repos.ts"
+import { setLastActiveVendor } from "@sma1lboy/rove-core/state/vendor-prefs.ts"
+import type { Task, VendorId } from "@sma1lboy/rove-core/types/task.ts"
 import type { Issue } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import { roveApiInvocation } from "../../engine/interactive-command"
-import { taskCwd } from "../../orchestrator/task-tree"
-import { type IssueChatPlacement, issueChatTaskTitle, issueProjectPrompt } from "../../state/issue-chat"
-import { addSavedRepo } from "../../state/repos"
-import { setLastActiveVendor } from "../../state/vendor-prefs"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { buildIssueChatBackgroundSpawn } from "../../tui/workspace/issue-chat-spawn"
-import type { Task, VendorId } from "../../types/task"
 import { useT } from "../i18n"
 import { setTaskTabs } from "./terminal-tabs-shared"
 

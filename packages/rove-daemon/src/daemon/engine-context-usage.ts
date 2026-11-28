@@ -1,6 +1,6 @@
 /**
  * Context half of one live session's usage snapshot. Structural mirror of
- * rove's `EngineUsageSnapshot` (`rove/src/types/engine.ts`, source of truth);
+ * rove's `EngineUsageSnapshot` (`rove-core/src/types/engine.ts`, source of truth);
  * the engine's history reader computes it, never the daemon (vendor arithmetic).
  *
  * An unreported token count is absent, never `0`: "used no cache" and "engine

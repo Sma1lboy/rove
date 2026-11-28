@@ -15,7 +15,7 @@
  * registry; each registry holds its own handles.
  */
 
-import { isDev } from "../../../env.ts"
+import { isDev } from "@sma1lboy/rove-core/env.ts"
 import { type ParkedScreen, type TaskPty, type TaskPtyOpts, createTaskPty } from "./pty"
 
 export type AcquireOpts = Omit<TaskPtyOpts, "taskId" | "cwd">

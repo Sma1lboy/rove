@@ -26,13 +26,14 @@ import {
   planChatContinuation,
   planWorktreeHandoff,
 } from "@/engine/session-handoff-plan"
-import { resolveMainRepoRoot } from "@/state/repos"
-import { setLastActiveVendor } from "@/state/vendor-prefs"
-import type { VendorId } from "@/types/vendor"
+import { SHELL_TASK_TITLE } from "@sma1lboy/rove-core/orchestrator/title.ts"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
+import { resolveMainRepoRoot } from "@sma1lboy/rove-core/state/repos.ts"
+import { setLastActiveVendor } from "@sma1lboy/rove-core/state/vendor-prefs.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
+import { getCurrentBranch } from "@sma1lboy/rove-core/worktree/git-snapshot.ts"
 import { defaultDaemonSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import { type PaneLaunch, listPaneLaunches } from "@sma1lboy/rove-daemon/plugins/pane-command"
-import { SHELL_TASK_TITLE } from "../../orchestrator/title.ts"
-import { ROVE_PRODUCT_NAME } from "../../product.ts"
 import {
   type TabsState,
   type TerminalTab,
@@ -45,7 +46,6 @@ import {
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { openPluginPane } from "../../tui/workspace/pane-split"
-import { getCurrentBranch } from "../../worktree/git-snapshot"
 import {
   type NewChatChoice,
   type NewChatContext,

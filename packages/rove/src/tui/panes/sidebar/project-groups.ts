@@ -10,8 +10,8 @@
  */
 
 import type { TaskEngineState } from "@/client/remote-orchestrator"
-import { isUnlistedCheckout } from "@/lib/worktree-only"
-import type { Task } from "@/types/task"
+import { isUnlistedCheckout } from "@sma1lboy/rove-core/lib/worktree-only.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { workspaceBackendId } from "@sma1lboy/rove-daemon/workspace"
 import {
   type ProjectKeyOf,

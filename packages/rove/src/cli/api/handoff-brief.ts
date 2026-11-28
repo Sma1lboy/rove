@@ -5,10 +5,10 @@
  * point sends the same text.
  */
 
+import { taskCwd } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { liveSourceProtocol, planWorktreeHandoff } from "../../engine/session-handoff-plan.ts"
-import { taskCwd } from "../../orchestrator/task-tree.ts"
-import type { VendorId } from "../../types/vendor.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { readDaemonTabs, readTabsSnapshot } from "./tab-snapshot.ts"
 import { ApiError, type VerbContext, helpStep } from "./types.ts"

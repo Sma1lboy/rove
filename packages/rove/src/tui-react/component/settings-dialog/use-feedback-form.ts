@@ -1,9 +1,9 @@
 /** The Feedback section's form: draft, status line, and filing it as an issue. */
 
-import { errorMessage } from "@/lib/error-message"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import { submitFeedback } from "@sma1lboy/rove-core/lib/feedback.ts"
 import { useRef, useState } from "react"
 import { failureHint } from "../../../lib/failure-hint"
-import { submitFeedback } from "../../../lib/feedback"
 import { useT } from "../../i18n"
 
 export function useFeedbackForm(onSent: () => void) {

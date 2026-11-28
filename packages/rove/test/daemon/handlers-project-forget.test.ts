@@ -1,7 +1,7 @@
 /** `project.forget`: un-saves the repo; its rows and their sessions stay. */
 
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { expect, it } from "vitest"
-import type { Task } from "../../src/types/task.ts"
 import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
 
 it("forgets the repo and ends no session", async () => {

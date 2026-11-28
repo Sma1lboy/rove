@@ -21,6 +21,7 @@ import { fileURLToPath } from "node:url"
 import { describe, expect, test } from "vitest"
 import { REFERENCE_PATHS, describeStale, regenerate, sectionsByGroup } from "../../../../scripts/gen-skill-api-flags.ts"
 import { VERB_GROUP_IDS } from "../../src/cli/api/types.ts"
+import { CORE_SRC } from "../core-package.ts"
 
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url))
 const FIX = "bun scripts/gen-skill-api-flags.ts"
@@ -87,6 +88,7 @@ describe("the error-code table names codes the source throws", () => {
     const source = [
       join(ROOT, "packages", "rove", "src", "cli"),
       join(ROOT, "packages", "rove", "src", "orchestrator"),
+      join(CORE_SRC, "orchestrator"),
       join(ROOT, "packages", "rove-daemon", "src", "daemon"),
     ]
       .map(readTsSources)

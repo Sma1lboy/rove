@@ -9,6 +9,7 @@ import { readFileSync, readdirSync } from "node:fs"
 import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { describe, expect, test } from "vitest"
+import { CORE_SRC } from "../core-package.ts"
 
 const SRC = fileURLToPath(new URL("../../src", import.meta.url))
 const UI_DIRS = ["tui", "tui-react", "bundled-plugins"]
@@ -48,5 +49,30 @@ describe("core code does not import the TUI", () => {
         .filter(importsTui)
         .map((file) => relative(SRC, file)),
     ).toEqual([])
+  })
+})
+
+const ROVE_PKG = resolve(fileURLToPath(new URL("../..", import.meta.url)))
+
+function walk(dir: string, acc: string[] = []): string[] {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name)
+    if (entry.isDirectory()) walk(full, acc)
+    else if (/\.tsx?$/.test(entry.name)) acc.push(full)
+  }
+  return acc
+}
+
+describe("@sma1lboy/rove-core stands below the CLI package", () => {
+  test("no rove-core file imports @sma1lboy/rove or a path inside packages/rove", () => {
+    const offenders = walk(CORE_SRC).filter((file) =>
+      [...readFileSync(file, "utf8").matchAll(SPEC)].some(([, spec = ""]) => {
+        // The CLI manifest is the one thing core reads from the CLI package: it carries the product version.
+        if (spec === "@sma1lboy/rove/package.json") return false
+        if (spec === "@sma1lboy/rove" || spec.startsWith("@sma1lboy/rove/") || UI_PACKAGE.test(spec)) return true
+        return spec.startsWith(".") && resolve(dirname(file), spec).startsWith(`${ROVE_PKG}/`)
+      }),
+    )
+    expect(offenders.map((file) => relative(CORE_SRC, file))).toEqual([])
   })
 })

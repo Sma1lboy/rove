@@ -9,10 +9,10 @@
  * unchanged rows limits churn to rows that actually changed.
  */
 
-import { charWidth } from "@/lib/display-width"
 import { reconcileStableRows } from "@/lib/stable-rows"
-import { truncateStartCells } from "@/lib/truncate"
-import type { FileStatus, StatusEntry } from "../../../worktree/git-status"
+import { charWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
+import { truncateStartCells } from "@sma1lboy/rove-core/lib/truncate.ts"
+import type { FileStatus, StatusEntry } from "@sma1lboy/rove-core/worktree/git-status.ts"
 import type { TreeNode } from "./tree"
 
 /** All tab: file/dir tree rows with `depth`. Changes tab: flat status rows with +/- stats. */

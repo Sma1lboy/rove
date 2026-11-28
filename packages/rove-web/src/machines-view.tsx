@@ -4,7 +4,7 @@
  * cloud mark, its row greyed unless online so a stale snapshot never reads as live. The state is the bridge's `machines.list`; each machine's tasks come in the task feed.
  */
 
-import type { en as tasksEn } from "@sma1lboy/rove/src/i18n/messages/tasks.ts"
+import type { en as tasksEn } from "@sma1lboy/rove-core/i18n/messages/tasks.ts"
 import { useEffect, useState } from "react"
 import { everyVisible } from "./every-visible.ts"
 import { t, useLocale } from "./i18n/index.ts"

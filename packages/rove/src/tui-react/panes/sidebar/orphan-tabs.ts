@@ -10,7 +10,7 @@
  * tabs keep their snapshot projection (titles, ordinals, kinds, splits).
  */
 
-import type { Task } from "@/types/task"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { stripEngineStatusPrefix } from "../../../engine/registry"
 import { type TreeTab, parseRowId, tabRowId } from "../../../tui/panes/sidebar/tree-core"
 

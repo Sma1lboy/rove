@@ -4,7 +4,7 @@
  * Each spec's own `group` field decides where it lists in {@link VERBS}.
  */
 
-import { ENGINE_ACTIVITY_KINDS } from "../../engine/hook-events.ts"
+import { ENGINE_ACTIVITY_KINDS } from "@sma1lboy/rove-core/engine/hook-events.ts"
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
 import { PANE_GRAPHICS_VERB } from "./handlers-graphics.ts"

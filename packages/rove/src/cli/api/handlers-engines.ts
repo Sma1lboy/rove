@@ -10,6 +10,7 @@
  * Spec + handler live together so documented and accepted values can't drift.
  */
 
+import { type VendorId, coerceVendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { installedEngineIds } from "../../engine/account-detect.ts"
 import { CONTRIB_ENGINE_IDS } from "../../engine/contrib-engines.ts"
@@ -24,7 +25,6 @@ import { detectEngineStatus } from "../../engine/engine-status.ts"
 import { readEngineVersion } from "../../engine/engine-version.ts"
 import { ensurePluginEnginesLoaded } from "../../engine/plugin-engines.ts"
 import { type EngineModel, engineEntry, vendorsWithEffortLevels } from "../../engine/registry.ts"
-import { type VendorId, coerceVendorId } from "../../types/vendor.ts"
 import { ApiError, type VerbSpec } from "./types.ts"
 
 /**

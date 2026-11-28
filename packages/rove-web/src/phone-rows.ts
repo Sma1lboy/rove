@@ -1,6 +1,6 @@
 /** What the phone's lists show that the desktop rail does not, as pure rules: a session row's second line, and the pages extensions add. */
 
-import type { ModPaneView } from "@sma1lboy/rove/src/lib/mods-core.ts"
+import type { ModPaneView } from "@sma1lboy/rove-core/lib/mods-core.ts"
 import type { TaskRow } from "rove-bridge/protocol"
 import { createStore } from "./store.ts"
 import type { PageId } from "./ui.ts"

@@ -1,5 +1,5 @@
+import { COLORBLIND_KEY, DEFAULT_COLORBLIND, normalizeColorblind } from "@sma1lboy/rove-core/state/colorblind.ts"
 import { useMemo } from "react"
-import { COLORBLIND_KEY, DEFAULT_COLORBLIND, normalizeColorblind } from "../../state/colorblind"
 import { type DiffInks, diffInks } from "../../tui/context/theme-core"
 import { useOptionalKV } from "./kv"
 import { useTheme } from "./theme"

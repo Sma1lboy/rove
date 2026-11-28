@@ -8,6 +8,7 @@
 import { execFileSync } from "node:child_process"
 import { existsSync, mkdirSync, readdirSync, renameSync } from "node:fs"
 import { join } from "node:path"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 import { writeOutdatedCache } from "@sma1lboy/rove-daemon/plugins/outdated-cache"
 import {
   pluginCheckoutDir,
@@ -21,7 +22,6 @@ import {
   removePluginEntry,
   savePluginRegistry,
 } from "@sma1lboy/rove-daemon/plugins/registry"
-import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { PluginCliError, installPlugin } from "./plugin-install.ts"
 
 interface OutdatedRow {

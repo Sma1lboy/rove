@@ -11,7 +11,7 @@ import {
   applyBoardAttention,
   buildIssueBoard,
   moveBoardSelection,
-} from "@sma1lboy/rove/src/state/issue-board.ts"
+} from "@sma1lboy/rove-core/state/issue-board.ts"
 import { useEffect, useRef, useState } from "react"
 import { ConfirmDialog, errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"

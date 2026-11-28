@@ -4,10 +4,10 @@
  * contract without the view, and a layout change can't silently change it.
  */
 
+import type { IssueChatPlacement } from "@sma1lboy/rove-core/state/issue-chat.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/task.ts"
 import type { Issue, IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
-import type { IssueChatPlacement } from "../../state/issue-chat"
-import type { VendorId } from "../../types/task"
 
 export interface IssueDetailOptions {
   readonly issue: Issue

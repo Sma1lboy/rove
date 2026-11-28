@@ -14,11 +14,11 @@
  */
 
 import { describe, expect, it } from "bun:test"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 import { ShowWorkspace } from "../../src/tui-react/workspace/show-workspace"
 import { resetTabsSyncForTests } from "../../src/tui-react/workspace/tabs-sync"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
-import type { Task } from "../../src/types/task"
 import { act, renderComponent } from "./harness"
 
 // useAccessor drives useSyncExternalStore, which re-renders whenever the

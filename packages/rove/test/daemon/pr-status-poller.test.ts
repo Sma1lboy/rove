@@ -8,6 +8,7 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { pickPr } from "@sma1lboy/rove-daemon/daemon/pr-gh-runner"
 import {
   DEFAULT_PR_STATUS_POLL_MS,
@@ -28,7 +29,6 @@ import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
 import { Orchestrator } from "../../src/orchestrator/core.ts"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
-import { type Task, toTaskId } from "../../src/types/task.ts"
 
 const runPrStatusPass = (orchestrator: Orchestrator, options: Omit<PrStatusPassOptions, "runtime">) =>
   runPrStatusPassRaw(orchestrator, { ...options, runtime: daemonRuntime })

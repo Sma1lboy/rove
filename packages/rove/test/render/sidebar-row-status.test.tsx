@@ -12,11 +12,12 @@
 
 import { afterEach, expect, test } from "bun:test"
 import type { BoxRenderable } from "@opentui/core"
+import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
+import type { DotLook } from "@sma1lboy/rove-core/lib/status-dots.ts"
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import type { RowStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import type { RowStatusPayload } from "@sma1lboy/rove-daemon/daemon/row-status-store"
 import type { RowStatusTransport } from "../../src/client/remote-orchestrator-row-status"
-import { createStateCell } from "../../src/lib/external-store"
-import type { DotLook } from "../../src/lib/status-dots"
 import { useAccessor } from "../../src/tui-react/lib/use-accessor"
 import type { TreeRowShared } from "../../src/tui-react/panes/sidebar/tree-row-shell"
 import { WorktreeTreeRow } from "../../src/tui-react/panes/sidebar/tree-rows"
@@ -27,7 +28,6 @@ import {
   useViewingReport,
 } from "../../src/tui-react/workspace/row-status-sync"
 import { dotsGlyph, litDots } from "../../src/tui/lib/status-dots"
-import { type Task, toTaskId } from "../../src/types/task"
 import { act, renderComponent, waitForFrameText } from "./harness"
 
 /** The 3×3 mark a task row draws for `look`, and every frame of the working ripple. */

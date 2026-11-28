@@ -1,6 +1,6 @@
 /** The Mods page: the DOM half of the mod element vocabulary (the TUI half is mods-page.tsx). */
 
-import type { ModTone } from "@sma1lboy/rove/src/lib/mods-core.ts"
+import type { ModTone } from "@sma1lboy/rove-core/lib/mods-core.ts"
 
 const MOD_TONE: Readonly<Record<ModTone, string>> = {
   info: "text-info",

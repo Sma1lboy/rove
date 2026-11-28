@@ -17,9 +17,8 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import { afterEach, beforeEach, describe, expect, test } from "vitest"
-import { acquireSync, releaseSync } from "../../src/orchestrator/index/lockfile.ts"
-import { setPersistedString } from "../../src/state/repos.ts"
+import { acquireSync, releaseSync } from "@sma1lboy/rove-core/orchestrator/index/lockfile.ts"
+import { setPersistedString } from "@sma1lboy/rove-core/state/repos.ts"
 import {
   getPersistedBool,
   loadStateFile,
@@ -27,7 +26,8 @@ import {
   replaceStateFile,
   setPersistedBool,
   updateStateFile,
-} from "../../src/state/store.ts"
+} from "@sma1lboy/rove-core/state/store.ts"
+import { afterEach, beforeEach, describe, expect, test } from "vitest"
 
 let tmpHome: string
 let originalHome: string | undefined

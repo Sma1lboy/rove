@@ -4,13 +4,13 @@
  * is the same `loadStateFile()` seam every other preference uses.
  */
 
-import { describe, expect, it } from "vitest"
 import {
   DEFAULT_SOUND_VOLUME,
   SOUND_VOLUME_STEPS,
   nextSoundVolume,
   normalizeSoundVolume,
-} from "../../src/state/sound-volume"
+} from "@sma1lboy/rove-core/state/sound-volume.ts"
+import { describe, expect, it } from "vitest"
 
 describe("normalizeSoundVolume", () => {
   it("clamps out-of-range numbers rather than letting them reach the scaler", () => {

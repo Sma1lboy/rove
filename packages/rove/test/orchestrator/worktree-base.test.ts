@@ -11,6 +11,12 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import {
+  PROJECT_SIBLING_BASE,
+  getWorktreeBaseOverride,
+  normalizeWorktreeBase,
+  worktreeBaseKindOf,
+} from "@sma1lboy/rove-core/state/worktree-base.ts"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
 import {
   isUnderManagedWorktreesRoot,
@@ -18,12 +24,6 @@ import {
   worktreePathFor,
   worktreeRootFor,
 } from "../../src/orchestrator/worktree/paths.ts"
-import {
-  PROJECT_SIBLING_BASE,
-  getWorktreeBaseOverride,
-  normalizeWorktreeBase,
-  worktreeBaseKindOf,
-} from "../../src/state/worktree-base.ts"
 
 let tmpRoot: string
 let home: string

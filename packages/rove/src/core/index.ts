@@ -1,6 +1,7 @@
 /** Bootstrap for the rove core: orchestrator + worktree manager + task index. */
 
 import { homedir } from "node:os"
+import { backfillSavedReposFromProjects } from "@sma1lboy/rove-core/state/repos.ts"
 import { readRoveHomeDirEnv } from "@sma1lboy/rove-daemon/compat-env"
 import { teardownScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import {
@@ -11,7 +12,6 @@ import {
 import { Orchestrator } from "../orchestrator/core.ts"
 import { TaskIndexStore } from "../orchestrator/index/store.ts"
 import { GitWorktreeManager } from "../orchestrator/worktree/manager.ts"
-import { backfillSavedReposFromProjects } from "../state/repos.ts"
 import { tearDownTaskSessionAdapter } from "./daemon-session-adapter.ts"
 
 export interface RoveCoreOptions {

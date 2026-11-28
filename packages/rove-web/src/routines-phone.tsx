@@ -1,6 +1,6 @@
 /** The Routines list on a phone: the session list's two-line rows on grouped cards, one card per section; a row leads with its engine's mark and ends with its last run's dots. */
 
-import type { Automation, AutomationRunStatus } from "@sma1lboy/rove/src/automations/automation-run-core.ts"
+import type { Automation, AutomationRunStatus } from "@sma1lboy/rove-core/automations/automation-run-core.ts"
 import { t } from "./i18n/index.ts"
 import { routineLook } from "./routines-data.ts"
 import { EngineIcon, type EngineIconData } from "./ui/engine-icon.tsx"

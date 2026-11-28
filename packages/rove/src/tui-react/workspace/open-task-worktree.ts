@@ -1,8 +1,8 @@
 import { existsSync } from "node:fs"
-import { isDiskFull, userFacingErrorMessage } from "@/lib/error-message"
-import { t } from "../../i18n"
-import type { Task } from "../../types/task"
-import { detectWorktreeOpener, openWorktree } from "../../worktree/worktree-opener"
+import { t } from "@sma1lboy/rove-core/i18n/index.ts"
+import { isDiskFull, userFacingErrorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { detectWorktreeOpener, openWorktree } from "@sma1lboy/rove-core/worktree/worktree-opener.ts"
 
 type OpenTaskWorktreeDeps = {
   taskPath?: string

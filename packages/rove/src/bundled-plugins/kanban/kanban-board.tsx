@@ -6,10 +6,10 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import type { TaskGroup } from "@sma1lboy/rove-core/lib/task-group.ts"
+import type { BoardColumnKey, IssueBoardColumn } from "@sma1lboy/rove-core/state/issue-board.ts"
 import type { Issue } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { ReactNode } from "react"
-import type { TaskGroup } from "../../lib/task-group"
-import type { BoardColumnKey, IssueBoardColumn } from "../../state/issue-board"
 import type { CursorFollow } from "../../tui-react/lib/use-cursor-follow"
 import { host, hostFn } from "./host"
 import { KanbanCard } from "./kanban-card"

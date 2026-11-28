@@ -1,5 +1,5 @@
+import { relativeAge, relativeBuckets } from "@sma1lboy/rove-core/lib/relative-time.ts"
 import { describe, expect, test } from "vitest"
-import { relativeAge, relativeBuckets } from "../../src/lib/relative-time.ts"
 
 const MIN = 60_000
 const NOW = Date.parse("2026-07-27T12:00:00.000Z")

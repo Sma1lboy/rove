@@ -6,6 +6,14 @@
  */
 
 import { isAbsolute, normalize } from "node:path"
+import { isUnlistedCheckout } from "@sma1lboy/rove-core/lib/worktree-only.ts"
+import { isRemoteWorkspace } from "@sma1lboy/rove-core/machines/remote-workspace.ts"
+import { getDisabledEngineIds, getSavedRepos } from "@sma1lboy/rove-core/state/repos.ts"
+import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"
+import { DEFAULT_TASK_VENDOR } from "@sma1lboy/rove-core/types/task.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
+import { resolveBase } from "@sma1lboy/rove-core/worktree/git-status.ts"
+import { loadFileContent, loadPreviewData } from "@sma1lboy/rove-core/worktree/preview-core.ts"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { AttentionInboxItem } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
@@ -16,17 +24,9 @@ import type { ActiveGate, RowTokenMap, WorktreeChangesMap } from "@sma1lboy/rove
 import { detectEngineStatus } from "@sma1lboy/rove/src/engine/engine-status.ts"
 import { engineDisplayName } from "@sma1lboy/rove/src/engine/interactive-command.ts"
 import { type EngineIcon, engineEntry } from "@sma1lboy/rove/src/engine/registry.ts"
-import { isUnlistedCheckout } from "@sma1lboy/rove/src/lib/worktree-only.ts"
-import { isRemoteWorkspace } from "@sma1lboy/rove/src/machines/remote-workspace.ts"
-import { getDisabledEngineIds, getSavedRepos } from "@sma1lboy/rove/src/state/repos.ts"
-import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { conversationTitle } from "@sma1lboy/rove/src/tabs/terminal-tab-split.ts"
 import type { TerminalTab } from "@sma1lboy/rove/src/tabs/terminal-tabs-core.ts"
 import { terminalTabsKey } from "@sma1lboy/rove/src/tabs/terminal-tabs-persist.ts"
-import { DEFAULT_TASK_VENDOR } from "@sma1lboy/rove/src/types/task.ts"
-import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
-import { resolveBase } from "@sma1lboy/rove/src/worktree/git-status.ts"
-import { loadFileContent, loadPreviewData } from "@sma1lboy/rove/src/worktree/preview-core.ts"
 import {
   type DiffRefs,
   type PreviewScope,

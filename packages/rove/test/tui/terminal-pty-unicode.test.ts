@@ -1,5 +1,5 @@
+import { charWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
 import { describe, expect, it } from "vitest"
-import { charWidth } from "../../src/lib/display-width"
 import { FakeTransportPty } from "./pty-fake"
 
 /**

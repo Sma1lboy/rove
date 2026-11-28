@@ -19,23 +19,23 @@ import {
   writeFileSync,
 } from "node:fs"
 import { join } from "node:path"
+import { promptAttachmentsDir } from "@sma1lboy/rove-core/env.ts"
+import { buildPRPrompt } from "@sma1lboy/rove-core/github/pr-prompt.ts"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import { deriveTitleFromPrompt } from "@sma1lboy/rove-core/orchestrator/title.ts"
+import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import {
   type ChatForkPlan,
   liveSourceProtocol,
   planWorktreeHandoff,
 } from "@sma1lboy/rove/src/engine/session-handoff-plan.ts"
-import { promptAttachmentsDir } from "@sma1lboy/rove/src/env.ts"
-import { buildPRPrompt } from "@sma1lboy/rove/src/github/pr-prompt.ts"
-import { errorMessage } from "@sma1lboy/rove/src/lib/error-message.ts"
 import { requireMachine } from "@sma1lboy/rove/src/machines/forward.ts"
 import { sendFileToMachine } from "@sma1lboy/rove/src/machines/send-file.ts"
-import { deriveTitleFromPrompt } from "@sma1lboy/rove/src/orchestrator/title.ts"
-import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import type { TerminalTab } from "@sma1lboy/rove/src/tabs/terminal-tabs-core.ts"
 import { initialTabs } from "@sma1lboy/rove/src/tabs/terminal-tabs-lifecycle.ts"
 import { terminalTabsKey } from "@sma1lboy/rove/src/tabs/terminal-tabs-persist.ts"
-import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
 import { BridgeError, optInt, optStr, str } from "../protocol.ts"
 import { absPath, flag, optText, sendReason, tabId, taskId, text } from "./args.ts"
 import { taskOpDeps } from "./tasks-shared.ts"

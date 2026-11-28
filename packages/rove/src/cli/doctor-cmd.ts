@@ -3,6 +3,8 @@ import { preRenameStateDir } from "@sma1lboy/rove-daemon/daemon/pre-rename-runti
 
 import { existsSync, readFileSync, statSync } from "node:fs"
 import { join } from "node:path"
+import { homeDir, kvStatePath, roveStateDir } from "@sma1lboy/rove-core/env.ts"
+import { formatBytes } from "@sma1lboy/rove-core/lib/format-bytes.ts"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { isStaleInstallError, resolveRoveSpawn } from "@sma1lboy/rove-daemon/client/daemon-process"
 import { resolveNodeBinary } from "@sma1lboy/rove-daemon/client/pty-process"
@@ -17,14 +19,12 @@ import {
 import { isForeignDaemonHome } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { readPidFile } from "@sma1lboy/rove-daemon/daemon/server"
 import { hookConfigIssues } from "../engine/hook-config-check.ts"
-import { homeDir, kvStatePath, roveStateDir } from "../env.ts"
-import { formatBytes } from "../lib/format-bytes.ts"
 import { skillOverview } from "../lib/skill-install.ts"
 import { readableLegacyIndexPath } from "../orchestrator/index/store-codec.ts"
 
-import { t } from "../i18n"
-import { ROVE_PRODUCT_NAME } from "../product.ts"
-import { CURRENT_VERSION } from "../version.ts"
+import { t } from "@sma1lboy/rove-core/i18n/index.ts"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
+import { CURRENT_VERSION } from "@sma1lboy/rove-core/version.ts"
 import { MIN_BUN_VERSION, isBunAtLeast } from "./bun-runtime.ts"
 import {
   type DoctorFix,

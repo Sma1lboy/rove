@@ -1,11 +1,11 @@
-import { describe, expect, test } from "vitest"
 import {
   TUI_NOTE_CLIENTS,
   WEB_NOTE_CLIENTS,
   entryClients,
   groupReleaseNotes,
   stripEntryClientTag,
-} from "../../src/lib/release-note-clients"
+} from "@sma1lboy/rove-core/lib/release-note-clients.ts"
+import { describe, expect, test } from "vitest"
 
 const PR =
   "[#2237](https://github.com/Sma1lboy/rove/pull/2237) [`db9b931`](https://github.com/Sma1lboy/rove/commit/db9b931)"

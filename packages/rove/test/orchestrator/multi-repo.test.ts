@@ -9,6 +9,7 @@ import { spawnSync } from "node:child_process"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
 import { Orchestrator } from "../../src/orchestrator/core.ts"
 import {
@@ -22,7 +23,6 @@ import {
 import { normalizeIndex } from "../../src/orchestrator/index/store-codec.ts"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
-import type { Task } from "../../src/types/task.ts"
 
 const REPO_INIT = path.resolve(__dirname, "./fixtures/repo-init.sh")
 

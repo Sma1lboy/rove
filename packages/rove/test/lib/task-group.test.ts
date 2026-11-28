@@ -1,12 +1,12 @@
-import { describe, expect, it } from "vitest"
 import {
   DEAD_SETTLE_MS,
   ERROR_SETTLE_MS,
   type TaskActivitySignal,
   deriveTaskGroup,
   taskGroupRank,
-} from "../../src/lib/task-group.ts"
-import { type Task, toTaskId } from "../../src/types/task.ts"
+} from "@sma1lboy/rove-core/lib/task-group.ts"
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
+import { describe, expect, it } from "vitest"
 
 const NOW = 1_800_000_000_000
 

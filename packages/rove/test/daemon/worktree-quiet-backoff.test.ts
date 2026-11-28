@@ -15,10 +15,10 @@
  * so faking `setTimeout` would stall `settle()`.
  */
 
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import { WorktreeChangesCollector } from "@sma1lboy/rove-daemon/daemon/worktree-changes-collector"
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
-import { type Task, toTaskId } from "../../src/types/task.ts"
 
 function task(id: string): Task {
   return {

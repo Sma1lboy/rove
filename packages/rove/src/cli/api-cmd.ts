@@ -22,7 +22,8 @@
  *     (exit codes unchanged). The executor is shared: `api/invoke.ts`.
  */
 
-import { errorMessage } from "@/lib/error-message"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import type { MachineEntry } from "@sma1lboy/rove-core/machines/registry.ts"
 import { type ApiEnvelope, ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { ensurePluginEnginesLoaded } from "../engine/plugin-engines.ts"
 import {
@@ -35,7 +36,6 @@ import {
   requireMachine,
   routeTarget,
 } from "../machines/forward.ts"
-import type { MachineEntry } from "../machines/registry.ts"
 import { takeIdentityWarning } from "./api/dispatcher.ts"
 import { VerbArgs, buildCountPlan, parseAgentsSpec, parseFlags, validateAgainstSpec } from "./api/flags.ts"
 import { forwardParams, takeMachineFlag } from "./api/forward-cli.ts"

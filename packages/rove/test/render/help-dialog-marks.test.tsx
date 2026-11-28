@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "bun:test"
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { GLYPH_SET_KEY } from "../../src/state/glyph-set"
+import { GLYPH_SET_KEY } from "@sma1lboy/rove-core/state/glyph-set.ts"
 import { HelpDialog } from "../../src/tui-react/component/help-dialog"
 import { act, renderComponent, waitForFrameText } from "./harness"
 

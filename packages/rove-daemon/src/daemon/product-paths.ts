@@ -1,7 +1,7 @@
 /**
  * Paths to Rove's PRODUCT data (user settings files), keyed by home; runtime
  * ADDRESSES (sockets, pidfiles, logs) are `paths.ts`. Here because both the
- * daemon and the TUI (`packages/rove/src/env.ts`) derive them, and rove
+ * daemon and the TUI (`packages/rove-core/src/env.ts`) derive them, and rove
  * depends on rove-daemon, never back.
  */
 
@@ -21,7 +21,7 @@ export function resolveProductHomeDir(): string {
 }
 
 /** `<home>/.config/rove/state.json`, the flat KV blob. Written only via
- *  `packages/rove/src/state/store.ts`; the daemon only WATCHES it. */
+ *  `packages/rove-core/src/state/store.ts`; the daemon only WATCHES it. */
 export function defaultUiPrefsStatePath(homeDir = resolveProductHomeDir()): string {
   return join(homeDir, ".config", ROVE_CONFIG_DIR_BASENAME, "state.json")
 }

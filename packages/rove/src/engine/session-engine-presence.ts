@@ -1,4 +1,4 @@
-import type { VendorId } from "../types/vendor.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { type PsSnapshot, engineProcessIn, foregroundEngineIn, parsePsSnapshot, psSnapshot } from "./foreground.ts"
 
 /**

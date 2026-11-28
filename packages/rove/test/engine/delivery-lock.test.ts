@@ -1,10 +1,10 @@
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
+import { acquire } from "@sma1lboy/rove-core/orchestrator/index/lockfile.ts"
 import { describe, expect, it } from "vitest"
 import { deliveryLockPath, withDeliveryLock } from "../../src/engine/delivery-lock.ts"
 import { type HostedSessionRpc, writeHostedPrompt } from "../../src/engine/hosted-session.ts"
-import { acquire } from "../../src/orchestrator/index/lockfile.ts"
 
 /** Record every `pty.write` in arrival order — the only thing that decides
  *  whether the engine sees one composer or two. */

@@ -21,7 +21,7 @@ import { execSync } from "node:child_process"
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
-import { displayWidth } from "../../src/lib/display-width"
+import { displayWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
 import { FileTree } from "../../src/tui-react/panes/filetree/FileTree"
 import { act, renderComponent, waitForFrameText } from "./harness"
 

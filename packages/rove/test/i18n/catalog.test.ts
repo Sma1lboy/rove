@@ -8,8 +8,8 @@
  * dropped placeholder is a silent bug `t()` can't catch.
  */
 
+import { CATALOGS, LOCALES, en } from "@sma1lboy/rove-core/i18n/catalog.ts"
 import { describe, expect, it } from "vitest"
-import { CATALOGS, LOCALES, en } from "../../src/i18n/catalog"
 
 type Leaf = string
 

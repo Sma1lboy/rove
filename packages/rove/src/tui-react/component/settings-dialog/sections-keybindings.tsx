@@ -7,7 +7,8 @@
  */
 
 import { TextAttributes } from "@opentui/core"
-import { tKeys } from "../../../i18n"
+import { tKeys } from "@sma1lboy/rove-core/i18n/index.ts"
+import { tildify } from "@sma1lboy/rove-core/lib/path-home.ts"
 import { PREFIX_KEY_ID } from "../../../keys/chord-recorder"
 import { editableBindings } from "../../../keys/editable-bindings"
 import { groupBindings } from "../../../keys/help-groups"
@@ -19,7 +20,6 @@ import {
 } from "../../../keys/keymap-dispatch"
 import { recordSlotLabels } from "../../../keys/keymap-overrides"
 import { PREFIX_TAP_PRESENTATIONS } from "../../../keys/prefix-tap-presentation"
-import { tildify } from "../../../lib/path-home"
 import { keybindingRowId, keybindingRows, prefixTapPresentationRowId, rowIndex } from "../../../settings/model"
 import { userKeybindingsReport } from "../../../tui/context/keybindings-user"
 import { useKeymapVersion } from "../../context/keybindings"

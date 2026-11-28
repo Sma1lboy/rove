@@ -4,8 +4,8 @@
  */
 
 import { RGBA } from "@opentui/core"
+import { normalizeSplitStyle } from "@sma1lboy/rove-core/state/split-style.ts"
 import { describe, expect, it } from "vitest"
-import { normalizeSplitStyle } from "../../src/state/split-style"
 import { groupChrome, leafOnEdge, paneBoxProps, paneChrome } from "../../src/tui/workspace/split-chrome"
 
 describe("split chrome", () => {

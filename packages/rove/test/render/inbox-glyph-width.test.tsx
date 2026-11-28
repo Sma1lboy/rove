@@ -24,10 +24,10 @@
  */
 
 import { expect, test } from "bun:test"
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import type { AttentionInboxItem, TaskEngineState } from "../../src/client/remote-orchestrator"
 import type { KVContext } from "../../src/tui-react/context/kv"
 import { AttentionInboxPane } from "../../src/tui-react/workspace/AttentionInboxPane"
-import { type Task, toTaskId } from "../../src/types/task"
 import { renderComponent } from "./harness"
 
 /**

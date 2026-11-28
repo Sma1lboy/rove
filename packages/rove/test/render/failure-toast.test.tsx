@@ -14,9 +14,9 @@
  * overlay draws, which neither silent rendering produces.
  */
 import { expect, test } from "bun:test"
+import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
 import { WorkItemsPage } from "../../src/bundled-plugins/issues/work-items-page"
 import { KanbanPage } from "../../src/bundled-plugins/kanban/kanban-page"
-import { createStateCell } from "../../src/lib/external-store"
 import { AutomationsPage } from "../../src/tui-react/component/automations-page"
 import { ToastOverlay } from "../../src/tui-react/component/toast-overlay"
 import { isolateHome, renderComponent, settle, waitForFrameText } from "./harness"

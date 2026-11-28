@@ -11,8 +11,8 @@
  * aborting would discard the resolution the user is about to do.
  */
 
-import { readOnlyGitProcessEnv } from "../lib/git-env.ts"
-import { spawnCapture } from "../lib/poll-scheduling.ts"
+import { readOnlyGitProcessEnv } from "@sma1lboy/rove-core/lib/git-env.ts"
+import { spawnCapture } from "@sma1lboy/rove-core/lib/poll-scheduling.ts"
 import { parseDirtyPaths } from "./dirty-paths.ts"
 
 /** `git merge` can stall on a hook or a huge tree; kill it rather than hang. */

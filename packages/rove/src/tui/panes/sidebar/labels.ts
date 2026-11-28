@@ -1,5 +1,5 @@
-import { approxCharCells } from "../../../lib/display-width"
-import { truncateEndCells } from "../../../lib/truncate"
+import { approxCharCells } from "@sma1lboy/rove-core/lib/display-width.ts"
+import { truncateEndCells } from "@sma1lboy/rove-core/lib/truncate.ts"
 
 /**
  * Truncate a title to a cell budget, keeping the prefix. `approxCharCells`

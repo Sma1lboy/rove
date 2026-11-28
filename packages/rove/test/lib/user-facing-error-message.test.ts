@@ -1,5 +1,5 @@
+import { userFacingErrorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 import { describe, expect, it } from "vitest"
-import { userFacingErrorMessage } from "../../src/lib/error-message.ts"
 
 /**
  * The worktree/task layers stamp their throws with the function that raised

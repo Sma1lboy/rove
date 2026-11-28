@@ -4,8 +4,8 @@
  * from any other directory (a coordinator's hand-made worktrees).
  */
 
+import { runAsync } from "@sma1lboy/rove-core/lib/run-async.ts"
 import { canonicalPrUrl } from "@sma1lboy/rove-daemon/daemon/session-prs"
-import { runAsync } from "../../lib/run-async.ts"
 import { simpleRpc } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 import { resolveTarget } from "./verbs-edit.ts"

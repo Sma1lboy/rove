@@ -1,6 +1,6 @@
 /** The new-task dialog's "For New Repo" and "Adopt Worktree" modes (TUI `tab-clone.tsx`, `tab-adopt.tsx`). */
 
-import { isDiskFull } from "@sma1lboy/rove/src/lib/error-message.ts"
+import { isDiskFull } from "@sma1lboy/rove-core/lib/error-message.ts"
 import { useEffect, useState } from "react"
 import { BridgeRequestError } from "./bridge.ts"
 import { DialogActions } from "./dialogs.tsx"

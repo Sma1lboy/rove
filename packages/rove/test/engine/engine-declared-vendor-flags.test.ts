@@ -52,7 +52,7 @@ vi.mock("../../src/engine/registry.ts", async (importOriginal) => {
 })
 
 const { withEngineEffort, withEngineModel } = await import("../../src/engine/interactive-command.ts")
-const { setRepoInitOverride } = await import("../../src/state/repos.ts")
+const { setRepoInitOverride } = await import("@sma1lboy/rove-core/state/repos.ts")
 const { engineLaunchArgv } = await import("../../src/engine/engine-presets.ts")
 const { withWorktreeProtocol } = await import("../../src/engine/worktree-protocol.ts")
 const { buildEngineSessionLaunch } = await import("../../src/engine/session-launch.ts")

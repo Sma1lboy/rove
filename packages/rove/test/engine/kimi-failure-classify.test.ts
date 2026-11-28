@@ -1,3 +1,4 @@
+import { reduceActivity } from "@sma1lboy/rove-core/engine/hook-events.ts"
 /**
  * Kimi StopFailure → the neutral failure class.
  *
@@ -16,7 +17,6 @@
  * them red even though `kimiFailureDetail` itself still passes its own tests.
  */
 import { describe, expect, it } from "vitest"
-import { reduceActivity } from "../../src/engine/hook-events"
 import { KimiHookAdapter } from "../../src/engine/kimi-local/hook-adapter"
 
 const adapter = new KimiHookAdapter()

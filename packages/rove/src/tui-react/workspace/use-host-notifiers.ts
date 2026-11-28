@@ -2,7 +2,7 @@
  * Every toast `WorkspaceRoot` raises. Action toasts carry no `taskId`: a toast with one opens that task when clicked.
  */
 
-import type { ToastOptions } from "../../lib/notify-state"
+import type { ToastOptions } from "@sma1lboy/rove-core/lib/notify-state.ts"
 import type { NotificationKind, NotificationsContext } from "../context/notifications"
 import type { WorktreeGoneEvent } from "./use-workspace-selection"
 

@@ -13,7 +13,7 @@
  * understand is worse than a noisy one.
  */
 
-import { errorMessage } from "@/lib/error-message"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 import { failureHint } from "../lib/failure-hint"
 
 /** `ROVE_DEBUG=1` keeps the raw throw (stack included) for bug reports. */

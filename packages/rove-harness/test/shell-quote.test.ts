@@ -1,4 +1,4 @@
-import { quoteShellArgv } from "../../rove/src/lib/shell-command.ts"
+import { quoteShellArgv } from "@sma1lboy/rove-core/lib/shell-command.ts"
 import { describe, expect, it } from "vitest"
 
 const shellQuote = (argv: readonly string[]) => quoteShellArgv(argv, { bareSafe: true })

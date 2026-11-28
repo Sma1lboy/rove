@@ -14,10 +14,10 @@ import { spawnSync } from "node:child_process"
 import { realpathSync } from "node:fs"
 import { dirname, resolve } from "node:path"
 import { createInterface } from "node:readline"
-import { quoteShellArg } from "../lib/shell-command.ts"
+import { quoteShellArg } from "@sma1lboy/rove-core/lib/shell-command.ts"
+import { isRemoteWorkspace, readRemoteWorkspace, rxPath } from "@sma1lboy/rove-core/machines/remote-workspace.ts"
+import { CURRENT_VERSION } from "@sma1lboy/rove-core/version.ts"
 import { ensureMcpForwards, machineMcp } from "../machines/remote-mcp.ts"
-import { isRemoteWorkspace, readRemoteWorkspace, rxPath } from "../machines/remote-workspace.ts"
-import { CURRENT_VERSION } from "../version.ts"
 import { flagValue } from "./argv.ts"
 
 export async function runRemoteWorkspaceSubcommand(args: readonly string[]): Promise<void> {

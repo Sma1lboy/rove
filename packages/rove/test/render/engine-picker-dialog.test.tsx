@@ -17,8 +17,8 @@
  */
 
 import { describe, expect, test } from "bun:test"
+import type { VendorId } from "@sma1lboy/rove-core/types/task.ts"
 import { type EnginePickResult, EnginePickerDialogView } from "../../src/tui-react/component/engine-picker-dialog"
-import type { VendorId } from "../../src/types/task"
 import { type RenderHandle, act, renderComponent, settle } from "./harness"
 
 const ENGINES: readonly VendorId[] = ["claude", "codex", "kimi"]

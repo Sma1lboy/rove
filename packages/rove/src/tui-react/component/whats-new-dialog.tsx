@@ -20,8 +20,13 @@
 
 import { TextAttributes } from "@opentui/core"
 import type { ScrollBoxRenderable } from "@opentui/core"
+import {
+  CURRENT_VERSION,
+  type ReleaseNotesRangeItem,
+  fetchReleaseNotesRange,
+  releasePageUrl,
+} from "@sma1lboy/rove-core/version.ts"
 import { useEffect, useRef, useState } from "react"
-import { CURRENT_VERSION, type ReleaseNotesRangeItem, fetchReleaseNotesRange, releasePageUrl } from "../../version.ts"
 import { useTheme } from "../context/theme"
 import { currentLang, useT } from "../i18n"
 import { useBindings } from "../lib/keymap"

@@ -1,11 +1,11 @@
 /** @jsxImportSource @opentui/react */
 import { flushSync } from "@opentui/react"
+import { relativeAge } from "@sma1lboy/rove-core/lib/relative-time.ts"
 import { useState } from "react"
 import { formatChord } from "../../keys/chord-glyphs"
 import { matchesHelpAction } from "../../keys/help-groups"
 import { currentPrefixConfiguration } from "../../keys/keymap-dispatch"
 import type { PaletteAction } from "../../keys/palette-actions"
-import { relativeAge } from "../../lib/relative-time"
 import { useTheme } from "../context/theme"
 import { tKeys, useT } from "../i18n"
 import { currentPaletteActions, useBindings } from "../lib/keymap"

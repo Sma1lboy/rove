@@ -1,9 +1,9 @@
 /** @jsxImportSource @opentui/react */
 import { afterEach, expect, test } from "bun:test"
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { SidebarTree } from "../../src/tui-react/panes/sidebar/SidebarTree"
 import { resetRowStatusForTests } from "../../src/tui-react/workspace/row-status-sync"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
-import { type Task, toTaskId } from "../../src/types/task"
 import { renderComponent } from "./harness"
 
 const task: Task = {

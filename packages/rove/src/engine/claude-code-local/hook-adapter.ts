@@ -14,10 +14,10 @@
  */
 
 import { join } from "node:path"
-import { isObject } from "../../lib/is-object.ts"
-import { ROVE_PRODUCT_NAME } from "../../product.ts"
+import type { EngineActivityDetail, EngineActivityKind } from "@sma1lboy/rove-core/engine/hook-events.ts"
+import { isObject } from "@sma1lboy/rove-core/lib/is-object.ts"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 import type { EngineSessionRef } from "../hook-adapter.ts"
-import type { EngineActivityDetail, EngineActivityKind } from "../hook-events.ts"
 import { JsonHookAdapter, editJsonSettings } from "../json-hook-adapter.ts"
 import {
   type HookEventSpec,

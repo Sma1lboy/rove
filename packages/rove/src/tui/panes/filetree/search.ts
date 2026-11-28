@@ -4,8 +4,8 @@
  * same tracked + untracked-not-ignored set the All tab lists.
  */
 
-import { unquoteGitPath } from "@/lib/git-parsers"
-import { runWorktreeGit } from "../../../worktree/content.ts"
+import { unquoteGitPath } from "@sma1lboy/rove-core/lib/git-parsers.ts"
+import { runWorktreeGit } from "@sma1lboy/rove-core/worktree/content.ts"
 import type { Row } from "./rows"
 
 /** A grep over a huge tree must not pin a subprocess while the user types on. */

@@ -1,5 +1,5 @@
+import { quoteShellArg, quoteShellArgv } from "@sma1lboy/rove-core/lib/shell-command.ts"
 import { describe, expect, test } from "vitest"
-import { quoteShellArg, quoteShellArgv } from "../../src/lib/shell-command"
 
 describe("shell-command quoting", () => {
   test("can pass simple tokens through bare when requested", () => {

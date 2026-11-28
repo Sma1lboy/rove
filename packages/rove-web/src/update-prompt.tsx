@@ -4,7 +4,7 @@
  * page still show a skipped version.
  */
 
-import type { ReleaseNotesRangeItem } from "@sma1lboy/rove/src/version.ts"
+import type { ReleaseNotesRangeItem } from "@sma1lboy/rove-core/version.ts"
 import { DialogShell } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import { openPage } from "./layout.ts"

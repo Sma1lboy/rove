@@ -8,6 +8,7 @@
  * dispose the old poll.
  */
 
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { engineEntry, stripEngineStatusPrefix } from "../../engine/registry"
 import type { TabsState } from "../../tabs/terminal-tabs-core"
@@ -16,7 +17,6 @@ import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { getDefaultLiveEngines } from "../../tui/workspace/live-engine"
 import type { HookTabState } from "../../tui/workspace/turn-state-merge"
 import { soloKey, targetFor } from "../../tui/workspace/turn-target"
-import type { VendorId } from "../../types/vendor"
 import { useLatest } from "../lib/use-latest"
 import { type TitleSubscriptions, createTitleSubscriptions } from "./title-subscriptions"
 

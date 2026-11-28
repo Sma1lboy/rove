@@ -10,6 +10,7 @@
  * than merely equal.
  */
 
+import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, it } from "vitest"
 import { sidebarProjectKey } from "../../src/sidebar/groups.ts"
 import {
@@ -19,7 +20,6 @@ import {
 } from "../../src/tui/panes/sidebar/machine-layer.ts"
 import { buildSidebarGroups } from "../../src/tui/panes/sidebar/project-groups.ts"
 import { type TreeRow, buildTreeRows, filterTreeRows, projectKeysOf } from "../../src/tui/panes/sidebar/tree-core.ts"
-import { type Task, toTaskId } from "../../src/types/task.ts"
 
 function task(over: Omit<Partial<Task>, "id"> & { id: string; repo: string }): Task {
   return {

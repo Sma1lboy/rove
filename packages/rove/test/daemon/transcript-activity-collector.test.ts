@@ -24,6 +24,7 @@
  * daemon-side).
  */
 
+import { type Task, type VendorId, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import type { TranscriptActivityPayload } from "@sma1lboy/rove-daemon/daemon/protocol"
 import {
@@ -39,7 +40,6 @@ import {
   latestTranscriptMtimeForWorktree,
 } from "../../src/engine/codex-local/history.ts"
 import { CodexTurnDetector } from "../../src/engine/turn-detector.ts"
-import { type Task, type VendorId, toTaskId } from "../../src/types/task.ts"
 
 /** Minimal Task — only the fields the collector reads. */
 function task(over: Omit<Partial<Task>, "id"> & { id: string }): Task {

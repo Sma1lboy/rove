@@ -11,7 +11,7 @@
  * the first prompt already holds the context.
  */
 
-import type { Message } from "@/types/engine"
+import type { Message } from "@sma1lboy/rove-core/types/engine.ts"
 
 export interface HandoffTurn {
   readonly role: "user" | "assistant"

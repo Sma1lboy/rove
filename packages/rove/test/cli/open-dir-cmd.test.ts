@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => ({
   openDirectoryTask: vi.fn(async (args: { dir: string }) => ({ id: 123, dir: args.dir })),
 }))
 
-vi.mock("../../src/state/repos.ts", () => ({
+vi.mock("@sma1lboy/rove-core/state/repos.ts", () => ({
   resolveRepoRoot: mocks.repoRootOf,
   isGitRepo: mocks.isGitRepo,
 }))

@@ -8,15 +8,15 @@
  * stay timer-free.
  */
 
+import { charWidth, displayWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
+import { isNarrowWidth } from "@sma1lboy/rove-core/lib/narrow-mode.ts"
+import { truncateEndCells } from "@sma1lboy/rove-core/lib/truncate.ts"
 import { useEffect, useState } from "react"
 import { guideCategory } from "../../keys/help-groups"
 import { RoveKeymap, findBinding } from "../../keys/keybindings"
 import { currentPrefixConfiguration } from "../../keys/keymap-dispatch"
 import { PREFIX_GUIDE_DELAY_MS, PREFIX_HUD_TTL_MS, prefixHudClock, prefixHudState } from "../../keys/prefix-hud"
 import { DIRECT_GUIDE_PREFIX_ACTION_ID } from "../../keys/shortcut-reveal"
-import { charWidth, displayWidth } from "../../lib/display-width"
-import { isNarrowWidth } from "../../lib/narrow-mode"
-import { truncateEndCells } from "../../lib/truncate"
 import { useTheme } from "../context/theme"
 import { tKeys, useT } from "../i18n"
 import { invokeArmedPrefixActionFromCurrentStack } from "../lib/keymap"

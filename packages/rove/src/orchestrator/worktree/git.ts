@@ -10,7 +10,7 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { READ_ONLY_GIT_ENV } from "../../lib/git-env.ts"
+import { READ_ONLY_GIT_ENV } from "@sma1lboy/rove-core/lib/git-env.ts"
 import { RepoHasNoCommitsError } from "../errors.ts"
 
 export interface GitRunOpts {

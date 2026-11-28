@@ -11,7 +11,7 @@
 
 import { createHash } from "node:crypto"
 import { existsSync, readFileSync } from "node:fs"
-import { type NotificationKind, attentionEdges, attentionKindFor } from "@sma1lboy/rove/src/lib/notify-state.ts"
+import { type NotificationKind, attentionEdges, attentionKindFor } from "@sma1lboy/rove-core/lib/notify-state.ts"
 import { BridgeError } from "./protocol.ts"
 import type { TasksPayload } from "./protocol.ts"
 import { writeOwnerOnly } from "./web-password.ts"

@@ -9,8 +9,8 @@
  *     mapped later as we observe them in real sessions.
  */
 
-import type { ContentBlock } from "@/types/content"
-import { isObject } from "../../lib/is-object"
+import { isObject } from "@sma1lboy/rove-core/lib/is-object.ts"
+import type { ContentBlock } from "@sma1lboy/rove-core/types/content.ts"
 
 export function normalizeCodexContent(raw: unknown): ContentBlock[] {
   if (typeof raw === "string") {

@@ -1,8 +1,8 @@
+import { quoteShellArgv } from "@sma1lboy/rove-core/lib/shell-command.ts"
 import { LEGACY_PRE_RENAME_RUNTIME_NAME as OLD } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
 import { describe, expect, it } from "vitest"
 import { mergeWorktreeSyncHook } from "../../src/engine/claude-code-local/hook-adapter.ts"
 import { hasRoveActivityHooks, mergeActivityHooks, removeWorktreeWatchHook } from "../../src/engine/json-hooks.ts"
-import { quoteShellArgv } from "../../src/lib/shell-command.ts"
 
 const events = [{ event: "Stop", verb: "turn-complete" }] as const
 const settings = (event: string, command: string) => ({

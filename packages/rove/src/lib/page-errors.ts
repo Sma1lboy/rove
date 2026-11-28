@@ -3,7 +3,7 @@
  * so the Settings view model can read it without loading the page host.
  */
 
-import { createStateCell } from "./external-store"
+import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
 
 export interface PluginPageError {
   readonly pluginId: string

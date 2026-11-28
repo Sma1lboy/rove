@@ -7,7 +7,6 @@
 
 import { TextAttributes } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
-import { useEffect, useState } from "react"
 import {
   BREAKING_VERSIONS,
   CURRENT_VERSION,
@@ -17,7 +16,8 @@ import {
   fetchReleaseNotes,
   fetchReleaseSummaries,
   updateCommandFor,
-} from "../../version.ts"
+} from "@sma1lboy/rove-core/version.ts"
+import { useEffect, useState } from "react"
 import { useTheme } from "../context/theme"
 import { currentLang, useT } from "../i18n"
 import { bootPaneHost } from "../lib/host-boot"

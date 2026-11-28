@@ -1,4 +1,5 @@
 import { basename } from "node:path"
+import { BUILTIN_VENDORS, type VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { ensurePtyHostReachable } from "@sma1lboy/rove-daemon/client/pty-process"
 import { defaultPtyHostSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
@@ -13,7 +14,6 @@ import {
 import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import type { TerminalDefaultColors } from "@sma1lboy/rove-daemon/daemon/terminal-colors"
 import { readPersistedTerminalDefaultColors } from "../theme/terminal-colors.ts"
-import { BUILTIN_VENDORS, type VendorId } from "../types/vendor.ts"
 import { withDeliveryLock } from "./delivery-lock.ts"
 import { PASTE_READY_POLL_MS, PASTE_READY_TIMEOUT_MS, bracketedPasteActive, encodePaste } from "./paste-readiness.ts"
 import { engineEntry } from "./registry.ts"

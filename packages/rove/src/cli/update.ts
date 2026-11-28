@@ -8,10 +8,10 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { updaterShell, updaterShellFailureHint } from "../lib/updater-shell.ts"
-import { ROVE_PRODUCT_NAME } from "../product.ts"
-import { DEFAULT_RELEASE_CHANNEL, RELEASE_CHANNELS, type ReleaseChannel } from "../release-channels.ts"
-import { preferredReleaseChannel, rememberReleaseChannel } from "../state/update-channel.ts"
+import { updaterShell, updaterShellFailureHint } from "@sma1lboy/rove-core/lib/updater-shell.ts"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
+import { DEFAULT_RELEASE_CHANNEL, RELEASE_CHANNELS, type ReleaseChannel } from "@sma1lboy/rove-core/release-channels.ts"
+import { preferredReleaseChannel, rememberReleaseChannel } from "@sma1lboy/rove-core/state/update-channel.ts"
 import {
   BREAKING_VERSIONS,
   CURRENT_VERSION,
@@ -23,7 +23,7 @@ import {
   fetchReleaseSummaries,
   recommendedGlobalInstallCommand,
   updateCommandFor,
-} from "../version.ts"
+} from "@sma1lboy/rove-core/version.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME
 

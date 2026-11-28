@@ -5,23 +5,23 @@
  * (`machines/remote-workspace.ts`) and starts the engine in the link directory.
  */
 
-import type { ApiParams, SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { remoteNotesFiles } from "../../engine/registry.ts"
-import { homeDir } from "../../env.ts"
-import { errorMessage } from "../../lib/error-message.ts"
-import { forwardVerb, machineRequest, requireMachine } from "../../machines/forward.ts"
-import type { MachineEntry } from "../../machines/registry.ts"
-import { forwardedMcp } from "../../machines/remote-mcp.ts"
+import { homeDir } from "@sma1lboy/rove-core/env.ts"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import type { MachineEntry } from "@sma1lboy/rove-core/machines/registry.ts"
 import {
   createRemoteLink,
   readRemoteWorkspace,
   remotePathKey,
   remoteWorkspaceDir,
   removeRemoteLink,
-} from "../../machines/remote-workspace.ts"
-import { machineSshArgs } from "../../machines/ssh-args.ts"
-import { isWindowsPath } from "../../machines/windows-remote.ts"
-import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
+} from "@sma1lboy/rove-core/machines/remote-workspace.ts"
+import { machineSshArgs } from "@sma1lboy/rove-core/machines/ssh-args.ts"
+import { isWindowsPath } from "@sma1lboy/rove-core/machines/windows-remote.ts"
+import { deriveTitleFromPrompt } from "@sma1lboy/rove-core/orchestrator/title.ts"
+import type { ApiParams, SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { remoteNotesFiles } from "../../engine/registry.ts"
+import { forwardVerb, machineRequest, requireMachine } from "../../machines/forward.ts"
+import { forwardedMcp } from "../../machines/remote-mcp.ts"
 import { openDirSession, startDirSession } from "./add-dir-session.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, helpStep } from "./types.ts"

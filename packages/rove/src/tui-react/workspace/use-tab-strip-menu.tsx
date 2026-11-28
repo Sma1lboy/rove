@@ -6,9 +6,9 @@
  */
 
 import { tabSessionId } from "@/engine/session-handoff-plan"
-import type { VendorId } from "@/types/vendor"
 import type { BoxRenderable } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { type ReactNode, useRef, useState } from "react"
 import { formatChord } from "../../keys/chord-glyphs"
 import { legendCap } from "../../keys/help-groups"

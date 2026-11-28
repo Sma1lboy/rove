@@ -1,11 +1,11 @@
 /** What the command palette adds to its commands: tasks by title (the rail's fuzzy match) and what was said in any conversation. */
 
+import { fuzzyMatch } from "@sma1lboy/rove-core/lib/fuzzy.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { useEffect, useMemo, useRef, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { type SearchResult, searchTasks } from "../../engine/session-search"
-import { fuzzyMatch } from "../../lib/fuzzy"
 import { isNamedDir } from "../../sidebar/tree-labels"
-import type { Task } from "../../types/task"
 
 export const MIN_CHARS = 2
 export const DEBOUNCE_MS = 300

@@ -7,7 +7,7 @@
  */
 
 import type { ScrollBoxRenderable } from "@opentui/core"
-import { treeGuides } from "../../../lib/tree-guides"
+import { treeGuides } from "@sma1lboy/rove-core/lib/tree-guides.ts"
 import { SCRATCH_SECTION_ID, type TreeRow } from "../../../tui/panes/sidebar/tree-core"
 import { sidebarEmptyStateKey } from "../../../tui/panes/sidebar/view-core"
 import { useTheme } from "../../context/theme"

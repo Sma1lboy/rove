@@ -12,17 +12,21 @@
  */
 
 import { type TaskEngineState, liveRowTokens } from "@/client/remote-orchestrator"
-import type { Task } from "@/types/task"
 import { TextAttributes } from "@opentui/core"
+import { charWidth, displayWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
+import { GLYPH_SETS } from "@sma1lboy/rove-core/lib/glyphs.ts"
+import { dotLook } from "@sma1lboy/rove-core/lib/status-dots.ts"
+import type { TreeGuide } from "@sma1lboy/rove-core/lib/tree-guides.ts"
+import { truncateEndCells } from "@sma1lboy/rove-core/lib/truncate.ts"
+import {
+  DEFAULT_RUNNING_TITLE,
+  RUNNING_TITLE_KEY,
+  normalizeRunningTitle,
+} from "@sma1lboy/rove-core/state/running-title.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import type { RowStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { useMemo, useState } from "react"
-import { charWidth, displayWidth } from "../../../lib/display-width"
-import { GLYPH_SETS } from "../../../lib/glyphs"
 import { rowStatusGlyph } from "../../../lib/row-status-glyph"
-import { dotLook } from "../../../lib/status-dots"
-import type { TreeGuide } from "../../../lib/tree-guides"
-import { truncateEndCells } from "../../../lib/truncate"
-import { DEFAULT_RUNNING_TITLE, RUNNING_TITLE_KEY, normalizeRunningTitle } from "../../../state/running-title"
 import { breathColor, breathGlyph } from "../../../tui/lib/breathe"
 import { dotsDip, dotsGlyph, litDots } from "../../../tui/lib/status-dots"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"

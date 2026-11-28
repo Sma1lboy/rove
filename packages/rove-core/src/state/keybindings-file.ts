@@ -2,8 +2,8 @@
  *  daemon watcher's live reload clears the cache. */
 
 import { existsSync, readFileSync } from "node:fs"
-import { errorMessage } from "@/lib/error-message"
 import { keybindingsConfigPath } from "../env"
+import { errorMessage } from "../lib/error-message"
 
 export type KeybindingsFile = {
   /** Canonical config path (the `.yaml` spelling, even when `.yml` was read). */

@@ -12,6 +12,7 @@ import { preRenameStateDir } from "@sma1lboy/rove-daemon/daemon/pre-rename-runti
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { roveStateDir } from "@sma1lboy/rove-core/env.ts"
 import { defaultAttentionInboxPath } from "@sma1lboy/rove-daemon/daemon/attention-inbox"
 import { defaultAutomationsPath } from "@sma1lboy/rove-daemon/daemon/automations-store"
 import { defaultIssuesStorePath } from "@sma1lboy/rove-daemon/daemon/issues-store"
@@ -32,7 +33,6 @@ import { migrateLegacyPtyHostData } from "@sma1lboy/rove-daemon/daemon/pty-data-
 import { defaultUiPrefsStatePath } from "@sma1lboy/rove-daemon/daemon/ui-prefs-watcher"
 import { pluginConfigDir, pluginRegistryPath, pluginStateDir } from "@sma1lboy/rove-daemon/plugins/plugin-paths"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
-import { roveStateDir } from "../../src/env.ts"
 
 const PREV = {
   ROVE_HOME_DIR: process.env.ROVE_HOME_DIR,

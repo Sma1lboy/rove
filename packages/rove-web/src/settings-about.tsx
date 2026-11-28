@@ -5,7 +5,7 @@
  * Update page's (release notes, Update now) or the `rove update` command.
  */
 
-import { RELEASE_CHANNELS } from "@sma1lboy/rove/src/release-channels.ts"
+import { RELEASE_CHANNELS } from "@sma1lboy/rove-core/release-channels.ts"
 import { useEffect, useState } from "react"
 import { saveToken } from "./auth.ts"
 import type { BridgeClient } from "./bridge.ts"

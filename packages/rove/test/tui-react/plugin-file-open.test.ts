@@ -23,7 +23,7 @@ vi.mock("../../src/cli/invocation", () => ({
   roveCliInvocation: mocks.roveCliInvocation,
 }))
 
-vi.mock("../../src/lib/spawn-detached", () => ({
+vi.mock("@sma1lboy/rove-core/lib/spawn-detached.ts", () => ({
   spawnDetached: mocks.spawnDetached,
 }))
 

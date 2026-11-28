@@ -14,7 +14,7 @@
  * wearing the model's name.
  */
 
-import { isObject } from "../lib/is-object"
+import { isObject } from "@sma1lboy/rove-core/lib/is-object.ts"
 import { AUTO_ROUTING_TIERS, type AutoRoutingTier, isAutoRoutingTier } from "./auto-routing.ts"
 
 /**

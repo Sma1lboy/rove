@@ -17,8 +17,8 @@ import { execFileSync } from "node:child_process"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { spawnCapture } from "@sma1lboy/rove-core/lib/background-poll.ts"
 import { afterEach, describe, expect, test } from "vitest"
-import { spawnCapture } from "../../src/lib/background-poll"
 import { resetGitHeadPoller, resolveBranchHead } from "../../src/tui/panes/sidebar/git-head"
 
 afterEach(() => resetGitHeadPoller())

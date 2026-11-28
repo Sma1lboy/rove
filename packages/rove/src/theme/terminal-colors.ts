@@ -1,14 +1,14 @@
 /** Resolve the terminal colors a headless engine should see from Rove's persisted theme. */
 
+import { readPersistedUiPrefs } from "@sma1lboy/rove-core/lib/persisted-ui-prefs.ts"
+import { resolveThemeSlotHex } from "@sma1lboy/rove-core/theme/hex.ts"
+import { loadUserThemes } from "@sma1lboy/rove-core/theme/loader.ts"
+import { BUNDLED_THEMES, DEFAULT_THEME, type ThemeJson, type ThemeMode } from "@sma1lboy/rove-core/theme/theme-data.ts"
 import {
   DEFAULT_TERMINAL_COLORS,
   type TerminalDefaultColors,
   parseTerminalDefaultColors,
 } from "@sma1lboy/rove-daemon/daemon/terminal-colors"
-import { readPersistedUiPrefs } from "../lib/persisted-ui-prefs"
-import { resolveThemeSlotHex } from "./hex"
-import { loadUserThemes } from "./loader"
-import { BUNDLED_THEMES, DEFAULT_THEME, type ThemeJson, type ThemeMode } from "./theme-data"
 
 export function terminalDefaultColorsForTheme(theme: ThemeJson, mode: ThemeMode = "dark"): TerminalDefaultColors {
   return (

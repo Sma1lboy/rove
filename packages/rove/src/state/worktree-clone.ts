@@ -9,8 +9,8 @@
  * Read fresh on every create, so an edit applies to the next task.
  */
 
-import { readFirstNonEmptyRepoFile } from "../lib/repo-config-file.ts"
-import { loadStateFile } from "./store.ts"
+import { readFirstNonEmptyRepoFile } from "@sma1lboy/rove-core/lib/repo-config-file.ts"
+import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"
 
 export const WORKTREE_CLONE_IGNORED_KEY = "worktree.cloneIgnored"
 

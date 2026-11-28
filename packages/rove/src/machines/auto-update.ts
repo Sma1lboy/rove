@@ -4,17 +4,17 @@
  * per version it reports. state.json `machines.autoUpdate: false` turns it off.
  */
 
+import type { ReadableState } from "@sma1lboy/rove-core/lib/external-store.ts"
+import { type MachineEntry, listMachines } from "@sma1lboy/rove-core/machines/registry.ts"
+import { isWindowsMachine } from "@sma1lboy/rove-core/machines/windows-remote.ts"
+import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"
+import { preferredReleaseChannel } from "@sma1lboy/rove-core/state/update-channel.ts"
+import { CURRENT_VERSION, checkLatestVersion, isNewerSemver } from "@sma1lboy/rove-core/version.ts"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { logDaemonInfo } from "@sma1lboy/rove-daemon/daemon/crash-log"
-import type { ReadableState } from "../lib/external-store.ts"
-import { loadStateFile } from "../state/store.ts"
-import { preferredReleaseChannel } from "../state/update-channel.ts"
-import { CURRENT_VERSION, checkLatestVersion, isNewerSemver } from "../version.ts"
 import { machineDaemonSocket } from "./forward.ts"
 import type { MachineStatus } from "./hub.ts"
-import { type MachineEntry, listMachines } from "./registry.ts"
 import { type UpgradeResult, upgradeMachine } from "./upgrade.ts"
-import { isWindowsMachine } from "./windows-remote.ts"
 
 export const MACHINES_AUTO_UPDATE_KEY = "machines.autoUpdate"
 

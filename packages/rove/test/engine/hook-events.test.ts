@@ -1,5 +1,5 @@
+import { isEngineActivityKind, reduceActivity } from "@sma1lboy/rove-core/engine/hook-events.ts"
 import { describe, expect, it } from "vitest"
-import { isEngineActivityKind, reduceActivity } from "../../src/engine/hook-events.ts"
 
 /**
  * The neutral state machine that turns normalized hook verbs into the badge

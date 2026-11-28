@@ -1,7 +1,7 @@
+import { resolveMainRepoRoot } from "@sma1lboy/rove-core/state/repos.ts"
+import { validateRepoPath } from "@sma1lboy/rove-core/worktree/git-snapshot.ts"
 /** @jsxImportSource @opentui/react */
 import { useState } from "react"
-import { resolveMainRepoRoot } from "../../state/repos"
-import { validateRepoPath } from "../../worktree/git-snapshot"
 import { QuickTaskComposer, type QuickTaskResult } from "../component/quick-task-composer"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"

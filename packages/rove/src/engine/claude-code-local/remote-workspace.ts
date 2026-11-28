@@ -6,10 +6,14 @@
  * `=` forms throughout: these flags are variadic and would swallow the positional first message.
  */
 
+import { quoteShellArgv } from "@sma1lboy/rove-core/lib/shell-command.ts"
+import {
+  type RemoteWorkspaceNote,
+  readRemoteWorkspace,
+  whereThingsRun,
+} from "@sma1lboy/rove-core/machines/remote-workspace.ts"
 import { resolveRoveSpawn } from "@sma1lboy/rove-daemon/client/daemon-process"
-import { quoteShellArgv } from "../../lib/shell-command.ts"
 import { type ForwardedMcp, ensureMcpForwards, machineMcp } from "../../machines/remote-mcp.ts"
-import { type RemoteWorkspaceNote, readRemoteWorkspace, whereThingsRun } from "../../machines/remote-workspace.ts"
 
 /** The MCP server name (`workspace` is reserved by the engine and silently not loaded): its tools are `mcp__rove-files__read`, `__write` and `__edit`. */
 const SERVER = "rove-files"

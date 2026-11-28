@@ -10,7 +10,6 @@ import { execFileSync } from "node:child_process"
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { describe, expect, test } from "vitest"
 import {
   type PreviewData,
   filetypeOf,
@@ -21,7 +20,8 @@ import {
   loadPreviewData,
   patchFirstLine,
   unifiedDiffFiles,
-} from "../../src/worktree/preview-core.ts"
+} from "@sma1lboy/rove-core/worktree/preview-core.ts"
+import { describe, expect, test } from "vitest"
 
 /** Asserts the preview's kind and narrows to it. */
 function expectKind<K extends PreviewData["kind"]>(data: PreviewData, kind: K): Extract<PreviewData, { kind: K }> {

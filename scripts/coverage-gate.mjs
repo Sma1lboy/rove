@@ -194,7 +194,7 @@ if (renderCoverage) {
   byRelative = new Map()
   for (const key of Object.keys(summary)) {
     if (key === "total") continue
-    const index = key.replace(/\\/g, "/").indexOf("packages/rove/src/")
+    const index = key.replace(/\\/g, "/").search(/packages\/rove(-core)?\/src\//)
     if (index >= 0) byRelative.set(key.replace(/\\/g, "/").slice(index), summary[key])
   }
 }
@@ -205,7 +205,7 @@ const touched = diff
   .map((l) => l.trim())
   .filter((file) => {
     if (renderCoverage) return /^packages\/rove\/src\/.*\.tsx$/.test(file) || isRenderTrackOnly(file)
-    return /^packages\/rove\/src\/.*\.ts$/.test(file) && !isRenderTrackOnly(file)
+    return /^packages\/rove(-core)?\/src\/.*\.ts$/.test(file) && !isRenderTrackOnly(file)
   })
   .filter((f) => !f.endsWith(".d.ts"))
 

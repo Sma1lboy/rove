@@ -1,8 +1,8 @@
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, it } from "vitest"
 import { filterKnownOrphanTabs } from "../../src/tui-react/panes/sidebar/orphan-tabs"
 import type { TreeTab } from "../../src/tui/panes/sidebar/tree-core"
-import type { Task } from "../../src/types/task"
-import { toTaskId } from "../../src/types/task"
 
 function task(id: string): Task {
   return {

@@ -11,6 +11,7 @@
  * whether an Adopt import silently targets the wrong worktree set.
  */
 
+import { ALL_VENDORS } from "@sma1lboy/rove-core/types/vendor.ts"
 import { describe, expect, it } from "vitest"
 import {
   resolveInitialVendor,
@@ -18,7 +19,6 @@ import {
   toggleInSet,
   toggleSelectAll,
 } from "../../src/tui-react/component/new-task-dialog/pure"
-import { ALL_VENDORS } from "../../src/types/vendor"
 
 describe("resolveVendorSet", () => {
   it("falls back to ALL_VENDORS when undefined or empty", () => {

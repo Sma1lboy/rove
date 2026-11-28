@@ -5,7 +5,7 @@
  * as zero work. Tokens and time only.
  */
 
-import { narrowUsageChip } from "@sma1lboy/rove/src/lib/usage-core.ts"
+import { narrowUsageChip } from "@sma1lboy/rove-core/lib/usage-core.ts"
 import { type CSSProperties, type ReactNode, useEffect, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"

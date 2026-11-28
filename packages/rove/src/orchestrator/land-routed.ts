@@ -1,10 +1,10 @@
 /** `Orchestrator.landTask` past its checks: one repo lands through `land.ts`, several through `land-multi.ts`. */
 
-import type { Task, TaskId } from "../types/task.ts"
+import { pickRepos } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import type { Task, TaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { canonPath } from "./core-helpers.ts"
 import { landTaskAll } from "./land-multi.ts"
 import { type LandResult, type LandTaskOpts, landTaskWithCleanup } from "./land.ts"
-import { pickRepos } from "./task-tree.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 
 export interface LandRoutedDeps {

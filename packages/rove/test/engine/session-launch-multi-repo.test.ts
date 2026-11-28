@@ -4,12 +4,12 @@
  * for every engine, nothing at all for a one-repo task.
  */
 
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { TaskRepoView } from "@sma1lboy/rove-daemon/task-tree"
 import { describe, expect, test } from "vitest"
 import { repoEnv } from "../../src/engine/multi-repo-launch.ts"
 import { buildEngineSessionLaunch } from "../../src/engine/session-launch.ts"
 import { shellIdentityInput } from "../../src/tabs/terminal-tab-spawn.ts"
-import type { VendorId } from "../../src/types/vendor.ts"
 
 const repos: TaskRepoView[] = [
   { name: "web", repo: "/src/web", branch: "feat/x", worktreePath: "/wt/web-1", primary: true },

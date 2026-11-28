@@ -8,13 +8,13 @@
  * the engine starts; the phone shows it read-only and never authors one.
  */
 
+import { issueChatTaskTitle, issueProjectPrompt, issueWorktreePrompt } from "@sma1lboy/rove-core/state/issue-chat.ts"
+import { ALL_VENDORS } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { Issue } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import type { RecentTaskEvent } from "@sma1lboy/rove/src/client/remote-orchestrator.ts"
 import { roveApiInvocation } from "@sma1lboy/rove/src/engine/interactive-command.ts"
 import { detailFragment } from "@sma1lboy/rove/src/lib/issue-events-core.ts"
-import { issueChatTaskTitle, issueProjectPrompt, issueWorktreePrompt } from "@sma1lboy/rove/src/state/issue-chat.ts"
-import { ALL_VENDORS } from "@sma1lboy/rove/src/types/vendor.ts"
 import { BridgeError, optBool, optInt, optStr } from "../protocol.ts"
 import { absPath, bool, flag, oneOf, optOneOf, optText, tabId, taskId, text } from "./args.ts"
 import { effortLevel, engineId, model } from "./tasks-shared.ts"

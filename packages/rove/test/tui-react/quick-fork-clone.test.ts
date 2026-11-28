@@ -4,11 +4,11 @@
  */
 
 import { type QuickForkOrchestrator, runQuickFork } from "@/tui-react/workspace/quick-fork"
-import type { Task } from "@/types/task"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, it, vi } from "vitest"
 
-vi.mock("@/state/repos", () => ({ addSavedRepo: () => {} }))
-vi.mock("@/state/vendor-prefs", () => ({ setLastActiveVendor: () => {} }))
+vi.mock("@sma1lboy/rove-core/state/repos.ts", () => ({ addSavedRepo: () => {} }))
+vi.mock("@sma1lboy/rove-core/state/vendor-prefs.ts", () => ({ setLastActiveVendor: () => {} }))
 
 function harness(createTask: (input: Record<string, unknown>) => Promise<Task>) {
   const created: Array<Record<string, unknown>> = []

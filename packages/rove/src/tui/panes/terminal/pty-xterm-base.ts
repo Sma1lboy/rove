@@ -1,10 +1,10 @@
 /** Shared xterm-headless emulation for local and daemon-hosted PTYs.
  * Subclasses supply {@link feed}; VT behavior and snapshots live here once. */
 
-import { profileSpan, profileTick } from "@/lib/render-profile"
+import { profileSpan, profileTick } from "@sma1lboy/rove-core/lib/render-profile.ts"
+import { persistedScrollbackRows } from "@sma1lboy/rove-core/state/scrollback.ts"
 import { Unicode11Addon } from "@xterm/addon-unicode11"
 import { Terminal as XtermHeadless } from "@xterm/headless"
-import { persistedScrollbackRows } from "../../../state/scrollback"
 import { hostTargetFps } from "../../lib/host-render-options"
 import { terminalGraphics } from "../../lib/terminal-graphics"
 import type { MouseTransition, TerminalInputModes } from "./keys-pure"

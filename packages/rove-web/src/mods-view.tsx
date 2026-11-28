@@ -6,7 +6,7 @@
  * field over `mod.submit`; the redraw arrives as the next `mods` push.
  */
 
-import { en as modsEn, zh as modsZh } from "@sma1lboy/rove/src/i18n/messages/mods.ts"
+import { en as modsEn, zh as modsZh } from "@sma1lboy/rove-core/i18n/messages/mods.ts"
 import {
   type ModControlRef,
   type ModNode,
@@ -15,7 +15,7 @@ import {
   moveModCursor,
   resolveModCursor,
   sameModControl,
-} from "@sma1lboy/rove/src/lib/mods-core.ts"
+} from "@sma1lboy/rove-core/lib/mods-core.ts"
 import { type ReactNode, useRef, useState } from "react"
 import { useLocale } from "./i18n/index.ts"
 import { useNarrow } from "./layout.ts"

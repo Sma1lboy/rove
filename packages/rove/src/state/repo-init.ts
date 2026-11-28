@@ -18,9 +18,13 @@
 
 import { existsSync } from "node:fs"
 import { join } from "node:path"
+import {
+  REPO_CONFIG_DIRS,
+  isNonEmptyRepoFile,
+  readFirstNonEmptyRepoFile,
+} from "@sma1lboy/rove-core/lib/repo-config-file.ts"
+import { getRepoInitOverride } from "@sma1lboy/rove-core/state/repos.ts"
 import { type ObservedLanguage, detectLanguage } from "@sma1lboy/rove-daemon/prompts/observed-language"
-import { REPO_CONFIG_DIRS, isNonEmptyRepoFile, readFirstNonEmptyRepoFile } from "../lib/repo-config-file.ts"
-import { getRepoInitOverride } from "./repos.ts"
 
 export interface ResolvedRepoInit {
   /** Shell snippet to run before the engine (or undefined for none). */

@@ -7,15 +7,12 @@
 import { execFile } from "node:child_process"
 import { mkdirSync, statSync } from "node:fs"
 import { dirname } from "node:path"
-import { repoIdOf } from "@sma1lboy/rove-daemon/repo-id"
-import { promptAttachmentsDir } from "@sma1lboy/rove/src/env.ts"
-import { autoMachineFor, requireMachine } from "@sma1lboy/rove/src/machines/forward.ts"
-import { repoIdentity } from "@sma1lboy/rove/src/machines/repo-identity.ts"
-import { cloneDirFor, parseRepoRef } from "@sma1lboy/rove/src/machines/repo-ref.ts"
-import { sendFileToMachine } from "@sma1lboy/rove/src/machines/send-file.ts"
-import { getSavedRepos } from "@sma1lboy/rove/src/state/repos.ts"
-import { resolvePreferredVendor, setLastActiveVendor } from "@sma1lboy/rove/src/state/vendor-prefs.ts"
-import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
+import { promptAttachmentsDir } from "@sma1lboy/rove-core/env.ts"
+import { repoIdentity } from "@sma1lboy/rove-core/machines/repo-identity.ts"
+import { cloneDirFor, parseRepoRef } from "@sma1lboy/rove-core/machines/repo-ref.ts"
+import { getSavedRepos } from "@sma1lboy/rove-core/state/repos.ts"
+import { resolvePreferredVendor, setLastActiveVendor } from "@sma1lboy/rove-core/state/vendor-prefs.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import {
   cloneRepo,
   deriveFolderName,
@@ -23,12 +20,15 @@ import {
   resolveCloneTarget,
   validateCloneTarget,
   validateGitUrl,
-} from "@sma1lboy/rove/src/worktree/clone.ts"
+} from "@sma1lboy/rove-core/worktree/clone.ts"
 import {
   getCurrentBranch,
   listLocalBranches,
   validateRepoPath,
-} from "@sma1lboy/rove/src/worktree/git-snapshot-async.ts"
+} from "@sma1lboy/rove-core/worktree/git-snapshot-async.ts"
+import { repoIdOf } from "@sma1lboy/rove-daemon/repo-id"
+import { autoMachineFor, requireMachine } from "@sma1lboy/rove/src/machines/forward.ts"
+import { sendFileToMachine } from "@sma1lboy/rove/src/machines/send-file.ts"
 import { BridgeError } from "../protocol.ts"
 import { absPath, isAbsPath } from "./args.ts"
 import type { Args, OpContext } from "./types.ts"

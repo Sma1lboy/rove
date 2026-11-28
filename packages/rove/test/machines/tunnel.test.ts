@@ -6,8 +6,8 @@
  * is tested without an ssh binary and without waiting out real backoff.
  */
 
+import type { MachineConfig } from "@sma1lboy/rove-core/machines/registry.ts"
 import { describe, expect, it } from "vitest"
-import type { MachineConfig } from "../../src/machines/registry.ts"
 import { startTunnel } from "../../src/machines/tunnel.ts"
 
 const config: MachineConfig = { host: "narwhal", auth: { kind: "key" } }

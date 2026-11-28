@@ -5,6 +5,7 @@
  * and retry policy are testable with fakes, no socket, no real backoff.
  */
 
+import { homeDir } from "@sma1lboy/rove-core/env.ts"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { logClient, logClientError } from "@sma1lboy/rove-daemon/client/client-log"
 import { isStaleInstallError } from "@sma1lboy/rove-daemon/client/daemon-process"
@@ -18,7 +19,6 @@ import {
   isForeignDaemonHome,
   isProtocolCompatible,
 } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { homeDir } from "../env.ts"
 import { type OrchestratorSignals, deserializeTask } from "./remote-orchestrator-payloads.ts"
 
 export interface PerformInitOptions {

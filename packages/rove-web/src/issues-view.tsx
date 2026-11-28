@@ -5,7 +5,7 @@
  * task already started from it), q/Esc close. Nothing here writes to GitHub.
  */
 
-import { relativeAge } from "@sma1lboy/rove/src/lib/relative-time.ts"
+import { relativeAge } from "@sma1lboy/rove-core/lib/relative-time.ts"
 import { useEffect, useRef, useState } from "react"
 import { useNarrow } from "./layout.ts"
 import type { AppModel } from "./model.ts"

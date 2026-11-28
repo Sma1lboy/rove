@@ -20,7 +20,7 @@ import { spawnSync } from "node:child_process"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
-import { getCurrentBranch, listLocalBranches, validateRepoPath } from "@/worktree/git-snapshot"
+import { getCurrentBranch, listLocalBranches, validateRepoPath } from "@sma1lboy/rove-core/worktree/git-snapshot.ts"
 import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from "vitest"
 
 let root: string

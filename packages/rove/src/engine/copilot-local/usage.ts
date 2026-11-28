@@ -9,8 +9,8 @@
  * dropped — the live engine runs in a hosted PTY; we only read its history.
  */
 
-import type { EngineUsageSnapshot } from "@/types/engine"
-import { isObject } from "../../lib/is-object"
+import { isObject } from "@sma1lboy/rove-core/lib/is-object.ts"
+import type { EngineUsageSnapshot } from "@sma1lboy/rove-core/types/engine.ts"
 
 export function copilotUsageToSnapshot(value: unknown): EngineUsageSnapshot | undefined {
   if (!isObject(value)) return undefined

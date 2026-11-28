@@ -5,11 +5,11 @@
  * the offending flag instead of surfacing a bare RPC refusal.
  */
 
+import { errorMessage, isDiskFull } from "@sma1lboy/rove-core/lib/error-message.ts"
+import { cloneDirFor, cloneRepo, parseRepoRef } from "@sma1lboy/rove-core/machines/repo-ref.ts"
+import { addSavedRepo, isRemoteRepoKey } from "@sma1lboy/rove-core/state/repos.ts"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { MULTI_REPO_CAP, repoNameOf, uniqueRepoName } from "@sma1lboy/rove-daemon/task-tree"
-import { errorMessage, isDiskFull } from "../../lib/error-message.ts"
-import { cloneDirFor, cloneRepo, parseRepoRef } from "../../machines/repo-ref.ts"
-import { addSavedRepo, isRemoteRepoKey } from "../../state/repos.ts"
 import { ApiError, type VerbContext, helpStep } from "./types.ts"
 import { resolveLocalRepo } from "./verbs-repo-match.ts"
 

@@ -35,7 +35,7 @@ const fake = vi.hoisted(() => ({
   daemonClient: null as null | { request: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> },
 }))
 
-vi.mock("../../src/state/repos.ts", () => ({
+vi.mock("@sma1lboy/rove-core/state/repos.ts", () => ({
   addSavedRepo: fake.addSavedRepo,
   isGitRepo: vi.fn(() => fake.isGitRepo),
   getSavedRepos: vi.fn(() => fake.savedRepos),
@@ -69,7 +69,7 @@ vi.mock("../../src/orchestrator/core.ts", () => ({
     }
   },
 }))
-vi.mock("../../src/exec/keychain.ts", () => ({
+vi.mock("@sma1lboy/rove-core/exec/keychain.ts", () => ({
   deleteKeychainPassword: fake.deleteKeychainPassword,
   isKeychainSupported: vi.fn(() => fake.keychainSupported),
 }))

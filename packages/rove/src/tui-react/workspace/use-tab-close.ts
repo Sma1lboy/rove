@@ -11,6 +11,7 @@
  *   - `handleActiveExit`: policy above `closeExited`: resume, close, or recycle in place.
  */
 
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import {
   type TabsState,
   type TerminalTab,
@@ -23,7 +24,6 @@ import {
 } from "../../tabs/terminal-tabs-core"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { noteClosedPtyKey } from "../../tui/workspace/closed-tab-suppress"
-import type { VendorId } from "../../types/vendor"
 import { releaseSplitLeaves } from "./TerminalSplit"
 import { releaseClosedTabPtys } from "./terminal-tabs-close"
 

@@ -8,12 +8,12 @@
  */
 
 import { type RGBA, TextAttributes } from "@opentui/core"
+import { type EngineHealthTone, engineHealth, engineLogin } from "@sma1lboy/rove-core/engine/engine-health.ts"
+import { displayWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/task.ts"
 import { useRef } from "react"
-import { type EngineHealthTone, engineHealth, engineLogin } from "../../../engine/engine-health"
 import type { EngineStatus } from "../../../engine/engine-status"
 import type { EngineIntegration } from "../../../engine/integration-status"
-import { displayWidth } from "../../../lib/display-width"
-import type { VendorId } from "../../../types/task"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { Row, type SectionCursorProps } from "./rows"

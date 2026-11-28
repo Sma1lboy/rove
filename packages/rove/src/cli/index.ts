@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 import { resolve } from "node:path"
 /** Rove CLI entry. Unknown commands print usage instead of TUI. */
-import { errorMessage } from "@/lib/error-message"
+import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import { expandTilde } from "@sma1lboy/rove-core/lib/path-home.ts"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
+import { rejectionReason } from "@sma1lboy/rove-core/state/project-eligibility.ts"
+import { BUILTIN_VENDORS, type VendorId, coerceVendorId, isBuiltinVendor } from "@sma1lboy/rove-core/types/vendor.ts"
 import { matchPathGlob } from "../lib/path-glob.ts"
-import { expandTilde } from "../lib/path-home.ts"
-import { ROVE_PRODUCT_NAME } from "../product.ts"
-import { rejectionReason } from "../state/project-eligibility.ts"
-import { BUILTIN_VENDORS, type VendorId, coerceVendorId, isBuiltinVendor } from "../types/vendor.ts"
 import type { AdoptableWorktree } from "../types/worktree.ts"
 import { switchFlag } from "./argv.ts"
 import { type CommandHandler, DYNAMIC_COMMANDS } from "./index-commands.ts"
@@ -45,7 +45,7 @@ async function runAddSubcommand(rest: readonly string[]): Promise<void> {
     process.exit(2)
   }
   const target = resolve(process.cwd(), expandTilde(arg && arg.length > 0 ? arg : "."))
-  const { addSavedRepo } = await import("../state/repos.ts")
+  const { addSavedRepo } = await import("@sma1lboy/rove-core/state/repos.ts")
   // `added: false` also means "already saved", so a rejection must be
   // reported here or we'd claim to have stored what we refused.
   const result = addSavedRepo(target)
@@ -104,7 +104,7 @@ async function runRemoveSubcommand(rest: readonly string[]): Promise<void> {
     process.stderr.write(`${CLI_NAME} remove: unknown flag "${arg}"\n\n${REMOVE_USAGE}`)
     process.exit(2)
   }
-  const { getRemoteRepoConfig, getSavedRepos, resolveRepoRoot } = await import("../state/repos.ts")
+  const { getRemoteRepoConfig, getSavedRepos, resolveRepoRoot } = await import("@sma1lboy/rove-core/state/repos.ts")
   const saved = getSavedRepos()
   if (saved.length === 0) {
     console.log("no saved projects to remove.")
@@ -149,7 +149,7 @@ async function reportCredentialExit(
   ref: { readonly service: string; readonly account: string },
   purge: boolean,
 ): Promise<void> {
-  const { deleteKeychainPassword, isKeychainSupported } = await import("../exec/keychain.ts")
+  const { deleteKeychainPassword, isKeychainSupported } = await import("@sma1lboy/rove-core/exec/keychain.ts")
   if (!purge) {
     console.log(`note: its SSH password is still in the OS keychain (${ref.service}/${ref.account}).`)
     console.log(`      re-run with ${PURGE_FLAG} to delete it.`)
@@ -258,7 +258,7 @@ async function runAdoptSubcommand(args: readonly string[]): Promise<void> {
     }
   }
 
-  const { getCustomEngineIds, resolveRepoRoot } = await import("../state/repos.ts")
+  const { getCustomEngineIds, resolveRepoRoot } = await import("@sma1lboy/rove-core/state/repos.ts")
   const repo = resolveRepoRoot(resolve(process.cwd(), expandTilde(repoArg && repoArg.length > 0 ? repoArg : ".")))
 
   // Reject an unknown engine BEFORE anything is created: `coerceVendorId`
@@ -326,7 +326,7 @@ async function main(): Promise<void> {
   const [subcommand, ...rest] = rawArgs
 
   if (subcommand === "--version" || subcommand === "-v" || subcommand === "version") {
-    const { CURRENT_VERSION } = await import("../version.ts")
+    const { CURRENT_VERSION } = await import("@sma1lboy/rove-core/version.ts")
     console.log(`${CLI_NAME} ${CURRENT_VERSION}`)
     return
   }

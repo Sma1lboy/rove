@@ -6,9 +6,9 @@
  * live instead of blanking the whole window.
  */
 
+import { recentStateChangesForDiagnostics } from "@sma1lboy/rove-core/lib/external-store.ts"
 import { logClientError } from "@sma1lboy/rove-daemon/client/client-log"
 import { Component, type ErrorInfo, type ReactNode } from "react"
-import { recentStateChangesForDiagnostics } from "../../lib/external-store"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 
