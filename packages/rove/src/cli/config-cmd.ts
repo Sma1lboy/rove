@@ -3,8 +3,8 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs"
 import { dirname } from "node:path"
 import { kvStatePath } from "../env.ts"
+import { binaryAvailable, resolveEditorCommand } from "../lib/editor-launch.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
-import { binaryAvailable, resolveEditorCommand } from "../tui/lib/editor-launch.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME
 

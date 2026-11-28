@@ -23,7 +23,6 @@ const NOT_YET_MOVED = new Set([
   "cli/api/tab-split.ts",
   "engine/hosted-session.ts",
   "lib/failure-hint.ts",
-  "machines/hub-singleton.ts",
   "machines/remote-worktree.ts",
   "tabs/terminal-tab-split.ts",
   "worktree/review-read.ts",

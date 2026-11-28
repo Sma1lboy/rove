@@ -20,17 +20,17 @@
  *   - `editor.customCommand` e.g. `code -w` / `emacsclient` / `subl -w {file}`
  */
 
-import { readOnlyGitProcessEnv } from "@/lib/git-env"
-import { quoteShellArg as shellQuote } from "@/lib/shell-command"
-import { recordSpawn } from "@/lib/spawn-profile"
-import { getPersistedString } from "@/state/repos"
 import {
   AUTO_EDITOR_CANDIDATES,
   EDITOR_CUSTOM_KEY,
   EDITOR_KIND_KEY,
   type EditorKind,
   normalizeEditorKind,
-} from "@/tui/lib/editor-prefs"
+} from "@/lib/editor-prefs"
+import { readOnlyGitProcessEnv } from "@/lib/git-env"
+import { quoteShellArg as shellQuote } from "@/lib/shell-command"
+import { recordSpawn } from "@/lib/spawn-profile"
+import { getPersistedString } from "@/state/repos"
 import { pathSyntax, pathWithin } from "@sma1lboy/rove-daemon/path-identity"
 
 /** Token replaced with the (shell-quoted) file path in a custom command. */

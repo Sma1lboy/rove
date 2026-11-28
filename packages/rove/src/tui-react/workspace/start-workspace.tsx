@@ -48,7 +48,7 @@ export async function startWorkspaceHost(opts: BootDialogs = {}): Promise<void> 
       )
       // Other machines running Rove, as the daemon's hub publishes them.
       const { MachineFeed } = await import("../../machines/feed.ts")
-      const { setMachineHub } = await import("../../machines/hub-singleton.ts")
+      const { setMachineHub } = await import("./hub-singleton.ts")
       const machines = new MachineFeed(orchestrator)
       setMachineHub(machines)
       // Other machines' tasks have no row status here; build it from the hub's relay.

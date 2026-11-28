@@ -6,6 +6,14 @@
 
 import { accessSync, constants as fsConstants, mkdirSync } from "node:fs"
 import { errorMessage } from "@/lib/error-message"
+import {
+  DEFAULT_EDITOR_KIND,
+  EDITOR_CUSTOM_KEY,
+  EDITOR_KINDS,
+  EDITOR_KIND_KEY,
+  type EditorKind,
+  normalizeEditorKind,
+} from "../../../lib/editor-prefs"
 import { RELEASE_CHANNELS, type ReleaseChannel } from "../../../release-channels.ts"
 import { AUTO_STATUS_KEY } from "../../../state/auto-status"
 import { COLORBLIND_KEY, type ColorblindMode, DEFAULT_COLORBLIND, normalizeColorblind } from "../../../state/colorblind"
@@ -57,14 +65,6 @@ import {
   normalizeWorktreeBase,
   worktreeBaseKindOf,
 } from "../../../state/worktree-base"
-import {
-  DEFAULT_EDITOR_KIND,
-  EDITOR_CUSTOM_KEY,
-  EDITOR_KINDS,
-  EDITOR_KIND_KEY,
-  type EditorKind,
-  normalizeEditorKind,
-} from "../../../tui/lib/editor-prefs"
 import { FINISHED_ALERTS_KEY } from "../../../tui/lib/notify-state"
 import {
   PREFIX_TAP_PRESENTATION_KEY,
