@@ -94,8 +94,10 @@ the two share one token.
   message, a find box, `[ export .md ]` for the whole thread, and new messages
   as the engine writes them. A palette conversation hit opens it scrolled to
   that message. An engine with no readable history shows its labelled terminal
-  tail. The view itself takes no input; on a phone the message composer sits
-  under it, so a message still goes to the agent.
+  tail. The view itself takes no input; on a phone the message composer and
+  the key row sit under it, so a message, esc or ^C still goes to the agent.
+  There the key row writes straight to the session (no terminal is attached,
+  so the shared terminal keeps its size) and has no sticky Ctrl.
 - The side panel holds several tabs per task (Files, a diff per file, a
   Browser per page), optionally in two stacked groups, and its views answer to
   agents. It starts closed: the Chat, Files, Diff and Browser buttons at the

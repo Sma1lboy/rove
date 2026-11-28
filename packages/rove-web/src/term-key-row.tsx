@@ -16,15 +16,24 @@ const KEY_NAMES: Readonly<Record<string, string>> = {
   enter: "layout.termKeyEnter",
 }
 
-export function TermKeyRow({ handle, atMenu }: { handle: TermHandle; atMenu: boolean }) {
+/**
+ * `to`: the terminal on screen, or the PTY's raw input when no terminal is (the phone's Chat view). Without
+ * a terminal there is nothing to type the sticky Ctrl's next key into, so the row has no Ctrl, and arrows
+ * go as plain cursor keys.
+ */
+export function TermKeyRow({ to, atMenu }: { to: TermHandle | ((data: string) => void); atMenu: boolean }) {
   useLocale()
+  const handle = typeof to === "function" ? null : to
   const [ctrl, setCtrl] = useState(false)
   const [more, setMore] = useState(false)
   useEffect(() => {
-    handle.armCtrl(ctrl ? () => setCtrl(false) : null)
+    handle?.armCtrl(ctrl ? () => setCtrl(false) : null)
   }, [handle, ctrl])
-  useEffect(() => () => handle.armCtrl(null), [handle])
-  const { term } = handle
+  useEffect(() => () => handle?.armCtrl(null), [handle])
+  const send = (k: TermKey) =>
+    typeof to === "function"
+      ? to(k.bytes(false))
+      : to.term.input(k.bytes(to.term.modes.applicationCursorKeysMode), true)
   const key = (k: TermKey) => (
     <button
       key={k.id}
@@ -33,7 +42,7 @@ export function TermKeyRow({ handle, atMenu }: { handle: TermHandle; atMenu: boo
       aria-label={KEY_NAMES[k.id] ? t(KEY_NAMES[k.id]) : undefined}
       onClick={() => {
         setCtrl(false)
-        term.input(k.bytes(term.modes.applicationCursorKeysMode), true)
+        send(k)
       }}
     >
       {k.cap}
@@ -48,7 +57,7 @@ export function TermKeyRow({ handle, atMenu }: { handle: TermHandle; atMenu: boo
       // A tap must not take focus from xterm's textarea, or the soft keyboard closes.
       onPointerDown={(e) => e.preventDefault()}
     >
-      {more && (
+      {more && handle && (
         <button
           type="button"
           className={termKey(ctrl ? "on" : "off")}
