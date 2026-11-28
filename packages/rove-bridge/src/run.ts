@@ -7,10 +7,8 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { hostname as osHostname } from "node:os"
-import { dirname, join } from "node:path"
-import { RelayAgent } from "@hsinsekai-nanami/agent"
+import { copyFileSync, existsSync, mkdirSync, readFileSync } from "node:fs"
+import { join } from "node:path"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { ensureDaemonReachable } from "@sma1lboy/rove-daemon/client/daemon-process"
 import { ensurePtyHostReachable } from "@sma1lboy/rove-daemon/client/pty-process"
@@ -28,15 +26,7 @@ import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { terminalTabsKey } from "@sma1lboy/rove/src/state/tabs-persistence.ts"
 import type { TabsState } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
 import { CURRENT_VERSION } from "@sma1lboy/rove/src/version.ts"
-import {
-  addDevice,
-  deviceOf,
-  listDevices,
-  loadOrCreateToken,
-  relayLink,
-  revokeDevice,
-  startupCredentials,
-} from "./auth.ts"
+import { addDevice, deviceOf, listDevices, relayLink, revokeDevice, startupCredentials } from "./auth.ts"
 import { printBanner } from "./banner.ts"
 import { createAccessVerifier } from "./cf-access.ts"
 import {
@@ -60,10 +50,12 @@ import { runPasswordAction } from "./password-cmd.ts"
 import { PromptFeed } from "./prompts.ts"
 import { BridgeError } from "./protocol.ts"
 import { PushHub, sharedCredential } from "./push.ts"
+import { phoneDeviceName, saveRelayServer, startRelay } from "./relay.ts"
 import { createRoveOps } from "./rove-ops.ts"
 import { RowStatusFeed } from "./row-status.ts"
 import { type BridgeDeps, startBridgeServer } from "./server.ts"
 import { SessionTitles } from "./session-titles.ts"
+import { printSetup } from "./setup.ts"
 import { createSignIn } from "./sign-in.ts"
 import { TabFeed } from "./tab-feed.ts"
 import { usageStore } from "./usage-store.ts"
@@ -469,96 +461,4 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     signIn: signIn?.mode() ?? null,
     relay,
   })
-}
-
-/**
- * `--preset relay`: a second loopback listener that only the relay agent dials. The agent opens its
- * sockets with no headers, so this one listener takes the token from `?token=`; the bearer token
- * is still required, the relay's E2E layer is on top of it.
- */
-function startRelay(
-  deps: BridgeDeps,
-  server: string,
-  bridgeDir: string,
-  rotate: boolean,
-): { code: string; server: string } {
-  // Same shape as relay-kit's generateCode (32 random bytes, base64url), owner-only like the token.
-  const code = loadOrCreateToken(join(bridgeDir, "relay-code"), rotate)
-  // Shares `deps.login` (and its lockout): under this preset it already trusts no forwarded IP.
-  const ingress = startBridgeServer(relayIngressDeps(deps), { hostname: "127.0.0.1", port: 0 })
-  const agent = new RelayAgent({ serverUrl: server, code, localPort: ingress.port ?? 0, deviceName: osHostname() })
-  agent.start()
-  return { code, server }
-}
-
-/**
- * The relay agent dials this listener from loopback with no forwarded headers, so every relayed browser would look
- * like this computer's own: its sockets never get the `open` sign-in mode's tokenless pass, even when the main
- * listener (a plain local run that started the relay from Settings) does.
- */
-export function relayIngressDeps(deps: BridgeDeps): BridgeDeps {
-  return {
-    ...deps,
-    tokenInQuery: true,
-    ...(deps.signIn ? { signIn: { ...deps.signIn, opens: () => false } } : {}),
-  }
-}
-
-/** Remembered in `config.json`, so the next start dials the relay a paired phone uses. */
-export function saveRelayServer(configPath: string, server: string): void {
-  const raw: unknown = existsSync(configPath) ? JSON.parse(readFileSync(configPath, "utf8")) : {}
-  const rest = raw && typeof raw === "object" ? raw : {}
-  mkdirSync(dirname(configPath), { recursive: true, mode: 0o700 })
-  writeFileSync(configPath, `${JSON.stringify({ ...rest, relayServer: server }, null, 2)}\n`, { mode: 0o600 })
-}
-
-function phoneDeviceName(devicesPath: string, now: Date): string {
-  return loginDeviceName(devicesPath, now, "phone")
-}
-
-/**
- * `--setup`: what reaching this bridge from a phone takes, checked against this machine. It only
- * reads (`tailscale status`, `cloudflared --version`) and prints commands; it exposes nothing.
- */
-function printSetup(port: number): void {
-  const has = (cmd: string, args: readonly string[]) => {
-    const res = spawnSync(cmd, args, { encoding: "utf8" })
-    return res.status === 0 ? (res.stdout ?? "").trim() : null
-  }
-  const ts = has("tailscale", ["status", "--json"])
-  const cf = has("cloudflared", ["--version"])
-  const lines = ["Reaching this bridge from another device:", ""]
-  if (ts) {
-    lines.push(
-      "  Tailscale is up here. Private to your tailnet:",
-      `    rove --web --preset tailscale --port ${port}`,
-      "  With HTTPS on your MagicDNS name (needed for a phone browser):",
-      `    tailscale serve --bg ${port}   then   rove --web --preset tailscale --public-host <this-machine>.<tailnet>.ts.net`,
-    )
-  } else lines.push("  Tailscale: not running here (https://tailscale.com/download), the simplest private path.")
-  lines.push("")
-  if (cf) {
-    lines.push(
-      `  cloudflared is installed (${cf.split("\n")[0]}). Behind Cloudflare Access:`,
-      `    cloudflared tunnel --url http://127.0.0.1:${port}   (or a named tunnel to your hostname)`,
-      "    rove --web --preset cf --public-host <hostname> --cf-team <team> --cf-aud <aud>",
-    )
-  } else lines.push("  cloudflared: not installed; only needed to publish through Cloudflare Access.")
-  lines.push(
-    "",
-    "  Relay, end-to-end encrypted (no VPN, no Access; the relay sees only ciphertext). Nothing to set up:",
-    "  open Settings → Connectors → Phone in the page and scan the QR code, or run",
-    "    rove --web --preset relay",
-    "  Keep it reachable with no terminal open: rove --web --install",
-    "  To use your own relay instead, deploy relay-kit's Worker to your Cloudflare account once:",
-    "    git clone https://github.com/nanami-0713/relay-kit && cd relay-kit/workers/relay",
-    "    rove --web --relay-shell public",
-    `    printf '\\n[assets]\\ndirectory = "public"\\n' >> wrangler.toml`,
-    "    npx wrangler login && npx wrangler deploy",
-    "    rove --web --preset relay --relay-server https://<worker>.<account>.workers.dev",
-    "  *.workers.dev is blocked on many mainland China networks: bind a custom domain (wrangler.toml).",
-    "  Redo --relay-shell + deploy only when the page changes; the app itself loads from this machine.",
-  )
-  lines.push("", "  Give each phone its own token: rove --web --device <name>; revoke one with --revoke-device <name>.")
-  console.log(lines.join("\n"))
 }
