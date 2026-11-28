@@ -554,8 +554,9 @@ left arrow to return to the section list, and `enter` to activate a row.
   Edit the displayed YAML path; changes reload live.
 - **Feedback** files a GitHub issue on the Rove repo through an authenticated `gh` CLI; without one it shows a prefilled new-issue link. The command palette also has **Report a problem** (no chord): it opens a new scratch conversation on the default engine that interviews you, drafts the issue and files it with `rove feedback` once you agree.
 - **Dev** contains reset, a backend-exit action, **Reload settings** and
-  experimental switches. Reload settings applies hand edits to `state.json` to
-  this window without a restart. Reset
+  experimental switches. Saved hand edits to `state.json` apply on their own;
+  Reload settings re-reads the file into this window at once and says how many
+  settings changed. Reset
   clears UI and task-index state after confirmation, but leaves worktrees and
   engine history on disk. The current **Restart backend** action exits only this
   TUI window; other attached windows and hosted sessions remain connected. Use

@@ -92,14 +92,21 @@ rove uses your configured editor (`editor.kind` below) unless it is `auto`
 (the default), which honors `$VISUAL` / `$EDITOR`, then the first installed
 of nvim, vim, emacs, nano.
 
-To apply a hand edit without restarting, open Settings → Dev and choose
-**Reload settings**. It re-reads `state.json` into the running window and says
-how many settings changed. If the file isn't valid JSON, nothing changes and the
-file stays put so you can finish the edit. Pending local edits stay in memory;
-background and exit flushes leave the invalid file untouched. After repairing
-the file, reload again to save those pending edits. A few settings are read only at
-startup and still need a restart; other open windows keep their old
-values until they reload or restart.
+A saved hand edit applies without a restart: the daemon watches `state.json`
+and every running window adopts the new values within a moment, the same way
+it picks up a change made in another window, the web or a CLI verb. Per-window
+layout (rail fold and width, zen) stays as each window has it, and saved
+terminal tabs (`terminalTabs.*`) and `lastActive.taskId` are not read back
+from a hand edit. While the file isn't valid JSON, windows keep their
+last values until you finish the edit. A few settings are read only at startup
+and still need a restart.
+
+To re-read the file into this window at once and see how many settings
+changed, open Settings → Dev and choose **Reload settings**. If the file isn't
+valid JSON, nothing changes and the file stays put so you can finish the edit.
+Pending local edits stay in memory; background and exit flushes leave the
+invalid file untouched. After repairing the file, reload again to save those
+pending edits.
 
 **Hand-editing is safe.** Unknown keys are ignored and bad values fall back to
 defaults, so a typo can't wedge the app; worst case a preference resets. If
@@ -151,7 +158,7 @@ files; it does not show your sessions.
 | `appearance.colorblind` | `off` \| `on` | `off` | `on` turns the theme's added colour 60° around the hue wheel toward blue, at lower chroma, so added and removed stop being a red/green pair. Applies to the diff view, the Files pane's `A`/`D` letters and `+N`/`-M` counts, and the sidebar's `+N −M` chips; removed keeps the theme colour |
 | `appearance.runningTitle` | `shimmer` \| `still` | `shimmer` | While a tab's engine is running, `shimmer` sweeps a light band (theme muted text toward the primary colour) across its title in the sidebar at a fixed 30 cells per second; `still` keeps the plain muted title |
 | `appearance.statusMark` | `both` \| `engine` \| `dots` | `both` | Web only. What marks a task row in the rail: `both` draws the engine's icon in its brand colours and the dot mark for the row's state; `engine` draws the icon alone and colours it by the state; `dots` shows the dot mark alone, the look before engine icons. Settings → Appearance → Task status. |
-| `layout.narrowBelow` | number of columns, 0–1000 | `70` | Terminal app only. Below this width the TUI shows one panel at a time ([Narrow terminals](./TUI.md#narrow-terminals-phone-ssh)). `0` keeps the three-pane layout at any width. Applies as soon as Settings → Dev → **Reload settings** reads it, without a restart. A value that is not a number reads as `70` |
+| `layout.narrowBelow` | number of columns, 0–1000 | `70` | Terminal app only. Below this width the TUI shows one panel at a time ([Narrow terminals](./TUI.md#narrow-terminals-phone-ssh)). `0` keeps the three-pane layout at any width. Applies as soon as the edit is saved, without a restart. A value that is not a number reads as `70` |
 | `locale` | `en` \| `zh` | `en` | UI language |
 | `hints.statusMark.seen` | boolean | `false` | Web only. Set once the web client has shown its one-time notice that task rows now carry engine icons (or found no task, so nothing to compare with). Shared by every browser on this daemon, so the notice shows once. |
 | `web.rail.sort` | `default` \| `recent` \| `attention` \| `name` | `recent` | Web only. The order of the task list in the web client, shared by every browser on this daemon. `t` in the list cycles it. The terminal app keeps its own in `activeSortMode`. |
