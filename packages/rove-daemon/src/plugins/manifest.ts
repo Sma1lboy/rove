@@ -120,6 +120,8 @@ export interface PluginEngine {
   readonly modelFlag?: string
   /** Argv Rove runs to list models; stdout is one `id` or `id<TAB>label` per line. */
   readonly modelsCommand?: readonly string[]
+  /** Flag that skips the engine's permission prompts, appended while Rove's bypass setting is on. */
+  readonly permissionBypassFlag?: string
 }
 
 export type { PluginPage } from "./manifest-pages.ts"
@@ -440,6 +442,9 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
       ...(t.models_command === undefined
         ? {}
         : { modelsCommand: asCommand(t.models_command, `engines[${i}].models_command`) }),
+      ...(t.permission_bypass_flag === undefined
+        ? {}
+        : { permissionBypassFlag: asString(t.permission_bypass_flag, `engines[${i}].permission_bypass_flag`) }),
     }
   })
   const engineSeen = new Set<string>()

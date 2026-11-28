@@ -12,6 +12,7 @@ import { existsSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import type { BuiltinVendorId } from "@/types/vendor"
+import { argvHasFlag, bypassFlag } from "../cli/argv.ts"
 import { roveCliInvocation } from "../cli/invocation.ts"
 import {
   detectBobAccount,
@@ -92,6 +93,15 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     // `--effort <level>` (`claude --help`).
     effortLevels: ["low", "medium", "high", "xhigh", "max"],
     effortArgv: (base, level) => [...base, "--effort", level],
+    // Flag settings skip the one-time "Bypass Permissions mode" consent screen,
+    // which would otherwise take the first delivered prompt. One `--settings` only: a user's own wins.
+    permissionBypass: {
+      argv: (argv) =>
+        argvHasFlag(argv, "--settings")
+          ? [...argv, "--dangerously-skip-permissions"]
+          : [...argv, "--dangerously-skip-permissions", "--settings", '{"skipDangerousModePermissionPrompt":true}'],
+      present: ["--dangerously-skip-permissions", "--allow-dangerously-skip-permissions", "--permission-mode"],
+    },
     foreignModel: isOpenAiFamilyModel,
     history: claudeHistoryReader,
     detectAccount: (deps) => detectClaudeAccount(deps),
@@ -142,6 +152,15 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     listModels: async () => CODEX_MODELS,
     modelArgv: (base, model) => [...base, "--model", model],
     addDirArgv: (base, dirs) => [...base, ...dirs.map((dir) => `--add-dir=${dir}`)],
+    permissionBypass: bypassFlag(
+      "--dangerously-bypass-approvals-and-sandbox",
+      "--yolo",
+      "--full-auto",
+      "-a",
+      "--ask-for-approval",
+      "-s",
+      "--sandbox",
+    ),
     // codex-tui's startup update offer is a modal that drops pending input, and
     // Enter on it picks "update now", which installs and exits instead of starting.
     hostedStartArgv: (argv) => {

@@ -16,7 +16,7 @@ import { displayWidth } from "../../../lib/display-width"
 import type { VendorId } from "../../../types/task"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
-import type { SectionCursorProps } from "./rows"
+import { Row, type SectionCursorProps } from "./rows"
 import { EngineDetails } from "./sections-engines-details"
 
 /** Cap on the name column so one long custom name doesn't push every status right. */
@@ -65,6 +65,9 @@ export function EngineSettingsSection(
     onInstallSkill: () => void
     /** What the last skill install could not write; null when it worked. */
     skillError: string | null
+    /** Launches carry each engine's skip-permission-prompts flag. */
+    permissionBypass: boolean
+    onTogglePermissionBypass: () => void
   },
 ) {
   const { theme } = useTheme()
@@ -353,6 +356,30 @@ export function EngineSettingsSection(
             </text>
           </box>
         ) : null}
+      </box>
+      <box flexDirection="column" gap={0}>
+        <box paddingLeft={1}>
+          <text fg={theme.text} attributes={TextAttributes.BOLD} wrapMode="none">
+            {t("settings.engines.permissionsTitle")}
+          </text>
+        </box>
+        <box paddingLeft={1} paddingRight={1}>
+          <text fg={theme.textMuted} wrapMode="word">
+            {t("settings.engines.permissionBypassHint")}
+          </text>
+        </box>
+        <Row
+          cursor={isBodyCursor(addRowIndex + 4)}
+          rowRef={props.rowRef(addRowIndex + 4)}
+          onMouseUp={() => {
+            props.setLevel("body")
+            props.setBodyRow(addRowIndex + 4)
+            props.onTogglePermissionBypass()
+          }}
+          fg={props.permissionBypass ? theme.accent : theme.textMuted}
+        >
+          {`${props.permissionBypass ? "[x]" : "[ ]"} ${t("settings.engines.permissionBypass")}`}
+        </Row>
       </box>
       <box paddingLeft={1}>
         <text fg={theme.textMuted} wrapMode="word">

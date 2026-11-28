@@ -271,6 +271,26 @@ Settings → Engines names it on the engine's **Program** line, and `rove doctor
 command runs that CLI directly; a wrapper of your own is never called with a
 flag it may not understand, so no version is shown for it.
 
+### Permission prompts
+
+Hosted sessions run unattended, so by default Rove starts each engine with its
+"skip permission prompts" flag:
+
+| Engine | Flag |
+|---|---|
+| Claude | `--dangerously-skip-permissions` (plus `--settings '{"skipDangerousModePermissionPrompt":true}'` so the one-time consent screen doesn't eat the first prompt) |
+| Codex | `--dangerously-bypass-approvals-and-sandbox` |
+| Antigravity | `--dangerously-skip-permissions` |
+| Cursor Agent | `--force` |
+
+The flag also applies to a custom engine that declares one of these
+protocols, and to plugin engines that set `permission_bypass_flag`. If your
+launch command already picks a permission mode (Claude: `--permission-mode`,
+`--dangerously-skip-permissions`; Codex: `--yolo`, `--full-auto`, `-a`, `-s`;
+Cursor: `-f`, `--yolo`), Rove adds nothing. Turn it off in Settings → Engines
+(**Skip permission prompts**), or set `"engines.permissionBypass": false` in
+`state.json`. The change applies to sessions launched afterwards.
+
 ### Custom launch commands
 
 Override any engine's launch command in Settings → Engines, or by hand in

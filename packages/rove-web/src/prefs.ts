@@ -44,6 +44,7 @@ export interface Prefs {
   readonly dispatcher: boolean
   readonly updateChannel: "latest" | "next" | "nightly"
   readonly updateNotify: boolean
+  readonly permissionBypass: boolean
 }
 
 export type PrefKey = keyof Prefs
@@ -131,6 +132,7 @@ const DEFAULTS: Prefs = {
   dispatcher: false,
   updateChannel: "latest",
   updateNotify: true,
+  permissionBypass: true,
 }
 
 function cached(): PrefsState {

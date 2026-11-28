@@ -86,7 +86,7 @@ export const MANIFEST: readonly Entry[] = [
   { id: "welcome-pick-project", caption: "First run: Pick a project", home: "empty", steps: [{ click: { t: "firstRun.projectFix" } }] },
   { id: "empty-routines", caption: "Routines, none yet", home: "empty", on: ["desktop", "phone"], storage: page("routines") },
   { id: "empty-inbox", caption: "Inbox, empty", home: "empty", steps: [{ click: { t: "rail.inbox" } }] },
-  { id: "empty-settings-engines", caption: "Settings › Engines on a fresh home", home: "empty", steps: settings("engines") },
+  { id: "empty-settings-engines", caption: "Settings › Engines on a fresh home", home: "empty", pages: 3, steps: settings("engines") },
   { id: "sign-in", caption: "Sign in: token required", home: "token", on: ["desktop", "phone"] },
 
   // ── The workspace ──

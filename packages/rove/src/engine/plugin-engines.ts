@@ -8,6 +8,7 @@
 
 import { type PluginEngine, readPluginManifest } from "@sma1lboy/rove-daemon/plugins/manifest"
 import { loadPluginRegistry } from "@sma1lboy/rove-daemon/plugins/registry"
+import { bypassFlag } from "../cli/argv.ts"
 import { getCustomEngineIds } from "../state/repos.ts"
 import { resetAvailableVendorsCache } from "./account-detect.ts"
 import {
@@ -48,6 +49,7 @@ export function loadPluginEngines(homeDir?: string): readonly string[] {
             identity,
             ...(engine.firstMessageDelivery ? { firstMessageDelivery: engine.firstMessageDelivery } : {}),
             ...pluginModelCapabilities(engine),
+            ...(engine.permissionBypassFlag ? { permissionBypass: bypassFlag(engine.permissionBypassFlag) } : {}),
           })
           if (ok) {
             registered.push(engine.id)

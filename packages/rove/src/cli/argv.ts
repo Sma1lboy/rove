@@ -47,3 +47,11 @@ export function switchFlag(argv: readonly string[], flag: string): boolean | und
   }
   return on
 }
+
+/** An engine's `permissionBypass`: append `flag` unless it or an `alias` (a mode the user picked) is already there. */
+export function bypassFlag(
+  flag: string,
+  ...aliases: string[]
+): { argv: (argv: readonly string[]) => readonly string[]; present: readonly string[] } {
+  return { argv: (argv) => [...argv, flag], present: [flag, ...aliases] }
+}

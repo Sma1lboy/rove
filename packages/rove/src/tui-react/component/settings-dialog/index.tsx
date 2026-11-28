@@ -14,6 +14,7 @@ import { enginesNeedingHookInstall, enginesWithHooksInstalled } from "../../../e
 import { createStateCell } from "../../../lib/external-store"
 import { LOCALE_KEY } from "../../../lib/persisted-ui-prefs"
 import { type NavLevel, SECTIONS, type SectionId, type SettingsRow, rowAt, sectionRows } from "../../../settings/model"
+import { PERMISSION_BYPASS_KEY } from "../../../state/permission-bypass"
 import { toggleKeyHints } from "../../../tui/lib/keyboard-hints"
 import type { VendorId } from "../../../types/task"
 import type { KVContext } from "../../context/kv"
@@ -83,6 +84,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
   const hasDaemon = hasRestartableDaemon(props.orchestrator)
   const remote = props.orchestrator instanceof RemoteOrchestrator ? props.orchestrator : null
   const prefs = useSettingsPrefs(props.kv, dialog)
+  const permissionBypass = () => props.kv.get(PERMISSION_BYPASS_KEY, true) !== false
   const updateCheck = useUpdateCheck(prefs.updateChannel(), props.onCheckUpdate)
   const appearance = useAppearanceSettings(props.kv, dialog, prefs)
   const engines = useEngineSettings(props.kv, dialog, (max) => setBodyRow((r) => Math.max(0, Math.min(r, max))))
@@ -231,6 +233,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     engineHooksInstall: () => void runHookInstall(),
     engineHooksUninstall: () => void runHookUninstall(),
     engineSkillInstall: () => runSkillInstall(),
+    enginePermissionBypass: () => props.kv.set(PERMISSION_BYPASS_KEY, !permissionBypass()),
     autoRoutingTier: (row) => void autoRouting.edit(row.tier),
     autoRoutingClassifier: () => classifier.cycle(),
     autoRoutingClassifierEndpoint: () => void classifier.editEndpoint(),
@@ -416,6 +419,8 @@ export function SettingsDialog(props: SettingsDialogProps) {
               onUninstallHooks={() => void runHookUninstall()}
               skillError={skillError}
               onInstallSkill={runSkillInstall}
+              permissionBypass={permissionBypass()}
+              onTogglePermissionBypass={() => props.kv.set(PERMISSION_BYPASS_KEY, !permissionBypass())}
             />
           ) : null}
           {section === "autoRouting" ? (

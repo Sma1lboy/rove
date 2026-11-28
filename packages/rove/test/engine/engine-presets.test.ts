@@ -26,7 +26,8 @@ let originalHome: string | undefined
 function writeState(state: Record<string, unknown>): void {
   const dir = join(home, ".config", "rove")
   mkdirSync(dir, { recursive: true })
-  writeFileSync(join(dir, "state.json"), JSON.stringify(state), "utf8")
+  // Bypass flags are pinned in interactive-command-overrides; off here keeps argv to what each test names.
+  writeFileSync(join(dir, "state.json"), JSON.stringify({ "engines.permissionBypass": false, ...state }), "utf8")
 }
 
 beforeEach(() => {

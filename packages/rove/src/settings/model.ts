@@ -77,6 +77,7 @@ export type SettingsRow =
   | { id: "install-hooks"; kind: "engineHooksInstall" }
   | { id: "uninstall-hooks"; kind: "engineHooksUninstall" }
   | { id: "install-skill"; kind: "engineSkillInstall" }
+  | { id: "permission-bypass"; kind: "enginePermissionBypass" }
   | { id: string; kind: "autoRoutingTier"; tier: AutoRoutingTier }
   | { id: "auto-routing-classifier"; kind: "autoRoutingClassifier" }
   | { id: "auto-routing-endpoint"; kind: "autoRoutingClassifierEndpoint" }
@@ -192,6 +193,7 @@ export function engineRows(engineList: readonly VendorId[]): SettingsRow[] {
     // The Rove agent skill: install only. Removing it is deleting a folder the
     // user can see in Details, not a Rove integration to tear down.
     { id: "install-skill", kind: "engineSkillInstall" },
+    { id: "permission-bypass", kind: "enginePermissionBypass" },
   ]
 }
 

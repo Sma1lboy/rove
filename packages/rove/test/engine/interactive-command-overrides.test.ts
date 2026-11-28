@@ -21,7 +21,9 @@ import {
   interactiveEngineCommand,
   withEngineEffort,
 } from "../../src/engine/interactive-command.ts"
+import { PERMISSION_BYPASS_KEY } from "../../src/state/permission-bypass.ts"
 import { setPersistedString } from "../../src/state/repos.ts"
+import { setPersistedBool } from "../../src/state/store.ts"
 
 let tmpHome: string
 let originalHome: string | undefined
@@ -30,6 +32,7 @@ beforeEach(() => {
   tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "rove-icmd-"))
   originalHome = process.env.ROVE_HOME_DIR
   process.env.ROVE_HOME_DIR = tmpHome
+  setPersistedBool(PERMISSION_BYPASS_KEY, false)
 })
 
 afterEach(() => {
@@ -125,5 +128,40 @@ describe("argvHasFlag", () => {
     // known ceiling shared with every guard here; positional matching would
     // need a full claude arg spec.
     expect(argvHasFlag(["claude"], "--resume")).toBe(false)
+  })
+})
+
+describe("permission bypass", () => {
+  beforeEach(() => setPersistedBool(PERMISSION_BYPASS_KEY, true))
+
+  it("is on by default and skips Claude's one-time consent screen", () => {
+    fs.rmSync(path.join(tmpHome, ".config"), { recursive: true, force: true })
+    const argv = interactiveEngineCommand("claude")
+    expect(argv).toContain("--dangerously-skip-permissions")
+    expect(argv[argv.indexOf("--settings") + 1]).toBe('{"skipDangerousModePermissionPrompt":true}')
+  })
+
+  it.each([
+    ["claude", "claude --dangerously-skip-permissions"],
+    ["claude", "claude --permission-mode plan"],
+    ["codex", "codex --yolo"],
+    ["codex", "codex -s workspace-write"],
+  ])("adds nothing when the %s command already picks a mode: %s", (vendor, command) => {
+    setPersistedString(engineCommandKey(vendor), command)
+    const bypass = (argv: readonly string[]) =>
+      argv.filter((a) => a.startsWith("--dangerously-") || a === "--settings").length
+    expect(bypass(interactiveEngineCommand(vendor))).toBe(bypass(command.split(" ")))
+  })
+
+  it("leaves a user's own --settings alone", () => {
+    setPersistedString(engineCommandKey("claude"), "claude --settings ./mine.json")
+    const argv = interactiveEngineCommand("claude")
+    expect(argv).toContain("--dangerously-skip-permissions")
+    expect(argv.filter((a) => a === "--settings")).toHaveLength(1)
+  })
+
+  it("adds nothing once switched off in Settings", () => {
+    setPersistedBool(PERMISSION_BYPASS_KEY, false)
+    expect(interactiveEngineCommand("codex")).not.toContain("--dangerously-bypass-approvals-and-sandbox")
   })
 })

@@ -11,8 +11,10 @@
  * built-in default.
  */
 
+import { argvHasFlag } from "@/cli/argv"
 import { roveCliInvocation } from "@/cli/invocation"
 import { engineEntry } from "@/engine/registry"
+import { permissionBypassEnabled } from "@/state/permission-bypass"
 import { getPersistedString } from "@/state/repos"
 import type { VendorId } from "@/types/task"
 import { coerceVendorId } from "@/types/vendor"
@@ -142,8 +144,11 @@ export function interactiveEngineCommand(
  */
 export function withEngineHostedArgs(argv: readonly string[], vendor: VendorId | undefined): readonly string[] {
   const entry = engineEntry(coerceVendorId(vendor))
+  const bypass = entry.permissionBypass
+  const bypassed =
+    bypass && permissionBypassEnabled() && !bypass.present.some((f) => argvHasFlag(argv, f)) ? bypass.argv(argv) : argv
   const args = entry.terminalTitle?.launchArgs
-  const titled = args && args.length > 0 ? [...argv, ...args] : argv
+  const titled = args && args.length > 0 ? [...bypassed, ...args] : bypassed
   return entry.hostedStartArgv?.(titled) ?? titled
 }
 
@@ -187,7 +192,7 @@ export function withEngineModel(
   return engineEntry(coerceVendorId(vendor)).modelArgv?.(argv, trimmed) ?? argv
 }
 
-export { argvHasFlag } from "../cli/argv.ts"
+export { argvHasFlag }
 
 /**
  * Shell-ready `… api` prefix for protocol prompts, from {@link
