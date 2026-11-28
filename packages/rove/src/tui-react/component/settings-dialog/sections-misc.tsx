@@ -8,8 +8,8 @@
 
 import { TextAttributes, type TextareaRenderable } from "@opentui/core"
 import { useEffect, useRef } from "react"
+import { devRows, rowIndex } from "../../../settings/model"
 import { stripNewlines } from "../../../tui/component/new-task-dialog/state"
-import { devRows, rowIndex } from "../../../tui/component/settings-dialog/model"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { INPUT_SCROLL } from "../../ui/input-scroll"

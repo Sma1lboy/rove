@@ -17,8 +17,8 @@ import {
   tierBlock,
 } from "@sma1lboy/rove/src/engine/auto-routing.ts"
 import { protocolEntry } from "@sma1lboy/rove/src/engine/engine-presets.ts"
+import { displayEndpoint } from "@sma1lboy/rove/src/settings/model.ts"
 import { secretStatus } from "@sma1lboy/rove/src/state/secrets.ts"
-import { displayEndpoint } from "@sma1lboy/rove/src/tui/component/settings-dialog/model.ts"
 import { BridgeError } from "../protocol.ts"
 import { oneOf } from "./args.ts"
 import { type EngineDeps, engineIds, realDeps } from "./settings-engines.ts"

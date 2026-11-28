@@ -5,10 +5,10 @@
  */
 
 import { afterEach, expect, test } from "bun:test"
+import { DEFAULT_GLYPHS } from "../../src/lib/glyphs"
 import { SidebarTree } from "../../src/tui-react/panes/sidebar/SidebarTree"
 import { resetRowStatusForTests } from "../../src/tui-react/workspace/row-status-sync"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
-import { DEFAULT_GLYPHS } from "../../src/tui/lib/glyphs"
 import { dotsGlyph, litDots } from "../../src/tui/lib/status-dots"
 import { type Task, toTaskId } from "../../src/types/task"
 import { renderComponent, waitForFrameText } from "./harness"

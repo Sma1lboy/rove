@@ -1,8 +1,8 @@
 /** @jsxImportSource @opentui/react */
 import { TextAttributes } from "@opentui/core"
-import { APPEARANCE_SETTINGS, currentAppearanceChoice } from "../../../tui/component/settings-dialog/appearance"
-import type { SettingsRow } from "../../../tui/component/settings-dialog/model"
-import { rowIndex } from "../../../tui/component/settings-dialog/model"
+import { APPEARANCE_SETTINGS, currentAppearanceChoice } from "../../../settings/appearance"
+import type { SettingsRow } from "../../../settings/model"
+import { rowIndex } from "../../../settings/model"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { appearanceChoiceLabel } from "./appearance-labels"

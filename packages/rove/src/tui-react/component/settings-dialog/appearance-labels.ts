@@ -1,4 +1,4 @@
-import type { AppearanceChoice } from "../../../tui/component/settings-dialog/appearance"
+import type { AppearanceChoice } from "../../../settings/appearance"
 import type { useT } from "../../i18n"
 
 export function appearanceChoiceLabel(choice: AppearanceChoice, t: ReturnType<typeof useT>): string {

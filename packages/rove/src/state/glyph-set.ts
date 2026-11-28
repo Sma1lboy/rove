@@ -1,5 +1,5 @@
 /**
- * Which glyph preset the state marks draw with (`tui/lib/glyphs.ts`):
+ * Which glyph preset the state marks draw with (`lib/glyphs.ts`):
  * `braille` is safe in every mono font, `starburst` needs the dingbat block,
  * `ascii` is for terminals and fonts with nothing past 7-bit.
  */

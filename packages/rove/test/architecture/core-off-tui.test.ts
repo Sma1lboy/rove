@@ -1,7 +1,8 @@
 /**
  * Core code (everything under src/ but the UI layers and the CLI's entry
  * files) must not import the TUI, so it can later stand as its own package.
- * Type imports count: a package split needs them gone too.
+ * Nor any UI framework (`@opentui/*`, `react`). Type imports count: a package
+ * split needs them gone too.
  */
 
 import { readFileSync, readdirSync } from "node:fs"
@@ -25,8 +26,11 @@ function coreFiles(dir = SRC, acc: string[] = []): string[] {
   return acc
 }
 
+const UI_PACKAGE = /^(@opentui\/|react($|\/))/
+
 function importsTui(file: string): boolean {
   for (const [, spec = ""] of readFileSync(file, "utf8").matchAll(SPEC)) {
+    if (UI_PACKAGE.test(spec)) return true
     const target = spec.startsWith("@/")
       ? join(SRC, spec.slice(2))
       : spec.startsWith(".")
@@ -38,7 +42,7 @@ function importsTui(file: string): boolean {
 }
 
 describe("core code does not import the TUI", () => {
-  test("no core file imports src/tui or src/tui-react", () => {
+  test("no core file imports src/tui, src/tui-react or a UI framework", () => {
     expect(
       coreFiles()
         .filter(importsTui)

@@ -1,9 +1,5 @@
 /** @jsxImportSource @opentui/react */
-import type {
-  AppearanceChoice,
-  AppearanceSetting,
-  AppearanceSnapshot,
-} from "../../../tui/component/settings-dialog/appearance"
+import type { AppearanceChoice, AppearanceSetting, AppearanceSnapshot } from "../../../settings/appearance"
 import type { KVContext } from "../../context/kv"
 import { useTheme } from "../../context/theme"
 import type { DialogContext } from "../../ui/dialog"

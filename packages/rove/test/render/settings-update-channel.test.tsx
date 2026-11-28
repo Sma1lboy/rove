@@ -8,10 +8,10 @@ import { afterAll, expect, it } from "bun:test"
 import { mkdtempSync, readFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { generalRows, rowIndex } from "../../src/settings/model"
 import { UPDATE_CHANNEL_KEY, UPDATE_NOTIFY_KEY } from "../../src/state/update-channel"
 import { SettingsDialog } from "../../src/tui-react/component/settings-dialog"
 import { type KVContext, useKV } from "../../src/tui-react/context/kv"
-import { generalRows, rowIndex } from "../../src/tui/component/settings-dialog/model"
 import { act, renderComponent } from "./harness"
 
 const savedHome = process.env.ROVE_HOME_DIR

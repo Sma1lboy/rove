@@ -14,7 +14,7 @@ import {
   writeUserTheme,
 } from "@sma1lboy/rove/src/theme/install.ts"
 import { loadUserThemes, userThemesDir } from "@sma1lboy/rove/src/theme/loader.ts"
-import type { ThemeJson } from "@sma1lboy/rove/src/tui/context/theme-core.ts"
+import type { ThemeJson } from "@sma1lboy/rove/src/theme/theme-data.ts"
 import { BridgeError } from "../protocol.ts"
 import { palette } from "./theme-palette.ts"
 import type { OpTable } from "./types.ts"

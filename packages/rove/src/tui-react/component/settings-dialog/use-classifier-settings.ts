@@ -16,8 +16,8 @@
  */
 
 import { readClassifierConfig } from "../../../engine/auto-routing-classifier"
+import { displayEndpoint } from "../../../settings/model"
 import { type SecretSource, secretStatus, writeSecret } from "../../../state/secrets"
-import { displayEndpoint } from "../../../tui/component/settings-dialog/model"
 import type { KVContext } from "../../context/kv"
 import { useT } from "../../i18n"
 import type { DialogContext } from "../../ui/dialog"

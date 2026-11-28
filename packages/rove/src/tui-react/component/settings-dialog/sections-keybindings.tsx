@@ -20,12 +20,7 @@ import {
 import { recordSlotLabels } from "../../../keys/keymap-overrides"
 import { PREFIX_TAP_PRESENTATIONS } from "../../../keys/prefix-tap-presentation"
 import { tildify } from "../../../lib/path-home"
-import {
-  keybindingRowId,
-  keybindingRows,
-  prefixTapPresentationRowId,
-  rowIndex,
-} from "../../../tui/component/settings-dialog/model"
+import { keybindingRowId, keybindingRows, prefixTapPresentationRowId, rowIndex } from "../../../settings/model"
 import { userKeybindingsReport } from "../../../tui/context/keybindings-user"
 import { useKeymapVersion } from "../../context/keybindings"
 import { useTheme } from "../../context/theme"

@@ -1,10 +1,10 @@
 /** @jsxImportSource @opentui/react */
 import { TextAttributes } from "@opentui/core"
-import type { AppearanceSetting, AppearanceSnapshot } from "../../../tui/component/settings-dialog/appearance"
+import { GLYPH_SETS } from "../../../lib/glyphs"
+import type { AppearanceSetting, AppearanceSnapshot } from "../../../settings/appearance"
 import { diffInks } from "../../../tui/context/theme-core"
 import { TASK_PARTNER_HUE_DEG } from "../../../tui/lib/border-flow"
 import { breathColor, breathGlyph } from "../../../tui/lib/breathe"
-import { GLYPH_SETS } from "../../../tui/lib/glyphs"
 import { taskColor } from "../../../tui/lib/task-color"
 import { paneBoxProps, paneChrome } from "../../../tui/workspace/split-chrome"
 import { useTheme } from "../../context/theme"
