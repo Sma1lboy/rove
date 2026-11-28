@@ -181,7 +181,7 @@ function PrChipSheet({ entries, lead }: { entries: readonly Entry[]; lead: PrMar
 }
 
 /**
- * `tasks`: the row's task, then its descendants; those without a PR draw nothing. `onOpen`: the list is opening.
+ * `tasks`: the row's task, then its descendants when the row is folded; those without a PR draw nothing. `onOpen`: the list is opening.
  * `sheet`: a phone row's chip, a tap target of its own that raises a sheet instead of the card.
  */
 export function PrChip({ tasks, onOpen, sheet }: { tasks: readonly TaskRow[]; onOpen?: () => void; sheet?: boolean }) {
