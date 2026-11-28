@@ -46,6 +46,7 @@ export function Sheet(props: {
   const startY = useRef<number | null>(null)
   const panel = useRef<HTMLDialogElement>(null)
   const [leaving, setLeaving] = useState(false)
+  const pressedScrim = useRef(false)
   const close = () => (reducedMotion() ? props.onClose() : setLeaving(true))
   // Unless a row inside already took it (the current pick), focus moves into the sheet, off the page under it.
   useEffect(() => {
@@ -54,7 +55,11 @@ export function Sheet(props: {
   return createPortal(
     <div
       className={`${SCRIM} ${leaving ? "pointer-events-none animate-fade-out" : "motion-safe:animate-fade-in"}`}
-      onPointerDown={(e) => e.target === e.currentTarget && close()}
+      // On the click, not the press: a press that closed it would let the tap's click land on the page underneath.
+      onPointerDown={(e) => {
+        pressedScrim.current = e.target === e.currentTarget
+      }}
+      onClick={(e) => pressedScrim.current && e.target === e.currentTarget && close()}
       onKeyDown={(e) => {
         if (e.key !== "Escape") return
         // Esc closes the sheet alone, not the dialog it opened from.
