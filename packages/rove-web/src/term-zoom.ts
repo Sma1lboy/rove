@@ -6,7 +6,7 @@
  */
 
 import type { Terminal } from "@xterm/xterm"
-import { FONT_FAMILY, termFontSize } from "./term-look.ts"
+import { termFontSize } from "./term-look.ts"
 
 const MAX_PX = 24
 const DOUBLE_TAP_MS = 300
@@ -31,15 +31,12 @@ export interface TermZoom {
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 
-/** `fontSize` × this = one cell's advance, as xterm measures it. */
-let advance = 0
-function cellAdvance(): number {
-  if (advance) return advance
-  const probe = document.createElement("canvas").getContext("2d")
-  if (!probe) return 0.6
-  probe.font = `100px ${FONT_FAMILY}`
-  advance = probe.measureText("W").width / 100 || 0.6
-  return advance
+/** `fontSize` × this = one cell's advance, from xterm's own measure (the same private read `term-fit.ts` makes). */
+function cellAdvance(term: Terminal): number {
+  const measured = (term as unknown as { _core?: { _charSizeService?: { width?: number } } })._core?._charSizeService
+    ?.width
+  const px = Number(term.options.fontSize)
+  return measured && px > 0 ? measured / px : 0.6
 }
 
 /** The largest font whose `cols` cells fit `width` CSS px: xterm floors a cell to whole device pixels. */
@@ -65,7 +62,7 @@ export function attachZoom(el: HTMLElement, term: Terminal): TermZoom {
     return { w: el.clientWidth - pad("left") - pad("right"), h: el.clientHeight }
   }
   const fitPx = () =>
-    Math.min(termFontSize(), fitFontSize(room().w, term.cols, window.devicePixelRatio || 1, cellAdvance()))
+    Math.min(termFontSize(), fitFontSize(room().w, term.cols, window.devicePixelRatio || 1, cellAdvance(term)))
   const setFont = (px: number) => {
     if (term.options.fontSize !== px) term.options.fontSize = px
   }
