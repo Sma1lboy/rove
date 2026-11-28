@@ -375,7 +375,7 @@ Machines, Usage). Overlays (dialogs, menus, toasts, the inbox) are recipes in `s
   the engine's mark first (the rail's `EngineIcon`), the title over a muted mono line (branch, `↓N` behind its base),
   at the right the rail's 3×3 status dots (`StatusDots`) over the age, no status word; headers in capitals with a zero-padded count and a `⋯` for the project's
   actions. The three rules above hold on the desktop only. Routines rows draw the same shape: the engine's mark (a terminal for a script), the last run as the same dots
-  (`routineLook`) over its age. A phone screen's one action is a glass bar along the foot (`BottomBar` `wide`:
+  (`routineLook`) over its age. A phone screen's one action is a glass bar along the foot (`usePhoneBar` `wide`:
   accent +, mono name), beside the Settings and Inbox capsule on the list, where it also names the mode a task starts in. The list has no page
   rows of text: Routines and Extensions are glass buttons beside the wordmark (he called the text rows odd).
 - **Project sections are collapsible**, with a `+` for a new task in that project and **no

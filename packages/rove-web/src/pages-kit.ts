@@ -133,9 +133,12 @@ export function usePageKeys(onKey: (e: KeyboardEvent) => boolean): void {
   }, [])
 }
 
-/** The page root takes focus when it mounts, like the TUI's `goToNav` focusing the content pane. */
+/**
+ * The page root takes focus when it mounts, like the TUI's `goToNav` focusing the content pane. Without scrolling: on a
+ * phone the page is still pushing in off the right edge, and scrolling it into view would scroll the whole document.
+ */
 export function usePageFocus() {
   const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => ref.current?.focus(), [])
+  useEffect(() => ref.current?.focus({ preventScroll: true }), [])
   return ref
 }

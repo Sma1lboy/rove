@@ -3,7 +3,8 @@
  * no `narrow:` variants. Glass and the rounded-square buttons are `glass.ts` and `nav-button.tsx`; sheets `sheet.tsx`.
  */
 
-import type { MouseEvent, ReactNode, Ref } from "react"
+import { type MouseEvent, type ReactNode, type Ref, useLayoutEffect, useRef, useState } from "react"
+import { createStore, useStore } from "../store.ts"
 import { PRESS, SQUARE_BAR, glass } from "./glass.ts"
 import { haptic } from "./haptic.ts"
 import { NavButton, PlusGlyph } from "./nav-button.tsx"
@@ -120,42 +121,150 @@ export function PhoneFact({ label, children }: { label: string; children: ReactN
   )
 }
 
-export function BottomBar(props: {
-  children?: ReactNode
-  /** Named actions in place of the + bar (Update). */
-  actions?: readonly PhoneAction[]
+/** What a screen puts in the phone's one bottom bar: a capsule bottom left (the list's), then its wide + bar or one named action. */
+export interface PhoneBarSpec {
+  readonly capsule?: ReactNode
   /** The screen's one action: a glass bar filling the row, its name after an accent +, `note` at its end. */
-  wide?: { label: string; note?: string; onClick: () => void }
-}) {
+  readonly wide?: { label: string; note?: string; onClick: () => void }
+  /** A named action in place of the + bar (Update). */
+  readonly action?: PhoneAction
+}
+
+type BarSlot = "list" | "page"
+const barSlots = createStore<Readonly<Record<BarSlot, PhoneBarSpec | null>>>({ list: null, page: null })
+
+/** Declares this screen's bottom bar (`null`: none); `PhoneBarHost` draws it. The list and the open page each own a slot. */
+export function usePhoneBar(slot: BarSlot, spec: PhoneBarSpec | null): void {
+  useLayoutEffect(() => barSlots.set({ ...barSlots.get(), [slot]: spec }))
+  useLayoutEffect(() => () => barSlots.set({ ...barSlots.get(), [slot]: null }), [slot])
+}
+
+const SLIDE: KeyframeAnimationOptions = { duration: 220, easing: "cubic-bezier(0.2, 0, 0, 1)" }
+const MORPH = "duration-220 ease-snap motion-reduce:transition-none"
+const contentKey = (spec: PhoneBarSpec): string =>
+  spec.wide ? `w${spec.wide.label}\0${spec.wide.note ?? ""}` : `a${spec.action?.label}\0${spec.action?.tone ?? ""}`
+
+function BarContent({ spec }: { spec: PhoneBarSpec }) {
+  if (spec.wide)
+    return (
+      <span className="flex h-full min-w-0 items-center gap-2 px-3.5 font-mono">
+        <span className="flex flex-none text-accent">
+          <PlusGlyph />
+        </span>
+        <span className="min-w-0 truncate text-body text-ink lowercase">{spec.wide.label}</span>
+        {spec.wide.note && (
+          <span className="ml-auto flex-none text-meta tracking-[0.08em] text-muted uppercase">{spec.wide.note}</span>
+        )}
+      </span>
+    )
+  const accent = spec.action?.tone === "accent"
+  return (
+    <span
+      className={`grid h-full place-items-center px-3 font-sans text-body font-semibold ${accent ? "text-paper" : "text-ink"}`}
+    >
+      <span className="max-w-full truncate">{spec.action?.label}</span>
+    </span>
+  )
+}
+
+/**
+ * The phone's one floating foot, after iOS's: what the screen does sits where the thumb is, and it stays put while
+ * pages push and pop under it. `show` picks whose bar is up. A change morphs: the + bar's glass slides and stretches
+ * to its new frame (FLIP on a transform), the contents cross-fade, the capsule fades in or out; with none, the bar
+ * sinks away. The content scrolls under it.
+ */
+export function PhoneBarHost({ show }: { show: BarSlot | null }) {
+  const slots = useStore(barSlots)
+  const spec = show ? slots[show] : null
+  // Hidden, the bar keeps what it last showed, so that sinks away instead of blanking first.
+  const last = useRef<PhoneBarSpec | null>(null)
+  if (spec) last.current = spec
+  const drawn = spec ?? last.current
+  const capsule = useRef<ReactNode>(null)
+  if (spec?.capsule) capsule.current = spec.capsule
+  const main = useRef<HTMLButtonElement>(null)
+  const glassLayer = useRef<HTMLSpanElement>(null)
+  const content = useRef<HTMLSpanElement>(null)
+  const ghost = useRef<HTMLSpanElement>(null)
+  const was = useRef<{ rect: DOMRect; key: string; spec: PhoneBarSpec } | null>(null)
+  const bar = useRef<HTMLDivElement>(null)
+  const [leaving, setLeaving] = useState<{ spec: PhoneBarSpec; left: number; width: number; key: string } | null>(null)
+  const key = drawn ? contentKey(drawn) : ""
+
+  useLayoutEffect(() => {
+    const el = main.current
+    if (!el || !spec) return
+    const rect = el.getBoundingClientRect()
+    const before = was.current
+    was.current = { rect, key, spec }
+    // A bar still up morphs from what it showed; one coming back from sunk away just rises. A page mounting after
+    // the switch leaves its slot empty for one render, which must not count as gone.
+    const up = Number(getComputedStyle(bar.current ?? el).opacity) > 0.5
+    if (!before || !up || matchMedia("(prefers-reduced-motion: reduce)").matches) return
+    if (before.key !== key)
+      setLeaving({ spec: before.spec, left: before.rect.left - rect.left, width: before.rect.width, key: before.key })
+    const dx = before.rect.left - rect.left
+    const sx = before.rect.width / rect.width
+    if (Math.abs(dx) < 0.5 && Math.abs(sx - 1) < 0.005) return
+    glassLayer.current?.animate([{ transform: `translateX(${dx}px) scaleX(${sx})` }, { transform: "none" }], SLIDE)
+    // The labels ride the glass's left edge.
+    content.current?.animate([{ transform: `translateX(${dx}px)` }, { transform: "none" }], SLIDE)
+  })
+  useLayoutEffect(() => {
+    if (leaving) ghost.current?.animate([{ transform: "none" }, { transform: `translateX(${-leaving.left}px)` }], SLIDE)
+  }, [leaving])
+  if (!drawn) return null
+  const hasCapsule = !!spec?.capsule || (!spec && !!drawn.capsule)
+  const accent = drawn.action?.tone === "accent"
+  const onPress = drawn.wide?.onClick ?? drawn.action?.onClick
   return (
     <div
       // Alone on a page, the bar meets the cards' edges.
-      className={`pointer-events-none absolute inset-x-0 bottom-0 z-2 flex items-end gap-2.5 pb-3 ${props.children ? "px-4" : "px-3"}`}
+      className={`pointer-events-none absolute inset-x-0 bottom-0 z-2 col-1 row-1 flex items-end gap-2.5 pb-3 transition-[translate,opacity] ${MORPH} ${hasCapsule ? "px-4" : "px-3"} ${spec ? "" : "translate-y-4 opacity-0"}`}
+      ref={bar}
+      inert={!spec}
       data-bottom-bar
     >
-      {props.children}
-      {props.actions && <PhoneActions actions={props.actions} />}
-      {props.wide && (
-        <button
-          type="button"
-          className={`pointer-events-auto flex h-13 min-w-0 flex-1 cursor-pointer items-center gap-2 px-3.5 font-mono ${SQUARE_BAR} ${glass()} ${PRESS}`}
-          data-new-task-bar
-          onClick={() => {
-            haptic()
-            props.wide?.onClick()
-          }}
+      {capsule.current && (
+        <div
+          className={`flex-none transition-opacity ${MORPH} ${hasCapsule ? "" : "absolute bottom-3 left-4 opacity-0"}`}
+          inert={!hasCapsule}
         >
-          <span className="flex flex-none text-accent">
-            <PlusGlyph />
-          </span>
-          <span className="min-w-0 truncate text-body text-ink lowercase">{props.wide.label}</span>
-          {props.wide.note && (
-            <span className="ml-auto flex-none text-meta tracking-[0.08em] text-muted uppercase">
-              {props.wide.note}
-            </span>
-          )}
-        </button>
+          {capsule.current}
+        </div>
       )}
+      <button
+        ref={main}
+        type="button"
+        disabled={drawn.action?.disabled}
+        className={`pointer-events-auto relative h-13 min-w-0 flex-1 cursor-pointer disabled:opacity-50 ${PRESS}`}
+        data-new-task-bar={drawn.wide ? "" : undefined}
+        onClick={() => {
+          haptic()
+          onPress?.()
+        }}
+      >
+        <span ref={glassLayer} className={`absolute inset-0 origin-left ${SQUARE_BAR} ${glass()}`}>
+          <span
+            className={`absolute -inset-px ${SQUARE_BAR} bg-accent shadow-popover transition-opacity ${MORPH} ${accent ? "" : "opacity-0"}`}
+          />
+        </span>
+        {leaving && (
+          <span
+            key={leaving.key}
+            ref={ghost}
+            aria-hidden="true"
+            className="absolute inset-y-0 motion-safe:animate-fade-out motion-reduce:hidden"
+            style={{ left: leaving.left, width: leaving.width }}
+            onAnimationEnd={() => setLeaving(null)}
+          >
+            <BarContent spec={leaving.spec} />
+          </span>
+        )}
+        <span key={key} ref={content} className="relative block h-full motion-safe:animate-[fade-in_220ms_ease-out]">
+          <BarContent spec={drawn} />
+        </span>
+      </button>
     </div>
   )
 }
@@ -195,22 +304,21 @@ export function PhonePage(props: {
   title: string
   note?: ReactNode
   primary?: { label: string; onClick: () => void }
-  /** Named actions at the foot instead of a +: Update's button. */
-  actions?: readonly PhoneAction[]
+  /** A named action at the foot instead of a +: Update's button. */
+  action?: PhoneAction
   rootRef?: Ref<HTMLDivElement>
   children: ReactNode
 }) {
+  usePhoneBar("page", props.primary ? { wide: props.primary } : props.action ? { action: props.action } : null)
   return (
     <div ref={props.rootRef} tabIndex={-1} className="relative flex min-h-0 flex-1 flex-col focus:outline-none">
-      <div className={`${PHONE_LIST} ${props.primary || props.actions ? "pb-20" : ""}`}>
+      <div className={`${PHONE_LIST} ${props.primary || props.action ? "pb-20" : ""}`}>
         <div className="flex flex-col gap-1">
           <PhoneTitle>{props.title}</PhoneTitle>
           {props.note && <p className="m-0 font-sans text-meta text-muted">{props.note}</p>}
         </div>
         {props.children}
       </div>
-      {props.actions && <BottomBar actions={props.actions} />}
-      {props.primary && <BottomBar wide={props.primary} />}
     </div>
   )
 }
