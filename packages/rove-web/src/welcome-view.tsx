@@ -17,6 +17,7 @@ import { useStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
 import { dialog, openNewSessionFrom, toast } from "./ui.ts"
 import { Button, buttonClass } from "./ui/button.tsx"
+import { CK_GLYPH } from "./ui/checks.ts"
 import { FIRST_RUN, FIRST_RUN_COLUMN } from "./ui/first-run.ts"
 import { prefixHint, userKeys } from "./user-keys.ts"
 
@@ -138,7 +139,7 @@ export function WelcomePane({ model }: { model: AppModel }) {
             <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-left">
               {checks.map((check) => (
                 <li key={check.id} className="flex min-h-7 items-center gap-2" data-check={check.id} data-ok={check.ok}>
-                  <span className={`mono w-[1ch] flex-none ${check.ok ? "text-success" : "text-warning"}`} aria-hidden>
+                  <span className={`mono ${CK_GLYPH} ${check.ok ? "text-success" : "text-warning"}`} aria-hidden>
                     {check.ok ? "✓" : "✗"}
                   </span>
                   <span className={`min-w-0 flex-1 ${check.ok ? "text-subtle" : "text-ink"}`}>{check.label}</span>

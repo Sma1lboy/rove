@@ -51,7 +51,7 @@ export const welcomeDeps = {
       .then(detectEngineStatuses)
       .then((statuses) => ({
         ...summarizeEngines(statuses),
-        programs: Object.fromEntries(statuses.flatMap((s) => (s.binary.path ? [[s.vendor, s.binary.path]] : []))),
+        programs: Object.fromEntries(statuses.flatMap((s) => (s.binary.found ? [[s.vendor, s.binary.path]] : []))),
       }))
       .catch(() => ({ usable: [], signedOut: [] }))
   },
