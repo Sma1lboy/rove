@@ -243,8 +243,9 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
                 (moving && row.machine === undefined && row.kind !== "project" && row.id === keys.cursor)
               }
               prTasks={
-                row.kind === "task"
-                  ? [row.task, ...(row.fold?.descendantIds ?? []).flatMap((id) => byId.get(id) ?? [])]
+                // An unfolded child draws its own PR; rolling it up too shows one PR on two rows.
+                row.kind === "task" && row.fold?.collapsed
+                  ? [row.task, ...row.fold.descendantIds.flatMap((id) => byId.get(id) ?? [])]
                   : undefined
               }
               rollup={
