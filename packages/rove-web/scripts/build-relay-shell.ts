@@ -53,7 +53,7 @@ const css = [
   "@media (min-resolution:2dppx){#relay-retry{border-width:.5px}}",
   "#relay-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}",
   "#relay-body button.ghost{background:transparent;color:var(--rs-muted)}",
-  "#relay-switch,#relay-copy{font:500 13px/1 \"JetBrains Mono\",\"IBM Plex Mono\",\"SF Mono\",Menlo,Consolas,ui-monospace,monospace;border:1px solid var(--rs-line);border-radius:6px;padding:10px 18px;min-height:44px;cursor:pointer;-webkit-tap-highlight-color:transparent}",
+  '#relay-switch,#relay-copy{font:500 13px/1 "JetBrains Mono","IBM Plex Mono","SF Mono",Menlo,Consolas,ui-monospace,monospace;border:1px solid var(--rs-line);border-radius:6px;padding:10px 18px;min-height:44px;cursor:pointer;-webkit-tap-highlight-color:transparent}',
   "#relay-body button[hidden],#relay-details[hidden]{display:none}",
   "#relay-body button:hover{background:var(--rs-hover)}",
   "#relay-body button:active{transform:scale(.97)}",

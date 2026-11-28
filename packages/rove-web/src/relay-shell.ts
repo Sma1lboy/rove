@@ -80,7 +80,9 @@ function failureDetails(found: Pairing, err: unknown, diag: TunnelDiagEvent | nu
     [t("relay.detail.code"), `${found.code.slice(0, 6)}…`],
     [t("relay.detail.error"), err instanceof Error ? err.message : String(err)],
     ...(close ? [[t("relay.detail.close"), close] as [string, string]] : []),
-    ...(diag && diag.type !== "connect" && diag.type !== "ready" ? [[t("relay.detail.hint"), diag.hint] as [string, string]] : []),
+    ...(diag && diag.type !== "connect" && diag.type !== "ready"
+      ? [[t("relay.detail.hint"), diag.hint] as [string, string]]
+      : []),
     [t("relay.detail.at"), new Date().toISOString()],
     [t("relay.detail.lastOk"), localStorage.getItem(LAST_OK_KEY) ?? t("relay.detail.never")],
   ]
