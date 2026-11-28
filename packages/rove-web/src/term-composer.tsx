@@ -13,9 +13,7 @@ import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { useSnippetSuggest } from "./snippet-suggest.tsx"
 import { useStore } from "./store.ts"
-import { streamKey } from "./term-contract.ts"
 import { draftKey, getDraft, setDraft, subscribeDrafts } from "./term-drafts.ts"
-import { liveHandle } from "./term-pool.ts"
 import { toast } from "./ui.ts"
 import { GROW_MS } from "./ui/grow.ts"
 import {
@@ -171,7 +169,6 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
         ) : undefined
       }
       composerKey={key}
-      onFocus={() => liveHandle(model.client, streamKey(taskId, tabId))?.revealCursor()}
       fieldRef={field}
       suggest={snippets.list}
       {...snippets.field}

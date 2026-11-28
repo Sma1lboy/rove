@@ -320,8 +320,6 @@ export function TermComposerBar(props: {
   onChange: (e: ChangeEvent<HTMLTextAreaElement>) => void
   onPaste: (e: ClipboardEvent) => void
   onBlur?: () => void
-  /** Anything in the bar took focus. */
-  onFocus?: () => void
   onSelect?: (e: { currentTarget: HTMLTextAreaElement }) => void
   onKeyDown?: (e: KeyboardEvent<HTMLTextAreaElement>) => void
   fieldRef?: RefObject<HTMLTextAreaElement | null>
@@ -339,7 +337,6 @@ export function TermComposerBar(props: {
     <form
       className={BAR}
       data-composer={props.composerKey}
-      onFocus={props.onFocus}
       onSubmit={(e) => {
         e.preventDefault()
         props.onSend()
