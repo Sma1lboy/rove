@@ -41,6 +41,7 @@ import { DELIVERY_HANDLERS } from "./handlers-deliveries.ts"
 import { DISPATCH_HANDLERS } from "./handlers-dispatch.ts"
 import { ENGINE_REPORT_HANDLER } from "./handlers-engine-report.ts"
 import { GATE_HANDLERS } from "./handlers-gates.ts"
+import { GATEWAY_HANDLERS } from "./handlers-gateway.ts"
 import { GRAPHICS_HANDLERS } from "./handlers-graphics.ts"
 import { ISSUE_HANDLERS } from "./handlers-issues.ts"
 import { PANEL_HANDLERS } from "./handlers-panel.ts"
@@ -106,6 +107,8 @@ export interface DaemonHandlerContext {
   readonly inbox: AttentionInboxStore
   /** Durable decision gates (`gates.json`); also projected into the Inbox. */
   readonly gates: GatesStore
+  /** Optional local loopback provider gateway controller (absent in older test doubles). */
+  readonly gateway?: import("../gateway/controller.ts").ProviderGatewayController
   /** In-memory, TTL-bounded plugin row tokens (absent in older test doubles). */
   readonly rowTokens?: import("./row-tokens.ts").RowTokenStore
   /** The one writer of terminal tabs (absent in older test doubles). */
@@ -314,6 +317,15 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
           load: readMachineLoad(),
           // Verbs in flight: another machine waits for 0 before it updates and restarts this one.
           invoking: invokingVerbs(),
+          // Opt-in local provider gateway summary (no secrets or tokens).
+          ...(ctx.gateway
+            ? {
+                providerGateway: (() => {
+                  const gw = ctx.gateway.status()
+                  return { enabled: gw.enabled, running: gw.running, baseUrl: gw.baseUrl }
+                })(),
+              }
+            : {}),
         }
       },
     },
@@ -346,6 +358,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...WORKTREE_HANDLERS,
     ...ATTENTION_HANDLERS,
     ...GATE_HANDLERS,
+    ...GATEWAY_HANDLERS,
     ...AUTOMATION_HANDLERS,
     ...DELIVERY_HANDLERS,
     ...DISPATCH_HANDLERS,

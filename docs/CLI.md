@@ -121,6 +121,7 @@ Commands:
   repo <verb>             Per-repo init script + first prompt (show|set|unset)
   api <verb>              Scriptable RPC surface for agents (see `rove api --help`)
   daemon <verb>           Manage the daemon (start|stop|status|restart|autostart)
+  gateway <verb>          Optional local loopback provider gateway (status|enable|add|set-key|…)
   machine <verb>          Other computers running Rove (add|doctor|remove|list)
   weixin <verb>           Talk to Rove from WeChat (login|logout|status|allow|deny|send|agent)
   lark <verb>             Talk to Rove from Lark (connect|disconnect|status|allow|deny|tone)
@@ -231,7 +232,7 @@ rove theme <TAB>    list add remove
 rove api routine-<TAB>   routine-list routine-create routine-update …
 ```
 
-`api`, `daemon`, `machine`, `plugin`, `repo`, `skill`, `theme`, `weixin` and `lark`
+`api`, `daemon`, `gateway`, `machine`, `plugin`, `repo`, `skill`, `theme`, `weixin` and `lark`
 carry verbs;
 the rest take flags only, and get no second level rather than an invented one.
 Flags are never completed — each subcommand owns its own.
@@ -258,6 +259,29 @@ table` aligns it for humans.
 ```bash
 rove config [--path]     # `rove config path` works too
 ```
+
+## gateway
+
+Manage the opt-in local loopback provider gateway in `rove-daemon` (off by
+default; see [Provider gateway](./CONFIGURATION.md#provider-gateway)).
+
+```bash
+rove gateway status [--json]
+rove gateway enable [--port N] [--host 127.0.0.1] [--inject headless|off]
+rove gateway disable
+rove gateway list
+rove gateway add <id> --protocol anthropic|openai --base-url <url> --models <csv> \
+  [--priority N] [--api-key-env VAR] [--model-map from=to,...]
+rove gateway remove <id> [--purge-key]
+rove gateway set-key <id> [--stdin]
+rove gateway delete-key <id>
+rove gateway reset-cooldown [id]
+```
+
+`set-key` reads the upstream API key from a hidden prompt or stdin and stores it
+in the macOS Keychain via `security` (never as a CLI flag and never in a plain
+file). On Linux and Windows it prints the environment variable name to export
+for the daemon instead.
 
 Opens `~/.config/rove/state.json` in your editor. See
 [Configuration](./CONFIGURATION.md).

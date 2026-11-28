@@ -14,6 +14,7 @@ import { launchReposOf, repoEnv, trustExtraRepos } from "@sma1lboy/rove-core/eng
 import { buildEngineSessionLaunch } from "@sma1lboy/rove-core/engine/session-launch.ts"
 import { trustEngineWorktree } from "@sma1lboy/rove-core/engine/trust-worktree.ts"
 import { persistedMaxLiveEngines } from "@sma1lboy/rove-core/state/engine-limit.ts"
+import { fetchHeadlessGatewayEnv } from "@sma1lboy/rove-core/state/provider-gateway.ts"
 import {
   type TabsRpc,
   allocateTab,
@@ -117,6 +118,7 @@ async function openEngine(client: TabsRpc, rpc: HostedSessionRpc, target: Prompt
     trustEngineWorktree(target.vendor, cwd)
     const repos = target.multiRepo ? await launchReposOf(client, taskId) : undefined
     trustExtraRepos(target.vendor, repos)
+    const gateway = await fetchHeadlessGatewayEnv(client)
     const launch = buildEngineSessionLaunch({
       task: { id: taskId, kind: target.kind, vendor: target.vendor, repo: target.repo, repos },
       worktreePath: cwd,
@@ -124,6 +126,7 @@ async function openEngine(client: TabsRpc, rpc: HostedSessionRpc, target: Prompt
       argv: pinned.argv,
       promptIntent: { kind: "none" },
       tabId: tab.id,
+      ...(gateway ? { gateway } : {}),
     })
     const open = await openAdmittedEngine(
       rpc,

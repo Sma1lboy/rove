@@ -516,6 +516,106 @@ The installed ids live in `~/.rove/builtin-mods.json`
 (`{"installed": ["kanban"]}`); the TUI, the web and `rove api` all read it.
 The old `plugins.bundled.<id>.enabled` state.json keys are ignored.
 
+### Provider gateway
+
+Optional local loopback HTTP gateway hosted inside `rove-daemon`, **disabled by
+default** so interactive bring-your-own-subscription (BYOS) sessions stay
+untouched. When enabled, parallel headless sessions (`rove api add --count`)
+and unattended Routines can share prioritized API providers with automatic
+failover on `429` / `5xx` responses without exposing raw API keys to child
+processes.
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `providerGateway.enabled` | boolean | `false` | Opt-in switch. While `false`, the daemon binds no TCP port and injects no env vars |
+| `providerGateway.host` | `"127.0.0.1"` \| `"::1"` | `"127.0.0.1"` | Literal loopback IP to bind. Non-loopback hosts are rejected |
+| `providerGateway.port` | integer `0`–`65535` | `0` | TCP port (`0` picks an ephemeral loopback port on startup) |
+| `providerGateway.injectMode` | `"headless"` \| `"off"` | `"headless"` | `"headless"` injects the loopback URL and ephemeral placeholder token into `rove api` and Routine launches while leaving interactive TUI sessions untouched; `"off"` runs the gateway without automatic env injection |
+| `providerGateway.cooldownMs` | integer ms (`1000`–`3600000`) | `60000` | Base cooldown after a provider returns `429`, `5xx`, or a transport/timeout error |
+| `providerGateway.maxCooldownMs` | integer ms (`1000`–`3600000`) | `300000` | Upper bound for exponential backoff and `Retry-After` headers |
+| `providerGateway.requestTimeoutMs` | integer ms (`1000`–`600000`) | `120000` | Per-upstream request timeout before failing over |
+| `providerGateway.providers` | array | `[]` | Prioritized upstream provider list (see fields below) |
+
+Each entry in `providerGateway.providers`:
+
+| Field | Type | Required | What it does |
+|---|---|---|---|
+| `id` | slug (`[a-z0-9][a-z0-9_-]*`) | yes | Unique provider name |
+| `protocol` | `"anthropic"` \| `"openai"` | yes | Upstream wire protocol (`anthropic` Messages passthrough or `openai` Chat Completions translation) |
+| `baseUrl` | URL | yes | Upstream base URL. Must use `https://` for remote hosts; plain `http://` is permitted only on loopback (`127.0.0.1`, `localhost`, `::1`) |
+| `models` | `string[]` | yes | Model patterns offered by this provider (exact id, `prefix*` glob, or `*`) |
+| `priority` | integer | no (`100`) | Lower number is tried first; ties break by config order |
+| `modelMap` | `{ [requested]: upstream }` | no | Optional model id rewrite before forwarding upstream |
+| `keychainAccount` | string | no (`provider:<id>`) | Account name under the `rove-provider-gateway` macOS Keychain service |
+| `apiKeyEnv` | env var name | no (`ROVE_GATEWAY_KEY_<ID>`) | Fallback environment variable read by the daemon when Keychain has no entry or is unavailable |
+| `enabled` | boolean | no (`true`) | Set `false` to disable a provider without removing it |
+| `extraHeaders` | `{ [name]: value }` | no | Non-secret upstream headers (`Authorization` and `x-api-key` are rejected) |
+
+```jsonc
+{
+  "providerGateway": {
+    "enabled": true,
+    "host": "127.0.0.1",
+    "port": 0,
+    "injectMode": "headless",
+    "providers": [
+      {
+        "id": "primary-anthropic",
+        "protocol": "anthropic",
+        "baseUrl": "https://api.anthropic.com",
+        "priority": 10,
+        "models": ["claude-*"]
+      },
+      {
+        "id": "fallback-openai",
+        "protocol": "openai",
+        "baseUrl": "https://api.example.com/v1",
+        "priority": 20,
+        "models": ["claude-*", "gpt-*"],
+        "modelMap": { "claude-sonnet-4-5": "anthropic/claude-sonnet-4.5" }
+      }
+    ]
+  }
+}
+```
+
+#### Credential isolation and OS fallback
+
+- **No plaintext secrets in config or files.** `state.json` rejects `apiKey` /
+  `token` / `secret` fields and auth headers. Real upstream API keys are never
+  written to plain files, never printed in status output, and never logged.
+- **macOS Keychain (primary on macOS).** Store keys with
+  `rove gateway set-key <id>` (reads from a hidden prompt or `--stdin`, never
+  from CLI flags). Rove stores them via the macOS `security` CLI under service
+  `rove-provider-gateway`.
+- **Linux and Windows fallback.** OS Keychain storage is only wired on macOS.
+  On other OSes, export `ROVE_GATEWAY_KEY_<ID>` (or the provider's configured
+  `apiKeyEnv`) in the daemon's environment before starting or restarting the
+  daemon. Rove never falls back to writing credentials to disk.
+- **Per-daemon loopback auth.** On start, the daemon mints a fresh random
+  placeholder token (`rove-gw-…`) in memory only. Every HTTP route on the
+  gateway (`/v1/messages`, `/v1/chat/completions`, `/v1/models`, `/health`)
+  requires that token via `x-api-key` or `Authorization: Bearer`. Child engine
+  processes receive only the loopback URL and that placeholder token over the
+  owner-only daemon socket.
+
+#### Protocol translation and fallback
+
+- Inbound `/v1/messages` to an `anthropic` provider passes through directly
+  (JSON and SSE streaming). Inbound `/v1/messages` to an `openai` provider
+  translates Messages requests, tool calls, tool results, responses, and SSE
+  streams to and from `/v1/chat/completions` (and vice versa for inbound
+  `/v1/chat/completions` routed to an `anthropic` provider).
+- On HTTP `429`, `5xx` (including `529`), or a network/timeout failure, the
+  gateway cools down that provider (honoring `Retry-After`, clamped to
+  `[cooldownMs, maxCooldownMs]`, otherwise exponential backoff) and immediately
+  retries the next highest-priority provider offering the requested model.
+  Client `4xx` responses other than `429` are returned directly without
+  triggering failover or cooldown.
+- Structured JSON log lines are written to `daemon.log` under the
+  `provider-gateway` subsystem (provider id, status, latency, failover attempt,
+  cooldown duration — never keys, tokens, or prompt payloads).
+
 ### Machines
 
 `machines` maps a local alias to another computer running Rove. Written by

@@ -295,6 +295,12 @@ export type DaemonRequestName =
   // The newest notes are injected into every fresh session, so a stale one
   // must be removable.
   | "note.delete"
+  // Optional local loopback provider gateway: status, session placeholder env,
+  // cooldown reset, and live config reload.
+  | "gateway.status"
+  | "gateway.sessionEnv"
+  | "gateway.resetCooldown"
+  | "gateway.reload"
   // Hosted PTYs (v4), served by the standalone PTY HOST (`rove pty-host`, own
   // socket, `pty-server.ts`), NOT the daemon: the daemon restarts routinely.
   // Same frame grammar and client class. The host owns the PTY child + a byte

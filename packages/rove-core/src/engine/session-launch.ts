@@ -229,6 +229,11 @@ export interface EngineSessionLaunchInput {
    * daemon/CLI launches leave it unset and the engine gets no image env.
    */
   readonly inlineImages?: boolean
+  /**
+   * Local loopback provider gateway endpoint + ephemeral placeholder token.
+   * Only set for opted-in sessions; delegates env naming to the engine adapter.
+   */
+  readonly gateway?: { readonly baseUrl: string; readonly token: string }
 }
 
 export interface EngineSessionLaunch {
@@ -322,9 +327,11 @@ export function buildEngineSessionLaunch(input: EngineSessionLaunchInput): Engin
   const tabId = quoteShellArg(input.tabId ?? "tab-1")
   const imageEnv = input.inlineImages ? protocolEntry(input.task.vendor).capabilities?.inlineImageEnv : undefined
   const imageExports = Object.entries(imageEnv ?? {}).map(([name, value]) => ` ${name}=${quoteShellArg(value)}`)
+  const gatewayEnv = input.gateway ? protocolEntry(input.task.vendor).gatewayEnv?.(input.gateway) : undefined
+  const gatewayExports = Object.entries(gatewayEnv ?? {}).map(([name, value]) => ` ${name}=${quoteShellArg(value)}`)
   const repoExports = (repos ? repoEnv(repos) : []).map(([name, value]) => ` ${name}=${quoteShellArg(value)}`)
   const rxExport = remote ? ` PATH=${quoteShellArg(remoteBinDir(input.worktreePath))}:"$PATH"` : ""
-  const identity = `export ROVE_TASK_ID=${taskId} ROVE_TAB_ID=${tabId}${imageExports.join("")}${repoExports.join("")}${rxExport}\n`
+  const identity = `export ROVE_TASK_ID=${taskId} ROVE_TAB_ID=${tabId}${imageExports.join("")}${gatewayExports.join("")}${repoExports.join("")}${rxExport}\n`
   return {
     key: engineSessionKey(input.task.id, input.tabId),
     command: [input.shell, "-ilc", identity + script],

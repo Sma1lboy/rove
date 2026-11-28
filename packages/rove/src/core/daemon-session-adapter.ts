@@ -18,6 +18,7 @@ import { buildEngineSessionLaunch } from "@sma1lboy/rove-core/engine/session-lau
 import { trustEngineWorktree } from "@sma1lboy/rove-core/engine/trust-worktree.ts"
 import { TaskDeletingError } from "@sma1lboy/rove-core/orchestrator/errors.ts"
 import { taskCwd } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import { type GatewayEndpointEnv, fetchHeadlessGatewayEnv } from "@sma1lboy/rove-core/state/provider-gateway.ts"
 import type { PromptDeliveryIntent } from "@sma1lboy/rove-core/state/repo-init.ts"
 import { markCliTabSession, publishCliTabSnapshot, readDaemonTabs } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/task.ts"
@@ -58,7 +59,8 @@ async function ensureTaskWorktree(link: DaemonRpcClient, taskId: string) {
 
 export async function ensureTaskSessionAdapter(link: DaemonRpcClient, taskId: string) {
   const { task, worktreePath, repos } = await ensureTaskWorktree(link, taskId)
-  const launch = taskEngineLaunch(task, worktreePath, { kind: "repo-init" }, repos)
+  const gateway = await fetchHeadlessGatewayEnv(link)
+  const launch = taskEngineLaunch(task, worktreePath, { kind: "repo-init" }, repos, undefined, gateway)
   const host = await ensureHostedSessionHost()
   try {
     const opened = await ensureHostedEngine(host.rpc, worktreePath, launch)
@@ -113,6 +115,7 @@ export async function startTaskSessionWithPromptAdapter(
   const row = (await readDaemonTabs(link, taskId).catch(() => undefined))?.tabs.find((tab) => tab.id === "tab-1")
   const held = row?.kind === "engine" && row.spawned && row.sessionId ? row.sessionId : null
   const resumeArgv = held && !options.newConversation ? engineResumeArgv(base, task.vendor, held) : null
+  const gateway = await fetchHeadlessGatewayEnv(link)
   const host = await ensureHostedSessionHost()
   try {
     const start = async (
@@ -121,7 +124,7 @@ export async function startTaskSessionWithPromptAdapter(
     ): Promise<{ started: boolean; error?: string; key: string }> => {
       // "new-task", not "explicit": callers just created the task, so the prompt
       // gets the branch-rename coda like other new-worktree entry points.
-      const launch = taskEngineLaunch(task, worktreePath, { kind: "new-task", prompt: text }, repos, argv)
+      const launch = taskEngineLaunch(task, worktreePath, { kind: "new-task", prompt: text }, repos, argv, gateway)
       const opened = await ensureHostedEngine(host.rpc, worktreePath, launch)
       if (!opened.alive) return { started: false, error: "hosted session did not open", key: launch.key }
       const wait = { initMarkerPath: launch.initMarkerPath, initTimeoutMs: launch.initTimeoutMs }
@@ -178,6 +181,7 @@ function taskEngineLaunch(
     effort: task.modelEffort,
     model: task.model,
   }),
+  gateway?: GatewayEndpointEnv,
 ) {
   // Pre-trust the worktree in the vendor's first-run store.
   trustEngineWorktree(task.vendor, worktreePath)
@@ -194,6 +198,7 @@ function taskEngineLaunch(
     shell: resolveSessionShell(),
     argv,
     promptIntent,
+    ...(gateway ? { gateway } : {}),
   })
 }
 

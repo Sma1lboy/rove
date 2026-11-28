@@ -12,6 +12,7 @@
 
 import { engineLaunchArgv } from "@sma1lboy/rove-core/engine/engine-presets.ts"
 import { type EngineSessionLaunch, buildEngineSessionLaunch } from "@sma1lboy/rove-core/engine/session-launch.ts"
+import type { GatewayEndpointEnv } from "@sma1lboy/rove-core/state/provider-gateway.ts"
 import { readTabsSnapshot } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
 import { type EngineTab, engineTabArgv } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
@@ -88,6 +89,7 @@ export function restoredTabLaunch(
   tabId: string,
   worktreePath: string,
   shell: string,
+  gateway?: GatewayEndpointEnv,
 ): EngineSessionLaunch | null {
   const tab = readTabsSnapshot(task.id)?.tabs.find((t) => t.id === tabId && t.kind === "engine") as
     | EngineTab
@@ -108,5 +110,6 @@ export function restoredTabLaunch(
     // The send's prompt is pasted later; an argv prompt would replay the first one.
     promptIntent: { kind: "none" },
     tabId,
+    ...(gateway ? { gateway } : {}),
   })
 }

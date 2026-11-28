@@ -178,7 +178,14 @@
     "./daemon/task-deletion-runner": "./src/daemon/task-deletion-runner.ts",
     "./daemon/win-pty-job": "./src/daemon/win-pty-job.ts",
     "./plugins/hook-run": "./src/plugins/hook-run.ts",
-    "./plugins/mod-host": "./src/plugins/mod-host.ts"
+    "./plugins/mod-host": "./src/plugins/mod-host.ts",
+    "./gateway/types": "./src/gateway/types.ts",
+    "./gateway/config": "./src/gateway/config.ts",
+    "./gateway/keychain": "./src/gateway/keychain.ts",
+    "./gateway/translate": "./src/gateway/translate.ts",
+    "./gateway/router": "./src/gateway/router.ts",
+    "./gateway/server": "./src/gateway/server.ts",
+    "./gateway/controller": "./src/gateway/controller.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
