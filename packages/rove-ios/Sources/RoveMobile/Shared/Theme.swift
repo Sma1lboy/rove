@@ -1,23 +1,24 @@
 import SwiftUI
 import UIKit
 
-// quill design language (quill-all/DESIGN.md) with Rove's own palette from
-// packages/branding/src/colors.ts: porcelain paper / espresso ink, terracotta as
-// the one accent. Matte surfaces, never glass.
+// quill design language (quill-all/DESIGN.md) in rove-web's default `claude` palette:
+// paper / ink, terracotta as the one accent. Matte surfaces; the phone's floating buttons
+// take rove-web's glass recipe (src/ui/glass.ts) as solid fills.
 //
 // This file is the only place a color is spelled. Everything else uses these tokens
 // (`scripts/lint-colors.sh` fails the build on a raw `Color(...)`, `.black`, `.white`,
 // `UIColor(...)` or a material anywhere else).
 enum Theme {
-    /// Raw palette (colors.ts `light` / `dark`). Tokens below pick from it.
+    /// Raw palette: rove-web's default `claude` theme (rove/src/tui/context/theme/claude.json, as prefs-theme.ts maps
+    /// it), so the native screens match the page they wrap. Tokens below pick from it.
     private enum Hex {
-        static let paperLight: UInt32 = 0xF6F3EC, paperDark: UInt32 = 0x141413
-        static let surfaceLight: UInt32 = 0xFDFCF9, surfaceDark: UInt32 = 0x1A1917
-        static let insetLight: UInt32 = 0xEFEAE0, insetDark: UInt32 = 0x2B2A27
-        static let lineLight: UInt32 = 0xDFD8CB, lineDark: UInt32 = 0x3A3835
-        static let inkLight: UInt32 = 0x3B322A, inkDark: UInt32 = 0xEAE7DF
-        static let mutedLight: UInt32 = 0x7C7266, mutedDark: UInt32 = 0xA9A39A
-        static let accentLight: UInt32 = 0xC46B48, accentDark: UInt32 = 0xCC785C
+        static let paperLight: UInt32 = 0xFAF9F5, paperDark: UInt32 = 0x141413
+        static let surfaceLight: UInt32 = 0xF0EEE6, surfaceDark: UInt32 = 0x1A1917
+        static let insetLight: UInt32 = 0xEAE7DF, insetDark: UInt32 = 0x2B2A27
+        static let lineLight: UInt32 = 0xD9D5CC, lineDark: UInt32 = 0x3A3835
+        static let inkLight: UInt32 = 0x1A1917, inkDark: UInt32 = 0xEAE7DF
+        static let mutedLight: UInt32 = 0x5E5953, mutedDark: UInt32 = 0xA9A39A
+        static let accentLight: UInt32 = 0xB5532F, accentDark: UInt32 = 0xCC785C
     }
 
     private static func dyn(_ light: UInt32, _ dark: UInt32, alpha: CGFloat = 1) -> Color {
@@ -40,12 +41,31 @@ enum Theme {
         traits.userInterfaceStyle == .dark
             ? UIColor(hex: Hex.accentDark, alpha: 0.14) : UIColor(hex: Hex.accentLight, alpha: 0.10)
     })
-    static let success = dyn(0x5F8C49, 0x9ACA86)
+    static let success = dyn(0x2E7C4C, 0x9ACA86)
     /// Failures only — terracotta never means error.
-    static let error = dyn(0xB65742, 0xEC6F74)
+    static let error = dyn(0xAD2F36, 0xEC6F74)
     /// Quota at 75%+ and routine runs that were missed; palette `yellow` (packages/branding colors.ts).
     /// Not an error and not terracotta: it asks for a look, never for action.
-    static let warning = dyn(0xB08A2F, 0xE8C96B)
+    static let warning = dyn(0x8A6220, 0xE8C96B)
+
+    /// rove-web's neutral glass (glass.ts) as a solid: inset at 60% over paper (opaque, so the shadow stays outside),
+    /// an ink edge at 12%, `--shadow-popover`.
+    static let glassFill = dyn(0xF0EEE8, 0x22211F)
+    static let glassEdge = dyn(Hex.inkLight, Hex.inkDark, alpha: 0.12)
+    static let glassShadow = Color(uiColor: UIColor(hex: 0x000000, alpha: 0.25))
+
+    /// A CSS colour the page reports (`#rrggbb` or `rgb(r, g, b)`); nil for anything else or a transparent one.
+    static func css(_ text: String) -> UIColor? {
+        let t = text.trimmingCharacters(in: .whitespaces)
+        if t.hasPrefix("#"), t.count == 7, let v = UInt32(t.dropFirst(), radix: 16) { return UIColor(hex: v) }
+        guard t.hasPrefix("rgb") else { return nil }
+        let n = t.split(whereSeparator: { !"0123456789.".contains($0) }).compactMap { Double($0) }
+        guard n.count >= 3, n.count == 3 || n[3] > 0 else { return nil }
+        return UIColor(red: n[0] / 255, green: n[1] / 255, blue: n[2] / 255, alpha: 1)
+    }
+
+    /// A colour the page reported, for SwiftUI.
+    static func color(_ ui: UIColor) -> Color { Color(uiColor: ui) }
 
     /// The one modal scrim, both themes: espresso ink at a fixed opacity (never the system dim,
     /// which is grey in light, black in dark and varies with the detent).

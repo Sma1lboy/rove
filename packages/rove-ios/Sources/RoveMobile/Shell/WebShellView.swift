@@ -9,6 +9,8 @@ struct WebShellView: UIViewRepresentable {
     var reloadToken: Int
     var onFail: (String?) -> Void
     var onSwitch: () -> Void
+    /// The page's background, on load and whenever its theme changes; the shell paints its own edges with it.
+    var onPage: (UIColor) -> Void = { _ in }
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -22,6 +24,16 @@ struct WebShellView: UIViewRepresentable {
             const m = document.querySelector('meta[name=viewport]');
             if (m) m.content += ', maximum-scale=1, user-scalable=no';
             """, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        // rove-web keeps `<meta name="theme-color">` on its background (prefs-apply.ts); report it and every change.
+        config.userContentController.addUserScript(WKUserScript(source: """
+            const post = () => {
+              const m = document.querySelector('meta[name=theme-color]');
+              if (m) window.webkit.messageHandlers.page.postMessage(m.content);
+            };
+            new MutationObserver(post).observe(document.head, { subtree: true, childList: true, attributes: true });
+            post();
+            """, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        config.userContentController.add(context.coordinator, name: "page")
         config.setURLSchemeHandler(DemoSchemeHandler(), forURLScheme: DemoWeb.scheme)
         // rove-web's `haptic.ts`: a press in the page is felt like one on a native control.
         config.userContentController.add(context.coordinator, name: "haptic")
@@ -69,7 +81,15 @@ struct WebShellView: UIViewRepresentable {
         }
 
         func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
-            if let kind = message.body as? String { Haptic.play(kind) }
+            guard let body = message.body as? String else { return }
+            if message.name == "page" {
+                guard let color = Theme.css(body) else { return }
+                message.webView?.underPageBackgroundColor = color
+                message.webView?.scrollView.backgroundColor = color
+                parent.onPage(color)
+            } else {
+                Haptic.play(body)
+            }
         }
 
         private func sameOrigin(_ url: URL) -> Bool {

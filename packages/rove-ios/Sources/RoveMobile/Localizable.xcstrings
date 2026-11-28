@@ -1768,6 +1768,16 @@
         }
       }
     },
+    "open settings" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开设置"
+          }
+        }
+      }
+    },
     "Option %lld" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2254,6 +2264,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已恢复 %@"
+          }
+        }
+      }
+    },
+    "Rove can't use the camera. Allow it in Settings, or paste the link instead." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rove 无法使用摄像头。请在设置中允许，或改为粘贴链接。"
           }
         }
       }
