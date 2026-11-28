@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react"
+import { AppearanceSlot } from "./appearance/declarative.tsx"
+import { useActiveAppearancePack } from "./appearance/runtime.ts"
 import type { BridgeClient } from "./bridge.ts"
 import { t } from "./i18n/index.ts"
-import type { AppModel } from "./model.ts"
+import { type AppModel, selectedRow } from "./model.ts"
 import { useStore } from "./store.ts"
+import { AP_STATUS_BAR } from "./ui/appearance.ts"
 import { STATUS_BAR, connDot } from "./ui/shell.ts"
 import { LINK } from "./ui/text.ts"
 
@@ -28,11 +31,23 @@ export function useDownFor(client: BridgeClient, ms: number): boolean {
 export function StatusBar({ model, narrow }: { model: AppModel; narrow: boolean }) {
   const client = model.client
   const conn = useStore(client.conn)
+  const payload = useStore(model.tasks)
+  const selection = useStore(model.selection)
+  const pack = useActiveAppearancePack()
+  const task = selectedRow(payload, selection.taskId)
   // A first connect waits out a short grace, a drop shows at once; a phone waits out both.
   const ms = narrow ? PHONE_DOWN_GRACE_MS : conn.state === "connecting" ? CONNECTING_GRACE_MS : 0
   const late = useDownFor(client, ms)
-  if (!late) return null
-  return (
+  const mode = pack?.manifest.layout?.statusBar ?? "auto"
+  const customStatusSlot = Boolean(pack?.manifest.slots?.["status.bar"])
+  if (mode === "hidden" && !late) return null
+  if (!late && mode !== "always" && !customStatusSlot) return null
+
+  const diffStats =
+    task?.changes && !("unreadable" in task.changes)
+      ? { files: 0, added: task.changes.added, removed: task.changes.deleted }
+      : undefined
+  const defaultBar = late ? (
     <footer className={STATUS_BAR}>
       <span className={connDot(conn.state === "retrying")} />
       <span>{conn.state === "retrying" ? t("status.retrying", { count: conn.failures }) : t("status.connecting")}</span>
@@ -42,5 +57,30 @@ export function StatusBar({ model, narrow }: { model: AppModel; narrow: boolean 
         </button>
       )}
     </footer>
+  ) : (
+    <footer className={AP_STATUS_BAR}>
+      <span>{conn.state}</span>
+      {task?.label && <span className="truncate text-ink">{task.label}</span>}
+      {task?.branch && <span className="truncate">{task.branch}</span>}
+      {task?.engine?.name && <span>{task.engine.name}</span>}
+    </footer>
+  )
+
+  return (
+    <AppearanceSlot
+      slot="status.bar"
+      data={{
+        connection: conn.state === "open" ? "open" : conn.state === "retrying" ? "retrying" : "connecting",
+        failures: conn.failures,
+        taskTitle: task?.label,
+        branch: task?.branch,
+        engineName: task?.engine?.name,
+        statusKind: task?.rowStatus?.kind,
+        diffStats,
+        usageSummary: "",
+        onRetry: () => client.retryNow(),
+      }}
+      fallback={defaultBar}
+    />
   )
 }

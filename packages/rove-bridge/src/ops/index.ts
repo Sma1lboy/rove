@@ -1,6 +1,7 @@
 /** The extended op allowlist: area tables, merged. An op not named here (or in core `OPS`) is UNKNOWN_OP. */
 
 import { BridgeError } from "../protocol.ts"
+import { appearanceOps } from "./appearance.ts"
 import { connectorOps } from "./connectors.ts"
 import { contextOps } from "./context.ts"
 import { devOps } from "./dev.ts"
@@ -61,6 +62,7 @@ export const AREA_OPS: OpTable = mergeOpTables(
   devOps,
   linkOps,
   prefsOps,
+  appearanceOps,
   hostedThemeOps,
   routingOps,
   TASKOPS_OPS,

@@ -1,6 +1,9 @@
 /** Layout: Tasks rail | workspace (tab strip + terminal) | Files, over a one-line status footer, like the TUI. */
 
 import { type CSSProperties, useEffect, useState } from "react"
+import { AppearanceErrorBanner, OuterAppearanceBoundary } from "./appearance/boundaries.tsx"
+import { AppearanceSlot } from "./appearance/declarative.tsx"
+import { useActiveAppearancePack } from "./appearance/runtime.ts"
 import { backSwiping } from "./back-swipe.ts"
 import { ConnectScreen } from "./connect-view.tsx"
 import { useDaemonHealth } from "./daemon-health.tsx"
@@ -22,11 +25,13 @@ import { usePrefsApply } from "./prefs-apply.ts"
 import { RailBar } from "./rail-chrome.tsx"
 import { RAIL_DEFAULT_PX, clampRailWidth, peekRail, railFolded, railPeek, railWidth } from "./rail-layout.ts"
 import { RailView } from "./rail-view.tsx"
+import { SettingsDialog } from "./settings-view.tsx"
 import { SidePanel } from "./side-panel.tsx"
 import { useSkillStatus } from "./skill-status.ts"
 import { StatusBar } from "./status-bar.tsx"
 import { useStore } from "./store.ts"
-import { layoutMoving, newSession, openNewSessionFromLink, page } from "./ui.ts"
+import { dialog, layoutMoving, newSession, openNewSessionFromLink, page } from "./ui.ts"
+import { apShellClass } from "./ui/appearance.ts"
 import { PhoneBarHost } from "./ui/phone.tsx"
 import { APP_SHELL, RAIL_PEEK_EDGE, appClass } from "./ui/shell.ts"
 import { maybeAskToUpdate } from "./update-prompt.tsx"
@@ -41,7 +46,11 @@ export function App({ model }: { model: AppModel }) {
   const conn = useStore(model.client.conn)
   // Never connected and failing: most likely a stale or wrong link, so offer to replace it.
   if (conn.hello === null && conn.failures >= 2) return <RejectedScreen />
-  return <Shell model={model} />
+  return (
+    <OuterAppearanceBoundary>
+      <Shell model={model} />
+    </OuterAppearanceBoundary>
+  )
 }
 
 /** A stored token the bridge refuses: sign in again where the host has a password, else ask for the link. */
@@ -117,7 +126,10 @@ function Shell({ model }: { model: AppModel }) {
     () => model.setTaskShown(surface === null || (surface === "content" && pageOn === null && !composing)),
     [model, surface, pageOn, composing],
   )
-  const openPx = clampRailWidth(pinned ?? RAIL_DEFAULT_PX)
+  const pack = useActiveAppearancePack()
+  const packFrame = pack?.manifest.layout?.frame
+  const packRailWidth = pack?.manifest.layout?.railWidth
+  const openPx = clampRailWidth(pinned ?? packRailWidth ?? RAIL_DEFAULT_PX)
   const panelPx = panelPinned === null ? null : clampPanelWidth(panelPinned, folded ? 0 : openPx)
   // Unpinned, the panel is a share of what the rail leaves rather than a size of its own, so opening the rail
   // narrows the browser and the terminal together instead of crushing the terminal. The terminal keeps
@@ -133,42 +145,59 @@ function Shell({ model }: { model: AppModel }) {
     "--rail-open-w": `${folded ? clampRailWidth(RAIL_DEFAULT_PX) : openPx}px`,
     "--panel-w": panelPx !== null ? `${panelPx}px` : autoW,
   } as CSSProperties
+  const grid = (
+    <div
+      className={`${appClass({
+        panel: panelShown && (!!task || !!remoteTask) && !narrow,
+        expanded: panelWide && panelShown && !narrow,
+        surface: surface && backing ? "back" : surface,
+        folded: folded && !narrow,
+        peek: folded && peek && !narrow,
+        dragging,
+      })} ${!narrow ? apShellClass(packFrame) : ""}`}
+      style={narrow ? undefined : railVars}
+    >
+      {!narrow && <RailBar model={model} />}
+      {/* Folded, the page's left edge brings the rail back as a floating panel, and a click on it unfolds;
+          leaving the edge without reaching the rail (out of the window, a quick flick) closes it again. */}
+      {folded && !narrow && (
+        <div
+          className={RAIL_PEEK_EDGE}
+          title={t("layout.railUnfold")}
+          onMouseEnter={() => peekRail(true)}
+          onMouseLeave={() => peekRail(false)}
+          // Mouse only: the keyboard reaches the fold through the bar's button.
+          onMouseUp={() => railFolded.set(false)}
+        />
+      )}
+      <RailView model={model} narrow={narrow} />
+      <Workspace model={model} narrow={narrow} />
+      {/* One bar over both panels: the list's, the open page's, or none. A back swipe keeps the page's until it lands. */}
+      {surface && <PhoneBarHost show={surface === "sidebar" ? "list" : "page"} />}
+      {!narrow && <SidePanel model={model} task={task} remoteHost={remoteTask?.machine?.label} />}
+      <StatusBar model={model} narrow={narrow} />
+      <Overlays />
+      <PrefixHud model={model} />
+      <DocumentTitle model={model} />
+    </div>
+  )
   return (
     <div className={APP_SHELL}>
-      <div
-        className={appClass({
-          panel: panelShown && (!!task || !!remoteTask) && !narrow,
-          expanded: panelWide && panelShown && !narrow,
-          surface: surface && backing ? "back" : surface,
-          folded: folded && !narrow,
-          peek: folded && peek && !narrow,
-          dragging,
-        })}
-        style={narrow ? undefined : railVars}
-      >
-        {!narrow && <RailBar model={model} />}
-        {/* Folded, the page's left edge brings the rail back as a floating panel, and a click on it unfolds;
-            leaving the edge without reaching the rail (out of the window, a quick flick) closes it again. */}
-        {folded && !narrow && (
-          <div
-            className={RAIL_PEEK_EDGE}
-            title={t("layout.railUnfold")}
-            onMouseEnter={() => peekRail(true)}
-            onMouseLeave={() => peekRail(false)}
-            // Mouse only: the keyboard reaches the fold through the bar's button.
-            onMouseUp={() => railFolded.set(false)}
-          />
-        )}
-        <RailView model={model} narrow={narrow} />
-        <Workspace model={model} narrow={narrow} />
-        {/* One bar over both panels: the list's, the open page's, or none. A back swipe keeps the page's until it lands. */}
-        {surface && <PhoneBarHost show={surface === "sidebar" ? "list" : "page"} />}
-        {!narrow && <SidePanel model={model} task={task} remoteHost={remoteTask?.machine?.label} />}
-        <StatusBar model={model} narrow={narrow} />
-        <Overlays />
-        <PrefixHud model={model} />
-        <DocumentTitle model={model} />
-      </div>
+      <AppearanceErrorBanner
+        client={model.client}
+        onOpenSettings={() => dialog.set(<SettingsDialog model={model} section="appearance" />)}
+      />
+      <AppearanceSlot
+        slot="shell.frame"
+        data={{
+          taskCount: (payload?.tasks.length ?? 0) + remote.length,
+          selectedTitle: task?.label ?? "",
+          panelOpen: panelShown && !narrow,
+          railFolded: folded && !narrow,
+          narrow,
+        }}
+        fallback={grid}
+      />
     </div>
   )
 }

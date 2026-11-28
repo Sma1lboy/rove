@@ -4,6 +4,8 @@ import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove-core/i18n/messages/
 import type { MouseEvent } from "react"
 import { useRef } from "react"
 import type { TasksPayload } from "rove-bridge/protocol"
+import { AppearanceSlot } from "./appearance/declarative.tsx"
+import { useActiveAppearancePack } from "./appearance/runtime.ts"
 import { useEngineIcons } from "./engine-icons.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
@@ -39,6 +41,7 @@ import { useStatusMarkNotice } from "./status-mark-notice.ts"
 import { useStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
 import { type MenuItem, dialog, menu, page, tuckRare } from "./ui.ts"
+import { apPaneCardClass } from "./ui/appearance.ts"
 import { Legend } from "./ui/legend.tsx"
 import { INBOX_CHIP } from "./ui/overlay.ts"
 import { RAIL, RAIL_EMPTY, RAIL_HEAD, RAIL_SEARCH, railBody } from "./ui/rail.ts"
@@ -116,10 +119,12 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const peek = useStore(railPeek) && folded
   const recent = narrow ? (tasks.find((task) => task.id === selection.taskId && !task.deleting) ?? null) : null
   const Row = narrow ? PhoneRailRow : RailRow
+  const pack = useActiveAppearancePack()
+  const paneCard = !narrow && !folded ? apPaneCardClass(pack?.manifest.layout?.frame) : ""
 
-  return (
+  const nav = (
     <nav
-      className={`${RAIL} ${folded ? "is-folded" : ""}`}
+      className={`${RAIL} ${paneCard} ${folded ? "is-folded" : ""}`}
       ref={rail}
       inert={folded && !peek}
       aria-hidden={folded && !peek}
@@ -299,6 +304,20 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
       <RailFoot model={model} narrow={narrow} onSettings={openSettings} inbox={{ count: unread, onClick: openInbox }} />
       {!narrow && !folded && <RailGrip rail={rail} />}
     </nav>
+  )
+  return (
+    <AppearanceSlot
+      slot="rail.frame"
+      data={{
+        unreadCount: unread,
+        taskCount: tasks.length + remoteTasks.length,
+        groupBy: byState ? "state" : "project",
+        sortBy: filters.sort,
+        folded,
+        narrow,
+      }}
+      fallback={nav}
+    />
   )
 }
 

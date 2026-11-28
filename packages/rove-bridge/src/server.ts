@@ -11,6 +11,7 @@ import { type ApiEnvelope, type ApiParams, ROVE_API_VERSION } from "@sma1lboy/ro
 import type { ModPaneView } from "@sma1lboy/rove-daemon/plugins/mod-tree"
 import type { Server, ServerWebSocket } from "bun"
 import { admit } from "./admit.ts"
+import { serveAppearanceBundle } from "./appearance-bundle.ts"
 import { DESTRUCTIVE_CORE, DESTRUCTIVE_VERBS, logDestructive, logDestructiveVerb } from "./audit.ts"
 import { WEB_SUBPROTOCOL, offersWebSubprotocol } from "./auth.ts"
 import type { AccessVerifier } from "./cf-access.ts"
@@ -419,6 +420,10 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
       // The page asks before it has a token whether to connect without one.
       if (!upgrade && req.method === "GET" && new URL(req.url).pathname === "/auth") {
         return Response.json({ open: local }, { headers: { "Cache-Control": "no-store" } })
+      }
+      if (!upgrade) {
+        const bundle = await serveAppearanceBundle(req)
+        if (bundle) return bundle
       }
       if (!upgrade && deps.web) {
         const file = await serveWebFile(deps.web, req)

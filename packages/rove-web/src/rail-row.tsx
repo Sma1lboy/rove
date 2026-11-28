@@ -2,6 +2,9 @@
 
 import type { MouseEvent } from "react"
 import type { RowStatus, TabRow, TaskRow } from "rove-bridge/protocol"
+import { engineColorForPack } from "./appearance/apply.ts"
+import { AppearanceSlot } from "./appearance/declarative.tsx"
+import { useActiveAppearancePack } from "./appearance/runtime.ts"
 import { t } from "./i18n/index.ts"
 import { CloudMark } from "./machines-view.tsx"
 import { PrChip } from "./pr-chip.tsx"
@@ -13,6 +16,7 @@ import { useRowTip } from "./row-tip.tsx"
 import { RowTokens } from "./row-tokens.tsx"
 import { StartsChip } from "./starts-chip.tsx"
 import { useStatusMarkStyle } from "./status-mark.ts"
+import { useMode } from "./task-colors.ts"
 import { todoCount } from "./task-todos.ts"
 import { tc } from "./tui-copy.ts"
 import { Chevron } from "./ui/chevron.tsx"
@@ -61,10 +65,12 @@ export function RailRow(props: {
   swipe?: { left: SwipeAction; right: SwipeAction }
 }) {
   const { row } = props
+  const pack = useActiveAppearancePack()
+  const mode = useMode()
   const tip = useRowTip(row.kind === "task" ? row.task.label : "", props.cursor && row.kind === "task")
   const cursor = props.cursor ? RAIL_CURSOR : ""
   if (row.kind === "project" || row.kind === "state") {
-    return (
+    const head = (
       <h2
         className={projectHead({ moving: props.moving, dragging: props.dragging, grab: props.drag !== undefined })}
         onContextMenu={props.onMenu}
@@ -83,6 +89,22 @@ export function RailRow(props: {
           onNewTask={props.onNewTask}
         />
       </h2>
+    )
+    return (
+      <AppearanceSlot
+        slot="rail.groupHeader"
+        data={{
+          id: row.id,
+          kind: row.kind,
+          label: row.label,
+          repo: row.kind === "project" && !row.noProject ? row.repo : undefined,
+          count: 0,
+          collapsed: !!props.collapsed,
+          onToggle: () => props.onClick(),
+          onNewTask: props.onNewTask,
+        }}
+        fallback={head}
+      />
     )
   }
   const task = row.task
@@ -162,12 +184,54 @@ export function RailRow(props: {
       </span>
     </button>
   )
-  return props.swipe ? (
+  const rowNode = props.swipe ? (
     <SwipeRow left={props.swipe.left} right={props.swipe.right} ground="paper">
       {button}
     </SwipeRow>
   ) : (
     button
+  )
+  const diffStats =
+    task.changes && !("unreadable" in task.changes)
+      ? { files: 0, added: task.changes.added, removed: task.changes.deleted }
+      : undefined
+  const ageMs = task.activity?.forMs
+  const age =
+    ageMs === undefined
+      ? undefined
+      : ageMs < 60_000
+        ? `${Math.max(1, Math.round(ageMs / 1000))}s`
+        : ageMs < 3_600_000
+          ? `${Math.round(ageMs / 60_000)}m`
+          : `${Math.round(ageMs / 3_600_000)}h`
+  return (
+    <AppearanceSlot
+      slot="rail.row"
+      data={{
+        id: task.id,
+        title: row.attempt ?? task.label,
+        branch: task.branch || undefined,
+        repo: props.repo ?? (task.repo ? task.repo.split("/").pop() : undefined),
+        engineId: task.engine?.id ?? undefined,
+        engineName: task.engine?.name,
+        engineColor: engineColorForPack(pack?.manifest, task.engine?.id ?? undefined, mode),
+        statusKind: status?.kind ?? "idle",
+        statusLabel: status?.kind ?? "idle",
+        selected: props.selected,
+        cursor: props.cursor,
+        stale: props.stale,
+        pinned: Boolean(task.pinned),
+        depth: row.depth,
+        pr: task.pr?.number ? { number: task.pr.number, state: task.pr.lifecycle, url: task.pr.url } : undefined,
+        todos: count ?? undefined,
+        tokens: task.rowTokens?.map((tok) => ({ key: tok.source, text: tok.text })),
+        age,
+        cloud: props.cloud,
+        diffStats,
+        onSelect: () => props.onClick(),
+      }}
+      fallback={rowNode}
+    />
   )
 }
 
