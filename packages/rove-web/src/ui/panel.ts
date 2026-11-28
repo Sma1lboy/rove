@@ -1,4 +1,4 @@
-import { SIDE_PANEL_FRAME } from "./shell.ts"
+import { PANE_HAIRLINE, SIDE_PANEL_FRAME } from "./shell.ts"
 
 /** Class recipes for the side panel (side-panel.tsx, panel-column.tsx, panel-tabs.tsx, browser-view.tsx) and the quiet icon buttons it shares with the rail bar. */
 
@@ -65,9 +65,8 @@ export const ptabCloseClass = (active: boolean): string =>
 /** The top bar's Files / Diff / Browser buttons. */
 export const PANEL_LAUNCH = "ml-auto flex gap-0.5"
 
-/** The strip between side-by-side columns, to grab: its hairline shows on hover, as a `ResizeGrip`'s does. */
-export const SIDE_DIVIDER =
-  "relative row-1 cursor-col-resize touch-none before:absolute before:inset-y-0 before:left-[calc(var(--divider)/2)] before:w-px before:content-[''] hover:before:bg-line-active after:absolute after:inset-x-[-3px] after:inset-y-0 after:content-['']"
+/** The strip between side-by-side columns: a faint resting hairline that strengthens on hover/drag, with a wider grab target. */
+export const SIDE_DIVIDER = `relative row-1 cursor-col-resize touch-none ${PANE_HAIRLINE.dividerBefore} after:absolute after:inset-x-[-3px] after:inset-y-0 after:content-['']`
 
 /** A column's view; the hidden ones (a Browser's other tabs) must beat the flex display. */
 export const SIDE_VIEW = "side-view flex min-h-0 min-w-0 flex-1 flex-col [&[hidden]]:hidden"

@@ -28,6 +28,8 @@
   /* One step past inset: a selected or cursor row, which a pointer hover (`--hover`) must not look like. */
   --menu: #33312e;
   --line: #3a3835;
+  /* Faint separator shared by the docked rail edge and side-panel column dividers. */
+  --line-faint: color-mix(in srgb, var(--line) 50%, transparent);
   --line-active: #75706a;
   --ink: #eae7df;
   --muted: #a9a39a;
