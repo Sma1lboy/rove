@@ -300,11 +300,13 @@ export function taskOps(deps: TaskOpsDeps = realDeps): OpTable {
         // Scratch remembers its own last engine, keyed by $HOME like any project; `+` reuses it.
         const picked = optStr(a, "engine") === undefined ? undefined : await engineId(a, "engine", ctx)
         const mdl = optModel(a)
+        const title = optStr(a, "title")
         const res = await ctx.api.rpc<{ taskId: string }>("task.openDir", {
           dir: home,
           scratch: true,
           vendor: picked ?? taskOpDeps.preferredEngine(),
           ...(mdl ? { model: mdl } : {}),
+          ...(title ? { title } : {}),
         })
         if (picked) taskOpDeps.rememberEngine(picked)
         return { taskId: res.taskId }

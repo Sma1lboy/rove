@@ -166,7 +166,13 @@ type Request = <T>(op: string, args?: Record<string, unknown>) => Promise<T>
  */
 export async function startUngrouped(request: Request, engine: string, message: string, model = ""): Promise<string> {
   const pick = engine ? { engine } : {}
-  const { taskId } = await request<{ taskId: string }>("task.openScratch", { ...pick, ...(model ? { model } : {}) })
+  // Engines without a readable transcript never get auto-titled, so name it from the prompt now.
+  const title = message.trim() ? deriveTitleFromPrompt(message) : ""
+  const { taskId } = await request<{ taskId: string }>("task.openScratch", {
+    ...pick,
+    ...(model ? { model } : {}),
+    ...(title ? { title } : {}),
+  })
   await request("tab.new", { taskId, kind: "engine", ...pick, prompt: message.trim() })
   return taskId
 }

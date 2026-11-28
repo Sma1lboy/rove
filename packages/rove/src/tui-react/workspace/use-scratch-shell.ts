@@ -19,6 +19,7 @@ import { defaultDaemonLogPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { t } from "../../i18n"
 import { userFacingErrorMessage } from "../../lib/error-message"
+import { deriveTitleFromPrompt } from "../../orchestrator/title"
 import { getGlobalDefaultVendor } from "../../state/vendor-prefs"
 import type { TabsSnapshotKv } from "../../tabs/terminal-tabs-persist"
 import { finishDeletedTaskFlow } from "../../tui/lib/task-actions"
@@ -73,7 +74,13 @@ export function useScratchShell(deps: {
 
   const openScratchShell = (vendor: VendorId | undefined, prompt?: string, pick?: ScratchModelPick): void => {
     void orchestrator
-      .openDirectoryTask({ dir: homedir(), scratch: true, ...(vendor ? { vendor, ...pick } : {}) })
+      .openDirectoryTask({
+        dir: homedir(),
+        scratch: true,
+        ...(vendor ? { vendor, ...pick } : {}),
+        // Engines without a readable transcript never get auto-titled, so name it from the prompt now.
+        ...(prompt?.trim() ? { title: deriveTitleFromPrompt(prompt) } : {}),
+      })
       .then((task) => {
         // Before the select mounts its tabs: the mount reads the mark.
         if (vendor) engineScratchTasks.add(task.id)
