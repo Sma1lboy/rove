@@ -92,7 +92,6 @@ const TASK_FIELDS = {
   branch: true,
   worktreePath: true,
   kind: true,
-  scratch: true,
   noProject: true,
   connector: true,
   routine: true,

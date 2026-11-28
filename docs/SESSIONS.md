@@ -184,8 +184,8 @@ local to each one.
   engine tab, so a process that died on its own leaves you somewhere to work.
 - **Closing a tab** explicitly kills that tab's hosted PTY and drops its frozen
   record. Closing the last tab is allowed and leaves the task with zero tabs:
-  the sidebar row stays and re-opens on ⏎ / ctrl+e. A **scratch** task is the
-  exception — its last tab is its whole life, so closing it tears the task down.
+  the sidebar row stays and re-opens on ⏎ / ctrl+e. No folder (scratch) Sessions
+  included.
 - **Deleting a managed or directory Task** stops all of its hosted sessions and drops their frozen
   records. The task record is removed, but the branch stays; the worktree is
   removed unless the task is a directory Task.

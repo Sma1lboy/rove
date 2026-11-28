@@ -284,7 +284,7 @@ describe("task.openScratch", () => {
     expect(result).toEqual({ taskId: "S1" })
     expect(calls.at(-1)).toEqual({
       rpc: "task.openDir",
-      payload: { dir: "/home/me", scratch: true, vendor: "codex", model: "gpt-5", title: "fix login" },
+      payload: { dir: "/home/me", noProject: true, vendor: "codex", model: "gpt-5", title: "fix login" },
     })
   })
 
@@ -297,13 +297,13 @@ describe("task.openScratch", () => {
     const first = await run("task.openScratch", {}, { "task.openDir": { taskId: "S1" } })
     expect(first.calls.at(-1)).toEqual({
       rpc: "task.openDir",
-      payload: { dir: "/home/me", scratch: true, vendor: "claude" },
+      payload: { dir: "/home/me", noProject: true, vendor: "claude" },
     })
     await run("task.openScratch", { engine: "codex" }, { "task.openDir": { taskId: "S2" } })
     const again = await run("task.openScratch", {}, { "task.openDir": { taskId: "S3" } })
     expect(again.calls.at(-1)).toEqual({
       rpc: "task.openDir",
-      payload: { dir: "/home/me", scratch: true, vendor: "codex" },
+      payload: { dir: "/home/me", noProject: true, vendor: "codex" },
     })
     await expect(run("task.openScratch", { engine: "nope" })).rejects.toMatchObject({ code: "UNKNOWN_ENGINE" })
   })

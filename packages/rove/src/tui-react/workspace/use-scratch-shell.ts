@@ -1,126 +1,59 @@
 /**
- * Scratch temp-shell task lifecycle for the host:
- *
- *   - `openScratchShell` (ctrl+e dialog's "scratch" destination, the only
- *     entry; no chord): a scratch dir task at $HOME whose tab-1 runs the
- *     picked engine, or a bare shell when none was picked.
- *   - `onScratchExit`: the last shell exited; delete the row, no confirm (it
- *     owns no worktree/branch). Deliberately UNFORCED: `kind: "dir"` already
- *     skips the dirty gate and never removes the directory, so `force` would
- *     only license destroying a real worktree if the row's kind ever changed.
- *   - fold finish (`use-scratch-adopt.ts` moved the sessions under an existing
- *     task): re-point selection to the folded tab ONLY if the scratch row was
- *     selected, then delete the row. Delete AFTER the move, so the daemon's
- *     snapshot pty sweep sees the sessions under a live task id.
+ * Opening a No folder session (ctrl+e dialog's "scratch" destination, the only entry; no chord):
+ * an Ungrouped dir task at $HOME whose tab-1 runs the picked engine, or a bare shell when none was
+ * picked. It then lives like any other session; only an explicit move takes it out of Ungrouped.
  */
 
 import { homedir } from "node:os"
 import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
-import type { TabsSnapshotKv } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
 import { t } from "@sma1lboy/rove-core/i18n/index.ts"
 import { userFacingErrorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 import { deriveTitleFromPrompt } from "@sma1lboy/rove-core/orchestrator/title.ts"
 import { getGlobalDefaultVendor } from "@sma1lboy/rove-core/state/vendor-prefs.ts"
-import { DEFAULT_TASK_VENDOR, type Task } from "@sma1lboy/rove-core/types/task.ts"
+import { DEFAULT_TASK_VENDOR } from "@sma1lboy/rove-core/types/task.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { defaultDaemonLogPath } from "@sma1lboy/rove-daemon/daemon/paths"
-import { finishDeletedTaskFlow } from "../../tui/lib/task-actions"
-import { engineScratchTasks, requestTabActivation } from "./terminal-tabs-shared"
-import { useScratchAdopt } from "./use-scratch-adopt"
-
-/** Teardowns already started; module-level to survive per-render rebuilds.
- *  Never cleared (ids stay for the process's life). */
-const scratchTeardowns = new Set<string>()
+import { shellScratchTasks } from "./terminal-tabs-shared"
 
 /** The model and effort a No folder session launches its engine with. */
 export type ScratchModelPick = { readonly model?: string; readonly modelEffort?: string }
 
 export function useScratchShell(deps: {
   readonly orchestrator: RemoteOrchestrator
-  readonly tasks: readonly Task[]
-  readonly kv: TabsSnapshotKv
-  readonly selectedId: () => string | null
-  readonly selectTask: (taskId: string) => void
   readonly enterTask: (taskId: string) => void
-  readonly forgetTaskTabs: (taskId: string) => void
   readonly notifyError: (message: string) => void
-  readonly notifyInfo: (message: string) => void
   /** Parks a first prompt that the task's engine tab starts on. */
   readonly seedPrompt: (taskId: string, prompt: string) => void
 }): {
   openScratchShell: (vendor: VendorId | undefined, prompt?: string, pick?: ScratchModelPick) => void
-  onScratchExit: (taskId: string) => void
   reportProblem: () => void
 } {
-  const { orchestrator, enterTask, forgetTaskTabs, notifyError } = deps
-
-  // The adoption loop rides along; its fold hands back here.
-  useScratchAdopt({
-    tasks: deps.tasks,
-    orchestrator,
-    kv: deps.kv,
-    notifyInfo: deps.notifyInfo,
-    onFold: async (scratchTaskId, targetTaskId, tabId) => {
-      // Before the delete, so the deleted-selection fallback never picks a stranger.
-      if (deps.selectedId() === scratchTaskId) {
-        deps.selectTask(targetTaskId)
-        requestTabActivation(targetTaskId, tabId)
-      }
-      // No `force`: see the header.
-      await orchestrator.deleteTask(scratchTaskId)
-      forgetTaskTabs(scratchTaskId)
-    },
-  })
+  const { orchestrator, enterTask, notifyError } = deps
 
   const openScratchShell = (vendor: VendorId | undefined, prompt?: string, pick?: ScratchModelPick): void => {
     void orchestrator
       .openDirectoryTask({
         dir: homedir(),
-        scratch: true,
+        noProject: true,
         ...(vendor ? { vendor, ...pick } : {}),
         // Engines without a readable transcript never get auto-titled, so name it from the prompt now.
         ...(prompt?.trim() ? { title: deriveTitleFromPrompt(prompt) } : {}),
       })
       .then((task) => {
         // Before the select mounts its tabs: the mount reads the mark.
-        if (vendor) engineScratchTasks.add(task.id)
+        if (!vendor) shellScratchTasks.add(task.id)
         if (vendor && prompt) deps.seedPrompt(task.id, prompt)
         enterTask(task.id)
       })
       .catch((err) => notifyError(t("tasks.toast.scratchOpenFailed", { message: userFacingErrorMessage(err) })))
   }
 
-  const onScratchExit = (taskId: string): void => {
-    // Idempotent: ctrl+w on the last tab kills the PTY, whose exit re-enters
-    // before the delete lands and would toast a spurious "task not found".
-    if (scratchTeardowns.has(taskId)) return
-    scratchTeardowns.add(taskId)
-    void (async () => {
-      try {
-        // Unforced: see the header.
-        await orchestrator.deleteTask(taskId)
-        forgetTaskTabs(taskId)
-        await finishDeletedTaskFlow({
-          orch: orchestrator,
-          tasks: deps.tasks,
-          taskId,
-          logger: console,
-          logPrefix: "[rove scratch]",
-          // The exiting shell IS the session you were in; re-point focus.
-          updateActiveTask: true,
-        })
-      } catch (err) {
-        notifyError(t("tasks.toast.scratchCloseFailed", { message: userFacingErrorMessage(err) }))
-      }
-    })()
-  }
-
-  /** Report a problem: a scratch conversation on the default engine, seeded to interview the user and file the issue. */
+  /** Report a problem: a No folder conversation on the default engine, seeded to interview the user and file the issue. */
   const reportProblem = (): void =>
     openScratchShell(
       getGlobalDefaultVendor() ?? DEFAULT_TASK_VENDOR,
       t("help.reportPrompt", { logPath: defaultDaemonLogPath() }),
     )
 
-  return { openScratchShell, onScratchExit, reportProblem }
+  return { openScratchShell, reportProblem }
 }

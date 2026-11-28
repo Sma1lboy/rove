@@ -67,7 +67,7 @@ where the CLIs do — OMP's approval/question events, pi's `--fork`.
 | `task.changed` | any watched field changed (title/branch/status/pin/vendor/…) — snapshot-diff sourced, so EVERY mutation path fires (`detail.fields/from/to`) | ✅ (subsumes the deferred `task.status-changed`) |
 | `task.landed` | branch merged back into the base repo (`detail.strategy/landedOn/commit`) | ✅ |
 | `task.pr-changed` | PR status changed on the task (`detail.from/to`) | ✅ |
-| `worktree.created` | worktree materialized for a task (lazy ensure, adopt, scratch-adopt — snapshot-diff sourced) | ✅ |
+| `worktree.created` | worktree materialized for a task (lazy ensure, adopt — snapshot-diff sourced) | ✅ |
 | `issue.changed` | daemon-tracker issue mutated (`detail.repo/op`) | ✅ |
 | `note.filed` | a session filed a field note (`detail.repo/author/text/persisted`) | ✅ |
 | `message.delivered` | text dispatched into a task's live session (`detail.source/tabId/length`) | ✅ |

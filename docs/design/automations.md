@@ -33,13 +33,12 @@ never moves the cwd. The directory is made at save and again before every
 firing that needs it (precheck, script, create, deliver, revive). Its tasks
 are `kind: "dir"` tasks (`openDirectoryTask`, so no worktree or branch, and
 it never hits the project-eligibility gate that refuses Rove's own state
-dirs) with `noProject: true`. They are never `scratch`, so the Scratch
-lifecycle (delete on last-tab exit, adopt, rename) does not apply, and
+dirs) with `noProject: true`, and
 no project is saved for a `noProject` row even when the directory is a git
 root. A standing session carries the `routine` link,
 so it reuses and revives in the same directory; a fresh run is an ordinary
-row. Both sort into the sidebar's **Ungrouped** group with Scratch
-(`kind === "dir" && (scratch || noProject)`).
+row. Both sort into the sidebar's **Ungrouped** group with No folder sessions
+(`kind === "dir" && noProject`).
 
 No `baseRef` (refused at save), and `update` cannot add or drop `repo`; the
 loader keeps repo-less entries. The default engine skips the per-repo layer.

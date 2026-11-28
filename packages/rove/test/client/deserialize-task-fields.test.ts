@@ -46,7 +46,6 @@ const FULL: DeepRequired<Omit<SerializedTask, "origin">> = {
   branch: "fix/decode",
   worktreePath: "/repo/.worktrees/decode",
   kind: "task",
-  scratch: true,
   noProject: true,
   connector: "weixin",
   routine: { automationId: "auto-1" },
@@ -174,5 +173,12 @@ describe("deserializeTask", () => {
   it("takes every wire field off the wire", () => {
     const task = deserializeTask(FULL as SerializedTask) as unknown as Record<string, unknown>
     expect(Object.fromEntries(Object.keys(FULL).map((key) => [key, task[key]]))).toEqual(FULL)
+  })
+
+  it("reads the `scratch` a daemon one version behind sends as Ungrouped", () => {
+    const { noProject: _, ...rest } = FULL
+    const task = deserializeTask({ ...rest, scratch: true } as SerializedTask)
+    expect(task.noProject).toBe(true)
+    expect("scratch" in task).toBe(false)
   })
 })

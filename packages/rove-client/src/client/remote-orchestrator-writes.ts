@@ -56,21 +56,16 @@ export async function ensureProjectOp(client: RoveDaemonClient, repo: string): P
   return res.repo
 }
 
-/** Open a directory as a `kind:"dir"` task; `scratch` puts it in the sidebar's Scratch section. */
+/** Open a directory as a `kind:"dir"` task; `noProject` puts it in the sidebar's Ungrouped group. */
 export async function openDirectoryTaskOp(
   client: RoveDaemonClient,
   {
     modelEffort,
     ...wire
-  }: { dir: string; scratch?: boolean; vendor?: VendorId; model?: string; modelEffort?: string; title?: string },
+  }: { dir: string; noProject?: boolean; vendor?: VendorId; model?: string; modelEffort?: string; title?: string },
 ): Promise<Task> {
   const res = await client.request<{ task: SerializedTask }>("task.openDir", { ...wire, effort: modelEffort })
   return deserializeTask(res.task)
-}
-
-/** Scratch → project migration: repoint + clear the flag. */
-export async function adoptScratchRepoOp(client: RoveDaemonClient, id: TaskId | string, repo: string): Promise<void> {
-  await client.request("task.adoptScratchRepo", { taskId: String(id), repo })
 }
 
 /** Regroup a top-level task under another project; sessions and checkouts stay where they are. */

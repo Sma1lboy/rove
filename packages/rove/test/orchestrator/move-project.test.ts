@@ -112,12 +112,12 @@ describe("moveTaskToProject", () => {
     expect(back?.gitRepo).toBeUndefined()
   })
 
-  it("an Ungrouped scratch session joins the project and keeps its directory", async () => {
-    const scratch = await orch.openDirectoryTask({ dir: join(home), scratch: true })
+  it("an Ungrouped session joins the project and keeps its directory", async () => {
+    const scratch = await orch.openDirectoryTask({ dir: join(home), noProject: true })
     await orch.moveTaskToProject(scratch.id, repoB)
     const moved = orch.getTask(scratch.id)
     expect(moved?.repo).toBe(repoB)
-    expect(moved?.scratch).toBe(false)
+    expect(moved?.noProject).toBeUndefined()
     expect(moved?.worktreePath).toBe(scratch.worktreePath)
   })
 

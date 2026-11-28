@@ -332,8 +332,8 @@ export function deserializeTask(s: SerializedTask): Task {
     worktreePath: s.worktreePath,
     // A daemon one version behind (another machine) still sends its project rows as `main`.
     kind: (s.kind as string) === "main" ? "dir" : s.kind,
-    ...(s.scratch ? { scratch: true } : {}),
-    ...(s.noProject ? { noProject: true } : {}),
+    // A daemon one version behind still sends `scratch` for an Ungrouped session.
+    ...(s.noProject || (s as { scratch?: boolean }).scratch ? { noProject: true } : {}),
     ...(s.connector ? { connector: s.connector } : {}),
     ...(s.routine ? { routine: s.routine } : {}),
     status: s.status,

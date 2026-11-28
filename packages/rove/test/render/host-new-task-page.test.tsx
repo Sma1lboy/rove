@@ -127,7 +127,7 @@ test("the global New task opens on No folder and starts a no-folder session with
   mockInput.pressEnter()
   expect(await openCall).toEqual({
     dir: homedir(),
-    scratch: true,
+    noProject: true,
     vendor: expect.any(String),
     model: "m-1",
     modelEffort: expect.any(String),

@@ -28,7 +28,7 @@ describe("moveProject", () => {
   const row = (repo: string, title: string, extra: Record<string, unknown> = {}) =>
     store.create({ repo, title, branch: "", worktreePath: repo, status: "backlog", vendor: "claude", ...extra })
   // The rail places a project at its first task in the store.
-  const projectOrder = (tasks = orch.listTasks()) => [...new Set(tasks.filter((t) => !t.scratch).map((t) => t.repo))]
+  const projectOrder = (tasks = orch.listTasks()) => [...new Set(tasks.filter((t) => !t.noProject).map((t) => t.repo))]
 
   it("moves a project as one block, its own order kept", async () => {
     await row("/a", "a", { kind: "dir" })
@@ -36,14 +36,14 @@ describe("moveProject", () => {
     await row("/dir", "d1", { kind: "dir" })
     await row("/a", "a-task")
     await row("/dir", "d2", { kind: "dir" })
-    const scratch = await row("/dir", "scratch", { kind: "dir", scratch: true })
+    const scratch = await row("/dir", "scratch", { kind: "dir", noProject: true })
 
     await orch.moveProject("/dir", "/a", "before")
     expect(projectOrder()).toEqual(["/dir", "/a", "/b"])
     expect(
       orch
         .listTasks()
-        .filter((t) => t.repo === "/dir" && !t.scratch)
+        .filter((t) => t.repo === "/dir" && !t.noProject)
         .map((t) => t.title),
     ).toEqual(["d1", "d2"])
     // A Scratch row on the same path belongs to no project and stays where it was.

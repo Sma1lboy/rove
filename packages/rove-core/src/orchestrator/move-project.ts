@@ -6,7 +6,7 @@
  */
 
 import { isRemoteRepoKey } from "@sma1lboy/rove-core/state/repos.ts"
-import { SETTLE_IN_PROJECT, isEphemeral, isUngrouped } from "@sma1lboy/rove-core/types/task-scratch.ts"
+import { isUngrouped } from "@sma1lboy/rove-core/types/task-scratch.ts"
 import type { Task, TaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { gitRepoOf, subtreeIds } from "@sma1lboy/rove-daemon/task-tree"
 import { normalizeMainRepo, titleFromRepo } from "./core-helpers.ts"
@@ -78,8 +78,7 @@ export async function moveTaskToProjectRow(
     await deps.store.update(row.id, {
       repo: target,
       ...(row.kind === "task" ? { gitRepo: undefined } : {}),
-      ...(isEphemeral(row) ? { ...SETTLE_IN_PROJECT, title: row.title || titleFromRepo(target) } : {}),
-      ...(row.noProject ? { noProject: undefined } : {}),
+      ...(row.noProject ? { noProject: undefined, title: row.title || titleFromRepo(target) } : {}),
     })
   }
   return { repo: target, moved }

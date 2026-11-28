@@ -12,7 +12,7 @@ describe("task wire title", () => {
       branch: "",
       worktreePath: "/Users/me",
       kind: "dir",
-      scratch: true,
+      noProject: true,
       status: "backlog",
       createdAt: "2026-08-16T00:00:00.000Z",
       updatedAt: "2026-08-16T00:00:00.000Z",

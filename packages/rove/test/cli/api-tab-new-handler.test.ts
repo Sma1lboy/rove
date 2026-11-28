@@ -198,7 +198,7 @@ describe("tab-new handler", () => {
 
   it("--kind shell on a fresh Ungrouped task is that task's own tab-1, no child", async () => {
     const client = new FakeClient({
-      "task.get": () => ({ task: taskFixture({ id: "abc", scratch: true }) }),
+      "task.get": () => ({ task: taskFixture({ id: "abc", kind: "dir", noProject: true }) }),
       "tabs.get": () => ({ state: null, rev: 0 }),
       "terminalTab.add": () => ({ clients: 1 }),
     })

@@ -205,9 +205,7 @@ export interface DaemonTask {
   readonly branch: string
   readonly worktreePath: string
   readonly kind?: "task" | "dir"
-  /** Dir task with no settled cwd (sidebar Scratch section); cleared when named or adopted. */
-  readonly scratch?: boolean
-  /** Dir task a projectless routine made; sorts into the Ungrouped group with Scratch. */
+  /** Ungrouped dir task (No folder, a projectless routine's run); only an explicit move clears it. */
   readonly noProject?: boolean
   /** The chat connector this session answers for; its project sorts last. */
   readonly connector?: string
@@ -323,27 +321,23 @@ export interface DaemonOrchestrator extends CheckpointOrchestrator {
   ensureProject(repo: string): Promise<string>
   /** Rows loaded from a stored `main` row: dropped when they hold nothing, else ordinary from here on. */
   settleProjectRows(hasTabs: (taskId: string) => boolean): Promise<void>
-  /** Open an existing directory as a standalone `kind:"dir"` task (`rove .`).
-   *  `scratch` marks it a temp shell task for the sidebar's Scratch section. */
+  /** Open an existing directory as a standalone `kind:"dir"` task (`rove .`). */
   openDirectoryTask(input: {
     dir: string
     vendor?: VendorId
-    scratch?: boolean
-    /** Projectless routine session: sorts into the Ungrouped group, never promoted to a project. */
+    /** Ungrouped (No folder): stays there until an explicit move. */
     noProject?: boolean
-    /** Explicit title; absent mints `<dir>-<suffix>` (scratch: empty). */
+    /** Explicit title; absent mints `<dir>-<suffix>` (noProject: empty, so it shows its path). */
     title?: string
     model?: string
     modelEffort?: string
     routine?: TaskRoutineLink
   }): Promise<DaemonTask>
-  /** Migrate a scratch task into `repo` and clear the scratch flag. */
-  adoptScratchRepo(id: string, repo: string): Promise<void>
   /** Regroup a top-level task and its children under the project at `repo`; the checkouts and sessions stay where they are. */
   moveTaskToProject(id: string, repo: string): Promise<{ repo: string; moved: readonly string[] }>
   ensureWorktree(id: string, opts?: { onProgress?: (percent: number) => void }): Promise<string>
   forgetProject(repo: string): Promise<void>
-  setTitle(id: string, title: string, opts?: { keepScratch?: boolean; fromEngine?: boolean }): Promise<void>
+  setTitle(id: string, title: string, opts?: { fromEngine?: boolean }): Promise<void>
   setBranch(id: string, branch: string): Promise<void>
   /** Record the language a task's user writes in, from their own prompt text. */
   observeLanguage(id: string, text: string): Promise<void>

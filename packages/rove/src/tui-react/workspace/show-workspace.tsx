@@ -9,7 +9,7 @@ import type { SectionId } from "@sma1lboy/rove-client/settings/model.ts"
 import { engineLaunchArgv } from "@sma1lboy/rove-core/engine/engine-presets.ts"
 import { remoteKeyForRepo } from "@sma1lboy/rove-core/exec/resolve.ts"
 import { taskCwd, taskRepos } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
-import { isEphemeral } from "@sma1lboy/rove-core/types/task-scratch.ts"
+import { isUngrouped } from "@sma1lboy/rove-core/types/task-scratch.ts"
 import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "@sma1lboy/rove-core/types/task.ts"
 import type { ReactNode } from "react"
 import type { QuickTaskResult } from "../component/quick-task-composer"
@@ -43,8 +43,6 @@ export function ShowWorkspace(props: {
   initialPrompt?: string
   /** The user landed on a tab of the selected task; resolve its episodes. */
   onTabVisited?: (taskId: string, tabId: string) => void
-  /** A scratch task's last tab exited — the host deletes the row. */
-  onScratchExit?: (taskId: string) => void
   /** ctrl+e's "scratch" destination — open a Scratch task on `vendor`, or a bare shell. */
   onOpenScratch?: (vendor: VendorId | undefined) => void
   /** The ctrl+e picker landed on an engine — persist it and toast the result. */
@@ -112,9 +110,9 @@ export function ShowWorkspace(props: {
       />
     )
   }
-  // Existing checkouts wait for an explicit start; managed and scratch tasks auto-start.
+  // Existing checkouts wait for an explicit start; managed and No folder sessions auto-start.
   const known = props.task ? knownTaskTabs(kv, String(props.task.id)) : null
-  if (props.task && (known ? known.tabs.length === 0 : !isEphemeral(props.task) && props.task.kind === "dir")) {
+  if (props.task && (known ? known.tabs.length === 0 : !isUngrouped(props.task) && props.task.kind === "dir")) {
     return (
       <EmptyWorkspacePane
         taskId={String(props.task.id)}
@@ -141,11 +139,6 @@ export function ShowWorkspace(props: {
       worktree={path}
       repo={props.task?.repo}
       taskKind={props.task?.kind}
-      ephemeral={props.task ? isEphemeral(props.task) : false}
-      onScratchExit={() => {
-        const taskId = props.task?.id
-        if (taskId) props.onScratchExit?.(taskId)
-      }}
       onOpenScratch={props.onOpenScratch}
       command={engineLaunchArgv({
         command: props.task?.command,

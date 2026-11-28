@@ -48,7 +48,6 @@ const FULL: DeepRequired<Omit<SerializedTask, "origin" | "repoId">> = {
   branch: "fix/wire",
   worktreePath: "/repo/.worktrees/wire",
   kind: "task",
-  scratch: true,
   noProject: true,
   connector: "weixin",
   routine: { automationId: "auto-1" },

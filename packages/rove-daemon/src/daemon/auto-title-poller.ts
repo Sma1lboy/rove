@@ -10,7 +10,7 @@
  * covers a `rove` running without a live daemon.
  */
 
-import { isEphemeral } from "../task-scratch.ts"
+import { isUnnamedUngrouped } from "../task-scratch.ts"
 import type { DaemonOrchestrator, VendorId } from "./contracts.ts"
 import { logDaemonError } from "./crash-log"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
@@ -72,18 +72,18 @@ export async function runAutoTitlePass(
 ): Promise<AutoTitled[]> {
   const renamed: AutoTitled[] = []
   const snapshot = orch.listTasks()
-  // A scratch task is stored untitled (the wire shows its path), so empty counts as unnamed.
-  const unnamed = (t: { title: string; scratch?: boolean }) =>
-    t.title === placeholderTitle || (isEphemeral(t) && !t.title)
+  // A No folder session is stored untitled (the wire shows its path), so empty counts as unnamed.
+  const unnamed = (t: { kind?: string; title: string; noProject?: boolean }) =>
+    t.title === placeholderTitle || isUnnamedUngrouped(t)
   for (const task of snapshot) {
     if (!unnamed(task) || !task.worktreePath) continue
     try {
       // A directory scan finds whichever conversation in that directory came first, so a
       // second conversation in a shared directory would take its sibling's title. Name it
-      // from its own pinned session instead, or not at all. A scratch task's directory is
+      // from its own pinned session instead, or not at all. A No folder session's directory is
       // usually home, whose first conversation is never its own.
       const ownOnly =
-        isEphemeral(task) || snapshot.some((t) => t.id !== task.id && t.worktreePath === task.worktreePath)
+        isUnnamedUngrouped(task) || snapshot.some((t) => t.id !== task.id && t.worktreePath === task.worktreePath)
       const own = ownOnly ? shared?.conversationOf(task.id) : undefined
       if (ownOnly && !own) continue
       const derived = own
@@ -95,7 +95,7 @@ export async function runAutoTitlePass(
       // landed during the await.
       const current = orch.getTask(task.id)
       if (!current || !unnamed(current)) continue
-      await orch.setTitle(task.id, title, { keepScratch: true })
+      await orch.setTitle(task.id, title)
       renamed.push({ id: task.id, title })
     } catch (err) {
       logDaemonError("auto-title-poller", err)

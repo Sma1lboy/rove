@@ -64,10 +64,10 @@ describe("RemoteOrchestrator RPC wire mapping", () => {
   })
 
   it("openDirectoryTask remaps modelEffort to the wire's `effort`", async () => {
-    await orch.openDirectoryTask({ dir: "/home", scratch: true, vendor: "claude", model: "m-1", modelEffort: "high" })
+    await orch.openDirectoryTask({ dir: "/home", noProject: true, vendor: "claude", model: "m-1", modelEffort: "high" })
     expect(request).toHaveBeenCalledWith("task.openDir", {
       dir: "/home",
-      scratch: true,
+      noProject: true,
       vendor: "claude",
       model: "m-1",
       effort: "high",

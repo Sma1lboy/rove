@@ -305,7 +305,7 @@ export class PtyHost {
   }
 
   /**
-   * Re-key a running session (`pty.rename`, the scratch-fold move); the
+   * Re-key a running session (`pty.rename`); the
    * child is untouched. False when the source is missing or the target is
    * taken. The freeze record moves with it; attached sinks keep streaming
    * under the new `session.key`.

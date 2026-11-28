@@ -112,7 +112,7 @@ const FIXTURES: ReadonlyArray<{
     name: "a scratch session filed after a project",
     tasks: [
       task("a1", { repo: "/work/api" }),
-      task("s1", { kind: "dir", repo: "/tmp/scratch", scratch: true, worktreePath: "/tmp/scratch", branch: "" }),
+      task("s1", { kind: "dir", repo: "/tmp/scratch", noProject: true, worktreePath: "/tmp/scratch", branch: "" }),
     ],
     tabs: { a1: ["tab-1"], s1: ["tab-1"] },
   },

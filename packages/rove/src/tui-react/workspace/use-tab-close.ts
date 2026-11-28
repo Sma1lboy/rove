@@ -14,7 +14,6 @@
 import {
   type TabsState,
   type TerminalTab,
-  closeActiveTab,
   closeTab,
   recycleTabs,
   tabExitAction,
@@ -39,10 +38,8 @@ export interface TabCloseDeps {
   readonly bumpResetToken: () => void
   /** One-shot-per-tab dead-on-attach resume marks; component-owned to survive rebuilds. */
   readonly resumeTriedRef: { readonly current: Set<string> }
-  /** Only reachable on a scratch task missing its teardown hook. */
+  /** The active tab is gone already (a stale close). */
   readonly notifyCannotCloseLast: (tabId: string) => void
-  /** Scratch only: the LAST tab going away (exit or ctrl+w) ends the task. */
-  readonly onScratchExit?: () => void
 }
 
 export interface TabClose {
@@ -75,9 +72,7 @@ export function useTabClose(deps: TabCloseDeps): TabClose {
   function closeById(id: string): void {
     const current = deps.stateRef.current
     const closing = current.tabs.find((tab) => tab.id === id)
-    // Scratch tasks refuse the last tab here; `closeActive` routes that via `onScratchExit`.
-    const { state: next, closedId } = closeTab(current, id, { allowEmpty: deps.onScratchExit === undefined })
-    // Refused: no such `id`, or a scratch task's last tab.
+    const { state: next, closedId } = closeTab(current, id, { allowEmpty: true })
     if (!closedId) return
     deps.updateRef.current(next)
     releaseClosedTabPtys(taskId(), closing, closedId)
@@ -86,19 +81,8 @@ export function useTabClose(deps: TabCloseDeps): TabClose {
   function closeActive(): void {
     const current = deps.stateRef.current
     const closing = current.tabs.find((tab) => tab.id === current.activeId)
-    // Scratch: `closeActiveTab` refuses the last tab, and the refusal tears
-    // the task down below.
-    const { state: next, closedId } =
-      deps.onScratchExit === undefined
-        ? closeTab(current, current.activeId, { allowEmpty: true })
-        : closeActiveTab(current)
+    const { state: next, closedId } = closeTab(current, current.activeId, { allowEmpty: true })
     if (!closedId) {
-      // Same path as the scratch shell exiting on its own.
-      if (deps.onScratchExit) {
-        if (closing) releaseClosedTabPtys(taskId(), closing, closing.id)
-        deps.onScratchExit()
-        return
-      }
       deps.notifyCannotCloseLast(current.activeId)
       return
     }
@@ -133,12 +117,6 @@ export function useTabClose(deps: TabCloseDeps): TabClose {
     }
     if (deps.stateRef.current.tabs.length > 1) {
       closeExited(active.id)
-      return
-    }
-    // Scratch: the last shell exiting ends the task; nothing to respawn into.
-    if (deps.onScratchExit) {
-      getDefaultPtyRegistry().release(tabPtyKeyFor(taskId(), active))
-      deps.onScratchExit()
       return
     }
     // A shell's last tab ending leaves the row open and empty (⏎ starts a fresh shell) rather than

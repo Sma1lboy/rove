@@ -1,7 +1,5 @@
 /**
- * ctrl+w on a task's ONLY tab: a scratch task tears down the whole task
- * (the same zero-ceremony path as its shell exiting,
- * `onScratchExit`), while an ordinary task is simply left with no tabs:
+ * ctrl+w on a task's ONLY tab leaves the task with no tabs, No folder sessions included:
  * the row stays and re-opens on ⏎ / ctrl+e.
  */
 
@@ -26,8 +24,8 @@ import {
 } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import { useTabClose } from "../../src/tui-react/workspace/use-tab-close.ts"
 
-function harness(state: TabsState, opts: { scratch?: boolean } = {}) {
-  const calls = { scratchExit: 0, cannotCloseLast: 0, updates: [] as TabsState[] }
+function harness(state: TabsState) {
+  const calls = { cannotCloseLast: 0, updates: [] as TabsState[] }
   const active = state.tabs.find((tab) => tab.id === state.activeId) as TerminalTab
   const close = useTabClose({
     stateRef: { current: state },
@@ -40,27 +38,12 @@ function harness(state: TabsState, opts: { scratch?: boolean } = {}) {
     notifyCannotCloseLast: () => {
       calls.cannotCloseLast += 1
     },
-    ...(opts.scratch
-      ? {
-          onScratchExit: () => {
-            calls.scratchExit += 1
-          },
-        }
-      : {}),
   })
   return { close, calls }
 }
 
 describe("closeActive on the only tab", () => {
-  it("scratch task: tears the task down instead of refusing", () => {
-    const { close, calls } = harness(initialShellTabs("/bin/zsh"), { scratch: true })
-    close.closeActive()
-    expect(calls.scratchExit).toBe(1)
-    expect(calls.cannotCloseLast).toBe(0)
-    expect(calls.updates).toHaveLength(0)
-  })
-
-  it("ordinary task: closes it, leaving the task with no tabs", () => {
+  it("closes it, leaving the task with no tabs", () => {
     // The task and its worktree stay — its sidebar row
     // remains and re-opens on ⏎ / ctrl+e — so there is nothing to warn about.
     const { close, calls } = harness(initialShellTabs("/bin/zsh"))

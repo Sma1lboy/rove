@@ -33,5 +33,5 @@ export async function syncEngineTitle(
   if (!tab || tab.id !== tabId) return
   const named = deps.conversationTitle(tab, task.vendor ?? deps.defaultVendor, rawTitle)?.trim()
   if (!named || named === task.engineTitle) return
-  await deps.orch.setTitle(taskId, named, { keepScratch: true, fromEngine: true })
+  await deps.orch.setTitle(taskId, named, { fromEngine: true })
 }

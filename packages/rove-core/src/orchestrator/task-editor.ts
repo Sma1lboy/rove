@@ -3,7 +3,6 @@
 
 import { isPlaceholderDerivedBranch, sanitizeTaskTitle } from "@sma1lboy/rove-core/orchestrator/title.ts"
 import { isRemoteRepoKey } from "@sma1lboy/rove-core/state/repos.ts"
-import { KEEP_SESSION, isEphemeral } from "@sma1lboy/rove-core/types/task-scratch.ts"
 import type {
   Task,
   TaskId,
@@ -52,24 +51,14 @@ export class TaskEditor {
     return task
   }
 
-  /** Naming a scratch task keeps it (`KEEP_SESSION`); an automatic name passes `keepScratch`.
-   *  The latest name wins; `fromEngine` also records it as the engine's report, so only a NEW report renames again. */
-  async setTitle(
-    id: TaskId | string,
-    title: string,
-    opts?: { keepScratch?: boolean; fromEngine?: boolean },
-  ): Promise<void> {
+  /** The latest name wins; `fromEngine` also records it as the engine's report, so only a NEW report renames again. */
+  async setTitle(id: TaskId | string, title: string, opts?: { fromEngine?: boolean }): Promise<void> {
     const trimmed = sanitizeTaskTitle(title)
     if (!trimmed) throw new Error("setTitle: title is required (empty or whitespace-only rejected)")
     const task = this.requireTask(id)
-    const unscratch = isEphemeral(task) && opts?.keepScratch !== true
     const engineTitle = opts?.fromEngine && task.engineTitle !== trimmed ? { engineTitle: trimmed } : {}
-    if (task.title === trimmed && !unscratch && !("engineTitle" in engineTitle)) return
-    await this.store.update(task.id, {
-      title: trimmed,
-      ...(unscratch ? KEEP_SESSION : {}),
-      ...engineTitle,
-    })
+    if (task.title === trimmed && !("engineTitle" in engineTitle)) return
+    await this.store.update(task.id, { title: trimmed, ...engineTitle })
     await this.followBranchToTitle(task, trimmed)
   }
 

@@ -57,10 +57,8 @@ export function coerceTask(value: unknown): Task | null {
   // A stored `main` row (a project's own checkout) is a session in that directory like any other.
   const fromProjectRow = v.kind === "main" || v.fromProjectRow === true
   const kind: Task["kind"] = v.kind === "main" || v.kind === "dir" ? "dir" : "task"
-  // Scratch only means anything on a dir task — a corrupt flag elsewhere is
-  // dropped rather than inventing a Scratch worktree row.
-  const scratch = kind === "dir" && v.scratch === true
-  const noProject = kind === "dir" && v.noProject === true
+  // Only a dir task can be Ungrouped; a legacy `scratch` row is one too, and is never written back as `scratch`.
+  const noProject = kind === "dir" && (v.noProject === true || v.scratch === true)
   const deletion = coerceDeletion(v.deletion)
   const quotaResume = coerceQuotaResume(v.quotaResume)
   const scheduledStart = coerceScheduledStart(v.scheduledStart)
@@ -92,7 +90,6 @@ export function coerceTask(value: unknown): Task | null {
     ...(autoFixCi ? { autoFixCi } : {}),
     kind,
     ...(fromProjectRow ? { fromProjectRow: true } : {}),
-    ...(scratch ? { scratch: true } : {}),
     ...(noProject ? { noProject: true } : {}),
     ...(typeof v.connector === "string" && v.connector.length > 0 ? { connector: v.connector } : {}),
     ...(routine ? { routine } : {}),

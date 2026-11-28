@@ -301,7 +301,10 @@ export const SCENES: readonly Scene[] = [
     about: "a scratch task is one row under Ungrouped, whatever tabs it has (issue #41)",
     setup: resetScene,
     element: tree({
-      tasks: [task("scratchy", { kind: "dir", scratch: true, repo: "/Users/me", branch: "" } as Partial<Task>), ALPHA],
+      tasks: [
+        task("scratchy", { kind: "dir", noProject: true, repo: "/Users/me", branch: "" } as Partial<Task>),
+        ALPHA,
+      ],
     }),
   },
   {
@@ -312,7 +315,7 @@ export const SCENES: readonly Scene[] = [
       tasks: [
         task("scratchy", {
           kind: "dir",
-          scratch: true,
+          noProject: true,
           title: "jacksonc-ab3x",
           repo: "/Users/me/deep/nested/project-dir",
           worktreePath: "/Users/me/deep/nested/project-dir",

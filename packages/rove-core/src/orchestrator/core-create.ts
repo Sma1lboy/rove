@@ -1,13 +1,12 @@
 /**
  * Minting task rows: repo-backed (lazy worktree), standalone directory
- * (`rove .`), and scratch-shell adoption. Takes the store, not the
+ * (`rove .`, No folder). Takes the store, not the
  * Orchestrator, so the Orchestrator stays a thin delegator.
  */
 
 import { PLACEHOLDER_TASK_TITLE, sanitizeTaskTitle } from "@sma1lboy/rove-core/orchestrator/title.ts"
 import { isRemoteRepoKey } from "@sma1lboy/rove-core/state/repos.ts"
 import { resolvePreferredVendor } from "@sma1lboy/rove-core/state/vendor-prefs.ts"
-import { SETTLE_IN_PROJECT, isEphemeral } from "@sma1lboy/rove-core/types/task-scratch.ts"
 import type { Task, TaskId, TaskRoutineLink, VendorId } from "@sma1lboy/rove-core/types/task.ts"
 import { DEFAULT_TASK_VENDOR, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { lineageRootId } from "@sma1lboy/rove-daemon/task-tree"
@@ -39,12 +38,9 @@ export interface CreateDeps extends StoreDeps {
 export interface OpenDirectoryTaskInput {
   readonly dir: string
   readonly vendor?: VendorId
-  /** Temp shell task for the sidebar's Scratch section: same dir-task shape,
-   *  `scratch: true`, shell-exit deletes the row. */
-  readonly scratch?: boolean
-  /** Projectless routine session: groups with Scratch, never promoted to a project. */
+  /** Ungrouped (a No folder session, a projectless routine's run): stays there until an explicit move. */
   readonly noProject?: boolean
-  /** Explicit title; absent mints `<dir>-<suffix>` (scratch: empty). */
+  /** Explicit title; absent mints `<dir>-<suffix>` (noProject: empty, so it shows its path). */
   readonly title?: string
   readonly model?: string
   readonly modelEffort?: string
@@ -131,8 +127,8 @@ export async function openDirectoryTaskRow(deps: StoreDeps, input: OpenDirectory
   const remote = isRemoteRepoKey(input.dir)
   const dir = remote ? input.dir : canonPath(input.dir)
   const explicitTitle = input.title ? sanitizeTaskTitle(input.title) : ""
-  // Scratch mints no name (its home is unsettled); displays fall back to path/branch.
-  const title = explicitTitle || (isEphemeral(input) ? "" : `${titleFromRepo(dir)}-${randomDirTaskSuffix()}`)
+  // No folder mints no name; displays fall back to path/branch until auto-title or a rename names it.
+  const title = explicitTitle || (input.noProject ? "" : `${titleFromRepo(dir)}-${randomDirTaskSuffix()}`)
   return deps.store.create({
     repo: dir,
     title,
@@ -140,7 +136,6 @@ export async function openDirectoryTaskRow(deps: StoreDeps, input: OpenDirectory
     worktreePath: remote ? repoWorkingDir(dir) : dir,
     status: "backlog",
     kind: "dir",
-    ...(isEphemeral(input) ? { scratch: true } : {}),
     ...(input.noProject ? { noProject: true } : {}),
     ...(input.routine ? { routine: input.routine } : {}),
     ...(input.workspace ? { workspace: input.workspace } : {}),
@@ -148,16 +143,4 @@ export async function openDirectoryTaskRow(deps: StoreDeps, input: OpenDirectory
     ...(input.model?.trim() ? { model: input.model.trim() } : {}),
     vendor: input.vendor ?? resolvePreferredVendor(),
   })
-}
-
-/**
- * Adopt a scratch task into `repo` (its shell's cwd landed there and a coding
- * harness was detected): it becomes an ordinary `dir` row under that repo.
- * No-op unless it is a scratch dir task.
- */
-export async function adoptScratchRepoRow(deps: StoreDeps, id: TaskId | string, repo: string): Promise<void> {
-  const task = deps.store.get(id)
-  if (!task || task.kind !== "dir" || !isEphemeral(task)) return
-  const dir = canonPath(repo)
-  await deps.store.update(id, { repo: dir, worktreePath: dir, ...SETTLE_IN_PROJECT, title: titleFromRepo(dir) })
 }
