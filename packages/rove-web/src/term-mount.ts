@@ -307,6 +307,9 @@ export function mountTerminal(o: MountOpts): TermHandle {
   const offNarrow = followFontSize(term, refit)
   const observer = new ResizeObserver(refit)
   observer.observe(el)
+  // A new device pixel ratio changes the cell size with the host's box unchanged: the screen then no longer fits.
+  const screen = term.element?.querySelector(".xterm-screen")
+  if (screen) observer.observe(screen)
   const offMoving = layoutMoving.subscribe(refit)
   // The theme and the scrollback depth follow Settings: a terminal restored before the page's first prefs reply catches up.
   const offScroll = prefsStore.subscribe(() => {
