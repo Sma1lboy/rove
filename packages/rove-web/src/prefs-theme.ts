@@ -88,17 +88,38 @@ function quietInks(palette: Palette): { muted: string; subtle: string } {
   return { muted, subtle }
 }
 
-/** The ground the panes rest on: the page colour a step toward black, a shorter step where it is already light. */
-function canvasOf(paper: string): string {
-  const keep = luminance(paper) < 0.18 ? 0.6 : 0.93
-  return `#${channelsOf(paper)
-    .map((c) =>
-      Math.round(c * keep)
-        .toString(16)
-        .padStart(2, "0"),
-    )
+const toLinear = (c: number) => {
+  const s = c / 255
+  return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+}
+const toByte = (l: number) => {
+  const s = l <= 0.0031308 ? l * 12.92 : 1.055 * Math.max(l, 0) ** (1 / 2.4) - 0.055
+  return Math.round(Math.min(1, Math.max(0, s)) * 255)
+}
+
+/** OKLab's lightness of `hex` moved by `dl`, hue and chroma kept (Ottosson's sRGB ↔ OKLab matrices). */
+function shiftLightness(hex: string, dl: number): string {
+  const [r = 0, g = 0, b = 0] = channelsOf(hex).map(toLinear)
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+  const L = 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s + dl
+  const A = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s
+  const B = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s
+  const l3 = (L + 0.3963377774 * A + 0.2158037573 * B) ** 3
+  const m3 = (L - 0.1055613458 * A - 0.0638541728 * B) ** 3
+  const s3 = (L - 0.0894841775 * A - 1.291485548 * B) ** 3
+  return `#${[
+    4.0767416621 * l3 - 3.3077115913 * m3 + 0.2309699292 * s3,
+    -1.2684380046 * l3 + 2.6097574011 * m3 - 0.3413193965 * s3,
+    -0.0041960863 * l3 - 0.7034186147 * m3 + 1.707614701 * s3,
+  ]
+    .map((c) => toByte(c).toString(16).padStart(2, "0"))
     .join("")}`
 }
+
+/** The docked rail: the page a small step darker, as Claude Desktop's sidebar, so the two only just part. */
+const sidebarOf = (paper: string): string => shiftLightness(paper, luminance(paper) < 0.18 ? -0.03 : -0.022)
 
 /** Custom properties for `:root`. Empty before the first reply, so the stylesheet's own dark tokens stand. */
 export function cssVars(palette: Palette, prefs: Pick<Prefs, "focusAccent" | "colorblind">): Record<string, string> {
@@ -106,7 +127,7 @@ export function cssVars(palette: Palette, prefs: Pick<Prefs, "focusAccent" | "co
   const quiet = quietInks(palette)
   return {
     "--paper": palette.background,
-    "--canvas": canvasOf(palette.background),
+    "--sidebar": sidebarOf(palette.background),
     "--surface": palette.backgroundPanel,
     "--inset": palette.backgroundElement,
     "--menu": palette.backgroundMenu,
