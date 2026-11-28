@@ -109,18 +109,28 @@ async function seed(h: Home, version: string): Promise<void> {
     return
   }
   // Someone who has used Rove: no welcome, no once-per-home notices over the shots.
-  await writeState(h, { "app.lastRunVersion": version, welcomed: true, skillHintSeen: "1", "hints.statusMark.seen": true })
+  // A custom engine that runs a plain shell: a session with an agent behind it, with no real engine started.
+  // Its command differs from SHELL, which names it: the bare-shell tasks must stay engineless.
+  await writeState(h, {
+    "app.lastRunVersion": version,
+    welcomed: true,
+    skillHintSeen: "1",
+    "hints.statusMark.seen": true,
+    customEngineIds: ["helper"],
+    "engineCommand.helper": "bash --noprofile --norc -i",
+    "engineName.helper": "Helper",
+  })
   const api$ = join(root, "acme-api")
   const web$ = join(root, "acme-web")
   await seedRepo(root, api$, env)
   await seedRepo(root, web$, env)
   // Named worktrees: the allocator's pick is random, and the name shows in paths on several screens.
-  const add = (repo: string, title: string, name: string, more: string[] = ["--no-parent"]) =>
-    api(h, ["add", "--repo", repo, ...more, "--title", title, "--worktree-name", name, "--command", SHELL, "--start"]) as { taskId: string }
+  const add = (repo: string, title: string, name: string, more: string[] = ["--no-parent"], command = SHELL) =>
+    api(h, ["add", "--repo", repo, ...more, "--title", title, "--worktree-name", name, "--command", command, "--start"]) as { taskId: string }
   const login = add(api$, "Fix login redirect loop", "heron")
   const limit = add(api$, "Add rate limiting to /auth", "otter")
   const dark = add(web$, "Dark mode for settings page", "lynx")
-  const react = add(web$, "Upgrade React to 19", "ibis")
+  const react = add(web$, "Upgrade React to 19", "ibis", undefined, "helper")
   add(api$, "Write tests for limiter", "wren", ["--parent", limit.taskId])
 
   sh(

@@ -32,8 +32,11 @@ export function EngineIcon(props: {
   readonly name?: string | undefined
   /** The row's status, when the mark stands in for the dots. */
   readonly status?: StatusMark | undefined
+  /** No coding agent behind the row: an empty cell, so its title lines up with its neighbours'. */
+  readonly blank?: boolean
 }) {
   const id = useId()
+  if (props.blank) return <span className={CELL} aria-hidden="true" />
   const look = props.status?.look
   if (look === "waiting" || look === "error") {
     return (

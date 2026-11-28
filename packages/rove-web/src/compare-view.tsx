@@ -22,7 +22,7 @@ import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { usePageFocus } from "./pages-kit.ts"
 import { openDiff } from "./panel-state.ts"
-import { statusMark } from "./rail-glyphs.ts"
+import { agentless, statusMark } from "./rail-glyphs.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { useStatusMarkStyle } from "./status-mark.ts"
 import { useStore } from "./store.ts"
@@ -110,10 +110,11 @@ function Changes(props: {
   )
 }
 
-/** The rail's mark for the attempt: its engine's icon (carrying the status when the rail's marks do), or its dots. */
-function AttemptMark({ row, icon }: { row: TaskRow; icon: EngineIconData | undefined }) {
+/** The rail's mark for the attempt: its engine's icon (carrying the status when the rail's marks do), or its dots; only dots with no agent behind it. */
+function AttemptMark({ model, row, icon }: { model: AppModel; row: TaskRow; icon: EngineIconData | undefined }) {
   const style = useStatusMarkStyle()
-  if (style === "dots") return <StatusDots status={row.rowStatus} />
+  const tabs = useStore(model.tabs)[row.id]
+  if (style === "dots" || agentless(row, tabs)) return <StatusDots status={row.rowStatus} />
   return (
     <EngineIcon
       icon={icon}
@@ -141,7 +142,7 @@ function Attempt(props: {
   return (
     <section className={cmpColumnClass(kept)} data-attempt={row.id} aria-current={kept || undefined}>
       <div className={CMP_HEAD}>
-        <AttemptMark row={row} icon={props.icon} />
+        <AttemptMark model={model} row={row} icon={props.icon} />
         <span className={CMP_ENGINE}>{row.engine?.name ?? row.label}</span>
         <span className="flex-none text-meta text-muted">{t(`compare.status.${look}`)}</span>
         {kept && <span className="ml-auto flex-none font-mono text-meta text-accent">{t("compare.kept")}</span>}
