@@ -9,19 +9,60 @@
 import { RelayTunnelClient } from "@hsinsekai-nanami/client"
 import { t } from "./i18n/index.ts"
 import { relayTransport } from "./relay-adapters.ts"
+import { createRelayStatus } from "./relay-status.ts"
 import type { RelayTransport } from "./relay-transport.ts"
 
 const STORAGE_KEY = "rove.relay"
 const ASSET_URL = /url\(((?:\/relay-client)?\/assets\/[^)]+)\)/g
+// Match claude theme paper tokens (`packages/rove/src/theme/claude.json`) before rove-web mounts.
+const PAPER_DARK = "#141413"
+const PAPER_LIGHT = "#faf9f5"
 
 interface Pairing {
   readonly server: string
   readonly code: string
 }
 
-function status(text: string): void {
-  const el = document.getElementById("relay-status")
-  if (el) el.textContent = text
+function syncThemeColor(): () => void {
+  if (typeof matchMedia !== "function") return () => {}
+  const mq = matchMedia("(prefers-color-scheme: light)")
+  let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+  if (!meta) {
+    meta = document.createElement("meta")
+    meta.name = "theme-color"
+    document.head.append(meta)
+  }
+  const apply = () => {
+    meta.content = mq.matches ? PAPER_LIGHT : PAPER_DARK
+  }
+  apply()
+  mq.addEventListener("change", apply)
+  return () => mq.removeEventListener("change", apply)
+}
+
+function mountSplashStatus() {
+  const statusEl = document.getElementById("relay-status")
+  const retryEl = document.getElementById("relay-retry")
+  retryEl?.addEventListener("click", () => location.reload())
+  return createRelayStatus({
+    show(text, tone, retryLabel) {
+      if (statusEl) {
+        statusEl.textContent = text
+        statusEl.setAttribute("role", tone === "error" ? "alert" : "status")
+        if (tone === "loading") statusEl.removeAttribute("data-tone")
+        else statusEl.dataset.tone = tone
+        statusEl.dataset.visible = ""
+      }
+      if (retryEl) {
+        if (tone === "error" && retryLabel) {
+          retryEl.textContent = retryLabel
+          retryEl.hidden = false
+        } else {
+          retryEl.hidden = true
+        }
+      }
+    },
+  })
 }
 
 function pairing(): Pairing | null {
@@ -88,19 +129,23 @@ async function loadClient(transport: RelayTransport): Promise<void> {
 }
 
 async function boot(): Promise<void> {
+  const stopThemeColor = syncThemeColor()
+  const splash = mountSplashStatus()
   const found = pairing()
   if (!found) {
-    status(t("relay.unpaired"))
+    splash.info(t("relay.unpaired"))
     return
   }
-  status(t("relay.connecting"))
+  splash.loading(t("relay.connecting"))
   const tunnel = new RelayTunnelClient({ serverUrl: found.server, code: found.code, quiet: true })
   try {
     await tunnel.connect()
-    status(t("relay.loading"))
+    splash.loading(t("relay.loading"))
     await loadClient(relayTransport(tunnel))
+    stopThemeColor()
+    splash.done()
   } catch (err) {
-    status(failure(err))
+    splash.error(failure(err), t("workspace.retry"))
   }
 }
 
