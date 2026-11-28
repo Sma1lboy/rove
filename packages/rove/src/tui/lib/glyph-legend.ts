@@ -4,7 +4,7 @@
  * `tsc` until it is placed here or deliberately left out with `null`.
  */
 
-import type { GlyphSet } from "./glyphs"
+import type { GlyphSet } from "../../lib/glyphs"
 
 export type GlyphLegendGroup = "rows" | "inbox"
 

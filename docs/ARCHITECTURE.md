@@ -107,9 +107,12 @@ worktree on the shared branch name. `taskRepos(task)` (in `rove-daemon`'s
     stores.
   - `src/i18n/` — the message catalogs and `t()`, shared by the TUI, the CLI
     and the web client.
+  - `src/settings/` — the settings-dialog row model and appearance choices,
+    framework-free so the bridge reads the same data as the TUI.
+  - `src/assets/` — bundled binary assets (the notification chime).
   - `src/theme/` — opentui-free theme data: the JSON shape, bundled palettes,
     loader, installer and hex resolver that `rove api` and the bridge read.
-    Resolving to drawable colors stays in `tui/context/theme-core.ts`.
+    Resolving to drawable colors (opentui `RGBA`, no React) is `tui/context/theme-core.ts`.
   - `src/tabs/` — the terminal-tab model (tabs, splits, argv, titles) shared
     by the TUI, `rove api` and the web client.
   - `src/keys/` — the keybinding model: bindings table, chord matching,

@@ -8,7 +8,7 @@ import {
   appearanceChoices,
   applyAppearanceChoice,
   currentAppearanceChoice,
-} from "../../../tui/component/settings-dialog/appearance"
+} from "../../../settings/appearance"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { useBindings } from "../../lib/keymap"

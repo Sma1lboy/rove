@@ -29,6 +29,7 @@ import {
 import { FINISHED_ALERTS_KEY } from "@sma1lboy/rove/src/lib/notify-state.ts"
 import { defaultTransparentBackground } from "@sma1lboy/rove/src/lib/persisted-ui-prefs.ts"
 import { RELEASE_CHANNELS } from "@sma1lboy/rove/src/release-channels.ts"
+import { appearanceChoices } from "@sma1lboy/rove/src/settings/appearance.ts"
 import { AUTO_STATUS_KEY } from "@sma1lboy/rove/src/state/auto-status.ts"
 import { COLORBLIND_KEY, DEFAULT_COLORBLIND, normalizeColorblind } from "@sma1lboy/rove/src/state/colorblind.ts"
 import { DISPATCHER_KEY } from "@sma1lboy/rove/src/state/dispatcher.ts"
@@ -85,13 +86,12 @@ import {
   type WorktreeBaseKind,
   worktreeBaseKindOf,
 } from "@sma1lboy/rove/src/state/worktree-base.ts"
-import { appearanceChoices } from "@sma1lboy/rove/src/tui/component/settings-dialog/appearance.ts"
 import {
   DEFAULT_THEME,
   DEFAULT_THEME_MODE,
   FOCUS_ACCENT_SLOTS,
   THEME_MODE_PREFERENCES,
-} from "@sma1lboy/rove/src/tui/context/theme-core.ts"
+} from "@sma1lboy/rove/src/theme/theme-data.ts"
 import { channelOf } from "@sma1lboy/rove/src/version.ts"
 import { BridgeError } from "../protocol.ts"
 

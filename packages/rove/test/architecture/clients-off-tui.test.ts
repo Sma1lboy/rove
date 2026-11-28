@@ -14,11 +14,8 @@ const SKIP = new Set(["node_modules", "dist", "build"])
 const TUI_SPEC = /(?:from|import\()\s*["'][^"']*rove\/src\/(tui(?:-react)?\/[^"'?]+)/g
 
 const KNOWN = new Set<string>([
-  "tui/asset/pulse.wav",
-  "tui/component/settings-dialog/appearance.ts",
-  "tui/component/settings-dialog/model.ts",
+  // theme-palette.ts in the bridge resolves themes through opentui RGBA.
   "tui/context/theme-core.ts",
-  "tui/lib/glyphs.ts",
   "tui/lib/task-color.ts",
   "tui/panes/sidebar/row-chips.ts",
   "tui/panes/sidebar/tree-labels.ts",

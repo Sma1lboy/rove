@@ -1,11 +1,13 @@
-import { COLORBLIND_MODES, type ColorblindMode } from "../../../state/colorblind"
-import { GLYPH_SET_NAMES, type GlyphSetName } from "../../../state/glyph-set"
-import { RUNNING_TITLES, type RunningTitle } from "../../../state/running-title"
-import { SPLIT_STYLES, type SplitStyle } from "../../../state/split-style"
-import { TASK_COLORS, type TaskColors } from "../../../state/task-colors"
-import { WORKING_BORDERS, type WorkingBorder } from "../../../state/working-border"
-import type { CollapsedRailStyle } from "../../../tui-react/panes/sidebar/collapsed-rail"
-import { type FocusAccentSlot, THEME_MODE_PREFERENCES, type ThemeModePreference } from "../../context/theme-core"
+import { COLORBLIND_MODES, type ColorblindMode } from "../state/colorblind"
+import { GLYPH_SET_NAMES, type GlyphSetName } from "../state/glyph-set"
+import { RUNNING_TITLES, type RunningTitle } from "../state/running-title"
+import { SPLIT_STYLES, type SplitStyle } from "../state/split-style"
+import { TASK_COLORS, type TaskColors } from "../state/task-colors"
+import { WORKING_BORDERS, type WorkingBorder } from "../state/working-border"
+import { type FocusAccentSlot, THEME_MODE_PREFERENCES, type ThemeModePreference } from "../theme/theme-data"
+
+/** The collapsed sidebar rail's look; the rail itself lives in `tui-react/panes/sidebar/collapsed-rail.tsx`. */
+export type CollapsedRailStyle = "hairline" | "glyphs" | "initials"
 
 export const APPEARANCE_SETTINGS = [
   "theme",

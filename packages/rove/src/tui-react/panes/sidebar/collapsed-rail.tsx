@@ -33,7 +33,8 @@ import { useSpinnerFrame } from "./row-cards"
 import { projectHeaderLabel } from "./tree-panel"
 import { SHARED_MARK, WORKTREE_MARK } from "./tree-rows"
 
-export type CollapsedRailStyle = "hairline" | "glyphs" | "initials"
+import type { CollapsedRailStyle } from "../../../settings/appearance"
+export type { CollapsedRailStyle }
 
 export const DEFAULT_COLLAPSED_RAIL_STYLE: CollapsedRailStyle = "glyphs"
 

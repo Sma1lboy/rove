@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/react */
 /**
  * Settings sidebar + General. Row indices come from the shared row registry
- * (`../../../tui/component/settings-dialog/model`) so clicks and key handlers
+ * (`../../../settings/model`) so clicks and key handlers
  * agree. `prefs` getters are plain kv reads; KVProvider re-renders on every
  * kv/theme change.
  */
@@ -13,7 +13,6 @@ import { engineDisplayName } from "../../../engine/interactive-command"
 import { LOCALES, type LocaleId } from "../../../i18n/catalog"
 import { displayWidth } from "../../../lib/display-width"
 import { usageRows } from "../../../lib/usage-core"
-import type { UsageShow } from "../../../state/usage-show"
 import {
   type NavLevel,
   SECTIONS,
@@ -23,7 +22,8 @@ import {
   generalRows,
   languageRowId,
   rowIndex,
-} from "../../../tui/component/settings-dialog/model"
+} from "../../../settings/model"
+import type { UsageShow } from "../../../state/usage-show"
 import { keyHintsToggleOn, toggleKeyHints } from "../../../tui/lib/keyboard-hints"
 import { useKV } from "../../context/kv"
 import { useTheme } from "../../context/theme"

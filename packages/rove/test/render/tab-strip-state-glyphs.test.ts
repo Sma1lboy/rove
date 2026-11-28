@@ -12,10 +12,10 @@
  */
 import { describe, expect, it } from "bun:test"
 import type { TabStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
+import { DEFAULT_GLYPHS } from "../../src/lib/glyphs"
 import { chipAttentionKind } from "../../src/lib/notify-state"
 import { rowStatusGlyph } from "../../src/lib/row-status-glyph"
 import { notifyTurns } from "../../src/tui-react/workspace/use-tab-turn-state"
-import { DEFAULT_GLYPHS } from "../../src/tui/lib/glyphs"
 
 const SESSION = { alive: true, restored: false, tracked: true } as const
 

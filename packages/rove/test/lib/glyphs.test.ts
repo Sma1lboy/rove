@@ -1,12 +1,12 @@
 /**
- * The glyph presets (`tui/lib/glyphs.ts`): every preset must fill every slot
+ * The glyph presets (`lib/glyphs.ts`): every preset must fill every slot
  * at one cell, and a spinner frame must never read as a settled badge.
  */
 
 import { describe, expect, it } from "vitest"
 import { charWidth } from "../../src/lib/display-width.ts"
+import { GLYPH_SETS, type GlyphSet } from "../../src/lib/glyphs.ts"
 import { GLYPH_SET_NAMES } from "../../src/state/glyph-set.ts"
-import { GLYPH_SETS, type GlyphSet } from "../../src/tui/lib/glyphs.ts"
 import { buildSidebarRowView } from "../../src/tui/panes/sidebar/row-view.ts"
 import { type Task, toTaskId } from "../../src/types/task.ts"
 

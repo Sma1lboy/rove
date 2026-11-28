@@ -13,14 +13,7 @@ import { RemoteOrchestrator, type RoveOrchestrator, type UsageSnapshotMap } from
 import { enginesNeedingHookInstall, enginesWithHooksInstalled } from "../../../engine/integration-status"
 import { createStateCell } from "../../../lib/external-store"
 import { LOCALE_KEY } from "../../../lib/persisted-ui-prefs"
-import {
-  type NavLevel,
-  SECTIONS,
-  type SectionId,
-  type SettingsRow,
-  rowAt,
-  sectionRows,
-} from "../../../tui/component/settings-dialog/model"
+import { type NavLevel, SECTIONS, type SectionId, type SettingsRow, rowAt, sectionRows } from "../../../settings/model"
 import { toggleKeyHints } from "../../../tui/lib/keyboard-hints"
 import type { VendorId } from "../../../types/task"
 import type { KVContext } from "../../context/kv"

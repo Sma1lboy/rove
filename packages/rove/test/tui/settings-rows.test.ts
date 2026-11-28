@@ -1,5 +1,5 @@
 /**
- * Settings dialog row registry (settings-dialog/model.ts). Keyboard nav and
+ * Settings dialog row registry (settings/model.ts). Keyboard nav and
  * every section view's cursor highlight key off "a row's body index is its
  * position in the section's row list", so these pin the positional contracts
  * the views rely on and the id-lookup helpers they use instead of arithmetic.
@@ -21,7 +21,7 @@ import {
   rowAt,
   rowIndex,
   sectionRows,
-} from "../../src/tui/component/settings-dialog/model.ts"
+} from "../../src/settings/model.ts"
 import { ALL_VENDORS } from "../../src/types/vendor.ts"
 
 /** Language picker rows sit right after the theme list — count them in the offsets. */

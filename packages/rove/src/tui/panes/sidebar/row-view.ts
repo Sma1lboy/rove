@@ -1,7 +1,7 @@
 import { t } from "@/i18n"
+import { DEFAULT_GLYPHS, type GlyphSet } from "@/lib/glyphs"
 import { type RowTone, rowStatusGlyph } from "@/lib/row-status-glyph"
 import { breathGlyph } from "@/tui/lib/breathe"
-import { DEFAULT_GLYPHS, type GlyphSet } from "@/tui/lib/glyphs"
 import type { Task } from "@/types/task"
 import { isBuiltinVendor } from "@/types/vendor"
 import type { RowStatus } from "@sma1lboy/rove-daemon/daemon/row-status"

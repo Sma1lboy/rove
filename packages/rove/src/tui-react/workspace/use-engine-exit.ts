@@ -5,8 +5,8 @@
  */
 
 import { useEffect, useState } from "react"
+import type { SectionId } from "../../settings/model"
 import { type TerminalTab, tabPtyKeyFor } from "../../tabs/terminal-tabs-core"
-import type { SectionId } from "../../tui/component/settings-dialog/model"
 import { engineExitOf } from "../../tui/workspace/engine-exit"
 import { getDefaultLiveEngines } from "../../tui/workspace/live-engine"
 import type { HookTabState } from "../../tui/workspace/turn-state-merge"

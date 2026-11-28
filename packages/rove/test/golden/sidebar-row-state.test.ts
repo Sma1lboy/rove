@@ -24,7 +24,7 @@
 
 import { DEFAULT_SPINNER_FRAMES } from "@/engine/spinner-frames"
 import { currentLang, setLocaleLang } from "@/i18n"
-import { DEFAULT_GLYPHS } from "@/tui/lib/glyphs"
+import { DEFAULT_GLYPHS } from "@/lib/glyphs"
 import { buildSidebarRowView } from "@/tui/panes/sidebar/row-view"
 import { truncateBranchLabel } from "@/tui/panes/sidebar/view-core"
 import { type Task, toTaskId } from "@/types/task"

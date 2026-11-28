@@ -18,12 +18,12 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { useState } from "react"
+import { DEFAULT_GLYPHS } from "../../src/lib/glyphs"
 import { TAB_STRIP_MODE_KEY } from "../../src/state/tab-strip"
 import type { TerminalTab } from "../../src/tabs/terminal-tabs-core"
 import { useBindings } from "../../src/tui-react/lib/keymap"
 import { resetRowStatusForTests } from "../../src/tui-react/workspace/row-status-sync"
 import { TabStrip } from "../../src/tui-react/workspace/tab-strip"
-import { DEFAULT_GLYPHS } from "../../src/tui/lib/glyphs"
 import { renderComponent } from "./harness"
 
 // The strip is OFF by default — the sidebar tree already lists

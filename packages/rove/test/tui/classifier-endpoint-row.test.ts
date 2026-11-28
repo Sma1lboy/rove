@@ -14,7 +14,7 @@
  */
 
 import { describe, expect, it } from "vitest"
-import { displayEndpoint } from "../../src/tui/component/settings-dialog/model.ts"
+import { displayEndpoint } from "../../src/settings/model.ts"
 
 describe("displayEndpoint", () => {
   it("never shows the mode NAME as an address", () => {

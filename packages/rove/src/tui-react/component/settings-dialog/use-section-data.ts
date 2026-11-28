@@ -21,7 +21,7 @@ import {
   setPluginEnabled,
   setPluginSetting,
 } from "../../../lib/plugins-core"
-import type { SectionId } from "../../../tui/component/settings-dialog/model"
+import type { SectionId } from "../../../settings/model"
 import type { VendorId } from "../../../types/task"
 import { useT } from "../../i18n"
 import { registerBundledPlugins } from "../../pages/bundled-pages"

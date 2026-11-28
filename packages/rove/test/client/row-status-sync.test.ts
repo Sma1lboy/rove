@@ -11,6 +11,7 @@ import { handleOrchestratorEvent } from "../../src/client/remote-orchestrator-ev
 import type { OrchestratorSignals } from "../../src/client/remote-orchestrator-payloads.ts"
 import type { RowStatusTransport } from "../../src/client/remote-orchestrator-row-status.ts"
 import { RowStatusChannel } from "../../src/client/remote-orchestrator-row-status.ts"
+import { DEFAULT_GLYPHS } from "../../src/lib/glyphs.ts"
 import { rowStatusGlyph } from "../../src/lib/row-status-glyph.ts"
 import {
   acceptRemoteActivity,
@@ -24,7 +25,6 @@ import {
   tabRowStatus,
   taskRowStatus,
 } from "../../src/tui-react/workspace/row-status-sync.ts"
-import { DEFAULT_GLYPHS } from "../../src/tui/lib/glyphs.ts"
 
 const SESSION = { alive: true, restored: false, tracked: true } as const
 

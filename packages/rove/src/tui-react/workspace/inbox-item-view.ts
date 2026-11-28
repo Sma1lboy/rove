@@ -5,7 +5,7 @@
  */
 
 import { intlLocale } from "@/i18n"
-import { DEFAULT_GLYPHS, type GlyphSet } from "@/tui/lib/glyphs"
+import { DEFAULT_GLYPHS, type GlyphSet } from "@/lib/glyphs"
 import type { Task } from "@/types/task"
 import type { RGBA } from "@opentui/core"
 import type { AttentionInboxItem } from "@sma1lboy/rove-daemon/daemon/contracts"

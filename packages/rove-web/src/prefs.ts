@@ -56,7 +56,7 @@ export interface ThemeEntry {
   readonly light: Readonly<Record<string, string>>
 }
 
-/** The TUI's state-mark vocabulary for one preset (`tui/lib/glyphs.ts`). */
+/** The TUI's state-mark vocabulary for one preset (`lib/glyphs.ts`). */
 export interface GlyphSet {
   readonly spinner: readonly string[]
   readonly idle: string

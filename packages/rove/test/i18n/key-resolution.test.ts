@@ -42,8 +42,8 @@ import { en } from "../../src/i18n/catalog"
 import { guideCategory, scopeCategory } from "../../src/keys/help-groups"
 import { RoveKeymap } from "../../src/keys/keybindings"
 import type { RoveBindingScope } from "../../src/keys/keybindings"
+import { SECTIONS } from "../../src/settings/model"
 import { DOW_CODES } from "../../src/tui/component/cron-segments"
-import { SECTIONS } from "../../src/tui/component/settings-dialog/model"
 import { UI_PREFS_FOCUS_ACCENT_SLOTS } from "../../src/tui/lib/apply-ui-prefs"
 
 const SRC_ROOT = fileURLToPath(new URL("../../src", import.meta.url))

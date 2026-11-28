@@ -112,7 +112,7 @@ describe("scaleWavVolume", () => {
  * the volume argument was discarded — that click was all you ever heard.
  */
 describe("the bundled chime", () => {
-  const asset = readFileSync(new URL("../../src/tui/asset/pulse.wav", import.meta.url))
+  const asset = readFileSync(new URL("../../src/assets/pulse.wav", import.meta.url))
 
   it("is 16-bit PCM that scales, not something the scaler has to refuse", () => {
     expect(scaleWavVolume(asset, 0.4)).not.toBeNull()

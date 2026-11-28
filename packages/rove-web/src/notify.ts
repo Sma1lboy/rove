@@ -7,6 +7,7 @@
  * switch. The bridge reports one activity per task, so this diffs the task rollup (the TUI does the same for sessions with no tab identity).
  */
 
+import pulseUrl from "@sma1lboy/rove/src/assets/pulse.wav?url"
 import {
   type NotificationKind,
   attentionEdges,
@@ -15,7 +16,6 @@ import {
   shouldPlaySound,
   shouldShowToast,
 } from "@sma1lboy/rove/src/lib/notify-state.ts"
-import pulseUrl from "@sma1lboy/rove/src/tui/asset/pulse.wav?url"
 import { useEffect, useRef } from "react"
 import type { TasksPayload } from "rove-bridge/protocol"
 import { t } from "./i18n/index.ts"

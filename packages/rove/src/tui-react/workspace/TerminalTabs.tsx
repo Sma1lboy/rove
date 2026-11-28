@@ -26,6 +26,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react"
 import { repoEnv } from "../../engine/multi-repo-launch"
 import { prefixAction } from "../../keys/keymap-dispatch"
 import { linkedWorktree } from "../../machines/remote-workspace.ts"
+import type { SectionId } from "../../settings/model"
 import { shellTabInput } from "../../tabs/terminal-tab-spawn"
 import {
   type EngineTab,
@@ -45,7 +46,6 @@ import {
   tabPtyKeyFor,
 } from "../../tabs/terminal-tabs-core"
 import { terminalTabsKey } from "../../tabs/terminal-tabs-persist"
-import type { SectionId } from "../../tui/component/settings-dialog/model"
 import { terminalDrawsKitty } from "../../tui/lib/terminal-graphics"
 import { warmHostedShell } from "../../tui/panes/terminal/pty-hosted"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
