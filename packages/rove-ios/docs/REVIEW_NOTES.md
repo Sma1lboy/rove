@@ -32,8 +32,9 @@ on the first screen.
 ## Review notes
 
 **What the app is.** A client for the Rove page served by `rove --web`, which a person starts on their
-own computer. The phone pairs by scanning the QR code the computer shows or by pasting its link. Without
-such a computer there is nothing to pair with, so the demo above is the way to review the app.
+own computer. The phone pairs by scanning the QR code in the computer's Rove page under **Settings →
+Connectors → Phone** (or the one `rove --web --preset relay` prints), or by pasting its link. Without such
+a computer there is nothing to pair with, so the demo above is the way to review the app.
 
 **What is native (guideline 4.2).** The session screens are the computer's Rove page. Around it, the app
 does what a web page cannot:
@@ -55,14 +56,18 @@ computer, which turns it into text. The app never records in the background.
 **Accounts.** None. There is no sign-up and no login. The pairing link carries a token for the user's own
 computer.
 
-**Network.** The app talks only to the user's own computer, over the local network, Tailscale or a tunnel
-the user set up. It contacts no server run by Rove. The demo makes no network requests at all.
+**Network.** The app connects to the user's own computer over the local network, Tailscale, a tunnel the
+user set up, or Rove's optional hosted relay (`https://relay.sma1lboy.me`). The relay is end-to-end
+encrypted and sees only ciphertext, so the phone can reach the computer away from home without a VPN. The
+demo makes no network requests at all.
 
 **Data.** No analytics, no ads, no tracking. The only third-party code is SwiftTerm, an open-source
 terminal view.
 
-**Encryption.** No cryptography of its own. Connections use the system networking stack.
-`ITSAppUsesNonExemptEncryption` is `false`.
+**Encryption.** The app bundles no custom cryptography of its own. Connections use the system networking
+stack; when paired through the relay, the relay loader page loaded in `WKWebView` runs end-to-end
+encryption using only WebKit's built-in WebCrypto (`crypto.subtle`). `ITSAppUsesNonExemptEncryption` is
+`false`.
 
 **Privacy policy.** https://rove.run/privacy (also linked from the first screen).
 
