@@ -132,13 +132,13 @@ describe("stopDaemonProcess", () => {
 
 describe.skipIf(process.platform === "win32")("isProcessAlive", () => {
   it("reads an exited child nobody reaped as dead", async () => {
-    // The shell's child exits at once; the shell never waits for it.
-    const shell = spawn("sh", ["-c", "true & echo $!; exec sleep 30"], { stdio: ["ignore", "pipe", "ignore"] })
+    // The child outlives the exec, so only `sleep` (which never waits) is its parent; dash reaps a child that exits first.
+    const shell = spawn("sh", ["-c", "sleep 0.1 & echo $!; exec sleep 30"], { stdio: ["ignore", "pipe", "ignore"] })
     try {
       const zombie = Number(
         await new Promise<string>((resolve) => shell.stdout.once("data", (d) => resolve(String(d)))),
       )
-      await new Promise((resolve) => setTimeout(resolve, 200))
+      await new Promise((resolve) => setTimeout(resolve, 600))
       expect(() => process.kill(zombie, 0)).not.toThrow()
       expect(isProcessAlive(zombie)).toBe(false)
       expect(isProcessAlive(shell.pid as number)).toBe(true)
