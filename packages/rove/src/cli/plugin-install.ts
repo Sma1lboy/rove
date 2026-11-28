@@ -102,6 +102,7 @@ function commandLines(parsed: ParsedPluginManifest): string[] {
   for (const c of m.startup) lines.push(`startup: ${c.command.join(" ")}`)
   for (const a of m.actions) lines.push(`action ${a.id}: ${a.command.join(" ")}`)
   for (const e of m.events) lines.push(`on ${e.on}: ${e.command.join(" ")}`)
+  for (const e of m.engines) if (e.modelsCommand) lines.push(`engine ${e.id} models: ${e.modelsCommand.join(" ")}`)
   return lines
 }
 

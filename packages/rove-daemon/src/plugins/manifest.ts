@@ -116,6 +116,10 @@ export interface PluginEngine {
    * dir; those declare `"paste"` to type it into the running pane.
    */
   readonly firstMessageDelivery?: "argv" | "paste"
+  /** Flag that pins a model: launch argv gets `<flag> <model>` appended. Absent = no model accepted. */
+  readonly modelFlag?: string
+  /** Argv Rove runs to list models; stdout is one `id` or `id<TAB>label` per line. */
+  readonly modelsCommand?: readonly string[]
 }
 
 export type { PluginPage } from "./manifest-pages.ts"
@@ -432,6 +436,10 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
       rules,
       ...(identity ? { identity } : {}),
       ...(firstMessageDelivery ? { firstMessageDelivery } : {}),
+      ...(t.model_flag === undefined ? {} : { modelFlag: asString(t.model_flag, `engines[${i}].model_flag`) }),
+      ...(t.models_command === undefined
+        ? {}
+        : { modelsCommand: asCommand(t.models_command, `engines[${i}].models_command`) }),
     }
   })
   const engineSeen = new Set<string>()

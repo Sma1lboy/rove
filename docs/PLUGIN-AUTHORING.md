@@ -209,6 +209,8 @@ name = "Aider"                   # display name in the selector and Settings
 command = ["aider"]              # launch argv; argv[0] is the binary
 # process_names = ["aider-core"] # extra ps basenames (post-launch renames)
 # first_message_delivery = "paste"  # argv (default) | paste — see below
+# model_flag = "--model"         # lets a session pin a model: `<flag> <model>` is appended
+# models_command = ["aider", "--list-models"]  # Rove runs it to suggest models — see below
 
 [engines.identity]               # optional product identity for UI labels
 short_name = "Aider"             # falls back to `name`
@@ -251,6 +253,15 @@ The default `"argv"` appends the prompt as a positional argument. Declare
 directory — or the launch dies on the prompt text instead of running it
 (`opencode "Run ls -la"` exits with `Failed to change directory to …`).
 With `"paste"` the message is typed into the running pane instead.
+
+`model_flag` is what lets a session pin a model (`rove api add --model`,
+the New session model menu). Without it Rove refuses a pinned model for your
+engine. `models_command` is argv (no shell) that Rove runs to fill the model
+menu and `rove api engine-list`: one model per stdout line, `id` or
+`id<TAB>label`. Lines whose first column contains a space are skipped, and
+stderr is ignored. The list is cached for 15 minutes, or until the binary
+changes. It is shown in the install preview, since Rove runs it without
+asking.
 
 The accepted platform tokens are exactly `macos`, `linux`, and `windows`.
 A top-level list applies to the whole plugin; `platforms` on an individual

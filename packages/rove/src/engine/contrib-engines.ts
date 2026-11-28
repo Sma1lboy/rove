@@ -1,9 +1,8 @@
 /**
  * Shipped contrib engines as DATA: id, display name, launch command and a
- * screen-state manifest (`./screen-state.ts`). No account detector or history
- * reader — those make an engine a BUILT-IN. A hook adapter is the one optional
- * extra, since installing a hook needs nothing else from a built-in. Plugins
- * register exactly this shape.
+ * screen-state manifest (`./screen-state.ts`), plus whichever optional
+ * capabilities of the base contract the CLI was checked to support (model
+ * flag, list verb, hook adapter…). Plugins register the same shape.
  *
  * A contrib engine appears in the new-task selector only when
  * `defaultCommand[0]` is on PATH (`account-detect.ts`), so the catalog costs
@@ -12,7 +11,6 @@
 
 import { homedir } from "node:os"
 import { join } from "node:path"
-import type { EngineIdentity } from "@/types/engine"
 import { trustAntigravityWorktree } from "./antigravity-local/trust.ts"
 import {
   AMP,
@@ -37,52 +35,23 @@ import { DroidHookAdapter } from "./droid-local/hook-adapter.ts"
 import { ANTIGRAVITY_ICON } from "./engine-icons.ts"
 import { GrokHookAdapter, grokConfigDir } from "./grok-local/hook-adapter.ts"
 import { HermesHookAdapter, hermesConfigDir } from "./hermes-local/hook-adapter.ts"
-import type { EngineHookAdapter } from "./hook-adapter.ts"
 import { MastracodeHookAdapter } from "./mastracode-local/hook-adapter.ts"
 import { listModelLines } from "./model-lists.ts"
 import { OpencodeFamilyHookAdapter } from "./opencode-local/hook-adapter.ts"
 import { QodercliHookAdapter } from "./qodercli-local/hook-adapter.ts"
-import type { EngineIcon, EngineRegistryEntry } from "./registry.ts"
+import type { EngineRegistryEntry } from "./registry.ts"
 import type { EngineScreenManifest } from "./screen-state.ts"
 import { skillsDirUnder, xdgConfigHome } from "./vendor-home.ts"
 
-export interface ContribEngineSpec {
-  readonly displayName: string
-  /** See `EngineRegistryEntry.icon`. */
-  readonly icon?: EngineIcon
-  readonly defaultCommand: readonly string[]
-  readonly processNames?: readonly string[]
+/**
+ * A contrib engine is an {@link EngineRegistryEntry} minus the registry's own
+ * keys: name, command and screen manifest are required, every capability the
+ * base contract has is available and optional. Derived, not listed, so a new
+ * base capability needs no edit here.
+ */
+export type ContribEngineSpec = Pick<EngineRegistryEntry, "displayName" | "defaultCommand"> & {
   readonly screenManifest: EngineScreenManifest
-  /** Plugin-declared product identity (composer placeholder etc.). */
-  readonly identity?: EngineIdentity
-  /**
-   * How the CLI accepts a session's FIRST message (see `registry.ts`). The
-   * `"argv"` default appends it as a positional; declare `"paste"` when the
-   * positional means something else, or the launch dies on the prompt text.
-   */
-  readonly firstMessageDelivery?: "argv" | "paste"
-  /** See `EngineRegistryEntry.firstMessageArgv`. */
-  readonly firstMessageArgv?: EngineRegistryEntry["firstMessageArgv"]
-  /** See `EngineRegistryEntry.trustWorktree`. */
-  readonly trustWorktree?: EngineRegistryEntry["trustWorktree"]
-  /**
-   * Optional activity-hook installer. Without it the entry keeps the base's
-   * `NoopHookAdapter`: screen-only, no install, no warning, no file written.
-   * It does NOT replace {@link screenManifest}: the hook reports session
-   * identity, the manifest keeps reporting state.
-   */
-  readonly createHookAdapter?: () => EngineHookAdapter
-  /** See `EngineRegistryEntry.skillsDir`. */
-  readonly skillsDir?: () => string | null
-  /** See `EngineRegistryEntry.listModels`. */
-  readonly listModels?: EngineRegistryEntry["listModels"]
-  /** See `EngineRegistryEntry.modelArgv`. */
-  readonly modelArgv?: EngineRegistryEntry["modelArgv"]
-  /** See `EngineRegistryEntry.effortLevels`; pair with {@link effortArgv}. */
-  readonly effortLevels?: EngineRegistryEntry["effortLevels"]
-  /** See `EngineRegistryEntry.effortArgv`. */
-  readonly effortArgv?: EngineRegistryEntry["effortArgv"]
-}
+} & Partial<Omit<EngineRegistryEntry, "vendor" | "builtin" | "displayName" | "defaultCommand" | "screenManifest">>
 
 /**
  * Plugin engines from enabled manifests' `[[engines]]` tables, held here so
@@ -240,21 +209,7 @@ export const CONTRIB_ENGINE_IDS: readonly string[] = Object.keys(CONTRIB_ENGINES
 export function contribEngineEntry(id: string, base: EngineRegistryEntry): EngineRegistryEntry {
   const spec = CONTRIB_ENGINES[id] ?? pluginEngines.get(id)
   if (!spec) return base
-  return {
-    ...base,
-    displayName: spec.displayName,
-    ...(spec.icon ? { icon: spec.icon } : {}),
-    defaultCommand: spec.defaultCommand,
-    ...(spec.processNames ? { processNames: spec.processNames } : {}),
-    screenManifest: spec.screenManifest,
-    ...(spec.identity ? { identity: spec.identity } : {}),
-    ...(spec.firstMessageDelivery ? { firstMessageDelivery: spec.firstMessageDelivery } : {}),
-    ...(spec.firstMessageArgv ? { firstMessageArgv: spec.firstMessageArgv } : {}),
-    ...(spec.trustWorktree ? { trustWorktree: spec.trustWorktree } : {}),
-    ...(spec.createHookAdapter ? { createHookAdapter: spec.createHookAdapter } : {}),
-    ...(spec.skillsDir ? { skillsDir: spec.skillsDir } : {}),
-    ...(spec.listModels ? { listModels: spec.listModels } : {}),
-    ...(spec.modelArgv ? { modelArgv: spec.modelArgv } : {}),
-    ...(spec.effortLevels && spec.effortArgv ? { effortLevels: spec.effortLevels, effortArgv: spec.effortArgv } : {}),
-  }
+  // An explicit `undefined` must not erase the base's default (e.g. `history`).
+  const declared = Object.fromEntries(Object.entries(spec).filter(([, v]) => v !== undefined))
+  return { ...base, ...declared }
 }
