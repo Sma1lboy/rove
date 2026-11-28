@@ -20,21 +20,25 @@ export const ICON_BUTTON_DOT = "absolute top-0.75 right-0.75 size-1.5 rounded-fu
 export const RAIL_BAR =
   "absolute top-2 left-[calc(--spacing(2)+var(--shell-inset-left,0px))] z-7 flex items-center gap-0.5"
 
+/** The open task's tabs; folded, they start past `RAIL_BAR`, traffic lights included. */
+export const TAB_STRIP =
+  "flex min-w-0 items-center gap-0.5 font-mono text-meta/body transition-padding-left duration-220 ease-snap motion-reduce:transition-none rail-folded:min-h-6.5 rail-folded:pl-[calc(--spacing(23)+var(--shell-inset-left,0px))]"
+
 /** A frame under the pointer would swallow a resize drag. */
 const RESIZING = "[&.is-resizing_iframe]:pointer-events-none"
 
 export const sidePanelClass = (narrow: boolean): string =>
-  `side-panel ${SIDE_PANEL_FRAME} relative row-1 flex min-h-0 min-w-0 flex-col ${RESIZING} ${narrow ? "flex-1 p-0" : "pt-2 pr-1 pb-1 pl-0"}`
+  `side-panel ${SIDE_PANEL_FRAME} relative row-1 flex min-h-0 min-w-0 flex-col ${RESIZING} ${narrow ? "flex-1 p-0" : "pt-2 pr-2 pb-2 pl-1 [&>[data-grip]]:top-10 [&>[data-grip]]:bottom-2"}`
 
 /** Columns and the dividers between them are cells of one grid, placed by `grid-column`: opening or closing one never moves another's DOM node, so a frame is never re-parented. */
-export const SIDE_BODY = `grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] [--divider:5px] ${RESIZING}`
+export const SIDE_BODY = `grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] [--divider:8px] ${RESIZING}`
 
 /** One kind's column: a slim header over its view. */
 export const SIDE_COLUMN = "side-col row-1 flex min-h-0 min-w-0 flex-col"
 
-/** Muted words; the one in view is ink. */
+/** Muted words; the one in view is ink. Wide, as tall as the workspace's bar and its gap, so the cards' tops meet. Over the folded rail's bar, the first one clears it, as the tab strip does. */
 export const sideHeadClass = (narrow: boolean): string =>
-  `side-head flex min-h-6.5 min-w-0 items-center gap-0.5 pb-1.5 font-mono text-meta normal-nums ${narrow ? "px-2 pt-0" : "narrow:px-2 narrow:pt-0"}`
+  `side-head flex min-h-6.5 min-w-0 wide:min-h-8 rail-folded:panel-expanded:in-[.side-col:first-child]:pl-[calc(--spacing(23)+var(--shell-inset-left,0px))] items-center gap-0.5 pb-1.5 font-mono text-meta normal-nums ${narrow ? "px-2 pt-0" : "narrow:px-2 narrow:pt-0"}`
 
 /** A column's title in its header. */
 export const COLUMN_TITLE = "min-w-0 flex-1 truncate px-2 text-ink"
@@ -61,12 +65,13 @@ export const ptabCloseClass = (active: boolean): string =>
 /** The top bar's Files / Diff / Browser buttons. */
 export const PANEL_LAUNCH = "ml-auto flex gap-0.5"
 
-/** The line between side-by-side columns: one hairline, a wider strip to grab. */
+/** The gap between side-by-side column cards, a strip to grab: its hairline shows on hover, as a `ResizeGrip`'s does. */
 export const SIDE_DIVIDER =
-  "relative row-1 cursor-col-resize touch-none before:absolute before:inset-y-0 before:left-[calc(var(--divider)/2)] before:w-px before:bg-line before:content-[''] hover:before:bg-line-active after:absolute after:inset-x-[-3px] after:inset-y-0 after:content-['']"
+  "relative row-1 cursor-col-resize touch-none before:absolute before:inset-y-0 before:left-[calc(var(--divider)/2)] before:w-px before:content-[''] hover:before:bg-line-active after:absolute after:inset-x-[-3px] after:inset-y-0 after:content-['']"
 
-/** A column's view; the hidden ones (a Browser's other tabs) must beat the flex display. */
-export const SIDE_VIEW = "side-view flex min-h-0 min-w-0 flex-1 flex-col [&[hidden]]:hidden"
+/** A column's view, a card beside the workspace's; the hidden ones (a Browser's other tabs) must beat the flex display. */
+export const SIDE_VIEW =
+  "side-view flex min-h-0 min-w-0 flex-1 flex-col [&[hidden]]:hidden wide:overflow-hidden wide:rounded-md wide:border-hairline wide:border-line wide:bg-paper"
 
 /** A column with nothing to show. */
 export const SIDE_EMPTY =

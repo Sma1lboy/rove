@@ -9,6 +9,7 @@ import { tabLabel } from "./rail.ts"
 import { taskMenu } from "./row-actions.tsx"
 import { useStore } from "./store.ts"
 import { tuckRare } from "./ui.ts"
+import { TAB_STRIP } from "./ui/panel.ts"
 
 /** The open task's tabs as a tablist; on a wide screen the buttons that open the side panel sit at its end. */
 export function TabStrip({
@@ -22,10 +23,7 @@ export function TabStrip({
   // `chat.tabStrip.mode` hides the session tabs (the rail tree lists them); the panel launcher stays.
   const hidden = !tabStripVisible(prefs.tabStrip, tabs.length)
   return (
-    <div
-      className="flex min-w-0 items-center gap-0.5 font-mono text-meta/body transition-padding-left duration-220 ease-snap motion-reduce:transition-none rail-folded:min-h-6.5 rail-folded:pl-23"
-      role="tablist"
-    >
+    <div className={TAB_STRIP} role="tablist">
       {tabs.map((tab, i) => (
         <button
           type="button"

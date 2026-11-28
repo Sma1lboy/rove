@@ -88,12 +88,25 @@ function quietInks(palette: Palette): { muted: string; subtle: string } {
   return { muted, subtle }
 }
 
+/** The ground the panes rest on: the page colour a step toward black, a shorter step where it is already light. */
+function canvasOf(paper: string): string {
+  const keep = luminance(paper) < 0.18 ? 0.6 : 0.93
+  return `#${channelsOf(paper)
+    .map((c) =>
+      Math.round(c * keep)
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`
+}
+
 /** Custom properties for `:root`. Empty before the first reply, so the stylesheet's own dark tokens stand. */
 export function cssVars(palette: Palette, prefs: Pick<Prefs, "focusAccent" | "colorblind">): Record<string, string> {
   const cb = prefs.colorblind === "on"
   const quiet = quietInks(palette)
   return {
     "--paper": palette.background,
+    "--canvas": canvasOf(palette.background),
     "--surface": palette.backgroundPanel,
     "--inset": palette.backgroundElement,
     "--menu": palette.backgroundMenu,

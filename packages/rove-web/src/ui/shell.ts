@@ -23,6 +23,8 @@ export const appClass = (o: {
 }): string =>
   [
     "app relative grid min-h-0 flex-1 grid-rows-[1fr_auto] transition-[grid-template-columns] duration-220 ease-snap motion-reduce:transition-none",
+    // Wide, the panes are cards resting on a ground one tone off the page, 8px apart and from the window's edges.
+    o.surface ? "" : "bg-canvas",
     o.surface
       ? `is-narrow narrow-${o.surface} grid-cols-[minmax(0,1fr)]`
       : o.panel
@@ -43,8 +45,12 @@ export const RAIL_PEEK_EDGE = "absolute inset-y-0 left-0 z-5 col-1 row-1 w-2.5"
  */
 export const RAIL_FRAME = [
   "relative narrow-content:hidden narrow-back:col-1 narrow-back:row-1 touch:select-none touch:touch-callout-none",
-  "wide:overflow-x-clip wide:pt-8.5 wide:[&>:not([data-grip])]:min-w-(--rail-open-w)",
-  "rail-folded:absolute rail-folded:inset-y-1.5 rail-folded:left-1.5 rail-folded:z-6 rail-folded:col-1 rail-folded:row-1 rail-folded:box-border rail-folded:w-(--rail-open-w) rail-folded:-translate-x-[calc(100%+12px)] rail-folded:rounded-md rail-folded:border-hairline rail-folded:border-line rail-folded:bg-surface rail-folded:shadow-none rail-folded:transition-[translate] rail-folded:duration-200 rail-folded:ease-snap rail-folded:motion-reduce:transition-none rail-folded:[&>:not([data-grip])]:min-w-0",
+  "wide:overflow-x-clip",
+  // Docked, the card is drawn behind the contents and stops 4px short of the column's edge, so the grip sits in the
+  // gap and the workspace's own 4px make it 8.
+  "rail-open:isolate rail-open:pt-10 rail-open:pr-1 rail-open:pb-2 rail-open:pl-2 rail-open:[&>:not([data-grip])]:min-w-[calc(var(--rail-open-w)-12px)] rail-open:[&>[data-grip]]:top-10 rail-open:[&>[data-grip]]:bottom-2",
+  "rail-open:before:absolute rail-open:before:inset-[40px_4px_8px_8px] rail-open:before:-z-1 rail-open:before:rounded-md rail-open:before:border-hairline rail-open:before:border-line rail-open:before:bg-paper rail-open:before:content-['']",
+  "rail-folded:pt-8.5 rail-folded:absolute rail-folded:inset-y-1.5 rail-folded:left-1.5 rail-folded:z-6 rail-folded:col-1 rail-folded:row-1 rail-folded:box-border rail-folded:w-(--rail-open-w) rail-folded:-translate-x-[calc(100%+12px)] rail-folded:rounded-md rail-folded:border-hairline rail-folded:border-line rail-folded:bg-surface rail-folded:shadow-none rail-folded:transition-[translate] rail-folded:duration-200 rail-folded:ease-snap rail-folded:motion-reduce:transition-none rail-folded:[&>:not([data-grip])]:min-w-0",
   "rail-peek:translate-none rail-peek:shadow-dialog",
 ].join(" ")
 
@@ -54,9 +60,9 @@ export const RAIL_FRAME = [
  * keeps the same animation, so springing back does not replay it.
  */
 export const WORKSPACE_FRAME =
-  "rail-folded:col-2 panel-expanded:invisible panel-expanded:col-2 narrow-sidebar:hidden narrow-content:motion-safe:animate-push-in narrow-back:motion-safe:animate-push-in narrow-back:z-1 narrow-back:col-1 narrow-back:translate-x-(--back-x) narrow-back:bg-paper narrow-back:shadow-dialog"
+  "wide:pb-2 [:where(.app:not(.is-narrow,:has(>.side-panel)))_&]:pr-2 rail-folded:pl-2 rail-folded:col-2 panel-expanded:invisible panel-expanded:col-2 narrow-sidebar:hidden narrow-content:motion-safe:animate-push-in narrow-back:motion-safe:animate-push-in narrow-back:z-1 narrow-back:col-1 narrow-back:translate-x-(--back-x) narrow-back:bg-paper narrow-back:shadow-dialog"
 export const SIDE_PANEL_FRAME =
-  "rail-folded:col-3 panel-expanded:z-2 panel-expanded:col-[2/-1] panel-expanded:bg-paper panel-expanded:pl-2"
+  "rail-folded:col-3 panel-expanded:z-2 panel-expanded:col-[2/-1] panel-expanded:bg-canvas rail-folded:panel-expanded:pl-2"
 
 /** The rail head's chips: a fingertip target on touch. */
 export const HEAD_CHIP = `${HIT} touch:after:-inset-x-1.5 touch:after:-inset-y-3`
