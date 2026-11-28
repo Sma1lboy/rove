@@ -41,7 +41,8 @@ export function printBanner(o: {
     if (o.relayCode !== null) continue
     const url = pairingUrl({ host: publicHost, port, token: o.token, tls: o.args.tls, preset: o.args.preset })
     console.log(`${o.web ? "" : "\n"}pair: ${url}`)
-    if (o.args.qr && !o.web) console.log(renderUnicodeCompact(url))
+    // With --web the QR carries the page link: a phone camera opens it in the browser, and the iPhone app pairs from it.
+    if (o.args.qr) console.log(renderUnicodeCompact(o.web ? (o.signIn === "open" ? bare : link) : url))
   }
   if (o.relayCode !== null && o.args.relayServer) {
     const link = relayLink({ server: o.args.relayServer, code: o.relayCode, token: o.token })
