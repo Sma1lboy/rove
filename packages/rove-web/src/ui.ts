@@ -105,7 +105,7 @@ export interface Preview {
   readonly file?: true
 }
 
-const PAGE_IDS = [
+export const PAGE_IDS = [
   "worktrees",
   "update",
   "kanban",

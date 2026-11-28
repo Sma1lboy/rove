@@ -23,6 +23,7 @@
     "visual": "bun --filter rove-harness visual",
     "visual:serve": "bun --filter rove-harness visual:serve",
     "visual:dev": "bun --filter rove-harness visual:dev",
+    "tour": "bun packages/rove-harness/e2e/tour/tour.ts",
     "lint": "biome check biome.json package.json docs packages/rove packages/rove-daemon packages/rove-plugin-sdk packages/rove-bridge packages/rove-weixin packages/rove-lark packages/rove-web --config-path ./biome.json",
     "lint:fix": "biome check biome.json package.json docs packages/rove packages/rove-daemon packages/rove-plugin-sdk packages/rove-bridge packages/rove-weixin packages/rove-lark packages/rove-web --config-path ./biome.json --write",
     "changeset": "changeset",
