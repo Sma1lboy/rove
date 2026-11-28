@@ -174,6 +174,7 @@ function SignInRows({ client }: { client: BridgeClient }) {
 }
 
 export function AboutSection({ client }: { client: BridgeClient }) {
+  const host = useStore(client.conn).hello?.host
   const [daemon, setDaemon] = useState<DaemonInfo | null>(() => lastReply<DaemonInfo>(client, "daemon.info") ?? null)
   useEffect(() => {
     void requestRemembered<DaemonInfo>(client, "daemon.info").then(setDaemon, () => setDaemon(null))
@@ -181,6 +182,7 @@ export function AboutSection({ client }: { client: BridgeClient }) {
   return (
     <>
       <Group title={t("settings.about.groupRove")}>
+        {host && <Row label={t("settings.about.computer")} hint={host} />}
         {daemon?.daemonVersion && (
           <Row
             label={t("settings.about.daemon")}
