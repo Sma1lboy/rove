@@ -19,11 +19,7 @@ import {
 import { loadPluginRegistry } from "@sma1lboy/rove-daemon/plugins/registry"
 import { engineDisplayName } from "@sma1lboy/rove/src/engine/interactive-command.ts"
 import { FEEDBACK_KINDS, isFeedbackKind } from "@sma1lboy/rove/src/lib/feedback.ts"
-import {
-  type PluginRowView,
-  readPluginRows,
-  setPluginEnabled,
-} from "@sma1lboy/rove/src/tui-react/component/settings-dialog/plugins-core.ts"
+import { type PluginRowView, readPluginRows, setPluginEnabled } from "@sma1lboy/rove/src/lib/plugins-core.ts"
 import { CURRENT_VERSION } from "@sma1lboy/rove/src/version.ts"
 import { BridgeError } from "../protocol.ts"
 import { type UsageStore, usageStore } from "../usage-store.ts"

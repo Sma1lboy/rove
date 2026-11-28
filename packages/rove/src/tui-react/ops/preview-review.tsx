@@ -14,6 +14,7 @@ import type { DiffRenderable, RGBA } from "@opentui/core"
 import { CodeRenderable } from "@opentui/core"
 import { type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react"
 import { bindByIds, findBinding } from "../../keys/keybindings"
+import { followScrollTop } from "../../tui/panes/filetree/pane-core"
 import {
   type DiffReviewApi,
   type DiffRow,
@@ -23,8 +24,7 @@ import {
   computeReviewPaint,
   unifiedDiffRows,
   unsentComments,
-} from "../../tui/ops/diff-comments"
-import { followScrollTop } from "../../tui/panes/filetree/pane-core"
+} from "../../worktree/diff-comments"
 import { RenameTaskDialog } from "../component/rename-task-dialog"
 import { useKeymapVersion } from "../context/keybindings"
 import { useNotifications } from "../context/notifications"

@@ -4,7 +4,7 @@
  * paint a task before the daemon's tabs arrive.
  */
 
-export { terminalTabsKey } from "../../state/tabs-persistence.ts"
+export { terminalTabsKey } from "../state/tabs-persistence.ts"
 
 /** Satisfied by `KVContext`. */
 export interface TabsSnapshotKv {

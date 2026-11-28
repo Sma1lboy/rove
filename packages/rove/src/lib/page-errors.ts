@@ -3,7 +3,7 @@
  * so the Settings view model can read it without loading the page host.
  */
 
-import { createStateCell } from "../../lib/external-store"
+import { createStateCell } from "./external-store"
 
 export interface PluginPageError {
   readonly pluginId: string

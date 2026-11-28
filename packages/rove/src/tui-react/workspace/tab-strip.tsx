@@ -13,7 +13,9 @@ import { type BoxRenderable, MouseButton, TextAttributes } from "@opentui/core"
 import type { TabStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { useEffect, useRef, useState } from "react"
 import { approxCharCells, displayWidth } from "../../lib/display-width"
+import { isNarrowWidth } from "../../lib/narrow-mode"
 import { rowStatusGlyph } from "../../lib/row-status-glyph"
+import { truncateEndCells } from "../../lib/truncate"
 import {
   TAB_STRIP_HIDE_SINGLE_KEY,
   TAB_STRIP_MODE_KEY,
@@ -23,13 +25,11 @@ import {
 import { type TerminalTab, tabTitle, visibleNativeStatus } from "../../tabs/terminal-tabs-core"
 import { breathGlyph } from "../../tui/lib/breathe"
 import type { GlyphSet } from "../../tui/lib/glyphs"
-import { truncateEndCells } from "../../tui/lib/truncate"
 import { DONE_PULSE_MS, sidebarTone } from "../../tui/panes/sidebar/row-view"
 import { toneColor } from "../../tui/panes/sidebar/view-core"
 import type { VendorId } from "../../types/vendor"
 import { useKV } from "../context/kv"
 import { type Theme, useTheme } from "../context/theme"
-import { isNarrowWidth } from "../lib/narrow-mode"
 import { useGlyphs } from "../lib/use-glyphs"
 import { useTerminalSize } from "../lib/use-terminal-size"
 import { useSpinnerFrame } from "../panes/sidebar/row-cards"

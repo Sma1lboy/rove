@@ -15,7 +15,7 @@ import {
   formatDiffComments,
   unifiedDiffRows,
   unsentComments,
-} from "../../src/tui/ops/diff-comments"
+} from "../../src/worktree/diff-comments"
 
 function comment(over: Partial<DiffComment>): DiffComment {
   return { id: "c1", filePath: "a.ts", line: 1, body: "note", createdAt: 1, ...over }

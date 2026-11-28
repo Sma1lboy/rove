@@ -1,7 +1,7 @@
 /** A routine's detail on a phone: a sheet of grouped cards, its runs as two-line rows, and its actions along the foot. */
 
-import { type AutomationRun, routineRunResponseState } from "@sma1lboy/rove/src/tui/component/automation-run-core.ts"
-import { describeCronWith } from "@sma1lboy/rove/src/tui/component/cron-core.ts"
+import { type AutomationRun, routineRunResponseState } from "@sma1lboy/rove/src/automations/automation-run-core.ts"
+import { describeCronWith } from "@sma1lboy/rove/src/automations/cron-core.ts"
 import { type ComponentProps, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
 import { fill, useCopy, useCronTranslate } from "./pages-kit.ts"

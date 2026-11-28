@@ -13,6 +13,14 @@ import { type EngineStatus, detectEngineStatuses } from "../../../engine/engine-
 import { withEngineVersions } from "../../../engine/engine-version"
 import { type EngineIntegration, engineIntegrations } from "../../../engine/integration-status"
 import { reloadPluginEngines } from "../../../engine/plugin-engines"
+import { nextEnumValue, normalizeNumberInput, toggledBooleanValue } from "../../../lib/plugin-settings-core"
+import {
+  type BuiltInPluginInfo,
+  type PluginRowView,
+  readPluginRows,
+  setPluginEnabled,
+  setPluginSetting,
+} from "../../../lib/plugins-core"
 import type { SectionId } from "../../../tui/component/settings-dialog/model"
 import type { VendorId } from "../../../types/task"
 import { useT } from "../../i18n"
@@ -22,14 +30,6 @@ import type { DialogContext } from "../../ui/dialog"
 import { DialogConfirm } from "../../ui/dialog-confirm"
 import { RenameTaskDialog } from "../rename-task-dialog"
 import { type MarketplaceRowView, installedSpecIds, marketplaceRowViews } from "./marketplace-core"
-import { nextEnumValue, normalizeNumberInput, toggledBooleanValue } from "./plugin-settings-core"
-import {
-  type BuiltInPluginInfo,
-  type PluginRowView,
-  readPluginRows,
-  setPluginEnabled,
-  setPluginSetting,
-} from "./plugins-core"
 
 /**
  * "Installed + logged in" detection for EVERY listed engine (binary-only for

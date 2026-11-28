@@ -12,7 +12,7 @@
 import { loadStateFile } from "../../state/store"
 import { absorbTab } from "../../tabs/tabs-adopt"
 import type { CommandTab, EngineTab, TabsState } from "../../tabs/terminal-tabs-core"
-import { type TabsSnapshotKv, terminalTabsKey } from "./terminal-tabs-persist"
+import { type TabsSnapshotKv, terminalTabsKey } from "../../tabs/terminal-tabs-persist"
 import {
   knownTabsState,
   reportTabsDelta,

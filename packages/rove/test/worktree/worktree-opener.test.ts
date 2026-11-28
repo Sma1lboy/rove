@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
-import { buildOpenWorktreeCommand, detectWorktreeOpener, openWorktree } from "../../src/tui/lib/worktree-opener.ts"
+import { buildOpenWorktreeCommand, detectWorktreeOpener, openWorktree } from "../../src/worktree/worktree-opener.ts"
 
 describe("detectWorktreeOpener", () => {
   it("honors ROVE_OPEN_EDITOR", () => {

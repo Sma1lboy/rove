@@ -4,7 +4,7 @@
  * reading draws nothing, never 0. The session's context lives in the side panel's Context tab.
  */
 
-import { narrowUsageChip } from "@sma1lboy/rove/src/tui-react/component/settings-dialog/usage-core.ts"
+import { narrowUsageChip } from "@sma1lboy/rove/src/lib/usage-core.ts"
 import { type CSSProperties, useEffect, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { everyVisible } from "./every-visible.ts"

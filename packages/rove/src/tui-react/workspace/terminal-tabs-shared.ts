@@ -14,6 +14,7 @@ import {
   type TerminalTab,
   reopenTabs,
 } from "../../tabs/terminal-tabs-core"
+import { type TabsSnapshotKv, terminalTabsKey } from "../../tabs/terminal-tabs-persist"
 import type { VendorId } from "../../types/vendor"
 import {
   commitTaskTabs,
@@ -24,7 +25,6 @@ import {
   tabsRevision,
   taskTabsView,
 } from "./tabs-sync"
-import { type TabsSnapshotKv, terminalTabsKey } from "./terminal-tabs-persist"
 
 export { tabsByTask, tabsRevision }
 

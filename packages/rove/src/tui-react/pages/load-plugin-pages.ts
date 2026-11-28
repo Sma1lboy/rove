@@ -15,12 +15,12 @@ import { pathToFileURL } from "node:url"
 import { readPluginManifest } from "@sma1lboy/rove-daemon/plugins/manifest"
 import { loadPluginRegistry } from "@sma1lboy/rove-daemon/plugins/registry"
 import { errorMessage } from "../../lib/error-message"
+import { type PluginPageError, pluginPageErrorState } from "../../lib/page-errors"
 import { isPageAction } from "../../tui/panes/sidebar/nav-core"
 import { pageHost } from "./host-api"
-import { type PluginPageError, pluginPageErrorState } from "./page-errors"
 import { type PageComponent, type PageEntry, replacePageSources } from "./registry"
 
-export { pluginPageErrors } from "./page-errors"
+export { pluginPageErrors } from "../../lib/page-errors"
 
 let runtimeReady = false
 

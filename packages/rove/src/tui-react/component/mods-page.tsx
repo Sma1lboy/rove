@@ -11,13 +11,7 @@ import { TextAttributes } from "@opentui/core"
 import type { ModNode, ModPaneView, ModTone } from "@sma1lboy/rove-daemon/plugins/mod-tree"
 import { type ReactNode, useRef, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
-import {
-  type ModControlRef,
-  modControls,
-  moveModCursor,
-  resolveModCursor,
-  sameModControl,
-} from "../../tui/panes/mods/mods-core"
+import { type ModControlRef, modControls, moveModCursor, resolveModCursor, sameModControl } from "../../lib/mods-core"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"

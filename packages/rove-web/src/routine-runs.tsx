@@ -3,7 +3,7 @@
  * and prompt; the run log is `routine-run-log.tsx`). Run tones and glyphs are shared with the page's list rows.
  */
 
-import type { AutomationRun } from "@sma1lboy/rove/src/tui/component/automation-run-core.ts"
+import type { AutomationRun } from "@sma1lboy/rove/src/automations/automation-run-core.ts"
 import { fill, useCopy } from "./pages-kit.ts"
 import { responseText } from "./routine-run-text.ts"
 import { RT_RESPONSE, RT_RUN_HEAD, rtResponseClass } from "./ui/routines.ts"

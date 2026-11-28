@@ -22,7 +22,7 @@ import { getDisabledEngineIds, getSavedRepos } from "@sma1lboy/rove/src/state/re
 import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { conversationTitle } from "@sma1lboy/rove/src/tabs/terminal-tab-split.ts"
 import type { TerminalTab } from "@sma1lboy/rove/src/tabs/terminal-tabs-core.ts"
-import { terminalTabsKey } from "@sma1lboy/rove/src/tui-react/workspace/terminal-tabs-persist.ts"
+import { terminalTabsKey } from "@sma1lboy/rove/src/tabs/terminal-tabs-persist.ts"
 import { DEFAULT_TASK_VENDOR } from "@sma1lboy/rove/src/types/task.ts"
 import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
 import { resolveBase } from "@sma1lboy/rove/src/worktree/git-status.ts"

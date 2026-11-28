@@ -7,9 +7,9 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import type { TabsSnapshotKv } from "../../src/tabs/terminal-tabs-persist"
 import { resetTabsSyncForTests } from "../../src/tui-react/workspace/tabs-sync"
 import { adoptTaskTabs } from "../../src/tui-react/workspace/terminal-tabs-adopt"
-import type { TabsSnapshotKv } from "../../src/tui-react/workspace/terminal-tabs-persist"
 import { tabActivationListeners, tabsByTask, takeTabAdopt } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import { type TabsSyncDaemon, attachTabsDaemon, flushTabs } from "./tabs-sync-daemon"
 

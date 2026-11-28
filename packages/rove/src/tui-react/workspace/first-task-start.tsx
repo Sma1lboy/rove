@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/react */
 import { useState } from "react"
 import { resolveMainRepoRoot } from "../../state/repos"
-import { validateRepoPath } from "../../tui/lib/git-snapshot"
+import { validateRepoPath } from "../../worktree/git-snapshot"
 import { QuickTaskComposer, type QuickTaskResult } from "../component/quick-task-composer"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"

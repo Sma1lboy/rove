@@ -9,7 +9,7 @@ import { existsSync, readFileSync, statSync } from "node:fs"
 import { isAbsolute, join, resolve } from "node:path"
 import { readOnlyGitProcessEnv } from "@/lib/git-env"
 import { recordSpawn } from "@/lib/spawn-profile"
-import { spawnCapture } from "../lib/background-poll"
+import { spawnCapture } from "../../lib/background-poll"
 
 export type PausedGitOperation = "merge" | "rebase" | "cherry-pick" | "revert"
 

@@ -4,7 +4,7 @@
  * outcome; a run that made a session opens it.
  */
 
-import { type AutomationRun, routineRunResponseState } from "@sma1lboy/rove/src/tui/component/automation-run-core.ts"
+import { type AutomationRun, routineRunResponseState } from "@sma1lboy/rove/src/automations/automation-run-core.ts"
 import { useEffect, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { t, useLocale } from "./i18n/index.ts"

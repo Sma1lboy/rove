@@ -9,7 +9,7 @@
  */
 
 import { intlLocale, t } from "@/i18n"
-import { type SchedulePreview, previewScheduleWith } from "./cron-core"
+import { type SchedulePreview, previewScheduleWith } from "../../automations/cron-core"
 
 export {
   COMPOSER_FIELDS,
@@ -19,8 +19,8 @@ export {
   canSubmitDraft,
   firstIncompleteField,
   nextComposerField,
-} from "./automation-composer-core"
-export type { SchedulePreview } from "./cron-core"
+} from "../../automations/automation-composer-core"
+export type { SchedulePreview } from "../../automations/cron-core"
 
 /** See {@link previewScheduleWith}. */
 export function previewSchedule(expression: string, nowMs: number): SchedulePreview {

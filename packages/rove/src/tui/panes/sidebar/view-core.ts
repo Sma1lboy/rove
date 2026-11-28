@@ -1,7 +1,7 @@
 /** Pure view derivations for the React sidebar: no React, no opentui. */
 
 import { charWidth, displayWidth } from "../../../lib/display-width"
-import { truncateEnd, truncateEndCells } from "../../lib/truncate"
+import { truncateEnd, truncateEndCells } from "../../../lib/truncate"
 import type { SidebarTone } from "./row-view"
 
 /** Minimum task-list rail width; also the width at and below ~144 cols ({@link sidebarWidthFor}). */

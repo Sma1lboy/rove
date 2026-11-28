@@ -20,7 +20,7 @@ import {
   resolveCloneTarget,
   validateCloneTarget,
   validateGitUrl,
-} from "@/tui/component/new-task-dialog/clone"
+} from "@/worktree/clone"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
 describe("deriveFolderName", () => {

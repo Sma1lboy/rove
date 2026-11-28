@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { displayWidth } from "../../src/lib/display-width.ts"
+import { ratioBar } from "../../src/lib/progress-bar.ts"
 import {
   type FooterChipsView,
   USAGE_BAR_WIDTH,
@@ -8,8 +9,7 @@ import {
   narrowUsageChip,
   usageChipsBudget,
   usageRows,
-} from "../../src/tui-react/component/settings-dialog/usage-core.ts"
-import { ratioBar } from "../../src/tui/lib/progress-bar.ts"
+} from "../../src/lib/usage-core.ts"
 
 const NOW = Date.parse("2026-07-27T12:00:00.000Z")
 

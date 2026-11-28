@@ -20,7 +20,7 @@ import {
   stripNewlines,
   windowAround,
 } from "../../tui/component/new-task-dialog/state"
-import { listLocalBranches } from "../../tui/lib/git-snapshot"
+import { listLocalBranches } from "../../worktree/git-snapshot"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"

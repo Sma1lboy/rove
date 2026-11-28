@@ -1,7 +1,7 @@
 /**
  * Unified diff → display rows with gutter numbers. A review note anchors to
  * the gutter number the row shows (new-file for added/context rows, old-file
- * for removed), the TUI's `DiffComment.line` contract (`tui/ops/diff-comments.ts`).
+ * for removed), the TUI's `DiffComment.line` contract (`worktree/diff-comments.ts`).
  */
 
 export type DiffRowKind = "file" | "hunk" | "add" | "del" | "ctx" | "meta"

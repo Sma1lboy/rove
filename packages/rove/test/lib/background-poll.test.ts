@@ -5,7 +5,7 @@
  */
 
 import { afterEach, describe, expect, test, vi } from "vitest"
-import { createBackgroundPoller, subscribeBackgroundPolls } from "../../src/tui/lib/background-poll"
+import { createBackgroundPoller, subscribeBackgroundPolls } from "../../src/lib/background-poll"
 
 describe("subscribeBackgroundPolls", () => {
   // A frozen clock makes each run's duration 0, so the cadence floor never drops a poll.

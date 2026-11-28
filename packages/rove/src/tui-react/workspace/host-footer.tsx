@@ -7,13 +7,13 @@
 
 import type { ReactNode } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
+import { isNarrowWidth } from "../../lib/narrow-mode"
+import { contextChip } from "../../lib/usage-core"
 import { USAGE_SHOW_KEY, normalizeUsageShow } from "../../state/usage-show"
 import { StatusKeyHintBar, useStatusKeyHintItems } from "../component/keyboard-hints"
-import { contextChip } from "../component/settings-dialog/usage-core"
 import { ShortcutRevealProvider } from "../component/shortcut-reveal"
 import { useOptionalKV } from "../context/kv"
 import { useTheme } from "../context/theme"
-import { isNarrowWidth } from "../lib/narrow-mode"
 import { useAccessor } from "../lib/use-accessor"
 import { useTerminalSize } from "../lib/use-terminal-size"
 

@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
-import type { EventRow } from "../../tui-react/component/issue-events-core"
+import type { EventRow } from "../../lib/issue-events-core"
 import { host, hostFn } from "./host"
 
 const useTheme = hostFn((h) => h.theme.useTheme)

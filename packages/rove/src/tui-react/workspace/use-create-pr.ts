@@ -7,7 +7,7 @@
  */
 
 import type { MutableRefObject } from "react"
-import { buildPRPrompt, gatherPRPromptState } from "../../tui/ops/pr-prompt"
+import { buildPRPrompt, gatherPRPromptState } from "../../github/pr-prompt"
 import { useT } from "../i18n"
 
 export type CreatePRDeps = {

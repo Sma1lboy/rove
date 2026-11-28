@@ -7,10 +7,10 @@
 import type { TaskEngineState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
 import { useMemo } from "react"
+import type { TabsSnapshotKv } from "../../../tabs/terminal-tabs-persist"
 import type { TaskSortMode } from "../../../tui/panes/sidebar/groups"
 import { type SidebarGroup, buildSidebarGroups } from "../../../tui/panes/sidebar/project-groups"
 import type { TreeTab } from "../../../tui/panes/sidebar/tree-core"
-import type { TabsSnapshotKv } from "../../workspace/terminal-tabs-persist"
 import { useTabsByTask } from "./use-tabs-by-task"
 
 export interface SidebarGroupsOpts {

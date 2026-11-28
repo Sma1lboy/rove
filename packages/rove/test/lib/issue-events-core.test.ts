@@ -1,5 +1,5 @@
 /**
- * Story-drawer EVENTS feed view model (component/issue-events-core.ts).
+ * Story-drawer EVENTS feed view model (lib/issue-events-core.ts).
  *
  * The daemon's ring hands over loosely-typed `detail` records, so what can
  * silently go wrong is pinned here: which fragment wins per kind, a detail
@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from "vitest"
 import type { RecentTaskEvent } from "../../src/client/remote-orchestrator.ts"
-import { detailFragment, eventRows } from "../../src/tui-react/component/issue-events-core.ts"
+import { detailFragment, eventRows } from "../../src/lib/issue-events-core.ts"
 
 const NOW = Date.parse("2026-07-28T12:00:00.000Z")
 const minutesAgo = (n: number) => NOW - n * 60_000

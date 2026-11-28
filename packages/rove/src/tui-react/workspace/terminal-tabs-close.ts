@@ -14,11 +14,11 @@
 
 import { logClientError } from "@sma1lboy/rove-daemon/client/client-log"
 import { type TerminalTab, closeTab, tabPtyKey, tabPtyKeyFor } from "../../tabs/terminal-tabs-core"
+import type { TabsSnapshotKv } from "../../tabs/terminal-tabs-persist"
 import { peekSharedPtyClient } from "../../tui/panes/terminal/pty-hosted-client"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { noteClosedPtyKey } from "../../tui/workspace/closed-tab-suppress"
 import { releaseSplitLeaves } from "./TerminalSplit"
-import type { TabsSnapshotKv } from "./terminal-tabs-persist"
 import {
   knownTabsState,
   reportTabsDelta,

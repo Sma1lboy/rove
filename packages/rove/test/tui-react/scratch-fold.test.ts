@@ -12,9 +12,9 @@
 
 import type { SharedTabs } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import type { TabsSnapshotKv } from "../../src/tabs/terminal-tabs-persist"
 import { foldScratchShell } from "../../src/tui-react/workspace/scratch-fold"
 import { resetTabsSyncForTests } from "../../src/tui-react/workspace/tabs-sync"
-import type { TabsSnapshotKv } from "../../src/tui-react/workspace/terminal-tabs-persist"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import { scratchOwnerTasks } from "../../src/tui-react/workspace/use-scratch-adopt"
 import type { Task } from "../../src/types/task"

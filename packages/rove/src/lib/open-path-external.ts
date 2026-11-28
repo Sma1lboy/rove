@@ -10,7 +10,7 @@ import { existsSync } from "node:fs"
 import { platform } from "node:os"
 import { dirname } from "node:path"
 import type { Readable } from "node:stream"
-import { spawnDetached } from "../../../lib/spawn-detached"
+import { spawnDetached } from "./spawn-detached"
 
 type EventedChild = {
   readonly stdout?: Readable | null

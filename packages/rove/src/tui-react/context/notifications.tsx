@@ -2,14 +2,13 @@
 /**
  * Per-ChatTab completion notifications: sound, toast, unread mark. Pure
  * transforms and the "error toasts always show" invariant live in
- * `src/tui/lib/notify-state.ts`. Toggles come from KV, else (render tests,
+ * `src/lib/notify-state.ts`. Toggles come from KV, else (render tests,
  * mock host) a one-time `state.json` snapshot. A `silent` input keeps the
  * toast and the unread mark but skips the audible half (dispatched tasks); a
  * muted task keeps only the unread mark, plus an error's toast.
  */
 import { useRenderer } from "@opentui/react"
 import { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
-import { loadStateFile } from "../../state/store"
 import {
   FINISHED_ALERTS_KEY,
   MUTED_TASKS_KEY,
@@ -24,12 +23,13 @@ import {
   shouldAlert,
   shouldPlaySound,
   shouldShowToast,
-} from "../../tui/lib/notify-state"
+} from "../../lib/notify-state"
+import { loadStateFile } from "../../state/store"
 import { writeThroughRenderer } from "../../tui/lib/screen-refresh"
 import { pulse as pulseSound } from "../../tui/lib/sound"
 import { useOptionalKV } from "./kv"
 
-export type { NotificationKind, Toast, NotifyInput } from "../../tui/lib/notify-state"
+export type { NotificationKind, Toast, NotifyInput } from "../../lib/notify-state"
 
 export interface NotificationsContext {
   readonly toasts: readonly Toast[]

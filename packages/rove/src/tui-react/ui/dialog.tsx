@@ -14,9 +14,9 @@
 import type { Renderable } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
 import { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
+import { isNarrowWidth } from "../../lib/narrow-mode"
 import { useTheme } from "../context/theme"
 import { ModalScopeContext, useBindings } from "../lib/keymap"
-import { isNarrowWidth } from "../lib/narrow-mode"
 import { useLatest } from "../lib/use-latest"
 import { useTerminalSize } from "../lib/use-terminal-size"
 

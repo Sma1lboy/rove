@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { AutomationRun } from "@sma1lboy/rove/src/tui/component/automation-run-core.ts"
+import type { AutomationRun } from "@sma1lboy/rove/src/automations/automation-run-core.ts"
 import { filterRuns, formatDuration, outcomeOf, runDurationMs } from "../src/routine-run-log.ts"
 
 const run = (id: string, extra: Partial<AutomationRun> = {}): AutomationRun =>

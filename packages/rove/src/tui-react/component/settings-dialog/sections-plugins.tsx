@@ -6,11 +6,11 @@
  */
 
 import { type BoxRenderable, TextAttributes } from "@opentui/core"
+import { type PluginSettingRowView, displaySettingValue, isBooleanOn } from "../../../lib/plugin-settings-core"
+import type { PluginRowView } from "../../../lib/plugins-core"
 import { relativeAge } from "../../../lib/relative-time"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
-import { type PluginSettingRowView, displaySettingValue, isBooleanOn } from "./plugin-settings-core"
-import type { PluginRowView } from "./plugins-core"
 import type { SectionCursorProps } from "./rows"
 
 /**

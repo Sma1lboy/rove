@@ -9,9 +9,9 @@ import { afterAll, beforeAll, expect, test } from "bun:test"
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { FINISHED_ALERTS_KEY } from "../../src/lib/notify-state"
 import { useKV } from "../../src/tui-react/context/kv"
 import { type NotificationsContext, useNotifications } from "../../src/tui-react/context/notifications"
-import { FINISHED_ALERTS_KEY } from "../../src/tui/lib/notify-state"
 import { act, renderComponent } from "./harness"
 
 let home: string

@@ -7,7 +7,7 @@
 
 import { adoptTabs } from "../../tabs/tabs-adopt"
 import type { TabsState } from "../../tabs/terminal-tabs-core"
-import type { TabsSnapshotKv } from "./terminal-tabs-persist"
+import type { TabsSnapshotKv } from "../../tabs/terminal-tabs-persist"
 import { knownTabsState, requestTabAdopt, setTaskTabs, takeUnclaimedTabAdopt } from "./terminal-tabs-shared"
 
 /**

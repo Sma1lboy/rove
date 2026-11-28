@@ -17,7 +17,7 @@ import {
   stripNewlines,
   windowAround,
 } from "../../../tui/component/new-task-dialog/state"
-import { DEFAULT_BASE_REF, getCurrentBranch, listLocalBranches } from "../../../tui/lib/git-snapshot"
+import { DEFAULT_BASE_REF, getCurrentBranch, listLocalBranches } from "../../../worktree/git-snapshot"
 
 export type BranchFieldOpts = {
   /** Absolute repo path the branch list is read from; "" while unresolved. */

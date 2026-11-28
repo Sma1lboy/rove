@@ -15,6 +15,7 @@
 import type { TaskEngineState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
 import { useCallback, useMemo, useRef, useState } from "react"
+import type { TabsSnapshotKv } from "../../../tabs/terminal-tabs-persist"
 import { currentBranch } from "../../../tui/panes/sidebar/git-head"
 import type { TaskSortMode } from "../../../tui/panes/sidebar/groups"
 import { type MachineLayerEntry, applyMachineLayer } from "../../../tui/panes/sidebar/machine-layer"
@@ -28,7 +29,6 @@ import {
   withRecentRow,
 } from "../../../tui/panes/sidebar/tree-core"
 import type { KVContext } from "../../context/kv"
-import type { TabsSnapshotKv } from "../../workspace/terminal-tabs-persist"
 import { useSidebarGroups } from "./use-sidebar-groups"
 
 export interface TreeStateOpts {

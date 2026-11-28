@@ -13,10 +13,10 @@
 import { errorMessage } from "@/lib/error-message"
 import { readRoveEnv } from "@sma1lboy/rove-daemon/compat-env"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { openExternally } from "../../../lib/open-path-external"
 import { remoteChanges, remoteFiles } from "../../../machines/remote-worktree.ts"
 import { cachedFileList, rememberFileList } from "../../../tui/panes/filetree/file-list-cache"
 import { type FileTreeTab, fileSearchBindings, fileTreeBindings } from "../../../tui/panes/filetree/keys-core"
-import { openExternally } from "../../../tui/panes/filetree/open-external"
 import {
   type NavAction,
   collapseOrParentAction,

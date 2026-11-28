@@ -10,7 +10,7 @@ import * as path from "node:path"
 import type { Readable } from "node:stream"
 import { t } from "@/i18n"
 import { errorMessage, isDiskFull } from "@/lib/error-message"
-import { expandHome } from "../../../lib/path-helpers"
+import { expandHome } from "../lib/path-helpers"
 
 type EventedCloneProcess = {
   readonly stderr: Readable | null

@@ -7,9 +7,9 @@
  * CLI-only (`rove api routine-update`).
  */
 
-import { routineEngineText } from "@sma1lboy/rove/src/tui/component/automation-engine-core.ts"
-import type { Automation } from "@sma1lboy/rove/src/tui/component/automation-run-core.ts"
-import { describeCronWith } from "@sma1lboy/rove/src/tui/component/cron-core.ts"
+import { routineEngineText } from "@sma1lboy/rove/src/automations/automation-engine-core.ts"
+import type { Automation } from "@sma1lboy/rove/src/automations/automation-run-core.ts"
+import { describeCronWith } from "@sma1lboy/rove/src/automations/cron-core.ts"
 import { useEffect, useRef, useState } from "react"
 import { ConfirmDialog } from "./dialogs.tsx"
 import { ChangeEngineDialog } from "./engine-dialog.tsx"

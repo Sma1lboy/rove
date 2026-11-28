@@ -9,7 +9,7 @@
  */
 
 import { isValidCron, nextCronAfter } from "@sma1lboy/rove-daemon/daemon/cron"
-import { relativeBuckets } from "../../lib/relative-time"
+import { relativeBuckets } from "../lib/relative-time"
 
 export { isValidCron }
 

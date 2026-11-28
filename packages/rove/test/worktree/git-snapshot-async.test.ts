@@ -3,8 +3,8 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { describe, expect, it } from "vitest"
-import * as sync from "../../src/tui/lib/git-snapshot"
-import * as async from "../../src/tui/lib/git-snapshot-async"
+import * as sync from "../../src/worktree/git-snapshot"
+import * as async from "../../src/worktree/git-snapshot-async"
 
 const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd, stdio: "ignore" })

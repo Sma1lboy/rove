@@ -11,7 +11,7 @@
 import { TextAttributes } from "@opentui/core"
 import { type DialogTab, splitRepoRow } from "../../../tui/component/new-task-dialog/state"
 import { effortLabel } from "../../../tui/lib/effort-glyph"
-import { DEFAULT_BASE_REF } from "../../../tui/lib/git-snapshot"
+import { DEFAULT_BASE_REF } from "../../../worktree/git-snapshot"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { useTerminalSize } from "../../lib/use-terminal-size"

@@ -11,7 +11,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterAll, beforeAll, describe, expect, test } from "vitest"
-import { cloneRepo } from "../../../src/tui/component/new-task-dialog/clone.ts"
+import { cloneRepo } from "../../src/worktree/clone.ts"
 
 let root: string
 let origin: string

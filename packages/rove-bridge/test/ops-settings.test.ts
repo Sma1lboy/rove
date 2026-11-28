@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import type { BuiltinModId } from "@sma1lboy/rove-daemon/plugins/builtin-mods"
 import type { EngineStatus } from "@sma1lboy/rove/src/engine/engine-status.ts"
-import type { PluginRowView } from "@sma1lboy/rove/src/tui-react/component/settings-dialog/plugins-core.ts"
+import type { PluginRowView } from "@sma1lboy/rove/src/lib/plugins-core.ts"
 import { insightOps } from "../src/ops/insight.ts"
 import { type EngineDeps, createEngineOps } from "../src/ops/settings-engines.ts"
 import { type SettingsDeps, createSettingsOps } from "../src/ops/settings.ts"
