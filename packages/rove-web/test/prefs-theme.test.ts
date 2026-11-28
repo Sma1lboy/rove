@@ -59,3 +59,14 @@ test("--muted keeps a theme grey that already reads above --subtle", () => {
   expect(cssVars(claudeLight, prefs)["--muted"]).toBe("#5e5953")
   expect(cssVars(claudeDark, prefs)["--muted"]).toBe("#a9a39a")
 })
+
+test.each([
+  ["dark", claudeDark],
+  ["light", claudeLight],
+] as const)("the docked rail on a %s page is a step darker than it, not a block", (_, palette) => {
+  const vars = cssVars(palette, prefs)
+  const step = contrast(vars["--sidebar"] as string, palette.background)
+  expect(step).toBeGreaterThan(1.04)
+  expect(step).toBeLessThan(1.2)
+  expect(contrast(vars["--sidebar"] as string, "#000000")).toBeLessThan(contrast(palette.background, "#000000"))
+})
