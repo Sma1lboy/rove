@@ -7,6 +7,7 @@ import type { AppModel } from "./model.ts"
 import { reportProblem } from "./report-problem.ts"
 import { toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
+import { useGrow } from "./ui/grow.ts"
 import {
   SETTINGS_ACTIONS,
   SETTINGS_FIELD,
@@ -29,6 +30,7 @@ export function FeedbackSection({ model }: { model: AppModel }) {
   const [kind, setKind] = useState<Kind>("bug")
   const [title, setTitle] = useState("")
   const [body, setBody] = useState("")
+  const grow = useGrow(body)
   const [busy, setBusy] = useState(false)
   const [reply, setReply] = useState<Reply | null>(null)
   const [reportFailed, setReportFailed] = useState(false)
@@ -88,6 +90,7 @@ export function FeedbackSection({ model }: { model: AppModel }) {
       <label className={SETTINGS_FIELD}>
         <span className={SETTINGS_FIELD_LABEL}>{t("settings.feedback.body")}</span>
         <textarea
+          ref={grow}
           className={`${SETTINGS_INPUT} ${SETTINGS_TEXTAREA} w-full`}
           rows={6}
           value={body}

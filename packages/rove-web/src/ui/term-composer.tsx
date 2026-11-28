@@ -12,26 +12,27 @@ import {
 import type { DictationFace } from "../voice/dictation-button.tsx"
 import { Dots } from "./dots.tsx"
 import { PRESS, SQUARE, glass } from "./glass.ts"
+import { GROW, useGrow } from "./grow.ts"
 
 /**
  * The bar under an engine terminal on a touch screen. Talking comes first: with no draft it is attach, one wide
  * control that is held to talk and tapped to type, and Send (greyed until a file is attached); a draft, or the tap, turns it into attach, a message field with
- * the mic inside it, and Send. All of it sits in one glass capsule (glass.ts) on the pane's own ground, the key row's twin. Its height never
- * changes (a long message scrolls inside the field; attachment chips float above it, over the terminal's last
- * rows), so the terminal is fitted once and never reflows while you compose. Display-size text: iOS zooms the page into
+ * the mic inside it, and Send. All of it sits in one glass capsule (glass.ts) on the pane's own ground, the key row's twin. The bar's height never
+ * changes, so the terminal is fitted once and never reflows while you compose: a longer message grows the capsule
+ * upward over the terminal's last rows (grow.ts), and the attachment chips float above the capsule. Display-size text: iOS zooms the page into
  * any field under 16px it focuses.
  */
-const BAR = "relative hidden px-0.5 py-1.5 touch:flex"
-const CHIPS = "absolute inset-x-3 bottom-full z-5 mb-1"
-const SUGGEST = "absolute inset-x-3 bottom-full z-6 mb-1"
+/** One line tall for good: the capsule stands on its bottom edge and overflows upward. */
+const BAR = "relative z-5 hidden h-[calc(60px+2*var(--hairline))] items-end px-0.5 py-1.5 touch:flex"
+const CHIPS = "absolute inset-x-2.5 bottom-full z-5 mb-2.5"
+const SUGGEST = "absolute inset-x-2.5 bottom-full z-6 mb-2.5"
 /** The one capsule: on the key row's own left and right edges, with its corners. */
 /** Focused, its edge only firms up: the accent is Send's and recording's. */
-const ROW = `relative flex min-w-0 flex-1 items-center gap-0.5 rounded-[14px] p-0.5 ${glass()} focus-within:border-line-active`
+const ROW = `relative flex min-w-0 flex-1 items-end gap-0.5 rounded-[14px] p-0.5 ${glass()} focus-within:border-line-active`
 /** The field, bare inside the capsule: the mic sits at its right end. */
-const FIELD_BOX = "flex h-11 min-w-0 flex-1 items-center has-[textarea:disabled]:opacity-60"
-/** One line as tall as the box: a longer draft scrolls a whole line at a time, so no half line peeks in below. */
-const FIELD =
-  "h-full min-w-0 flex-1 resize-none bg-transparent py-0 pr-2 pl-1 font-sans text-display leading-[44px] text-ink outline-none [border:0] placeholder:text-muted has-[+button]:pr-0"
+const FIELD_BOX = "flex min-h-11 min-w-0 flex-1 items-end has-[textarea:disabled]:opacity-60"
+/** One line is the 44px of the controls beside it; each further line adds 22px, up to the cap. */
+const FIELD = `${GROW} min-w-0 flex-1 resize-none bg-transparent py-[11px] pr-2 pl-1 font-sans text-display leading-[22px] text-ink outline-none [border:0] placeholder:text-muted has-[+button]:pr-0`
 /** The hold control stays pressed for the whole take: it gives less, or the row would look shrunk. */
 const PRESS_WIDE =
   "transition-[scale,background-color,color] duration-150 active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-none"
@@ -331,6 +332,7 @@ export function TermComposerBar(props: {
   dropHint?: string
   onSend: () => void
 }) {
+  const grow = useGrow(props.value, props.fieldRef)
   return (
     <form
       className={BAR}
@@ -340,16 +342,16 @@ export function TermComposerBar(props: {
         props.onSend()
       }}
     >
-      {props.attached && <div className={CHIPS}>{props.attached}</div>}
-      {props.suggest && <div className={SUGGEST}>{props.suggest}</div>}
       <div className={ROW} {...props.drop}>
+        {props.attached && <div className={CHIPS}>{props.attached}</div>}
+        {props.suggest && <div className={SUGGEST}>{props.suggest}</div>}
         {props.dropHint && <DropHint label={props.dropHint} />}
         {props.attach}
         {props.voice ?? (
           <>
             <div className={FIELD_BOX}>
               <textarea
-                ref={props.fieldRef}
+                ref={grow}
                 className={FIELD}
                 rows={1}
                 value={props.value}

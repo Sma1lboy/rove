@@ -9,6 +9,7 @@ import { Group, Row, SectionPending } from "./settings-rows.tsx"
 import { SNIPPET_NAME, loadSnippets, removeSnippet, saveSnippet, useSnippets } from "./snippets.ts"
 import { toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
+import { useGrow } from "./ui/grow.ts"
 import {
   SETTINGS_ACTIONS,
   SETTINGS_FIELD,
@@ -28,6 +29,7 @@ function SnippetForm(props: {
 }) {
   const [name, setName] = useState(props.editing?.name ?? "")
   const [text, setText] = useState(props.editing?.text ?? "")
+  const grow = useGrow(text)
   const [busy, setBusy] = useState(false)
   const valid = SNIPPET_NAME.test(name) && text.trim() !== ""
   return (
@@ -64,6 +66,7 @@ function SnippetForm(props: {
       <label className={SETTINGS_FIELD}>
         <span className={SETTINGS_FIELD_LABEL}>{t("snippets.text")}</span>
         <textarea
+          ref={grow}
           className={`${SETTINGS_INPUT} ${SETTINGS_TEXTAREA} w-full`}
           rows={5}
           value={text}

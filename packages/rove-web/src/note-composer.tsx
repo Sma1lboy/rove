@@ -9,6 +9,7 @@ import { type Note, locate, noteLabel, quoteRows } from "./review-notes.ts"
 import { Button } from "./ui/button.tsx"
 import { OLD_GUTTER, diffRowClass } from "./ui/diff-row.ts"
 import { TEXTAREA } from "./ui/form.ts"
+import { useGrow } from "./ui/grow.ts"
 import { INPUT } from "./ui/text.ts"
 
 /** What is being written: a new note on a selection, or the text of one that exists. */
@@ -100,6 +101,7 @@ export function NoteComposer(props: {
   onCancel: () => void
 }) {
   const [value, setValue] = useState(props.initial ?? "")
+  const grow = useGrow(value)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const editing = props.initial !== undefined
@@ -127,6 +129,7 @@ export function NoteComposer(props: {
       <span className="text-accent">●</span>
       <div className="flex min-w-0 flex-col gap-1.5 whitespace-normal">
         <textarea
+          ref={grow}
           className={`${INPUT} ${TEXTAREA} font-mono`}
           aria-label={t(editing ? "review.noteEditOn" : "review.noteOn", { location: props.location })}
           // biome-ignore lint/a11y/noAutofocus: opened by the reviewer's own click or key, for typing

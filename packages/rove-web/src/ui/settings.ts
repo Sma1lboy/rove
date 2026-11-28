@@ -2,6 +2,7 @@
  * Settings: a dialog holding a grouped section list beside one section, its rows, and the sections' own parts.
  * One type rule: sans for every word the user reads; mono only for paths, commands, chords and codes.
  */
+import { GROW } from "./grow.ts"
 import { OVERLAY_BASE } from "./overlay.ts"
 
 /** On a phone the dialog is the whole screen. */
@@ -99,7 +100,7 @@ export const SETTINGS_INPUT =
 export const SETTINGS_NUMBER = `${SETTINGS_INPUT} w-24 text-right`
 export const SETTINGS_FIELD = "flex flex-col gap-1.5"
 export const SETTINGS_FIELD_LABEL = "text-meta font-medium text-muted"
-export const SETTINGS_TEXTAREA = "min-h-30 max-h-[50vh] leading-[1.45]"
+export const SETTINGS_TEXTAREA = `${GROW} min-h-30 leading-[1.45]`
 export const SETTINGS_ACTIONS = "flex flex-wrap items-center justify-end gap-2.5"
 
 /** An inline yes/no under a row (reset, restart, disconnect). */
