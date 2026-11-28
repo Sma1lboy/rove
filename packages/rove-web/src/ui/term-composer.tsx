@@ -10,6 +10,7 @@ import {
   useState,
 } from "react"
 import type { DictationFace } from "../voice/dictation-button.tsx"
+import { Dots } from "./dots.tsx"
 import { PRESS, SQUARE, glass } from "./glass.ts"
 
 /**
@@ -135,21 +136,6 @@ function Wave({ level, seconds, wide }: { level: number; seconds: number; wide?:
           // Scaled, not resized: the bars glide to their next height.
           className={`block h-full flex-none rounded-full bg-current transition-transform duration-100 ease-linear motion-reduce:transition-none ${wide ? "w-[3px]" : "w-[2.5px]"}`}
           style={{ transform: `scaleY(${Math.max(wide ? 0.08 : 0.12, Math.min(1, value * 10))})` }}
-        />
-      ))}
-    </span>
-  )
-}
-
-/** Three dots taking turns: the take is being turned into text. */
-function Dots() {
-  return (
-    <span className="inline-flex items-center gap-[3px] align-middle" aria-hidden="true">
-      {[0, 160, 320].map((delay) => (
-        <i
-          key={delay}
-          className="block size-1 rounded-full bg-current motion-safe:animate-dot"
-          style={{ animationDelay: `${delay}ms` }}
         />
       ))}
     </span>

@@ -186,3 +186,7 @@ export const CARD_HEAD = "flex min-w-0 flex-wrap items-center justify-end gap-x-
 export const CARD_HEAD_TITLE = "flex min-w-0 grow basis-60 items-center gap-3"
 /** The group label with its one action at the right end of the same line. */
 export const BENTO_TITLE = "flex items-center justify-between gap-3 pb-1.5 [&>h2]:pb-0"
+
+/** A card's part that grows open and folds shut (its height animates); its one child needs `min-h-0 overflow-hidden`. */
+export const foldClass = (open: boolean): string =>
+  `grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`
