@@ -28,7 +28,9 @@ export function engineFor(task: SerializedTask, engines: readonly EngineRow[], l
   const command = task.command?.trim()
   const preset =
     (command ? engines.find((e) => e.id === command || e.command === command) : undefined) ??
-    engines.find((e) => e.builtin && e.protocol === task.vendor)
+    engines.find((e) => e.builtin && e.protocol === task.vendor) ??
+    // A catalog (non-builtin) engine launched with extra flags is still that engine.
+    engines.find((e) => e.id === task.vendor)
   if (live && live !== (preset?.protocol ?? task.vendor)) {
     const running = engines.find((e) => e.id === live)
     return running ? { id: running.id, name: running.name } : { id: null, name: live }
