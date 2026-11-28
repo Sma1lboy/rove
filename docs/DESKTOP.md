@@ -54,7 +54,12 @@ SmartScreen asks once: **More info › Run anyway**.
 
 These files live on one release, `desktop`, that is updated in place. A push to `main`
 that touches `packages/rove-desktop` replaces the Windows and Linux files from CI. The
-macOS files are replaced by hand, on a Mac that holds the Developer ID certificate:
+macOS files are replaced by the **Desktop macOS release** workflow, started by hand from the
+Actions tab (`gh workflow run desktop-mac.yml`). It runs from `main` in the `release-mac`
+environment, which holds the Developer ID certificate and App Store Connect key as secrets and
+waits for the owner's approval before it starts.
+
+On a Mac that holds the certificate, the same script runs locally:
 
 ```sh
 ASC_KEY_ID=… ASC_ISSUER_ID=… packages/rove-desktop/scripts/release-mac.sh

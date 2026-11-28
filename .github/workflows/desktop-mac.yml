@@ -1,0 +1,71 @@
+# The macOS desktop dmgs: scripts/release-mac.sh on a hosted Mac, run by hand from the Actions tab.
+# The signing secrets live only on the `release-mac` environment, which runs from main and waits for
+# the owner's approval, so nobody else's run or branch can reach the Developer ID key.
+
+name: Desktop macOS release
+
+on:
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: Replace the dmgs on the `desktop` release
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-mac-release
+
+jobs:
+  release:
+    runs-on: macos-26
+    environment: release-mac
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: bun install --frozen-lockfile
+        env:
+          ROVE_DESKTOP_ELECTRON: "1"
+      - run: bun --filter rove-web build
+
+      - name: Load the certificate and API key
+        env:
+          MAC_CERT_P12: ${{ secrets.MAC_CERT_P12 }}
+          MAC_CERT_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+        run: |
+          kc="$RUNNER_TEMP/signing.keychain-db"
+          pw=$(uuidgen)
+          echo "SIGNING_KEYCHAIN=$kc" >> "$GITHUB_ENV"
+          security create-keychain -p "$pw" "$kc"
+          security set-keychain-settings -lut 21600 "$kc"
+          security unlock-keychain -p "$pw" "$kc"
+          printf %s "$MAC_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$kc" -P "$MAC_CERT_PASSWORD" -f pkcs12 -T /usr/bin/codesign
+          rm "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$pw" "$kc" >/dev/null
+          security list-keychains -d user -s "$kc" $(security list-keychains -d user | tr -d '"')
+          mkdir -p ~/.appstoreconnect/private_keys
+          printf %s "$ASC_KEY_P8" > ~/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8
+
+      - name: Build, sign, notarize${{ inputs.upload && ', upload' || '' }}
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          GH_TOKEN: ${{ github.token }}
+        run: packages/rove-desktop/scripts/release-mac.sh ${{ !inputs.upload && '--no-upload' || '' }}
+
+      - name: Remove the keychain and key
+        if: always()
+        run: |
+          [ -z "${SIGNING_KEYCHAIN:-}" ] || security delete-keychain "$SIGNING_KEYCHAIN" || true
+          rm -rf ~/.appstoreconnect
