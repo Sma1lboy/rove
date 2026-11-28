@@ -1,5 +1,5 @@
+import { argvHasFlag, flagValue } from "@sma1lboy/rove-core/lib/argv.ts"
 import { describe, expect, it } from "vitest"
-import { argvHasFlag, flagValue } from "../../src/cli/argv.ts"
 
 describe("flagValue", () => {
   it("reads both forms, prefix-safe, and distinguishes absent from empty", () => {

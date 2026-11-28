@@ -25,7 +25,7 @@ import {
   publishCliTabSnapshot,
   readTabsSnapshot,
   renameTabsSnapshot,
-} from "../../src/cli/api/tab-snapshot.ts"
+} from "../../src/tabs/tab-snapshot.ts"
 import { mintEngineTab, tabsDaemon } from "./tabs-daemon-fake.ts"
 
 let home: string

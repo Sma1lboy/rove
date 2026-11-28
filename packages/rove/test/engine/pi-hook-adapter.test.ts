@@ -16,7 +16,7 @@ import { trustPiWorktree } from "../../src/engine/pi-local/trust.ts"
 // Pin the CLI invocation module whole (same rule as the kimi/codex adapter
 // tests: vi.mock replaces EVERY export, so a new invocation.ts function would
 // otherwise reach these assertions as undefined()).
-vi.mock("../../src/cli/invocation.ts", () => ({
+vi.mock("@sma1lboy/rove-core/lib/invocation.ts", () => ({
   roveCliInvocation: () => ["rove"],
   roveHookInvocation: () => ["rove"],
 }))

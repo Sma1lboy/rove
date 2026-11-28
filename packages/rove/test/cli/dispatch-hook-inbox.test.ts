@@ -33,8 +33,8 @@ vi.mock("../../src/engine/session-engine-presence.ts", () => ({
   enginePresence: async () => ({ kind: "engine", vendor: "codex" }),
 }))
 
+import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import { invokeVerb } from "../../src/cli/api-cmd"
-import type { DaemonRpc } from "../../src/cli/daemon-session"
 import { runHookSubcommand } from "../../src/cli/hook-cmd"
 import { Orchestrator } from "../../src/orchestrator/core"
 import { TaskIndexStore } from "../../src/orchestrator/index/store"

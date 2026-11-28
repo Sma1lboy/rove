@@ -7,7 +7,7 @@
 
 import { open, realpath } from "node:fs/promises"
 import { extname, join, sep } from "node:path"
-import { ApiError } from "../cli/api/types.ts"
+import { ApiError } from "@sma1lboy/rove-core/lib/api-error.ts"
 import { isWorktreeRelative } from "./review-read.ts"
 
 /** Raw bytes; the reply carries them base64, a third larger. */

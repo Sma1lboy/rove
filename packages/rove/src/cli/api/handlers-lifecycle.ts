@@ -4,6 +4,7 @@
  * worktree, a branch with unmerged commits).
  */
 
+import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 import type { LandResult } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
@@ -14,7 +15,6 @@ import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import { DIRTY_WORKTREE_CODE, EMPTY_BRANCH_DIRTY_WORKTREE_CODE } from "../../orchestrator/errors.ts"
 import { canonicalize } from "../../orchestrator/worktree/paths.ts"
-import type { DaemonRpc } from "../daemon-session.ts"
 import { reportBranchDeletion } from "./delete-branch-report.ts"
 import { type Dispatcher, ownSession } from "./dispatcher.ts"
 import { daemonOf } from "./handler-helpers.ts"

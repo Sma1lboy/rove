@@ -16,6 +16,7 @@ import {
 } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { engineLaunchArgv, withPinnedSessionId } from "../../engine/engine-presets.ts"
 
+import { type DaemonRpc, resolveActiveTaskId } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import {
   inspectRepo,
   isGitRepo,
@@ -28,10 +29,18 @@ import { buildEngineSessionLaunch } from "../../engine/session-launch.ts"
 import { trustEngineWorktree } from "../../engine/trust-worktree.ts"
 import { persistedMaxLiveEngines } from "../../state/engine-limit.ts"
 import { type TerminalTab, tabPtyKeyFor } from "../../tabs/terminal-tabs-core.ts"
-import { type DaemonRpc, resolveActiveTaskId } from "../daemon-session.ts"
 
 // New callers: import from daemon-session.ts directly.
 export { resolveActiveTaskId }
+import {
+  type TaskSessionRow,
+  closeTabsSnapshot,
+  joinTaskTabs,
+  markCliTabSession,
+  publishCliTabSnapshot,
+  readDaemonTabs,
+  readTabsSnapshot,
+} from "../../tabs/tab-snapshot.ts"
 import { deliverToExactTab } from "./exact-tab-delivery.ts"
 import { handlePtyList } from "./handler-helpers.ts"
 import {
@@ -48,15 +57,6 @@ import { launchTab } from "./tab-launch.ts"
 import { openNewTab } from "./tab-new.ts"
 import { restoredTabLaunch } from "./tab-respawn.ts"
 import { reviveTab } from "./tab-revive.ts"
-import {
-  type TaskSessionRow,
-  closeTabsSnapshot,
-  joinTaskTabs,
-  markCliTabSession,
-  publishCliTabSnapshot,
-  readDaemonTabs,
-  readTabsSnapshot,
-} from "./tab-snapshot.ts"
 import { splitTab } from "./tab-split.ts"
 import { hasLiveEngineTab } from "./task-running.ts"
 import { ApiError, type ApiRuntime, type DeliveredPrompt, type PromptDeliveryOps, type PromptTarget } from "./types.ts"

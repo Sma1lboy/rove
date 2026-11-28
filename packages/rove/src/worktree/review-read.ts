@@ -8,6 +8,7 @@
  */
 
 import { isAbsolute, normalize } from "node:path"
+import { ApiError } from "@sma1lboy/rove-core/lib/api-error.ts"
 import { runWorktreeGit } from "@sma1lboy/rove-core/worktree/content.ts"
 import {
   type StatusEntry,
@@ -17,7 +18,6 @@ import {
   statusFilesBranch,
 } from "@sma1lboy/rove-core/worktree/git-status.ts"
 import { type PreviewData, loadPreviewData } from "@sma1lboy/rove-core/worktree/preview-core.ts"
-import { ApiError } from "../cli/api/types.ts"
 
 export type DiffScope = "branch" | "working"
 /** What a preview can compare: a `DiffScope`, or `task` = everything since the base, uncommitted work included. */

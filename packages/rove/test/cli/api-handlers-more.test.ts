@@ -7,9 +7,9 @@
  * request traffic; these pin RPC names + payloads scripts depend on.
  */
 
+import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import { describe, expect, it } from "vitest"
 import { ApiError, type ApiRuntime, VerbArgs, findVerb, invokeVerb } from "../../src/cli/api-cmd.ts"
-import type { DaemonRpc } from "../../src/cli/daemon-session.ts"
 
 /** Records every request; answers from a per-RPC responder table. */
 class FakeClient implements DaemonRpc {

@@ -3,6 +3,8 @@
  * (`ApiRuntime`, `PromptDeliveryOps`) — importable without the dispatcher.
  */
 
+import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
+import { ApiError } from "@sma1lboy/rove-core/lib/api-error.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { AliasTask, PtyScope, TeardownScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import {
@@ -12,14 +14,13 @@ import {
   isBuiltinModInstalled,
 } from "@sma1lboy/rove-daemon/plugins/builtin-mods"
 import type { CheckoutUsage } from "../../orchestrator/worktree/disk-usage.ts"
-import type { DaemonRpc } from "../daemon-session.ts"
+import type { TaskTabRow } from "../../tabs/tab-snapshot.ts"
 import type { VerbArgs } from "./flags.ts"
 import type { ListeningSocket } from "./listening-ports.ts"
 import type { LaunchSpec, Launched } from "./tab-launch.ts"
 import type { NewTabKind, OpenedTab } from "./tab-new.ts"
 import type { RestoredTabRef } from "./tab-respawn.ts"
 import type { RevivedTab } from "./tab-revive.ts"
-import type { TaskTabRow } from "./tab-snapshot.ts"
 import type { SplitEdit, SplitOutcome } from "./tab-split.ts"
 
 export type Flags = Map<string, string>
@@ -30,20 +31,7 @@ export interface ParsedArgs {
   readonly help: boolean
 }
 
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    readonly code: string,
-    /** Extra context merged into the error JSON — e.g. `taskId` when create
-     *  succeeded but delivery failed, so a script keeps the engine-burning task.
-     *  Rejection sites SHOULD include `hint` (one sentence: what next) and
-     *  `nextCommandArgs` (argv without the executable, runnable verbatim, e.g.
-     *  `["api", "schema"]`). Additive: envelope stays `{error:{message,code,...}}`. */
-    readonly data?: Record<string, unknown>,
-  ) {
-    super(message)
-  }
-}
+export { ApiError }
 
 /**
  * Daemon refusal codes (`DIRTY_WORKTREE`, `LAND_CONFLICT`, `MISSING_REF`, …)

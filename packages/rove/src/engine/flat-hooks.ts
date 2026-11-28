@@ -16,9 +16,9 @@
  * Pure: the I/O half is `editJsonSettings` in `./json-hook-adapter.ts`.
  */
 
+import { roveHookInvocation } from "@sma1lboy/rove-core/lib/invocation.ts"
 import { isObject } from "@sma1lboy/rove-core/lib/is-object.ts"
 import { quoteShellArgv } from "@sma1lboy/rove-core/lib/shell-command.ts"
-import { roveHookInvocation } from "../cli/invocation.ts"
 import {
   type HookEventSpec,
   type HookSettingsParse,

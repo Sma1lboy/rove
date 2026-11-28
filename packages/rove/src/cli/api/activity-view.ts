@@ -5,8 +5,8 @@
  * died before producing anything reads as `idle`, exactly like a finished one.
  */
 
+import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import type { DaemonRpc } from "../daemon-session.ts"
 import { engineScreenError } from "./engine-screen.ts"
 
 /** One row of the daemon's activity dump (`debug.inspect`). */

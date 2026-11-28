@@ -12,7 +12,7 @@ const sessionMocks = vi.hoisted(() => ({
   resolveActiveTaskId: vi.fn(),
 }))
 
-vi.mock("../../src/cli/daemon-session.ts", () => sessionMocks)
+vi.mock("@sma1lboy/rove-core/client/daemon-session.ts", () => sessionMocks)
 
 import { runPluginSubcommand } from "../../src/cli/plugin-cmd.ts"
 

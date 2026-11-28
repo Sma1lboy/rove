@@ -4,12 +4,12 @@
  * answer; `send --if-runnable`, the routine runner and `get-task` read the same.
  */
 
+import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import {
   type RunnabilityVerdict,
   SHOULD_RUN_SKIP_EXIT_CODE,
   SKIP_REASONS,
 } from "@sma1lboy/rove-daemon/daemon/contracts"
-import type { DaemonRpc } from "../daemon-session.ts"
 import { F } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"

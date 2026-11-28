@@ -9,9 +9,9 @@ import type { PtyPeekResult, SerializedTask } from "@sma1lboy/rove-daemon/daemon
 import { type PtyScope, unclaimedSessions } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { protocolEntry } from "../../engine/engine-presets.ts"
 import { screenErrorLine } from "../../engine/screen-state.ts"
+import { taskEngineArgv } from "../../tabs/tab-snapshot.ts"
 import { findEngineKey, listSessionsOrNull, openPtyHost } from "./pty-delivery.ts"
 import { type TerminalPeekPage, boundedTail } from "./read-output-page.ts"
-import { taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError } from "./types.ts"
 
 /** Read-only `pty.peek`; never spawns. A failed host connect/list/peek RPC is

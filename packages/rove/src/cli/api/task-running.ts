@@ -4,8 +4,8 @@
  */
 
 import { isHostedTaskKey, sessionArgvNamesEngine } from "../../engine/hosted-session.ts"
+import type { TaskSessionRow } from "../../tabs/tab-snapshot.ts"
 import type { TabsState } from "../../tabs/terminal-tabs-core.ts"
-import type { TaskSessionRow } from "./tab-snapshot.ts"
 
 /**
  * RUNNING = ANY engine tab (not just tab-1) has a live hosted session with an

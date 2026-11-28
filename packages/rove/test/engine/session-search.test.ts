@@ -4,7 +4,7 @@ import { type SearchableTask, matchMessages, prefilterToken, searchTasks } from 
 
 const fake = vi.hoisted(() => ({ sessions: new Map<string, readonly unknown[]>(), tabs: new Map<string, string[]>() }))
 
-vi.mock("../../src/cli/api/tab-snapshot.ts", () => ({
+vi.mock("../../src/tabs/tab-snapshot.ts", () => ({
   readTabsSnapshot: (taskId: string) => ({
     tabs: (fake.tabs.get(taskId) ?? []).map((sessionId) => ({ id: `tab-${sessionId}`, kind: "engine", sessionId })),
   }),

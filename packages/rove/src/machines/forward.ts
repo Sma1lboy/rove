@@ -8,6 +8,7 @@
  */
 
 import { hostname } from "node:os"
+import { ApiError } from "@sma1lboy/rove-core/lib/api-error.ts"
 import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 import {
   type MachineEntry,
@@ -34,8 +35,7 @@ import {
   type SerializedTask,
 } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { type MachineLoad, readMachineLoad } from "@sma1lboy/rove-daemon/machine-load"
-import { recordSend } from "../cli/api/dispatcher.ts"
-import { ApiError } from "../cli/api/types.ts"
+import { recordSend } from "../client/dispatch-provenance.ts"
 import { discoverMachine, learnedFrom } from "./discover.ts"
 import { ensureForwards } from "./tunnel.ts"
 

@@ -95,7 +95,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
     // channels the way they do from the CLI.
     // A call another machine's hub forwarded runs only if THIS machine's inbound policy allows its class.
     if (route?.forwarded) {
-      const { inboundRefusal } = await import("../machines/inbound.ts")
+      const { inboundRefusal } = await import("../cli/api/inbound.ts")
       const denied = inboundRefusal(verb)
       if (denied) {
         const { ApiError } = await import("../cli/api/types.ts")

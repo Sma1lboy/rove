@@ -8,8 +8,8 @@
  * just came to rest is read again once a menu event trailing the Stop could have landed.
  */
 
+import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import type { RowStatusPayload } from "@sma1lboy/rove-daemon/daemon/row-status-store"
-import type { DaemonRpc } from "../daemon-session.ts"
 import type { ActivityView } from "./activity-view.ts"
 import { ApiError } from "./types.ts"
 

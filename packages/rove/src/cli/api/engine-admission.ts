@@ -9,7 +9,7 @@ import {
   vendorFromArgv,
 } from "../../engine/foreground.ts"
 import { type HostedSessionRpc, sessionArgvNamesEngine } from "../../engine/hosted-session.ts"
-import { readTabsSnapshot } from "./tab-snapshot.ts"
+import { readTabsSnapshot } from "../../tabs/tab-snapshot.ts"
 import { ApiError } from "./types.ts"
 
 /** A pending launch still owns its slot; keepAlive's bare shell does not. */

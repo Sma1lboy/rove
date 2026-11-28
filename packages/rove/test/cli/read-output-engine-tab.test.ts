@@ -25,8 +25,8 @@ vi.mock("../../src/cli/api/pty-delivery.ts", async (importOriginal) => ({
   openPtyHost: mocks.openPtyHost,
 }))
 
+import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import { type ApiRuntime, invokeVerb } from "../../src/cli/api-cmd.ts"
-import type { DaemonRpc } from "../../src/cli/daemon-session.ts"
 
 const TAIL = "SENTINEL ENGINE UP argv: phase A\n"
 

@@ -4,10 +4,10 @@ import { taskCwd } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
+import { taskEngineArgv } from "../../tabs/tab-snapshot.ts"
 import { F } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
-import { taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type VerbSpec } from "./types.ts"
 
 export const TAB_REVIVE_VERB: VerbSpec = {

@@ -21,7 +21,7 @@ import { engineIntegrations, readHookInstallState } from "@/engine/integration-s
 import { ROVE_HOOK_VERSION, buildActivityHooks, mergeActivityHooks, roveHookArgs } from "@/engine/json-hooks"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-vi.mock("../../src/cli/invocation.ts", () => ({
+vi.mock("@sma1lboy/rove-core/lib/invocation.ts", () => ({
   roveCliInvocation: () => ["rove"],
   roveHookInvocation: () => ["rove"],
 }))

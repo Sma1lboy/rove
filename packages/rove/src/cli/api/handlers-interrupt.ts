@@ -18,11 +18,11 @@ import { type AliasRef, hostedKeyFor, ptyScopeFor } from "@sma1lboy/rove-daemon/
 import { openHostedSessionHost } from "../../engine/hosted-session.ts"
 import { findHostedEngineKey, listHostedSessions } from "../../engine/hosted-session.ts"
 import { getCapabilities } from "../../engine/registry.ts"
+import { taskEngineArgv } from "../../tabs/tab-snapshot.ts"
 import { readActivityRegistry } from "./activity-view.ts"
 import { F } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
-import { taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 
 interface InterruptTask {

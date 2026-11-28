@@ -5,6 +5,7 @@
  * in `handlers-lifecycle.ts`.
  */
 
+import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import { taskCwd } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
 import { deriveTitleFromPrompt } from "@sma1lboy/rove-core/orchestrator/title.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
@@ -13,7 +14,7 @@ import type { IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { roveApiInvocation } from "../../engine/interactive-command.ts"
-import type { DaemonRpc } from "../daemon-session.ts"
+import { taskEngineArgv } from "../../tabs/tab-snapshot.ts"
 import { activityView, readActivityRegistry } from "./activity-view.ts"
 import {
   noReplyAddress,
@@ -35,7 +36,6 @@ import { filterTaskList, listFields, listFilters, projectTasks } from "./list-fi
 import { ptyScopeOf } from "./pty-scope.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
 import { awaitingChoiceError, tabsAwaitingChoice } from "./send-menu-guard.ts"
-import { taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type VerbContext, type VerbSpec, helpStep, promptMayHaveLanded } from "./types.ts"
 
 export async function issueUpdate(ctx: VerbContext): Promise<unknown> {

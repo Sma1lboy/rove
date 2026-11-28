@@ -11,7 +11,7 @@ import { readFile, stat } from "node:fs/promises"
 import type { Message } from "@sma1lboy/rove-core/types/engine.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { readTabsSnapshot } from "../cli/api/tab-snapshot.ts"
+import { readTabsSnapshot } from "../tabs/tab-snapshot.ts"
 import { protocolEntry, sessionProtocol } from "./engine-presets.ts"
 import { type EngineHistoryReader, supportsStructuredHistory } from "./registry.ts"
 

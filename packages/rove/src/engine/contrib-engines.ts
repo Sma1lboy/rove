@@ -11,7 +11,7 @@
 
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { bypassFlag } from "../cli/argv.ts"
+import { bypassFlag } from "@sma1lboy/rove-core/lib/argv.ts"
 import { trustAntigravityWorktree } from "./antigravity-local/trust.ts"
 import {
   AMP,

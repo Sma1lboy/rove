@@ -4,9 +4,9 @@
  * handler group.
  */
 
+import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import type { DaemonRequestName } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
-import type { DaemonRpc } from "../daemon-session.ts"
 import { ApiError, type VerbContext } from "./types.ts"
 
 /** The daemon RPC surface, or the canonical "daemon required" error for an offline call. */

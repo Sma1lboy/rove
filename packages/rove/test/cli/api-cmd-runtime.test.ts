@@ -62,8 +62,8 @@ vi.mock("../../src/engine/session-launch.ts", () => ({
 // Real join/liveness logic, mocked STATE READ: unit tests must never touch
 // the developer's actual ~/.config/rove/state.json (also silences the
 // publishCliTabSnapshot write deliverPrompt would otherwise attempt).
-vi.mock("../../src/cli/api/tab-snapshot.ts", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../src/cli/api/tab-snapshot.ts")>()
+vi.mock("../../src/tabs/tab-snapshot.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/tabs/tab-snapshot.ts")>()
   return {
     ...actual,
     readTabsSnapshot: mocks.readTabsSnapshot,
@@ -86,9 +86,9 @@ vi.mock("../../src/cli/api/pty-delivery.ts", () => ({
   deliverToKey: vi.fn(async () => false),
 }))
 
+import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import { defaultApiRuntime, deliverPrompt, invokeVerb } from "../../src/cli/api-cmd.ts"
 import { resetVerifiedSelfSession } from "../../src/cli/api/dispatcher.ts"
-import type { DaemonRpc } from "../../src/cli/daemon-session.ts"
 
 beforeEach(() => {
   mocks.resolveMainRepoRoot.mockReset().mockResolvedValue("/repo/main")

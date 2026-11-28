@@ -9,8 +9,8 @@
  */
 
 import { loadStateFile, updateStateFile } from "@sma1lboy/rove-core/state/store.ts"
-import { VERB_GROUP_IDS } from "../cli/api/types.ts"
-import { findVerb } from "../cli/api/verbs.ts"
+import { VERB_GROUP_IDS } from "./types.ts"
+import { findVerb } from "./verbs.ts"
 
 export const INBOUND_KEY = "machineInbound"
 export const INBOUND_CLASSES: readonly string[] = [...VERB_GROUP_IDS, "land", "credentials"]

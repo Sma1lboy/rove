@@ -8,8 +8,8 @@
  * interactive belongs in a pane instead.
  */
 
-import { roveCliInvocation } from "@/cli/invocation"
 import type { PluginKeyBinding } from "@sma1lboy/rove-client/keys/keymap-plugin-bindings.ts"
+import { roveCliInvocation } from "@sma1lboy/rove-core/lib/invocation.ts"
 import { spawnDetached } from "@sma1lboy/rove-core/lib/spawn-detached.ts"
 import { pluginKeybindings } from "../../tui/context/keybindings-user"
 import { useBindings } from "../lib/keymap"

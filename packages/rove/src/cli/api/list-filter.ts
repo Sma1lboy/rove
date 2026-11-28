@@ -3,9 +3,9 @@
  * looking for. Filters AND together; values inside one csv flag OR together.
  */
 
+import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import { TASK_ACTIVITY_STATES } from "@sma1lboy/rove-core/engine/hook-events.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import type { DaemonRpc } from "../daemon-session.ts"
 import { type ActivityView, activityView, readActivityRegistry } from "./activity-view.ts"
 import { repoFilter } from "./handler-helpers.ts"
 import { TASK_STATUSES } from "./task-statuses.ts"

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { INBOUND_KEY, inboundClassOf, inboundRefusal } from "../../src/machines/inbound.ts"
+import { INBOUND_KEY, inboundClassOf, inboundRefusal } from "../../src/cli/api/inbound.ts"
 
 describe("inbound policy for forwarded verbs", () => {
   test("verbs are judged by their group, and land/publish by their own class", () => {

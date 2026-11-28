@@ -16,13 +16,15 @@
  * with a one-tab stub.
  */
 
+import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"
 import { terminalTabsKey } from "@sma1lboy/rove-core/state/tabs-persistence.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { PtySessionExit } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { type SharedTabs, type TabOp, diffTabs } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
-import { engineLaunchArgv } from "../../engine/engine-presets.ts"
-import { splitLeafPtyKey } from "../../tabs/terminal-tab-split.ts"
+import { engineLaunchArgv } from "../engine/engine-presets.ts"
+import { type WireSplit, wireSplit } from "./split-wire.ts"
+import { splitLeafPtyKey } from "./terminal-tab-split.ts"
 import {
   type TabsState,
   type TerminalTab,
@@ -31,9 +33,7 @@ import {
   initialTabs,
   setTabTitle,
   tabPtyKeyFor,
-} from "../../tabs/terminal-tabs-core.ts"
-import type { DaemonRpc } from "../daemon-session.ts"
-import { type WireSplit, wireSplit } from "./split-wire.ts"
+} from "./terminal-tabs-core.ts"
 
 /** The slice of a daemon client the tab writers need. */
 export type TabsRpc = Pick<DaemonRpc, "request">
