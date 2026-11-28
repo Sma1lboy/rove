@@ -25,7 +25,7 @@ import { engineEntry, identifiableEngineIds } from "../engine/registry.ts"
  * `test/architecture/skill-version-bump.test.ts` fails any content change
  * that skips the bump.
  */
-export const ROVE_SKILL_VERSION = 137
+export const ROVE_SKILL_VERSION = 138
 
 /** The skill's directory name inside an engine's skills dir. */
 const SKILL_NAME = "rove"

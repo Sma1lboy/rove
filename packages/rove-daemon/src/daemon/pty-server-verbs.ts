@@ -4,11 +4,13 @@
  * whose promise the caller must await (as-is it serialises to `{}`).
  */
 
+import { readFileSync } from "node:fs"
 import type { Socket } from "node:net"
 import { spawnDetachedDaemon } from "../client/detached-spawn.ts"
 import type { ClientWriter } from "./client-writer.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { objectPayload, optionalBoolean, requireString } from "./handler-validators.ts"
+import { defaultTasksIndexPath } from "./paths.ts"
 import { DAEMON_PROTOCOL_VERSION, type DaemonFrame, PTY_STOP_REFUSED, type PtyCheckedOpenResult } from "./protocol.ts"
 import type { PtyHost } from "./pty-host.ts"
 import { parseTerminalDefaultColors } from "./terminal-colors.ts"
@@ -46,8 +48,14 @@ export function dispatchPtyRequest(req: PtyRequest, client: PtyClientState, deps
       if (req.name === "pty.openChecked" && requireString(payload, "admissionToken") !== admissionToken(ptys)) {
         return { kind: "changed" } satisfies PtyCheckedOpenResult
       }
+      const key = requireString(payload, "key")
+      // Every client's spawn lands here (TUI tabs, tab-revive, tab-new): archiving stopped the task's sessions.
+      const session = ptys.list().find((s) => s.key === key)
+      if ((!session || (!session.alive && session.restored)) && archivedTask(key)) {
+        throw new Error(`TASK_ARCHIVED: task ${key.split("::")[0]} is archived; unarchive it to open a session`)
+      }
       const open = ptys.open(
-        requireString(payload, "key"),
+        key,
         {
           cwd: requireString(payload, "cwd"),
           command: Array.isArray(payload.command)
@@ -189,4 +197,17 @@ export function dispatchPtyRequest(req: PtyRequest, client: PtyClientState, deps
 
 function admissionToken(ptys: PtyHost): string {
   return JSON.stringify(ptys.list().map((s) => [s.key, s.generation, s.pid, s.alive]))
+}
+
+/** The key's task is archived in the task index. Read per spawn (spawns are rare); unreadable reads as not archived. */
+function archivedTask(key: string): boolean {
+  const taskId = key.split("::")[0]
+  try {
+    const index = JSON.parse(readFileSync(defaultTasksIndexPath(), "utf8")) as {
+      tasks?: { id?: string; archived?: boolean }[]
+    }
+    return index.tasks?.some((task) => task.id === taskId && task.archived === true) === true
+  } catch {
+    return false
+  }
 }

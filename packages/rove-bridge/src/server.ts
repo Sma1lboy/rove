@@ -7,6 +7,7 @@
  */
 
 import { hostname as osHostname } from "node:os"
+import { TASK_ARCHIVED } from "@sma1lboy/rove-core/lib/api-error.ts"
 import { type ApiEnvelope, type ApiParams, ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { ModPaneView } from "@sma1lboy/rove-daemon/plugins/mod-tree"
 import type { Server, ServerWebSocket } from "bun"
@@ -255,7 +256,7 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
           () => true,
           (err: unknown) => {
             // An archived task stays stopped: the page shows its read-only view, not a dead terminal.
-            if (err instanceof BridgeError && err.code === "TASK_ARCHIVED") throw err
+            if (err instanceof BridgeError && err.code === TASK_ARCHIVED) throw err
             return false
           },
         )

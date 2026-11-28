@@ -14,3 +14,14 @@ export class ApiError extends Error {
     super(message)
   }
 }
+
+/** Refusal for anything that would start a session on an archived task (send, tab-revive): archiving stopped them. */
+export const TASK_ARCHIVED = "TASK_ARCHIVED"
+
+export function taskArchivedError(taskId: string): ApiError {
+  return new ApiError(`task ${taskId} is archived; nothing was sent or started`, TASK_ARCHIVED, {
+    taskId,
+    hint: `unarchive it first: rove api unarchive --task-id ${taskId}`,
+    nextCommandArgs: ["api", "unarchive", "--task-id", taskId],
+  })
+}

@@ -229,6 +229,11 @@ export function defaultWebTokenPath(homeDir = readRoveHomeDirEnv() ?? homedir())
   return runtimeDataPath(homeDir, "web-token")
 }
 
+/** The task index (`tasks.json`); the PTY host reads it to refuse a spawn under an archived task. */
+export function defaultTasksIndexPath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
+  return runtimeDataPath(homeDir, "tasks.json")
+}
+
 /** Frozen session snapshots (`pty-freeze-store.ts`), one JSON per session
  *  key: metadata + scrollback handed to the next host after a restart. */
 export function defaultPtyFreezeDir(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
