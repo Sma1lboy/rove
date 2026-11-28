@@ -1,10 +1,11 @@
 import { isUnlistedCheckout } from "@sma1lboy/rove-core/lib/worktree-only.ts"
+import { isUngrouped } from "@sma1lboy/rove-core/types/task-scratch.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 
 /** The project a row is ordered with; projectless rows (Scratch, a projectless routine's runs) have none. */
 export function projectOf(task: Task): string | null {
-  return (task.kind ?? "task") === "dir" && (task.scratch === true || task.noProject === true) ? null : task.repo
+  return isUngrouped(task) ? null : task.repo
 }
 
 /**

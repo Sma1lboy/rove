@@ -4,6 +4,7 @@
  */
 
 import { reconcileStableRows } from "@sma1lboy/rove-core/lib/stable-rows.ts"
+import { isUngrouped } from "@sma1lboy/rove-core/types/task-scratch.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { pathIdentity, pathSyntax } from "@sma1lboy/rove-daemon/path-identity"
 
@@ -80,7 +81,7 @@ function isLocalTask(task: Pick<Task, "origin">): boolean {
 
 /** A task that sits in the "Ungrouped" group: a scratch shell or a projectless routine's dir. */
 export function isNoProjectTask(task: Task): boolean {
-  return task.kind === "dir" && (task.scratch === true || task.noProject === true)
+  return isUngrouped(task)
 }
 
 /**

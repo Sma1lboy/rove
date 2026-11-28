@@ -10,6 +10,7 @@ import { SHELL_TASK_TITLE } from "@sma1lboy/rove-core/orchestrator/title.ts"
 import { resolvePreferredVendor } from "@sma1lboy/rove-core/state/vendor-prefs.ts"
 import { wireSplit } from "@sma1lboy/rove-core/tabs/split-wire.ts"
 import { readDaemonTabs } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
+import { isEphemeral } from "@sma1lboy/rove-core/types/task-scratch.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
@@ -210,7 +211,7 @@ async function launchKind(ctx: VerbContext, daemon: DaemonRpc, task: SerializedT
  */
 async function openShellTab(ctx: VerbContext, daemon: DaemonRpc, task: SerializedTask, type?: string, asOwn = false) {
   const taskId = task.id
-  const own = (task.scratch === true || asOwn) && ((await readDaemonTabs(daemon, taskId))?.tabs.length ?? 0) === 0
+  const own = (isEphemeral(task) || asOwn) && ((await readDaemonTabs(daemon, taskId))?.tabs.length ?? 0) === 0
   const row = own ? task : await spawnSharedChild(daemon, taskId, undefined, SHELL_TASK_TITLE)
   try {
     const opened = await ctx.runtime.openTab(

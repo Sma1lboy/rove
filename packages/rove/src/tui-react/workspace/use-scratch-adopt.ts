@@ -26,6 +26,7 @@ import { t } from "@sma1lboy/rove-core/i18n/index.ts"
 import { canonPath } from "@sma1lboy/rove-core/orchestrator/core-helpers.ts"
 import { getSavedRepos, isGitRepo, resolveMainRepoRoot } from "@sma1lboy/rove-core/state/repos.ts"
 import { tabPtyKey } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
+import { isEphemeral } from "@sma1lboy/rove-core/types/task-scratch.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { useEffect } from "react"
 import { processCwd } from "../../engine/process-cwd"
@@ -41,7 +42,7 @@ const POLL_MS = 5_000
 /** Tasks whose directory can already own a scratch shell's cwd. */
 export function scratchOwnerTasks(tasks: readonly Task[]): ScratchOwnerTask[] {
   return tasks
-    .filter((task) => !task.deletion && task.scratch !== true && task.worktreePath !== "")
+    .filter((task) => !task.deletion && !isEphemeral(task) && task.worktreePath !== "")
     .map((task) => ({
       id: task.id,
       kind: task.kind ?? "task",
@@ -65,7 +66,7 @@ export function useScratchAdopt(deps: {
   const onFoldRef = useLatest(deps.onFold)
   const enabled = deps.enabled ?? true
   const scratchIds = tasks
-    .filter((t) => t.kind === "dir" && t.scratch === true)
+    .filter((t) => t.kind === "dir" && isEphemeral(t))
     .map((t) => t.id)
     .join(",")
 
@@ -76,7 +77,7 @@ export function useScratchAdopt(deps: {
     const inFlight = new Set<string>()
 
     const tick = async (): Promise<void> => {
-      const scratch = tasks.filter((t) => t.kind === "dir" && t.scratch === true)
+      const scratch = tasks.filter((t) => t.kind === "dir" && isEphemeral(t))
       if (scratch.length === 0) return
       const known = new Set<string>([...getSavedRepos(), ...tasks.map((t) => t.repo)])
       const owners = scratchOwnerTasks(tasks)

@@ -1,5 +1,6 @@
 /** What Retry reopens New session with, and how the composer turns that seed into picks. Pure, so the mapping is testable. */
 
+import { isUngrouped } from "@sma1lboy/rove-core/types/task-scratch.ts"
 import type { TaskRow } from "rove-bridge/protocol"
 import type { NewSessionStart } from "./ui.ts"
 
@@ -16,7 +17,7 @@ export interface RetryBrief {
 type RetryRow = Pick<TaskRow, "id" | "label" | "kind" | "scratch" | "noProject" | "machine">
 
 export function retrySeed(task: RetryRow, brief: RetryBrief): NewSessionStart {
-  const ungrouped = task.scratch || task.noProject
+  const ungrouped = isUngrouped(task)
   const extras = ungrouped ? [] : (brief.extraRepos ?? [])
   return {
     ...(ungrouped ? { ungrouped: true as const } : { repo: brief.repo }),

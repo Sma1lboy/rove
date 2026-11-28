@@ -7,6 +7,7 @@
 import { PLACEHOLDER_TASK_TITLE, sanitizeTaskTitle } from "@sma1lboy/rove-core/orchestrator/title.ts"
 import { isRemoteRepoKey } from "@sma1lboy/rove-core/state/repos.ts"
 import { resolvePreferredVendor } from "@sma1lboy/rove-core/state/vendor-prefs.ts"
+import { SETTLE_IN_PROJECT, isEphemeral } from "@sma1lboy/rove-core/types/task-scratch.ts"
 import type { Task, TaskId, TaskRoutineLink, VendorId } from "@sma1lboy/rove-core/types/task.ts"
 import { DEFAULT_TASK_VENDOR, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { lineageRootId } from "@sma1lboy/rove-daemon/task-tree"
@@ -131,7 +132,7 @@ export async function openDirectoryTaskRow(deps: StoreDeps, input: OpenDirectory
   const dir = remote ? input.dir : canonPath(input.dir)
   const explicitTitle = input.title ? sanitizeTaskTitle(input.title) : ""
   // Scratch mints no name (its home is unsettled); displays fall back to path/branch.
-  const title = explicitTitle || (input.scratch ? "" : `${titleFromRepo(dir)}-${randomDirTaskSuffix()}`)
+  const title = explicitTitle || (isEphemeral(input) ? "" : `${titleFromRepo(dir)}-${randomDirTaskSuffix()}`)
   return deps.store.create({
     repo: dir,
     title,
@@ -139,7 +140,7 @@ export async function openDirectoryTaskRow(deps: StoreDeps, input: OpenDirectory
     worktreePath: remote ? repoWorkingDir(dir) : dir,
     status: "backlog",
     kind: "dir",
-    ...(input.scratch ? { scratch: true } : {}),
+    ...(isEphemeral(input) ? { scratch: true } : {}),
     ...(input.noProject ? { noProject: true } : {}),
     ...(input.routine ? { routine: input.routine } : {}),
     ...(input.workspace ? { workspace: input.workspace } : {}),
@@ -156,7 +157,7 @@ export async function openDirectoryTaskRow(deps: StoreDeps, input: OpenDirectory
  */
 export async function adoptScratchRepoRow(deps: StoreDeps, id: TaskId | string, repo: string): Promise<void> {
   const task = deps.store.get(id)
-  if (!task || task.kind !== "dir" || task.scratch !== true) return
+  if (!task || task.kind !== "dir" || !isEphemeral(task)) return
   const dir = canonPath(repo)
-  await deps.store.update(id, { repo: dir, worktreePath: dir, scratch: false, title: titleFromRepo(dir) })
+  await deps.store.update(id, { repo: dir, worktreePath: dir, ...SETTLE_IN_PROJECT, title: titleFromRepo(dir) })
 }

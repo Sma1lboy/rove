@@ -6,6 +6,7 @@
  */
 
 import { isRemoteRepoKey } from "@sma1lboy/rove-core/state/repos.ts"
+import { SETTLE_IN_PROJECT, isEphemeral, isUngrouped } from "@sma1lboy/rove-core/types/task-scratch.ts"
 import type { Task, TaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { gitRepoOf, subtreeIds } from "@sma1lboy/rove-daemon/task-tree"
 import { normalizeMainRepo, titleFromRepo } from "./core-helpers.ts"
@@ -44,11 +45,7 @@ function refuse(task: Task, targetRepo: string, tasks: readonly Task[]): void {
       `${task.id} is a child of ${task.parentTaskId} — move the parent (or \`update --parent none\` first); its children follow it`,
     )
   }
-  if (
-    task.scratch !== true &&
-    !task.noProject &&
-    normalizeMainRepo(task.repo).key === normalizeMainRepo(targetRepo).key
-  ) {
+  if (!isUngrouped(task) && normalizeMainRepo(task.repo).key === normalizeMainRepo(targetRepo).key) {
     throw new MoveRefusedError("SAME_PROJECT", `task ${task.id} already belongs to ${task.repo}`)
   }
   for (const id of subtreeIds(tasks, String(task.id))) {
@@ -81,7 +78,7 @@ export async function moveTaskToProjectRow(
     await deps.store.update(row.id, {
       repo: target,
       ...(row.kind === "task" ? { gitRepo: undefined } : {}),
-      ...(row.scratch ? { scratch: false, title: row.title || titleFromRepo(target) } : {}),
+      ...(isEphemeral(row) ? { ...SETTLE_IN_PROJECT, title: row.title || titleFromRepo(target) } : {}),
       ...(row.noProject ? { noProject: undefined } : {}),
     })
   }
