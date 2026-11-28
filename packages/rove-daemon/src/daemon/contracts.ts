@@ -17,40 +17,7 @@ import type {
 } from "./task-state-contracts.ts"
 
 // Re-exported so importers keep naming them through `contracts.ts`.
-export type {
-  Automation,
-  AutomationEventFilter,
-  AutomationEventKind,
-  AutomationEventTrigger,
-  AutomationPatch,
-  AutomationPrecheck,
-  AutomationPrecheckResult,
-  AutomationRun,
-  AutomationRunResponse,
-  AutomationRunStatus,
-  AutomationTrigger,
-  AutomationTriggerEvent,
-  AutomationTriggerMode,
-  TaskRoutineLink,
-} from "./automation-contracts.ts"
-export {
-  AUTOMATION_EVENT_KINDS,
-  ROUTINE_RESPONSE_MAX_CHARS,
-  ROUTINE_RESPONSE_WINDOW_MS,
-  automationRunNeedsAttention,
-  automationTriggerMode,
-  eventPrecheckEnv,
-  formatEventTrigger,
-  formatEventTriggers,
-  hasAutomationEventTrigger,
-  isAutomationEventKind,
-  matchEventFilter,
-  matchEventTrigger,
-  normalizeEventTriggers,
-  parseEventTriggers,
-  routineRunResponseState,
-  triggersWantWebhook,
-} from "./automation-contracts.ts"
+export * from "./automation-contracts.ts"
 
 // Engine activity + the attention Inbox, likewise.
 export type {

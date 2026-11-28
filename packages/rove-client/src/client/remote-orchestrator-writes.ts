@@ -14,7 +14,6 @@ import type { Task, TaskId, TaskStatus, VendorId } from "@sma1lboy/rove-core/typ
 import type { AdoptableWorktree, WorktreeProject } from "@sma1lboy/rove-core/types/worktree.ts"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { TaskDeleteOptions } from "@sma1lboy/rove-daemon/daemon/child-contracts"
-import type { Automation, AutomationRun, AutomationRunStatus } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { RepoIssues } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { TeardownScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
@@ -417,57 +416,14 @@ export async function mutateIssueOp(client: RoveDaemonClient, repoRoot: string, 
   return client.request<RepoIssues>("issue.mutate", { repoRoot, op })
 }
 
-/** Scheduled automations. `lastRunStatus` = latest run's status per id, absent
- *  for a never-run routine (row health without a request per row); `lastFailure`
- *  = the newest failure among recent runs, absent when none failed. */
-export async function listAutomationsOp(client: RoveDaemonClient): Promise<{
-  automations: Automation[]
-  keepsDaemonAlive: boolean
-  lastRunStatus?: Record<string, AutomationRunStatus>
-  lastFailure?: Record<string, { readonly at: string; readonly reason: string }>
-}> {
-  return client.request("automation.list", {})
-}
-
-/** Create a scheduled and/or event-driven routine (`automation.create`); no `repo` = a projectless routine. */
-export async function createAutomationOp(
-  client: RoveDaemonClient,
-  input: {
-    repo?: string
-    name: string
-    prompt: string
-    schedule?: string
-    eventTriggers?: Automation["eventTriggers"]
-    webhook?: boolean
-    target?: Automation["target"]
-  },
-): Promise<{ automation: Automation }> {
-  return client.request("automation.create", input)
-}
-
-/** One automation's run history (`automation.runs`), newest first. */
-export async function automationRunsOp(client: RoveDaemonClient, id: string): Promise<{ runs: AutomationRun[] }> {
-  return client.request("automation.runs", { id })
-}
-
-/** Pause / resume (`automation.update` with just `enabled`). */
-export async function setAutomationEnabledOp(
-  client: RoveDaemonClient,
-  id: string,
-  enabled: boolean,
-): Promise<{ automation: Automation }> {
-  return client.request("automation.update", { id, enabled })
-}
-
-/** Fire one now, skipping its precheck (`automation.runNow`). */
-export async function runAutomationNowOp(client: RoveDaemonClient, id: string): Promise<{ status: string }> {
-  return client.request("automation.runNow", { id })
-}
-
-/** Delete an automation and its history (`automation.delete`). */
-export async function deleteAutomationOp(client: RoveDaemonClient, id: string): Promise<{ deleted: boolean }> {
-  return client.request("automation.delete", { id })
-}
+export {
+  automationRunsOp,
+  createAutomationOp,
+  deleteAutomationOp,
+  listAutomationsOp,
+  runAutomationNowOp,
+  setAutomationEnabledOp,
+} from "./remote-orchestrator-automations.ts"
 
 /** External tracker items for a repo. `refresh` bypasses the daemon's 60s cache. */
 export async function listWorkItemsOp(
