@@ -61,6 +61,17 @@ describe("PtyHost terminal modes", () => {
     expect(h.host.peek(KEY, undefined, true)).toMatchObject({ cols: 120, rows: 40, alive: true })
   })
 
+  it("a size-less viewer gets the PTY's size on open and every later change of it", () => {
+    const h = harness()
+    h.host.open(KEY, SPEC, {}, () => {})
+    const frames: unknown[] = []
+    const viewer = h.host.open(KEY, { cwd: SPEC.cwd, command: SPEC.command }, {}, (frame) => frames.push(frame))
+    expect(viewer).toMatchObject({ cols: 80, rows: 24 })
+    h.host.resize(KEY, 80, 24)
+    h.host.resize(KEY, 160, 48)
+    expect(frames).toEqual([{ type: "event", name: "pty.size", payload: { key: KEY, cols: 160, rows: 48 } }])
+  })
+
   it("a reattach after the ring trimmed the engine's startup still has its mouse tracking", async () => {
     const h = harness()
     h.host.open(KEY, SPEC, {}, () => {})

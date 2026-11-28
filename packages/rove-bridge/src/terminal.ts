@@ -13,6 +13,7 @@ import type {
   PtyExitEventPayload,
   PtyOpenResult,
   PtyPeekResult,
+  PtySizeEventPayload,
 } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import { BridgeError, pushEvent } from "./protocol.ts"
@@ -24,7 +25,7 @@ export interface PtyHostClient {
     name: "pty.list" | "pty.open" | "pty.peek" | "pty.write" | "pty.resize" | "pty.detach",
     payload?: unknown,
   ): Promise<T>
-  on(name: "pty.data" | "pty.exit", handler: (frame: { payload: unknown }) => void): () => void
+  on(name: "pty.data" | "pty.exit" | "pty.size", handler: (frame: { payload: unknown }) => void): () => void
   close(): void
 }
 
@@ -35,6 +36,9 @@ export interface AttachResult {
   readonly replay: string
   /** Dead, and only peeked: a pty-host restart froze it (a plain exited session is `alive: false` without this). */
   readonly restored?: true
+  /** The PTY's size after the attach (absent from pre-size hosts): a size-less attach adopts it. */
+  readonly cols?: number
+  readonly rows?: number
 }
 
 export class TerminalForwarder {
@@ -60,6 +64,10 @@ export class TerminalForwarder {
       pty.on("pty.exit", (frame) => {
         const { key, code } = frame.payload as PtyExitEventPayload
         if (this.attached.has(key)) this.send(pushEvent("term.exit", { stream: key, code: code ?? null }))
+      }),
+      pty.on("pty.size", (frame) => {
+        const { key, cols, rows } = frame.payload as PtySizeEventPayload
+        if (this.attached.has(key)) this.send(pushEvent("term.size", { stream: key, cols, rows }))
       }),
     ]
   }
@@ -102,7 +110,9 @@ export class TerminalForwarder {
         cwd,
         ...(size ? { cols: size.cols, rows: size.rows } : {}),
       })
-      return { stream, alive: open.alive, replay: open.replay }
+      // A host predating `cols`/`rows` on open still reports them on a peek.
+      const sized = open.cols !== undefined ? open : await this.pty.request<PtyPeekResult>("pty.peek", { key: stream })
+      return { stream, alive: open.alive, replay: open.replay, cols: sized.cols, rows: sized.rows }
     } catch (err) {
       this.attached.delete(stream)
       this.flow.forget(stream)

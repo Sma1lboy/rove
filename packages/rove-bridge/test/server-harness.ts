@@ -26,7 +26,7 @@ export class FakePty implements PtyHostClient {
     if (this.hostDown) throw Object.assign(new Error("connect ENOENT /tmp/pty.sock"), { code: "ENOENT" })
     const reply: Record<string, unknown> = {
       "pty.list": { sessions: this.sessions },
-      "pty.open": { replay: Buffer.from("hello").toString("base64"), alive: true },
+      "pty.open": { replay: Buffer.from("hello").toString("base64"), alive: true, cols: 80, rows: 24 },
       "pty.peek": { data: Buffer.from("frozen").toString("base64") },
     }
     return (reply[name] ?? {}) as T

@@ -51,6 +51,14 @@ export function createAcks(send: (chars: number) => void): TermAcks {
 }
 
 /** `term.reset`: the bridge dropped output the page fell behind on; the host ring replaces the screen. */
+export function sizePayload(data: unknown): { stream: string; cols: number; rows: number } | null {
+  if (!data || typeof data !== "object" || !("stream" in data) || !("cols" in data) || !("rows" in data)) return null
+  const { stream, cols, rows } = data
+  return typeof stream === "string" && typeof cols === "number" && typeof rows === "number"
+    ? { stream, cols, rows }
+    : null
+}
+
 export function resetPayload(data: unknown): { stream: string; replay: string } | null {
   if (!data || typeof data !== "object" || !("stream" in data) || !("replay" in data)) return null
   return typeof data.stream === "string" && typeof data.replay === "string"

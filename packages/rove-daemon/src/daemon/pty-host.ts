@@ -230,6 +230,8 @@ export class PtyHost {
       respawned,
       offset: session.totalBytes,
       sinceValid,
+      cols: session.cols,
+      rows: session.rows,
     }
   }
 
@@ -259,6 +261,7 @@ export class PtyHost {
   resize(key: string, cols: number, rows: number): void {
     const session = this.sessions.get(key)
     if (!session?.alive) return
+    const changed = session.cols !== cols || session.rows !== rows
     session.cols = cols
     session.rows = rows
     try {
@@ -266,6 +269,10 @@ export class PtyHost {
     } catch {
       // See write(): wait for `proc.exited`, not the PTY stream state.
     }
+    if (!changed) return
+    // Viewers that never size the PTY (a phone) follow the one that did.
+    const frame: DaemonFrame = { type: "event", name: "pty.size", payload: { key, cols, rows } }
+    for (const sink of session.sinks.values()) sink(frame)
   }
 
   /**

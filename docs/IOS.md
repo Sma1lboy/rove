@@ -126,7 +126,7 @@ JSON text frames over one WebSocket. Request `{"id": 1, "op": "tasks.list", "arg
 | `task.tabs` | `taskId` | `{tabs: [{id, kind, title, engineName, liveEngine?, alive, engineAlive, split?}]}; `liveEngine` = the engine running in the tab right now (null when the probe has no answer; `engineName` falls back to the configured one)`; `split` = `{activeLeafId, root}` while the tab is split (`root` is a tree of `{kind: "leaf", id, title, own}` and `{kind: "group", orientation: "row" \| "column", children}`), absent otherwise |
 | `tab.new` | `taskId`, `kind?` (`engine` default / `shell`), `prompt?`, `engine?` | `{tabId}`; with a `prompt` it starts the engine on it (`add --no-worktree`), without one it opens the tab empty (`tab-new`); a `shell` tab takes no `prompt` or `engine` (`BAD_ARGS`) |
 | `tab.close` | `taskId`, `tabId` | `{}` |
-| `term.attach` | `taskId`, `tabId`, `leafId?` (a split pane `leaf-N` beyond `leaf-1`; its stream is `taskId::tabId::leaf-N`), `cols?`+`rows?`, `acks?` (see `term.ack`) | `{stream, alive, replay}` (base64 bytes) |
+| `term.attach` | `taskId`, `tabId`, `leafId?` (a split pane `leaf-N` beyond `leaf-1`; its stream is `taskId::tabId::leaf-N`), `cols?`+`rows?`, `acks?` (see `term.ack`) | `{stream, alive, replay, cols?, rows?}` (base64 bytes; `cols`/`rows` = the PTY's size after the attach). An attach without `cols`/`rows` leaves the size alone; a client that never resizes follows the `term.size {stream, cols, rows}` push another client's resize sends |
 | `term.input` | `stream`, `data` | `{}` |
 | `term.resize` | `stream`, `cols`, `rows` | `{}` |
 | `term.detach` | `stream` | `{}` |
