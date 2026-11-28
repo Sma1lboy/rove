@@ -10,6 +10,7 @@ import type { BridgeClient } from "../bridge.ts"
 import { t, useLocale } from "../i18n/index.ts"
 import { isTouch } from "../key-hints.ts"
 import { type Store, createStore, useStore } from "../store.ts"
+import { toast } from "../ui.ts"
 import * as C from "../ui/composer.ts"
 import { type HapticKind, haptic } from "../ui/haptic.ts"
 import { Dictation, type DictationPhase, type DictationResult, type DictationScope } from "./dictation.ts"
@@ -130,6 +131,11 @@ export function DictationButton(props: {
   const press = useRef<Press | null>(null)
   const afterHold = useRef(false)
   const [hold, setHold] = useState<{ armed: boolean } | null>(null)
+
+  // A phone never shows `title`: a take that failed (no mic, no permission, the bridge) says so out loud.
+  useEffect(() => {
+    if (view.error) toast(t("voice.failed", { error: view.error }), "error")
+  }, [view.error])
 
   useEffect(
     () => () => {

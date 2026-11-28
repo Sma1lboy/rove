@@ -1,5 +1,5 @@
-// AudioWorklet for dictation capture. Loaded as its own asset (`?url`): the page's CSP allows
-// `script-src 'self'` and nothing else, so a blob: worklet is refused outright.
+// AudioWorklet for dictation capture, loaded by URL (`dictation.ts`): the bridge page's CSP allows
+// `script-src 'self'` and no blob:, while through the relay it arrives as a blob: (`bridgeScriptUrl`).
 
 class RoveCapture extends AudioWorkletProcessor {
   constructor() {

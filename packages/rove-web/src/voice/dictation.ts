@@ -8,10 +8,11 @@
  */
 
 import type { BridgeClient } from "../bridge.ts"
+import { bridgeScriptUrl, relayed } from "../relay-transport.ts"
 import { type Store, createStore } from "../store.ts"
 
-// Served from `public/` as a plain file: the page's CSP is `script-src 'self'`, so a blob:/data: worklet
-// is refused, and a bundler-emitted asset breaks the bun test runner that imports this module.
+// Served from `public/` as a plain file: the bridge's CSP is `script-src 'self'`, so a blob:/data: worklet
+// is refused there, and a bundler-emitted asset breaks the bun test runner that imports this module.
 const WORKLET_URL = "/dictation-worklet.js"
 
 /** Past this a dictation is a monologue; the socket frame and the model's patience both run out. */
@@ -186,7 +187,7 @@ export class Dictation {
       this.stream = stream
       const context = new AudioContext()
       this.context = context
-      await context.audioWorklet.addModule(WORKLET_URL)
+      await context.audioWorklet.addModule(relayed ? await bridgeScriptUrl(WORKLET_URL) : WORKLET_URL)
       // release() already closed this start's resources if the worklet outlived it.
       if (session !== this.session) return null
       const source = context.createMediaStreamSource(stream)
