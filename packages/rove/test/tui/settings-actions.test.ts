@@ -3,16 +3,19 @@ import { type MockInstance, afterEach, beforeEach, describe, expect, it, vi } fr
 const mocks = vi.hoisted(() => ({
   clear: vi.fn(),
   confirm: vi.fn(),
-  destroySafely: vi.fn(),
+  restore: vi.fn(),
   hasRestartable: vi.fn(),
   removeTasks: vi.fn(),
   relaunch: vi.fn(),
 }))
 
 vi.mock("../../src/tui/component/settings-dialog/actions-core", () => ({
-  destroyRendererSafely: mocks.destroySafely,
   hasRestartableDaemon: mocks.hasRestartable,
   removeTasksFileForReset: mocks.removeTasks,
+}))
+
+vi.mock("../../src/lib/restore-terminal", () => ({
+  restoreTerminal: mocks.restore,
 }))
 
 vi.mock("../../src/tui-react/ui/dialog-confirm", () => ({
@@ -60,7 +63,7 @@ describe("React settings actions", () => {
     )
     expect(mocks.clear).toHaveBeenCalledTimes(1)
     expect(mocks.removeTasks).toHaveBeenCalledTimes(1)
-    expect(mocks.destroySafely).toHaveBeenCalledWith(renderer, "reset")
+    expect(mocks.restore).toHaveBeenCalledWith(renderer)
     expect(exitSpy).toHaveBeenCalledWith(0)
   })
 
@@ -76,7 +79,7 @@ describe("React settings actions", () => {
     mocks.clear.mockReturnValue(false)
     await confirmResetState({} as never, { clear: mocks.clear } as never, { destroy: vi.fn() })
     expect(mocks.removeTasks).not.toHaveBeenCalled()
-    expect(mocks.destroySafely).not.toHaveBeenCalled()
+    expect(mocks.restore).not.toHaveBeenCalled()
     expect(stderrSpy).not.toHaveBeenCalled()
     expect(exitSpy).not.toHaveBeenCalled()
     expect(mocks.confirm).toHaveBeenLastCalledWith(
@@ -101,7 +104,7 @@ describe("React settings actions", () => {
     expect(orchestrator.restartDaemon).toHaveBeenCalledTimes(1)
     expect(mocks.relaunch).toHaveBeenCalledWith({ renderer, notice: expect.any(String) })
     // The relaunch owns the teardown now — a second destroy here would race it.
-    expect(mocks.destroySafely).not.toHaveBeenCalled()
+    expect(mocks.restore).not.toHaveBeenCalled()
     // And it must not exit on its own: exiting before the successor is spawned
     // is exactly the old bug, minus the explanation.
     expect(exitSpy).not.toHaveBeenCalled()
