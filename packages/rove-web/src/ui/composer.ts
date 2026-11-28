@@ -1,5 +1,6 @@
 /** The New session page: an empty hero above, the composer pinned to the bottom of the workspace pane. */
 
+import { SQUARE } from "./glass.ts"
 import { GROW as GROWS } from "./grow.ts"
 
 /** Everything below inherits this font: no recipe here sets `text-meta`, which would reset line-height to normal. */
@@ -39,9 +40,13 @@ export const CHIP_WORD = "narrow:sr-only"
 /** A chip narrows to its glyph and no further: in a full bar the words shorten, an icon-only chip keeps its shape. */
 const CHIP_FLOOR = "min-w-8.5"
 
-/** A pill in the bar; `on` is the Worktree toggle while it is on. Hover applies on touch too, as the sheet's did. */
+/** A press washes it and gives a little under the finger; no scale when the system asks for no motion. */
+const CHIP_PRESS =
+  "transition-[scale,background-color,color] duration-150 ease-snap active:scale-97 active:bg-hover active:text-ink motion-reduce:transition-none motion-reduce:active:scale-none"
+
+/** A chip in the bar, the radius of a button beside it (the phone's 44px square there); `on` is the Worktree toggle while it is on. */
 export const chipClass = (on = false): string =>
-  `inline-flex max-w-[28ch] ${CHIP_FLOOR} items-center gap-1.5 overflow-hidden rounded-full border-hairline px-2.5 py-0.75 text-ellipsis whitespace-nowrap touch:py-1.75 narrow:min-h-11 narrow:text-[15px] hover:bg-hover hover:text-ink aria-expanded:bg-hover aria-expanded:text-ink ${
+  `inline-flex max-w-[28ch] ${CHIP_FLOOR} items-center gap-1.5 overflow-hidden rounded-sm narrow:${SQUARE} ${CHIP_PRESS} border-hairline px-2.5 py-0.75 text-ellipsis whitespace-nowrap touch:py-1.75 narrow:min-h-11 narrow:text-[15px] hover:bg-hover hover:text-ink aria-expanded:bg-hover aria-expanded:text-ink ${
     on
       ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-accent-soft text-accent"
       : "border-line text-muted"
@@ -57,10 +62,11 @@ export const DICTATE_PRESS = "touch-none select-none [-webkit-touch-callout:none
 /**
  * `group/chip`: the last popover of the right-hand group opens leftward from its chip's right edge; any other would
  * run under the rail. `yields` is the chip whose word shortens first in a full phone bar (the folder: the longest
- * name). It takes the room the others leave, up to its own width, so no other chip gives up even a pixel before it.
+ * name). It takes all the room the others leave, so no other chip gives up even a pixel before it, and on a phone
+ * every gap in the row is the same.
  */
 export const chipWrap = (yields = false): string =>
-  `group/chip relative inline-flex ${CHIP_FLOOR} ${yields ? "narrow:max-w-fit narrow:flex-[1_1_0]" : ""}`
+  `group/chip relative inline-flex ${CHIP_FLOOR} ${yields ? "narrow:flex-[1_1_0] narrow:[&>button]:flex-1" : ""}`
 export const POP =
   "absolute bottom-[calc(100%+6px)] left-0 z-20 flex max-h-[min(50vh,420px)] max-w-[min(52ch,calc(100vw-16px))] min-w-[min(34ch,calc(100vw-16px))] flex-col overflow-hidden rounded-md border-hairline border-line-active bg-surface shadow-popover group-[&]/end:group-last-of-type/chip:right-0 group-[&]/end:group-last-of-type/chip:left-auto"
 

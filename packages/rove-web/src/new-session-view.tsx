@@ -390,7 +390,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               )}
             />
             {!talks && <span className={C.GROW} />}
-            {talks && <SendButton label={t("newSession.start")} disabled={busy} />}
+            {talks && <SendButton label={t("newSession.start")} disabled={busy || !(prompt.trim() || sh.on)} />}
             {!talks && (
               <button type="submit" className={buttonClass()} disabled={busy}>
                 {t("newSession.start")}
