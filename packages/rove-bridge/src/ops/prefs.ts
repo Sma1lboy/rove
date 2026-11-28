@@ -81,6 +81,7 @@ export function createPrefsOps(deps: PrefsDeps): OpTable {
           themes: themes.map((t) => ({
             name: t.name,
             bundled: t.bundled,
+            ...(t.theme.fontFamily ? { fontFamily: t.theme.fontFamily } : {}),
             dark: palette(t.theme, "dark"),
             light: palette(t.theme, "light"),
           })),

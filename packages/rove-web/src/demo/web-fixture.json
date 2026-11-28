@@ -420,6 +420,9 @@
   "theme.hosted": {
     "themes": []
   },
+  "theme.terminals": {
+    "terminals": []
+  },
   "context.usage": {
     "meter": null
   },

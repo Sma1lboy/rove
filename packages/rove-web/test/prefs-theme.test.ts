@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { contrast, cssVars } from "../src/prefs-theme.ts"
+import { contrast, cssVars, fontFamilyFor, monoFontStack, terminalFontStack, xtermTheme } from "../src/prefs-theme.ts"
 
 const prefs = { focusAccent: "primary", colorblind: "off" } as const
 
@@ -69,4 +69,45 @@ test.each([
   expect(step).toBeGreaterThan(1.01)
   expect(step).toBeLessThan(1.05)
   expect(contrast(vars["--sidebar"] as string, "#000000")).toBeLessThan(contrast(palette.background, "#000000"))
+})
+
+test("fontFamilyFor reads a theme's optional fontFamily and stacks keep Rove Nerd Symbols", () => {
+  const themes = [
+    { name: "claude", bundled: true, dark: claudeDark, light: claudeLight },
+    { name: "ghostty", bundled: false, fontFamily: "Berkeley Mono", dark: claudeDark, light: claudeLight },
+  ]
+  expect(fontFamilyFor(themes, "ghostty")).toBe("Berkeley Mono")
+  expect(fontFamilyFor(themes, "claude")).toBeNull()
+  expect(monoFontStack("Berkeley Mono")).toStartWith('"Berkeley Mono", "Rove Nerd Symbols",')
+  expect(terminalFontStack("Berkeley Mono")).toStartWith('"Berkeley Mono", "Rove Nerd Symbols",')
+})
+
+test("xtermTheme uses explicit cursor and ANSI 0-15 slots when present, and falls back otherwise", () => {
+  const base = {
+    background: "#141413",
+    text: "#eae7df",
+    primary: "#cc785c",
+    backgroundMenu: "#33312e",
+    error: "#ec6f74",
+    success: "#9aca86",
+    warning: "#e8c96b",
+    info: "#61aaf2",
+    syntaxType: "#9b87f5",
+    secondary: "#d4967e",
+    textMuted: "#a9a39a",
+    diffLineNumber: "#6b665f",
+  }
+  const fallback = xtermTheme(base)
+  expect(fallback.cursor).toBe("#cc785c")
+  expect(fallback.red).toBe("#ec6f74")
+
+  const imported = xtermTheme({
+    ...base,
+    cursor: "#f5e0dc",
+    terminalRed: "#f38ba8",
+    terminalBrightBlue: "#89b4fa",
+  })
+  expect(imported.cursor).toBe("#f5e0dc")
+  expect(imported.red).toBe("#f38ba8")
+  expect(imported.brightBlue).toBe("#89b4fa")
 })

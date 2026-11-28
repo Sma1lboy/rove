@@ -11,6 +11,10 @@
       "type": "string",
       "description": "Optional pointer back to this schema for editor autocomplete."
     },
+    "fontFamily": {
+      "type": "string",
+      "description": "Optional monospace font family applied by clients that control font rendering (such as rove-web). Ignored in the TUI, where the host terminal owns its font."
+    },
     "defs": {
       "type": "object",
       "description": "Optional palette of named colors that `theme` entries can reference (e.g. `darkPrimary -> #cc785c`). Values are hex strings or refs to other defs.",

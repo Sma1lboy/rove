@@ -1,16 +1,26 @@
 /**
- * A terminal emulator's color scheme file turned into a Rove theme, so `rove theme add` can make Rove
- * match the terminal it runs in. Reads the plain line formats terminals use for their schemes:
- * `key = value` with `palette = N=#hex`, `key value` with `colorN`, and `*.key: value` resource lines.
- * Opentui-free: the CLI imports it.
+ * A terminal emulator's color scheme file turned into a Rove theme, so `rove theme add` and
+ * `rove theme import` can make Rove match the terminal it runs in. Reads Ghostty (`key = value`
+ * with `palette = N=#hex`), Kitty (`key value` with `colorN`), Alacritty TOML, WezTerm Lua/TOML,
+ * and Xresources (`*.key: value`) lines. Opentui-free: the CLI and bridge import it.
  */
 
-import { normalizeHex } from "./hex"
+import {
+  type PartialTerminalScheme,
+  cleanFontFamily,
+  parseAlacrittyToml,
+  parseSchemeColor,
+  parseWeztermLua,
+} from "./terminal-parsers"
 import type { ThemeJson } from "./theme-data"
 
 export interface TerminalScheme {
   readonly background: string
   readonly foreground: string
+  /** Optional cursor color (`#rrggbb`). */
+  readonly cursor?: string
+  /** Optional monospace font family from the terminal config. */
+  readonly fontFamily?: string
   /** ANSI 0–15; a slot the file never set is absent. */
   readonly ansi: ReadonlyArray<string | undefined>
 }
@@ -34,11 +44,9 @@ const ANSI_NAMES = [
   "brightWhite",
 ] as const
 
-/** `#rgb`, `#rrggbb`, `#rrggbbaa` or the same without `#`, as `#rrggbb`; a trailing comment is ignored. */
-function color(raw: string): string | null {
-  const value = (raw.trim().split(/\s+/)[0] ?? "").replace(/^["']|["']$/g, "")
-  return normalizeHex(value.startsWith("#") ? value : `#${value}`)
-}
+export const TERMINAL_ANSI_SLOTS = ANSI_NAMES.map(
+  (name) => `terminal${name[0]!.toUpperCase()}${name.slice(1)}`,
+) as readonly string[]
 
 /** `*.background`, `URxvt.color4`, `Color_4` → `background`, `color4`, `color4`. */
 function normalizeKey(raw: string): string {
@@ -57,10 +65,35 @@ function splitLine(line: string): [string, string] | null {
   return m ? [m[1] as string, (m[2] as string).trim()] : null
 }
 
+/** Promote a partial scheme once both background and foreground are present. */
+export function finalizeTerminalScheme(partial: PartialTerminalScheme): TerminalScheme | null {
+  if (!partial.background || !partial.foreground) return null
+  const ansi = partial.ansi.slice(0, 16)
+  while (ansi.length < 16) ansi.push(undefined)
+  return {
+    background: partial.background,
+    foreground: partial.foreground,
+    ...(partial.cursor ? { cursor: partial.cursor } : {}),
+    ...(partial.fontFamily ? { fontFamily: partial.fontFamily } : {}),
+    ansi,
+  }
+}
+
 /** The scheme in `text`, or `null` when it names no background and foreground (not a scheme file). */
 export function parseTerminalScheme(text: string): TerminalScheme | null {
+  if (/^\s*\[colors\b/m.test(text) || /^\s*colors\.primary\./m.test(text)) {
+    const toml = finalizeTerminalScheme(parseAlacrittyToml(text).scheme)
+    if (toml) return toml
+  }
+  if (/\bwezterm\b/.test(text) || /\bcolors\s*=\s*\{/.test(text) || /^\s*return\s*\{/m.test(text)) {
+    const lua = finalizeTerminalScheme(parseWeztermLua(text).scheme)
+    if (lua) return lua
+  }
+
   let background: string | null = null
   let foreground: string | null = null
+  let cursor: string | undefined
+  let fontFamily: string | undefined
   const ansi: Array<string | undefined> = new Array(16).fill(undefined)
   for (const line of text.split(/\r?\n/)) {
     const pair = splitLine(line)
@@ -70,25 +103,41 @@ export function parseTerminalScheme(text: string): TerminalScheme | null {
     if (key === "palette") {
       const m = /^(\d{1,2})\s*[=:]\s*(\S+)/.exec(value)
       const index = m ? Number(m[1]) : -1
-      const hex = m ? color(m[2] as string) : null
+      const hex = m ? parseSchemeColor(m[2] as string) : null
       if (hex && index >= 0 && index < 16) ansi[index] = hex
       continue
     }
     const indexed = /^color(\d{1,2})$/.exec(key)
     if (indexed) {
       const index = Number(indexed[1])
-      const hex = color(value)
+      const hex = parseSchemeColor(value)
       if (hex && index < 16) ansi[index] = hex
       continue
     }
+    if (key === "fontfamily") {
+      const family = cleanFontFamily(value)
+      if (family && !fontFamily) fontFamily = family
+      continue
+    }
+    if (key === "cursor" || key === "cursorcolor" || key === "cursorbg") {
+      const hex = parseSchemeColor(value)
+      if (hex) cursor = hex
+      continue
+    }
     if (key !== "background" && key !== "foreground") continue
-    const hex = color(value)
+    const hex = parseSchemeColor(value)
     if (!hex) continue
     if (key === "background") background = hex
     else foreground = hex
   }
   if (!background || !foreground) return null
-  return { background, foreground, ansi }
+  return {
+    background,
+    foreground,
+    ...(cursor ? { cursor } : {}),
+    ...(fontFamily ? { fontFamily } : {}),
+    ansi,
+  }
 }
 
 /** `from` moved `amount` (0–1) of the way to `to`, per channel. */
@@ -103,12 +152,14 @@ export function mix(from: string, to: string, amount: number): string {
 }
 
 /**
- * The scheme as a theme: its background and foreground, surfaces stepped from the background toward the
- * foreground, and the ANSI hues for the roles terminal programs give them (red errors, green additions).
+ * The scheme as a theme: its background, foreground, optional cursor and font family, surfaces
+ * stepped from the background toward the foreground, and the ANSI hues for the roles terminal
+ * programs give them (red errors, green additions) plus explicit `terminal*` ANSI 0–15 slots.
  * A role whose color the file left out is omitted, so the theme's own fallback (usually text) applies.
  */
 export function themeFromTerminalScheme(scheme: TerminalScheme): ThemeJson {
   const defs: Record<string, string> = { background: scheme.background, foreground: scheme.foreground }
+  if (scheme.cursor) defs.cursor = scheme.cursor
   scheme.ansi.forEach((hex, i) => {
     if (hex) defs[ANSI_NAMES[i] as string] = hex
   })
@@ -145,6 +196,7 @@ export function themeFromTerminalScheme(scheme: TerminalScheme): ThemeJson {
     syntaxPunctuation: "foreground",
     selectedListItemText: "background",
   }
+  if (defs.cursor) theme.cursor = "cursor"
   const hues: ReadonlyArray<readonly [slot: string, ...names: string[]]> = [
     ["primary", "blue", "brightBlue"],
     ["secondary", "magenta", "brightMagenta"],
@@ -177,9 +229,14 @@ export function themeFromTerminalScheme(scheme: TerminalScheme): ThemeJson {
   if (defs.red) defs.removedBg = mix(bg, defs.red, 0.16)
   if (defs.addedBg) theme.diffAddedBg = "addedBg"
   if (defs.removedBg) theme.diffRemovedBg = "removedBg"
+  // Preserve every declared ANSI 0–15 color for clients with an embedded terminal (e.g. rove-web xterm).
+  ANSI_NAMES.forEach((name, i) => {
+    if (defs[name]) theme[TERMINAL_ANSI_SLOTS[i] as string] = name
+  })
   // A def named like a slot (`background`, `border`) reads as a circular ref, so every def is prefixed.
   const ref = (name: string) => `scheme.${name}`
   return {
+    ...(scheme.fontFamily ? { fontFamily: scheme.fontFamily } : {}),
     defs: Object.fromEntries(Object.entries(defs).map(([name, hex]) => [ref(name), hex])),
     theme: Object.fromEntries(Object.entries(theme).map(([slot, name]) => [slot, ref(name)])),
   } as ThemeJson

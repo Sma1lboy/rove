@@ -6,6 +6,7 @@
 
 import { existsSync, mkdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { updateStateFile } from "../state/store"
 import { userThemesDir } from "./loader"
 import { validateTheme } from "./schema"
 import { parseTerminalScheme, themeFromTerminalScheme } from "./terminal-scheme"
@@ -76,4 +77,15 @@ export function writeUserTheme(name: string, theme: ThemeJson, force: boolean): 
   // Re-serialise the validated theme: strips BOM/odd whitespace, keeps key order.
   writeFileSync(dest, `${JSON.stringify(theme, null, 2)}\n`, "utf8")
   return dest
+}
+
+/** Switches `activeTheme` in `state.json`; a running daemon pushes the change live to attached clients. */
+export function activateUserTheme(name: string): void {
+  if (!isThemeName(name)) {
+    throw new ThemeInstallError(`invalid theme name "${name}" (use letters, digits, '.', '_', '-')`)
+  }
+  updateStateFile((state) => {
+    state.activeTheme = name
+    return undefined
+  })
 }

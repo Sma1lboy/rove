@@ -1,9 +1,11 @@
 /**
  * Settings → Appearance → Theme as small tiles: each one a miniature window in that theme's own colours.
  * Pointing at a tile (or focusing it) paints the whole page in that theme; leaving the grid puts the
- * saved one back, and a click saves it. Behind a disclosure, the rove.run themes not yet installed: the same
- * preview, and a click installs one (`theme.install`, as `rove theme add`) and switches to it. Last, a Scratch
- * session whose agent is asked to write a new theme into the themes directory; it shows here on reopening.
+ * saved one back, and a click saves it. Detected local terminal configs (Ghostty, Kitty, Alacritty,
+ * WezTerm) appear for one-click import/sync with the same live preview. Behind a disclosure, the
+ * rove.run themes not yet installed: the same preview, and a click installs one (`theme.install`, as
+ * `rove theme add`) and switches to it. Last, a Scratch session whose agent is asked to write a new
+ * theme into the themes directory; it shows here on reopening.
  * Inline colours are the point here: every card shows a different theme.
  */
 
@@ -35,6 +37,14 @@ import {
 } from "./ui/settings.ts"
 
 interface HostedTheme extends PreviewTheme {
+  readonly installed: boolean
+}
+
+interface TerminalTheme extends PreviewTheme {
+  readonly id: string
+  readonly label: string
+  readonly configPath: string
+  readonly sourceTheme?: string
   readonly installed: boolean
 }
 
@@ -72,10 +82,19 @@ function Swatch({ theme, mode }: { theme: PreviewTheme; mode: Mode }) {
   )
 }
 
-function Card(props: { theme: PreviewTheme; mode: Mode; active: boolean; tag?: string; onClick: () => void }) {
+function Card(props: {
+  theme: PreviewTheme
+  label?: string
+  title?: string
+  mode: Mode
+  active: boolean
+  tag?: string
+  onClick: () => void
+}) {
   return (
     <Button
       variant="card"
+      title={props.title}
       aria-pressed={props.active}
       className={themeCardClass(props.active)}
       onMouseEnter={() => themePreview.set(props.theme)}
@@ -84,7 +103,7 @@ function Card(props: { theme: PreviewTheme; mode: Mode; active: boolean; tag?: s
     >
       <Swatch theme={props.theme} mode={props.mode} />
       <span className={THEME_CARD_NAME}>
-        <span className="truncate text-ink">{props.theme.name}</span>
+        <span className="truncate text-ink">{props.label ?? props.theme.name}</span>
         {props.tag && <span className="text-subtle">{props.tag}</span>}
       </span>
     </Button>
@@ -116,8 +135,11 @@ export function ThemeGallery(props: {
   const { model } = props
   const { client } = model
   const hosted = useStore(hostedStore)
+  const [terminals, setTerminals] = useState<readonly TerminalTheme[]>([])
   const [installing, setInstalling] = useState<string | null>(null)
   const [failed, setFailed] = useState<string | null>(null)
+  const [importing, setImporting] = useState<string | null>(null)
+  const [importFailed, setImportFailed] = useState<string | null>(null)
   const [askFailed, setAskFailed] = useState(false)
   const [browsing, setBrowsing] = useState(false)
   const narrow = useNarrow()
@@ -125,6 +147,20 @@ export function ThemeGallery(props: {
   useEffect(() => () => themePreview.set(null), [])
   // A theme written under themes/ while the page kept focus (an agent's, a hand edit) shows on reopening.
   useEffect(() => void loadPrefs(client).catch(() => undefined), [client])
+  useEffect(() => {
+    let active = true
+    client.request<{ terminals: readonly TerminalTheme[] }>("theme.terminals").then(
+      (reply) => {
+        if (active) setTerminals(reply.terminals)
+      },
+      () => {
+        if (active) setTerminals([])
+      },
+    )
+    return () => {
+      active = false
+    }
+  }, [client])
   useEffect(() => {
     if (hostedStore.get() !== null) return
     client.request<Hosted>("theme.hosted").then(
@@ -154,6 +190,21 @@ export function ThemeGallery(props: {
     }
   }
 
+  const importTerminal = async (term: TerminalTheme) => {
+    setImporting(term.id)
+    setImportFailed(null)
+    try {
+      const reply = await client.request<{ name: string }>("theme.importTerminal", { terminal: term.id })
+      await loadPrefs(client)
+      await setPref(client, "theme", reply.name)
+      setTerminals((prev) => prev.map((item) => (item.id === term.id ? { ...item, installed: true } : item)))
+    } catch {
+      setImportFailed(term.id)
+    } finally {
+      setImporting(null)
+    }
+  }
+
   const installedNames = new Set(props.themes.map((th) => th.name))
   const more = (hosted?.themes ?? []).filter((th) => !installedNames.has(th.name))
   return (
@@ -173,6 +224,34 @@ export function ThemeGallery(props: {
           ))}
         </Grid>
       </div>
+      {terminals.length > 0 && (
+        <div>
+          <p className={THEME_GROUP_LABEL}>{t("prefs.themeTerminals")}</p>
+          <p className={`${SETTINGS_NOTE} m-0 pb-2`}>{t("prefs.themeTerminalsHint")}</p>
+          <Grid>
+            {terminals.map((term) => (
+              <Card
+                key={term.id}
+                theme={term}
+                label={term.label}
+                title={term.fontFamily ? `${term.configPath} · ${term.fontFamily}` : term.configPath}
+                mode={props.mode}
+                active={false}
+                tag={
+                  importing === term.id
+                    ? t("prefs.themeImporting")
+                    : importFailed === term.id
+                      ? t("prefs.themeImportFailed")
+                      : installedNames.has(term.name)
+                        ? t("prefs.themeSync")
+                        : t("prefs.themeImport")
+                }
+                onClick={() => importing === null && void importTerminal(term)}
+              />
+            ))}
+          </Grid>
+        </div>
+      )}
       {more.length > 0 && (
         <div>
           <Button

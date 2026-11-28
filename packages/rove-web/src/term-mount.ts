@@ -11,7 +11,7 @@ import { WebLinksAddon } from "@xterm/addon-web-links"
 import { Terminal } from "@xterm/xterm"
 import "@xterm/xterm/css/xterm.css"
 import { type BridgeClient, BridgeRequestError } from "./bridge.ts"
-import { terminalTheme } from "./prefs-theme.ts"
+import { terminalFontFamily, terminalTheme } from "./prefs-theme.ts"
 import { prefsStore } from "./prefs.ts"
 import { markScrolling } from "./scroll-reveal.ts"
 import { type Notice, type TermHandle, streamKey } from "./term-contract.ts"
@@ -75,7 +75,7 @@ function withReset(bytes: Uint8Array): Uint8Array {
 export function mountTerminal(o: MountOpts): TermHandle {
   const { client, el, taskId, tabId } = o
   const term = new Terminal({
-    fontFamily: FONT_FAMILY,
+    fontFamily: terminalFontFamily.get() ?? FONT_FAMILY,
     fontSize: termFontSize(),
     lineHeight: 1.15,
     theme: terminalTheme.get() ?? XTERM_THEME,

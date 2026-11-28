@@ -28,6 +28,7 @@ import { TASKOPS_OPS } from "./taskops.ts"
 import { TASK_OPS } from "./tasks.ts"
 import { TERMINAL_OPS } from "./terminal.ts"
 import { hostedThemeOps } from "./theme-hosted.ts"
+import { terminalThemeOps } from "./theme-terminals.ts"
 import type { OpTable } from "./types.ts"
 import { updateOps } from "./update.ts"
 import { voiceSetupOps } from "./voice-setup.ts"
@@ -62,6 +63,7 @@ export const AREA_OPS: OpTable = mergeOpTables(
   linkOps,
   prefsOps,
   hostedThemeOps,
+  terminalThemeOps,
   routingOps,
   TASKOPS_OPS,
   WORKSPACE_OPS,

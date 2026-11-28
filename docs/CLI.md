@@ -127,7 +127,7 @@ Commands:
   doctor [--report|--fix] Diagnose daemon/PTY/engines/git; --fix walks the remedies
   config [--path]         Open rove's config file (state.json) in your editor
   reset [--hard]          Stop runtimes; optionally wipe task/UI state
-  theme <verb>            Manage user themes (list|add|remove)
+  theme <verb>            Manage user themes (list|add|import|remove)
   skill <verb>            Install the rove agent skill (install|status|command|print)
   plugin <verb>           Install and run plugins (install|link|list|action|…)
   feedback                File a GitHub issue on the Rove repo
@@ -227,7 +227,7 @@ Completes two levels: the subcommand, then its verb.
 rove <TAB>          completions add remove adopt export repo api daemon …
 rove daemon <TAB>   status start stop restart relay autostart
 rove machine <TAB>  add doctor update remove list tunnel inbound primary
-rove theme <TAB>    list add remove
+rove theme <TAB>    list add import remove
 rove api routine-<TAB>   routine-list routine-create routine-update …
 ```
 
@@ -266,12 +266,15 @@ Opens `~/.config/rove/state.json` in your editor. See
 
 ```bash
 rove theme list                                  # alias: ls
-rove theme add <url|path> [--name|-n <name>] [--force|-f]
+rove theme add <url|path> [--name|-n <name>] [--force|-f] [--use]
+rove theme import [ghostty|kitty|alacritty|wezterm] [--list] [--name|-n <name>] [--force|-f] [--no-use]
 rove theme remove <name>                         # alias: rm
 ```
 
-User themes land in `~/.rove/themes/` and can shadow a bundled name. Bundled
-themes can't be removed. See [Themes](./themes.md).
+User themes land in `~/.rove/themes/` and can shadow a bundled name. `import`
+auto-detects local Ghostty, Kitty, Alacritty, and WezTerm configs and switches
+to the imported theme unless `--no-use` is passed. Bundled themes can't be
+removed. See [Themes](./themes.md).
 
 ## repo
 

@@ -4,8 +4,10 @@ import type {
   AppearanceSetting,
   AppearanceSnapshot,
 } from "@sma1lboy/rove-client/settings/appearance.ts"
+import { writeUserTheme } from "@sma1lboy/rove-core/theme/install.ts"
+import { type DetectedTerminalTheme, detectLocalTerminalThemes } from "@sma1lboy/rove-core/theme/terminal-detect.ts"
 import type { KVContext } from "../../context/kv"
-import { useTheme } from "../../context/theme"
+import { addTheme, useTheme } from "../../context/theme"
 import type { DialogContext } from "../../ui/dialog"
 import { AppearancePicker } from "./appearance-picker"
 import type { SettingsPrefs } from "./use-settings-prefs"
@@ -65,10 +67,23 @@ export function useAppearanceSettings(kv: KVContext, dialog: DialogContext, pref
         break
     }
   }
+  function importTerminal(detected: DetectedTerminalTheme): void {
+    writeUserTheme(detected.themeName, detected.theme, true)
+    addTheme(detected.themeName, detected.theme)
+    if (theme.set(detected.themeName)) kv.set("activeTheme", detected.themeName)
+  }
   function open(setting: AppearanceSetting): void {
+    const terminalImports = setting === "theme" ? detectLocalTerminalThemes() : undefined
     dialog.setSize("xlarge")
     dialog.push(() => (
-      <AppearancePicker setting={setting} current={current} themes={theme.all().slice().sort()} onCommit={commit} />
+      <AppearancePicker
+        setting={setting}
+        current={current}
+        themes={theme.all().slice().sort()}
+        terminalImports={terminalImports}
+        onCommit={commit}
+        onImportTerminal={importTerminal}
+      />
     ))
   }
   return { current, open }

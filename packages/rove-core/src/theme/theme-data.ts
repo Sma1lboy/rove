@@ -13,6 +13,8 @@ export type ColorValue = HexColor | RefName | Variant
 
 export type ThemeJson = {
   $schema?: string
+  /** Optional monospace font family; applied by clients that control font rendering (such as rove-web). */
+  fontFamily?: string
   defs?: Record<string, HexColor | RefName>
   theme: Record<string, ColorValue>
 }

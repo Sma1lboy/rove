@@ -104,4 +104,34 @@ describe("appearance choices", () => {
     act(() => kv?.flush())
     expect(h.persisted()).toEqual({ ...original, [example.key]: example.next })
   })
+
+  it("Theme picker shows detected local terminals, previews them, and imports + activates on Enter", async () => {
+    const origXdg = process.env.XDG_CONFIG_HOME
+    try {
+      const h = await setup()
+      const xdg = join(process.env.ROVE_HOME_DIR as string, "xdg")
+      mkdirSync(join(xdg, "alacritty"), { recursive: true })
+      writeFileSync(
+        join(xdg, "alacritty", "alacritty.toml"),
+        '[colors.primary]\nbackground = "#2e3440"\nforeground = "#d8dee9"\n[colors.normal]\nblue = "#81a1c1"\n',
+      )
+      process.env.XDG_CONFIG_HOME = xdg
+
+      await h.press("l")
+      await h.pressTimes("j", 2)
+      const frame = await h.press("return")
+      expect(frame).toContain("Import from Alacritty")
+
+      // Move past the 4 bundled themes onto the Alacritty import row, verify live preview, then apply.
+      await h.pressTimes("j", 4)
+      expect(await h.frame()).toContain("Alacritty")
+      await h.press("return")
+      act(() => kv?.flush())
+      expect(h.persisted().activeTheme).toBe("alacritty")
+      expect(selectedTheme()).toBe("alacritty")
+    } finally {
+      if (origXdg === undefined) Reflect.deleteProperty(process.env, "XDG_CONFIG_HOME")
+      else process.env.XDG_CONFIG_HOME = origXdg
+    }
+  })
 })

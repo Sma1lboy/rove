@@ -1,7 +1,8 @@
 /**
- * `rove theme list | add <source> | remove <name>` — user color themes under
- * `~/.rove/themes/<name>.json`. `add` also converts a terminal color scheme file. `add` refuses to overwrite without `--force`;
- * `remove` refuses bundled (read-only) names.
+ * `rove theme list | add <source> | import [terminal] | remove <name>` — user color themes under
+ * `~/.rove/themes/<name>.json`. `add` also converts terminal color scheme files (Ghostty, Kitty,
+ * Alacritty TOML, WezTerm Lua/TOML, Xresources); `import` auto-detects local terminal configs.
+ * `add`/`import` refuse to overwrite without `--force`; `remove` refuses bundled (read-only) names.
  *
  * Late-imported from `cli/index.ts` so the TUI startup graph doesn't load.
  * Errors are one line on stderr + exit 1, no stack: they're user errors.
@@ -14,8 +15,22 @@ import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 import { expandTilde } from "@sma1lboy/rove-core/lib/path-home.ts"
 import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 import { BUNDLED_THEME_JSONS } from "@sma1lboy/rove-core/theme/bundled.ts"
-import { ThemeInstallError, isThemeName, parseThemeSource, writeUserTheme } from "@sma1lboy/rove-core/theme/install.ts"
+import {
+  ThemeInstallError,
+  activateUserTheme,
+  isThemeName,
+  parseThemeSource,
+  writeUserTheme,
+} from "@sma1lboy/rove-core/theme/install.ts"
 import { userThemesDir } from "@sma1lboy/rove-core/theme/loader.ts"
+import {
+  TERMINAL_IDS,
+  type TerminalId,
+  detectLocalTerminalThemes,
+  detectTerminalTheme,
+  installDetectedTerminalTheme,
+  isTerminalId,
+} from "@sma1lboy/rove-core/theme/terminal-detect.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME
 
@@ -107,16 +122,22 @@ async function readSource(source: string): Promise<{ text: string; defaultName: 
 interface AddOpts {
   name?: string
   force: boolean
+  use: boolean
 }
 
 function parseAddArgs(args: string[]): { source: string; opts: AddOpts } {
   let source: string | null = null
   let name: string | undefined
   let force = false
+  let use = false
   for (let i = 0; i < args.length; i += 1) {
     const a = args[i]
     if (a === "--force" || a === "-f") {
       force = true
+      continue
+    }
+    if (a === "--use") {
+      use = true
       continue
     }
     if (a === "--name" || a === "-n") {
@@ -138,7 +159,7 @@ function parseAddArgs(args: string[]): { source: string; opts: AddOpts } {
     failUsage(`unexpected positional argument: ${a}`)
   }
   if (source === null) failUsage("missing <source> (URL or path to theme JSON)")
-  return { source, opts: { name, force } }
+  return { source, opts: { name, force, use } }
 }
 
 async function addTheme(args: string[]): Promise<void> {
@@ -146,10 +167,107 @@ async function addTheme(args: string[]): Promise<void> {
   const { text, defaultName } = await readSource(source)
   try {
     const { theme, fromScheme } = parseThemeSource(text)
-    // A scheme file's extension (`.conf`, `.theme`) is not part of its name.
+    // A scheme file's extension (`.conf`, `.toml`, `.lua`, `.theme`) is not part of its name.
     const name = opts.name ?? (fromScheme ? defaultName.replace(/(.)\.[^.]+$/, "$1") : defaultName)
     const dest = writeUserTheme(name, theme, opts.force)
-    process.stdout.write(`installed theme "${name}"${fromScheme ? " from a terminal color scheme" : ""} -> ${dest}\n`)
+    if (opts.use) activateUserTheme(name)
+    const suffix = `${fromScheme ? " from a terminal color scheme" : ""}${opts.use ? " (active)" : ""}`
+    process.stdout.write(`installed theme "${name}"${suffix} -> ${dest}\n`)
+  } catch (err) {
+    if (err instanceof ThemeInstallError) fail(err.message)
+    throw err
+  }
+}
+
+interface ImportOpts {
+  terminal?: TerminalId
+  list: boolean
+  name?: string
+  force: boolean
+  activate: boolean
+}
+
+function parseImportArgs(args: string[]): ImportOpts {
+  let terminal: TerminalId | undefined
+  let list = false
+  let name: string | undefined
+  let force = false
+  let activate = true
+  for (let i = 0; i < args.length; i += 1) {
+    const a = args[i]
+    if (a === "--list" || a === "-l") {
+      list = true
+      continue
+    }
+    if (a === "--force" || a === "-f") {
+      force = true
+      continue
+    }
+    if (a === "--no-use" || a === "--no-switch") {
+      activate = false
+      continue
+    }
+    if (a === "--name" || a === "-n") {
+      const next = args[i + 1]
+      if (next === undefined) failUsage("--name requires a value")
+      name = next
+      i += 1
+      continue
+    }
+    if (a.startsWith("--name=")) {
+      name = a.slice("--name=".length)
+      continue
+    }
+    if (a.startsWith("--")) failUsage(`unknown flag: ${a}`)
+    if (terminal === undefined) {
+      const lowered = a.toLowerCase()
+      if (!isTerminalId(lowered)) {
+        failUsage(`unknown terminal "${a}" (expected one of: ${TERMINAL_IDS.join(", ")})`)
+      }
+      terminal = lowered
+      continue
+    }
+    failUsage(`unexpected positional argument: ${a}`)
+  }
+  return { terminal, list, name, force, activate }
+}
+
+function importTheme(args: string[]): void {
+  const opts = parseImportArgs(args)
+  if (opts.list) {
+    const detected = detectLocalTerminalThemes()
+    if (detected.length === 0) {
+      process.stdout.write("detected terminals:\n  (none)\n")
+      return
+    }
+    const lines = ["detected terminals:"]
+    for (const d of detected) {
+      const font = d.scheme.fontFamily ? `  font="${d.scheme.fontFamily}"` : ""
+      lines.push(`  ${d.id}  ${d.label}  ${d.configPath}${font}`)
+    }
+    process.stdout.write(`${lines.join("\n")}\n`)
+    return
+  }
+
+  const detected = opts.terminal ? detectTerminalTheme(opts.terminal) : (detectLocalTerminalThemes()[0] ?? null)
+  if (!detected) {
+    const target = opts.terminal
+      ? `no readable color theme found for ${opts.terminal}`
+      : `no readable local terminal theme found (checked ${TERMINAL_IDS.join(", ")})`
+    fail(target)
+  }
+
+  try {
+    const result = installDetectedTerminalTheme(detected, {
+      name: opts.name,
+      force: opts.force,
+      activate: opts.activate,
+    })
+    const fontNote = result.fontFamily ? `, font "${result.fontFamily}"` : ""
+    const activeNote = result.activated ? " (active)" : ""
+    process.stdout.write(
+      `imported theme "${result.name}" from ${result.label} (${result.configPath})${fontNote}${activeNote} -> ${result.path}\n`,
+    )
   } catch (err) {
     if (err instanceof ThemeInstallError) fail(err.message)
     throw err
@@ -185,8 +303,11 @@ function printUsage(out: NodeJS.WriteStream = process.stderr): void {
       "Commands:",
       "  list                          List bundled and user-installed themes",
       "  add <source> [--name <name>]  Install a theme from a URL or local path: a theme JSON,",
-      "                                or a terminal color scheme file (background, foreground, ANSI palette)",
-      "                                Pass --force to overwrite an existing user theme",
+      "                                or a terminal color scheme (Ghostty, Kitty, Alacritty, WezTerm, Xresources)",
+      "                                Pass --force to overwrite, --use to activate immediately",
+      `  import [terminal]             Auto-detect and import from a local terminal (${TERMINAL_IDS.join("|")})`,
+      "                                Switches Rove to the imported theme unless --no-use is passed",
+      "                                Pass --list to inspect detected configs, --name <name>, --force",
       "  remove <name>                 Remove a user-installed theme",
       "",
       `User themes live under: ${userThemesDir()}`,
@@ -216,6 +337,10 @@ export async function runThemeSubcommand(args: string[]): Promise<void> {
   }
   if (verb === "add") {
     await addTheme(rest)
+    return
+  }
+  if (verb === "import") {
+    importTheme(rest)
     return
   }
   if (verb === "remove") {
