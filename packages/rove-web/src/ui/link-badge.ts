@@ -1,7 +1,7 @@
 /** A pasted link's badge in a prompt field (link-badges.tsx): drawn on a layer behind the field's transparent text. */
 
-/** The field: its text is the layer's to draw, only the caret and placeholder show. */
-export const FIELD = "relative text-transparent caret-ink placeholder:text-muted"
+/** The field: its text is the layer's to draw, only the caret and placeholder show; no UA padding, which the layer lacks. */
+export const FIELD = "relative p-0 text-transparent caret-ink placeholder:text-muted"
 /** Same box and wrapping as the field, so every character lands where the field puts it. */
 export const LAYER =
   "pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap text-ink [overflow-wrap:break-word]"
