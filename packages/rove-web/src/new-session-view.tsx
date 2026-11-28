@@ -249,7 +249,8 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     if (!primary && !ungrouped && !toClone) return setError(t("newSession.needRepo"))
     if (!prompt.trim() && !sh.on) return setError(t("newSession.needPrompt"))
     setBusy(true)
-    const first = withRefs(badges.expand(prompt).trim(), await ready())
+    const text = badges.expand(prompt) // badges are placeholder runs; titles and engines read the URLs
+    const first = withRefs(text.trim(), await ready())
     try {
       const list = toClone ? [await cloneInto(toClone)] : repos
       // Every pick is re-probed: a typed path may not be a repo, and the daemon wants canonical roots.
@@ -265,10 +266,10 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
       const checkout = (list.length === 1 && !worktree) || plainNow ? (picked[0]?.repo ?? "") : null
       if (sh.on) {
         const place = ungrouped ? null : (checkout ?? { repos: picked, branch: branchName.trim() })
-        created = await startShell(request, place, prompt)
+        created = await startShell(request, place, text)
       } else if (ungrouped) created = await startUngrouped(request, engineId, first, modelValue)
       else if (checkout !== null)
-        created = await startInCheckout(request, checkout, engineId, prompt, first, at, modelValue)
+        created = await startInCheckout(request, checkout, engineId, text, first, at, modelValue)
       else {
         const commandFrom = retryCommandFrom(seed, engineId)
         // Auto places a plain start; files, a later start, several repos or engines only work on this machine.
