@@ -12,13 +12,13 @@ import {
   EMPTY_NOTE,
   HEADING,
   HINT,
+  MENU_INPUT,
   NAME,
   ROWS,
   RULE,
   WIDE_MENU,
   rowClass,
 } from "./ui/composer.ts"
-import { PALETTE_INPUT } from "./ui/shell.ts"
 import { KICKER } from "./ui/text.ts"
 
 interface Listing {
@@ -130,7 +130,7 @@ export function FolderBrowser(props: {
         </span>
       </Button>
       <input
-        className={PALETTE_INPUT}
+        className={MENU_INPUT}
         // biome-ignore lint/a11y/noAutofocus: the browser's only field
         autoFocus
         spellCheck={false}

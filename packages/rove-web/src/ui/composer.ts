@@ -79,7 +79,10 @@ export const MENU = "flex min-h-0 flex-col gap-1 overflow-x-hidden overflow-y-au
 export const WIDE_MENU = `${MENU} w-[52ch] max-w-full`
 export const ROWS = "flex min-h-0 flex-col overflow-x-hidden overflow-y-auto"
 /** A hairline between two groups of rows. */
-export const RULE = "mx-2 my-1 flex-none border-t-hairline border-t-line"
+export const RULE = "mx-2 my-1 flex-none border-t border-t-line"
+/** A menu's search field: its edge is fainter than the rules between groups, so the groups read as the structure. */
+export const MENU_INPUT =
+  "w-full rounded-none border-0 [border-bottom:var(--hairline)_solid_var(--line-faint)] bg-transparent px-1.5 py-2 font-mono text-meta font-normal normal-nums text-ink focus-visible:outline-none"
 /** Callers add `KICKER text-muted`. */
 export const HEADING = "sticky top-0 z-1 m-0 bg-surface px-1.5 pt-1.5 pb-0.5 text-left"
 
