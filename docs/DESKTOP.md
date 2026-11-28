@@ -49,7 +49,7 @@ The same checklist shows in a browser on `rove --web`.
 | Linux | [Rove-linux-x86_64.AppImage](https://github.com/Sma1lboy/rove/releases/download/desktop/Rove-linux-x86_64.AppImage) |
 
 The app starts the `rove` it finds on this machine and offers to install it when there is none. The macOS
-build is signed with a Developer ID and notarized. The Windows installer is not signed, so
+build, the dmg and the app in it, is signed with a Developer ID and notarized. The Windows installer is not signed, so
 SmartScreen asks once: **More info › Run anyway**.
 
 These files live on one release, `desktop`, that is updated in place. A push to `main`
@@ -59,6 +59,9 @@ macOS files are replaced by hand, on a Mac that holds the Developer ID certifica
 ```sh
 ASC_KEY_ID=… ASC_ISSUER_ID=… packages/rove-desktop/scripts/release-mac.sh
 ```
+
+The script signs, notarizes and staples the app, then does the same to each dmg, and checks
+both with Gatekeeper before it uploads. `--no-upload` stops after the checks.
 
 ## Build it
 

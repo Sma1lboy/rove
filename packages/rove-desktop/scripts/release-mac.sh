@@ -1,5 +1,5 @@
 #!/bin/sh
-# Builds the macOS dmgs signed with a Developer ID and notarized, then uploads them to the rolling
+# Builds the macOS dmgs, app and dmg both signed with a Developer ID, notarized and stapled, then uploads them to the rolling
 # `desktop` release. Run on a Mac that holds the certificate; the keys never leave that machine.
 #
 #   ASC_KEY_ID, ASC_ISSUER_ID   App Store Connect API key (the .p8 sits in ~/.appstoreconnect/private_keys)
@@ -27,6 +27,15 @@ APPLE_API_KEY="$key" APPLE_API_KEY_ID="$ASC_KEY_ID" APPLE_API_ISSUER="$ASC_ISSUE
 for app in release/mac*/Rove.app; do
   xcrun stapler validate "$app"
   spctl --assess --type execute --verbose "$app"
+done
+
+# The dmg is what people download: sign, notarize and staple it too, so Gatekeeper passes the file itself.
+for dmg in release/Rove-mac-arm64.dmg release/Rove-mac-x64.dmg; do
+  codesign --sign "$identity" --timestamp "$dmg"
+  xcrun notarytool submit "$dmg" --key "$key" --key-id "$ASC_KEY_ID" --issuer "$ASC_ISSUER_ID" --wait
+  xcrun stapler staple "$dmg"
+  xcrun stapler validate "$dmg"
+  spctl --assess --type install --verbose "$dmg"
 done
 ls -l release/*.dmg
 
