@@ -216,6 +216,7 @@
       "devDependencies": {
         "@biomejs/biome": "2.4.5",
         "@playwright/test": "^1.49.0",
+        "@sma1lboy/rove": "workspace:*",
         "@tanstack/devtools-vite": "0.8.5",
         "@types/bun": "^1.3.12",
         "@types/node": "^22.20.5",
@@ -225,6 +226,7 @@
         "@xterm/addon-canvas": "^0.7.0",
         "@xterm/headless": "^6.0.0",
         "jsdom": "^28.1.0",
+        "rove-web": "workspace:*",
         "typescript": "^6.0.2",
         "vite": "^8.2.2",
         "vitest": "^4.1.11",

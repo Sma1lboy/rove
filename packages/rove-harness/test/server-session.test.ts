@@ -34,7 +34,7 @@ vi.mock("@sma1lboy/rove-core/state/repo-init.ts", () => ({
 }))
 
 import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
-import { ensureTaskSessionAdapter } from "../../rove/src/core/daemon-session-adapter.ts"
+import { ensureTaskSessionAdapter } from "@sma1lboy/rove/src/core/daemon-session-adapter.ts"
 
 function link(): DaemonRpcClient {
   return {
