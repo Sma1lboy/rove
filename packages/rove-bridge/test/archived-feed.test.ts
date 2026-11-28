@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test"
+import { defaultApiRuntime } from "@sma1lboy/rove-api/cli/api/runtime.ts"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { defaultApiRuntime } from "@sma1lboy/rove/src/cli/api/runtime.ts"
 import * as bridgeApi from "../src/ops/api.ts"
 import type { BridgeApi } from "../src/ops/types.ts"
 import { createRoveOps } from "../src/rove-ops.ts"

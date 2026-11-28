@@ -1,7 +1,7 @@
 /** `add --start` without a `--prompt`: the task's engine boots idle in its own tab-1. A bare `add` creates nothing. */
 
+import { ApiError, invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { describe, expect, it } from "vitest"
-import { ApiError, invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 const created = () => ({ taskId: "t1", task: taskFixture() })

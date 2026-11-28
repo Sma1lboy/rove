@@ -15,10 +15,10 @@
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { API_VERBS } from "@sma1lboy/rove-api/cli/api/verbs.ts"
+import { SUBCOMMAND_VERBS, TOP_LEVEL_SUBCOMMANDS } from "@sma1lboy/rove-api/cli/subcommands.ts"
 import { type MockInstance, afterEach, beforeEach, describe, expect, test, vi } from "vitest"
-import { API_VERBS } from "../../src/cli/api/verbs.ts"
 import { runCompletionsSubcommand } from "../../src/cli/completions-cmd.ts"
-import { SUBCOMMAND_VERBS, TOP_LEVEL_SUBCOMMANDS } from "../../src/cli/subcommands.ts"
 
 /** What every generated script must offer, keyed by command. */
 const EXPECTED_VERBS: Readonly<Record<string, readonly string[]>> = { ...SUBCOMMAND_VERBS, api: API_VERBS }

@@ -1,8 +1,8 @@
 /** `tab-new`: an engine takes the first conversation's own tab-1 or becomes a shared child; a shell is always its own child row (an Ungrouped task's shell is the task). */
 
+import { ApiError, invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
+import type { OpenedTab } from "@sma1lboy/rove-api/cli/api/tab-new.ts"
 import { describe, expect, it } from "vitest"
-import { ApiError, invokeVerb } from "../../src/cli/api-cmd.ts"
-import type { OpenedTab } from "../../src/cli/api/tab-new.ts"
 import { FakeClient, expectApiError, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 const opened = (taskId: string): OpenedTab => ({

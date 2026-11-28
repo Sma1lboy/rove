@@ -18,7 +18,7 @@ vi.mock("@sma1lboy/rove-core/engine/hosted-session.ts", async (original) => ({
   }),
 }))
 
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { FakeClient, expectApiError, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 const runtime = stubRuntime()

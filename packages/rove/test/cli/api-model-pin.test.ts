@@ -5,8 +5,8 @@
  * thing to refuse is an engine that declares no flag to carry it.
  */
 
+import { type ApiRuntime, invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { type ApiRuntime, invokeVerb } from "../../src/cli/api-cmd.ts"
 import {
   FakeClient,
   expectApiError,

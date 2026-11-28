@@ -20,13 +20,13 @@ import { describe, expect, it, vi } from "vitest"
 
 const mocks = vi.hoisted(() => ({ openPtyHost: vi.fn() }))
 
-vi.mock("../../src/cli/api/pty-delivery.ts", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../src/cli/api/pty-delivery.ts")>()),
+vi.mock("@sma1lboy/rove-api/cli/api/pty-delivery.ts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sma1lboy/rove-api/cli/api/pty-delivery.ts")>()),
   openPtyHost: mocks.openPtyHost,
 }))
 
+import { type ApiRuntime, invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
-import { type ApiRuntime, invokeVerb } from "../../src/cli/api-cmd.ts"
 
 const TAIL = "SENTINEL ENGINE UP argv: phase A\n"
 

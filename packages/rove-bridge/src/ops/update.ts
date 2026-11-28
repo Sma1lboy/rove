@@ -7,9 +7,9 @@
  */
 
 import { spawn } from "node:child_process"
+import { relaunchSelf } from "@sma1lboy/rove-api/cli/self-relaunch.ts"
 import { updaterShell, updaterShellFailureHint } from "@sma1lboy/rove-core/lib/updater-shell.ts"
 import { restartDaemon } from "@sma1lboy/rove-daemon/client/daemon-process"
-import { relaunchSelf } from "@sma1lboy/rove/src/cli/self-relaunch.ts"
 
 import { DEFAULT_RELEASE_CHANNEL, type ReleaseChannel } from "@sma1lboy/rove-core/release-channels.ts"
 import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"

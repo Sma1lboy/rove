@@ -31,9 +31,9 @@ vi.mock("@sma1lboy/rove-core/client/daemon-session.ts", () => ({
   }),
 }))
 
-const { runApiSubcommand } = await import("../../src/cli/api-cmd.ts")
+const { runApiSubcommand } = await import("@sma1lboy/rove-api/cli/api-cmd.ts")
 const { resetVerifiedSelfSession, takeIdentityWarning, verifiedSelfSession } = await import(
-  "../../src/cli/api/dispatcher.ts"
+  "@sma1lboy/rove-api/cli/api/dispatcher.ts"
 )
 
 let stdoutSpy: MockInstance

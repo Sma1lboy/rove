@@ -9,7 +9,7 @@ import { readFileSync, readdirSync } from "node:fs"
 import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { describe, expect, test } from "vitest"
-import { CLIENT_SRC, CORE_SRC } from "../core-package.ts"
+import { API_SRC, CLIENT_SRC, CORE_SRC } from "../core-package.ts"
 
 const SRC = fileURLToPath(new URL("../../src", import.meta.url))
 const UI_DIRS = ["tui", "tui-react", "bundled-plugins"]
@@ -97,5 +97,18 @@ describe("@sma1lboy/rove-client stands below the CLI package", () => {
       }),
     )
     expect(offenders.map((file) => relative(CLIENT_SRC, file))).toEqual([])
+  })
+})
+
+describe("@sma1lboy/rove-api stands below the CLI package", () => {
+  test("no rove-api file imports @sma1lboy/rove or a path inside packages/rove", () => {
+    const offenders = walk(API_SRC).filter((file) =>
+      [...readFileSync(file, "utf8").matchAll(SPEC)].some(([, spec = ""]) => {
+        if (spec === "@sma1lboy/rove/package.json") return false
+        if (spec === "@sma1lboy/rove" || spec.startsWith("@sma1lboy/rove/") || UI_PACKAGE.test(spec)) return true
+        return spec.startsWith(".") && resolve(dirname(file), spec).startsWith(`${ROVE_PKG}/`)
+      }),
+    )
+    expect(offenders.map((file) => relative(API_SRC, file))).toEqual([])
   })
 })

@@ -4,8 +4,8 @@
  * look sendable (the queue refuses the same edge).
  */
 
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { afterEach, describe, expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { recordingDelivery, stubRuntime, taskFixture } from "../cli/api-handler-fixtures.ts"
 import { type DaemonHarness, bootDaemonHarness, fakeOrchestrator } from "./harness.ts"
 

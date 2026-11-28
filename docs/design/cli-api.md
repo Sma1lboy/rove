@@ -5,7 +5,7 @@
 > shape outgrew it: `rove api` is now a 30+ verb declarative table
 > (discover/read/create/drive/edit/issues/lifecycle/worktree/feedback
 > categories), not five verbs in a switch. For the real surface, read
-> [`packages/rove/src/cli/api/verbs.ts`](../../packages/rove/src/cli/api/verbs.ts)
+> [`packages/rove-api/src/cli/api/verbs.ts`](../../packages/rove-api/src/cli/api/verbs.ts)
 > or run `rove api schema`. This doc is kept for the *why* (§1) and the
 > phasing history — don't treat §3/§10 as current.
 >
@@ -77,7 +77,7 @@ Non-goals (deliberately):
 
 > **Superseded.** This section describes the original 5-verb v1 proposal.
 > The shipped surface is a 30+ verb declarative table in
-> [`verbs.ts`](../../packages/rove/src/cli/api/verbs.ts) — run
+> [`verbs.ts`](../../packages/rove-api/src/cli/api/verbs.ts) — run
 > `rove api schema` for the live list. Kept below for historical context only.
 
 Five verbs. Each takes flag-style args (`--task-id ID`, not positional)
@@ -307,7 +307,7 @@ Total estimate: 4 small PRs, ~150-300 LOC each excluding generated docs.
 
 > **Superseded.** This phasing/file-layout plan (`api-cmd.ts` as a single
 > in-file dispatcher) is not what shipped — the real implementation is
-> [`packages/rove/src/cli/api/verbs.ts`](../../packages/rove/src/cli/api/verbs.ts)
+> [`packages/rove-api/src/cli/api/verbs.ts`](../../packages/rove-api/src/cli/api/verbs.ts)
 > plus the surrounding `src/cli/api/` directory. Kept below for historical
 > context only; don't use this as a map of the current source tree.
 
@@ -387,7 +387,7 @@ rove daemon stop
 
 **Files added**
 
-- `packages/rove/src/cli/api-cmd.ts` — NEW. Single file dispatcher;
+- `packages/rove-api/src/cli/api-cmd.ts` — NEW. Single file dispatcher;
   five verbs are small enough to live in-file under ~250 LOC.
 
   Shape:

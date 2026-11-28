@@ -5,14 +5,14 @@
  */
 
 import { createServer } from "node:net"
-import { describe, expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import {
   type ListeningSocket,
   parseLsofListeners,
   parseProcNetTcp,
   scanListeningPorts,
-} from "../../src/cli/api/listening-ports.ts"
+} from "@sma1lboy/rove-api/cli/api/listening-ports.ts"
+import { describe, expect, it } from "vitest"
 import { FakeClient, expectApiError, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 const SOCKETS: ListeningSocket[] = [

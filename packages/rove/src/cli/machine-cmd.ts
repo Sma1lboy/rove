@@ -8,6 +8,7 @@
  * with the specific remedy.
  */
 
+import { SUBCOMMAND_VERBS } from "@sma1lboy/rove-api/cli/subcommands.ts"
 import { argvHasFlag } from "@sma1lboy/rove-core/lib/argv.ts"
 import { type DiscoverResult, learnedFrom, sshServerIsWindows } from "@sma1lboy/rove-core/machines/discover.ts"
 import {
@@ -44,7 +45,6 @@ import { INBOUND_CLASSES, deniedClasses, setInbound } from "./api/inbound.ts"
 import { defaultFixRuntime } from "./doctor-fix.ts"
 import { machineMcp } from "./machine-mcp.ts"
 import { machinePrimary } from "./machine-primary.ts"
-import { SUBCOMMAND_VERBS } from "./subcommands.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME
 
@@ -280,7 +280,7 @@ async function update(argv: readonly string[]): Promise<void> {
     process.stdout.write(`No machines registered. Add one with \`${CLI_NAME} machine add <ssh-target>\`.\n`)
     return
   }
-  const { upgradeMachine } = await import("../machines/upgrade.ts")
+  const { upgradeMachine } = await import("@sma1lboy/rove-core/machines/upgrade.ts")
   let failed = 0
   for (const entry of entries) {
     process.stderr.write(`${CLI_NAME} machine: updating ${entry.alias} (${sshTargetOf(entry)})…\n`)

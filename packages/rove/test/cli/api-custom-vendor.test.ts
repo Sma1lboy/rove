@@ -23,12 +23,12 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
+import { verbSchema } from "@sma1lboy/rove-api/cli/api/schema.ts"
+import { findVerb } from "@sma1lboy/rove-api/cli/api/verbs.ts"
 import { GENERIC_PROTOCOL, resolveCommandProtocol } from "@sma1lboy/rove-core/engine/engine-presets.ts"
 import { ALL_VENDORS } from "@sma1lboy/rove-core/types/vendor.ts"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
-import { verbSchema } from "../../src/cli/api/schema.ts"
-import { findVerb } from "../../src/cli/api/verbs.ts"
 import { FakeClient, openedTab, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 // `engine-list` attaches each engine's model list, and pi/omp answer that by

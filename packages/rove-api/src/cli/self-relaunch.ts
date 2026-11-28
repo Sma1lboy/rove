@@ -8,7 +8,7 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { type RestorableRenderer, restoreTerminal } from "../lib/restore-terminal"
+import { type RestorableRenderer, restoreTerminal } from "@sma1lboy/rove-core/lib/restore-terminal.ts"
 
 /** What a refresh would do, or why it would do nothing. */
 export type SelfRefreshPlan =

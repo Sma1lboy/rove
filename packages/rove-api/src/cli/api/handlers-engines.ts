@@ -20,11 +20,11 @@ import {
   sessionProtocol,
 } from "@sma1lboy/rove-core/engine/engine-presets.ts"
 import { detectEngineStatus } from "@sma1lboy/rove-core/engine/engine-status.ts"
+import { readEngineVersion } from "@sma1lboy/rove-core/engine/engine-version.ts"
 import { ensurePluginEnginesLoaded } from "@sma1lboy/rove-core/engine/plugin-engines.ts"
 import { type EngineModel, engineEntry, vendorsWithEffortLevels } from "@sma1lboy/rove-core/engine/registry.ts"
 import { type VendorId, coerceVendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { readEngineVersion } from "../../engine/engine-version.ts"
 import { ApiError, type VerbSpec } from "./types.ts"
 
 /**

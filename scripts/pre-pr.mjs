@@ -29,7 +29,9 @@ const ALWAYS = ["rove-bridge", "rove-weixin", "rove-lark"]
 
 /** Mirrors the old changeset-cap job: published-package source needs an added changeset. */
 export function missingChangeset(changedFiles, addedFiles) {
-  const userFacing = changedFiles.some((f) => /^packages\/(rove|rove-core|rove-client|rove-daemon)\/src\//.test(f))
+  const userFacing = changedFiles.some((f) =>
+    /^packages\/(rove|rove-core|rove-client|rove-api|rove-daemon)\/src\//.test(f),
+  )
   const added = addedFiles.some((f) => /^\.changeset\/[^/]+\.md$/.test(f) && !f.endsWith("README.md"))
   return userFacing && !added
 }

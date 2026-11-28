@@ -425,7 +425,7 @@ export async function list(ctx: VerbContext): Promise<unknown> {
   // With no machine registered, returns the daemon's response untouched. A
   // transport caller gets this daemon's own tasks: a hub that forwarded the
   // call already merges, and fanning out again could loop back to it.
-  const { mergeTaskList } = await import("../../machines/api-merge.ts")
+  const { mergeTaskList } = await import("@sma1lboy/rove-core/machines/api-merge.ts")
   const all = ctx.caller.cli ? await mergeTaskList(local) : local
   // Archived tasks are hidden unless `--archived` asks for exactly them.
   const wantArchived = ctx.args.bool("archived") ?? false

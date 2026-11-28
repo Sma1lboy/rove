@@ -1,8 +1,8 @@
 import { mkdtempSync, renameSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { type PtyHostRpc, deliverHostedPrompt } from "@sma1lboy/rove-api/cli/api/pty-delivery.ts"
 import { afterEach, expect, it, vi } from "vitest"
-import { type PtyHostRpc, deliverHostedPrompt } from "../../src/cli/api/pty-delivery.ts"
 
 function fixture() {
   const directory = mkdtempSync(join(tmpdir(), "rove-cli-init-"))

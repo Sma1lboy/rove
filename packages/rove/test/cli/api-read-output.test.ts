@@ -5,9 +5,6 @@
  * or vendor transcript files.
  */
 
-import type { EngineHistoryReader } from "@sma1lboy/rove-core/engine/registry.ts"
-import type { Message } from "@sma1lboy/rove-core/types/engine.ts"
-import { beforeEach, describe, expect, it } from "vitest"
 import {
   DEFAULT_PAGE_MESSAGES,
   DEFAULT_TAIL_LINES,
@@ -21,7 +18,10 @@ import {
   boundedTail,
   clipStrings,
   readTaskOutput,
-} from "../../src/cli/api/read-output.ts"
+} from "@sma1lboy/rove-api/cli/api/read-output.ts"
+import type { EngineHistoryReader } from "@sma1lboy/rove-core/engine/registry.ts"
+import type { Message } from "@sma1lboy/rove-core/types/engine.ts"
+import { beforeEach, describe, expect, it } from "vitest"
 import { expectApiError } from "./api-handler-fixtures.ts"
 
 const WORKTREE = "/wt/task-1"

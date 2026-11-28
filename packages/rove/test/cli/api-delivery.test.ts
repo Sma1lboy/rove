@@ -3,9 +3,9 @@
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { DELIVERY_SUMMARY_MAX_CHARS } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, expectApiError, recordingDelivery, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 // Peer provenance keys off the caller's own env; unset it so the delivered text is exact.

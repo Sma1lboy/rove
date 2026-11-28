@@ -1,11 +1,11 @@
-import { normalizeEditorKind } from "@sma1lboy/rove-core/lib/editor-prefs.ts"
-import { describe, expect, it } from "vitest"
 import {
   buildEditorCommand,
   buildNvimDiffCommand,
   editorWindowLabel,
   relativeToWorktree,
-} from "../../src/lib/editor-launch.ts"
+} from "@sma1lboy/rove-core/lib/editor-launch.ts"
+import { normalizeEditorKind } from "@sma1lboy/rove-core/lib/editor-prefs.ts"
+import { describe, expect, it } from "vitest"
 
 describe("buildEditorCommand", () => {
   it("explicit terminal editors open the shell-quoted path", () => {

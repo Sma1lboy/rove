@@ -9,8 +9,8 @@ import { execFileSync } from "node:child_process"
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { basename, join } from "node:path"
+import { parseShortstat, readBranchSignals, resolveBaseRef } from "@sma1lboy/rove-api/cli/api/branch-signals.ts"
 import { afterEach, describe, expect, it } from "vitest"
-import { parseShortstat, readBranchSignals, resolveBaseRef } from "../../src/cli/api/branch-signals.ts"
 
 const cleanups: string[] = []
 

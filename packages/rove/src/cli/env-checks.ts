@@ -11,7 +11,7 @@ import {
   probeableEngineIds,
   summarizeEngines,
 } from "@sma1lboy/rove-core/engine/engine-status.ts"
-import { withEngineVersions } from "../engine/engine-version.ts"
+import { withEngineVersions } from "@sma1lboy/rove-core/engine/engine-version.ts"
 
 export interface GitProbeResult {
   /** The doctor-formatted one-liner (`git: ✓ …` / `git: ✗ …`). */

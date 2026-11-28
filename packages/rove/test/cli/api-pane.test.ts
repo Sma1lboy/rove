@@ -1,8 +1,8 @@
 /** Request-traffic tests for the `pane-open` verb. */
 
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, expectApiError, stubRuntime } from "./api-handler-fixtures.ts"
 
 describe("pane-open handler", () => {

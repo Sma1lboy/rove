@@ -6,8 +6,8 @@
  * parked in an already-tracked directory never mints a duplicate row.
  */
 
+import { parseLsofCwd, processCwd } from "@sma1lboy/rove-core/engine/process-cwd.ts"
 import { describe, expect, it } from "vitest"
-import { parseLsofCwd, processCwd } from "../../src/engine/process-cwd"
 import { type ScratchOwnerTask, decideScratchAdopt } from "../../src/tui/workspace/scratch-adopt"
 
 describe("decideScratchAdopt", () => {

@@ -4,8 +4,8 @@
  * nearly everything.
  */
 
+import { PER_SESSION, type SearchResult, searchTasks } from "@sma1lboy/rove-core/engine/session-search.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { PER_SESSION, type SearchResult, searchTasks } from "../../engine/session-search.ts"
 import { daemonOf, repoFilter } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 

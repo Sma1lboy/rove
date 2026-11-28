@@ -45,7 +45,7 @@ export const DYNAMIC_COMMANDS = new Map<string, CommandHandler>([
   [
     "api",
     async (args) => {
-      const { runApiSubcommand } = await import("./api-cmd.ts")
+      const { runApiSubcommand } = await import("@sma1lboy/rove-api/cli/api-cmd.ts")
       await runApiSubcommand(args)
     },
   ],
@@ -156,7 +156,7 @@ export const DYNAMIC_COMMANDS = new Map<string, CommandHandler>([
     async (args) => {
       // Internal: engine hooks report activity events to the daemon.
       // Always exits 0; never spawns the daemon.
-      const { runHookSubcommand } = await import("./hook-cmd.ts")
+      const { runHookSubcommand } = await import("@sma1lboy/rove-api/cli/hook-cmd.ts")
       await runHookSubcommand(args)
     },
   ],

@@ -24,9 +24,9 @@
 import { readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
-import type { FlagSpec, VerbGroup, VerbSpec } from "../packages/rove/src/cli/api/types.ts"
-import { VERB_GROUP_IDS } from "../packages/rove/src/cli/api/types.ts"
-import { VERBS } from "../packages/rove/src/cli/api/verbs.ts"
+import type { FlagSpec, VerbGroup, VerbSpec } from "../packages/rove-api/src/cli/api/types.ts"
+import { VERB_GROUP_IDS } from "../packages/rove-api/src/cli/api/types.ts"
+import { VERBS } from "../packages/rove-api/src/cli/api/verbs.ts"
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url))
 
@@ -135,7 +135,11 @@ export function sectionsByGroup(source: string): Map<VerbGroup, string> {
   const map = new Map<VerbGroup, string>()
   let heading = ""
   for (const line of source.split("\n")) {
-    if (line.startsWith("## ")) heading = line.slice(3).replace(/\s*\(.*$/, "").trim()
+    if (line.startsWith("## "))
+      heading = line
+        .slice(3)
+        .replace(/\s*\(.*$/, "")
+        .trim()
     const match = BEGIN.exec(line)
     if (match) for (const group of parseGroups(match[1])) map.set(group, heading)
   }

@@ -11,7 +11,7 @@ import {
   workspacePagesClosed,
 } from "@sma1lboy/rove-client/keys/keybinding-gates.ts"
 import { prefixAction } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
-import { restoreTerminal } from "../../lib/restore-terminal"
+import { restoreTerminal } from "@sma1lboy/rove-core/lib/restore-terminal.ts"
 import { redrawScreen } from "../../tui/lib/screen-refresh"
 import { CommandPalette } from "../component/command-palette"
 import { HelpDialog } from "../component/help-dialog"

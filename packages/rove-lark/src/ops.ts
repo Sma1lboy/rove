@@ -1,10 +1,10 @@
 /** {@link LarkOps} over the real `rove api` verbs, run in-process against a daemon client (as the WeChat connector does). */
 
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
+import { loadContext } from "@sma1lboy/rove-api/cli/api/handlers-context.ts"
+import { defaultApiRuntime } from "@sma1lboy/rove-api/cli/api/runtime.ts"
 import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { invokeVerb } from "@sma1lboy/rove/src/cli/api-cmd.ts"
-import { loadContext } from "@sma1lboy/rove/src/cli/api/handlers-context.ts"
-import { defaultApiRuntime } from "@sma1lboy/rove/src/cli/api/runtime.ts"
 import type { LarkOps } from "./bridge.ts"
 
 const STATUS_TASK_LIMIT = 500

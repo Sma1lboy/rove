@@ -1,0 +1,26 @@
+{
+  "name": "@sma1lboy/rove-api",
+  "version": "0.0.0",
+  "description": "Rove's CLI API handlers, verb definitions, and hooks shared by the CLI, web bridge, and chat connectors.",
+  "type": "module",
+  "packageManager": "bun@1.3.13",
+  "exports": {
+    "./package.json": "./package.json",
+    "./*": "./src/*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sma1lboy/rove": "workspace:*",
+    "@sma1lboy/rove-client": "workspace:*",
+    "@sma1lboy/rove-core": "workspace:*",
+    "@sma1lboy/rove-daemon": "workspace:*"
+  },
+  "devDependencies": {
+    "@tsconfig/bun": "1.0.11",
+    "@types/bun": "1.3.14",
+    "@types/node": "25.6.2",
+    "typescript": "5.8.2"
+  }
+}

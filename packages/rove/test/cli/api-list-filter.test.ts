@@ -1,7 +1,7 @@
 /** `list --repo/--status/--activity`: the "which tasks need me" read without a jq pipeline. */
 
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { describe, expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, expectApiError, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 const now = Date.now()

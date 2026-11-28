@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest"
 import {
   API_VERBS,
   ApiError,
@@ -11,7 +10,8 @@ import {
   validateAgainstSpec,
   verbHelp,
   verbSchema,
-} from "../../src/cli/api-cmd.ts"
+} from "@sma1lboy/rove-api/cli/api-cmd.ts"
+import { describe, expect, it } from "vitest"
 
 describe("parseFlags", () => {
   it("parses `--key value` pairs", () => {

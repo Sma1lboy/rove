@@ -7,9 +7,9 @@
  */
 
 import { spawnSync } from "node:child_process"
+import { type RestorableRenderer, restoreTerminal } from "@sma1lboy/rove-core/lib/restore-terminal.ts"
 import { updaterShell, updaterShellFailureHint } from "@sma1lboy/rove-core/lib/updater-shell.ts"
 import { CURRENT_VERSION } from "@sma1lboy/rove-core/version.ts"
-import { type RestorableRenderer, restoreTerminal } from "../../lib/restore-terminal.ts"
 
 type UpdaterT = (key: string, params?: Record<string, string>) => string
 

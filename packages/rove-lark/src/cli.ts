@@ -4,8 +4,8 @@
  * commands edit the binding on disk, which the daemon re-reads.
  */
 
+import { SUBCOMMAND_VERBS } from "@sma1lboy/rove-api/cli/subcommands.ts"
 import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
-import { SUBCOMMAND_VERBS } from "@sma1lboy/rove/src/cli/subcommands.ts"
 import { connectLark } from "./connect.ts"
 import { DEFAULT_TONE, LarkStore } from "./store.ts"
 

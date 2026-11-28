@@ -8,10 +8,10 @@
  * same worktree.
  */
 
+import { findEngineKey, isTaskKey, taskKeys } from "@sma1lboy/rove-api/cli/api/pty-delivery.ts"
 import { hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import { describe, expect, it } from "vitest"
-import { findEngineKey, isTaskKey, taskKeys } from "../../src/cli/api/pty-delivery.ts"
 
 function session(key: string, command: string[], alive = true): PtySessionInfo {
   return { key, alive, pid: alive ? 123 : null, command, title: "" }

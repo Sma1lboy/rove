@@ -71,7 +71,7 @@ vi.mock("@sma1lboy/rove-core/tabs/tab-snapshot.ts", async (importOriginal) => {
   }
 })
 
-vi.mock("../../src/cli/api/pty-delivery.ts", () => ({
+vi.mock("@sma1lboy/rove-api/cli/api/pty-delivery.ts", () => ({
   openPtyHost: mocks.openPtyHost,
   ensurePtyHost: mocks.ensurePtyHost,
   deliverHostedPrompt: mocks.deliverHostedPrompt,
@@ -86,9 +86,9 @@ vi.mock("../../src/cli/api/pty-delivery.ts", () => ({
   deliverToKey: vi.fn(async () => false),
 }))
 
+import { defaultApiRuntime, deliverPrompt, invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
+import { resetVerifiedSelfSession } from "@sma1lboy/rove-api/cli/api/dispatcher.ts"
 import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
-import { defaultApiRuntime, deliverPrompt, invokeVerb } from "../../src/cli/api-cmd.ts"
-import { resetVerifiedSelfSession } from "../../src/cli/api/dispatcher.ts"
 
 beforeEach(() => {
   mocks.resolveMainRepoRoot.mockReset().mockResolvedValue("/repo/main")

@@ -1,7 +1,7 @@
+import { ApiError, type ApiRuntime, type DeliveredPrompt, type PromptTarget } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import type { ChannelName, ChannelPayloads } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { expect } from "vitest"
-import { ApiError, type ApiRuntime, type DeliveredPrompt, type PromptTarget } from "../../src/cli/api-cmd.ts"
 
 type RpcResponder = (payload: unknown, callIndex: number) => unknown
 

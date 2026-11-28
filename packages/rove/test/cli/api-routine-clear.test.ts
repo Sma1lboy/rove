@@ -6,8 +6,8 @@
  * the wire and leaves the existing value in place.
  */
 
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { describe, expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, stubRuntime } from "./api-handler-fixtures.ts"
 
 const ok = () => ({ automation: { id: "r1" } })

@@ -2,10 +2,10 @@
 
 import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { isNamedDir } from "@sma1lboy/rove-client/sidebar/tree-labels.ts"
+import { type SearchResult, searchTasks } from "@sma1lboy/rove-core/engine/session-search.ts"
 import { fuzzyMatch } from "@sma1lboy/rove-core/lib/fuzzy.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { type SearchResult, searchTasks } from "../../engine/session-search"
 
 export const MIN_CHARS = 2
 export const DEBOUNCE_MS = 300

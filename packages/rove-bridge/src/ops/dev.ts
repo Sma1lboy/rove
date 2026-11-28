@@ -28,7 +28,7 @@ const realDeps: DevDeps = {
     await restartDaemon()
   },
   installHooks: async () => {
-    const { ensureGlobalRoveHooks } = await import("@sma1lboy/rove/src/cli/hook-cmd.ts")
+    const { ensureGlobalRoveHooks } = await import("@sma1lboy/rove-api/cli/hook-cmd.ts")
     await ensureGlobalRoveHooks({ quiet: true })
   },
   uninstallHooks: async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from "bun:test"
-import type { ContextPayload } from "@sma1lboy/rove/src/cli/api/context-view.ts"
-import { ApiError } from "@sma1lboy/rove/src/cli/api/types.ts"
+import type { ContextPayload } from "@sma1lboy/rove-api/cli/api/context-view.ts"
+import { ApiError } from "@sma1lboy/rove-api/cli/api/types.ts"
 import { HELP_TEXT, type RoveOps, handleCommand } from "../src/commands.ts"
 import { BUBBLE_CHARS, MAX_BUBBLES, toBubbles } from "../src/format.ts"
 

@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("../../src/tui-react/workspace/plugin-file-open", () => ({
   tryPluginFileOpen: mocks.tryPluginFileOpen,
 }))
-vi.mock("../../src/lib/editor-launch.ts", () => ({ resolveEditorLaunch: mocks.resolveEditorLaunch }))
+vi.mock("@sma1lboy/rove-core/lib/editor-launch.ts", () => ({ resolveEditorLaunch: mocks.resolveEditorLaunch }))
 vi.mock("@sma1lboy/rove-core/lib/open-path-external.ts", () => ({ openExternally: mocks.openExternally }))
 
 const { useFileOpenActions } = await import("../../src/tui-react/workspace/use-file-open-actions")

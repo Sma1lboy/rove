@@ -3,10 +3,10 @@
  * reports each one it left alone with a code instead of stopping the batch.
  */
 
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { createDaemonHandlerRegistry, dispatchDaemonRequest } from "@sma1lboy/rove-daemon/daemon/server"
 import type { DaemonHandlerContext } from "@sma1lboy/rove-daemon/daemon/server"
 import { describe, expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, expectApiError, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 const MB = 1024 * 1024

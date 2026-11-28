@@ -8,8 +8,8 @@
  * with the failed worktree removal recorded only in `daemon.log`.
  */
 
+import { ApiError, invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { describe, expect, it } from "vitest"
-import { ApiError, invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, recordingTearDown, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 describe("task delete handler", () => {

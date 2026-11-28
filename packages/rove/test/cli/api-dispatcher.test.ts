@@ -7,15 +7,15 @@
  * fail LOUD) — never on a freshly spawned engine that swallows the reply.
  */
 
-import { normalizeIndex } from "@sma1lboy/rove-core/orchestrator/index/store-codec.ts"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import {
   type SelfSessionProbe,
   resetVerifiedSelfSession,
   takeIdentityWarning,
   verifiedSelfSession,
-} from "../../src/cli/api/dispatcher.ts"
+} from "@sma1lboy/rove-api/cli/api/dispatcher.ts"
+import { normalizeIndex } from "@sma1lboy/rove-core/orchestrator/index/store-codec.ts"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { FakeClient, expectApiError, recordingDelivery, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 const savedTaskId = process.env.ROVE_TASK_ID

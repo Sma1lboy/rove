@@ -8,11 +8,11 @@
  */
 
 import { resolve } from "node:path"
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
+import { type ContextPayload, buildContext, renderContext } from "@sma1lboy/rove-api/cli/api/context-view.ts"
 import type { AttentionInboxItem } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { describe, expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
-import { type ContextPayload, buildContext, renderContext } from "../../src/cli/api/context-view.ts"
 import { FakeClient, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 const NOW = 1_800_000_000_000

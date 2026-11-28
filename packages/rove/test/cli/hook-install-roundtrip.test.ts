@@ -30,7 +30,7 @@ vi.mock("@sma1lboy/rove-daemon/client/daemon-process", () => ({
   connectIfRunning: mocks.connectIfRunning,
 }))
 
-import { runHookSubcommand } from "@/cli/hook-cmd"
+import { runHookSubcommand } from "@sma1lboy/rove-api/cli/hook-cmd.ts"
 import { CopilotHookAdapter } from "@sma1lboy/rove-core/engine/copilot-local/hook-adapter.ts"
 import { DevinHookAdapter } from "@sma1lboy/rove-core/engine/devin-local/hook-adapter.ts"
 import { DroidHookAdapter } from "@sma1lboy/rove-core/engine/droid-local/hook-adapter.ts"

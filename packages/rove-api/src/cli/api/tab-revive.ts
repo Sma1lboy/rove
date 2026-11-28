@@ -11,6 +11,7 @@ import { awaitEngineProcess } from "@sma1lboy/rove-core/engine/hosted-session-re
 import type { HostedSessionRpc } from "@sma1lboy/rove-core/engine/hosted-session.ts"
 import { RemoteEngineLaunchError, buildEngineSessionLaunch } from "@sma1lboy/rove-core/engine/session-launch.ts"
 import { trustEngineWorktree } from "@sma1lboy/rove-core/engine/trust-worktree.ts"
+import { persistedMaxLiveEngines } from "@sma1lboy/rove-core/state/engine-limit.ts"
 import {
   type TabsRpc,
   markCliTabSession,
@@ -23,7 +24,6 @@ import { readPersistedTerminalDefaultColors } from "@sma1lboy/rove-core/theme/te
 import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { PtyOpenResult } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
-import { persistedMaxLiveEngines } from "../../state/engine-limit.ts"
 import { openAdmittedEngine } from "./engine-admission.ts"
 import { ENGINE_START_POLL_MS, ENGINE_START_PROBE_MS } from "./pty-delivery.ts"
 import { ensureHostFor, sessionFailed } from "./session-failed.ts"

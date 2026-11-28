@@ -18,10 +18,10 @@
 import { readFileSync, readdirSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
+import { VERB_GROUP_IDS } from "@sma1lboy/rove-api/cli/api/types.ts"
 import { describe, expect, test } from "vitest"
 import { REFERENCE_PATHS, describeStale, regenerate, sectionsByGroup } from "../../../../scripts/gen-skill-api-flags.ts"
-import { VERB_GROUP_IDS } from "../../src/cli/api/types.ts"
-import { CORE_SRC } from "../core-package.ts"
+import { API_SRC, CORE_SRC } from "../core-package.ts"
 
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url))
 const FIX = "bun scripts/gen-skill-api-flags.ts"
@@ -87,6 +87,7 @@ describe("the error-code table names codes the source throws", () => {
     // can just as well be a daemon-side literal as a CLI one.
     const source = [
       join(ROOT, "packages", "rove", "src", "cli"),
+      join(API_SRC, "cli"),
       join(ROOT, "packages", "rove", "src", "orchestrator"),
       join(CORE_SRC, "orchestrator"),
       join(ROOT, "packages", "rove-daemon", "src", "daemon"),

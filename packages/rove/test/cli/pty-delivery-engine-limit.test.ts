@@ -3,10 +3,10 @@
  * engine session is refused at the cap, delivery into a running one never is.
  */
 
+import { deliverHostedPrompt } from "@sma1lboy/rove-api/cli/api/pty-delivery.ts"
+import { ApiError } from "@sma1lboy/rove-api/cli/api/types.ts"
 import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import { describe, expect, it } from "vitest"
-import { deliverHostedPrompt } from "../../src/cli/api/pty-delivery.ts"
-import { ApiError } from "../../src/cli/api/types.ts"
 
 function session(key: string, command: string[], alive = true): PtySessionInfo {
   return { key, alive, pid: alive ? 123 : null, command, title: "" }

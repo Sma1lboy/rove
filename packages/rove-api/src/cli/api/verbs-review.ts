@@ -6,6 +6,7 @@
  * task id like any verb, and the git reads happen next to the files.
  */
 
+import { readPreviewFile } from "@sma1lboy/rove-client/worktree/file-read.ts"
 import {
   worktreeDiff,
   worktreeDiffFile,
@@ -15,7 +16,6 @@ import {
 import { forwardVerb, requireMachine } from "@sma1lboy/rove-core/machines/forward.ts"
 import { linkedWorktree } from "@sma1lboy/rove-core/machines/remote-workspace.ts"
 import type { ApiParams, SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { readPreviewFile } from "../../worktree/file-read.ts"
 import { F } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"

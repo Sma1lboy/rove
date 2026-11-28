@@ -12,8 +12,8 @@ import { execFileSync } from "node:child_process"
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { reportBranchDeletion } from "@sma1lboy/rove-api/cli/api/delete-branch-report.ts"
 import { afterAll, describe, expect, it } from "vitest"
-import { reportBranchDeletion } from "../../src/cli/api/delete-branch-report.ts"
 
 const roots: string[] = []
 afterAll(() => {

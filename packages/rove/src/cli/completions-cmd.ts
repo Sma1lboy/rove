@@ -114,6 +114,6 @@ export async function runCompletionsSubcommand(
     process.stdout.write(readFileSync(shipped, "utf8"))
     return
   }
-  const { API_VERBS } = await import("./api/verbs.ts")
+  const { API_VERBS } = await import("@sma1lboy/rove-api/cli/api/verbs.ts")
   process.stdout.write(generateCompletions(shell, cliName, mergeSubVerbs(API_VERBS)))
 }

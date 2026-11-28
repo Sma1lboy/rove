@@ -5,6 +5,7 @@
 
 import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import { ApiError } from "@sma1lboy/rove-core/lib/api-error.ts"
+import type { CheckoutUsage } from "@sma1lboy/rove-core/orchestrator/worktree/disk-usage.ts"
 import type { TaskTabRow } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { AliasTask, PtyScope, TeardownScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
@@ -14,7 +15,6 @@ import {
   builtinModMissingMessage,
   isBuiltinModInstalled,
 } from "@sma1lboy/rove-daemon/plugins/builtin-mods"
-import type { CheckoutUsage } from "../../orchestrator/worktree/disk-usage.ts"
 import type { VerbArgs } from "./flags.ts"
 import type { ListeningSocket } from "./listening-ports.ts"
 import type { LaunchSpec, Launched } from "./tab-launch.ts"

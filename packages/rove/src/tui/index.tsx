@@ -1,6 +1,6 @@
 /** TUI entry: plain `rove` starts the Workspace Host. Daemon recovery is `rove daemon restart`. */
 
-import { ensureGlobalRoveHooks } from "../cli/hook-cmd.ts"
+import { ensureGlobalRoveHooks } from "@sma1lboy/rove-api/cli/hook-cmd.ts"
 import { enforceResetGate } from "../cli/reset-gate.ts"
 import { takeWelcome } from "../cli/welcome.ts"
 import { takeWhatsNew } from "../cli/whats-new.ts"

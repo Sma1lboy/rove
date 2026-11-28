@@ -4,14 +4,14 @@
  * refusals included.
  */
 
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
+import { loadContext } from "@sma1lboy/rove-api/cli/api/handlers-context.ts"
+import { defaultApiRuntime } from "@sma1lboy/rove-api/cli/api/runtime.ts"
 import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
 import { ensurePluginEnginesLoaded } from "@sma1lboy/rove-core/engine/plugin-engines.ts"
 import { getSavedRepos } from "@sma1lboy/rove-core/state/repos.ts"
 import type { Automation, AutomationRun, Gate } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { invokeVerb } from "@sma1lboy/rove/src/cli/api-cmd.ts"
-import { loadContext } from "@sma1lboy/rove/src/cli/api/handlers-context.ts"
-import { defaultApiRuntime } from "@sma1lboy/rove/src/cli/api/runtime.ts"
 import type { RoveOps, TaskRef } from "./commands.ts"
 
 /** High enough that the status counts cover the whole fleet. */

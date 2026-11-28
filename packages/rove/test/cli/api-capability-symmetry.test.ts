@@ -18,9 +18,9 @@
  *   CLI, but not named.
  */
 
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { publishCliTabSnapshot } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
 import { describe, expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, expectApiError, recordingTearDown, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 import { mintEngineTab, tabsDaemon } from "./tabs-daemon-fake.ts"
 

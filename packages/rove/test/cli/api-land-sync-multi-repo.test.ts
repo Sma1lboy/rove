@@ -4,8 +4,8 @@
  * so the caller sees what already landed.
  */
 
+import { ApiError, invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { describe, expect, it } from "vitest"
-import { ApiError, invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, stubRuntime } from "./api-handler-fixtures.ts"
 
 const landed = { name: "web", status: "landed", landedOn: "main", commit: "abc1234" }

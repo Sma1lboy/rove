@@ -6,6 +6,7 @@
  */
 
 import { isAbsolute, normalize } from "node:path"
+import type { ActivityEntry } from "@sma1lboy/rove-api/cli/api/context-view.ts"
 import type { ActiveGate, RowTokenMap, WorktreeChangesMap } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { terminalTabsKey } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
 import {
@@ -34,7 +35,6 @@ import { loadFileContent, loadPreviewData } from "@sma1lboy/rove-core/worktree/p
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { AttentionInboxItem } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import type { ActivityEntry } from "@sma1lboy/rove/src/cli/api/context-view.ts"
 import { gateRows } from "./gates.ts"
 import { type NewTabRequest, newTabInvocation } from "./new-tab.ts"
 import { createBridgeApi } from "./ops/api.ts"

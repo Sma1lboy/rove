@@ -3,9 +3,9 @@
  * so it gets the same zero-commit refusal as a `succeeded:` send.
  */
 
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
+import { resetVerifiedSelfSession, verifiedSelfSession } from "@sma1lboy/rove-api/cli/api/dispatcher.ts"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
-import { resetVerifiedSelfSession, verifiedSelfSession } from "../../src/cli/api/dispatcher.ts"
 import { FakeClient, expectApiError, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 const saved = { task: process.env.ROVE_TASK_ID, tab: process.env.ROVE_TAB_ID }

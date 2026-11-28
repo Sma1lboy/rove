@@ -11,9 +11,9 @@
  * repo cannot be.
  */
 
+import { repoFilter } from "@sma1lboy/rove-api/cli/api/handler-helpers.ts"
+import { ApiError } from "@sma1lboy/rove-api/cli/api/types.ts"
 import { describe, expect, it } from "vitest"
-import { repoFilter } from "../../src/cli/api/handler-helpers.ts"
-import { ApiError } from "../../src/cli/api/types.ts"
 import { stubRuntime } from "./api-handler-fixtures.ts"
 
 /** Every listed path resolves to itself; anything else is unreadable. */

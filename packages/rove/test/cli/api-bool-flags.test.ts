@@ -9,9 +9,9 @@
  * taskId to find it with.
  */
 
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
+import { parseFlags } from "@sma1lboy/rove-api/cli/api/flags.ts"
 import { describe, expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
-import { parseFlags } from "../../src/cli/api/flags.ts"
 import { FakeClient, expectApiError, stubRuntime } from "./api-handler-fixtures.ts"
 
 describe("a bool flag takes the space form", () => {

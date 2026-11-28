@@ -3,9 +3,9 @@
  * (`actions-core.ts`); only the confirm-dialog wiring lives here.
  */
 
+import { relaunchSelf } from "@sma1lboy/rove-api/cli/self-relaunch.ts"
 import type { RoveOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
-import { relaunchSelf } from "../../../cli/self-relaunch"
-import { type RestorableRenderer, restoreTerminal } from "../../../lib/restore-terminal"
+import { type RestorableRenderer, restoreTerminal } from "@sma1lboy/rove-core/lib/restore-terminal.ts"
 import { hasRestartableDaemon, removeTasksFileForReset } from "../../../tui/component/settings-dialog/actions-core"
 import type { KVContext } from "../../context/kv"
 import { t } from "../../i18n"
@@ -88,7 +88,7 @@ export function reloadSettingsStatus(kv: KVContext): string {
  */
 export async function installEngineHooks(): Promise<void> {
   try {
-    const { ensureGlobalRoveHooks } = await import("../../../cli/hook-cmd")
+    const { ensureGlobalRoveHooks } = await import("@sma1lboy/rove-api/cli/hook-cmd.ts")
     // `quiet`: a stderr write under a live OpenTUI render paints over the
     // frame, and the panel already shows the refusal on the engine's row.
     await ensureGlobalRoveHooks({ quiet: true })

@@ -1,7 +1,7 @@
 /** `api pr-attach`: what reaches the daemon for each accepted spelling of `--url`, and what is refused before it does. */
 
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { describe, expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, stubRuntime } from "./api-handler-fixtures.ts"
 
 const URL = "https://github.com/acme/app/pull/42"
