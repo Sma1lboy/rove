@@ -581,3 +581,15 @@ Run 1 (patched) exited 0, nothing past tolerance: firstFrame 416.1, boot.ready 1
 **Owner calls:** as 11-26, minus the hover question: move commit.root/sidebar in the baseline to ~7/~3, or keep bash quiet in the switch window (e.g. wait for feed to settle) so the count stops wobbling. Still open: idle phase that waits for quiet, wider timing tolerance, whether to move the baseline on a timing-only ✓ (fourth fast-sandbox night in a row).
 
 **Sandbox:** bun 1.3.14 from npm, `ELECTRON_SKIP_BINARY_DOWNLOAD=1`; per-file symlinks of `/opt/pw-browsers/chromium_headless_shell-1243/chrome-headless-shell-linux64/*` into `/tmp/pwshim/chromium_headless_shell-{1228,1243}/...`.
+
+## 2026-11-28 — idle.stateNotify / .stateListener, no-op idle rollup publish (main 641207c), landed as PR #2335
+
+**No regression.** Both runs on main exited 1 on the idle burst only (commit.root/workspace 5, sidebar 3, frame 4, stateNotify 7, stateListener 18), with nothing else past tolerance except typing.echo 130.3 → 35 and switch.shown 170 → 83 ✓ (fast sandbox). The same burst reproduces on c43c80a, which read idle 0 last night, so it is sandbox timing, not code. Tonight's history line is run 2. Baseline not moved (not all-✓).
+
+**What the burst is.** A temporary caller-frame `profileTick` in `createStateCell.set` put it ~5 s after TUI start: the daemon's first `engine-state` events for each fresh task, one tab-level (◌ unknown → idle tombstone, a real change) and one task-level `undefined → idle`. On a fast sandbox `boot.ready + 3 s` lands before it, so it falls inside the idle window; slower nights boot later and miss it. That is why the 11-12 "boot burst" flickers.
+
+**Approach (counted).** In `handleOrchestratorEvent`, skip rebuilding `engineStateSig` when an idle event arrives for a task with no rollup entry (`Map.delete` on a missing key still published a fresh Map). Two runs: idle.stateNotify 7 → 4, stateListener 18 → 15; commits unchanged at 5 (the three tab tombstones still re-render); every other metric as unchanged main. PR #2335, not merged.
+
+**Next for this burst:** the remaining commits come from three separate tab-level events; batching them, or having the daemon not send an initial idle for a tab nobody has seen busy, would be the next step (daemon slice). Owner calls from 11-13 to 11-27 still stand (idle phase that waits for quiet, timing tolerance, moving the baseline on fast-sandbox ✓).
+
+**Sandbox:** as 11-27. Note the clone is shallow: `git fetch origin <sha>` before checking out an older commit for a bisect.
