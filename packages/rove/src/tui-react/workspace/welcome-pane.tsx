@@ -14,12 +14,14 @@ import { humanOnlyFix, noEngineFix } from "../../cli/doctor-fix"
 import { detectEngineStatuses, probeableEngineIds, summarizeEngines } from "../../engine/engine-status.ts"
 import { engineDisplayName } from "../../engine/interactive-command"
 import { displayWidth, padEndCells } from "../../lib/display-width"
+import { findBinding } from "../../tui/context/keybindings"
 import { formatChord } from "../../tui/lib/chord-glyphs"
 import { legendCap } from "../../tui/lib/help-groups"
 import { currentPrefixConfiguration } from "../../tui/lib/keymap-dispatch"
 import type { VendorId } from "../../types/vendor"
 import { DoctorSuggestions } from "../component/doctor-suggestions"
 import type { QuickTaskResult } from "../component/quick-task-composer"
+import { useOptionalFocus } from "../context/focus"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { FirstTaskStart } from "./first-task-start"
@@ -51,14 +53,27 @@ export async function probeWelcomeEnv(): Promise<WelcomeEnv> {
 
 type StepLine = { cap: string; msg: "stepNew" | "stepHelp" | "stepPrefix" }
 
+/**
+ * `task.new` is sidebar-scoped: off the sidebar, teach the prefix chord that
+ * actually fires there. Unbound rows drop.
+ */
+function newTaskCap(sidebarFocused: boolean, prefix: string | null): string | null {
+  if (sidebarFocused) {
+    const cap = legendCap("task.new")
+    return cap ? formatChord(cap) : null
+  }
+  const stroke = findBinding("task.new.global")?.prefixKeys?.[0]
+  return prefix !== null && stroke ? `${formatChord(prefix)} ${formatChord(stroke)}` : null
+}
+
 /** The three teachable keys, resolved live; unbound rows drop. */
-function stepLines(): StepLine[] {
+function stepLines(sidebarFocused: boolean): StepLine[] {
   const lines: StepLine[] = []
-  const newTask = legendCap("task.new")
-  if (newTask) lines.push({ cap: formatChord(newTask), msg: "stepNew" })
+  const prefix = currentPrefixConfiguration().key
+  const newTask = newTaskCap(sidebarFocused, prefix)
+  if (newTask) lines.push({ cap: newTask, msg: "stepNew" })
   const help = legendCap("help.open")
   if (help) lines.push({ cap: formatChord(help), msg: "stepHelp" })
-  const prefix = currentPrefixConfiguration().key
   if (prefix !== null) lines.push({ cap: formatChord(prefix), msg: "stepPrefix" })
   return lines
 }
@@ -83,7 +98,9 @@ export function WelcomePane(props: {
     }
   }, [])
 
-  const steps = stepLines()
+  // No provider (bare render tests) reads as the FocusProvider default, sidebar.
+  const focused = useOptionalFocus()?.focused ?? "sidebar"
+  const steps = stepLines(focused === "sidebar")
   // Cell width, not .length: ⌘/⌃ caps are one UTF-16 unit but wider in cells
   // (CJK caps are 2), so .length misaligns every row.
   const capWidth = Math.max(...steps.map((s) => displayWidth(s.cap)), 0)
@@ -114,8 +131,10 @@ export function WelcomePane(props: {
           {t("workspace.welcome.tagline")}
         </text>
         <box flexDirection="column" paddingTop={1}>
+          {/* width: a content-sized row measures its wrapped text as one line
+              and squeezes the rows below it out of the column. */}
           {steps.map((step) => (
-            <box key={step.msg} flexDirection="row" gap={2}>
+            <box key={step.msg} flexDirection="row" width="100%" gap={2}>
               <text fg={theme.primary} wrapMode="none">
                 {padEndCells(step.cap, capWidth)}
               </text>
@@ -150,7 +169,13 @@ export function WelcomePane(props: {
             ) : null}
           </box>
         ) : null}
-        {env && props.onQuickTask ? <FirstTaskStart env={env} onCreate={props.onQuickTask} /> : null}
+        {env && props.onQuickTask ? (
+          <FirstTaskStart
+            env={env}
+            newTaskKey={steps.find((s) => s.msg === "stepNew")?.cap ?? "n"}
+            onCreate={props.onQuickTask}
+          />
+        ) : null}
         <box paddingTop={1}>
           <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none">
             {t("workspace.welcome.docsHint")}

@@ -1,9 +1,7 @@
 /** @jsxImportSource @opentui/react */
 import { useState } from "react"
 import { resolveMainRepoRoot } from "../../state/repos"
-import { formatChord } from "../../tui/lib/chord-glyphs"
 import { validateRepoPath } from "../../tui/lib/git-snapshot"
-import { legendCap } from "../../tui/lib/help-groups"
 import { QuickTaskComposer, type QuickTaskResult } from "../component/quick-task-composer"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
@@ -19,7 +17,12 @@ export function firstTaskRepo(cwd: string): string | null {
   }
 }
 
-export function FirstTaskStart(props: { env: WelcomeEnv; onCreate: (repo: string, result: QuickTaskResult) => void }) {
+export function FirstTaskStart(props: {
+  env: WelcomeEnv
+  /** The welcome pane's focus-aware new-task cap. */
+  newTaskKey: string
+  onCreate: (repo: string, result: QuickTaskResult) => void
+}) {
   const { theme } = useTheme()
   const t = useT()
   const dialog = useDialog()
@@ -33,7 +36,7 @@ export function FirstTaskStart(props: { env: WelcomeEnv; onCreate: (repo: string
       const engines = props.env.engines
       const result = await QuickTaskComposer.show(dialog, {
         ...quickForkComposerOptions(repo, engines, quickForkDefaultVendor(engines), process.cwd()),
-        intent: t("onboarding.quickIntent", { key: formatChord(legendCap("task.new") ?? "n") }),
+        intent: t("onboarding.quickIntent", { key: props.newTaskKey }),
       })
       if (result) props.onCreate(repo, result)
     } finally {
@@ -46,7 +49,7 @@ export function FirstTaskStart(props: { env: WelcomeEnv; onCreate: (repo: string
         <text fg={theme.primary}>{t("onboarding.quickStart")}</text>
       </box>
       <text fg={theme.textMuted} wrapMode="word">
-        {t("onboarding.quickIntent", { key: formatChord(legendCap("task.new") ?? "n") })}
+        {t("onboarding.quickIntent", { key: props.newTaskKey })}
       </text>
     </box>
   )
