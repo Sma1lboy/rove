@@ -67,6 +67,14 @@ the two share one token.
   `~/.rove/repos/<host>/<owner>/<name>`, the folder `add --clone` uses, and is reused the next time. Any folder works, git or not: a folder git cannot use
   (no repository, or no commit yet) opens in place as a directory session, with
   Worktree off and no branch to pick, and cannot join a multi-repo task.
+  With nothing picked the chip reads **Choose folder**. Saved projects show by
+  name, with their folder only when two share one. **+ Open folder…** at the
+  bottom of the list browses the folders on the computer running Rove: `→` or
+  Tab opens the highlighted folder, `←` (or Backspace in an empty field) goes
+  up, Enter picks the highlighted folder, "Use" picks the one you are in, and
+  Esc goes back to the list. A pasted path works too (quoted, `file://`,
+  `C:\…`). With another machine picked there is no Open folder: type that
+  machine's path instead.
 - One prompt, several engines: the New session engine chip's `[ compare engines ]`
   turns it into a check-list (Claude + Codex …), and Start fans the prompt out
   as one attempt per engine (`add --agents`, each in its own worktree, sharing

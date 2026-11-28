@@ -8,9 +8,8 @@ import {
   buildSavedPicker,
   duplicateBasenames,
   initialBrowseDir,
-  normalizePastedPath,
-  stripPathQuotes,
 } from "@/tui/component/new-task-dialog/folder-picker"
+import { normalizePastedPath, stripPathQuotes } from "@sma1lboy/rove-core/lib/path-helpers.ts"
 import { describe, expect, it } from "vitest"
 
 describe("duplicateBasenames", () => {

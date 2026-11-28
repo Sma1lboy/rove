@@ -4728,7 +4728,9 @@
   "fs.subdirs": {
     "base": "/work/",
     "home": "/Users/demo",
-    "names": ["marketing-site", "payments-api"]
+    "names": ["marketing-site", "payments-api"],
+    "git": ["marketing-site", "payments-api"],
+    "dir": null
   },
   "browser.ports": {
     "ports": []

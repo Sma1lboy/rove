@@ -341,9 +341,17 @@ describe("fs.subdirs and repo.probe", () => {
 
   test("lists the subdirectories under the typed parent by prefix, hiding dotdirs like `ls`", async () => {
     const { result } = await run("fs.subdirs", { path: `${root}/al` })
-    expect(result).toEqual({ base: `${root}/`, home: "/home/me", names: ["alpha", "alps"] })
+    expect(result).toEqual({ base: `${root}/`, home: "/home/me", names: ["alpha", "alps"], git: [], dir: null })
     const all = await run("fs.subdirs", { path: `${root}/` })
     expect(all.result).toMatchObject({ names: ["alpha", "alps", "beta"] })
+  })
+
+  test("a pasted path names its folder and marks the git checkouts under it", async () => {
+    mkdirSync(join(root, "beta", ".git"))
+    const quoted = await run("fs.subdirs", { path: `"${root}/"` })
+    expect(quoted.result).toMatchObject({ dir: root, git: ["beta"] })
+    const uri = await run("fs.subdirs", { path: `file://${root}/alpha` })
+    expect(uri.result).toMatchObject({ dir: `${root}/alpha` })
   })
 
   test("only absolute or ~ paths are listed", async () => {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import { FolderBrowser } from "./new-session-folder-browser.tsx"
 import { SearchList } from "./new-session-menus.tsx"
 import { githubRepoHeld } from "./new-session-remote.ts"
 import {
@@ -25,6 +26,8 @@ interface GithubRepos {
 /** Row keys that mean "clone this" rather than a project path. */
 export const CLONE_PREFIX = "clone:"
 
+const OPEN_FOLDER = "\0open-folder"
+
 export function RepoMenu(props: {
   model: AppModel
   /** This machine's project paths, or with `remote` that machine's repo ids. */
@@ -46,6 +49,7 @@ export function RepoMenu(props: {
   ungrouped?: { readonly on: boolean; readonly pick: () => void }
 }) {
   const { model, saved, picked, primary, home, query, remote } = props
+  const [browsing, setBrowsing] = useState(false)
   // The popover mounts this when it opens: the last list shows at once, reread then, and the rows never wait on it.
   const [github, setGithub] = useState<GithubRepos | null>(() => lastReply<GithubRepos>(model, "github.repos") ?? null)
   useEffect(() => {
@@ -75,12 +79,17 @@ export function RepoMenu(props: {
     props.ungrouped && (!typed || noFolder.toLowerCase().includes(typed.toLowerCase()))
       ? [{ key: NO_PROJECT_KEY, text: noFolder, checked: props.ungrouped.on }]
       : []
+  // A clean name; its folder only when another saved project shares it.
+  const names = saved.map((path) => splitRepoRow(path).base.toLowerCase())
+  const shared = (base: string) => names.filter((name) => name === base.toLowerCase()).length > 1
   const projects = local.map((path, i) => {
     const { base, dir } = splitRepoRow(path)
+    const where = shared(base) ? dir : ""
+    const lead = path === primary && picked.length > 1 ? t("newSession.primary") : ""
     return {
       key: path,
       text: base,
-      dim: path === primary && picked.length > 1 ? `${t("newSession.primary")}, ${dir}` : dir,
+      dim: [lead, where].filter(Boolean).join(", ") || undefined,
       dimPath: true,
       title: path,
       checked: picked.includes(path),
@@ -121,12 +130,24 @@ export function RepoMenu(props: {
         ? { key: typedPath, text: typedPath, checked: picked.includes(typedPath) }
         : null
 
+  // Browsing reads the daemon machine's disk, so another machine offers only its saved list and typed paths.
+  const openFolder = remote ? [] : [{ key: OPEN_FOLDER, text: t("newSession.openFolder"), ruled: true }]
+  if (browsing)
+    return (
+      <FolderBrowser
+        model={model}
+        start={(primary && splitRepoRow(primary).dir) || (home ? `${stripTrailingSlash(home)}/` : "~/")}
+        onUse={(path) => props.onToggle(path, false)}
+        onBack={() => setBrowsing(false)}
+      />
+    )
+
   return (
     // A pick replaces the project and closes; Shift (or ⌘ / Ctrl) + pick toggles it in a multi-repo task and keeps the list open.
     <SearchList
       placeholder={t(remote ? "newSession.repoSearchRemote" : "newSession.repoSearch")}
       empty={remote?.empty ?? t(github ? "newSession.repoEmpty" : "newSession.githubLoading")}
-      rows={remote?.blocked ? [] : [...ungrouped, ...projects]}
+      rows={remote?.blocked ? [] : [...ungrouped, ...projects, ...openFolder]}
       query={query}
       onQuery={props.onQuery}
       extra={remote?.blocked ? null : extra}
@@ -134,6 +155,7 @@ export function RepoMenu(props: {
       moreLabel={t("newSession.githubGroup")}
       hint={remote ? undefined : t("newSession.repoMultiHint")}
       onPick={(key, add) => {
+        if (key === OPEN_FOLDER) return setBrowsing(true)
         if (key === NO_PROJECT_KEY) {
           props.ungrouped?.pick()
           return props.close()
