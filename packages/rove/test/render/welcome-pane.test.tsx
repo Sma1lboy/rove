@@ -9,6 +9,7 @@
 import { describe, expect, it } from "bun:test"
 import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 import { createStateCell } from "../../src/lib/external-store"
+import { FocusProvider } from "../../src/tui-react/context/focus"
 import { ShowWorkspace } from "../../src/tui-react/workspace/show-workspace"
 import { type WelcomeEnv, WelcomePane } from "../../src/tui-react/workspace/welcome-pane"
 import type { Task } from "../../src/types/task"
@@ -36,6 +37,29 @@ describe("WelcomePane", () => {
     // Healthy environment → no doctor escalation.
     expect(out).not.toContain("rove doctor")
     expect(out).toContain("docs.rove.run")
+  })
+
+  it("teaches the prefix chord for a new task when the sidebar is not focused", async () => {
+    // task.new (`n`) only fires on the sidebar; off it, `n` is dropped or typed.
+    const env = probeWith({ engines: ["claude"], signedOut: [], git: true })
+    const render = async (initial: "workspace" | "sidebar") => {
+      // Narrow enough that the longer prefix cap wraps its row onto two lines.
+      const { frame } = await renderComponent(
+        <FocusProvider initial={initial}>
+          <WelcomePane probe={env} />
+        </FocusProvider>,
+        { width: 72, height: 30 },
+      )
+      await flushProbe()
+      const lines = (await frame()).split("\n").map((line) => line.trim())
+      return { stepNew: lines.find((line) => line.includes("creates your first task")), lines }
+    }
+    const workspace = await render("workspace")
+    expect(workspace.stepNew).toMatch(/^⌃ A n\s+creates your first task/)
+    // The wrapped row must not squeeze the rows below it out of the column.
+    expect(workspace.lines.some((line) => line.startsWith("F1"))).toBe(true)
+    expect(workspace.lines[workspace.lines.findIndex((line) => line.startsWith("Managed tasks")) - 1]).toBe("")
+    expect((await render("sidebar")).stepNew).toMatch(/^n\s+creates your first task/)
   })
 
   it("says installed-but-logged-out rather than a bare ✓", async () => {

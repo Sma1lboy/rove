@@ -40,6 +40,7 @@ test("the first-task action opens a prompt-focused composer with cwd defaults", 
   const { frame, mockMouse, mockInput } = await renderComponent(
     <FirstTaskStart
       env={{ engines: ["codex"], signedOut: [], git: true }}
+      newTaskKey="n"
       onCreate={(repo, result) => created.push({ repo, result })}
     />,
     { width: 110, height: 35, providers: { dialog: true } },
@@ -68,7 +69,7 @@ test("the first-task action opens a prompt-focused composer with cwd defaults", 
 
 test("no quick action is offered until an engine is usable", async () => {
   const { frame } = await renderComponent(
-    <FirstTaskStart env={{ engines: [], signedOut: ["codex"], git: true }} onCreate={() => {}} />,
+    <FirstTaskStart env={{ engines: [], signedOut: ["codex"], git: true }} newTaskKey="n" onCreate={() => {}} />,
     { providers: { dialog: true } },
   )
   expect((await frame()).trim()).toBe("")
