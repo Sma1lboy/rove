@@ -17,12 +17,13 @@ import { useNarrow } from "./layout.ts"
 import { usePrefs } from "./prefs.ts"
 import { ReleaseNotes } from "./release-notes.tsx"
 import { createStore, useStore } from "./store.ts"
-import { dialog, page } from "./ui.ts"
+import { closeDialog, dialog, page } from "./ui.ts"
 import { Button, buttonClass } from "./ui/button.tsx"
 import { PAGE_TITLE } from "./ui/page.ts"
-import { PhonePage } from "./ui/phone.tsx"
+import { PhoneActions, PhonePage } from "./ui/phone.tsx"
+import { Sheet } from "./ui/sheet.tsx"
 import { HEAD_CHIP } from "./ui/shell.ts"
-import { ACTIONS, LINK } from "./ui/text.ts"
+import { ACTIONS } from "./ui/text.ts"
 import {
   RELEASE_NOTES,
   UPDATE_OUTPUT,
@@ -31,6 +32,8 @@ import {
   UPDATE_VERSIONS,
   WHATS_NEW_BODY,
   WHATS_NEW_KEYS,
+  WHATS_NEW_SHEET_BODY,
+  WHATS_NEW_SHEET_FOOT,
 } from "./ui/update.ts"
 
 interface CheckReply {
@@ -268,7 +271,13 @@ export function UpdateView({ client }: { client: BridgeClient }) {
   const actions = (
     <div className={`${ACTIONS} pt-2.5`}>
       {url ? (
-        <a className={LINK} href={url} target="_blank" rel="noopener noreferrer" aria-keyshortcuts="r">
+        <a
+          className={buttonClass({ secondary: true })}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-keyshortcuts="r"
+        >
           {u.actions.openRelease}
         </a>
       ) : (
@@ -348,34 +357,64 @@ export function maybeShowWhatsNew(client: BridgeClient, version: string): void {
 
 function WhatsNewDialog(props: { from: string; to: string; notes: ReleaseNotesRangeItem | null }) {
   const u = useCatalog()
-  // Enter takes the primary button, as any dialog; q / esc still close it.
+  const phone = useNarrow()
+  const title = t("whatsNew.title")
+  const releaseHref = props.notes?.url ?? releaseUrl(props.to)
+  // Enter takes the primary button on desktop; q / esc still close it.
   const ok = useRef<HTMLButtonElement>(null)
-  useEffect(() => ok.current?.focus(), [])
+  const dismiss = useRef<() => void>(closeDialog)
+  useEffect(() => {
+    if (!phone) ok.current?.focus()
+  }, [phone])
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "q") dialog.set(null)
+      if (e.key === "q") dismiss.current()
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   }, [])
+  const notesBody = props.notes ? (
+    <ReleaseNotes body={props.notes.body} />
+  ) : (
+    <p className="text-muted">{u.whatsNew.notesUnavailable}</p>
+  )
+  if (phone)
+    return (
+      <Sheet label={title} title={title} onClose={closeDialog}>
+        {(close) => {
+          dismiss.current = close
+          return (
+            <>
+              <div className={WHATS_NEW_SHEET_BODY}>
+                <p className="text-muted">{fill(u.whatsNew.upgraded, { from: props.from, to: props.to })}</p>
+                {notesBody}
+              </div>
+              <div className={WHATS_NEW_SHEET_FOOT}>
+                <PhoneActions
+                  actions={[
+                    { label: t("whatsNew.openRelease"), href: releaseHref },
+                    { label: t("whatsNew.continue"), tone: "accent", onClick: close },
+                  ]}
+                />
+              </div>
+            </>
+          )
+        }}
+      </Sheet>
+    )
+  dismiss.current = closeDialog
   return (
-    <DialogShell title={u.whatsNew.title} wide>
-      <p className="text-muted">{fill(u.whatsNew.upgraded, { from: props.from, to: props.to })}</p>
-      <div className={WHATS_NEW_BODY}>
-        {props.notes ? (
-          <ReleaseNotes body={props.notes.body} />
-        ) : (
-          <p className="text-muted">{u.whatsNew.notesUnavailable}</p>
-        )}
-      </div>
+    <DialogShell title={title} wide>
+      <p className="m-0 text-muted">{fill(u.whatsNew.upgraded, { from: props.from, to: props.to })}</p>
+      <div className={WHATS_NEW_BODY}>{notesBody}</div>
       <div className={ACTIONS}>
         <span className={`mono text-muted ${WHATS_NEW_KEYS} touch:hidden!`}>{t("whatsNew.keys")}</span>
-        <a className={LINK} href={props.notes?.url ?? releaseUrl(props.to)} target="_blank" rel="noopener noreferrer">
+        <a className={buttonClass({ secondary: true })} href={releaseHref} target="_blank" rel="noopener noreferrer">
           {t("whatsNew.openRelease")}
         </a>
-        <button ref={ok} type="button" className={buttonClass()} onClick={() => dialog.set(null)}>
+        <Button ref={ok} variant="filled" onClick={closeDialog}>
           {t("whatsNew.continue")}
-        </button>
+        </Button>
       </div>
     </DialogShell>
   )

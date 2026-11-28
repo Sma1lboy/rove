@@ -19,6 +19,7 @@ export const en = {
     skip: "Skip this version",
   },
   whatsNew: {
+    title: "What's new",
     continue: "Continue",
     openRelease: "Open release notes",
     keys: "q / esc",
@@ -235,6 +236,7 @@ export const zh: typeof en = {
     skip: "跳过这个版本",
   },
   whatsNew: {
+    title: "更新内容",
     continue: "继续",
     openRelease: "打开发布说明",
     keys: "q / esc",
