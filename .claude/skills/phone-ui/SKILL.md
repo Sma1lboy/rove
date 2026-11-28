@@ -81,8 +81,8 @@ animation unless the product already has them.
   `src/ui/nav-button.tsx`. Arbitrary values stay inside `src/ui/` (rove-ui §0).
 - **A mouse reaches the phone layout too** (a narrow window, DevTools emulation): a row takes `hover:bg-hover`, a
   glass control `GLASS_HOVER` (glass.ts). Tailwind's `hover:` only applies to a pointer that hovers, so a tap leaves
-  nothing behind; never write `[&:hover]:`. A `button`, `summary` or button-like role does not select or open iOS's
-  callout (tailwind.css, base layer); a clickable `div` row adds `select-none` itself.
+  nothing behind; never write `[&:hover]:`. A `button` does not select or open iOS's callout (tailwind.css, base
+  layer); a clickable `div` row adds `select-none` itself.
 - **A phone list row ends with its status dots alone**: no age under them, no count beside a group's name.
 - **A phone screen composes `src/ui/phone.tsx`** (`PhoneBar` back + title + trailing controls, `PhoneTitle`,
   `PHONE_LIST`, `PhoneGroup` + `PHONE_ROW` grouped cards) and `src/ui/sheet.tsx`. The bottom bar is one app-level

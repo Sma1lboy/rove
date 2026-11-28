@@ -86,9 +86,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const { groups } = built
   // A collapsed project keeps its header and hides what is under it; search shows everything.
   // Archived tasks are not listed: the palette finds them by title and brings one back.
-  const rows = filters.search.active
-    ? built.rows
-    : foldProjects(withPanes(built.rows, tabs), filters.collapsed)
+  const rows = filters.search.active ? built.rows : foldProjects(withPanes(built.rows, tabs), filters.collapsed)
   const stops = (all: readonly NavRow[]) =>
     all.filter((row) => row.kind !== "project" && row.kind !== "state" && row.kind !== "round")
   const words = (locale === "zh" ? tasksZh : tasksEn).machine
