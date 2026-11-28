@@ -118,8 +118,8 @@ function shiftLightness(hex: string, dl: number): string {
     .join("")}`
 }
 
-/** The docked rail: the page a small step darker, as Claude Desktop's sidebar, so the two only just part. */
-const sidebarOf = (paper: string): string => shiftLightness(paper, luminance(paper) < 0.18 ? -0.03 : -0.022)
+/** The docked rail: the page a hair darker, as Claude Desktop's sidebar, so rail and page read as one surface. */
+const sidebarOf = (paper: string): string => shiftLightness(paper, luminance(paper) < 0.18 ? -0.01 : -0.008)
 
 /** Custom properties for `:root`. Empty before the first reply, so the stylesheet's own dark tokens stand. */
 export function cssVars(palette: Palette, prefs: Pick<Prefs, "focusAccent" | "colorblind">): Record<string, string> {
