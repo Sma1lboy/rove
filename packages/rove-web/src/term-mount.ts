@@ -107,7 +107,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
   if (o.focusOnMount) term.focus()
 
   // The phone never sizes the shared PTY: a narrower width hard-wraps wide output for every viewer. It takes the
-  // size the PTY has (another viewer's, or the spawn default) and scales that screen into its box (`term-zoom.ts`).
+  // size the PTY has (another viewer's, or the spawn default) and fits its font to the box (`term-zoom.ts`).
   const zoom = attachZoom(el, term)
   let ptySize: { cols: number; rows: number } | null = null
   const following = () => isNarrow() && ptySize !== null
@@ -317,10 +317,14 @@ export function mountTerminal(o: MountOpts): TermHandle {
   // or is dragged the canvas keeps its size: fit once it settles.
   function refit(): void {
     if (layoutMoving.get() !== null || !sized()) return
+    // The grid first, then the font that fits it; the box's own font first, then the grid that fits it.
     if (following() && ptySize) {
       if (term.cols !== ptySize.cols || term.rows !== ptySize.rows) term.resize(ptySize.cols, ptySize.rows)
-    } else fit.fit()
-    zoom.layout(following())
+      zoom.layout(true)
+    } else {
+      zoom.layout(false)
+      fit.fit()
+    }
     if (attachWhenSized) {
       attachWhenSized = false
       void attach()
@@ -406,6 +410,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
     const target = viewportAfterWrite(heldBack, term.buffer.active)
     if (target !== null) term.scrollToLine(target)
     reportScroll()
+    zoom.revealCursor(true)
   })
   const userScroll = (move: () => void) => {
     heldBack = null
@@ -414,6 +419,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
   }
 
   const focused = () => {
+    zoom.revealCursor()
     activeStream.set(stream)
     claimSize()
     o.onFocusChange(true)
@@ -427,6 +433,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
     stream: expected,
     scrollLines: (lines) => userScroll(() => term.scrollLines(lines)),
     scrollToTop: () => userScroll(() => term.scrollToTop()),
+    revealCursor: () => zoom.revealCursor(),
     scrollToBottom: () =>
       userScroll(() => {
         zoom.toBottom()
