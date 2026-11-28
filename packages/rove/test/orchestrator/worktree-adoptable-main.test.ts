@@ -13,9 +13,9 @@
  * `ctx.dir`. The end-to-end CLI reproduction is in the PR.
  */
 
+import type { ExecCtx } from "@sma1lboy/rove-core/orchestrator/worktree/exec-deps.ts"
+import { type ListDeps, adoptablePaths } from "@sma1lboy/rove-core/orchestrator/worktree/manager-list.ts"
 import { expect, it } from "vitest"
-import type { ExecCtx } from "../../src/orchestrator/worktree/exec-deps.ts"
-import { type ListDeps, adoptablePaths } from "../../src/orchestrator/worktree/manager-list.ts"
 
 const MAIN = "/repos/beta"
 const LINKED = "/repos/beta-feature"

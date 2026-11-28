@@ -10,14 +10,14 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { ROVE_HOOK_VERSION } from "@/engine/json-hooks"
+import { ROVE_HOOK_VERSION } from "@sma1lboy/rove-core/engine/json-hooks.ts"
 import {
   MASTRACODE_HOOK_EVENT_MAP,
   MastracodeHookAdapter,
   mastracodeHooksPath,
   mergeMastracodeHooks,
   parseMastracodeHooks,
-} from "@/engine/mastracode-local/hook-adapter"
+} from "@sma1lboy/rove-core/engine/mastracode-local/hook-adapter.ts"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const PROD = ["rove"]

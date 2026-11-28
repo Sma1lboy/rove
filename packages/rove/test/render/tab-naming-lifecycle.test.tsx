@@ -1,9 +1,9 @@
 /** @jsxImportSource @opentui/react */
 import { afterEach, expect, spyOn, test } from "bun:test"
+import { protocolEntry } from "@sma1lboy/rove-core/engine/engine-presets.ts"
+import type { EngineHistoryReader } from "@sma1lboy/rove-core/engine/registry.ts"
+import type { TabsState } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import { useState } from "react"
-import { protocolEntry } from "../../src/engine/engine-presets"
-import type { EngineHistoryReader } from "../../src/engine/registry"
-import type { TabsState } from "../../src/tabs/terminal-tabs-core"
 import { type TabLifecycleIO, useTabNaming } from "../../src/tui-react/workspace/use-tab-lifecycle"
 import { act, renderComponent } from "./harness"
 

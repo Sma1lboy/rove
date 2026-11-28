@@ -8,8 +8,7 @@
  * latest-render refs (see TerminalTabs' header).
  */
 
-import { useEffect } from "react"
-import { absorbTab, adoptTabs } from "../../tabs/tabs-adopt"
+import { absorbTab, adoptTabs } from "@sma1lboy/rove-core/tabs/tabs-adopt.ts"
 import {
   type TabsState,
   moveTab,
@@ -17,7 +16,8 @@ import {
   setTabTitle,
   splitLeafPtyKey,
   tabPtyKeyFor,
-} from "../../tabs/terminal-tabs-core"
+} from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
+import { useEffect } from "react"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { closePluginPanes, openPluginPane } from "../../tui/workspace/pane-split"
 import {

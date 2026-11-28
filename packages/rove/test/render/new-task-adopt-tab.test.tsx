@@ -16,8 +16,8 @@ import { execSync } from "node:child_process"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import type { AdoptableWorktree } from "@sma1lboy/rove-core/types/worktree.ts"
 import { NewTaskDialogView } from "../../src/tui-react/component/new-task-dialog/dialog"
-import type { AdoptableWorktree } from "../../src/types/worktree"
 import { type RenderHandle, act, renderComponent, settle, waitForFrameText } from "./harness"
 
 const previousHome = process.env.ROVE_HOME_DIR

@@ -20,9 +20,9 @@
  */
 
 import { afterAll, beforeAll, expect, test } from "bun:test"
-import type { MachineFeed } from "@/machines/feed"
 import { setMachineHub } from "@/tui-react/workspace/hub-singleton"
 import type { MachineLayerEntry } from "@/tui/panes/sidebar/machine-layer"
+import type { MachineFeed } from "@sma1lboy/rove-client/machines/feed.ts"
 import { DEFAULT_SPINNER_FRAMES } from "@sma1lboy/rove-core/engine/spinner-frames.ts"
 import { currentLang, setLocaleLang } from "@sma1lboy/rove-core/i18n/index.ts"
 import { goldenPath, matchGolden } from "../../golden/golden-file"

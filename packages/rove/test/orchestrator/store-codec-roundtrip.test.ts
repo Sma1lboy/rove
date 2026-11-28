@@ -22,10 +22,10 @@
  * field list to forget.
  */
 
+import { normalizeIndex } from "@sma1lboy/rove-core/orchestrator/index/store-codec.ts"
 import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import type { TaskWorkspace } from "@sma1lboy/rove-daemon/workspace"
 import { describe, expect, it } from "vitest"
-import { normalizeIndex } from "../../src/orchestrator/index/store-codec.ts"
 
 /**
  * Every property (recursively) present and non-optional. Primitives and

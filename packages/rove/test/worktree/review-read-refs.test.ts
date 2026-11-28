@@ -3,8 +3,8 @@ import { execFileSync } from "node:child_process"
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { checkRef, worktreeDiffFile, worktreeRefs } from "@sma1lboy/rove-client/worktree/review-read.ts"
 import { describe, expect, test } from "vitest"
-import { checkRef, worktreeDiffFile, worktreeRefs } from "../../src/worktree/review-read.ts"
 
 const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", ...args], { cwd, encoding: "utf8" })

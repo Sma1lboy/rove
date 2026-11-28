@@ -4,11 +4,11 @@
  * called from function bodies, so importing `VERBS` here is safe.
  */
 
+import { registeredEngineIds } from "@sma1lboy/rove-core/engine/plugin-engines.ts"
 import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 import { CURRENT_VERSION } from "@sma1lboy/rove-core/version.ts"
 import { ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { isBuiltinModInstalled } from "@sma1lboy/rove-daemon/plugins/builtin-mods"
-import { registeredEngineIds } from "../../engine/plugin-engines.ts"
 import {
   ApiError,
   type FlagSpec,

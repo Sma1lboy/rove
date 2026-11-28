@@ -16,13 +16,13 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { relativeAge } from "@sma1lboy/rove-core/lib/relative-time.ts"
+import { dirtyRefusalReason } from "@sma1lboy/rove-core/orchestrator/errors.ts"
+import type { WorktreeAuditRow, WorktreeProject } from "@sma1lboy/rove-core/types/worktree.ts"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { type ReactNode, useEffect, useState } from "react"
-import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
-import { dirtyRefusalReason } from "../../orchestrator/errors"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
-import type { WorktreeAuditRow, WorktreeProject } from "../../types/worktree"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"

@@ -1,6 +1,6 @@
+import { mergeWorktreeSyncHook } from "@sma1lboy/rove-core/engine/claude-code-local/hook-adapter.ts"
+import { mergeActivityHooks, removeWorktreeWatchHook } from "@sma1lboy/rove-core/engine/json-hooks.ts"
 import { describe, expect, it } from "vitest"
-import { mergeWorktreeSyncHook } from "../../src/engine/claude-code-local/hook-adapter.ts"
-import { mergeActivityHooks, removeWorktreeWatchHook } from "../../src/engine/json-hooks.ts"
 
 const user = { type: "command", command: "echo user", timeout: 73 }
 const group = (command: string) => ({

@@ -7,8 +7,8 @@
  * on purpose.
  */
 
+import { classifyHandshakeFailure } from "@sma1lboy/rove-client/machines/hub.ts"
 import { describe, expect, it } from "vitest"
-import { classifyHandshakeFailure } from "../../src/machines/hub.ts"
 
 describe("classifyHandshakeFailure", () => {
   it("calls a protocol-range rejection a mismatch, from either side of the wire", () => {

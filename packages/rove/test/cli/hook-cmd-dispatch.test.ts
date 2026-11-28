@@ -40,7 +40,7 @@ vi.mock("@sma1lboy/rove-daemon/client/daemon-process", () => ({
   connectIfRunning: mocks.connectIfRunning,
 }))
 
-vi.mock("../../src/engine/hook-adapter.ts", () => ({
+vi.mock("@sma1lboy/rove-core/engine/hook-adapter.ts", () => ({
   // Same shared method mocks for every vendor; `vendor` is stamped per call so
   // the plugin-mode gate can tell claude apart from the rest.
   createEngineHookAdapter: vi.fn((vendor: string) => ({ ...mocks.adapter, vendor })),

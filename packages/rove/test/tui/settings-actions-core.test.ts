@@ -3,11 +3,11 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-vi.mock("../../src/client/remote-orchestrator", () => ({
+vi.mock("@sma1lboy/rove-client/client/remote-orchestrator.ts", () => ({
   RemoteOrchestrator: class MockRemoteOrchestrator {},
 }))
 
-import { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
+import { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { hasRestartableDaemon, removeTasksFileForReset } from "../../src/tui/component/settings-dialog/actions-core.ts"
 
 let home: string

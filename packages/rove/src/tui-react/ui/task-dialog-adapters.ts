@@ -4,9 +4,9 @@
  * `tui/lib/task-actions` + `tui/lib/task-create-flow`.
  */
 
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { resolvePreferredVendor, setLastActiveVendor } from "@sma1lboy/rove-core/state/vendor-prefs.ts"
 import type { Task, VendorId } from "@sma1lboy/rove-core/types/task.ts"
-import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { isDeleteBranchOnTaskDeleteEnabled } from "../../state/task-delete-branch.ts"
 import { openTaskEngine } from "../../tui/lib/open-task-engine"
 import type { ChildrenPrompt, ConfirmPrompt, TextPromptOpts } from "../../tui/lib/task-actions"

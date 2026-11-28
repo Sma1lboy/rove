@@ -17,9 +17,9 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { CodexHookAdapter } from "@sma1lboy/rove-core/engine/codex-local/hook-adapter.ts"
+import { parseHookSettings } from "@sma1lboy/rove-core/engine/json-hooks.ts"
 import { type MockInstance, afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { CodexHookAdapter } from "../../src/engine/codex-local/hook-adapter.ts"
-import { parseHookSettings } from "../../src/engine/json-hooks.ts"
 
 vi.mock("@sma1lboy/rove-core/lib/invocation.ts", () => ({
   roveCliInvocation: () => ["rove"],

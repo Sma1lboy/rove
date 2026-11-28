@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 import { afterAll, afterEach, describe, expect, it, spyOn } from "bun:test"
-import * as engines from "../../src/engine/account-detect"
+import * as engines from "@sma1lboy/rove-core/engine/account-detect.ts"
 
 const available = spyOn(engines, "availableEngineIds").mockResolvedValue(["claude", "codex"])
 afterAll(() => available.mockRestore())

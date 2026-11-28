@@ -9,9 +9,7 @@ import { spawnSync } from "node:child_process"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import type { Task } from "@sma1lboy/rove-core/types/task.ts"
-import { afterEach, beforeEach, describe, expect, test } from "vitest"
-import { Orchestrator } from "../../src/orchestrator/core.ts"
+import { Orchestrator } from "@sma1lboy/rove-core/orchestrator/core.ts"
 import {
   DirtyWorktreeError,
   ExtraRepoNotGitError,
@@ -19,10 +17,12 @@ import {
   RepoDuplicateError,
   TooManyReposError,
   WorktreeRemoveFailedError,
-} from "../../src/orchestrator/errors.ts"
-import { normalizeIndex } from "../../src/orchestrator/index/store-codec.ts"
-import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
-import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
+} from "@sma1lboy/rove-core/orchestrator/errors.ts"
+import { normalizeIndex } from "@sma1lboy/rove-core/orchestrator/index/store-codec.ts"
+import { TaskIndexStore } from "@sma1lboy/rove-core/orchestrator/index/store.ts"
+import { GitWorktreeManager } from "@sma1lboy/rove-core/orchestrator/worktree/manager.ts"
+import type { Task } from "@sma1lboy/rove-core/types/task.ts"
+import { afterEach, beforeEach, describe, expect, test } from "vitest"
 
 const REPO_INIT = path.resolve(__dirname, "./fixtures/repo-init.sh")
 

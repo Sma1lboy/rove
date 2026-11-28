@@ -10,10 +10,10 @@ import { execSync } from "node:child_process"
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { readWorktreeChanges } from "@sma1lboy/rove-client/worktree/worktree-changes.ts"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
 import { type Row, flattenTree, statusRows } from "../../src/tui/panes/filetree/rows.ts"
 import type { TreeNode } from "../../src/tui/panes/filetree/tree.ts"
-import { readWorktreeChanges } from "../../src/worktree/worktree-changes.ts"
 
 describe("flattenTree", () => {
   const tree: TreeNode = {

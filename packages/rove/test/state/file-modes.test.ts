@@ -9,9 +9,9 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { TaskIndexStore } from "@sma1lboy/rove-core/orchestrator/index/store.ts"
 import { patchStateFile } from "@sma1lboy/rove-core/state/store.ts"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
-import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 
 let tmpHome: string
 let originalHome: string | undefined

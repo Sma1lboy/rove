@@ -18,15 +18,15 @@ import { spawnSync } from "node:child_process"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import { afterEach, beforeEach, describe, expect, test } from "vitest"
-import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
+import { GitWorktreeManager } from "@sma1lboy/rove-core/orchestrator/worktree/manager.ts"
 import {
   LEGACY_ROVE_WORKTREE_ROOT_SUBPATH,
   REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH,
   managedWorktreeRootsFor,
   worktreePathFor,
   worktreeRootFor,
-} from "../../src/orchestrator/worktree/paths.ts"
+} from "@sma1lboy/rove-core/orchestrator/worktree/paths.ts"
+import { afterEach, beforeEach, describe, expect, test } from "vitest"
 
 const REPO_INIT = path.resolve(__dirname, "./fixtures/repo-init.sh")
 

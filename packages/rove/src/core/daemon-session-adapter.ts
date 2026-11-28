@@ -1,11 +1,4 @@
-import { taskCwd } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
-import type { VendorId } from "@sma1lboy/rove-core/types/task.ts"
-import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
-import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
-import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { type PtyScope, type TeardownScope, hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
-import type { TaskRepoView } from "@sma1lboy/rove-daemon/task-tree"
-import { engineLaunchArgv, engineResumeArgv, withPinnedSessionId } from "../engine/engine-presets.ts"
+import { engineLaunchArgv, engineResumeArgv, withPinnedSessionId } from "@sma1lboy/rove-core/engine/engine-presets.ts"
 import {
   awaitEngineProcess,
   deliverToHostedKey,
@@ -18,14 +11,21 @@ import {
   listHostedSessions,
   openHostedSessionHost,
   pastePromptWhenEngineUp,
-} from "../engine/hosted-session.ts"
-import { launchReposOf, trustExtraRepos } from "../engine/multi-repo-launch.ts"
-import { enginePresence } from "../engine/session-engine-presence.ts"
-import { buildEngineSessionLaunch } from "../engine/session-launch.ts"
-import { trustEngineWorktree } from "../engine/trust-worktree.ts"
-import { TaskDeletingError } from "../orchestrator/errors.ts"
-import type { PromptDeliveryIntent } from "../state/repo-init.ts"
-import { markCliTabSession, publishCliTabSnapshot, readDaemonTabs } from "../tabs/tab-snapshot.ts"
+} from "@sma1lboy/rove-core/engine/hosted-session.ts"
+import { launchReposOf, trustExtraRepos } from "@sma1lboy/rove-core/engine/multi-repo-launch.ts"
+import { enginePresence } from "@sma1lboy/rove-core/engine/session-engine-presence.ts"
+import { buildEngineSessionLaunch } from "@sma1lboy/rove-core/engine/session-launch.ts"
+import { trustEngineWorktree } from "@sma1lboy/rove-core/engine/trust-worktree.ts"
+import { TaskDeletingError } from "@sma1lboy/rove-core/orchestrator/errors.ts"
+import { taskCwd } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import type { PromptDeliveryIntent } from "@sma1lboy/rove-core/state/repo-init.ts"
+import { markCliTabSession, publishCliTabSnapshot, readDaemonTabs } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/task.ts"
+import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
+import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
+import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { type PtyScope, type TeardownScope, hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
+import type { TaskRepoView } from "@sma1lboy/rove-daemon/task-tree"
 
 async function getTask(link: DaemonRpcClient, taskId: string): Promise<SerializedTask> {
   const { task } = await link.request<{ task: SerializedTask }>("task.get", {

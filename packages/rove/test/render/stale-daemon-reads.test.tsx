@@ -13,9 +13,9 @@
  */
 
 import { expect, test } from "bun:test"
+import type { DaemonConnectionState } from "@sma1lboy/rove-client/client/remote-orchestrator-payloads.ts"
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
-import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
-import type { DaemonConnectionState } from "../../src/client/remote-orchestrator-payloads"
 import { AutomationsPage } from "../../src/tui-react/component/automations-page"
 import { UpdatePage } from "../../src/tui-react/component/update-page"
 import { act, renderComponent, waitForFrameText } from "./harness"

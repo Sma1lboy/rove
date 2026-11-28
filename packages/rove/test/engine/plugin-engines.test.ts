@@ -1,10 +1,6 @@
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { BUILTIN_VENDORS } from "@sma1lboy/rove-core/types/vendor.ts"
-import { RESERVED_ENGINE_IDS, parsePluginManifest } from "@sma1lboy/rove-daemon/plugins/manifest"
-import { savePluginRegistry } from "@sma1lboy/rove-daemon/plugins/registry"
-import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   CONTRIB_ENGINES,
   CONTRIB_ENGINE_IDS,
@@ -12,9 +8,13 @@ import {
   isContribEngine,
   pluginEngineIds,
   registerPluginEngine,
-} from "../../src/engine/contrib-engines.ts"
-import { loadPluginEngines, reloadPluginEngines } from "../../src/engine/plugin-engines.ts"
-import { engineEntry } from "../../src/engine/registry.ts"
+} from "@sma1lboy/rove-core/engine/contrib-engines.ts"
+import { loadPluginEngines, reloadPluginEngines } from "@sma1lboy/rove-core/engine/plugin-engines.ts"
+import { engineEntry } from "@sma1lboy/rove-core/engine/registry.ts"
+import { BUILTIN_VENDORS } from "@sma1lboy/rove-core/types/vendor.ts"
+import { RESERVED_ENGINE_IDS, parsePluginManifest } from "@sma1lboy/rove-daemon/plugins/manifest"
+import { savePluginRegistry } from "@sma1lboy/rove-daemon/plugins/registry"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 const MANIFEST = `
 id = "acme-engines"

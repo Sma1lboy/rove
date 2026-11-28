@@ -5,14 +5,14 @@
  * effort/model gates exist to prevent.
  */
 
-import { describe, expect, it } from "vitest"
 import {
   DEFAULT_AUTO_ROUTING,
   autoRoutingKey,
   describeTierBlock,
   readAutoRoutingTable,
   tierBlock,
-} from "../../src/engine/auto-routing.ts"
+} from "@sma1lboy/rove-core/engine/auto-routing.ts"
+import { describe, expect, it } from "vitest"
 
 const from = (state: Record<string, unknown>) => (key: string) => state[key]
 

@@ -3,8 +3,7 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
-
-const engine = new URL("../../src/engine/", import.meta.url).pathname
+import { corePath } from "../core-package.ts"
 
 describe("private config permissions", () => {
   it.each(["sync", "async", "codex"])("keeps %s writes private under umask 022", (writer) => {
@@ -14,11 +13,11 @@ describe("private config permissions", () => {
       import { homedir } from 'node:os';
       import { mkdirSync, writeFileSync, statSync } from 'node:fs';
       import { join } from 'node:path';
-      import { vendorConfigHome } from ${JSON.stringify(`${engine}vendor-home.ts`)};
+      import { vendorConfigHome } from ${JSON.stringify(corePath("engine/vendor-home.ts"))};
       assert.equal(homedir(), process.env.FIXTURE_HOME);
       for (const v of ['claude','codex','kimi','copilot']) assert(vendorConfigHome(v).startsWith(homedir() + '/'));
-      const { updateSharedJson, updateSharedJsonSync } = await import(${JSON.stringify(`${engine}shared-config-write.ts`)});
-      const { trustCodexWorktree } = await import(${JSON.stringify(`${engine}codex-local/trust.ts`)});
+      const { updateSharedJson, updateSharedJsonSync } = await import(${JSON.stringify(corePath("engine/shared-config-write.ts"))});
+      const { trustCodexWorktree } = await import(${JSON.stringify(corePath("engine/codex-local/trust.ts"))});
       process.umask(0o022);
       for (const existing of [true, false]) {
         const base = join(homedir(), existing ? 'existing' : 'new');

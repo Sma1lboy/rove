@@ -5,10 +5,10 @@
  * round trip, as over the socket: the TUI never shares the store's objects.
  */
 
+import type { TabsTransport } from "@sma1lboy/rove-client/client/remote-orchestrator-tabs.ts"
+import type { TabsState } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import type { SharedTabs } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import { type TabsChangedPayload, TabsStore } from "@sma1lboy/rove-daemon/daemon/tabs-store"
-import type { TabsTransport } from "../../src/client/remote-orchestrator-tabs"
-import type { TabsState } from "../../src/tabs/terminal-tabs-core"
 import { attachTabsTransport } from "../../src/tui-react/workspace/tabs-sync"
 
 export interface TabsSyncDaemon {

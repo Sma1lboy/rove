@@ -31,8 +31,8 @@
  * about.
  */
 
-import { AUTO_ROUTING_TIERS, type AutoRoutingTier, isAutoRoutingTier } from "./auto-routing.ts"
-import type { TierCriterion, TierExample, TierRubric } from "./tier-rubric-types.ts"
+import { AUTO_ROUTING_TIERS, type AutoRoutingTier, isAutoRoutingTier } from "@sma1lboy/rove-core/engine/auto-routing.ts"
+import type { TierCriterion, TierExample, TierRubric } from "@sma1lboy/rove-core/engine/tier-rubric-types.ts"
 
 /**
  * The three tier bodies from the handbook.

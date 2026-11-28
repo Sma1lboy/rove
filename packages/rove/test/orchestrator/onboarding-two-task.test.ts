@@ -2,10 +2,10 @@ import { spawnSync } from "node:child_process"
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
+import { Orchestrator } from "@sma1lboy/rove-core/orchestrator/core.ts"
+import { TaskIndexStore } from "@sma1lboy/rove-core/orchestrator/index/store.ts"
+import { GitWorktreeManager } from "@sma1lboy/rove-core/orchestrator/worktree/manager.ts"
 import { expect, it, vi } from "vitest"
-import { Orchestrator } from "../../src/orchestrator/core"
-import { TaskIndexStore } from "../../src/orchestrator/index/store"
-import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager"
 
 it("the two-task tutorial isolates mock-provider output and restores selection from disk", async () => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "rove-onboarding-acceptance-")))

@@ -5,9 +5,9 @@
  * so without {@link startSkillStatus} the list stays empty and no banner shows.
  */
 
+import { installedEngineIds } from "@sma1lboy/rove-core/engine/account-detect.ts"
 import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
-import { installedEngineIds } from "../../engine/account-detect"
-import { installSkillErrors, missingSkillNames } from "../../lib/skill-install"
+import { installSkillErrors, missingSkillNames } from "@sma1lboy/rove-core/lib/skill-install.ts"
 
 /** Display names of runnable engines with no skill copy (`missingSkillNames`). */
 export const skillMissing = createStateCell<readonly string[]>([])

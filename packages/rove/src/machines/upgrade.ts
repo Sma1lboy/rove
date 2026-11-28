@@ -4,9 +4,9 @@
  * a supervised daemon comes back through its supervisor. Sessions live in its PTY host and stay up.
  */
 
+import { discoverMachine, remoteRove, runOnMachine } from "@sma1lboy/rove-core/machines/discover.ts"
 import type { MachineEntry } from "@sma1lboy/rove-core/machines/registry.ts"
 import { preferredReleaseChannel } from "@sma1lboy/rove-core/state/update-channel.ts"
-import { discoverMachine, remoteRove, runOnMachine } from "./discover.ts"
 
 export interface UpgradeResult {
   readonly alias: string

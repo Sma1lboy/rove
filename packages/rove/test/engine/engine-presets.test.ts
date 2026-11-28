@@ -11,14 +11,14 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
   engineCanFork,
   engineForkArgv,
   engineLaunchArgv,
   listEnginePresets,
   resolveCommandProtocol,
-} from "../../src/engine/engine-presets.ts"
+} from "@sma1lboy/rove-core/engine/engine-presets.ts"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 let home: string
 let originalHome: string | undefined

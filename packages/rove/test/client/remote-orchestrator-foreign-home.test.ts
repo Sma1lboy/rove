@@ -1,10 +1,10 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { flushClientLog } from "@sma1lboy/rove-daemon/client/client-log"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { RemoteOrchestrator } from "../../src/client/remote-orchestrator.ts"
 
 /**
  * Home-ownership guard.

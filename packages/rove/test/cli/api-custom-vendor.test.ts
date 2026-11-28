@@ -23,12 +23,12 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { GENERIC_PROTOCOL, resolveCommandProtocol } from "@sma1lboy/rove-core/engine/engine-presets.ts"
 import { ALL_VENDORS } from "@sma1lboy/rove-core/types/vendor.ts"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { verbSchema } from "../../src/cli/api/schema.ts"
 import { findVerb } from "../../src/cli/api/verbs.ts"
-import { GENERIC_PROTOCOL, resolveCommandProtocol } from "../../src/engine/engine-presets.ts"
 import { FakeClient, openedTab, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 // `engine-list` attaches each engine's model list, and pi/omp answer that by
@@ -37,8 +37,8 @@ import { FakeClient, openedTab, stubRuntime, taskFixture } from "./api-handler-f
 // each against a 5s timeout — and only on a machine that has pi/omp installed,
 // so it read as a flake. Stubbed to the shape the verb consumes; the product
 // fix (memoize the per-protocol lookup) is issue #112.
-vi.mock("../../src/engine/model-lists.ts", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../src/engine/model-lists.ts")>()),
+vi.mock("@sma1lboy/rove-core/engine/model-lists.ts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sma1lboy/rove-core/engine/model-lists.ts")>()),
   listPiModels: async () => [{ id: "openai/gpt-5.1" }],
   listOmpModels: async () => [{ id: "anthropic/claude-opus-5" }],
 }))

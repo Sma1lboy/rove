@@ -9,7 +9,7 @@ import {
   listSessionIdsForWorktree,
   parseSessionIndex,
   transcriptPath,
-} from "@/engine/kimi-local/history"
+} from "@sma1lboy/rove-core/engine/kimi-local/history.ts"
 import { describe, expect, it } from "vitest"
 
 const INDEX = [
@@ -74,7 +74,7 @@ describe("transcriptPath", () => {
 })
 
 it("finds the newest Kimi activity with one index read and one stat per matching stream", async () => {
-  const { latestTranscriptMtimeForWorktree } = await import("../../src/engine/kimi-local/history")
+  const { latestTranscriptMtimeForWorktree } = await import("@sma1lboy/rove-core/engine/kimi-local/history.ts")
   const d = deps(INDEX, { [wire("session_a")]: 200, [wire("session_b")]: 100 })
   let reads = 0
   let stats = 0

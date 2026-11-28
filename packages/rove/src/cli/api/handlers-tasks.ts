@@ -6,15 +6,15 @@
  */
 
 import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
+import { roveApiInvocation } from "@sma1lboy/rove-core/engine/interactive-command.ts"
 import { taskCwd } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
 import { deriveTitleFromPrompt } from "@sma1lboy/rove-core/orchestrator/title.ts"
+import { taskEngineArgv } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { type SkipVerdict, deliveryFooter } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
-import { roveApiInvocation } from "../../engine/interactive-command.ts"
-import { taskEngineArgv } from "../../tabs/tab-snapshot.ts"
 import { activityView, readActivityRegistry } from "./activity-view.ts"
 import {
   noReplyAddress,

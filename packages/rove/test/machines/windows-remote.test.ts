@@ -1,3 +1,5 @@
+import { parseLocatedRove, parseStatusJson, remoteRove } from "@sma1lboy/rove-core/machines/discover.ts"
+import { relayCommand, useStdioTransport } from "@sma1lboy/rove-core/machines/stdio-forward.ts"
 import {
   WINDOWS_LOCATE_ROVE,
   WINDOWS_ROVE_MISSING,
@@ -7,8 +9,6 @@ import {
 } from "@sma1lboy/rove-core/machines/windows-remote.ts"
 import { PRE_RENAME_VERSION_KEY } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
 import { describe, expect, test } from "vitest"
-import { parseLocatedRove, parseStatusJson, remoteRove } from "../../src/machines/discover.ts"
-import { relayCommand, useStdioTransport } from "../../src/machines/stdio-forward.ts"
 
 /** What `powershell -EncodedCommand` will run. */
 function decoded(command: string): string {

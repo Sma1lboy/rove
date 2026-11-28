@@ -4,8 +4,8 @@
  */
 
 import { errorMessage, isDiskFull, userFacingErrorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import { TASK_DELETING_CODE, TaskDeletingError } from "@sma1lboy/rove-core/orchestrator/errors.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
-import { TASK_DELETING_CODE, TaskDeletingError } from "../../orchestrator/errors.ts"
 
 /**
  * Toast wording by failure shape: mid-delete ("wait"), no git repo

@@ -10,8 +10,8 @@ import { execSync } from "node:child_process"
 import { mkdtempSync, realpathSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { GitCommandError, git } from "@sma1lboy/rove-core/orchestrator/worktree/git.ts"
 import { afterAll, beforeAll, describe, expect, test } from "vitest"
-import { GitCommandError, git } from "../../src/orchestrator/worktree/git.ts"
 
 let repo: string
 

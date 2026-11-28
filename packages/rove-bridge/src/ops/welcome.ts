@@ -7,12 +7,12 @@
 
 import { basename } from "node:path"
 import { engineLogin } from "@sma1lboy/rove-core/engine/engine-health.ts"
+import { detectEngineStatuses, probeableEngineIds, summarizeEngines } from "@sma1lboy/rove-core/engine/engine-status.ts"
+import { engineDisplayName } from "@sma1lboy/rove-core/engine/interactive-command.ts"
 import { getSavedRepos, resolveMainRepoRoot } from "@sma1lboy/rove-core/state/repos.ts"
 import { resolvePreferredVendor } from "@sma1lboy/rove-core/state/vendor-prefs.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { DEFAULT_BASE_REF, getCurrentBranch, validateRepoPath } from "@sma1lboy/rove-core/worktree/git-snapshot.ts"
-import { detectEngineStatuses, probeableEngineIds, summarizeEngines } from "@sma1lboy/rove/src/engine/engine-status.ts"
-import { engineDisplayName } from "@sma1lboy/rove/src/engine/interactive-command.ts"
 import type { OpTable } from "./types.ts"
 
 interface EngineChip {

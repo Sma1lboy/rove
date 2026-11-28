@@ -45,7 +45,7 @@ vi.mock("node:fs/promises", async (importActual) => {
 })
 
 const { trustClaudeWorktree } = await import("../../src/engine/claude-code-local/trust.ts")
-const { updateSharedJson, updateSharedJsonSync } = await import("../../src/engine/shared-config-write.ts")
+const { updateSharedJson, updateSharedJsonSync } = await import("@sma1lboy/rove-core/engine/shared-config-write.ts")
 
 // Locks live under the resolved ~/.rove/; point them at a temp root so the
 // suite never contends with a real Rove on this machine.

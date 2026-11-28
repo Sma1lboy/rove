@@ -7,8 +7,8 @@
  * plus a totals roll-up so a caller doesn't have to sum the page itself.
  */
 
+import { vendorsWithTurnReader } from "@sma1lboy/rove-core/engine/registry.ts"
 import type { AgentTurnRecord } from "@sma1lboy/rove-daemon/daemon/contracts"
-import { vendorsWithTurnReader } from "../../engine/registry.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import type { VerbContext, VerbSpec } from "./types.ts"
 

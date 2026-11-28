@@ -12,6 +12,7 @@
 
 import { createCliRenderer, setRenderLibPath } from "@opentui/core"
 import { createRoot } from "@opentui/react"
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { setNarrowBreakpoint } from "@sma1lboy/rove-core/lib/narrow-mode.ts"
 import { type PersistedUiPrefs, readPersistedUiPrefs } from "@sma1lboy/rove-core/lib/persisted-ui-prefs.ts"
 import { profileMark, profileTick, renderProfileOn } from "@sma1lboy/rove-core/lib/render-profile.ts"
@@ -22,7 +23,6 @@ import { installClientCrashHandlers, setClientLogContext } from "@sma1lboy/rove-
 import type { UiPrefsPayload } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { type ReactNode, useEffect } from "react"
 import { connectPaneOrchestrator } from "../../client/connect-pane-orchestrator"
-import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { applyUserKeybindings, reloadUserKeybindings } from "../../tui/context/keybindings-user"
 import { type UiPrefsTarget, applyUiPrefs } from "../../tui/lib/apply-ui-prefs"
 import { installEventLoopStallTelemetry } from "../../tui/lib/event-loop-stall"

@@ -32,8 +32,8 @@ vi.mock("@sma1lboy/rove-core/lib/invocation.ts", async (importOriginal) => {
   return { ...actual, roveCliInvocation: () => ["bun", ...actual.roveCliInvocation().slice(1)] }
 })
 
-vi.mock("../../src/engine/registry.ts", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../src/engine/registry.ts")>()
+vi.mock("@sma1lboy/rove-core/engine/registry.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@sma1lboy/rove-core/engine/registry.ts")>()
   return {
     ...actual,
     engineEntry: (vendor: string) => {
@@ -51,13 +51,13 @@ vi.mock("../../src/engine/registry.ts", async (importOriginal) => {
   }
 })
 
-const { withEngineEffort, withEngineModel } = await import("../../src/engine/interactive-command.ts")
+const { withEngineEffort, withEngineModel } = await import("@sma1lboy/rove-core/engine/interactive-command.ts")
 const { setRepoInitOverride } = await import("@sma1lboy/rove-core/state/repos.ts")
-const { engineLaunchArgv } = await import("../../src/engine/engine-presets.ts")
-const { withWorktreeProtocol } = await import("../../src/engine/worktree-protocol.ts")
-const { buildEngineSessionLaunch } = await import("../../src/engine/session-launch.ts")
+const { engineLaunchArgv } = await import("@sma1lboy/rove-core/engine/engine-presets.ts")
+const { withWorktreeProtocol } = await import("@sma1lboy/rove-core/engine/worktree-protocol.ts")
+const { buildEngineSessionLaunch } = await import("@sma1lboy/rove-core/engine/session-launch.ts")
 const { latestTranscriptMtime } = await import("../../src/monitor/activity.ts")
-const { encodeCwd } = await import("../../src/engine/claude-code-local/history.ts")
+const { encodeCwd } = await import("@sma1lboy/rove-core/engine/claude-code-local/history.ts")
 
 const on = () => true
 

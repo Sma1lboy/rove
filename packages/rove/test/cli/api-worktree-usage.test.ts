@@ -9,10 +9,10 @@ import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:f
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { LocalExecHost, RemoteExecHost } from "@sma1lboy/rove-core/exec/exec-host.ts"
+import { duKb } from "@sma1lboy/rove-core/orchestrator/worktree/salvage-ignored.ts"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { type CheckoutUsage, measureCheckout } from "../../src/orchestrator/worktree/disk-usage.ts"
-import { duKb } from "../../src/orchestrator/worktree/salvage-ignored.ts"
 import { FakeClient, expectApiError, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 const MB = 1024 * 1024

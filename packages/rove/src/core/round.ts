@@ -5,7 +5,7 @@
  * and `rove api add --count` rounds are indistinguishable.
  */
 
-import { ulid } from "../orchestrator/index/ulid.ts"
+import { ulid } from "@sma1lboy/rove-core/orchestrator/index/ulid.ts"
 
 /** One sibling's create input: what the round adds on top of the caller's own. */
 export interface RoundSibling {

@@ -1,6 +1,6 @@
+import { type HistoryDeps, parseJsonl, readHistory } from "@sma1lboy/rove-core/engine/claude-code-local/history.ts"
+import { isSyntheticClaudeRecord } from "@sma1lboy/rove-core/engine/claude-code-local/synthetic.ts"
 import { describe, expect, it } from "vitest"
-import { type HistoryDeps, parseJsonl, readHistory } from "../../src/engine/claude-code-local/history.ts"
-import { isSyntheticClaudeRecord } from "../../src/engine/claude-code-local/synthetic.ts"
 
 /**
  * Claude persists injected rows (the local-command caveat as `isMeta`, the

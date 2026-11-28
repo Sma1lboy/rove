@@ -1,7 +1,7 @@
 /** Per-PTY turn polling. Completion evidence must name this session's file. */
 import { createHash } from "node:crypto"
-import { type EngineScreenManifest, classifyScreen } from "@/engine/screen-state"
-import type { ChatTabTurnState, EngineTurnDetector } from "@/engine/turn-detector"
+import { type EngineScreenManifest, classifyScreen } from "@sma1lboy/rove-core/engine/screen-state.ts"
+import type { ChatTabTurnState, EngineTurnDetector } from "@sma1lboy/rove-core/engine/turn-detector.ts"
 import { TURN_STATUS_POLL_MS, nextTurnStatusPollDelay } from "./activity-poll"
 
 export interface TurnSession {

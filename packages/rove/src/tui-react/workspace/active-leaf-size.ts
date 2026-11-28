@@ -1,4 +1,4 @@
-import { type TabsState, splitLeafPtyKey, tabPtyKeyFor } from "../../tabs/terminal-tabs-core"
+import { type TabsState, splitLeafPtyKey, tabPtyKeyFor } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 
 /** The active tab's focused-leaf emulator cells, for split-core's size gate; null → depth-cap fallback. */

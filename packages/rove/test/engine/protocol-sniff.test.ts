@@ -13,15 +13,15 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { BUILTIN_VENDORS } from "@sma1lboy/rove-core/types/vendor.ts"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
   protocolUpgradeFromLiveSession,
   protocolWriteBackFromLiveSession,
   sniffProtocolFromSessions,
   sniffProtocolFromTitle,
-} from "../../src/engine/protocol-sniff.ts"
-import { engineEntry } from "../../src/engine/registry.ts"
+} from "@sma1lboy/rove-core/engine/protocol-sniff.ts"
+import { engineEntry } from "@sma1lboy/rove-core/engine/registry.ts"
+import { BUILTIN_VENDORS } from "@sma1lboy/rove-core/types/vendor.ts"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 describe("sniffProtocolFromTitle", () => {
   it("names the vendor whose status glyph is UNIQUE to it", () => {

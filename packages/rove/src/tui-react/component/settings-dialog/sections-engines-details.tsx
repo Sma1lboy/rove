@@ -12,11 +12,11 @@
  */
 
 import { type RGBA, TextAttributes } from "@opentui/core"
+import type { EngineAccount, EngineStatus } from "@sma1lboy/rove-core/engine/engine-status.ts"
+import type { EngineIntegration } from "@sma1lboy/rove-core/engine/integration-status.ts"
 import { displayWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
 import { tildify } from "@sma1lboy/rove-core/lib/path-home.ts"
 import type { ReactNode } from "react"
-import type { EngineAccount, EngineStatus } from "../../../engine/engine-status"
-import type { EngineIntegration } from "../../../engine/integration-status"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 

@@ -6,16 +6,16 @@
  * {@link tabTitle} is framework-free so the strip and non-render callers share it.
  */
 
-import { t } from "@sma1lboy/rove-core/i18n/index.ts"
-import { pathLeaf } from "@sma1lboy/rove-core/lib/path-helpers.ts"
-import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
-import { sniffProtocolFromTitle } from "../engine/protocol-sniff"
+import { sniffProtocolFromTitle } from "@sma1lboy/rove-core/engine/protocol-sniff.ts"
 import {
   engineEntry,
   engineStatusPrefixes,
   isEnginePlaceholderTitle,
   stripEngineStatusPrefix,
-} from "../engine/registry"
+} from "@sma1lboy/rove-core/engine/registry.ts"
+import { t } from "@sma1lboy/rove-core/i18n/index.ts"
+import { pathLeaf } from "@sma1lboy/rove-core/lib/path-helpers.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { type SplitState, leaves } from "./split-core"
 import type { TerminalTab } from "./terminal-tabs-core"
 

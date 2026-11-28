@@ -1,6 +1,6 @@
+import type { HistoryDeps } from "@sma1lboy/rove-core/engine/claude-code-local/history.ts"
+import { readUsageSnapshot } from "@sma1lboy/rove-core/engine/claude-code-local/history.ts"
 import { describe, expect, it } from "vitest"
-import type { HistoryDeps } from "../../src/engine/claude-code-local/history.ts"
-import { readUsageSnapshot } from "../../src/engine/claude-code-local/history.ts"
 
 /**
  * `readUsageSnapshot` is where Claude's vendor-specific usage math lives:

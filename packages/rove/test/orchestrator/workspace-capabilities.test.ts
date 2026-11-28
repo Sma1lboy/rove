@@ -1,5 +1,5 @@
+import { workspaceBackendId, workspaceCapabilities } from "@sma1lboy/rove-core/orchestrator/workspace/index.ts"
 import { describe, expect, it } from "vitest"
-import { workspaceBackendId, workspaceCapabilities } from "../../src/orchestrator/workspace/index.ts"
 
 describe("workspace capabilities", () => {
   it("derives the backend from kind when a row records none", () => {

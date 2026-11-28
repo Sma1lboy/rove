@@ -9,13 +9,13 @@
  */
 
 import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
+import { withDeliveryLock } from "@sma1lboy/rove-core/engine/delivery-lock.ts"
+import { resolveCommandProtocol } from "@sma1lboy/rove-core/engine/engine-presets.ts"
 import { taskCwd } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import { applyTabOps, readDaemonTabs, taskEngineArgv } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
-import { withDeliveryLock } from "../../engine/delivery-lock.ts"
-import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
-import { applyTabOps, readDaemonTabs, taskEngineArgv } from "../../tabs/tab-snapshot.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
 import { ensureHostFor } from "./session-failed.ts"
 import { ApiError, type ApiRuntime, type PromptTarget, helpStep } from "./types.ts"

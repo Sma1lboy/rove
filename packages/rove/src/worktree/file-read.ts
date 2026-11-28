@@ -7,8 +7,8 @@
 
 import { open, realpath } from "node:fs/promises"
 import { extname, join, sep } from "node:path"
+import { isWorktreeRelative } from "@sma1lboy/rove-client/worktree/review-read.ts"
 import { ApiError } from "@sma1lboy/rove-core/lib/api-error.ts"
-import { isWorktreeRelative } from "./review-read.ts"
 
 /** Raw bytes; the reply carries them base64, a third larger. */
 export const FILE_READ_MAX_BYTES = 5 * 1024 * 1024

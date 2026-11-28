@@ -13,8 +13,8 @@
 
 import { expect, test } from "bun:test"
 import { TextAttributes } from "@opentui/core"
+import type { AttentionInboxItem } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
-import type { AttentionInboxItem } from "../../src/client/remote-orchestrator"
 import type { KVContext } from "../../src/tui-react/context/kv"
 import { AttentionInboxPane } from "../../src/tui-react/workspace/AttentionInboxPane"
 import { writeInboxVisit } from "../../src/tui-react/workspace/inbox-visits"

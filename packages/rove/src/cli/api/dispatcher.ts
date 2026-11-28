@@ -7,11 +7,11 @@
  */
 
 import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
+import { type Dispatcher, ownSession } from "@sma1lboy/rove-core/client/dispatch-provenance.ts"
+import { roveApiInvocation } from "@sma1lboy/rove-core/engine/interactive-command.ts"
 import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
+import { taskEngineArgv } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { type Dispatcher, ownSession } from "../../client/dispatch-provenance.ts"
-import { roveApiInvocation } from "../../engine/interactive-command.ts"
-import { taskEngineArgv } from "../../tabs/tab-snapshot.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
 import { ApiError, type ApiRuntime } from "./types.ts"
 
@@ -26,7 +26,7 @@ export {
   resetVerifiedSelfSession,
   takeIdentityWarning,
   verifiedSelfSession,
-} from "../../client/dispatch-provenance.ts"
+} from "@sma1lboy/rove-core/client/dispatch-provenance.ts"
 
 /** A rove session's bare `send` with no dispatcher: the active task is the person's focus, not an address an agent meant. */
 export function noReplyAddress(self: Dispatcher): ApiError {

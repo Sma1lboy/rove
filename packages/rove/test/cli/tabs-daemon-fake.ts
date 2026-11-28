@@ -7,11 +7,11 @@
  */
 
 import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
+import { type TabsRpc, allocateTab } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
+import type { TabsState } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { SharedTabs, TabOp } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import { TabsStore } from "@sma1lboy/rove-daemon/daemon/tabs-store"
-import { type TabsRpc, allocateTab } from "../../src/tabs/tab-snapshot.ts"
-import type { TabsState } from "../../src/tabs/terminal-tabs-core.ts"
 
 /** Open another engine tab through the daemon's counter; resolves its id. */
 export async function mintEngineTab(

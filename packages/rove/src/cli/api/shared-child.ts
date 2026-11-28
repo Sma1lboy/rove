@@ -6,11 +6,11 @@
  */
 
 import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
+import { withDeliveryLock } from "@sma1lboy/rove-core/engine/delivery-lock.ts"
+import { resolveCommandProtocol } from "@sma1lboy/rove-core/engine/engine-presets.ts"
 import { PLACEHOLDER_TASK_TITLE } from "@sma1lboy/rove-core/orchestrator/title.ts"
+import { readDaemonTabs, taskEngineArgv } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { withDeliveryLock } from "../../engine/delivery-lock.ts"
-import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
-import { readDaemonTabs, taskEngineArgv } from "../../tabs/tab-snapshot.ts"
 import { dispatcherEnvPayload } from "./dispatcher.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
 import { ApiError, type ApiRuntime } from "./types.ts"

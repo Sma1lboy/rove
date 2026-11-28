@@ -5,12 +5,12 @@
  * A vendor with no reading draws nothing, never 0.
  */
 
+import type { UsageSnapshotMap } from "@sma1lboy/rove-client/client/remote-orchestrator-payloads.ts"
+import { engineDisplayName } from "@sma1lboy/rove-core/engine/interactive-command.ts"
 import { displayWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
 import type { ReadableState } from "@sma1lboy/rove-core/lib/external-store.ts"
 import { narrowUsageChip } from "@sma1lboy/rove-core/lib/usage-core.ts"
 import { USAGE_SHOW_KEY, normalizeUsageShow } from "@sma1lboy/rove-core/state/usage-show.ts"
-import type { UsageSnapshotMap } from "../../../client/remote-orchestrator-payloads"
-import { engineDisplayName } from "../../../engine/interactive-command"
 import { useOptionalKV } from "../../context/kv"
 import { useTheme } from "../../context/theme"
 import { useAccessor } from "../../lib/use-accessor"

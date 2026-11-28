@@ -4,12 +4,12 @@
  * client does to the same task and check what this TUI then shows.
  */
 
+import type { TabsTransport } from "@sma1lboy/rove-client/client/remote-orchestrator-tabs.ts"
+import { type TabsState, addTab, closeTab, selectTab } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import type { SharedTabs, TabRow } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import { diffTabs } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import { type TabsChangedPayload, TabsStore } from "@sma1lboy/rove-daemon/daemon/tabs-store"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import type { TabsTransport } from "../../src/client/remote-orchestrator-tabs"
-import { type TabsState, addTab, closeTab, selectTab } from "../../src/tabs/terminal-tabs-core"
 import {
   attachTabsTransport,
   commitTaskTabs,

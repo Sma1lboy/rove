@@ -9,9 +9,9 @@
  * repos. Tasks alone would drop every card once the task is deleted.
  */
 
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import type { RepoIssues } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import { useEffect, useState } from "react"
-import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { hostFn } from "./host"
 
 const pathIdentity = hostFn((h) => h.paths.pathIdentity)

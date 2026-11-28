@@ -5,7 +5,6 @@
 
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
-import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 import {
   type SkillTarget,
   bundledSkillDir,
@@ -13,7 +12,8 @@ import {
   installedSkillDiffersFromBundled,
   skillOverview,
   skillTargets,
-} from "../lib/skill-install.ts"
+} from "@sma1lboy/rove-core/lib/skill-install.ts"
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 import { SUBCOMMAND_VERBS } from "./subcommands.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME

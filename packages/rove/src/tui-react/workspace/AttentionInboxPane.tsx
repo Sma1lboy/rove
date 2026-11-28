@@ -1,16 +1,20 @@
 /** @jsxImportSource @opentui/react */
 
 import { type RGBA, TextAttributes } from "@opentui/core"
+import type {
+  AttentionInboxItem,
+  RemoteOrchestrator,
+  TaskEngineState,
+} from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { sidebarProjectLabel } from "@sma1lboy/rove-client/sidebar/groups.ts"
 import { approxCharCells } from "@sma1lboy/rove-core/lib/display-width.ts"
 import type { GlyphSet } from "@sma1lboy/rove-core/lib/glyphs.ts"
 import { relativeAge } from "@sma1lboy/rove-core/lib/relative-time.ts"
 import { truncateEndCells } from "@sma1lboy/rove-core/lib/truncate.ts"
+import { tabTitleStable } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { DEFAULT_TASK_VENDOR } from "@sma1lboy/rove-core/types/task.ts"
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react"
-import type { AttentionInboxItem, RemoteOrchestrator, TaskEngineState } from "../../client/remote-orchestrator"
-import { tabTitleStable } from "../../tabs/terminal-tabs-core"
 import { breathGlyph } from "../../tui/lib/breathe"
 import { spinnerFrameSnapshot, subscribeSpinnerFrame } from "../../tui/lib/spinner-frame-store"
 import { bindByIds } from "../context/keybindings"

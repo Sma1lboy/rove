@@ -9,17 +9,17 @@
  * Account emails and the command's arguments (users paste API keys into them) never leave the Mac.
  */
 
-import { type StateSnapshot, loadStateFile, updateStateFile } from "@sma1lboy/rove-core/state/store.ts"
-import { ALL_VENDORS, isBuiltinVendor } from "@sma1lboy/rove-core/types/vendor.ts"
-import { installedEngineIds } from "@sma1lboy/rove/src/engine/account-detect.ts"
-import { type EngineStatus, detectEngineStatuses } from "@sma1lboy/rove/src/engine/engine-status.ts"
-import { type EngineIntegration, engineIntegrations } from "@sma1lboy/rove/src/engine/integration-status.ts"
+import { installedEngineIds } from "@sma1lboy/rove-core/engine/account-detect.ts"
+import { type EngineStatus, detectEngineStatuses } from "@sma1lboy/rove-core/engine/engine-status.ts"
+import { type EngineIntegration, engineIntegrations } from "@sma1lboy/rove-core/engine/integration-status.ts"
 import {
   defaultEngineCommand,
   engineDisplayName,
   engineRenamedFrom,
-} from "@sma1lboy/rove/src/engine/interactive-command.ts"
-import { installSkillErrors, missingSkillNames } from "@sma1lboy/rove/src/lib/skill-install.ts"
+} from "@sma1lboy/rove-core/engine/interactive-command.ts"
+import { installSkillErrors, missingSkillNames } from "@sma1lboy/rove-core/lib/skill-install.ts"
+import { type StateSnapshot, loadStateFile, updateStateFile } from "@sma1lboy/rove-core/state/store.ts"
+import { ALL_VENDORS, isBuiltinVendor } from "@sma1lboy/rove-core/types/vendor.ts"
 import { BridgeError } from "../protocol.ts"
 import { bool, text } from "./args.ts"
 import type { Args, OpTable } from "./types.ts"

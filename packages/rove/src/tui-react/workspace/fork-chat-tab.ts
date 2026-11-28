@@ -4,8 +4,7 @@
  * Only the join: fork flags live in `engineForkArgv`, tab state in `terminal-tabs-core`.
  */
 
-import { engineLaunchArgv, withPinnedSessionId } from "@/engine/engine-presets"
-import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
+import { engineLaunchArgv, withPinnedSessionId } from "@sma1lboy/rove-core/engine/engine-presets.ts"
 import {
   type EngineTab,
   type TabsState,
@@ -15,7 +14,8 @@ import {
   setTabEngineCommand,
   setTabForkFrom,
   setTabInitialPrompt,
-} from "../../tabs/terminal-tabs-core"
+} from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 
 /**
  * New tab that LAUNCHES `pick` but speaks `protocol`, forking `sourceSessionId`.

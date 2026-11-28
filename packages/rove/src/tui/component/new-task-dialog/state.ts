@@ -13,8 +13,8 @@
  */
 
 import { matchPathGlob } from "@/lib/path-glob"
-import type { AdoptableWorktree } from "@/types/worktree"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
+import type { AdoptableWorktree } from "@sma1lboy/rove-core/types/worktree.ts"
 import { DEFAULT_BASE_REF } from "@sma1lboy/rove-core/worktree/git-snapshot.ts"
 import { pathIdentity, pathSyntax, samePath } from "@sma1lboy/rove-daemon/path-identity"
 

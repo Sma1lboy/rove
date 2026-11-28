@@ -1,6 +1,6 @@
 /** Pure poll-cadence math for the Ops activity monitor; no IO, no opentui. */
 
-import type { ChatTabTurnState } from "@/engine/turn-detector"
+import type { ChatTabTurnState } from "@sma1lboy/rove-core/engine/turn-detector.ts"
 
 /**
  * Transcript-probe poll cadence. The probe (`latestTranscriptMtime`) is NOT

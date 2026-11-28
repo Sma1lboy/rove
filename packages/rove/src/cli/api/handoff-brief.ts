@@ -5,11 +5,11 @@
  * point sends the same text.
  */
 
+import { liveSourceProtocol, planWorktreeHandoff } from "@sma1lboy/rove-core/engine/session-handoff-plan.ts"
 import { taskCwd } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import { readDaemonTabs, readTabsSnapshot } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { liveSourceProtocol, planWorktreeHandoff } from "../../engine/session-handoff-plan.ts"
-import { readDaemonTabs, readTabsSnapshot } from "../../tabs/tab-snapshot.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, helpStep } from "./types.ts"
 

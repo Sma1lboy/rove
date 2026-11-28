@@ -24,7 +24,6 @@
  */
 
 import { randomUUID } from "node:crypto"
-import { type EngineRegistryEntry, engineEntry } from "@/engine/registry"
 import { getCustomEngineIds, getPersistedString } from "@sma1lboy/rove-core/state/repos.ts"
 import { BUILTIN_VENDORS, type VendorId, isBuiltinVendor } from "@sma1lboy/rove-core/types/vendor.ts"
 import { isContribEngine } from "./contrib-engines.ts"
@@ -39,6 +38,7 @@ import {
   withEngineHostedArgs,
   withEngineModel,
 } from "./interactive-command.ts"
+import { type EngineRegistryEntry, engineEntry } from "./registry"
 import {
   acceptsPinnedSession,
   acceptsSessionFork,

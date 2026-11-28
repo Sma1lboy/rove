@@ -42,7 +42,7 @@ vi.mock("node:fs/promises", async (importOriginal) => {
 
 import { mkdir, mkdtemp, readFile, rm, unlink } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { type TaskCreateInput, TaskIndexStore } from "../../src/orchestrator/index/store.ts"
+import { type TaskCreateInput, TaskIndexStore } from "@sma1lboy/rove-core/orchestrator/index/store.ts"
 
 describe("TaskIndexStore staging-file isolation", () => {
   let home: string

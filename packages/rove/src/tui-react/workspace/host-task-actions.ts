@@ -6,10 +6,10 @@
  */
 
 import { useRenderer } from "@opentui/react"
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { userFacingErrorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 import type { Task, VendorId } from "@sma1lboy/rove-core/types/task.ts"
 import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
-import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { copyTextToSystemClipboard } from "../../tui/lib/clipboard-copy"
 import {
   type TaskCopyField,

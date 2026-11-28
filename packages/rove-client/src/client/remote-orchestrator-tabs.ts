@@ -4,10 +4,10 @@
  * like the `*Sig` cells, so two quick changes both land).
  */
 
+import type { Unsubscribe } from "@sma1lboy/rove-core/orchestrator/core.ts"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { SharedTabs, TabOp } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import type { TabsChangedPayload } from "@sma1lboy/rove-daemon/daemon/tabs-store"
-import type { Unsubscribe } from "../orchestrator/core.ts"
 
 export interface TabsApplyReply {
   readonly state: SharedTabs | null

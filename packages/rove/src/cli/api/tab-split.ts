@@ -10,12 +10,10 @@
  * `tab.add` (`absorbTab` merges the tree).
  */
 
-import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
-import type { PtyOpenResult } from "@sma1lboy/rove-daemon/daemon/protocol"
-import type { HostedSessionRpc } from "../../engine/hosted-session.ts"
-import { initialSplit, leaves, removeLeaf, renameLeaf, splitActive } from "../../tabs/split-core.ts"
-import { type TabsRpc, patchTabSplit, readDaemonTabs } from "../../tabs/tab-snapshot.ts"
-import { shellIdentityInput } from "../../tabs/terminal-tab-spawn.ts"
+import type { HostedSessionRpc } from "@sma1lboy/rove-core/engine/hosted-session.ts"
+import { initialSplit, leaves, removeLeaf, renameLeaf, splitActive } from "@sma1lboy/rove-core/tabs/split-core.ts"
+import { type TabsRpc, patchTabSplit, readDaemonTabs } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
+import { shellIdentityInput } from "@sma1lboy/rove-core/tabs/terminal-tab-spawn.ts"
 import {
   type PersistedSplit,
   type TabsState,
@@ -23,8 +21,10 @@ import {
   collapseSplit,
   splitLeafPtyKey,
   tabPtyKeyFor,
-} from "../../tabs/terminal-tabs-core.ts"
-import { readPersistedTerminalDefaultColors } from "../../theme/terminal-colors.ts"
+} from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
+import { readPersistedTerminalDefaultColors } from "@sma1lboy/rove-core/theme/terminal-colors.ts"
+import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
+import type { PtyOpenResult } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { killTaskSessions } from "./pty-delivery.ts"
 import { ensureHostFor, sessionFailed } from "./session-failed.ts"
 import { ApiError } from "./types.ts"

@@ -12,13 +12,13 @@ import {
 } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { preRenameConfigDir, preRenameStateDir } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
-import { afterEach, describe, expect, test } from "vitest"
 import {
   migrateRoveClientStateLayout,
   migrateRoveDaemonStateLayout,
   migrateRoveStateLayout,
-} from "../../src/state/layout-migration.ts"
+} from "@sma1lboy/rove-core/state/layout-migration.ts"
+import { preRenameConfigDir, preRenameStateDir } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
+import { afterEach, describe, expect, test } from "vitest"
 
 let root: string | undefined
 

@@ -1,6 +1,6 @@
+import type { EnginePresence } from "@sma1lboy/rove-core/engine/session-engine-presence.ts"
 import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import type { EnginePresence } from "../../src/engine/session-engine-presence.ts"
 
 const mocks = vi.hoisted(() => ({
   close: vi.fn(),
@@ -36,7 +36,7 @@ const mocks = vi.hoisted(() => ({
   ),
 }))
 
-vi.mock("../../src/engine/hosted-session.ts", () => ({
+vi.mock("@sma1lboy/rove-core/engine/hosted-session.ts", () => ({
   ensureHostedSessionHost: mocks.ensureHost,
   openHostedSessionHost: mocks.openHost,
   ensureHostedEngine: mocks.ensureEngine,
@@ -49,8 +49,8 @@ vi.mock("../../src/engine/hosted-session.ts", () => ({
   hostedSessionFailureLine: mocks.failureLine,
   pastePromptWhenEngineUp: mocks.paste,
 }))
-vi.mock("../../src/engine/session-launch.ts", () => ({ buildEngineSessionLaunch: mocks.buildLaunch }))
-vi.mock("../../src/engine/session-engine-presence.ts", () => ({ enginePresence: mocks.enginePresence }))
+vi.mock("@sma1lboy/rove-core/engine/session-launch.ts", () => ({ buildEngineSessionLaunch: mocks.buildLaunch }))
+vi.mock("@sma1lboy/rove-core/engine/session-engine-presence.ts", () => ({ enginePresence: mocks.enginePresence }))
 
 import {
   deliverPromptToLiveEngineAdapter,

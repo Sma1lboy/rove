@@ -17,6 +17,7 @@
  * report (which the daemon drops with the connection) is re-sent.
  */
 
+import type { RowStatusTransport } from "@sma1lboy/rove-client/client/remote-orchestrator-row-status.ts"
 import type { TaskActivityState } from "@sma1lboy/rove-core/engine/hook-events.ts"
 import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
 import { logClientError } from "@sma1lboy/rove-daemon/client/client-log"
@@ -29,7 +30,6 @@ import {
 } from "@sma1lboy/rove-daemon/daemon/row-status"
 import type { RowStatusPayload } from "@sma1lboy/rove-daemon/daemon/row-status-store"
 import { useEffect, useSyncExternalStore } from "react"
-import type { RowStatusTransport } from "../../client/remote-orchestrator-row-status"
 
 export type RowStatusMap = Readonly<Record<string, TaskStatus>>
 

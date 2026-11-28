@@ -8,10 +8,15 @@
  * on every re-render/restart would replay the parent's history forever.
  */
 
-import { engineCanFork, engineForkArgv } from "@/engine/engine-presets"
-import { buildHandoffPrompt } from "@/engine/session-handoff"
-import { planChatContinuation } from "@/engine/session-handoff-plan"
-import { type EngineTab, type TabsState, engineTabArgv, engineTabSpawnFor } from "@/tabs/terminal-tabs-core"
+import { engineCanFork, engineForkArgv } from "@sma1lboy/rove-core/engine/engine-presets.ts"
+import { planChatContinuation } from "@sma1lboy/rove-core/engine/session-handoff-plan.ts"
+import { buildHandoffPrompt } from "@sma1lboy/rove-core/engine/session-handoff.ts"
+import {
+  type EngineTab,
+  type TabsState,
+  engineTabArgv,
+  engineTabSpawnFor,
+} from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import { describe, expect, it } from "vitest"
 
 const tab = (over: Partial<EngineTab>): EngineTab => ({

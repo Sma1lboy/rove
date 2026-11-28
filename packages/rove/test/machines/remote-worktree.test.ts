@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test, vi } from "vitest"
 
 const calls: Array<[string, string, Record<string, unknown>]> = []
-vi.mock("../../src/machines/forward.ts", () => ({
+vi.mock("@sma1lboy/rove-core/machines/forward.ts", () => ({
   requireMachine: (alias: string) => ({ alias }),
   forwardVerb: async (entry: { alias: string }, verb: string, params: Record<string, unknown>) => {
     calls.push([entry.alias, verb, params])

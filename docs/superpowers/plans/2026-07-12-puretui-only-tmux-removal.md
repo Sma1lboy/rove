@@ -27,7 +27,7 @@
 ### Task 1: Extract the neutral engine launch builder
 
 **Files:**
-- Create: `packages/rove/src/engine/session-launch.ts`
+- Create: `packages/rove-core/src/engine/session-launch.ts`
 - Create: `packages/rove/test/engine/session-launch.test.ts`
 - Modify: `packages/rove/src/tui/workspace/terminal-tabs-core.ts`
 - Modify: `packages/rove/src/tui-react/workspace/TerminalTabs.tsx`
@@ -121,7 +121,7 @@ Expected: all pass.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add packages/rove/src/engine/session-launch.ts packages/rove/test/engine/session-launch.test.ts packages/rove/src/tui/workspace/terminal-tabs-core.ts packages/rove/src/tui-react/workspace/TerminalTabs.tsx packages/rove/src/tui-react/workspace/show-workspace.tsx
+git add packages/rove-core/src/engine/session-launch.ts packages/rove/test/engine/session-launch.test.ts packages/rove/src/tui/workspace/terminal-tabs-core.ts packages/rove/src/tui-react/workspace/TerminalTabs.tsx packages/rove/src/tui-react/workspace/show-workspace.tsx
 git commit -m "refactor: centralize hosted engine launch" -m "Move shell, repo-init, protocol, and prompt composition into a neutral engine-session builder. Use the same launch contract for PureTUI tabs and future headless PTY automation."
 ```
 

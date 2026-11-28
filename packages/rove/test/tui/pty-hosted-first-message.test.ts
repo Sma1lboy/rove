@@ -21,7 +21,7 @@ const mocks = vi.hoisted(() => ({
   request: vi.fn(),
 }))
 
-vi.mock("../../src/engine/hosted-session.ts", () => ({ pastePromptWhenEngineUp: mocks.paste }))
+vi.mock("@sma1lboy/rove-core/engine/hosted-session.ts", () => ({ pastePromptWhenEngineUp: mocks.paste }))
 vi.mock("../../src/tui/panes/terminal/pty-hosted-client.ts", () => ({
   getSharedPtyClient: async () => ({ request: mocks.request, onLifecycle: () => () => {} }),
   routeAdd: () => {},

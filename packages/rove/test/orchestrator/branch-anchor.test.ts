@@ -20,11 +20,11 @@ import { spawnSync } from "node:child_process"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { landTaskWithCleanup } from "@sma1lboy/rove-core/orchestrator/land.ts"
+import { GitWorktreeManager } from "@sma1lboy/rove-core/orchestrator/worktree/manager.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { afterEach, beforeEach, expect, test } from "vitest"
-import { landTaskWithCleanup } from "../../src/orchestrator/land.ts"
-import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
 
 let tmpRoot: string
 let repo: string

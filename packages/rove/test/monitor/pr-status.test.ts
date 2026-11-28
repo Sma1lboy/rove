@@ -1,4 +1,3 @@
-import { describe, expect, test } from "vitest"
 import {
   type GhPrView,
   type PrBackoffConfig,
@@ -9,7 +8,8 @@ import {
   mapGhPrView,
   nextPrPoll,
   samePrStatus,
-} from "../../src/monitor/pr-status"
+} from "@sma1lboy/rove-core/monitor/pr-status.ts"
+import { describe, expect, test } from "vitest"
 
 describe("lifecycleFromState", () => {
   test("maps gh PR state to lifecycle", () => {

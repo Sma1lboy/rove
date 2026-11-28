@@ -1,6 +1,6 @@
+import type { HistoryDeps } from "@sma1lboy/rove-core/engine/claude-code-local/history.ts"
+import { probeSessionContext, readUsageSnapshot } from "@sma1lboy/rove-core/engine/claude-code-local/history.ts"
 import { describe, expect, it } from "vitest"
-import type { HistoryDeps } from "../../src/engine/claude-code-local/history.ts"
-import { probeSessionContext, readUsageSnapshot } from "../../src/engine/claude-code-local/history.ts"
 
 function deps(sessionId: string, raw: string): HistoryDeps {
   return {

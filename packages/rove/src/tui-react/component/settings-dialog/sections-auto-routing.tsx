@@ -15,10 +15,10 @@
  */
 
 import { TextAttributes } from "@opentui/core"
-import { type AutoRoutingTier, describeTierBlock } from "../../../engine/auto-routing"
-import { engineDisplayName } from "../../../engine/interactive-command"
-import { engineEntry } from "../../../engine/registry"
-import { autoRoutingRows, rowIndex } from "../../../settings/model"
+import { autoRoutingRows, rowIndex } from "@sma1lboy/rove-client/settings/model.ts"
+import { type AutoRoutingTier, describeTierBlock } from "@sma1lboy/rove-core/engine/auto-routing.ts"
+import { engineDisplayName } from "@sma1lboy/rove-core/engine/interactive-command.ts"
+import { engineEntry } from "@sma1lboy/rove-core/engine/registry.ts"
 import { effortLabel } from "../../../tui/lib/effort-glyph"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"

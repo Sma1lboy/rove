@@ -32,7 +32,7 @@ const realDeps: DevDeps = {
     await ensureGlobalRoveHooks({ quiet: true })
   },
   uninstallHooks: async () => {
-    const { activityHookAdapters } = await import("@sma1lboy/rove/src/engine/hook-adapter.ts")
+    const { activityHookAdapters } = await import("@sma1lboy/rove-core/engine/hook-adapter.ts")
     // Each engine on its own: one unwritable config must not abandon the rest.
     await Promise.all(
       activityHookAdapters().map(async (adapter) => {

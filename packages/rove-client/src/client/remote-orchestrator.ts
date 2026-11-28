@@ -11,7 +11,11 @@ import {
   createStateCell,
   mapReadableState,
 } from "@sma1lboy/rove-core/lib/external-store.ts"
+import type { Orchestrator, Unsubscribe } from "@sma1lboy/rove-core/orchestrator/core.ts"
+import type { SpawnChildInput, SpawnChildResult } from "@sma1lboy/rove-core/orchestrator/spawn-child.ts"
+import type { WorktreeResidue } from "@sma1lboy/rove-core/orchestrator/worktree/manager-remove.ts"
 import type { Task, TaskId, TaskStatus, VendorId } from "@sma1lboy/rove-core/types/task.ts"
+import type { AdoptableWorktree, WorktreeProject } from "@sma1lboy/rove-core/types/worktree.ts"
 import { CURRENT_VERSION, type UpdateInfo } from "@sma1lboy/rove-core/version.ts"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { logClient } from "@sma1lboy/rove-daemon/client/client-log"
@@ -32,10 +36,6 @@ import {
   isDaemonVersionStale,
 } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { ModPaneView } from "@sma1lboy/rove-daemon/plugins/mod-tree"
-import type { Orchestrator, Unsubscribe } from "../orchestrator/core.ts"
-import type { SpawnChildInput, SpawnChildResult } from "../orchestrator/spawn-child.ts"
-import type { WorktreeResidue } from "../orchestrator/worktree/manager-remove.ts"
-import type { AdoptableWorktree, WorktreeProject } from "../types/worktree.ts"
 import { performInit, singleFlightReconnect } from "./remote-orchestrator-connect.ts"
 import { handleOrchestratorEvent, writeGraphicsToStdout } from "./remote-orchestrator-events.ts"
 import {

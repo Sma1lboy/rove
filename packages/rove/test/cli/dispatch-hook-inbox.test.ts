@@ -23,22 +23,22 @@ vi.mock("@sma1lboy/rove-daemon/client/daemon-process", async (original) => ({
   ...(await original<object>()),
   connectIfRunning: async () => ({ request: bridge.daemon, close() {} }),
 }))
-vi.mock("../../src/engine/hosted-session.ts", async (original) => ({
+vi.mock("@sma1lboy/rove-core/engine/hosted-session.ts", async (original) => ({
   ...(await original<object>()),
   openHostedSessionHost: async () => ({ rpc: { request: bridge.pty }, close() {} }),
   ensureHostedSessionHost: async () => ({ rpc: { request: bridge.pty }, close() {} }),
 }))
 // A simulated provider has no OS process tree. All delivery and hook code remains real.
-vi.mock("../../src/engine/session-engine-presence.ts", () => ({
+vi.mock("@sma1lboy/rove-core/engine/session-engine-presence.ts", () => ({
   enginePresence: async () => ({ kind: "engine", vendor: "codex" }),
 }))
 
 import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
+import { Orchestrator } from "@sma1lboy/rove-core/orchestrator/core.ts"
+import { TaskIndexStore } from "@sma1lboy/rove-core/orchestrator/index/store.ts"
+import { GitWorktreeManager } from "@sma1lboy/rove-core/orchestrator/worktree/manager.ts"
 import { invokeVerb } from "../../src/cli/api-cmd"
 import { runHookSubcommand } from "../../src/cli/hook-cmd"
-import { Orchestrator } from "../../src/orchestrator/core"
-import { TaskIndexStore } from "../../src/orchestrator/index/store"
-import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager"
 import { fakeCtx } from "../daemon/handler-test-context"
 import { stubRuntime } from "./api-handler-fixtures"
 

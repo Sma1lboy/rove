@@ -7,9 +7,9 @@
  */
 
 import { describe, expect, it } from "bun:test"
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
-import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 import { FocusProvider } from "../../src/tui-react/context/focus"
 import { ShowWorkspace } from "../../src/tui-react/workspace/show-workspace"
 import { type WelcomeEnv, WelcomePane } from "../../src/tui-react/workspace/welcome-pane"

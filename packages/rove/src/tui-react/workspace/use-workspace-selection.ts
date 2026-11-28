@@ -5,12 +5,12 @@
  * this hook owns only the reactivity.
  */
 
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import type { TabsSnapshotKv } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
+import { readLastActiveTaskId } from "@sma1lboy/rove-core/state/last-active.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { aliasedKeys, isUnderKey } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { useEffect, useRef, useState } from "react"
-import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
-import { readLastActiveTaskId } from "../../state/last-active.ts"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { useT } from "../i18n"

@@ -8,7 +8,10 @@
  * Experimental: `apiVersion` bumps on any incompatible change.
  */
 
+import { EVENT_FEED_LIMIT, eventRows } from "@sma1lboy/rove-client/lib/issue-events-core.ts"
 import { sidebarProjectLabel } from "@sma1lboy/rove-client/sidebar/groups.ts"
+import { availableEngineIds } from "@sma1lboy/rove-core/engine/account-detect.ts"
+import { engineDisplayName } from "@sma1lboy/rove-core/engine/interactive-command.ts"
 import { registerMessages, t } from "@sma1lboy/rove-core/i18n/index.ts"
 import { asAttachmentPaths, captureClipboardAttachment } from "@sma1lboy/rove-core/lib/attachments.ts"
 import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
@@ -21,9 +24,6 @@ import { isRemoteRepoKey } from "@sma1lboy/rove-core/state/remote-repos.ts"
 import { getSavedRepos } from "@sma1lboy/rove-core/state/repos.ts"
 import { ISSUE_STATUSES } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import { pathIdentity, samePath } from "@sma1lboy/rove-daemon/path-identity"
-import { availableEngineIds } from "../../engine/account-detect"
-import { engineDisplayName } from "../../engine/interactive-command"
-import { EVENT_FEED_LIMIT, eventRows } from "../../lib/issue-events-core"
 import { clampCursor, stripNewlines } from "../../tui/component/new-task-dialog/state"
 import { taskGroupIn, taskGroupLabel, taskGroupTone } from "../../tui/panes/sidebar/task-group-view"
 import { FailureHint } from "../component/failure-hint"

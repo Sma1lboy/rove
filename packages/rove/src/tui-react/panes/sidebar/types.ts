@@ -1,14 +1,14 @@
 /** Sidebar prop types. Values are plain `T`, never accessors: the host re-renders on change. */
 
-import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
-import type { UsageSnapshotMap } from "@/client/remote-orchestrator-payloads"
+import type { UsageSnapshotMap } from "@sma1lboy/rove-client/client/remote-orchestrator-payloads.ts"
+import type { RowTokenMap, TaskEngineState, TaskJobState } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import type { TaskSortMode } from "@sma1lboy/rove-client/sidebar/groups.ts"
+import type { WorktreeChanges } from "@sma1lboy/rove-client/worktree/worktree-changes.ts"
 import type { ReadableState } from "@sma1lboy/rove-core/lib/external-store.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { TaskCopyField } from "../../../tui/lib/task-actions"
 import type { SidebarNav } from "../../../tui/panes/sidebar/nav-core"
-import type { WorktreeChanges } from "../../../worktree/worktree-changes"
 
 /** Task-lifecycle callbacks shared VERBATIM by {@link SidebarProps}, the tree's
  *  bindings and menu, and the host, so the surfaces can't drift. */

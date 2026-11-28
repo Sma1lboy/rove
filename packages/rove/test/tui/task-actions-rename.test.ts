@@ -10,12 +10,12 @@ import { describe, expect, test, vi } from "vitest"
 
 // cycleVendorFlow calls availableEngineIds() — the real one probes PATH
 // binaries + reads state.json. Stub for hermeticity.
-vi.mock("../../src/engine/account-detect", () => ({
+vi.mock("@sma1lboy/rove-core/engine/account-detect.ts", () => ({
   availableEngineIds: vi.fn(async () => ["claude", "codex"]),
 }))
 
+import type { RoveOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import type { Task, TaskStatus } from "@sma1lboy/rove-core/types/task.ts"
-import type { RoveOrchestrator } from "../../src/client/remote-orchestrator"
 import {
   type TaskActionContext,
   copyTaskFieldFlow,

@@ -4,8 +4,13 @@
  * detectable). `doctor-cmd.ts` owns presentation of the full report.
  */
 
-import type { BinaryStatus } from "../engine/account-detect.ts"
-import { describeAccount, detectEngineStatuses, probeableEngineIds, summarizeEngines } from "../engine/engine-status.ts"
+import type { BinaryStatus } from "@sma1lboy/rove-core/engine/account-detect.ts"
+import {
+  describeAccount,
+  detectEngineStatuses,
+  probeableEngineIds,
+  summarizeEngines,
+} from "@sma1lboy/rove-core/engine/engine-status.ts"
 import { withEngineVersions } from "../engine/engine-version.ts"
 
 export interface GitProbeResult {

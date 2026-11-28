@@ -9,7 +9,7 @@
  * nothing" turns on.
  */
 
-import type { TaskEngineState } from "@/client/remote-orchestrator"
+import type { TaskEngineState } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import {
   type ProjectKeyOf,
   type TaskSortMode,

@@ -8,17 +8,17 @@
  * endpoint the TUI already remembered; the get op shows that endpoint's host, never its URL.
  */
 
-import { secretStatus } from "@sma1lboy/rove-core/state/secrets.ts"
-import { readClassifierConfig } from "@sma1lboy/rove/src/engine/auto-routing-classifier.ts"
+import { displayEndpoint } from "@sma1lboy/rove-client/settings/model.ts"
+import { readClassifierConfig } from "@sma1lboy/rove-core/engine/auto-routing-classifier.ts"
 import {
   AUTO_ROUTING_TIERS,
   autoRoutingKey,
   describeTierBlock,
   readAutoRoutingTable,
   tierBlock,
-} from "@sma1lboy/rove/src/engine/auto-routing.ts"
-import { protocolEntry } from "@sma1lboy/rove/src/engine/engine-presets.ts"
-import { displayEndpoint } from "@sma1lboy/rove/src/settings/model.ts"
+} from "@sma1lboy/rove-core/engine/auto-routing.ts"
+import { protocolEntry } from "@sma1lboy/rove-core/engine/engine-presets.ts"
+import { secretStatus } from "@sma1lboy/rove-core/state/secrets.ts"
 import { BridgeError } from "../protocol.ts"
 import { oneOf } from "./args.ts"
 import { type EngineDeps, engineIds, realDeps } from "./settings-engines.ts"

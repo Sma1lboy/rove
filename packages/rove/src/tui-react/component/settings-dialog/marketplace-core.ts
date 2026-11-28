@@ -5,8 +5,8 @@
  * live in `use-section-data`.
  */
 
+import type { PluginRowView } from "@sma1lboy/rove-client/lib/plugins-core.ts"
 import type { MarketEntry } from "../../../cli/plugin-search"
-import type { PluginRowView } from "../../../lib/plugins-core"
 
 export interface MarketplaceRowView {
   /** `owner/repo[/subdir]` — exactly what `plugin install` takes. */

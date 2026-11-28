@@ -5,11 +5,11 @@
  * path names nothing on this disk.
  */
 
+import type { DiffScope, WorktreeDiff } from "@sma1lboy/rove-client/worktree/review-read.ts"
+import { forwardVerb, requireMachine } from "@sma1lboy/rove-core/machines/forward.ts"
 import type { StatusEntry } from "@sma1lboy/rove-core/worktree/git-status.ts"
 import type { PreviewData } from "@sma1lboy/rove-core/worktree/preview-core.ts"
 import type { ApiParams } from "@sma1lboy/rove-daemon/daemon/protocol"
-import type { DiffScope, WorktreeDiff } from "../worktree/review-read.ts"
-import { forwardVerb, requireMachine } from "./forward.ts"
 
 async function remoteVerb<T>(alias: string, verb: string, params: ApiParams): Promise<T> {
   const envelope = await forwardVerb(requireMachine(alias), verb, params)

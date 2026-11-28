@@ -86,7 +86,7 @@ Concretely:
   no longer require a repo-level `.gitignore` entry.
 
 The single source of truth for the path is
-[`worktreePathFor(repo, slug)`](../../packages/rove/src/orchestrator/worktree/paths.ts).
+[`worktreePathFor(repo, slug)`](../../packages/rove-core/src/orchestrator/worktree/paths.ts).
 Nothing else should concatenate a worktree root by hand.
 
 ### Boundary: the orchestrator does not coordinate writes inside a worktree
@@ -173,7 +173,7 @@ Claude Code's JSONL on disk and is reread via `engine.readHistory`.
 > The engine owns its own lifecycle; the orchestrator does not drive
 > `run`/`pause`/`cancel` transitions or count concurrent sessions. What's
 > actually enforced, in
-> [`orchestrator/task-editor.ts`](../../packages/rove/src/orchestrator/task-editor.ts)
+> [`orchestrator/task-editor.ts`](../../packages/rove-core/src/orchestrator/task-editor.ts)
 > `setStatus()`:
 
 - Any `TaskStatus` → any other `TaskStatus` is legal, via `setStatus(id, status)`,

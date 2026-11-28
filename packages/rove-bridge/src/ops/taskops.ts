@@ -24,14 +24,14 @@ import {
   splitPathForDirSuggest,
   stripTrailingSlash,
 } from "@sma1lboy/rove-core/lib/path-helpers.ts"
+import type { TabsState } from "@sma1lboy/rove-core/tabs/terminal-tab-shapes.ts"
+import { moveTab } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import {
   type WorktreeOpener,
   detectWorktreeOpener,
   openWorktree,
 } from "@sma1lboy/rove-core/worktree/worktree-opener.ts"
 import type { SharedTabs, TabOp } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
-import type { TabsState } from "@sma1lboy/rove/src/tabs/terminal-tab-shapes.ts"
-import { moveTab } from "@sma1lboy/rove/src/tabs/terminal-tabs-core.ts"
 import { BridgeError, optStr } from "../protocol.ts"
 import { flag, isAbsPath, oneOf, tabId, taskId } from "./args.ts"
 import { effortLevel, engineId, model, optModel, taskOpDeps } from "./tasks-shared.ts"

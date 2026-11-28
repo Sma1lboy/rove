@@ -13,6 +13,7 @@
  */
 
 import { join, resolve } from "node:path"
+import { type EngineSessionRef, activityHookAdapters } from "@sma1lboy/rove-core/engine/hook-adapter.ts"
 import type { EngineActivityDetail } from "@sma1lboy/rove-core/engine/hook-events.ts"
 import { isEngineActivityKind } from "@sma1lboy/rove-core/engine/hook-events.ts"
 import { flagValue } from "@sma1lboy/rove-core/lib/argv.ts"
@@ -21,7 +22,6 @@ import { connectIfRunning } from "@sma1lboy/rove-daemon/client/daemon-process"
 import { readRoveEnv } from "@sma1lboy/rove-daemon/compat-env"
 import { readPluginManifest } from "@sma1lboy/rove-daemon/plugins/manifest"
 import { loadPluginRegistry } from "@sma1lboy/rove-daemon/plugins/registry"
-import { type EngineSessionRef, activityHookAdapters } from "../engine/hook-adapter.ts"
 
 /** Bounds a manual invocation without stdin so it can't hang. */
 const STDIN_READ_TIMEOUT_MS = 500

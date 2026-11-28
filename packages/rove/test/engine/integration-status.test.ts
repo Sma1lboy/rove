@@ -14,11 +14,16 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { ClaudeHookAdapter } from "@/engine/claude-code-local/hook-adapter"
-import { CLAUDE_HOOK_EVENT_MAP } from "@/engine/claude-code-local/hook-adapter"
-import { mergeCursorHooks } from "@/engine/cursor-local/hook-adapter"
-import { engineIntegrations, readHookInstallState } from "@/engine/integration-status"
-import { ROVE_HOOK_VERSION, buildActivityHooks, mergeActivityHooks, roveHookArgs } from "@/engine/json-hooks"
+import { ClaudeHookAdapter } from "@sma1lboy/rove-core/engine/claude-code-local/hook-adapter.ts"
+import { CLAUDE_HOOK_EVENT_MAP } from "@sma1lboy/rove-core/engine/claude-code-local/hook-adapter.ts"
+import { mergeCursorHooks } from "@sma1lboy/rove-core/engine/cursor-local/hook-adapter.ts"
+import { engineIntegrations, readHookInstallState } from "@sma1lboy/rove-core/engine/integration-status.ts"
+import {
+  ROVE_HOOK_VERSION,
+  buildActivityHooks,
+  mergeActivityHooks,
+  roveHookArgs,
+} from "@sma1lboy/rove-core/engine/json-hooks.ts"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("@sma1lboy/rove-core/lib/invocation.ts", () => ({

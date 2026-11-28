@@ -1,8 +1,8 @@
+import { OPENCODE } from "@sma1lboy/rove-core/engine/contrib-screen-manifests.ts"
+import { pastePromptWhenEngineUp } from "@sma1lboy/rove-core/engine/hosted-session-readiness.ts"
+import type { HostedSessionRpc } from "@sma1lboy/rove-core/engine/hosted-session.ts"
+import { classifyScreen } from "@sma1lboy/rove-core/engine/screen-state.ts"
 import { describe, expect, it, vi } from "vitest"
-import { OPENCODE } from "../../src/engine/contrib-screen-manifests.ts"
-import { pastePromptWhenEngineUp } from "../../src/engine/hosted-session-readiness.ts"
-import type { HostedSessionRpc } from "../../src/engine/hosted-session.ts"
-import { classifyScreen } from "../../src/engine/screen-state.ts"
 
 const dialog =
   "Update Available\r\nA new release v1.19.5 is available.\r\nWould you like to update now?\r\nAsk / Skip / Confirm\r\nenter send"

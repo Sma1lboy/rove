@@ -10,9 +10,9 @@
  * banner `host-banner.tsx` refuses to have.
  */
 
+import { handleOrchestratorEvent } from "@sma1lboy/rove-client/client/remote-orchestrator-events.ts"
+import type { OrchestratorSignals } from "@sma1lboy/rove-client/client/remote-orchestrator-payloads.ts"
 import { describe, expect, it } from "vitest"
-import { handleOrchestratorEvent } from "../../src/client/remote-orchestrator-events.ts"
-import type { OrchestratorSignals } from "../../src/client/remote-orchestrator-payloads.ts"
 
 function fakeSignals() {
   const state = { restarting: false, version: null as string | null }

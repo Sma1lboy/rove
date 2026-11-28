@@ -10,8 +10,8 @@ import {
   submitFeedback,
 } from "@sma1lboy/rove-core/lib/feedback.ts"
 import { taskRepos } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
+import { taskEngineArgv } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { taskEngineArgv } from "../../tabs/tab-snapshot.ts"
 import { activityView, readActivityRegistry } from "./activity-view.ts"
 import { daemonOf, repoFilter } from "./handler-helpers.ts"
 import { readRunnability } from "./handlers-runnability.ts"

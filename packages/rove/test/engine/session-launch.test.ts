@@ -2,13 +2,14 @@ import { execFileSync } from "node:child_process"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import { afterEach, describe, expect, test } from "vitest"
 import {
   buildEngineSessionLaunch,
   engineLaunchLine,
   engineSessionKey,
   initMarkerSaysFinished,
-} from "../../src/engine/session-launch.ts"
+} from "@sma1lboy/rove-core/engine/session-launch.ts"
+import { afterEach, describe, expect, test } from "vitest"
+import { corePath } from "../core-package.ts"
 
 const tempDirs: string[] = []
 
@@ -171,7 +172,7 @@ describe("hosted engine session launch", () => {
   })
 
   test("is owned by the engine layer without importing the retiring tmux runtime", () => {
-    const source = fs.readFileSync(new URL("../../src/engine/session-launch.ts", import.meta.url), "utf8")
+    const source = fs.readFileSync(corePath("engine/session-launch.ts"), "utf8")
     expect(source).not.toMatch(/from ["'][^"']*tmux/)
   })
 

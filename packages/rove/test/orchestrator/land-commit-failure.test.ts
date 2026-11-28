@@ -21,12 +21,12 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import type { ExecHost } from "@sma1lboy/rove-core/exec/exec-host.ts"
+import { GIT_COMMAND_FAILED_CODE, LandConflictError } from "@sma1lboy/rove-core/orchestrator/errors.ts"
+import { landTask } from "@sma1lboy/rove-core/orchestrator/land.ts"
+import type { WorktreeExecDeps } from "@sma1lboy/rove-core/orchestrator/worktree/exec-deps.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
-import { GIT_COMMAND_FAILED_CODE, LandConflictError } from "../../src/orchestrator/errors.ts"
-import { landTask } from "../../src/orchestrator/land.ts"
-import type { WorktreeExecDeps } from "../../src/orchestrator/worktree/exec-deps.ts"
 
 /**
  * Per-test budget for this file, replacing vitest's 5000ms default.

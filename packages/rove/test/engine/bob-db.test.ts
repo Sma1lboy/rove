@@ -1,9 +1,9 @@
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { bobQuery } from "@sma1lboy/rove-core/engine/bob-local/db.ts"
+import { bobDbPath } from "@sma1lboy/rove-core/engine/vendor-home.ts"
 import { describe, expect, it } from "vitest"
-import { bobQuery } from "../../src/engine/bob-local/db.ts"
-import { bobDbPath } from "../../src/engine/vendor-home.ts"
 
 function fixture() {
   const home = mkdtempSync(join(tmpdir(), "bob-wal-"))

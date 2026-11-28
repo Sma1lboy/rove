@@ -1,5 +1,5 @@
+import type { AttentionInboxItem, RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { isRoutineInboxState } from "@sma1lboy/rove-daemon/daemon/protocol"
-import type { AttentionInboxItem, RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { notifyInboxRpcFailure } from "./inbox-rpc-errors"
 
 type InboxOpenRpc = Pick<RemoteOrchestrator, "dismissAttention" | "dismissRoutineAttention">

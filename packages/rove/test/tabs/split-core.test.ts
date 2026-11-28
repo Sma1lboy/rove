@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest"
 import {
   MAX_SPLIT_DEPTH,
   MIN_PANE_COLS,
@@ -12,8 +11,14 @@ import {
   renameLeaf,
   splitActive,
   splitFits,
-} from "../../src/tabs/split-core"
-import { type EngineTab, splitLeafNames, splitLeafPtyKey, tabTitle } from "../../src/tabs/terminal-tabs-core"
+} from "@sma1lboy/rove-core/tabs/split-core.ts"
+import {
+  type EngineTab,
+  splitLeafNames,
+  splitLeafPtyKey,
+  tabTitle,
+} from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
+import { describe, expect, it } from "vitest"
 
 /** Terminal-flavored payload in these tests; the tree never inspects it. */
 const MAIN = null

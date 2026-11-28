@@ -1,8 +1,8 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { CodexHookAdapter, ROVE_CODEX_HOOK_EVENTS } from "@sma1lboy/rove-core/engine/codex-local/hook-adapter.ts"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { CodexHookAdapter, ROVE_CODEX_HOOK_EVENTS } from "../../src/engine/codex-local/hook-adapter.ts"
 
 // The adapter's install path builds hook commands from `roveHookInvocation()`
 // (whose dev fallback is `roveCliInvocation()`). Pin the whole module so the

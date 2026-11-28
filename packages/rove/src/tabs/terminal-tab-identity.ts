@@ -11,8 +11,8 @@
  * resume story that doesn't exist.
  */
 
+import type { TerminalTab } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
-import type { TerminalTab } from "./terminal-tabs-core"
 
 export function createTabIdentityObserver() {
   const observed = new Map<string, VendorId>()

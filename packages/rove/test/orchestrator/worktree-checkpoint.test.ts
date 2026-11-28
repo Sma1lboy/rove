@@ -11,7 +11,6 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { LocalExecHost } from "@sma1lboy/rove-core/exec/exec-host.ts"
-import { afterEach, beforeEach, expect, test, vi } from "vitest"
 import {
   CHECKPOINT_RETENTION,
   type CheckpointDeps,
@@ -19,8 +18,9 @@ import {
   listCheckpoints,
   pruneCheckpoints,
   takeCheckpoint,
-} from "../../src/orchestrator/worktree/checkpoint.ts"
-import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
+} from "@sma1lboy/rove-core/orchestrator/worktree/checkpoint.ts"
+import { GitWorktreeManager } from "@sma1lboy/rove-core/orchestrator/worktree/manager.ts"
+import { afterEach, beforeEach, expect, test, vi } from "vitest"
 
 let tmpRoot: string
 let repo: string

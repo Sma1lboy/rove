@@ -10,7 +10,7 @@
  */
 
 import type { EngineActivityDetail, TaskActivityState } from "@sma1lboy/rove-core/engine/hook-events.ts"
-import type { ChatTabTurnState } from "../../engine/turn-detector.ts"
+import type { ChatTabTurnState } from "@sma1lboy/rove-core/engine/turn-detector.ts"
 
 /** The slice of the client's `TaskEngineState` this merge consumes. */
 export interface HookTabState {

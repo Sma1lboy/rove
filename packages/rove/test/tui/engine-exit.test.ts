@@ -1,6 +1,6 @@
+import type { TerminalTab } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import type { TabStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { describe, expect, it } from "vitest"
-import type { TerminalTab } from "../../src/tabs/terminal-tabs-core"
 import { engineExitOf } from "../../src/tui/workspace/engine-exit"
 
 const engineTab = { id: "tab-1", kind: "engine" } as unknown as TerminalTab

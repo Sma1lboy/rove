@@ -1,9 +1,28 @@
 /** Production Adapter for the daemon package's consumer-owned runtime seam. */
 
+import { parsePorcelain } from "@sma1lboy/rove-client/worktree/worktree-changes.ts"
+import { availableEngineIds } from "@sma1lboy/rove-core/engine/account-detect.ts"
+import { engineProtocolKey, protocolEntry, sessionProtocol } from "@sma1lboy/rove-core/engine/engine-presets.ts"
+import { foregroundEngineIn, parsePsSnapshot, psSnapshot } from "@sma1lboy/rove-core/engine/foreground.ts"
 import { affectsActivityState, isEngineActivityKind } from "@sma1lboy/rove-core/engine/hook-events.ts"
+import { engineDisplayName, roveApiInvocation } from "@sma1lboy/rove-core/engine/interactive-command.ts"
+import {
+  protocolUpgradeFromLiveSession,
+  protocolWriteBackFromLiveSession,
+} from "@sma1lboy/rove-core/engine/protocol-sniff.ts"
+import { engineEntry, engineTitleTurnHint, vendorsWithQuotaProbe } from "@sma1lboy/rove-core/engine/registry.ts"
+import { createEngineTurnDetector } from "@sma1lboy/rove-core/engine/turn-detector.ts"
 import { buildCIPromptForWorktree } from "@sma1lboy/rove-core/github/ci-prompt.ts"
 import { readOnlyGitProcessEnv } from "@sma1lboy/rove-core/lib/git-env.ts"
 import { spawnCapture } from "@sma1lboy/rove-core/lib/poll-scheduling.ts"
+import {
+  GH_PR_VIEW_FIELDS,
+  classifyGhFailure,
+  mapGhPrView,
+  nextPrPoll,
+  samePrStatus,
+} from "@sma1lboy/rove-core/monitor/pr-status.ts"
+import { type Orchestrator, PLACEHOLDER_TASK_TITLE } from "@sma1lboy/rove-core/orchestrator/core.ts"
 import {
   getCustomEngineIds,
   getPersistedString,
@@ -13,28 +32,18 @@ import {
 import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"
 import { stateFileTabsPersistence } from "@sma1lboy/rove-core/state/tabs-persistence.ts"
 import { preferredReleaseChannel, updateDelayHours } from "@sma1lboy/rove-core/state/update-channel.ts"
+import type { TerminalTab } from "@sma1lboy/rove-core/tabs/terminal-tab-shapes.ts"
+import { conversationTitle } from "@sma1lboy/rove-core/tabs/terminal-tab-split.ts"
 import { DEFAULT_TASK_VENDOR, isTaskStatus } from "@sma1lboy/rove-core/types/task.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { CURRENT_VERSION, checkLatestVersion } from "@sma1lboy/rove-core/version.ts"
 import type { DaemonRuntimeAdapter } from "@sma1lboy/rove-daemon/daemon/runtime"
 import { parseAheadBehind } from "@sma1lboy/rove-daemon/daemon/worktree-changes-collector"
-import { availableEngineIds } from "../engine/account-detect.ts"
-import { engineProtocolKey, protocolEntry, sessionProtocol } from "../engine/engine-presets.ts"
-import { foregroundEngineIn, parsePsSnapshot, psSnapshot } from "../engine/foreground.ts"
-import { engineDisplayName, roveApiInvocation } from "../engine/interactive-command.ts"
-import { protocolUpgradeFromLiveSession, protocolWriteBackFromLiveSession } from "../engine/protocol-sniff.ts"
-import { engineEntry, engineTitleTurnHint, vendorsWithQuotaProbe } from "../engine/registry.ts"
-import { createEngineTurnDetector } from "../engine/turn-detector.ts"
 import { latestTranscriptMtime } from "../monitor/activity.ts"
 import { deriveTitleFromSession, deriveTitleFromSessionId } from "../monitor/auto-title.ts"
-import { GH_PR_VIEW_FIELDS, classifyGhFailure, mapGhPrView, nextPrPoll, samePrStatus } from "../monitor/pr-status.ts"
 import { maybeAutoStart } from "../monitor/status-rules.ts"
-import { type Orchestrator, PLACEHOLDER_TASK_TITLE } from "../orchestrator/core.ts"
 import { SYNC_TIMEOUT_MS, syncWorktreeWithBase } from "../orchestrator/sync-base.ts"
 import { startAttachmentSweep } from "../state/attachment-sweep.ts"
-import type { TerminalTab } from "../tabs/terminal-tab-shapes.ts"
-import { conversationTitle } from "../tabs/terminal-tab-split.ts"
-import { parsePorcelain } from "../worktree/worktree-changes.ts"
 import { resolveBaseRefCached } from "./base-ref-cache.ts"
 import { driftCached } from "./behind-cache.ts"
 import {
@@ -111,7 +120,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
     const client = new RoveDaemonClient(socketPath)
     try {
       await client.connect()
-      const { invokeRouted } = await import("../machines/forward.ts")
+      const { invokeRouted } = await import("@sma1lboy/rove-core/machines/forward.ts")
       return await invokeRouted({
         verb,
         params,

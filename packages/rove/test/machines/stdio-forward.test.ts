@@ -1,5 +1,5 @@
+import { relayCommand, useStdioTransport } from "@sma1lboy/rove-core/machines/stdio-forward.ts"
 import { afterEach, describe, expect, test, vi } from "vitest"
-import { relayCommand, useStdioTransport } from "../../src/machines/stdio-forward.ts"
 
 describe("stdio transport", () => {
   afterEach(() => {

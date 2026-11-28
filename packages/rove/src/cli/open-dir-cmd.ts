@@ -74,7 +74,7 @@ export async function runOpenDirectory(arg: string): Promise<void> {
     },
     local: async (orch) => {
       const task = await orch.openDirectoryTask({ dir: projectRoot ? await orch.ensureProject(projectRoot) : dir })
-      const { writeLastActiveTaskId } = await import("../state/last-active.ts")
+      const { writeLastActiveTaskId } = await import("@sma1lboy/rove-core/state/last-active.ts")
       writeLastActiveTaskId(String(task.id))
     },
   })

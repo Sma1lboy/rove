@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, realpathSync, symlinkSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { realPathOrSelf } from "@/lib/real-path"
+import { realPathOrSelf } from "@sma1lboy/rove-core/lib/real-path.ts"
 import { describe, expect, it } from "vitest"
 
 describe("realPathOrSelf", () => {

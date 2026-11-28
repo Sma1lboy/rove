@@ -7,7 +7,9 @@
 import { execFile } from "node:child_process"
 import { mkdirSync, statSync } from "node:fs"
 import { dirname } from "node:path"
+import { sendFileToMachine } from "@sma1lboy/rove-client/machines/send-file.ts"
 import { promptAttachmentsDir } from "@sma1lboy/rove-core/env.ts"
+import { autoMachineFor, requireMachine } from "@sma1lboy/rove-core/machines/forward.ts"
 import { repoIdentity } from "@sma1lboy/rove-core/machines/repo-identity.ts"
 import { cloneDirFor, parseRepoRef } from "@sma1lboy/rove-core/machines/repo-ref.ts"
 import { getSavedRepos } from "@sma1lboy/rove-core/state/repos.ts"
@@ -27,8 +29,6 @@ import {
   validateRepoPath,
 } from "@sma1lboy/rove-core/worktree/git-snapshot-async.ts"
 import { repoIdOf } from "@sma1lboy/rove-daemon/repo-id"
-import { autoMachineFor, requireMachine } from "@sma1lboy/rove/src/machines/forward.ts"
-import { sendFileToMachine } from "@sma1lboy/rove/src/machines/send-file.ts"
 import { BridgeError } from "../protocol.ts"
 import { absPath, isAbsPath } from "./args.ts"
 import type { Args, OpContext } from "./types.ts"

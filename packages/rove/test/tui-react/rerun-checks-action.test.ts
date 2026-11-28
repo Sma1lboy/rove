@@ -3,8 +3,8 @@
  * `gh` side is `test/daemon/pr-rerun-checks.test.ts`.
  */
 
+import type { RerunFailedChecksResult } from "@sma1lboy/rove-client/client/remote-orchestrator-writes.ts"
 import { describe, expect, test } from "vitest"
-import type { RerunFailedChecksResult } from "../../src/client/remote-orchestrator-writes"
 import { rerunChecksAction } from "../../src/tui-react/workspace/rerun-checks-action"
 
 async function run(result: RerunFailedChecksResult | Error) {

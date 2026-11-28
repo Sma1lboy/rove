@@ -15,8 +15,8 @@ import { savePluginRegistry } from "@sma1lboy/rove-daemon/plugins/registry"
 import { afterEach, describe, expect, it } from "vitest"
 
 const NONE: ReadonlySet<string> = new Set()
-import { clearPluginEngines, pluginEngineIds } from "../../src/engine/contrib-engines.ts"
-import { parseLastRun, pluginRowView, setPluginEnabled } from "../../src/lib/plugins-core.ts"
+import { parseLastRun, pluginRowView, setPluginEnabled } from "@sma1lboy/rove-client/lib/plugins-core.ts"
+import { clearPluginEngines, pluginEngineIds } from "@sma1lboy/rove-core/engine/contrib-engines.ts"
 
 const NOW = Date.parse("2026-07-27T12:00:00.000Z")
 

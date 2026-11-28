@@ -1,14 +1,14 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
-import { flushClientLog } from "@sma1lboy/rove-daemon/client/client-log"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   RECONNECT_LOG_ATTEMPT_CEILING,
   shouldLogReconnectAttempt,
-} from "../../src/client/remote-orchestrator-payloads.ts"
-import { RemoteOrchestrator } from "../../src/client/remote-orchestrator.ts"
+} from "@sma1lboy/rove-client/client/remote-orchestrator-payloads.ts"
+import { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
+import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { flushClientLog } from "@sma1lboy/rove-daemon/client/client-log"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 /**
  * Issue #26: with many long-lived orphan panes each retrying forever, even

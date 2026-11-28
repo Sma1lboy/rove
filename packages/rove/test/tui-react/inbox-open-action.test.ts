@@ -1,5 +1,5 @@
+import type { AttentionInboxItem } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { describe, expect, it, vi } from "vitest"
-import type { AttentionInboxItem } from "../../src/client/remote-orchestrator"
 import { dismissEpisode, requestInboxItemOpen } from "../../src/tui-react/workspace/inbox-open-action"
 
 const item: AttentionInboxItem = {

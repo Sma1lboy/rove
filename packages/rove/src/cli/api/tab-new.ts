@@ -8,14 +8,11 @@
  * row back.
  */
 
-import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
-import type { PtyOpenResult } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { engineLaunchArgv, withPinnedSessionId } from "../../engine/engine-presets.ts"
-import type { HostedSessionRpc } from "../../engine/hosted-session.ts"
-import { launchReposOf, repoEnv, trustExtraRepos } from "../../engine/multi-repo-launch.ts"
-import { buildEngineSessionLaunch } from "../../engine/session-launch.ts"
-import { trustEngineWorktree } from "../../engine/trust-worktree.ts"
-import { persistedMaxLiveEngines } from "../../state/engine-limit.ts"
+import { engineLaunchArgv, withPinnedSessionId } from "@sma1lboy/rove-core/engine/engine-presets.ts"
+import type { HostedSessionRpc } from "@sma1lboy/rove-core/engine/hosted-session.ts"
+import { launchReposOf, repoEnv, trustExtraRepos } from "@sma1lboy/rove-core/engine/multi-repo-launch.ts"
+import { buildEngineSessionLaunch } from "@sma1lboy/rove-core/engine/session-launch.ts"
+import { trustEngineWorktree } from "@sma1lboy/rove-core/engine/trust-worktree.ts"
 import {
   type TabsRpc,
   allocateTab,
@@ -23,10 +20,13 @@ import {
   markCliTabSession,
   seedCanonicalTab,
   seedShellHome,
-} from "../../tabs/tab-snapshot.ts"
-import { shellTabInput } from "../../tabs/terminal-tab-spawn.ts"
-import type { TerminalTab } from "../../tabs/terminal-tabs-core.ts"
-import { readPersistedTerminalDefaultColors } from "../../theme/terminal-colors.ts"
+} from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
+import { shellTabInput } from "@sma1lboy/rove-core/tabs/terminal-tab-spawn.ts"
+import type { TerminalTab } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
+import { readPersistedTerminalDefaultColors } from "@sma1lboy/rove-core/theme/terminal-colors.ts"
+import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
+import type { PtyOpenResult } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { persistedMaxLiveEngines } from "../../state/engine-limit.ts"
 import { openAdmittedEngine } from "./engine-admission.ts"
 import { ensureHostFor, sessionFailed } from "./session-failed.ts"
 import { ApiError, type PromptTarget } from "./types.ts"

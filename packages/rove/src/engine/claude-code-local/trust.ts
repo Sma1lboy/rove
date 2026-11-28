@@ -10,10 +10,14 @@
 
 import { existsSync, lstatSync } from "node:fs"
 import path from "node:path"
+import { updateSharedJsonSync } from "@sma1lboy/rove-core/engine/shared-config-write.ts"
+import {
+  claudeGlobalConfigPath,
+  vendorConfigHome,
+  vendorWriteHomeDeps,
+} from "@sma1lboy/rove-core/engine/vendor-home.ts"
 import { isObject } from "@sma1lboy/rove-core/lib/is-object.ts"
-import { realPathOrSelf } from "../../lib/real-path.ts"
-import { updateSharedJsonSync } from "../shared-config-write.ts"
-import { claudeGlobalConfigPath, vendorConfigHome, vendorWriteHomeDeps } from "../vendor-home.ts"
+import { realPathOrSelf } from "@sma1lboy/rove-core/lib/real-path.ts"
 
 export function trustClaudeWorktree(worktreePath: string, home?: string): void {
   const resolved = realPathOrSelf(worktreePath)

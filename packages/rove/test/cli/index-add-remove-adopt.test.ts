@@ -8,8 +8,8 @@
  * `adopt` requires the glob + `--yes` gate.
  */
 
+import type { AdoptableWorktree } from "@sma1lboy/rove-core/types/worktree.ts"
 import { type MockInstance, afterEach, beforeEach, describe, expect, test, vi } from "vitest"
-import type { AdoptableWorktree } from "../../src/types/worktree"
 
 const fake = vi.hoisted(() => ({
   savedRepos: [] as string[],
@@ -44,13 +44,13 @@ vi.mock("@sma1lboy/rove-core/state/repos.ts", () => ({
   setPersistedString: vi.fn(),
   getRemoteRepoConfig: vi.fn((key: string) => fake.remoteRepos[key] ?? null),
 }))
-vi.mock("../../src/orchestrator/index/store.ts", () => ({
+vi.mock("@sma1lboy/rove-core/orchestrator/index/store.ts", () => ({
   TaskIndexStore: class {
     async load() {}
   },
 }))
-vi.mock("../../src/orchestrator/worktree/manager.ts", () => ({ GitWorktreeManager: class {} }))
-vi.mock("../../src/orchestrator/core.ts", () => ({
+vi.mock("@sma1lboy/rove-core/orchestrator/worktree/manager.ts", () => ({ GitWorktreeManager: class {} }))
+vi.mock("@sma1lboy/rove-core/orchestrator/core.ts", () => ({
   Orchestrator: class {
     async discoverAdoptableWorktrees(): Promise<AdoptableWorktree[]> {
       if (fake.discoverError) throw fake.discoverError

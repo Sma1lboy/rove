@@ -16,7 +16,6 @@
 import { mkdir, mkdtemp, readFile as readFileReal, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { afterEach, describe, expect, it } from "vitest"
 import {
   type HistoryDeps,
   deleteHistory,
@@ -25,7 +24,8 @@ import {
   readHistory,
   readHistoryWithMetrics,
   rolloutCwd,
-} from "../../src/engine/codex-local/history.ts"
+} from "@sma1lboy/rove-core/engine/codex-local/history.ts"
+import { afterEach, describe, expect, it } from "vitest"
 
 const SID = "aaaaaaaa-1111-2222-3333-444444444444"
 

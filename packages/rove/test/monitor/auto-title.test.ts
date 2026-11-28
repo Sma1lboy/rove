@@ -18,8 +18,8 @@
 import { mkdir, mkdtemp, utimes, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
+import { encodeCwd } from "@sma1lboy/rove-core/engine/claude-code-local/history.ts"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { encodeCwd } from "../../src/engine/claude-code-local/history.ts"
 import { deriveTitleFromSession, deriveTitleFromSessionId } from "../../src/monitor/auto-title.ts"
 
 const WORKTREE = "/work/tree"

@@ -1,8 +1,8 @@
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { type TaskCreateInput, TaskIndexStore } from "@sma1lboy/rove-core/orchestrator/index/store.ts"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { type TaskCreateInput, TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 
 /**
  * What the store does when the write does NOT land.

@@ -1,5 +1,5 @@
+import type { TranscriptScan } from "@sma1lboy/rove-core/engine/turn-detector.ts"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import type { TranscriptScan } from "../../src/engine/turn-detector"
 import { type TurnSession, startTurnStatusPoll } from "../../src/tui/ops/activity-monitor"
 
 beforeEach(() => vi.useFakeTimers())

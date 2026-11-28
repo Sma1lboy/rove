@@ -5,9 +5,9 @@
  */
 
 import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
+import { readTabsSnapshot } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
 import { canonicalEngineTab } from "@sma1lboy/rove-daemon/daemon/engine-tabs"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { readTabsSnapshot } from "../../tabs/tab-snapshot.ts"
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, type VerbSpec, helpStep } from "./types.ts"

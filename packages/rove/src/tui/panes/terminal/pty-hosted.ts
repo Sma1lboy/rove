@@ -15,11 +15,11 @@
  * async: input typed meanwhile is queued and flushed after the replay.
  */
 
+import { pastePromptWhenEngineUp } from "@sma1lboy/rove-core/engine/hosted-session.ts"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { logClientError } from "@sma1lboy/rove-daemon/client/client-log"
 import type { PtyOpenResult } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { SerializeAddon } from "@xterm/addon-serialize"
-import { pastePromptWhenEngineUp } from "../../../engine/hosted-session.ts"
 import { getMachinePtyClient, getSharedPtyClient, routeAdd, routeCount, routeRemove } from "./pty-hosted-client"
 import type { ParkedScreen, PtyDetachOpts, TaskPtyOpts } from "./pty-types"
 import { XtermTaskPty } from "./pty-xterm-base"

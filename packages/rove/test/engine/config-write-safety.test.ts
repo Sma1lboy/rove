@@ -2,17 +2,18 @@ import { execFile, spawnSync } from "node:child_process"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { ClaudeHookAdapter } from "../../src/engine/claude-code-local/hook-adapter.ts"
-import { trustClaudeWorktree } from "../../src/engine/claude-code-local/trust.ts"
-import { CodexHookAdapter } from "../../src/engine/codex-local/hook-adapter.ts"
-import { trustCodexWorktree } from "../../src/engine/codex-local/trust.ts"
-import { kimiTrustFilePath, trustKimiWorktree } from "../../src/engine/kimi-local/trust.ts"
+import { ClaudeHookAdapter } from "@sma1lboy/rove-core/engine/claude-code-local/hook-adapter.ts"
+import { CodexHookAdapter } from "@sma1lboy/rove-core/engine/codex-local/hook-adapter.ts"
+import { trustCodexWorktree } from "@sma1lboy/rove-core/engine/codex-local/trust.ts"
+import { kimiTrustFilePath, trustKimiWorktree } from "@sma1lboy/rove-core/engine/kimi-local/trust.ts"
 import {
   MAX_SHARED_CONFIG_BYTES,
   updateSharedJson,
   updateSharedJsonSync,
-} from "../../src/engine/shared-config-write.ts"
+} from "@sma1lboy/rove-core/engine/shared-config-write.ts"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { trustClaudeWorktree } from "../../src/engine/claude-code-local/trust.ts"
+import { corePath } from "../core-package.ts"
 
 let home: string
 beforeEach(() => {
@@ -193,8 +194,8 @@ describe("shared config IO rejection", () => {
 
   it("serializes real processes writing the same JSON config", async () => {
     const file = config("concurrent.json", '{"user":true}')
-    const source = new URL("../../src/engine/shared-config-write.ts", import.meta.url).pathname
-    const vendor = new URL("../../src/engine/vendor-home.ts", import.meta.url).pathname
+    const source = corePath("engine/shared-config-write.ts")
+    const vendor = corePath("engine/vendor-home.ts")
     const children = ["a", "b", "c", "d"].map((key) => {
       const script = `
         import { homedir } from 'node:os';
@@ -239,12 +240,12 @@ describe("shared config IO rejection", () => {
     const engine = new URL("../../src/engine/", import.meta.url).pathname
     const script = `
       import { homedir } from 'node:os';
-      import { vendorConfigHome } from ${JSON.stringify(`${engine}vendor-home.ts`)};
+      import { vendorConfigHome } from ${JSON.stringify(corePath("engine/vendor-home.ts"))};
       if (homedir() !== process.env.FIXTURE_HOME) throw Error('unsafe home');
       for (const v of ['claude', 'codex', 'kimi', 'copilot']) if (!vendorConfigHome(v).startsWith(homedir() + '/')) throw Error('unsafe profile');
       const { trustClaudeWorktree } = await import(${JSON.stringify(`${engine}claude-code-local/trust.ts`)});
-      const { trustCodexWorktree } = await import(${JSON.stringify(`${engine}codex-local/trust.ts`)});
-      const { ClaudeHookAdapter } = await import(${JSON.stringify(`${engine}claude-code-local/hook-adapter.ts`)});
+      const { trustCodexWorktree } = await import(${JSON.stringify(corePath("engine/codex-local/trust.ts"))});
+      const { ClaudeHookAdapter } = await import(${JSON.stringify(corePath("engine/claude-code-local/hook-adapter.ts"))});
       for (const trust of [trustClaudeWorktree, trustCodexWorktree]) {
         let refused = false; try { trust('/fixture/fifo', homedir()) } catch { refused = true }
         if (!refused) throw Error('expected refusal');

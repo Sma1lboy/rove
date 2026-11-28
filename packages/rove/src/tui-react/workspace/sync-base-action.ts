@@ -7,7 +7,7 @@
  * additive and `git merge --abort` undoes it.
  */
 
-import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 
 const CONFLICT_RE = /SYNC_CONFLICT(?:: )?(.*)/
 const DIRTY_RE = /SYNC_WORKTREE_DIRTY(?:: )?(.*)/

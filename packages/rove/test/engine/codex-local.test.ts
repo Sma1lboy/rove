@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest"
 import {
   type HistoryDeps,
   deriveCodexUsageMetrics,
@@ -6,10 +5,11 @@ import {
   findRolloutFile,
   latestTranscriptMtimeForWorktree,
   listSessionIdsForWorktree,
-} from "../../src/engine/codex-local/history.ts"
-import { normalizeCodexContent } from "../../src/engine/codex-local/normalize.ts"
-import { isSyntheticCodexUserRow, visibleCodexUserText } from "../../src/engine/codex-local/synthetic.ts"
-import { codexUsageToSnapshot } from "../../src/engine/codex-local/usage.ts"
+} from "@sma1lboy/rove-core/engine/codex-local/history.ts"
+import { normalizeCodexContent } from "@sma1lboy/rove-core/engine/codex-local/normalize.ts"
+import { isSyntheticCodexUserRow, visibleCodexUserText } from "@sma1lboy/rove-core/engine/codex-local/synthetic.ts"
+import { codexUsageToSnapshot } from "@sma1lboy/rove-core/engine/codex-local/usage.ts"
+import { describe, expect, it } from "vitest"
 
 describe("normalizeCodexContent", () => {
   it("wraps a non-empty string as one text block", () => {

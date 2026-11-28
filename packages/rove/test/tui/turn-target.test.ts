@@ -9,10 +9,10 @@
  * while actually running claude).
  */
 
+import { foregroundEngineIn, parsePsSnapshot } from "@sma1lboy/rove-core/engine/foreground.ts"
+import { engineEntry } from "@sma1lboy/rove-core/engine/registry.ts"
+import type { TerminalTab } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import { describe, expect, it } from "vitest"
-import { foregroundEngineIn, parsePsSnapshot } from "../../src/engine/foreground"
-import { engineEntry } from "../../src/engine/registry"
-import type { TerminalTab } from "../../src/tabs/terminal-tabs-core"
 import { targetFor } from "../../src/tui/workspace/turn-target"
 
 const engineTab = (over: Partial<TerminalTab> = {}): TerminalTab =>

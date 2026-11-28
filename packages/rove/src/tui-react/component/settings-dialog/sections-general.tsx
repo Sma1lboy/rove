@@ -7,13 +7,7 @@
  */
 
 import { TextAttributes } from "@opentui/core"
-import { LOCALES, type LocaleId } from "@sma1lboy/rove-core/i18n/catalog.ts"
-import { displayWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
-import { usageRows } from "@sma1lboy/rove-core/lib/usage-core.ts"
-import type { UsageShow } from "@sma1lboy/rove-core/state/usage-show.ts"
-import { useMemo } from "react"
-import type { UsageSnapshotMap } from "../../../client/remote-orchestrator"
-import { engineDisplayName } from "../../../engine/interactive-command"
+import type { UsageSnapshotMap } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import {
   type NavLevel,
   SECTIONS,
@@ -23,7 +17,13 @@ import {
   generalRows,
   languageRowId,
   rowIndex,
-} from "../../../settings/model"
+} from "@sma1lboy/rove-client/settings/model.ts"
+import { engineDisplayName } from "@sma1lboy/rove-core/engine/interactive-command.ts"
+import { LOCALES, type LocaleId } from "@sma1lboy/rove-core/i18n/catalog.ts"
+import { displayWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
+import { usageRows } from "@sma1lboy/rove-core/lib/usage-core.ts"
+import type { UsageShow } from "@sma1lboy/rove-core/state/usage-show.ts"
+import { useMemo } from "react"
 import { keyHintsToggleOn, toggleKeyHints } from "../../../tui/lib/keyboard-hints"
 import { useKV } from "../../context/kv"
 import { useTheme } from "../../context/theme"

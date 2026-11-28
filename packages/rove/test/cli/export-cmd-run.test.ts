@@ -15,7 +15,7 @@ const fake = vi.hoisted(() => ({
   loads: 0,
 }))
 
-vi.mock("../../src/orchestrator/index/store.ts", () => ({
+vi.mock("@sma1lboy/rove-core/orchestrator/index/store.ts", () => ({
   TaskIndexStore: class {
     async load() {
       fake.loads++

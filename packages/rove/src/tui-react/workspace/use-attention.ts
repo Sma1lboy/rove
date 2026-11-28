@@ -15,12 +15,12 @@
  * Inputs are engine-owned and vendor-neutral, so no Claude/Codex strings here.
  */
 
+import type { AttentionInboxItem, TaskEngineState } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { sidebarProjectLabel } from "@sma1lboy/rove-client/sidebar/groups.ts"
 import { attentionEdges, attentionKindFor } from "@sma1lboy/rove-core/lib/notify-state.ts"
+import { tabTitleStable } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import { DEFAULT_TASK_VENDOR, type Task } from "@sma1lboy/rove-core/types/task.ts"
 import { useEffect, useRef } from "react"
-import type { AttentionInboxItem, TaskEngineState } from "../../client/remote-orchestrator"
-import { tabTitleStable } from "../../tabs/terminal-tabs-core"
 import type { KVContext } from "../context/kv"
 import type { NotificationsContext } from "../context/notifications"
 import { isAttentionInboxItemAvailable, nextAttentionInboxTarget } from "./attention-inbox-core"

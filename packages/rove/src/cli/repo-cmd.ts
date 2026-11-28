@@ -115,7 +115,7 @@ export async function runRepoSubcommand(args: readonly string[]): Promise<void> 
     const [pathArg] = rest.filter((a) => !a.startsWith("-"))
     const repo = resolveRepoRoot(resolve(process.cwd(), expandTilde(pathArg ?? ".")))
     const override = getRepoInitOverride(repo)
-    const { describeRepoInitSources } = await import("../state/repo-init.ts")
+    const { describeRepoInitSources } = await import("@sma1lboy/rove-core/state/repo-init.ts")
     const sources = describeRepoInitSources(repo)
     console.log(`repo: ${repo}`)
     for (const group of [sources.script, sources.prompt]) {

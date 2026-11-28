@@ -5,7 +5,6 @@
  * refreshes `stateRef` synchronously). See TerminalTabs' header for why refs.
  */
 
-import { useEffect } from "react"
 import {
   type EngineTab,
   type TabSpawn,
@@ -14,7 +13,8 @@ import {
   openContentTab,
   openEditorTab,
   tabPtyKey,
-} from "../../tabs/terminal-tabs-core"
+} from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
+import { useEffect } from "react"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { releaseSplitLeaves } from "./TerminalSplit"
 

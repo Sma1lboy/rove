@@ -1,3 +1,5 @@
+import { CONTRIB_ENGINES } from "@sma1lboy/rove-core/engine/contrib-engines.ts"
+import { type EngineScreenManifest, classifyScreen } from "@sma1lboy/rove-core/engine/screen-state.ts"
 /**
  * Translation fidelity for the four screen-only contrib engines — cline,
  * kiro, maki, antigravity — whose rules were written from each CLI's
@@ -11,8 +13,6 @@
  * reading).
  */
 import { describe, expect, it } from "vitest"
-import { CONTRIB_ENGINES } from "../../src/engine/contrib-engines.ts"
-import { type EngineScreenManifest, classifyScreen } from "../../src/engine/screen-state.ts"
 
 function manifest(id: string): EngineScreenManifest {
   const found = CONTRIB_ENGINES[id]?.screenManifest

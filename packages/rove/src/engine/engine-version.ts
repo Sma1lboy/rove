@@ -7,10 +7,10 @@
 
 import { spawn } from "node:child_process"
 import path from "node:path"
+import type { BinaryStatus } from "@sma1lboy/rove-core/engine/account-detect.ts"
+import type { EngineStatus } from "@sma1lboy/rove-core/engine/engine-status.ts"
+import { engineEntry } from "@sma1lboy/rove-core/engine/registry.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
-import type { BinaryStatus } from "./account-detect"
-import type { EngineStatus } from "./engine-status"
-import { engineEntry } from "./registry"
 
 const VERSION_PROBE_MS = 3000
 const MAX_OUTPUT = 4096

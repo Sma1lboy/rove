@@ -26,7 +26,7 @@ function runCleanup(stored: (home: string) => string | undefined) {
   }
   const script = `
       import { homedir } from 'node:os';
-      import { vendorConfigHome } from ${JSON.stringify(`${source}engine/vendor-home.ts`)};
+      import { vendorConfigHome } from ${JSON.stringify(corePath("engine/vendor-home.ts"))};
       if (homedir() !== process.env.FIXTURE_HOME) throw Error('unsafe home');
       for (const v of ['claude','codex','kimi','copilot']) if (!vendorConfigHome(v).startsWith(homedir() + '/')) throw Error('unsafe profile');
       const { setPersistedString } = await import(${JSON.stringify(corePath("state/repos.ts"))});

@@ -3,13 +3,13 @@
  * `routine-create` / `routine-update` → daemon store → run task → engine argv.
  */
 
+import { engineLaunchArgv } from "@sma1lboy/rove-core/engine/engine-presets.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { Automation, DaemonTask } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { describe, expect, it } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import type { ApiRuntime } from "../../src/cli/api/types.ts"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
-import { engineLaunchArgv } from "../../src/engine/engine-presets.ts"
 import { stubRuntime } from "../cli/api-handler-fixtures.ts"
 import { bootDaemonHarness, fakeOrchestrator } from "./harness.ts"
 

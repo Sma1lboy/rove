@@ -11,9 +11,9 @@
  *     conversation on restart.
  */
 
-import { engineResumeArgv, withPinnedSessionId } from "@/engine/engine-presets"
-import { engineEntry } from "@/engine/registry"
-import { controlsOwnSession } from "@/engine/session-identity"
+import { engineResumeArgv, withPinnedSessionId } from "@sma1lboy/rove-core/engine/engine-presets.ts"
+import { engineEntry } from "@sma1lboy/rove-core/engine/registry.ts"
+import { controlsOwnSession } from "@sma1lboy/rove-core/engine/session-identity.ts"
 import { describe, expect, it, vi } from "vitest"
 
 vi.mock("@sma1lboy/rove-core/state/repos.ts", async (orig) => ({

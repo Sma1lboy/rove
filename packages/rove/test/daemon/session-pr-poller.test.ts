@@ -7,6 +7,9 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { Orchestrator } from "@sma1lboy/rove-core/orchestrator/core.ts"
+import { TaskIndexStore } from "@sma1lboy/rove-core/orchestrator/index/store.ts"
+import { GitWorktreeManager } from "@sma1lboy/rove-core/orchestrator/worktree/manager.ts"
 import {
   PR_FAILURE_BASE_MS,
   type PrPollSchedule,
@@ -19,9 +22,6 @@ import {
 import { canonicalPrUrl } from "@sma1lboy/rove-daemon/daemon/session-prs"
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
-import { Orchestrator } from "../../src/orchestrator/core.ts"
-import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
-import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
 
 const runPrStatusPass = (orchestrator: Orchestrator, options: Omit<PrStatusPassOptions, "runtime">) =>
   runPrStatusPassRaw(orchestrator, { ...options, runtime: daemonRuntime })

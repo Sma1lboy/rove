@@ -14,9 +14,9 @@
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { TaskIndexStore } from "@sma1lboy/rove-core/orchestrator/index/store.ts"
 import { flushClientLog } from "@sma1lboy/rove-daemon/client/client-log"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 
 let home: string
 let store: TaskIndexStore

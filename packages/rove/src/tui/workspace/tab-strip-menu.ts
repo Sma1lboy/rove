@@ -5,7 +5,7 @@
  * owner agrees a chord. Labels are i18n KEYS.
  */
 
-import type { TerminalTab } from "../../tabs/terminal-tab-shapes"
+import type { TerminalTab } from "@sma1lboy/rove-core/tabs/terminal-tab-shapes.ts"
 
 export type TabStripMenuAction = "rename" | "continueEngine" | "copyAddress" | "copySessionId" | "closeOthers" | "close"
 

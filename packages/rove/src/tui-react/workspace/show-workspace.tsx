@@ -4,13 +4,13 @@
  * task's TerminalTabs. Owns the empty-versus-loaded decision.
  */
 
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
+import type { SectionId } from "@sma1lboy/rove-client/settings/model.ts"
+import { engineLaunchArgv } from "@sma1lboy/rove-core/engine/engine-presets.ts"
 import { remoteKeyForRepo } from "@sma1lboy/rove-core/exec/resolve.ts"
 import { taskCwd, taskRepos } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
 import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "@sma1lboy/rove-core/types/task.ts"
 import type { ReactNode } from "react"
-import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
-import { engineLaunchArgv } from "../../engine/engine-presets.ts"
-import type { SectionId } from "../../settings/model"
 import type { QuickTaskResult } from "../component/quick-task-composer"
 import { useOptionalKV } from "../context/kv"
 import { useTheme } from "../context/theme"

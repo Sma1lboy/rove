@@ -1,6 +1,6 @@
+import type { HistoryDeps } from "@sma1lboy/rove-core/engine/claude-code-local/history.ts"
+import { readHistory } from "@sma1lboy/rove-core/engine/claude-code-local/history.ts"
 import { describe, expect, it } from "vitest"
-import type { HistoryDeps } from "../../src/engine/claude-code-local/history.ts"
-import { readHistory } from "../../src/engine/claude-code-local/history.ts"
 
 /**
  * Why these tests matter: the chat pane polls `readHistory` every ~2.5s and

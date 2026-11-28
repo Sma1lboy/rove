@@ -11,9 +11,9 @@ import {
 } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { retirePreRenameLayout } from "@sma1lboy/rove-core/state/retire-layout.ts"
 import { preRenameConfigDir, preRenameStateDir } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
 import { afterEach, expect, test } from "vitest"
-import { retirePreRenameLayout } from "../../src/state/retire-layout.ts"
 
 let home = ""
 afterEach(() => {

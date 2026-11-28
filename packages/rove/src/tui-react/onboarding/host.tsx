@@ -12,12 +12,12 @@
 
 import { TextAttributes } from "@opentui/core"
 import { currentPrefixConfiguration } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
+import { installSkillErrors, skillTargets } from "@sma1lboy/rove-core/lib/skill-install.ts"
 import type { ReactNode } from "react"
 import { useEffect, useRef, useState } from "react"
 import type { ShellKind } from "../../cli/completion-scripts.ts"
 import { trackWelcomeWrite } from "../../cli/launch-tui.ts"
 import type { WelcomeRequest } from "../../cli/welcome.ts"
-import { installSkillErrors, skillTargets } from "../../lib/skill-install.ts"
 import { wizardKeyLines } from "../../tui/lib/keyboard-hints"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"

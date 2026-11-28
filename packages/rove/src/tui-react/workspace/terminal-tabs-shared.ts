@@ -5,17 +5,17 @@
  * the target task's tabs exist.
  */
 
-import { engineLaunchArgv, withPinnedSessionId } from "../../engine/engine-presets"
+import { engineLaunchArgv, withPinnedSessionId } from "@sma1lboy/rove-core/engine/engine-presets.ts"
 
 import { type TabsSnapshotKv, terminalTabsKey } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
-import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import {
   type CommandTab,
   type EngineTab,
   type TabsState,
   type TerminalTab,
   reopenTabs,
-} from "../../tabs/terminal-tabs-core"
+} from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import {
   commitTaskTabs,
   forgetTaskTabsView,

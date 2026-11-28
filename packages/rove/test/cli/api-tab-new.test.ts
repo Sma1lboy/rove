@@ -14,7 +14,7 @@ const host = vi.hoisted(() => ({
   calls: [] as Array<{ name: string; payload: Record<string, unknown> }>,
   created: true,
 }))
-vi.mock("../../src/engine/hosted-session.ts", async (original) => ({
+vi.mock("@sma1lboy/rove-core/engine/hosted-session.ts", async (original) => ({
   ...(await original<object>()),
   ensureHostedSessionHost: async () => ({
     rpc: {
@@ -28,11 +28,11 @@ vi.mock("../../src/engine/hosted-session.ts", async (original) => ({
     close() {},
   }),
 }))
-vi.mock("../../src/engine/foreground.ts", async (original) => ({
+vi.mock("@sma1lboy/rove-core/engine/foreground.ts", async (original) => ({
   ...(await original<object>()),
   psSnapshot: async () => "123 1 /bin/sh\n456 123 claude",
 }))
-vi.mock("../../src/engine/trust-worktree.ts", () => ({ trustEngineWorktree() {} }))
+vi.mock("@sma1lboy/rove-core/engine/trust-worktree.ts", () => ({ trustEngineWorktree() {} }))
 
 import { defaultApiRuntime } from "../../src/cli/api/runtime.ts"
 import { tabsDaemon } from "./tabs-daemon-fake.ts"

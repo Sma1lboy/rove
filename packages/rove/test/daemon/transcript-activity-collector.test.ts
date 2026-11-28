@@ -24,6 +24,12 @@
  * daemon-side).
  */
 
+import {
+  type HistoryDeps as CodexHistoryDeps,
+  findLatestRolloutForWorktree,
+  latestTranscriptMtimeForWorktree,
+} from "@sma1lboy/rove-core/engine/codex-local/history.ts"
+import { CodexTurnDetector } from "@sma1lboy/rove-core/engine/turn-detector.ts"
 import { type Task, type VendorId, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import type { TranscriptActivityPayload } from "@sma1lboy/rove-daemon/daemon/protocol"
@@ -34,12 +40,6 @@ import {
   trackedWorktrees,
 } from "@sma1lboy/rove-daemon/daemon/transcript-activity-collector"
 import { describe, expect, test } from "vitest"
-import {
-  type HistoryDeps as CodexHistoryDeps,
-  findLatestRolloutForWorktree,
-  latestTranscriptMtimeForWorktree,
-} from "../../src/engine/codex-local/history.ts"
-import { CodexTurnDetector } from "../../src/engine/turn-detector.ts"
 
 /** Minimal Task — only the fields the collector reads. */
 function task(over: Omit<Partial<Task>, "id"> & { id: string }): Task {

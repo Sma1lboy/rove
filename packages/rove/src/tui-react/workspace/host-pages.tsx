@@ -5,13 +5,13 @@
  * can't silently shadow one.
  */
 
+import type { TaskEngineState } from "@sma1lboy/rove-client/client/remote-orchestrator-payloads.ts"
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
+import type { SectionId } from "@sma1lboy/rove-client/settings/model.ts"
 import { isNarrowWidth, narrowSurface } from "@sma1lboy/rove-core/lib/narrow-mode.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { WelcomeRequest } from "../../cli/welcome.ts"
-import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
-import type { TaskEngineState } from "../../client/remote-orchestrator-payloads"
-import type { SectionId } from "../../settings/model"
 import type { NewTaskDialogOptions, NewTaskInput } from "../../tui/component/new-task-dialog/state"
 import { type SidebarNav, focusPaneForNav } from "../../tui/panes/sidebar/nav-core"
 import { NewTaskPage } from "../component/new-task-dialog"

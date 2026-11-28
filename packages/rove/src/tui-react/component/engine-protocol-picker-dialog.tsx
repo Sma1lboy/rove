@@ -8,9 +8,9 @@
  * fall back to generic. Here "generic" is a row you choose.
  */
 
+import { ENGINE_PROTOCOLS } from "@sma1lboy/rove-core/engine/engine-presets.ts"
+import { engineEntry } from "@sma1lboy/rove-core/engine/registry.ts"
 import { useState } from "react"
-import { ENGINE_PROTOCOLS } from "../../engine/engine-presets"
-import { engineEntry } from "../../engine/registry"
 import type { PickerWindow } from "../../tui/component/new-task-dialog/state"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
 import { useT } from "../i18n"

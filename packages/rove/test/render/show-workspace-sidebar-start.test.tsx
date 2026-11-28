@@ -1,9 +1,9 @@
 /** @jsxImportSource @opentui/react */
 import { afterEach, describe, expect, it, spyOn } from "bun:test"
+import { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
+import * as engines from "@sma1lboy/rove-core/engine/account-detect.ts"
 import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
-import { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
-import * as engines from "../../src/engine/account-detect"
 import * as terminalTabs from "../../src/tui-react/workspace/TerminalTabs"
 import type { ChildSpawnRequest } from "../../src/tui-react/workspace/quick-fork"
 import { ShowWorkspace } from "../../src/tui-react/workspace/show-workspace"

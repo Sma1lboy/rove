@@ -7,17 +7,17 @@
  * search order is testable without touching the real filesystem/PATH.
  */
 
-import { describe, expect, it } from "vitest"
 import {
   ClaudeBinaryNotFoundError,
   type BinaryDiscoveryDeps as ClaudeDeps,
   findClaudeBinary,
-} from "../../src/engine/claude-code-local/binary.ts"
+} from "@sma1lboy/rove-core/engine/claude-code-local/binary.ts"
 import {
   CodexBinaryNotFoundError,
   type BinaryDiscoveryDeps as CodexDeps,
   findCodexBinary,
-} from "../../src/engine/codex-local/binary.ts"
+} from "@sma1lboy/rove-core/engine/codex-local/binary.ts"
+import { describe, expect, it } from "vitest"
 
 function claudeDeps(over: Partial<ClaudeDeps> = {}): ClaudeDeps {
   return {

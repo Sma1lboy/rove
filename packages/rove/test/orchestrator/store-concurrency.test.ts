@@ -1,8 +1,8 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { type TaskCreateInput, TaskIndexStore } from "@sma1lboy/rove-core/orchestrator/index/store.ts"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { type TaskCreateInput, TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 
 /**
  * Multi-process consistency for the task index. Two rove instances (TUI +

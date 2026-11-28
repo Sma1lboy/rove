@@ -17,10 +17,14 @@
  * guards via `src/lib/poll-scheduling.ts`.
  */
 
+import {
+  type WorktreeChanges,
+  parsePorcelain,
+  sameWorktreeChanges,
+} from "@sma1lboy/rove-client/worktree/worktree-changes.ts"
 import { computeNextAllowedAt, createBackgroundPoller, spawnCapture } from "@sma1lboy/rove-core/lib/background-poll.ts"
 import { readOnlyGitProcessEnv } from "@sma1lboy/rove-core/lib/git-env.ts"
 import { recordSpawn } from "@sma1lboy/rove-core/lib/spawn-profile.ts"
-import { type WorktreeChanges, parsePorcelain, sameWorktreeChanges } from "../../../worktree/worktree-changes"
 
 export { shouldPoll } from "@sma1lboy/rove-core/lib/background-poll.ts"
 

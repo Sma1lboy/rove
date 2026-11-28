@@ -5,8 +5,8 @@
  * with no mods sees the rail unchanged.
  */
 
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { t } from "@sma1lboy/rove-core/i18n/index.ts"
-import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { ModsPage } from "../component/mods-page"
 import { type PageEntry, type PageProps, setPageSource } from "./registry"
 

@@ -28,8 +28,8 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { type HostedSessionRpc, awaitPasteReady, writeHostedPrompt } from "@sma1lboy/rove-core/engine/hosted-session.ts"
 import { PtyHost } from "@sma1lboy/rove-daemon/daemon/pty-host"
-import { type HostedSessionRpc, awaitPasteReady, writeHostedPrompt } from "../../src/engine/hosted-session.ts"
 
 const hosts: PtyHost[] = []
 const dirs: string[] = []

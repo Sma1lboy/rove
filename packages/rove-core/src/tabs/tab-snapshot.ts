@@ -17,12 +17,12 @@
  */
 
 import type { DaemonRpc } from "@sma1lboy/rove-core/client/daemon-session.ts"
+import { engineLaunchArgv } from "@sma1lboy/rove-core/engine/engine-presets.ts"
 import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"
 import { terminalTabsKey } from "@sma1lboy/rove-core/state/tabs-persistence.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { PtySessionExit } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { type SharedTabs, type TabOp, diffTabs } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
-import { engineLaunchArgv } from "../engine/engine-presets.ts"
 import { type WireSplit, wireSplit } from "./split-wire.ts"
 import { splitLeafPtyKey } from "./terminal-tab-split.ts"
 import {

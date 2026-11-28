@@ -12,12 +12,12 @@
 
 import { afterEach, expect, test } from "bun:test"
 import type { BoxRenderable } from "@opentui/core"
+import type { RowStatusTransport } from "@sma1lboy/rove-client/client/remote-orchestrator-row-status.ts"
 import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
 import type { DotLook } from "@sma1lboy/rove-core/lib/status-dots.ts"
 import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import type { RowStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import type { RowStatusPayload } from "@sma1lboy/rove-daemon/daemon/row-status-store"
-import type { RowStatusTransport } from "../../src/client/remote-orchestrator-row-status"
 import { useAccessor } from "../../src/tui-react/lib/use-accessor"
 import type { TreeRowShared } from "../../src/tui-react/panes/sidebar/tree-row-shell"
 import { WorktreeTreeRow } from "../../src/tui-react/panes/sidebar/tree-rows"

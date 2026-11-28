@@ -1,5 +1,9 @@
+import {
+  deriveConventionBranch,
+  inferBranchStyle,
+  uniqueBranchName,
+} from "@sma1lboy/rove-core/orchestrator/branch-style.ts"
 import { describe, expect, it } from "vitest"
-import { deriveConventionBranch, inferBranchStyle, uniqueBranchName } from "../../src/orchestrator/branch-style.ts"
 
 describe("inferBranchStyle", () => {
   it("reads an all-feat/ repo as typed with feat as the default prefix", () => {

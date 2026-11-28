@@ -7,8 +7,8 @@
  */
 
 import { TextAttributes, type TextareaRenderable } from "@opentui/core"
+import { devRows, rowIndex } from "@sma1lboy/rove-client/settings/model.ts"
 import { useEffect, useRef } from "react"
-import { devRows, rowIndex } from "../../../settings/model"
 import { stripNewlines } from "../../../tui/component/new-task-dialog/state"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"

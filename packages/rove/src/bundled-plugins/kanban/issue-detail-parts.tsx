@@ -9,9 +9,9 @@
  * reads as "no events", never as an error the user must act on.
  */
 
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
+import type { EventRow } from "@sma1lboy/rove-client/lib/issue-events-core.ts"
 import { useEffect, useState } from "react"
-import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
-import type { EventRow } from "../../lib/issue-events-core"
 import { host, hostFn } from "./host"
 
 const useTheme = hostFn((h) => h.theme.useTheme)

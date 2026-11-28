@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest"
 /**
  * `psSnapshot` used to await `ps` with no deadline and no kill. Every caller
  * wraps the probe in try/catch, which catches a THROW and never a hang, so a
@@ -15,8 +14,9 @@ import {
   type PsProcess,
   psSnapshotWith,
   shareInflight,
-} from "../../src/engine/foreground.ts"
-import { enginePresence } from "../../src/engine/session-engine-presence.ts"
+} from "@sma1lboy/rove-core/engine/foreground.ts"
+import { enginePresence } from "@sma1lboy/rove-core/engine/session-engine-presence.ts"
+import { describe, expect, it } from "vitest"
 
 /** A `ps` that never exits — the failure the deadline exists for. */
 function neverExits(): { spawn: () => PsProcess; killed: () => number } {

@@ -5,9 +5,9 @@
  * local path) with a marketplace ref.
  */
 
+import type { PluginRowView } from "@sma1lboy/rove-client/lib/plugins-core.ts"
 import { describe, expect, it } from "vitest"
 import type { MarketEntry } from "../../src/cli/plugin-search.ts"
-import type { PluginRowView } from "../../src/lib/plugins-core.ts"
 import {
   installedSpecIds,
   marketplaceRowViews,

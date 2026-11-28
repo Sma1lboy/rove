@@ -1,5 +1,5 @@
+import { normalizeClaudeContent } from "@sma1lboy/rove-core/engine/claude-code-local/normalize.ts"
 import { describe, expect, it } from "vitest"
-import { normalizeClaudeContent } from "../../src/engine/claude-code-local/normalize.ts"
 
 describe("normalizeClaudeContent", () => {
   it("wraps a non-empty string as one text block; empty → []", () => {

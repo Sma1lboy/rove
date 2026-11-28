@@ -1,6 +1,6 @@
+import { writeHostedPrompt } from "@sma1lboy/rove-core/engine/hosted-session.ts"
 import { describe, expect, it, vi } from "vitest"
 import { deliverToExactTab } from "../../src/cli/api/exact-tab-delivery.ts"
-import { writeHostedPrompt } from "../../src/engine/hosted-session.ts"
 
 describe("Codex prompt submission", () => {
   // The screen is painted with a "tab to queue message" footer and redrawn on

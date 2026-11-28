@@ -10,17 +10,17 @@
 import { mkdtemp, utimes, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { describe, expect, it } from "vitest"
-import { latestTranscriptMtimeForWorktree as claudeMtime } from "../../src/engine/claude-code-local/history.ts"
+import { latestTranscriptMtimeForWorktree as claudeMtime } from "@sma1lboy/rove-core/engine/claude-code-local/history.ts"
 import {
   type HistoryDeps as CodexDeps,
   findLatestRolloutForWorktree as codexFindLatest,
   latestTranscriptMtimeForWorktree as codexMtime,
-} from "../../src/engine/codex-local/history.ts"
+} from "@sma1lboy/rove-core/engine/codex-local/history.ts"
 import {
   type CopilotHistoryDeps,
   latestTranscriptMtimeForWorktree as copilotMtime,
-} from "../../src/engine/copilot-local/history.ts"
+} from "@sma1lboy/rove-core/engine/copilot-local/history.ts"
+import { describe, expect, it } from "vitest"
 
 describe("codex latestTranscriptMtimeForWorktree", () => {
   function deps(files: Record<string, { cwd: string; mtimeMs: number }>): CodexDeps {

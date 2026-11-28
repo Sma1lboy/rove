@@ -10,8 +10,12 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { DROID_HOOK_EVENT_MAP, DroidHookAdapter, droidSettingsPath } from "@/engine/droid-local/hook-adapter"
-import { ROVE_HOOK_VERSION, mergeActivityHooks, roveHookArgs } from "@/engine/json-hooks"
+import {
+  DROID_HOOK_EVENT_MAP,
+  DroidHookAdapter,
+  droidSettingsPath,
+} from "@sma1lboy/rove-core/engine/droid-local/hook-adapter.ts"
+import { ROVE_HOOK_VERSION, mergeActivityHooks, roveHookArgs } from "@sma1lboy/rove-core/engine/json-hooks.ts"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const PROD = ["rove"]

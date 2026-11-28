@@ -1,9 +1,13 @@
 import { appendFile, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
+import {
+  type HistoryDeps,
+  appendInterruptedUserPrompt,
+  encodeCwd,
+} from "@sma1lboy/rove-core/engine/claude-code-local/history.ts"
+import * as fileBounds from "@sma1lboy/rove-core/engine/file-bounds.ts"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { type HistoryDeps, appendInterruptedUserPrompt, encodeCwd } from "../../src/engine/claude-code-local/history.ts"
-import * as fileBounds from "../../src/engine/file-bounds.ts"
 
 /**
  * Fix R — the rescued-prompt writer must be append-only.

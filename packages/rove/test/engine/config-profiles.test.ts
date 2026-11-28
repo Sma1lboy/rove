@@ -1,12 +1,12 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { ClaudeHookAdapter, claudeSettingsPath } from "@sma1lboy/rove-core/engine/claude-code-local/hook-adapter.ts"
+import { CodexHookAdapter, codexHooksPath } from "@sma1lboy/rove-core/engine/codex-local/hook-adapter.ts"
+import { trustCodexWorktree } from "@sma1lboy/rove-core/engine/codex-local/trust.ts"
+import { kimiTrustFilePath, trustKimiWorktree } from "@sma1lboy/rove-core/engine/kimi-local/trust.ts"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { ClaudeHookAdapter, claudeSettingsPath } from "../../src/engine/claude-code-local/hook-adapter.ts"
 import { trustClaudeWorktree } from "../../src/engine/claude-code-local/trust.ts"
-import { CodexHookAdapter, codexHooksPath } from "../../src/engine/codex-local/hook-adapter.ts"
-import { trustCodexWorktree } from "../../src/engine/codex-local/trust.ts"
-import { kimiTrustFilePath, trustKimiWorktree } from "../../src/engine/kimi-local/trust.ts"
 
 const fixture = vi.hoisted(() => ({ home: "" }))
 vi.mock("node:os", async (importActual) => {

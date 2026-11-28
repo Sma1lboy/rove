@@ -3,13 +3,18 @@
  * project from the list, and tearing down what a delete removed.
  */
 
-import type { RoveOrchestrator } from "@/client/remote-orchestrator"
-import type { TaskDeleteReply } from "@/client/remote-orchestrator-writes"
-import { hostedTaskKeys, killHostedSessions, listHostedSessions, openHostedSessionHost } from "@/engine/hosted-session"
-import { dirtyRefusalReason } from "@/orchestrator/errors"
+import type { TaskDeleteReply } from "@sma1lboy/rove-client/client/remote-orchestrator-writes.ts"
+import type { RoveOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { repoBasename } from "@sma1lboy/rove-client/sidebar/groups.ts"
+import {
+  hostedTaskKeys,
+  killHostedSessions,
+  listHostedSessions,
+  openHostedSessionHost,
+} from "@sma1lboy/rove-core/engine/hosted-session.ts"
 import { t } from "@sma1lboy/rove-core/i18n/index.ts"
 import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
+import { dirtyRefusalReason } from "@sma1lboy/rove-core/orchestrator/errors.ts"
 import { childrenOf } from "@sma1lboy/rove-core/orchestrator/task-tree.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { type TeardownScope, teardownScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"

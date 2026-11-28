@@ -17,6 +17,8 @@
  * If any hop grows a private re-mapping, these assertions are where it shows.
  */
 
+import type { TaskEngineState } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
+import { ClaudeHookAdapter, claudeVerbForHookEvent } from "@sma1lboy/rove-core/engine/claude-code-local/hook-adapter.ts"
 import { isEngineActivityKind } from "@sma1lboy/rove-core/engine/hook-events.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
@@ -24,8 +26,6 @@ import { DaemonActivityRegistry } from "@sma1lboy/rove-daemon/daemon/activity-re
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import { tabStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { describe, expect, it } from "vitest"
-import type { TaskEngineState } from "../../src/client/remote-orchestrator.ts"
-import { ClaudeHookAdapter, claudeVerbForHookEvent } from "../../src/engine/claude-code-local/hook-adapter.ts"
 import { buildSidebarRowView } from "../../src/tui/panes/sidebar/row-view.ts"
 
 function task(): Task {

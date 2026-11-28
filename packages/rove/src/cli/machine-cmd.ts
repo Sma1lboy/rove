@@ -9,6 +9,7 @@
  */
 
 import { argvHasFlag } from "@sma1lboy/rove-core/lib/argv.ts"
+import { type DiscoverResult, learnedFrom, sshServerIsWindows } from "@sma1lboy/rove-core/machines/discover.ts"
 import {
   type MachineConfig,
   addMachine,
@@ -31,7 +32,6 @@ import { isWindowsMachine } from "@sma1lboy/rove-core/machines/windows-remote.ts
 import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"
 import { CURRENT_VERSION } from "@sma1lboy/rove-core/version.ts"
-import { type DiscoverResult, learnedFrom, sshServerIsWindows } from "../machines/discover.ts"
 import { checkHostKey } from "../machines/host-key.ts"
 import {
   installReverseTunnel,
@@ -189,7 +189,7 @@ async function add(argv: readonly string[]): Promise<void> {
   addMachine(alias, { ...settled, ...learned, identity: identityTriple })
   setMachineIdentity(alias, identityTriple)
   // Forward now, or `rove api list` can't see it until a TUI starts one.
-  const { ensureForwards } = await import("../machines/tunnel.ts")
+  const { ensureForwards } = await import("@sma1lboy/rove-core/machines/tunnel.ts")
   const up = await ensureForwards({
     alias,
     config: { ...settled, ...learned },
@@ -239,7 +239,7 @@ async function doctor(argv: readonly string[]): Promise<void> {
     return
   }
   const rt = setupRuntime(argv)
-  const { ensureForwards } = await import("../machines/tunnel.ts")
+  const { ensureForwards } = await import("@sma1lboy/rove-core/machines/tunnel.ts")
   let failed = 0
   for (const { alias: name, ...config } of entries) {
     process.stderr.write(`${CLI_NAME} machine: checking ${name} (${sshTargetOf(config)})…\n`)

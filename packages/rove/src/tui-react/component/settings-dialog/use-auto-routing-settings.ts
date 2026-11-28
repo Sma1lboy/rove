@@ -8,7 +8,6 @@
  * already performs, never a second detector.
  */
 
-import type { VendorId } from "@sma1lboy/rove-core/types/task.ts"
 import {
   type AutoRoutingTable,
   type AutoRoutingTier,
@@ -16,8 +15,9 @@ import {
   autoRoutingKey,
   readAutoRoutingTable,
   tierBlock,
-} from "../../../engine/auto-routing"
-import type { EngineStatus } from "../../../engine/engine-status"
+} from "@sma1lboy/rove-core/engine/auto-routing.ts"
+import type { EngineStatus } from "@sma1lboy/rove-core/engine/engine-status.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/task.ts"
 import type { KVContext } from "../../context/kv"
 import type { DialogContext } from "../../ui/dialog"
 import { EnginePickerDialog } from "../engine-picker-dialog"

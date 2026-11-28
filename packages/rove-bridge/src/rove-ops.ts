@@ -6,11 +6,27 @@
  */
 
 import { isAbsolute, normalize } from "node:path"
+import type { ActiveGate, RowTokenMap, WorktreeChangesMap } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { terminalTabsKey } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
+import {
+  type DiffRefs,
+  type PreviewScope,
+  type WorktreeDiff,
+  checkRef,
+  worktreeDiff,
+  worktreeRefs,
+} from "@sma1lboy/rove-client/worktree/review-read.ts"
+import { detectEngineStatus } from "@sma1lboy/rove-core/engine/engine-status.ts"
+import { engineDisplayName } from "@sma1lboy/rove-core/engine/interactive-command.ts"
+import { type EngineIcon, engineEntry } from "@sma1lboy/rove-core/engine/registry.ts"
 import { isUnlistedCheckout } from "@sma1lboy/rove-core/lib/worktree-only.ts"
 import { isRemoteWorkspace } from "@sma1lboy/rove-core/machines/remote-workspace.ts"
 import { getDisabledEngineIds, getSavedRepos } from "@sma1lboy/rove-core/state/repos.ts"
 import { loadStateFile } from "@sma1lboy/rove-core/state/store.ts"
+import type { WireSplitNode } from "@sma1lboy/rove-core/tabs/split-wire.ts"
+import type { TaskTabRow } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
+import { conversationTitle } from "@sma1lboy/rove-core/tabs/terminal-tab-split.ts"
+import type { TerminalTab } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import { DEFAULT_TASK_VENDOR } from "@sma1lboy/rove-core/types/task.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { resolveBase } from "@sma1lboy/rove-core/worktree/git-status.ts"
@@ -19,22 +35,6 @@ import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { AttentionInboxItem } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { ActivityEntry } from "@sma1lboy/rove/src/cli/api/context-view.ts"
-import type { ActiveGate, RowTokenMap, WorktreeChangesMap } from "@sma1lboy/rove/src/client/remote-orchestrator.ts"
-import { detectEngineStatus } from "@sma1lboy/rove/src/engine/engine-status.ts"
-import { engineDisplayName } from "@sma1lboy/rove/src/engine/interactive-command.ts"
-import { type EngineIcon, engineEntry } from "@sma1lboy/rove/src/engine/registry.ts"
-import type { WireSplitNode } from "@sma1lboy/rove/src/tabs/split-wire.ts"
-import type { TaskTabRow } from "@sma1lboy/rove/src/tabs/tab-snapshot.ts"
-import { conversationTitle } from "@sma1lboy/rove/src/tabs/terminal-tab-split.ts"
-import type { TerminalTab } from "@sma1lboy/rove/src/tabs/terminal-tabs-core.ts"
-import {
-  type DiffRefs,
-  type PreviewScope,
-  type WorktreeDiff,
-  checkRef,
-  worktreeDiff,
-  worktreeRefs,
-} from "@sma1lboy/rove/src/worktree/review-read.ts"
 import { gateRows } from "./gates.ts"
 import { type NewTabRequest, newTabInvocation } from "./new-tab.ts"
 import { createBridgeApi } from "./ops/api.ts"

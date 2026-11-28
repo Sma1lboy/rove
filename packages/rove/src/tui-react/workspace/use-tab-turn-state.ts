@@ -12,11 +12,16 @@
  */
 
 import { attentionEdges, chipAttentionKind } from "@sma1lboy/rove-core/lib/notify-state.ts"
+import {
+  type TabsState,
+  type TerminalTab,
+  setTabLastTitle,
+  setTabLiveVendor,
+} from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { TabStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { useEffect, useMemo, useRef } from "react"
 import { createTabIdentityObserver } from "../../tabs/terminal-tab-identity"
-import { type TabsState, type TerminalTab, setTabLastTitle, setTabLiveVendor } from "../../tabs/terminal-tabs-core"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
 import { InterruptObserver } from "../../tui/workspace/interrupt-observer"
 import { getDefaultLiveEngines } from "../../tui/workspace/live-engine"

@@ -10,12 +10,12 @@
 
 import type { ExecHost, ExecResult } from "@sma1lboy/rove-core/exec/exec-host.ts"
 import { READ_ONLY_GIT_ENV } from "@sma1lboy/rove-core/lib/git-env.ts"
+import { landTask } from "@sma1lboy/rove-core/orchestrator/land.ts"
+import type { WorktreeExecDeps } from "@sma1lboy/rove-core/orchestrator/worktree/exec-deps.ts"
+import { GitWorktreeManager } from "@sma1lboy/rove-core/orchestrator/worktree/manager.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, it } from "vitest"
-import { landTask } from "../../src/orchestrator/land.ts"
-import type { WorktreeExecDeps } from "../../src/orchestrator/worktree/exec-deps.ts"
-import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
 
 interface RecordedRun {
   readonly argv: readonly string[]

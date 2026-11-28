@@ -7,8 +7,8 @@ import { expandTilde } from "@sma1lboy/rove-core/lib/path-home.ts"
 import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove-core/product.ts"
 import { rejectionReason } from "@sma1lboy/rove-core/state/project-eligibility.ts"
 import { BUILTIN_VENDORS, type VendorId, coerceVendorId, isBuiltinVendor } from "@sma1lboy/rove-core/types/vendor.ts"
+import type { AdoptableWorktree } from "@sma1lboy/rove-core/types/worktree.ts"
 import { matchPathGlob } from "../lib/path-glob.ts"
-import type { AdoptableWorktree } from "../types/worktree.ts"
 import { type CommandHandler, DYNAMIC_COMMANDS } from "./index-commands.ts"
 // Static imports here load on every CLI call (`--version` included): the
 // daemon client, orchestrator and i18n catalog stay behind dynamic imports.

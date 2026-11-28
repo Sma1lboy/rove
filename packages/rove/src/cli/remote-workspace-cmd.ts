@@ -16,9 +16,9 @@ import { dirname, resolve } from "node:path"
 import { createInterface } from "node:readline"
 import { flagValue } from "@sma1lboy/rove-core/lib/argv.ts"
 import { quoteShellArg } from "@sma1lboy/rove-core/lib/shell-command.ts"
+import { ensureMcpForwards, machineMcp } from "@sma1lboy/rove-core/machines/remote-mcp.ts"
 import { isRemoteWorkspace, readRemoteWorkspace, rxPath } from "@sma1lboy/rove-core/machines/remote-workspace.ts"
 import { CURRENT_VERSION } from "@sma1lboy/rove-core/version.ts"
-import { ensureMcpForwards, machineMcp } from "../machines/remote-mcp.ts"
 
 export async function runRemoteWorkspaceSubcommand(args: readonly string[]): Promise<void> {
   const dir = flagValue(args, "--dir") ?? process.cwd()

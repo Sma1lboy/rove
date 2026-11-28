@@ -1,4 +1,4 @@
-import type { HostedSessionClient } from "../../engine/hosted-session.ts"
+import type { HostedSessionClient } from "@sma1lboy/rove-core/engine/hosted-session.ts"
 import { ensurePtyHost } from "./pty-delivery.ts"
 import { ApiError } from "./types.ts"
 

@@ -5,9 +5,9 @@
  */
 
 import { ApiError } from "@sma1lboy/rove-core/lib/api-error.ts"
+import { forwardVerb, requireMachine } from "@sma1lboy/rove-core/machines/forward.ts"
 import { type MachineEntry, dedupeMachines, listMachines } from "@sma1lboy/rove-core/machines/registry.ts"
 import type { ApiEnvelope } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { forwardVerb, requireMachine } from "../machines/forward.ts"
 import { DeviceLogin, spawnGhLogin } from "./login.ts"
 import { GH_ENV, GITHUB_HOST, type RunTool, runTool } from "./run-tool.ts"
 import { type GithubStatus, githubStatus } from "./status.ts"

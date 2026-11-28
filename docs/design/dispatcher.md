@@ -33,7 +33,7 @@ flowchart LR
 | `session.deliver` RPC | `rove-daemon/src/daemon/handlers-ui.ts` | Delivers. Pastes into the task's live hosted engine session through the same adapter `send` uses (never spawns) and reports `delivered`. Only a `no-session` miss falls through to the channel below — publishing after a successful paste would make a listening browser paste it twice. |
 | `session.deliver` channel | `rove-daemon/src/daemon/protocol.ts` | The browser fallback: "paste this text into task X" — an address, not a delivery, because the SPA mints its own tab ids and its sessions are invisible to the PTY host. EVENT semantics; consumers dedupe on `at`. |
 | `rove api dispatch --task-id <id> --prompt <text>` | api-cmd + `session.deliver` RPC | The dispatcher's relay. Daemon-routed on purpose: it delivers only into an ALREADY-hosted session, where `rove api send` would start the task's canonical Hosted PTY session — and starting one beside a browser-owned session can create a duplicate engine. |
-| `noteFilingProtocol` + `worktreeProtocol` | `rove/src/engine/interactive-command.ts` | Worktree (card) sessions get ONE composed `--append-system-prompt`: status self-report (gated by `experimental.autoStatus`) + note filing (gated by `experimental.dispatcher`). |
+| `noteFilingProtocol` + `worktreeProtocol` | `rove-core/src/engine/interactive-command.ts` | Worktree (card) sessions get ONE composed `--append-system-prompt`: status self-report (gated by `experimental.autoStatus`) + note filing (gated by `experimental.dispatcher`). |
 | `dispatcherProtocol` | same | The main session's role prompt: relay verbatim with provenance, only to tasks whose work plausibly touches the same area, never back to the author, never twice, no conflict actions, no git outside its own cwd. |
 | Protocol CLI invocation | `roveApiInvocation()` | Commands in protocols bake the environment-correct invocation (packaged → `rove api`, or the `rove` alias when invoked that way; source checkout → the dev bun line), so a dev sandbox agent never drives a stale global install (BAD_VERB field bug). |
 
@@ -56,7 +56,7 @@ flowchart LR
 | `NotesStore` | `rove-daemon/src/daemon/notes-store.ts` | Append-only, keyed by git common-dir (the issue-store convention), newest `NOTES_RETENTION_CAP` (50) kept per repo. |
 | `note.file` (extended) | `handlers-ui.ts` | **Persists first, then routes.** A note filed with no dispatcher seat is no longer a loss; a store failure degrades to routing-only and never errors the author. |
 | `note.list` RPC + `rove api note-list --repo` | `handlers-ui.ts` / `verbs.ts` | Read the accumulated notes back. |
-| `readFieldNotes` | `rove/src/state/field-notes.ts` | Sync launch-path reader (matches on `repoRoot`). A missing or corrupt store is "no notes" — recall must never block a session from starting. |
+| `readFieldNotes` | `rove-core/src/state/field-notes.ts` | Sync launch-path reader (matches on `repoRoot`). A missing or corrupt store is "no notes" — recall must never block a session from starting. |
 | `noteRecallProtocol` | `engine/interactive-command.ts` | Renders the newest `NOTE_INJECTION_CAP` (15) into the worktree session's existing `--append-system-prompt`, as **claims with provenance, not instructions** — a stale note must lose to what the session observes. |
 
 Recall rides the same `experimental.dispatcher` switch and the same single injection point as note filing.

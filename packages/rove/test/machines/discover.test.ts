@@ -3,14 +3,14 @@
  * read. Everything else in `discover.ts` is an ssh subprocess.
  */
 
-import { describe, expect, it } from "vitest"
 import {
   looksLikeOldStatus,
   parseLocatedRove,
   parseStatusJson,
   roveCommand,
   unansweringDaemonPid,
-} from "../../src/machines/discover.ts"
+} from "@sma1lboy/rove-core/machines/discover.ts"
+import { describe, expect, it } from "vitest"
 
 const FULL = JSON.stringify({
   daemonPid: 900,

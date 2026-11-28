@@ -1,7 +1,7 @@
+import { hostedTaskKeys } from "@sma1lboy/rove-core/engine/hosted-session.ts"
 import type { DaemonOrchestrator, DaemonTask } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { TaskDeletionRunner } from "@sma1lboy/rove-daemon/daemon/task-deletion-runner"
 import { describe, expect, it, vi } from "vitest"
-import { hostedTaskKeys } from "../../src/engine/hosted-session.ts"
 
 function task(id: string, phase: "queued" | "running" | "error"): DaemonTask {
   return {

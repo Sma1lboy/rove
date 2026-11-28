@@ -8,12 +8,12 @@
  */
 
 import { readFile, stat } from "node:fs/promises"
+import { protocolEntry, sessionProtocol } from "@sma1lboy/rove-core/engine/engine-presets.ts"
+import { type EngineHistoryReader, supportsStructuredHistory } from "@sma1lboy/rove-core/engine/registry.ts"
+import { readTabsSnapshot } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
 import type { Message } from "@sma1lboy/rove-core/types/engine.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { readTabsSnapshot } from "../tabs/tab-snapshot.ts"
-import { protocolEntry, sessionProtocol } from "./engine-presets.ts"
-import { type EngineHistoryReader, supportsStructuredHistory } from "./registry.ts"
 
 /** What the search reads of a task; a daemon row and the TUI's task both have it. */
 export type SearchableTask = Pick<SerializedTask, "id" | "title" | "repo" | "worktreePath" | "vendor" | "origin">

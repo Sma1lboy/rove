@@ -6,8 +6,8 @@
  * declared per engine, so no neutral layer hard-codes a vendor's characters.
  */
 
+import { stripEngineStatusPrefix } from "@sma1lboy/rove-core/engine/registry.ts"
 import { describe, expect, it } from "vitest"
-import { stripEngineStatusPrefix } from "../../src/engine/registry"
 
 describe("stripEngineStatusPrefix", () => {
   it("strips claude's resting and animated prefixes", () => {

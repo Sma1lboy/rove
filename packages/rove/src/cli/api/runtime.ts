@@ -4,6 +4,7 @@
  * so unit tests never open a PTY host or git.
  */
 
+import { engineLaunchArgv, withPinnedSessionId } from "@sma1lboy/rove-core/engine/engine-presets.ts"
 import { resolvePtyOwner } from "@sma1lboy/rove-daemon/daemon/cwd-task"
 import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { PtySessionExit } from "@sma1lboy/rove-daemon/daemon/protocol"
@@ -14,9 +15,11 @@ import {
   isUnderKey,
   unclaimedSessions,
 } from "@sma1lboy/rove-daemon/daemon/pty-alias"
-import { engineLaunchArgv, withPinnedSessionId } from "../../engine/engine-presets.ts"
 
 import { type DaemonRpc, resolveActiveTaskId } from "@sma1lboy/rove-core/client/daemon-session.ts"
+import { launchReposOf, trustExtraRepos } from "@sma1lboy/rove-core/engine/multi-repo-launch.ts"
+import { buildEngineSessionLaunch } from "@sma1lboy/rove-core/engine/session-launch.ts"
+import { trustEngineWorktree } from "@sma1lboy/rove-core/engine/trust-worktree.ts"
 import {
   inspectRepo,
   isGitRepo,
@@ -24,11 +27,8 @@ import {
   isValidBranchName,
   resolveMainRepoRoot,
 } from "@sma1lboy/rove-core/state/repos.ts"
-import { launchReposOf, trustExtraRepos } from "../../engine/multi-repo-launch.ts"
-import { buildEngineSessionLaunch } from "../../engine/session-launch.ts"
-import { trustEngineWorktree } from "../../engine/trust-worktree.ts"
+import { type TerminalTab, tabPtyKeyFor } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import { persistedMaxLiveEngines } from "../../state/engine-limit.ts"
-import { type TerminalTab, tabPtyKeyFor } from "../../tabs/terminal-tabs-core.ts"
 
 // New callers: import from daemon-session.ts directly.
 export { resolveActiveTaskId }
@@ -40,7 +40,7 @@ import {
   publishCliTabSnapshot,
   readDaemonTabs,
   readTabsSnapshot,
-} from "../../tabs/tab-snapshot.ts"
+} from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
 import { deliverToExactTab } from "./exact-tab-delivery.ts"
 import { handlePtyList } from "./handler-helpers.ts"
 import {
@@ -319,7 +319,7 @@ export const defaultApiRuntime: ApiRuntime = {
     let engineAlive: Map<string, boolean> | undefined
     try {
       const { engineProcessIn, foregroundEngineIn, parsePsSnapshot, psSnapshot } = await import(
-        "../../engine/foreground.ts"
+        "@sma1lboy/rove-core/engine/foreground.ts"
       )
       const walkable = sessions.filter((s) => s.alive && typeof s.pid === "number" && s.pid > 0)
       if (walkable.length > 0) {
@@ -388,7 +388,7 @@ export const defaultApiRuntime: ApiRuntime = {
     return getLastActiveVendor() ?? getGlobalDefaultVendor()
   },
   readWorktreeChanges: async (worktreePath) =>
-    (await import("../../worktree/worktree-changes.ts")).readWorktreeChanges(worktreePath),
+    (await import("@sma1lboy/rove-client/worktree/worktree-changes.ts")).readWorktreeChanges(worktreePath),
   readBranchSignals: async (worktreePath, recordedBaseRef) =>
     (await import("./branch-signals.ts")).readBranchSignals(worktreePath, recordedBaseRef),
   tearDownSession: async (taskId, scope) => {

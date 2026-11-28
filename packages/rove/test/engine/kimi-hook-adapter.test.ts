@@ -1,15 +1,15 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { ROVE_HOOK_VERSION } from "@/engine/json-hooks"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { ROVE_HOOK_VERSION } from "@sma1lboy/rove-core/engine/json-hooks.ts"
 import {
   KimiHookAdapter,
   ROVE_KIMI_HOOK_EVENTS,
   mergeKimiHooks,
   removeKimiHookBlock,
   renderKimiHookBlock,
-} from "../../src/engine/kimi-local/hook-adapter.ts"
+} from "@sma1lboy/rove-core/engine/kimi-local/hook-adapter.ts"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 // Pin the CLI invocation module whole (same rule as codex-hook-adapter.test:
 // vi.mock replaces EVERY export; a new invocation.ts function must be stubbed

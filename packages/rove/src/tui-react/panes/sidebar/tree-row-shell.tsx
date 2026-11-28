@@ -4,13 +4,13 @@
  * contract) and the cell arithmetic each row budgets its label against.
  */
 
-import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
 import { type BoxRenderable, MouseButton } from "@opentui/core"
+import type { RowTokenMap, TaskEngineState, TaskJobState } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
+import type { WorktreeChanges } from "@sma1lboy/rove-client/worktree/worktree-changes.ts"
 import { charWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
 import type { TreeGuide } from "@sma1lboy/rove-core/lib/tree-guides.ts"
 import type { ReactNode } from "react"
 import { SIDEBAR_WIDTH } from "../../../tui/panes/sidebar/view-core"
-import type { WorktreeChanges } from "../../../worktree/worktree-changes"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"

@@ -64,7 +64,7 @@ client. "Before" is how a running client saw another process's change.
 
 ## Machines
 
-The machine hub (`rove/src/machines/hub.ts`) runs in the daemon
+The machine hub (`rove-client/src/machines/hub.ts`) runs in the daemon
 (`daemon-hub.ts`, through the runtime adapter's `startMachineHub`). It follows
 the registry on the `state` channel and publishes, whole, on `machines`: each
 machine's connection state, its tasks stamped with their origin, and the engine

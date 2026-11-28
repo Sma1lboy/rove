@@ -16,12 +16,12 @@
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import type { Orchestrator } from "@sma1lboy/rove-core/orchestrator/core.ts"
 import { type Task, toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { type DaemonServer, startDaemonServer } from "@sma1lboy/rove-daemon/daemon/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
-import type { Orchestrator } from "../../src/orchestrator/core.ts"
 
 /**
  * Orchestrator listing ONE local task whose worktree is an empty temp dir:

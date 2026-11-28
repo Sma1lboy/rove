@@ -4,8 +4,8 @@
  * covers them on a real filesystem.
  */
 
+import type { SkillTarget } from "@sma1lboy/rove-core/lib/skill-install.ts"
 import { type MockInstance, afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import type { SkillTarget } from "../../src/lib/skill-install.ts"
 
 const target = (vendor: string, state: SkillTarget["state"], version: number | null = 90): SkillTarget => ({
   vendor,
@@ -21,8 +21,8 @@ const mocks = vi.hoisted(() => ({
   installedSkillDiffersFromBundled: vi.fn(() => false),
 }))
 
-vi.mock("../../src/lib/skill-install.ts", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../src/lib/skill-install.ts")>()
+vi.mock("@sma1lboy/rove-core/lib/skill-install.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@sma1lboy/rove-core/lib/skill-install.ts")>()
   return {
     ...actual,
     skillTargets: mocks.skillTargets,

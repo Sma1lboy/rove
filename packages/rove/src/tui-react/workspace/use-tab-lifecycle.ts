@@ -5,19 +5,19 @@
  * refreshes `stateRef` synchronously). See TerminalTabs' header for why refs.
  */
 
-import { protocolEntry } from "@/engine/engine-presets"
-import { engineSessionIdFromTitle } from "@/engine/registry"
 import { discoverSessionId, engineSessionExists } from "@/engine/session-discovery"
 import { deriveTitleFromSessionId } from "@/monitor/auto-title"
-import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
-import { useEffect, useState } from "react"
+import { protocolEntry } from "@sma1lboy/rove-core/engine/engine-presets.ts"
+import { engineSessionIdFromTitle } from "@sma1lboy/rove-core/engine/registry.ts"
 import {
   type EngineTab,
   type TabsState,
   setTabAutoTitle,
   setTabSessionId,
   setTabSpawned,
-} from "../../tabs/terminal-tabs-core"
+} from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
+import { useEffect, useState } from "react"
 
 const NAMING_POLL_MS = 5000
 

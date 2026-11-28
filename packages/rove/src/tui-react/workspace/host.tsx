@@ -7,6 +7,7 @@
  */
 
 import { useRenderer } from "@opentui/react"
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { isNarrowWidth } from "@sma1lboy/rove-core/lib/narrow-mode.ts"
 import { linkedWorktree } from "@sma1lboy/rove-core/machines/remote-workspace.ts"
 import {
@@ -15,7 +16,6 @@ import {
   normalizeWorkingBorder,
 } from "@sma1lboy/rove-core/state/working-border.ts"
 import { isValidElement, useEffect, useRef, useState } from "react"
-import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { PrefixHud } from "../component/prefix-hud"
 import { ToastOverlay } from "../component/toast-overlay"
 import { useWhatsNewDialog } from "../component/whats-new-dialog"

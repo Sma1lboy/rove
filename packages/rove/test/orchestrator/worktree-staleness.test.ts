@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest"
 import {
   STALE_AGE_DAYS,
   type WorktreeStaleSignals,
   judgeWorktree,
   parseGhPrList,
-} from "../../src/orchestrator/worktree/staleness.ts"
+} from "@sma1lboy/rove-core/orchestrator/worktree/staleness.ts"
+import { describe, expect, it } from "vitest"
 
 /**
  * The staleness rubric drives the worktrees page's "safe to clean?"

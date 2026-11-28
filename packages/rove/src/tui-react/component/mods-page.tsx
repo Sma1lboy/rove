@@ -8,6 +8,7 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import {
   type ModControlRef,
   modControls,
@@ -17,7 +18,6 @@ import {
 } from "@sma1lboy/rove-core/lib/mods-core.ts"
 import type { ModNode, ModPaneView, ModTone } from "@sma1lboy/rove-daemon/plugins/mod-tree"
 import { type ReactNode, useRef, useState } from "react"
-import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"

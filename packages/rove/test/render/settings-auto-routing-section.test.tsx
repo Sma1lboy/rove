@@ -14,7 +14,7 @@
  */
 
 import { describe, expect, test } from "bun:test"
-import { DEFAULT_AUTO_ROUTING } from "../../src/engine/auto-routing"
+import { DEFAULT_AUTO_ROUTING } from "@sma1lboy/rove-core/engine/auto-routing.ts"
 import { AutoRoutingSettingsSection } from "../../src/tui-react/component/settings-dialog/sections-auto-routing"
 import type { AutoRoutingSettings } from "../../src/tui-react/component/settings-dialog/use-auto-routing-settings"
 import type { ClassifierSettings } from "../../src/tui-react/component/settings-dialog/use-classifier-settings"

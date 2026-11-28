@@ -15,18 +15,18 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import type { TaskPRStatus } from "@sma1lboy/rove-core/types/task.ts"
-import { SESSION_PR_CAP } from "@sma1lboy/rove-daemon/daemon/session-prs"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { Orchestrator } from "../../src/orchestrator/core.ts"
+import { Orchestrator } from "@sma1lboy/rove-core/orchestrator/core.ts"
 import {
   DirtyWorktreeError,
   IllegalTransitionError,
   WorktreeRemoveFailedError,
   dirtyRefusalReason,
-} from "../../src/orchestrator/errors.ts"
-import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
-import type { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
+} from "@sma1lboy/rove-core/orchestrator/errors.ts"
+import { TaskIndexStore } from "@sma1lboy/rove-core/orchestrator/index/store.ts"
+import type { GitWorktreeManager } from "@sma1lboy/rove-core/orchestrator/worktree/manager.ts"
+import type { TaskPRStatus } from "@sma1lboy/rove-core/types/task.ts"
+import { SESSION_PR_CAP } from "@sma1lboy/rove-daemon/daemon/session-prs"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 let home: string
 let store: TaskIndexStore

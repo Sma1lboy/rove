@@ -14,8 +14,8 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import type { Orchestrator } from "@sma1lboy/rove-core/orchestrator/core.ts"
 import { describe, expect, it } from "vitest"
-import type { Orchestrator } from "../../src/orchestrator/core.ts"
 import { type DaemonHarness, bootDaemonHarness, waitFor } from "./harness.ts"
 
 const PLUGIN_ID = "test.first-created"

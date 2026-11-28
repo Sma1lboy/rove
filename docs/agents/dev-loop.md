@@ -36,7 +36,7 @@ Mechanics: [`docs/design/daemon.md`](../design/daemon.md).
 
 ## Per-repo init
 
-A repo can ship `.rove/init.sh` (runs before the engine, in the worktree) and `.rove/init-prompt.md` (the engine's first message). repo files win over the per-user state.json override. Mechanics: [`src/state/repo-init.ts`](../../packages/rove/src/state/repo-init.ts), user docs in [`CONFIGURATION.md`](../CONFIGURATION.md).
+A repo can ship `.rove/init.sh` (runs before the engine, in the worktree) and `.rove/init-prompt.md` (the engine's first message). repo files win over the per-user state.json override. Mechanics: [`src/state/repo-init.ts`](../../packages/rove-core/src/state/repo-init.ts), user docs in [`CONFIGURATION.md`](../CONFIGURATION.md).
 
 ## Engine-owned UI data
 

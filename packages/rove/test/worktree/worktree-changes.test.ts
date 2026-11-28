@@ -1,5 +1,9 @@
+import {
+  parsePorcelain,
+  pickPushedChanges,
+  sameWorktreeChanges,
+} from "@sma1lboy/rove-client/worktree/worktree-changes.ts"
 import { describe, expect, test } from "vitest"
-import { parsePorcelain, pickPushedChanges, sameWorktreeChanges } from "../../src/worktree/worktree-changes"
 
 describe("parsePorcelain", () => {
   test("returns zeros for empty input", () => {

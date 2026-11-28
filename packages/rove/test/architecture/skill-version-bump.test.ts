@@ -18,8 +18,8 @@ import { createHash } from "node:crypto"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
+import { ROVE_SKILL_VERSION } from "@sma1lboy/rove-core/lib/skill-install.ts"
 import { describe, expect, test } from "vitest"
-import { ROVE_SKILL_VERSION } from "../../src/lib/skill-install.ts"
 
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url))
 /** The canonical skill source. `claude-plugin/skills/rove` is a byte-identical
@@ -55,7 +55,7 @@ function howToFix(): string {
     .join("\n")
   return [
     "",
-    `Bump ROVE_SKILL_VERSION to ${next} in src/lib/skill-install.ts, set the`,
+    `Bump ROVE_SKILL_VERSION to ${next} in packages/rove-core/src/lib/skill-install.ts, set the`,
     `\`<!-- rove-skill-version: ${next} -->\` marker in BOTH .agents/skills/rove/SKILL.md`,
     "and claude-plugin/skills/rove/SKILL.md, then paste this into FINGERPRINT:",
     "",

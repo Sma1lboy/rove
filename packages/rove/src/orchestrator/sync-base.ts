@@ -13,7 +13,7 @@
 
 import { readOnlyGitProcessEnv } from "@sma1lboy/rove-core/lib/git-env.ts"
 import { spawnCapture } from "@sma1lboy/rove-core/lib/poll-scheduling.ts"
-import { parseDirtyPaths } from "./dirty-paths.ts"
+import { parseDirtyPaths } from "@sma1lboy/rove-core/orchestrator/dirty-paths.ts"
 
 /** `git merge` can stall on a hook or a huge tree; kill it rather than hang. */
 export const SYNC_TIMEOUT_MS = 60_000

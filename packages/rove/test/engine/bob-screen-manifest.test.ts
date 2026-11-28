@@ -1,3 +1,5 @@
+import { BOB_SCREEN_MANIFEST } from "@sma1lboy/rove-core/engine/bob-local/screen.ts"
+import { classifyScreen } from "@sma1lboy/rove-core/engine/screen-state.ts"
 /**
  * Bob Shell's screen rules, checked against PTY captures of 2.0.4 that were
  * re-verified word-for-word on 2.0.5.
@@ -7,8 +9,6 @@
  * (`null` = keep the previous reading).
  */
 import { describe, expect, it } from "vitest"
-import { BOB_SCREEN_MANIFEST } from "../../src/engine/bob-local/screen.ts"
-import { classifyScreen } from "../../src/engine/screen-state.ts"
 
 describe("bob screen manifest", () => {
   const bob = BOB_SCREEN_MANIFEST

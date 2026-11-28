@@ -15,8 +15,8 @@
 
 import { afterEach, beforeEach, expect, test } from "bun:test"
 import { terminalTabsKey } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
+import type { TabsState } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import type { SharedTabs } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
-import type { TabsState } from "../../src/tabs/terminal-tabs-core"
 import { resetTabsSyncForTests } from "../../src/tui-react/workspace/tabs-sync"
 import { closeOtherTaskTabs, closeTaskTab } from "../../src/tui-react/workspace/terminal-tabs-close"
 import { tabActivationListeners, tabsByTask, takeTabClose } from "../../src/tui-react/workspace/terminal-tabs-shared"

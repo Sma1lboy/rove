@@ -1,5 +1,5 @@
+import { sameHistoryWorktree } from "@sma1lboy/rove-core/engine/history-worktree.ts"
 import { expect, it } from "vitest"
-import { sameHistoryWorktree } from "../../src/engine/history-worktree"
 
 it.each([
   ["C:\\Users\\jackson\\repo", "C:/Users/jackson/repo", true],

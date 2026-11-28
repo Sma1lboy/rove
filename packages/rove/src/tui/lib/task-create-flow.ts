@@ -3,7 +3,7 @@
  * arrives only as the `promptNewTask` callback, so this runs under plain vitest.
  */
 
-import { availableEngineIds } from "@/engine/account-detect"
+import { availableEngineIds } from "@sma1lboy/rove-core/engine/account-detect.ts"
 import { t } from "@sma1lboy/rove-core/i18n/index.ts"
 import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 import { addSavedRepo, getSavedRepos, resolveMainRepoRoot } from "@sma1lboy/rove-core/state/repos.ts"

@@ -6,9 +6,7 @@
  * vendor's launch binary — never a hard-coded vendor name.
  */
 
-import type { PtyScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
-import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
-import type { PsSnapshot } from "../../engine/foreground.ts"
+import type { PsSnapshot } from "@sma1lboy/rove-core/engine/foreground.ts"
 import {
   type HostedSessionRpc,
   type PromptWriteOutcome,
@@ -24,10 +22,12 @@ import {
   listHostedSessionsOrNull,
   openHostedSessionHost,
   pastePromptWhenEngineUp,
-} from "../../engine/hosted-session.ts"
-import { enginePresence } from "../../engine/session-engine-presence.ts"
-import { type EngineSessionLaunch, initMarkerSaysFinished } from "../../engine/session-launch.ts"
-import { readPersistedTerminalDefaultColors } from "../../theme/terminal-colors.ts"
+} from "@sma1lboy/rove-core/engine/hosted-session.ts"
+import { enginePresence } from "@sma1lboy/rove-core/engine/session-engine-presence.ts"
+import { type EngineSessionLaunch, initMarkerSaysFinished } from "@sma1lboy/rove-core/engine/session-launch.ts"
+import { readPersistedTerminalDefaultColors } from "@sma1lboy/rove-core/theme/terminal-colors.ts"
+import type { PtyScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
+import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import { openAdmittedEngine } from "./engine-admission.ts"
 import { restoredTabsOf } from "./tab-respawn.ts"
 import { ApiError, type DeliveredPrompt } from "./types.ts"

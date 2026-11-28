@@ -10,9 +10,9 @@
  * (`win-process-snapshot.ts`). These lock the plumbing itself.
  */
 
+import { foregroundEngine } from "@sma1lboy/rove-core/engine/foreground.ts"
+import { enginePresence } from "@sma1lboy/rove-core/engine/session-engine-presence.ts"
 import { describe, expect, it } from "vitest"
-import { foregroundEngine } from "../../src/engine/foreground.ts"
-import { enginePresence } from "../../src/engine/session-engine-presence.ts"
 import type { TaskPtyLike } from "../../src/tui/panes/terminal/pty-types"
 import { createLiveEngines } from "../../src/tui/workspace/live-engine"
 

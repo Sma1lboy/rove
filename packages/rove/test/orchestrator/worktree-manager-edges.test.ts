@@ -11,9 +11,9 @@ import { execSync } from "node:child_process"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { isDirtyOutput, parseDirtyPaths } from "@sma1lboy/rove-core/orchestrator/dirty-paths.ts"
+import { GitWorktreeManager } from "@sma1lboy/rove-core/orchestrator/worktree/manager.ts"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
-import { isDirtyOutput, parseDirtyPaths } from "../../src/orchestrator/dirty-paths.ts"
-import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
 
 let root: string
 let repo: string

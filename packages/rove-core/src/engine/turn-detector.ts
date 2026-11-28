@@ -6,10 +6,10 @@
  */
 
 import { stat } from "node:fs/promises"
-import * as claudeHistory from "@/engine/claude-code-local/history"
-import * as codexHistory from "@/engine/codex-local/history"
 import { isObject } from "@sma1lboy/rove-core/lib/is-object.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
+import * as claudeHistory from "./claude-code-local/history"
+import * as codexHistory from "./codex-local/history"
 import { isJsonlLineWithinBound, readTextFileIfRegular } from "./file-bounds"
 import { engineEntry } from "./registry.ts"
 

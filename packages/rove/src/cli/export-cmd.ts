@@ -130,7 +130,7 @@ export async function runExportSubcommand(args: readonly string[]): Promise<void
   const format = parseFormat(args)
 
   // Read tasks.json directly through its owner — no daemon, no socket.
-  const { TaskIndexStore } = await import("../orchestrator/index/store.ts")
+  const { TaskIndexStore } = await import("@sma1lboy/rove-core/orchestrator/index/store.ts")
   const store = new TaskIndexStore()
   await store.load()
   const tasks = store.list()

@@ -26,6 +26,8 @@ const NEUTRAL_ROOTS = [
   "packages/rove/src/orchestrator",
   "packages/rove/src/client",
   "packages/rove-core/src/orchestrator",
+  "packages/rove-core/src/client",
+  "packages/rove-client/src/client",
   "packages/rove-harness/src",
   "packages/rove-daemon/src",
 ]

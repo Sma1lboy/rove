@@ -11,8 +11,10 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { isNoProjectTask } from "@sma1lboy/rove-client/sidebar/groups.ts"
 import { routineEngineText } from "@sma1lboy/rove-core/automations/automation-engine-core.ts"
+import { engineDisplayName } from "@sma1lboy/rove-core/engine/interactive-command.ts"
 import { errorMessage } from "@sma1lboy/rove-core/lib/error-message.ts"
 import { getSavedRepos } from "@sma1lboy/rove-core/state/repos.ts"
 import {
@@ -23,8 +25,6 @@ import {
 } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { pathSyntax } from "@sma1lboy/rove-daemon/path-identity"
 import { type ReactNode, useEffect, useState } from "react"
-import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
-import { engineDisplayName } from "../../engine/interactive-command"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"

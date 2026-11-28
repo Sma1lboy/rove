@@ -5,11 +5,11 @@
  * Quota and Settings live in the rail's foot.
  */
 
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { isNarrowWidth } from "@sma1lboy/rove-core/lib/narrow-mode.ts"
 import { contextChip } from "@sma1lboy/rove-core/lib/usage-core.ts"
 import { USAGE_SHOW_KEY, normalizeUsageShow } from "@sma1lboy/rove-core/state/usage-show.ts"
 import type { ReactNode } from "react"
-import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { StatusKeyHintBar, useStatusKeyHintItems } from "../component/keyboard-hints"
 import { ShortcutRevealProvider } from "../component/shortcut-reveal"
 import { useOptionalKV } from "../context/kv"

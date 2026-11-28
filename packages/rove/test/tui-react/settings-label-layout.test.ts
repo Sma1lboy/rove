@@ -9,8 +9,8 @@
  * with it.
  */
 
+import { LABEL_COLUMN_MAX, generalLabelLayout } from "@sma1lboy/rove-client/settings/model.ts"
 import { describe, expect, test } from "vitest"
-import { LABEL_COLUMN_MAX, generalLabelLayout } from "../../src/settings/model.ts"
 
 /** Cells a row actually owns: width − dialog padding − sidebar − gap − Row padding. */
 const rowCells = (width: number, padX: number) => width - padX * 2 - 14 - 2 - 2

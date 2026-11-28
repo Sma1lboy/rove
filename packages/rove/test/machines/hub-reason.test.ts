@@ -7,8 +7,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const discover = vi.hoisted(() => vi.fn())
 const tunnelListeners = vi.hoisted(() => [] as ((state: string) => void)[])
-vi.mock("../../src/machines/discover.ts", () => ({ discoverMachine: discover, learnedFrom: () => ({}) }))
-vi.mock("../../src/machines/tunnel.ts", () => ({
+vi.mock("@sma1lboy/rove-core/machines/discover.ts", () => ({ discoverMachine: discover, learnedFrom: () => ({}) }))
+vi.mock("@sma1lboy/rove-core/machines/tunnel.ts", () => ({
   startTunnel: () => ({
     alias: "box",
     daemonSocketPath: "/tmp/none.sock",
@@ -26,7 +26,7 @@ vi.mock("@sma1lboy/rove-core/machines/registry.ts", async (importOriginal) => ({
   updateMachine: () => {},
 }))
 vi.mock("@sma1lboy/rove-daemon/client", () => ({ RoveDaemonClient: class {} }))
-vi.mock("../../src/client/remote-orchestrator.ts", () => {
+vi.mock("@sma1lboy/rove-client/client/remote-orchestrator.ts", () => {
   const signal = <T>(value: T) => ({ get: () => value, subscribe: () => () => {} })
   return {
     RemoteOrchestrator: class {
@@ -42,8 +42,8 @@ vi.mock("../../src/client/remote-orchestrator.ts", () => {
   }
 })
 
+import { MachineHub } from "@sma1lboy/rove-client/machines/hub.ts"
 import type { MachineEntry } from "@sma1lboy/rove-core/machines/registry.ts"
-import { MachineHub } from "../../src/machines/hub.ts"
 
 const sockets = { daemon: "/r/d.sock", pty: "/r/p.sock" }
 const status = (hub: MachineHub) => hub.machinesSignal().get()[0]

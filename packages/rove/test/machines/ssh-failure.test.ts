@@ -1,6 +1,6 @@
+import { classifySshFailure, sshFailureRemedy } from "@sma1lboy/rove-core/machines/ssh-failure.ts"
 import { WINDOWS_SSHD_BANNER } from "@sma1lboy/rove-core/machines/windows-remote.ts"
 import { describe, expect, it } from "vitest"
-import { classifySshFailure, sshFailureRemedy } from "../../src/machines/ssh-failure.ts"
 
 /** Captured from OpenSSH 9 (Linux) unless noted; each kind has a different remedy. */
 describe("classifySshFailure", () => {

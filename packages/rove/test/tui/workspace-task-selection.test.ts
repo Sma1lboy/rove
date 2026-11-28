@@ -4,10 +4,10 @@
  * for a second Enter just because the task is absent from the current snapshot.
  */
 
+import { TaskDeletingError } from "@sma1lboy/rove-core/orchestrator/errors.ts"
 import type { Task } from "@sma1lboy/rove-core/types/task.ts"
 import { toTaskId } from "@sma1lboy/rove-core/types/task.ts"
 import { describe, expect, test, vi } from "vitest"
-import { TaskDeletingError } from "../../src/orchestrator/errors"
 import {
   activateWorkspaceTask,
   activationErrorMessage,

@@ -13,7 +13,7 @@ const host = vi.hoisted(() => ({
   calls: [] as Array<{ name: string; payload: Record<string, unknown> }>,
   failOpen: false,
 }))
-vi.mock("../../src/engine/hosted-session.ts", async (original) => ({
+vi.mock("@sma1lboy/rove-core/engine/hosted-session.ts", async (original) => ({
   ...(await original<object>()),
   ensureHostedSessionHost: async () => ({
     rpc: {

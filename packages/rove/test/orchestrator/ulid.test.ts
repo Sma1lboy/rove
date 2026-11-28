@@ -1,5 +1,5 @@
+import { ULID_ALPHABET, _resetUlidStateForTests, ulid } from "@sma1lboy/rove-core/orchestrator/index/ulid.ts"
 import { beforeEach, describe, expect, it } from "vitest"
-import { ULID_ALPHABET, _resetUlidStateForTests, ulid } from "../../src/orchestrator/index/ulid.ts"
 
 describe("ulid", () => {
   // The monotonic state is module-global; reset it before each case so

@@ -2,8 +2,8 @@
  * its open/send/diff callbacks every mount; FileTree and keybindings read them
  * at click/keypress time. */
 
+import type { RemoteOrchestrator } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { useRef } from "react"
-import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import type { FocusContextValue } from "../context/focus"
 import { useT } from "../i18n"
 import { useLatest } from "../lib/use-latest"

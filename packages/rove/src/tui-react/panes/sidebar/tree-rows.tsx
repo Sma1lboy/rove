@@ -11,8 +11,8 @@
  * state among them.
  */
 
-import { type TaskEngineState, liveRowTokens } from "@/client/remote-orchestrator"
 import { TextAttributes } from "@opentui/core"
+import { type TaskEngineState, liveRowTokens } from "@sma1lboy/rove-client/client/remote-orchestrator.ts"
 import { charWidth, displayWidth } from "@sma1lboy/rove-core/lib/display-width.ts"
 import { GLYPH_SETS } from "@sma1lboy/rove-core/lib/glyphs.ts"
 import { dotLook } from "@sma1lboy/rove-core/lib/status-dots.ts"

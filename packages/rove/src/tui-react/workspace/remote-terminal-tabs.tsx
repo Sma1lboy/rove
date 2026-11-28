@@ -7,9 +7,9 @@
  */
 
 import { prefixAction } from "@sma1lboy/rove-client/keys/keymap-dispatch.ts"
+import { forwardVerb, requireMachine } from "@sma1lboy/rove-core/machines/forward.ts"
+import type { TaskTabRow } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
 import { useEffect, useState } from "react"
-import { forwardVerb, requireMachine } from "../../machines/forward.ts"
-import type { TaskTabRow } from "../../tabs/tab-snapshot.ts"
 import { bindByIds } from "../context/keybindings"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"

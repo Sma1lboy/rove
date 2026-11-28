@@ -18,9 +18,9 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { type ExecHost, LocalExecHost } from "@sma1lboy/rove-core/exec/exec-host.ts"
+import { GitWorktreeManager } from "@sma1lboy/rove-core/orchestrator/worktree/manager.ts"
+import { type SalvageRecord, salvageRef, salvageWorktree } from "@sma1lboy/rove-core/orchestrator/worktree/salvage.ts"
 import { afterEach, beforeEach, expect, test } from "vitest"
-import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
-import { type SalvageRecord, salvageRef, salvageWorktree } from "../../src/orchestrator/worktree/salvage.ts"
 
 let tmpRoot: string
 let repo: string

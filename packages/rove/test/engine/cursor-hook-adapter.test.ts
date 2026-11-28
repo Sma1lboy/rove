@@ -9,14 +9,14 @@
  */
 
 import { join } from "node:path"
-import { ROVE_HOOK_VERSION } from "@/engine/json-hooks"
-import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   CursorHookAdapter,
   cursorHooksPath,
   mergeCursorHooks,
   parseCursorHooks,
-} from "../../src/engine/cursor-local/hook-adapter.ts"
+} from "@sma1lboy/rove-core/engine/cursor-local/hook-adapter.ts"
+import { ROVE_HOOK_VERSION } from "@sma1lboy/rove-core/engine/json-hooks.ts"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 const PROD = ["rove"]
 const DEV = ["bun", "/repo/packages/rove/src/cli/rove.ts"]

@@ -4,13 +4,13 @@ import { type SearchableTask, matchMessages, prefilterToken, searchTasks } from 
 
 const fake = vi.hoisted(() => ({ sessions: new Map<string, readonly unknown[]>(), tabs: new Map<string, string[]>() }))
 
-vi.mock("../../src/tabs/tab-snapshot.ts", () => ({
+vi.mock("@sma1lboy/rove-core/tabs/tab-snapshot.ts", () => ({
   readTabsSnapshot: (taskId: string) => ({
     tabs: (fake.tabs.get(taskId) ?? []).map((sessionId) => ({ id: `tab-${sessionId}`, kind: "engine", sessionId })),
   }),
 }))
-vi.mock("../../src/engine/registry.ts", () => ({ supportsStructuredHistory: () => true }))
-vi.mock("../../src/engine/engine-presets.ts", () => ({
+vi.mock("@sma1lboy/rove-core/engine/registry.ts", () => ({ supportsStructuredHistory: () => true }))
+vi.mock("@sma1lboy/rove-core/engine/engine-presets.ts", () => ({
   sessionProtocol: (v: string) => v,
   protocolEntry: () => ({
     history: {

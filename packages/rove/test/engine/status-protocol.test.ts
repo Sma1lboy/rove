@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest"
 import {
   noteFilingProtocol,
   statusReportProtocol,
   withWorktreeProtocol,
   worktreeProtocol,
-} from "../../src/engine/worktree-protocol.ts"
+} from "@sma1lboy/rove-core/engine/worktree-protocol.ts"
+import { describe, expect, it } from "vitest"
 
 /**
  * Protocol injection (web-kanban.md M5).

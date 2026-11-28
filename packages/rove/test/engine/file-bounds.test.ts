@@ -1,8 +1,8 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { readTextFileBounded, readTextFileSyncBounded } from "@sma1lboy/rove-core/engine/file-bounds.ts"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { readTextFileBounded, readTextFileSyncBounded } from "../../src/engine/file-bounds.ts"
 
 describe("file-bounds", () => {
   let dir: string

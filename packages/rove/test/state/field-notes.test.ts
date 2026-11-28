@@ -7,8 +7,8 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { NOTE_INJECTION_CAP, readFieldNotes } from "@sma1lboy/rove-core/state/field-notes.ts"
 import { afterEach, describe, expect, it } from "vitest"
-import { NOTE_INJECTION_CAP, readFieldNotes } from "../../src/state/field-notes.ts"
 
 const cleanups: string[] = []
 

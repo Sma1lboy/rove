@@ -2,7 +2,7 @@
 
 Contributor-facing mechanics behind [`docs/ENGINES.md`](../ENGINES.md): the
 engine-owned contract, hook wiring, and activity-state detection. Ground
-truth is [`packages/rove/src/engine/registry.ts`](../../packages/rove/src/engine/registry.ts);
+truth is [`packages/rove-core/src/engine/registry.ts`](../../packages/rove-core/src/engine/registry.ts);
 if this file and the registry disagree, the registry wins.
 
 ## The engine-owned contract

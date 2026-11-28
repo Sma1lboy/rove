@@ -8,10 +8,10 @@
  * dispose the old poll.
  */
 
+import { engineEntry, stripEngineStatusPrefix } from "@sma1lboy/rove-core/engine/registry.ts"
+import type { TabsState } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { engineEntry, stripEngineStatusPrefix } from "../../engine/registry"
-import type { TabsState } from "../../tabs/terminal-tabs-core"
 import { startTurnStatusPoll } from "../../tui/ops/activity-monitor"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { getDefaultLiveEngines } from "../../tui/workspace/live-engine"

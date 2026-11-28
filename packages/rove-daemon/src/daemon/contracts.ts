@@ -434,7 +434,7 @@ export interface DaemonOrchestrator extends CheckpointOrchestrator {
 
 /**
  * Engine half of a turn record, lifted from the vendor transcript. Structural
- * copy of `rove/src/engine/agent-turn.ts` (source of truth); the daemon never
+ * copy of `rove-core/src/engine/agent-turn.ts` (source of truth); the daemon never
  * imports rove sources.
  */
 export interface AgentTurn {

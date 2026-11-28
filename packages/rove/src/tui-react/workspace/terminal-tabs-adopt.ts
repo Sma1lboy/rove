@@ -6,8 +6,8 @@
  */
 
 import type { TabsSnapshotKv } from "@sma1lboy/rove-client/tabs/terminal-tabs-persist.ts"
-import { adoptTabs } from "../../tabs/tabs-adopt"
-import type { TabsState } from "../../tabs/terminal-tabs-core"
+import { adoptTabs } from "@sma1lboy/rove-core/tabs/tabs-adopt.ts"
+import type { TabsState } from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
 import { knownTabsState, requestTabAdopt, setTaskTabs, takeUnclaimedTabAdopt } from "./terminal-tabs-shared"
 
 /**

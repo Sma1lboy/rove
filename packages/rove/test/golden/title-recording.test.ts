@@ -12,10 +12,7 @@
  * keep all of them green.
  */
 
-import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
-import { describe, expect, it } from "vitest"
-import { stripEngineStatusPrefix } from "../../src/engine/registry"
-import { demoteExitedEngine } from "../../src/tabs/terminal-tab-identity"
+import { stripEngineStatusPrefix } from "@sma1lboy/rove-core/engine/registry.ts"
 import {
   type TabsState,
   type TerminalTab,
@@ -24,7 +21,10 @@ import {
   setTabLiveVendor,
   tabTitle,
   tabTitleStable,
-} from "../../src/tabs/terminal-tabs-core"
+} from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
+import type { VendorId } from "@sma1lboy/rove-core/types/vendor.ts"
+import { describe, expect, it } from "vitest"
+import { demoteExitedEngine } from "../../src/tabs/terminal-tab-identity"
 
 const SHELL = ["/bin/zsh"]
 

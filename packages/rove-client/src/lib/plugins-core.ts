@@ -7,6 +7,7 @@
  */
 
 import { closeSync, openSync, readFileSync, readSync, statSync } from "node:fs"
+import { reloadPluginEngines } from "@sma1lboy/rove-core/engine/plugin-engines.ts"
 import {
   currentPluginPlatform,
   parsePluginManifest,
@@ -21,7 +22,6 @@ import {
   savePluginRegistry,
 } from "@sma1lboy/rove-daemon/plugins/registry"
 import { readPluginSettings, writePluginSettings } from "@sma1lboy/rove-daemon/plugins/settings-env"
-import { reloadPluginEngines } from "../engine/plugin-engines.ts"
 import { pluginPageErrors } from "./page-errors"
 import { type PluginSettingRowView, pluginSettingRows } from "./plugin-settings-core"
 

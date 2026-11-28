@@ -6,8 +6,8 @@
  * debounces the Stop race, and reports `turn-interrupted`.
  */
 
+import { engineTitleTurnHint } from "@sma1lboy/rove-core/engine/registry.ts"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { engineTitleTurnHint } from "../../src/engine/registry"
 import { InterruptObserver } from "../../src/tui/workspace/interrupt-observer"
 
 const wait = (ms: number) => vi.advanceTimersByTimeAsync(ms)

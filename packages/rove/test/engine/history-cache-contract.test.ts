@@ -20,9 +20,9 @@ vi.mock("node:crypto", async (importOriginal) => {
   }
   return { ...crypto, createHash: (...args: Parameters<typeof crypto.createHash>) => track(crypto.createHash(...args)) }
 })
-import { parseSessionRaw } from "../../src/engine/claude-code-local/history-parse"
-import { parseRolloutRaw } from "../../src/engine/codex-local/history-parse"
-import { createAppendParseCache } from "../../src/engine/history-cache"
+import { parseSessionRaw } from "@sma1lboy/rove-core/engine/claude-code-local/history-parse.ts"
+import { parseRolloutRaw } from "@sma1lboy/rove-core/engine/codex-local/history-parse.ts"
+import { createAppendParseCache } from "@sma1lboy/rove-core/engine/history-cache.ts"
 
 it("hashes each current prefix byte once during an append", () => {
   const parse = createAppendParseCache<string>({ initial: () => "", parseChunk: (chunk, prev) => prev + chunk })

@@ -17,7 +17,6 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
   allocateTab,
   closeTabsSnapshot,
@@ -25,7 +24,8 @@ import {
   publishCliTabSnapshot,
   readTabsSnapshot,
   renameTabsSnapshot,
-} from "../../src/tabs/tab-snapshot.ts"
+} from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { mintEngineTab, tabsDaemon } from "./tabs-daemon-fake.ts"
 
 let home: string

@@ -1,15 +1,15 @@
 import { basename } from "node:path"
-import type { PtyCheckedOpenResult, PtyOpenResult } from "@sma1lboy/rove-daemon/daemon/protocol"
-import type { PtySessionInfo, PtySpawnSpec } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import {
   type PsSnapshot,
   engineProcessIn,
   parsePsSnapshot,
   psSnapshot,
   vendorFromArgv,
-} from "../../engine/foreground.ts"
-import { type HostedSessionRpc, sessionArgvNamesEngine } from "../../engine/hosted-session.ts"
-import { readTabsSnapshot } from "../../tabs/tab-snapshot.ts"
+} from "@sma1lboy/rove-core/engine/foreground.ts"
+import { type HostedSessionRpc, sessionArgvNamesEngine } from "@sma1lboy/rove-core/engine/hosted-session.ts"
+import { readTabsSnapshot } from "@sma1lboy/rove-core/tabs/tab-snapshot.ts"
+import type { PtyCheckedOpenResult, PtyOpenResult } from "@sma1lboy/rove-daemon/daemon/protocol"
+import type { PtySessionInfo, PtySpawnSpec } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import { ApiError } from "./types.ts"
 
 /** A pending launch still owns its slot; keepAlive's bare shell does not. */

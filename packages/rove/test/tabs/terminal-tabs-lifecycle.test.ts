@@ -9,7 +9,6 @@
  * what makes a divergence obvious.
  */
 
-import { describe, expect, it } from "vitest"
 import {
   type EngineTab,
   type TabsState,
@@ -21,7 +20,8 @@ import {
   renameActiveTab,
   setTabAutoTitle,
   setTabSessionId,
-} from "../../src/tabs/terminal-tabs-core"
+} from "@sma1lboy/rove-core/tabs/terminal-tabs-core.ts"
+import { describe, expect, it } from "vitest"
 
 describe("terminal tabs lifecycle", () => {
   // Why: rehydrateTabs is the restart contract — a tab is a TERMINAL, so

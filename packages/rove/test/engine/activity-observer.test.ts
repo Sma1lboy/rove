@@ -6,19 +6,19 @@
  * a sidebar tab row derives — the same chain the golden stakes anchor.
  */
 
+import { handleOrchestratorEvent } from "@sma1lboy/rove-client/client/remote-orchestrator-events.ts"
+import type {
+  EngineTabStateMap,
+  OrchestratorSignals,
+  TaskEngineState,
+} from "@sma1lboy/rove-client/client/remote-orchestrator-payloads.ts"
+import { foregroundEngineIn, parsePsSnapshot } from "@sma1lboy/rove-core/engine/foreground.ts"
+import { engineTitleTurnHint } from "@sma1lboy/rove-core/engine/registry.ts"
 import { createStateCell } from "@sma1lboy/rove-core/lib/external-store.ts"
 import { startActivityObserver } from "@sma1lboy/rove-daemon/daemon/activity-observer"
 import { DaemonActivityRegistry } from "@sma1lboy/rove-daemon/daemon/activity-registry"
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { handleOrchestratorEvent } from "../../src/client/remote-orchestrator-events"
-import type {
-  EngineTabStateMap,
-  OrchestratorSignals,
-  TaskEngineState,
-} from "../../src/client/remote-orchestrator-payloads"
-import { foregroundEngineIn, parsePsSnapshot } from "../../src/engine/foreground"
-import { engineTitleTurnHint } from "../../src/engine/registry"
 import { tabRowActivity } from "../../src/tui/panes/sidebar/tree-core"
 
 const TASK = "task-1"

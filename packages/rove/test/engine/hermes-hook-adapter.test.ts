@@ -13,9 +13,13 @@ import { execFileSync } from "node:child_process"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { HERMES_PLUGIN_NAME, setHermesPluginEnabled } from "@/engine/hermes-local/config-yaml"
-import { HermesHookAdapter, hermesConfigPath, hermesPluginDir } from "@/engine/hermes-local/hook-adapter"
-import { renderHermesPluginSource } from "@/engine/hermes-local/plugin-source"
+import { HERMES_PLUGIN_NAME, setHermesPluginEnabled } from "@sma1lboy/rove-core/engine/hermes-local/config-yaml.ts"
+import {
+  HermesHookAdapter,
+  hermesConfigPath,
+  hermesPluginDir,
+} from "@sma1lboy/rove-core/engine/hermes-local/hook-adapter.ts"
+import { renderHermesPluginSource } from "@sma1lboy/rove-core/engine/hermes-local/plugin-source.ts"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 function enable(content: string): string {

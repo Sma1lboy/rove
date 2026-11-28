@@ -251,7 +251,7 @@ Three pieces, in the layer each already belongs to:
    pane does today.
 3. **The TUI writes the payload to fd 1 between frames**, next to where the
    event is consumed
-   ([`client/remote-orchestrator-events.ts:353`](../../packages/rove/src/client/remote-orchestrator-events.ts)).
+   ([`client/remote-orchestrator-events.ts:353`](../../packages/rove-client/src/client/remote-orchestrator-events.ts)).
    Bytes verbatim; Rove parses nothing.
 
 **Why this does not reintroduce what the scrub prevents.**
