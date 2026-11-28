@@ -4,8 +4,11 @@
  */
 
 import type { TaskExtraRepo, TaskPRStatus } from "@sma1lboy/rove-daemon/daemon/contracts"
+import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { rollupPr } from "@sma1lboy/rove-daemon/task-tree"
 import { BridgeError } from "../protocol.ts"
+import type { EngineRow } from "../rove-ops.ts"
+import { engineFor } from "../task-rows.ts"
 import { flag, taskId } from "./args.ts"
 import { knownRepo, taskOpDeps } from "./tasks-shared.ts"
 import { TASK_WRITE_OPS } from "./tasks-write.ts"
@@ -44,10 +47,21 @@ interface GetTaskResult {
   }
 }
 
+/**
+ * The engine id the task launches as, which Retry, Run again and Change engine re-pick. `vendor` is only the
+ * protocol: a preset like `claudecpa` stores `vendor: claude`, and re-picking that runs plain `claude`.
+ */
+async function engineIdOf(t: GetTaskResult["task"], ctx: OpContext): Promise<string | undefined> {
+  if (!t.command || t.command === t.vendor) return t.vendor
+  const res = await ctx.api.verb<{ engines?: EngineRow[] }>("engine-list", []).catch(() => undefined)
+  return engineFor(t as SerializedTask, res?.engines ?? [])?.id ?? t.vendor
+}
+
 async function taskGet(args: Args, ctx: OpContext): Promise<unknown> {
   const res = await ctx.api.verb<GetTaskResult>("get-task", [flag("task-id", taskId(args))])
   const t = res.task
   const pr = rollupPr(t)
+  const engine = await engineIdOf(t, ctx)
   return {
     task: {
       id: t.id,
@@ -59,7 +73,7 @@ async function taskGet(args: Args, ctx: OpContext): Promise<unknown> {
       status: t.status,
       pinned: t.pinned === true,
       ...(t.archived ? { archived: true } : {}),
-      ...(t.vendor ? { engine: t.vendor } : {}),
+      ...(engine ? { engine } : {}),
       ...(t.command ? { command: t.command } : {}),
       ...(t.model ? { model: t.model } : {}),
       ...(t.modelEffort ? { effort: t.modelEffort } : {}),

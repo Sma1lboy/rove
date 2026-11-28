@@ -78,7 +78,7 @@ describe("task.get", () => {
         },
       },
     )
-    expect(calls).toEqual([{ verb: "get-task", argv: [`--task-id=${T}`] }])
+    expect(calls[0]).toEqual({ verb: "get-task", argv: [`--task-id=${T}`] })
     expect(result).toEqual({
       task: {
         id: T,
@@ -102,6 +102,34 @@ describe("task.get", () => {
         report: { summary: "", at: "r" },
       },
     })
+  })
+
+  test("a preset task reports the preset as its engine, not the protocol it speaks", async () => {
+    const { result } = await run(
+      "task.get",
+      { taskId: T },
+      {
+        "engine-list": {
+          engines: [
+            { id: "claude", name: "Claude", command: "claude", protocol: "claude", builtin: true },
+            { id: "claudecpa", name: "Claudecpa", command: "claudecpa", protocol: "claude", builtin: false },
+          ],
+        },
+        "get-task": {
+          task: {
+            id: T,
+            title: "t",
+            repo: REPO,
+            branch: "",
+            worktreePath: "",
+            status: "backlog",
+            vendor: "claude",
+            command: "claudecpa",
+          },
+        },
+      },
+    )
+    expect(result).toMatchObject({ task: { engine: "claudecpa", command: "claudecpa" } })
   })
 
   test("optional fields stay absent", async () => {
