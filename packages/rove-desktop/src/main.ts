@@ -134,10 +134,15 @@ function createWindow(started: Started): void {
   win.once("closed", () => clearTimeout(fallback))
   win.webContents.on("did-fail-load", (_event, code, description) => log(`page failed to load: ${code} ${description}`))
   // Set on every load (a reload or a reconnect re-runs it); a page from an older rove ignores it.
+  // Full screen hides the traffic lights, so the page drops the inset they need.
   if (process.platform === "darwin") {
-    win.webContents.on("dom-ready", () => {
-      void win?.webContents.executeJavaScript(`document.documentElement.dataset.shell = "mac-inset"`)
-    })
+    const markShell = () => {
+      const shell = win?.isFullScreen() ? "mac-full" : "mac-inset"
+      void win?.webContents.executeJavaScript(`document.documentElement.dataset.shell = "${shell}"`)
+    }
+    win.webContents.on("dom-ready", markShell)
+    win.on("enter-full-screen", markShell)
+    win.on("leave-full-screen", markShell)
   }
   if (process.env.ROVE_DESKTOP_DEBUG) {
     win.webContents.on("console-message", (event) => log(`page: ${event.message}`))
