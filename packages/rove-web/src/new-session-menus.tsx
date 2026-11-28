@@ -143,19 +143,47 @@ export function SearchList(props: {
   extra?: PickRow | null
   more?: readonly PickRow[]
   moreLabel?: string
+  /** A row held under the scrolling list, past a hairline: it stays in view however long the list runs. */
+  pinned?: PickRow | null
   /** A muted line under the rows. */
   hint?: string
   /** `add`: picked with Shift (or ⌘ / Ctrl) held, for a list that can hold several. */
   onPick: (key: string, add: boolean) => void
 }) {
   const [cursor, setCursor] = useState(0)
-  const all = [...(props.extra ? [props.extra] : []), ...props.rows, ...(props.more ?? [])]
+  const all = [
+    ...(props.extra ? [props.extra] : []),
+    ...props.rows,
+    ...(props.more ?? []),
+    ...(props.pinned ? [props.pinned] : []),
+  ]
+  const listed = props.pinned ? all.slice(0, -1) : all
   const at = Math.min(cursor, Math.max(0, all.length - 1))
   const active = useRef<HTMLButtonElement>(null)
   // biome-ignore lint/correctness/useExhaustiveDependencies: re-scroll when the cursor or the list moves
   useEffect(() => {
     active.current?.scrollIntoView({ block: "nearest" })
   }, [at, props.rows])
+  const row = (item: PickRow, i: number) => (
+    <button
+      type="button"
+      aria-current={item.checked === true}
+      ref={i === at ? active : undefined}
+      tabIndex={-1}
+      title={item.title}
+      className={rowClass({ cursor: i === at })}
+      onMouseMove={() => setCursor(i)}
+      onClick={(e) => props.onPick(item.key, e.shiftKey || e.metaKey || e.ctrlKey)}
+    >
+      <span className={CHECK}>{item.checked ? "✓" : ""}</span>
+      <span className={NAME}>{item.text}</span>
+      {item.dim && (
+        <span className={`${DIM} text-muted ${item.dimPath ? CLIP_HEAD : CLIP}`}>
+          {item.dimPath ? <bdi>{item.dim}</bdi> : item.dim}
+        </span>
+      )}
+    </button>
+  )
   return (
     <div className={MENU}>
       <input
@@ -182,32 +210,21 @@ export function SearchList(props: {
         }}
       />
       <div className={ROWS}>
-        {all.length === 0 && <p className={`${EMPTY_NOTE} text-muted`}>{props.empty}</p>}
-        {all.map((row, i) => (
-          <Fragment key={row.key}>
-            {props.moreLabel && row === props.more?.[0] && <p className={`${GROUP} text-muted`}>{props.moreLabel}</p>}
-            {row.ruled && i > 0 && <div className={RULE} />}
-            <button
-              type="button"
-              aria-current={row.checked === true}
-              ref={i === at ? active : undefined}
-              tabIndex={-1}
-              title={row.title}
-              className={rowClass({ cursor: i === at })}
-              onMouseMove={() => setCursor(i)}
-              onClick={(e) => props.onPick(row.key, e.shiftKey || e.metaKey || e.ctrlKey)}
-            >
-              <span className={CHECK}>{row.checked ? "✓" : ""}</span>
-              <span className={NAME}>{row.text}</span>
-              {row.dim && (
-                <span className={`${DIM} text-muted ${row.dimPath ? CLIP_HEAD : CLIP}`}>
-                  {row.dimPath ? <bdi>{row.dim}</bdi> : row.dim}
-                </span>
-              )}
-            </button>
+        {listed.length === 0 && <p className={`${EMPTY_NOTE} text-muted`}>{props.empty}</p>}
+        {listed.map((item, i) => (
+          <Fragment key={item.key}>
+            {props.moreLabel && item === props.more?.[0] && <p className={`${GROUP} text-muted`}>{props.moreLabel}</p>}
+            {item.ruled && i > 0 && <div className={RULE} />}
+            {row(item, i)}
           </Fragment>
         ))}
       </div>
+      {props.pinned && (
+        <>
+          <div className={RULE} />
+          {row(props.pinned, all.length - 1)}
+        </>
+      )}
       {props.hint && <p className={`${HINT} text-subtle touch:hidden`}>{props.hint}</p>}
     </div>
   )
