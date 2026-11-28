@@ -50,13 +50,20 @@ struct ShellRoot: View {
     @State private var demo = false
     /// The page's own background (its `theme-color`), which follows the theme picked in rove-web; paper until it says.
     @State private var page: UIColor?
+    /// For the can't-reach screen's details: when the page last loaded, and when this failure began.
+    @State private var lastLoaded: Date?
+    @State private var failedAt: Date?
 
     var body: some View {
         Group {
             if let computer = model.current {
                 WebShellView(computer: computer, reloadToken: reload,
-                             onFail: { msg in Task { @MainActor in failure = msg } },
-                             onSwitch: { switching = true }, onPage: { page = $0 })
+                             onFail: { msg in Task { @MainActor in
+                                 if failure == nil, msg != nil { failedAt = Date() }
+                                 failure = msg
+                             } },
+                             onSwitch: { switching = true }, onPage: { page = $0 },
+                             onLoaded: { lastLoaded = Date() })
                     .ignoresSafeArea()
                     .overlay { if let failure { failed(computer, failure) } }
                     .sheet(isPresented: $switching) {
@@ -87,6 +94,7 @@ struct ShellRoot: View {
             Text("can't reach \(computer.display)").font(Theme.face(22, .semibold)).foregroundStyle(Theme.ink)
             Hint(text: String(localized: "Is rove --web still running on that computer, and is this phone on the same network or tailnet?"))
             ErrorLine(text: message)
+            FailureDetails(text: failureDetails(computer, message))
             Spacer()
             PhoneButton(label: String(localized: "retry"), primary: true, identifier: "retryButton") { reload += 1 }
             PhoneButton(label: String(localized: "computers"), identifier: "computersButton") { switching = true }
@@ -94,6 +102,46 @@ struct ShellRoot: View {
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Theme.paper.ignoresSafeArea())
+    }
+}
+
+extension ShellRoot {
+    /// What the can't-reach screen knows, copyable for a report. The origin only: the paired link carries the token.
+    fileprivate func failureDetails(_ computer: ShellComputer, _ message: String) -> String {
+        let stamp = { (d: Date?) in d.map { ISO8601DateFormatter().string(from: $0) } }
+        return [
+            "\(String(localized: "computer")): \(computer.origin)",
+            "\(String(localized: "error")): \(message)",
+            "\(String(localized: "failed at")): \(stamp(failedAt) ?? "-")",
+            "\(String(localized: "last loaded")): \(stamp(lastLoaded) ?? String(localized: "not since the app opened"))",
+        ].joined(separator: "\n")
+    }
+}
+
+/// A "details" disclosure under a failure, with a copy button.
+struct FailureDetails: View {
+    var text: String
+    @State private var open = false
+    @State private var copied = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button { Haptic.play(); withAnimation(.easeOut(duration: 0.2)) { open.toggle() } } label: {
+                Text(open ? String(localized: "hide details") : String(localized: "details"))
+                    .font(Theme.mono(13, .medium)).foregroundStyle(Theme.muted).frame(minHeight: 44)
+            }
+            .accessibilityIdentifier("failureDetailsButton")
+            if open {
+                Text(text).font(Theme.mono(12)).foregroundStyle(Theme.ink).textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                PhoneButton(label: copied ? String(localized: "copied") : String(localized: "copy details"),
+                            compact: true, identifier: "copyDetailsButton") {
+                    UIPasteboard.general.string = text
+                    copied = true
+                }
+            }
+        }
     }
 }
 

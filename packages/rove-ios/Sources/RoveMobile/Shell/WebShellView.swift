@@ -11,6 +11,8 @@ struct WebShellView: UIViewRepresentable {
     var onSwitch: () -> Void
     /// The page's background, on load and whenever its theme changes; the shell paints its own edges with it.
     var onPage: (UIColor) -> Void = { _ in }
+    /// The page finished loading: the can't-reach screen's details say when that last happened.
+    var onLoaded: () -> Void = {}
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -39,6 +41,8 @@ struct WebShellView: UIViewRepresentable {
         config.setURLSchemeHandler(DemoSchemeHandler(), forURLScheme: DemoWeb.scheme)
         // rove-web's `haptic.ts`: a press in the page is felt like one on a native control.
         config.userContentController.add(context.coordinator, name: "haptic")
+        // The relay loader's "switch computer" on a failed connect (`relay-shell.ts`): this shell's computers sheet.
+        config.userContentController.add(context.coordinator, name: "shell")
         let web = WKWebView(frame: .zero, configuration: config)
         web.navigationDelegate = context.coordinator
         web.uiDelegate = context.coordinator
@@ -94,6 +98,8 @@ struct WebShellView: UIViewRepresentable {
                 message.webView?.underPageBackgroundColor = color
                 message.webView?.scrollView.backgroundColor = color
                 parent.onPage(color)
+            } else if message.name == "shell" {
+                if body == "computers" { parent.onSwitch() }
             } else {
                 Haptic.play(body)
             }
@@ -144,7 +150,10 @@ struct WebShellView: UIViewRepresentable {
             }
         }
 
-        func webView(_ web: WKWebView, didFinish nav: WKNavigation!) { failingSince = nil }
+        func webView(_ web: WKWebView, didFinish nav: WKNavigation!) {
+            failingSince = nil
+            parent.onLoaded()
+        }
 
         func webViewWebContentProcessDidTerminate(_ web: WKWebView) { load(web) }
 

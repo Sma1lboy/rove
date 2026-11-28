@@ -114,7 +114,7 @@ export const TERM_QUOTE = "absolute top-2.5 right-2.5 z-4"
 
 /** What a soft keyboard lacks; touch screens only. A narrower column keeps each label whole, then scrolls the row. */
 /** One glass capsule holding the keys, each a thumb wide (44px) and 8px from the next; more than fit scroll sideways. A pixel of side padding: seven keys just fit a 375px screen. */
-export const TERM_KEY_ROW = `mx-0.5 mb-1.5 hidden gap-2 overflow-x-auto scrollbar-none rounded-[14px] px-px py-0.5 touch:flex ${glass()}`
+export const TERM_KEY_ROW = `mx-0.5 mb-1.5 keyboard:mb-0 hidden gap-2 overflow-x-auto scrollbar-none rounded-[14px] px-px py-0.5 touch:flex ${glass()}`
 const KEY_LOOK = {
   off: "bg-transparent text-ink",
   on: "bg-accent-soft text-accent",
@@ -165,7 +165,7 @@ export const PLACEHOLDER_BOX = `${PLACEHOLDER} flex flex-col items-center gap-3 
 
 /** The content column: the workspace's top bar over its pane (`workspace` stays: pane-focus.ts and commands.ts find it). */
 /** `isolate`: the terminal's own layers (a leaving terminal's cover at z-6) stay under the folded rail floating over it. */
-export const WORKSPACE = "workspace isolate row-1 flex min-h-0 min-w-0 flex-col gap-1.5 px-1 pt-2 pb-1"
+export const WORKSPACE = "workspace isolate row-1 flex min-h-0 min-w-0 flex-col gap-1.5 px-1 pt-2 pb-1 keyboard:pb-0"
 /**
  * The pane is the page itself, as Claude Desktop's conversation: no visible frame, only the hairlines that part regions.
  * The border stays, transparent, for the working-flow ring to draw in.
