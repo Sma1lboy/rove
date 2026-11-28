@@ -100,6 +100,7 @@ const MODULES = [
           ["WEIXIN.md", "rove/weixin"],
           ["LARK.md", "rove/lark"],
           ["themes.md", "rove/themes"],
+          ["appearances.md", "rove/appearances"],
           ["SESSIONS.md", "rove/sessions"],
         ],
       },

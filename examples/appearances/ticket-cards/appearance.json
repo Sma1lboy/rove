@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "name": "Ticket Cards",
+  "description": "Floating card panes with engine-tinted session tickets and a persistent status strip.",
+  "author": "Rove",
+  "colors": {
+    "defs": {
+      "ember": "#d97757",
+      "ocean": "#5fa8ff"
+    },
+    "tokens": {
+      "paper": { "dark": "#111110", "light": "#f7f5f0" },
+      "surface": { "dark": "#1b1a18", "light": "#ffffff" },
+      "accent": "ember"
+    },
+    "engineColors": {
+      "claude": "ember",
+      "codex": "ocean",
+      "default": "#7aa2f7"
+    }
+  },
+  "layout": {
+    "frame": "cards",
+    "paneGap": 10,
+    "shellPadding": 10,
+    "radius": 12,
+    "radiusSm": 8,
+    "density": "comfortable",
+    "railWidth": 290,
+    "statusBar": "always"
+  },
+  "slots": {
+    "rail.row": {
+      "component": "components/TicketRow.tsx"
+    },
+    "status.bar": {
+      "component": "components/StatusStrip.tsx"
+    }
+  }
+}
