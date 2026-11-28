@@ -670,7 +670,7 @@ edits (`set-vendor`, `rename`,
   `truncated: true`. A session is credited to the task whose tab pinned it; an
   unpinned one only when no other task works in that directory.
 - `watch (--task-ids a,b,c | --group GROUPID) --until STATE[,STATE]
-  [--timeout MS]`: block until a watched task's engine reaches one of
+  [--timeout MS]`: block until a watched task's engine or PR reaches one of
   `--until`'s states, streaming every transition on the way. This is the
   push-driven replacement for a `collect` polling loop: the daemon already
   publishes each activity transition, so a supervisor no longer pays a
@@ -681,13 +681,22 @@ edits (`set-vendor`, `rename`,
   refused up front with `BAD_FLAG` — for a verb whose whole job is to wait, a
   typo that waits forever is the worst possible failure.
 
+  **PR states** come from the PR Rove polls for the task's branch (the chip on
+  its row): `ci_pending`, `ci_passing`, `ci_failing`, `pr_conflicting`,
+  `pr_merged`, `pr_closed`. A task can be in several at once, and a line is
+  written when it enters one, with the PR's number as `pr`. They are as fresh
+  as the last poll: right after a push the previous commit's result still
+  stands until the next poll reads the new one, so a caller that re-arms after
+  a fix can wait for `ci_pending` first. Mixing engine and PR states is fine:
+  `--until ci_failing,pr_merged,dead`.
+
   **`dead` is the one polling is worst at.** A `SIGKILL`ed engine fires no
   hook, so the daemon writes `dead` from the PTY host's exit record and
   pushes it here immediately, instead of it surfacing whenever the next poll
   happened to land.
 
   **Output is a stream, then a result.** One NDJSON line per transition —
-  `{ taskId, tabId?, state, at }` — followed by the usual single result
+  `{ taskId, tabId?, state, at, pr? }` — followed by the usual single result
   object when the watch ends. Reading line-by-line lets a caller act on the
   first line; reading the whole output gets both. The channel replays its
   current value on subscribe, so a task that is ALREADY in an `--until`
