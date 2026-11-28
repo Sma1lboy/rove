@@ -18,10 +18,10 @@ import { cycleStop } from "./tab-stops.ts"
 import { EnginePicker, SHELL, isPane, openTab, paneIdOf, useEngineChoice, usePanes } from "./task-dialogs.tsx"
 import { tc } from "./tui-copy.ts"
 import { toast } from "./ui.ts"
-import { FIELD, TEXTAREA } from "./ui/form.ts"
+import { FIELD, FIELD_LABEL, TEXTAREA } from "./ui/form.ts"
 import { useGrow } from "./ui/grow.ts"
 import { DIALOG_BODY } from "./ui/overlay.ts"
-import { HINT, INPUT, KICKER } from "./ui/text.ts"
+import { HINT, INPUT } from "./ui/text.ts"
 
 /** The attempts a prompt can fan out to; the TUI stops at 5 (`ORCHESTRATION.md`: 3-4 is the sweet spot). */
 const ATTEMPTS = ["1", "2", "3", "4", "5"] as const
@@ -197,7 +197,7 @@ export function NewChatDialog(props: {
         }}
       >
         <div className={FIELD}>
-          <span className={`${KICKER} text-muted`}>{tc("terminal", "tab.newChat.engine")}</span>
+          <span className={`${FIELD_LABEL}`}>{tc("terminal", "tab.newChat.engine")}</span>
           <EnginePicker
             engines={choice.engines}
             value={pick}
@@ -207,7 +207,7 @@ export function NewChatDialog(props: {
           />
         </div>
         <div className={FIELD}>
-          <span className={`${KICKER} text-muted`}>{tc("terminal", "tab.newChat.destLabel")}</span>
+          <span className={`${FIELD_LABEL}`}>{tc("terminal", "tab.newChat.destLabel")}</span>
           <ChipRow
             label={tc("terminal", "tab.newChat.destLabel")}
             field="destination"
@@ -220,7 +220,7 @@ export function NewChatDialog(props: {
           />
         </div>
         <div className={FIELD}>
-          <span className={`${KICKER} text-muted`}>
+          <span className={`${FIELD_LABEL}`}>
             {tc("terminal", "tab.newChat.ctxLabel")} <span className="keys-only">ctrl+f</span>
           </span>
           <ChipRow
@@ -237,7 +237,7 @@ export function NewChatDialog(props: {
         {fork && (
           <>
             <div className={FIELD}>
-              <span className={`${KICKER} text-muted`}>{tc("quickTask", "attemptsLabel")}</span>
+              <span className={`${FIELD_LABEL}`}>{tc("quickTask", "attemptsLabel")}</span>
               <ChipRow
                 label={tc("quickTask", "attemptsLabel")}
                 field="attempts"
@@ -247,7 +247,7 @@ export function NewChatDialog(props: {
               />
             </div>
             <label className={FIELD}>
-              <span className={`${KICKER} text-muted`}>{t("taskops.forkBranch")}</span>
+              <span className={`${FIELD_LABEL}`}>{t("taskops.forkBranch")}</span>
               <input
                 className={INPUT}
                 data-field="fork-base"
@@ -260,7 +260,7 @@ export function NewChatDialog(props: {
         )}
         {!shell && !pane && destination !== "scratch" && (
           <label className={FIELD}>
-            <span className={`${KICKER} text-muted`}>{t("newChat.prompt")}</span>
+            <span className={`${FIELD_LABEL}`}>{t("newChat.prompt")}</span>
             <textarea
               ref={grow}
               className={`${INPUT} ${TEXTAREA}`}

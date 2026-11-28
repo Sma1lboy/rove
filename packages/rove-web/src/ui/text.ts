@@ -28,9 +28,14 @@ export const KICKER = "m-0 font-sans text-meta font-medium normal-nums"
 /** An inline text action; `link` stays as a hook for the footer and dialog rules that dim a disabled one. */
 export const LINK = "link text-accent hover:underline touch-hit"
 
-/** A text field's frame and type, for a field that sizes itself (`PREF_NUMBER`, `ENG_RENAME_INPUT`). */
-export const INPUT_FRAME =
-  "rounded-sm border-hairline border-line bg-paper font-mono text-meta font-normal normal-nums text-ink focus-visible:border-line-active focus-visible:outline-none"
+/**
+ * Every text field's frame, the composer card's: the surface it sits on, a hairline, focus on the border. Settings
+ * (`SETTINGS_INPUT`) and dialogs (`INPUT_FRAME`) add only their type.
+ */
+export const FIELD_FRAME =
+  "rounded-sm border-hairline border-line bg-transparent text-ink placeholder:text-subtle focus-visible:border-line-active focus-visible:outline-none"
+/** A dialog field's frame and type, for a field that sizes itself (`PREF_NUMBER`, `ENG_RENAME_INPUT`). */
+export const INPUT_FRAME = `${FIELD_FRAME} font-mono text-meta font-normal normal-nums`
 /** A single-line text field. */
 export const INPUT = `${INPUT_FRAME} w-full px-2.5 py-2`
 

@@ -2,8 +2,8 @@
  * Settings: a dialog holding a grouped section list beside one section, its rows, and the sections' own parts.
  * One type rule: sans for every word the user reads; mono only for paths, commands, chords and codes.
  */
-import { GROW } from "./grow.ts"
 import { OVERLAY_BASE } from "./overlay.ts"
+import { FIELD_FRAME } from "./text.ts"
 
 /** On a phone the dialog is the whole screen. */
 export const SETTINGS_OVERLAY = `${OVERLAY_BASE} w-narrow:pt-0`
@@ -101,17 +101,17 @@ export const SETTINGS_ADD_ROW =
 
 /** Feedback's note on where an issue goes: under the page's intro on a desktop, a footnote under its button on a phone. */
 export const FEEDBACK_FOOTNOTE = "w-narrow:order-last"
+/** Feedback's kind on the left, its two ways to send on the right; a phone stacks them, the buttons a full-width row. */
+export const FEEDBACK_BAR =
+  "flex flex-wrap items-center justify-between gap-2.5 w-narrow:flex-col w-narrow:items-stretch w-narrow:[&>fieldset]:self-start"
 
 /** A line of status text in a section (loading, empty, a verdict). */
 export const SETTINGS_STATUS = "m-0 py-3 text-body text-muted"
 
 /** A text field in a settings row or form. */
-export const SETTINGS_INPUT =
-  "rounded-sm border-hairline border-line bg-paper px-2.5 py-1.5 font-sans text-body text-ink focus-visible:border-line-active focus-visible:outline-none"
+export const SETTINGS_INPUT = `${FIELD_FRAME} px-2.5 py-1.5 font-sans text-body`
 export const SETTINGS_NUMBER = `${SETTINGS_INPUT} w-24 text-right`
 export const SETTINGS_FIELD = "flex flex-col gap-1.5"
-export const SETTINGS_FIELD_LABEL = "text-meta font-medium text-muted"
-export const SETTINGS_TEXTAREA = `${GROW} min-h-30 leading-[1.45]`
 export const SETTINGS_ACTIONS = "flex flex-wrap items-center justify-end gap-2.5"
 
 /** An inline yes/no under a row (reset, restart, disconnect). */

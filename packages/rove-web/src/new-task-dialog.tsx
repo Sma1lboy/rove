@@ -28,9 +28,9 @@ import { SuggestField, type Suggestion, focusField } from "./suggest-field.tsx"
 import { EnginePicker, useEngineChoice } from "./task-dialogs.tsx"
 import { tc } from "./tui-copy.ts"
 import { openNewSession } from "./ui.ts"
-import { FIELD } from "./ui/form.ts"
+import { FIELD, FIELD_LABEL } from "./ui/form.ts"
 import { DIALOG_BODY } from "./ui/overlay.ts"
-import { HINT, KICKER } from "./ui/text.ts"
+import { HINT } from "./ui/text.ts"
 
 const TABS = ["existing", "clone", "adopt"] as const
 export type NewTaskTab = (typeof TABS)[number]
@@ -265,7 +265,7 @@ function ExistingTab(props: TabProps & { repo: RepoField }) {
       }}
     >
       <div className={FIELD}>
-        <span className={`${KICKER} text-muted`}>{tc("newTask", "field.repo")}</span>
+        <span className={`${FIELD_LABEL}`}>{tc("newTask", "field.repo")}</span>
         <SuggestField
           field="repo"
           value={repo.text}
@@ -279,7 +279,7 @@ function ExistingTab(props: TabProps & { repo: RepoField }) {
       </div>
       {canOpenProject && (
         <div className={FIELD}>
-          <span className={`${KICKER} text-muted`}>{tc("newTask", "field.opens")}</span>
+          <span className={`${FIELD_LABEL}`}>{tc("newTask", "field.opens")}</span>
           <ChipRow
             label={tc("newTask", "field.opens")}
             field="intent"
@@ -294,7 +294,7 @@ function ExistingTab(props: TabProps & { repo: RepoField }) {
       )}
       {!(intent === "project" && canOpenProject) && (
         <div className={FIELD}>
-          <span className={`${KICKER} text-muted`}>{tc("newTask", "field.fromBranch")}</span>
+          <span className={`${FIELD_LABEL}`}>{tc("newTask", "field.fromBranch")}</span>
           <SuggestField
             field="branch"
             value={baseRef}
@@ -379,7 +379,7 @@ export function NewTaskDialog({ model, repo: initialRepo }: { model: AppModel; r
       >
         <div className={DIALOG_BODY}>
           <div className={FIELD}>
-            <span className={`${KICKER} text-muted`}>{tc("newTask", "field.mode")}</span>
+            <span className={`${FIELD_LABEL}`}>{tc("newTask", "field.mode")}</span>
             <ChipRow
               label={tc("newTask", "field.mode")}
               field="mode"
@@ -389,7 +389,7 @@ export function NewTaskDialog({ model, repo: initialRepo }: { model: AppModel; r
             />
           </div>
           <div className={FIELD}>
-            <span className={`${KICKER} text-muted`}>{tc("newTask", "field.engine")}</span>
+            <span className={`${FIELD_LABEL}`}>{tc("newTask", "field.engine")}</span>
             <EnginePicker engines={choice.engines} value={choice.engine} onChange={choice.setEngine} />
           </div>
         </div>

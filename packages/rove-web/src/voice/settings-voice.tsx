@@ -12,14 +12,8 @@ import { errorText } from "../dialogs.tsx"
 import { t } from "../i18n/index.ts"
 import { Choice, Group, Row } from "../settings-rows.tsx"
 import { Button } from "../ui/button.tsx"
-import {
-  SETTINGS_ACTIONS,
-  SETTINGS_FIELD,
-  SETTINGS_FIELD_LABEL,
-  SETTINGS_INPUT,
-  SETTINGS_STATUS,
-  SETTINGS_VALUE,
-} from "../ui/settings.ts"
+import { FIELD_LABEL } from "../ui/form.ts"
+import { SETTINGS_ACTIONS, SETTINGS_FIELD, SETTINGS_INPUT, SETTINGS_STATUS, SETTINGS_VALUE } from "../ui/settings.ts"
 import { setVoiceAvailable } from "./dictation-button.tsx"
 
 const POLL_MS = 2000
@@ -199,7 +193,7 @@ export function VoiceSection({ client }: { client: BridgeClient }) {
             }}
           >
             <label className={SETTINGS_FIELD}>
-              <span className={SETTINGS_FIELD_LABEL}>{t("voice.setup.baseURL")}</span>
+              <span className={FIELD_LABEL}>{t("voice.setup.baseURL")}</span>
               <input
                 className={`${SETTINGS_INPUT} font-mono`}
                 value={baseURL}
@@ -210,7 +204,7 @@ export function VoiceSection({ client }: { client: BridgeClient }) {
               />
             </label>
             <label className={SETTINGS_FIELD}>
-              <span className={SETTINGS_FIELD_LABEL}>{t("voice.setup.model")}</span>
+              <span className={FIELD_LABEL}>{t("voice.setup.model")}</span>
               <input
                 className={`${SETTINGS_INPUT} font-mono`}
                 value={model}
@@ -221,7 +215,7 @@ export function VoiceSection({ client }: { client: BridgeClient }) {
               />
             </label>
             <label className={SETTINGS_FIELD}>
-              <span className={SETTINGS_FIELD_LABEL}>{t("voice.setup.apiKey")}</span>
+              <span className={FIELD_LABEL}>{t("voice.setup.apiKey")}</span>
               <input
                 className={`${SETTINGS_INPUT} font-mono`}
                 type="password"
