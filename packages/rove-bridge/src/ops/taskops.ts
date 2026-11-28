@@ -20,7 +20,10 @@ import { openExternally, revealInFileManager } from "@sma1lboy/rove-core/lib/ope
 import {
   expandHome,
   filterSubdirs,
+  isExistingDir,
+  isGitDir,
   listSubdirs,
+  normalizePastedPath,
   splitPathForDirSuggest,
   stripTrailingSlash,
 } from "@sma1lboy/rove-core/lib/path-helpers.ts"
@@ -397,11 +400,24 @@ export function taskOps(deps: TaskOpsDeps = realDeps): OpTable {
     "fs.subdirs": {
       kind: "read",
       destructive: false,
-      wraps: "helpers splitPathForDirSuggest + listSubdirs + filterSubdirs",
+      wraps: "helpers normalizePastedPath + splitPathForDirSuggest + listSubdirs + filterSubdirs + isGitDir",
       async run(a) {
-        const split = splitPathForDirSuggest(typedPath(a, "path"))
-        const names = filterSubdirs(listSubdirs(split.base), split.filter)
-        return { base: split.base, home: deps.homeDir(), names: names.slice(0, SUBDIR_CAP) }
+        // A pasted path (quoted, file://, \\?\ prefix) reads as the folder it names.
+        const path = typedPath(
+          { ...a, path: typeof a.path === "string" ? normalizePastedPath(a.path) : a.path },
+          "path",
+        )
+        const split = splitPathForDirSuggest(path)
+        const names = filterSubdirs(listSubdirs(split.base), split.filter).slice(0, SUBDIR_CAP)
+        const whole = stripTrailingSlash(expandHome(path))
+        return {
+          base: split.base,
+          home: deps.homeDir(),
+          names,
+          git: names.filter((name) => isGitDir(split.base + name)),
+          /** The typed path itself when it is a real folder: what a pasted path picks. */
+          dir: isExistingDir(whole) ? whole : null,
+        }
       },
     },
 

@@ -75,6 +75,8 @@ export const POP =
 
 /** Rows clip sideways (a long tail shortens, see `CLIP`); only the list scrolls, and only up and down. */
 export const MENU = "flex min-h-0 flex-col gap-1 overflow-x-hidden overflow-y-auto p-1.5 [outline:0]"
+/** A menu as wide as its popover gets, so walking folders does not make it jump. */
+export const WIDE_MENU = `${MENU} w-[52ch] max-w-full`
 export const ROWS = "flex min-h-0 flex-col overflow-x-hidden overflow-y-auto"
 /** A hairline between two groups of rows. */
 export const RULE = "mx-2 my-1 flex-none border-t-hairline border-t-line"

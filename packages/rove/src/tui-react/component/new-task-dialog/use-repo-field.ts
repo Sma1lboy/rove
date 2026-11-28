@@ -22,6 +22,7 @@ import {
   pathLeaf,
   stripTrailingSlash,
 } from "@sma1lboy/rove-core/lib/path-helpers.ts"
+import { normalizePastedPath } from "@sma1lboy/rove-core/lib/path-helpers.ts"
 import { pathSyntax, samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
@@ -33,7 +34,6 @@ import {
   buildSavedPicker,
   duplicateBasenames,
   initialBrowseDir,
-  normalizePastedPath,
 } from "../../../tui/component/new-task-dialog/folder-picker"
 import {
   type PickerWindow,

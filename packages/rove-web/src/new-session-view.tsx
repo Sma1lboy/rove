@@ -421,7 +421,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
                         : repoChipLabel(remotePick ? [remotePick.ref] : [])
                       : toClone
                         ? cloneLabel(toClone)
-                        : repoChipLabel(repos)) || t(ungrouped ? "newSession.noFolder" : "newSession.repo")}
+                        : repoChipLabel(repos)) || t("newSession.chooseFolder")}
                   </span>
                 </>
               }
