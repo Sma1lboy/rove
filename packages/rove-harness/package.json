@@ -47,7 +47,6 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.5",
     "@playwright/test": "^1.49.0",
-    "@sma1lboy/rove": "workspace:*",
     "@tanstack/devtools-vite": "0.8.5",
     "@types/bun": "^1.3.12",
     "@types/node": "^22.20.5",

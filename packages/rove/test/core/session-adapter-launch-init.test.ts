@@ -8,10 +8,7 @@ const hostedSession = vi.hoisted(() => ({
 const resolveEngineLaunchInitMock = vi.hoisted(() =>
   vi.fn((_repo: string, _worktree: string, intent: { kind: string }) => ({
     initScript: `init:${intent.kind}`,
-    firstMessage:
-      intent.kind === "repo-init"
-        ? { source: "repo-init", text: "repo prompt" }
-        : undefined,
+    firstMessage: intent.kind === "repo-init" ? { source: "repo-init", text: "repo prompt" } : undefined,
   })),
 )
 
@@ -34,11 +31,11 @@ vi.mock("@sma1lboy/rove-core/state/repo-init.ts", () => ({
 }))
 
 import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
-import { ensureTaskSessionAdapter } from "@sma1lboy/rove/src/core/daemon-session-adapter.ts"
+import { ensureTaskSessionAdapter } from "../../src/core/daemon-session-adapter.ts"
 
 function link(): DaemonRpcClient {
   return {
-    async request(name, payload) {
+    async request(name: string, payload: unknown) {
       if (name === "task.get") {
         return {
           task: {
@@ -52,7 +49,7 @@ function link(): DaemonRpcClient {
       if (name === "task.ensureWorktree") return { worktreePath: "/worktrees/story" }
       return {}
     },
-  }
+  } as unknown as DaemonRpcClient
 }
 
 describe("web session launch init", () => {
@@ -63,11 +60,7 @@ describe("web session launch init", () => {
 
     await ensureTaskSessionAdapter(link(), "task-1")
 
-    expect(resolveEngineLaunchInitMock).toHaveBeenCalledWith(
-      "/repo/rove",
-      "/worktrees/story",
-      { kind: "repo-init" },
-    )
+    expect(resolveEngineLaunchInitMock).toHaveBeenCalledWith("/repo/rove", "/worktrees/story", { kind: "repo-init" })
     expect(hostedSession.ensureEngine).toHaveBeenCalledWith(
       hostedSession.rpc,
       "/worktrees/story",
@@ -77,5 +70,4 @@ describe("web session launch init", () => {
       }),
     )
   })
-
 })
