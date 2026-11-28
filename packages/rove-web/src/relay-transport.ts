@@ -11,9 +11,22 @@ export interface RelayTransport {
 }
 
 const relay = Reflect.get(globalThis, "__roveRelay") as RelayTransport | undefined
+export const relayed = relay !== undefined
 
 export function bridgeFetch(path: string, init?: RequestInit): Promise<Response> {
   return relay ? relay.fetch(path, init) : fetch(path, init)
+}
+
+/**
+ * A bridge script the page loads by URL (an AudioWorklet). Through the relay the page's origin is the Worker,
+ * which serves only the loader and allows `blob:` scripts, not `'self'`: the file comes through the tunnel as a blob.
+ * A transport without it (the demo) keeps the plain path.
+ */
+export async function bridgeScriptUrl(path: string): Promise<string> {
+  if (!relay) return path
+  const res = await relay.fetch(path)
+  if (!res.ok) return path
+  return URL.createObjectURL(new Blob([await res.arrayBuffer()], { type: "text/javascript" }))
 }
 
 export function openBridgeSocket(url: string, protocols: string[]): WebSocket {
