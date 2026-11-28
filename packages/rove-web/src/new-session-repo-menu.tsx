@@ -131,7 +131,7 @@ export function RepoMenu(props: {
         : null
 
   // Browsing reads the daemon machine's disk, so another machine offers only its saved list and typed paths.
-  const openFolder = remote ? [] : [{ key: OPEN_FOLDER, text: t("newSession.openFolder"), ruled: true }]
+  const openFolder = remote ? null : { key: OPEN_FOLDER, text: t("newSession.openFolder") }
   if (browsing)
     return (
       <FolderBrowser
@@ -147,7 +147,8 @@ export function RepoMenu(props: {
     <SearchList
       placeholder={t(remote ? "newSession.repoSearchRemote" : "newSession.repoSearch")}
       empty={remote?.empty ?? t(github ? "newSession.repoEmpty" : "newSession.githubLoading")}
-      rows={remote?.blocked ? [] : [...ungrouped, ...projects, ...openFolder]}
+      rows={remote?.blocked ? [] : [...ungrouped, ...projects]}
+      pinned={openFolder}
       query={query}
       onQuery={props.onQuery}
       extra={remote?.blocked ? null : extra}
