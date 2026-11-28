@@ -1,16 +1,26 @@
-import type { ButtonHTMLAttributes } from "react"
+import type { ComponentProps } from "react"
 import { cn } from "./cn.ts"
 import { iconButton } from "./panel.ts"
 
-/** The filled action (`.button` before Tailwind). `danger` paints it the error colour. */
-export const buttonClass = ({ danger = false }: { danger?: boolean } = {}): string =>
-  `rounded-sm font-sans text-meta not-italic normal-nums text-paper active:scale-97 motion-reduce:active:scale-none disabled:cursor-default disabled:opacity-50 touch:min-h-10 ${
-    danger ? "bg-error" : "bg-accent"
-  } px-3.5 py-1.5 font-semibold`
+/** Shared box for filled, danger and secondary (`action`) controls so adjacent buttons and links match in height, radius and centering. */
+const BUTTON_FRAME =
+  "inline-flex items-center justify-center rounded-sm border-hairline px-3.5 py-1.5 text-center font-sans text-meta not-italic normal-nums no-underline active:scale-97 motion-reduce:active:scale-none disabled:cursor-default disabled:opacity-50 touch:min-h-10 focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-focus"
+
+const ACTION = `${BUTTON_FRAME} border-line bg-inset hover:border-line-active hover:bg-menu`
+
+/** Primary (`bg-accent`), danger (`bg-error`), or neutral secondary (`bg-inset`) button recipe; works on `<button>` and `<a>`. */
+export const buttonClass = ({
+  danger = false,
+  secondary = false,
+}: { danger?: boolean; secondary?: boolean } = {}): string =>
+  secondary
+    ? `${ACTION} text-ink`
+    : `${BUTTON_FRAME} border-transparent font-semibold text-paper ${danger ? "bg-error" : "bg-accent"}`
 
 /**
  * `link`: an accent text action (create PR, toggle scope). `filled`: the filled action of `buttonClass()` (an empty
- * state's "Start"). `danger`: the same in the error colour. `action`: a quiet bordered action beside a setting, on the ground and at the height of a Select or a segmented control.
+ * state's "Start"). `danger`: the same in the error colour. `action`: a quiet bordered action beside a setting or
+ * primary action, sharing the same frame and height.
  * `floating`: an action raised over content (a preview's
  * "ask in chat" beside a selection); the caller places it. `row`: a whole list row that opens something; the caller's
  * class paints it all, cursor included. `card`: a pickable tile (the theme gallery); the caller passes its
@@ -19,14 +29,11 @@ export const buttonClass = ({ danger = false }: { danger?: boolean } = {}): stri
  * row of links. A class the caller passes must not set what the variant or hit already sets (position, colour,
  * padding): with no class merging, which one wins is the stylesheet's order, not the prop's.
  */
-const ACTION =
-  "rounded-sm border-hairline border-line bg-inset px-3 py-1.5 font-sans text-meta hover:border-line-active hover:bg-menu active:scale-97 motion-reduce:active:scale-none disabled:cursor-default disabled:opacity-50 touch:min-h-10 focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-focus"
-
 const VARIANT = {
-  link: "text-accent hover:underline",
+  link: "link text-accent hover:underline",
   filled: buttonClass(),
   danger: buttonClass({ danger: true }),
-  action: `${ACTION} text-ink`,
+  action: buttonClass({ secondary: true }),
   /** The quiet action that deletes something, beside its Cancel and Save. */
   actionDanger: `${ACTION} text-error`,
   floating:
@@ -52,6 +59,6 @@ export function Button({
   className,
   type = "button",
   ...rest
-}: { variant?: keyof typeof VARIANT; hit?: keyof typeof HIT } & ButtonHTMLAttributes<HTMLButtonElement>) {
+}: { variant?: keyof typeof VARIANT; hit?: keyof typeof HIT } & ComponentProps<"button">) {
   return <button type={type} className={cn(VARIANT[variant], HIT[hit], className)} {...rest} />
 }

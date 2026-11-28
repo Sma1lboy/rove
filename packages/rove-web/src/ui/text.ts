@@ -38,6 +38,6 @@ export const INPUT = `${INPUT_FRAME} w-full px-2.5 py-2`
 export const EMPTY = "px-2.5 py-4 font-mono text-size-meta [&_p]:mx-0 [&_p]:mt-0 [&_p]:mb-1"
 
 /** A row of trailing actions: links and buttons pushed right. */
-/** On a phone: equal buttons side by side, each a thumb tall; a text action among them is drawn as the quiet button. */
+/** On a phone: equal buttons side by side, each a thumb tall and centred; a text action among them is drawn as the quiet button. */
 export const ACTIONS =
-  "actions flex items-center justify-end gap-3.5 w-narrow:grid w-narrow:auto-cols-fr w-narrow:grid-flow-col w-narrow:gap-2.5 w-narrow:[&>*]:min-h-11! w-narrow:[&>*]:text-center w-narrow:[&>*]:text-body w-narrow:[&>.link]:rounded-sm w-narrow:[&>.link]:border-hairline w-narrow:[&>.link]:border-line w-narrow:[&>.link]:bg-inset w-narrow:[&>.link]:text-ink w-narrow:[&>.link]:no-underline!"
+  "actions flex items-center justify-end gap-3.5 w-narrow:grid w-narrow:auto-cols-fr w-narrow:grid-flow-col w-narrow:items-stretch w-narrow:gap-2.5 w-narrow:[&>:is(a,button)]:inline-flex w-narrow:[&>:is(a,button)]:min-h-11! w-narrow:[&>:is(a,button)]:items-center w-narrow:[&>:is(a,button)]:justify-center w-narrow:[&>:is(a,button)]:px-3.5 w-narrow:[&>:is(a,button)]:py-1.5 w-narrow:[&>:is(a,button)]:text-center w-narrow:[&>:is(a,button)]:text-body w-narrow:[&>.link]:rounded-sm w-narrow:[&>.link]:border-hairline w-narrow:[&>.link]:border-line w-narrow:[&>.link]:bg-inset w-narrow:[&>.link]:text-ink w-narrow:[&>.link]:no-underline! w-narrow:[&>.link]:active:scale-97 w-narrow:[&>.link]:motion-reduce:active:scale-none"

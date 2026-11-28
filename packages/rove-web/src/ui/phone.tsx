@@ -85,28 +85,51 @@ export interface PhoneAction {
   /** A square that shows this instead of its label (⋯). */
   readonly glyph?: ReactNode
   readonly disabled?: boolean
-  readonly onClick: () => void
+  /** External link rendered with the same button geometry so adjacent link/button actions match. */
+  readonly href?: string
+  readonly onClick?: () => void
 }
 
 /** A foot's named actions, each the bar's height and shape, the label centred: the accent one last. */
 export function PhoneActions({ actions }: { actions: readonly PhoneAction[] }) {
   return (
     <div className="pointer-events-auto flex min-w-0 flex-1 items-center gap-2.5" data-phone-actions>
-      {actions.map((action) => (
-        <button
-          key={action.label}
-          type="button"
-          disabled={action.disabled}
-          aria-label={action.glyph ? action.label : undefined}
-          className={`grid h-13 cursor-pointer place-items-center px-3 font-sans text-body font-semibold disabled:opacity-50 ${SQUARE_BAR} ${GLASS_HOVER} ${PRESS} ${action.glyph ? "w-13 flex-none" : "min-w-0 flex-1"} ${action.tone === "accent" ? "bg-accent text-paper shadow-popover" : `${glass()} text-ink`}`}
-          onClick={() => {
-            haptic()
-            action.onClick()
-          }}
-        >
-          {action.glyph ?? <span className="max-w-full truncate">{action.label}</span>}
-        </button>
-      ))}
+      {actions.map((action) => {
+        const cls = `grid h-13 cursor-pointer place-items-center px-2.5 font-sans text-body font-semibold no-underline disabled:opacity-50 ${SQUARE_BAR} ${GLASS_HOVER} ${PRESS} ${action.glyph ? "w-13 flex-none" : "min-w-0 flex-1"} ${action.tone === "accent" ? "border-hairline border-transparent bg-accent text-paper shadow-popover" : `${glass()} text-ink`}`
+        const content = action.glyph ?? <span className="max-w-full truncate">{action.label}</span>
+        if (action.href && !action.disabled)
+          return (
+            <a
+              key={action.label}
+              href={action.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={action.glyph ? action.label : undefined}
+              className={cls}
+              onClick={() => {
+                haptic()
+                action.onClick?.()
+              }}
+            >
+              {content}
+            </a>
+          )
+        return (
+          <button
+            key={action.label}
+            type="button"
+            disabled={action.disabled}
+            aria-label={action.glyph ? action.label : undefined}
+            className={cls}
+            onClick={() => {
+              haptic()
+              action.onClick?.()
+            }}
+          >
+            {content}
+          </button>
+        )
+      })}
     </div>
   )
 }
