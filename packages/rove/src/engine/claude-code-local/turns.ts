@@ -13,7 +13,7 @@
 import { isObject } from "../../lib/is-object"
 import type { AgentTurn } from "../agent-turn.ts"
 import { isJsonlLineWithinBound, readTextFileBounded } from "../file-bounds.ts"
-import { isSyntheticClaudeRecord } from "./synthetic.ts"
+import { isSyntheticClaudeRecord, trackClaudeSideRequest } from "./synthetic.ts"
 
 /** A human prompt: non-empty string content, or not purely `tool_result` blocks. */
 function opensTurn(content: unknown): boolean {
@@ -82,6 +82,7 @@ function finish(draft: Draft): AgentTurn | null {
 export function parseClaudeTurns(raw: string, fallbackSessionId = ""): AgentTurn[] {
   const out: AgentTurn[] = []
   let draft: Draft | null = null
+  let side: ReadonlySet<string> = new Set()
 
   for (const line of raw.split("\n")) {
     const trimmed = line.trim()
@@ -93,6 +94,9 @@ export function parseClaudeTurns(raw: string, fallbackSessionId = ""): AgentTurn
       continue
     }
     if (!isObject(record) || isSyntheticClaudeRecord(record)) continue
+    const before = side
+    side = trackClaudeSideRequest(record, side)
+    if (side !== before) continue
 
     const inner = isObject(record.message) ? record.message : record
     const at = typeof record.timestamp === "string" ? Date.parse(record.timestamp) : Number.NaN
