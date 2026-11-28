@@ -176,9 +176,11 @@ meaning there and tab N is reached with `ctrl+]` instead.
 ## Horizontal keys: `h` / `l`
 
 Wherever `←` / `→` move you sideways — a dialog's engine picker, effort or
-status row, the new-task selector fields, the automation schedule segments, the
-Kanban board's card cursor — `h` and `l` do the same thing, vim-style. They are
-always an alternative, never a replacement: the arrow keys keep working.
+status row, the new-task selector fields, the new-task `+ Open folder…`
+directory browser (stepping up/into directories while its filter is empty), the
+automation schedule segments, the Kanban board's card cursor — `h` and `l` do
+the same thing, vim-style. They are always an alternative, never a replacement:
+the arrow keys keep working.
 
 `h`/`l` are live only where `←`/`→` already are, and only while nothing is
 being typed. A focused text field, the composer, or the sidebar's `/` search

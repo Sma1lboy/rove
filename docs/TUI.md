@@ -432,12 +432,19 @@ mode selector and use the left/right arrows (or `h`/`l`).
 
 - **For Existing** picks a local repository and the ref to branch from. Rove
   creates a new task branch and worktree, then opens it ready for the first
-  prompt. The current repository and its checked-out branch are the defaults.
-  Type a name to filter your saved repositories, or a path (`/` or `~/`) to
-  browse directories instead; `↑`/`↓` moves the highlight. `tab` completes the
-  highlighted row without leaving the field — a browsed directory keeps its
-  trailing slash, so the next `tab` walks one level deeper — while `enter`
-  takes the highlighted row and moves on to the branch field.
+  prompt. When no folder is selected, the bottom chip reads **Choose folder**
+  and the picker leads with **No folder** (`✓`); inside a repository, that
+  repository and its checked-out branch are the defaults. The picker opens on
+  an empty `Search folders...` input that filters saved repositories by name
+  or path (showing clean folder names, with parent directories only when two
+  saved repositories share a name) and pins **+ Open folder…** at the bottom.
+  Selecting **+ Open folder…** opens an inline directory browser starting at
+  the current folder's parent (or `~`): use `↑`/`↓` to move, `h`/`←` (or
+  `backspace` when empty) to step up a level, `l`/`→` (or `tab`) to step into
+  a subfolder, `enter` to select the highlighted folder, or paste any path
+  directly (`/…`, `~/…`, `C:\…`, `C:/…`, quoted or unquoted) and press `enter`.
+  Typing a path directly into `Search folders...` still browses directories
+  with `tab` completion.
   For a repository Rove already tracks as a project, an extra **opens** row
   appears: leave it on "a new task worktree" for the behaviour above, or
   choose "the project itself" to start a new session in that repository's own

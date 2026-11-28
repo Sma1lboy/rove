@@ -16,6 +16,8 @@ export const en = {
   chipProject: "Project",
   /** The repo picker's first row: a session in no project, listed under Ungrouped. */
   noFolder: "No folder",
+  /** The composer's repo chip label while no folder is selected. */
+  chooseFolder: "Choose folder",
   /** Enter's caption at every other stop, where it advances the form */
   enterNext: "enter next field",
   /** Enter's caption on a pick list (ALSO INCLUDE, the Adopt filter), where it toggles the highlighted row */
@@ -35,6 +37,7 @@ export const en = {
     /** Reasoning-level row — only for engines that declare levels. */
     effort: "EFFORT",
     repo: "REPO",
+    openFolder: "OPEN FOLDER",
     fromBranch: "FROM BRANCH",
     prompt: "FIRST MESSAGE",
     /** Existing tab: more repos the task spans, besides the primary above. */
@@ -58,6 +61,8 @@ export const en = {
     folderName: "auto from url",
     adoptFilter: "* — type e.g. feature-* to narrow",
     prompt: "Describe a task or ask a question (optional)",
+    searchFolders: "Search folders...",
+    filterFolders: "Paste a path or filter folders...",
   },
 
   hint: {
@@ -75,6 +80,14 @@ export const en = {
   picker: {
     moreAbove: "↑ {count} more",
     moreBelow: "↓ {count} more",
+    recent: "Recent",
+    openFolder: "+ Open folder…",
+    parentFolder: "parent",
+    gitBadge: "git",
+    useFolder: 'Use "{name}"',
+    backToFolders: "← Back",
+    noFolders: "No subfolders",
+    browseHint: "h/← back · l/→ open · enter select · esc return",
   },
 
   scroll: {
@@ -137,6 +150,7 @@ export const zh: typeof en = {
   chipWorktree: "工作树",
   chipProject: "项目",
   noFolder: "无文件夹",
+  chooseFolder: "选择文件夹",
   enterNext: "enter 下一个字段",
   enterSelect: "enter 选中",
 
@@ -152,6 +166,7 @@ export const zh: typeof en = {
     engine: "引擎",
     effort: "推理强度",
     repo: "仓库",
+    openFolder: "打开文件夹",
     fromBranch: "基准分支",
     prompt: "第一条消息",
     extras: "同时包含",
@@ -174,6 +189,8 @@ export const zh: typeof en = {
     folderName: "自动从地址推导",
     adoptFilter: "* — 输入如 feature-* 来缩小范围",
     prompt: "描述一个任务，或提个问题（可选）",
+    searchFolders: "搜索文件夹…",
+    filterFolders: "粘贴路径或过滤文件夹…",
   },
 
   hint: {
@@ -191,6 +208,14 @@ export const zh: typeof en = {
   picker: {
     moreAbove: "↑ 还有 {count} 项",
     moreBelow: "↓ 还有 {count} 项",
+    recent: "最近使用",
+    openFolder: "+ 打开文件夹…",
+    parentFolder: "上级目录",
+    gitBadge: "git",
+    useFolder: "使用「{name}」",
+    backToFolders: "← 返回",
+    noFolders: "没有子文件夹",
+    browseHint: "h/← 后退 · l/→ 进入 · enter 确定 · esc 返回",
   },
 
   scroll: {

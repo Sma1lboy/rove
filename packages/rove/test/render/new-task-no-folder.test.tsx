@@ -64,7 +64,8 @@ test("opened without a project, the picker leads with No folder and a project is
   // No branch applies to No folder, so its chip is absent until a project is picked.
   expect(await h.frame()).not.toContain(" main ")
 
-  await click(h, "No folder")
+  // Chip invites picking a folder while the picker itself still leads with `No folder`.
+  await click(h, "Choose folder")
   const rows = (await h.frame()).split("\n")
   expect(rows.findIndex((line) => line.includes("▸ No folder"))).toBeLessThan(
     rows.findIndex((line) => line.includes("otter")),

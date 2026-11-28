@@ -8,40 +8,14 @@ import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { ChipRow, DialogField, DialogSection } from "../../ui/dialog-parts"
 import { INPUT_SCROLL } from "../../ui/input-scroll"
+import { FolderPickerCard } from "./folder-picker-card"
 import { PickerList } from "./picker-list"
-import { NO_FOLDER } from "./use-repo-field"
 import type { NewTaskVm } from "./view-model"
-
-/** Cells the repo input claims (a long name plus room to type); the muted
- *  directory takes the rest and shrinks first. */
-const REPO_INPUT_CELLS = 28
 
 /** `only`: render just the focused field (the composer layout shows the rest as chips). */
 export function ExistingTab({ vm, only }: { vm: NewTaskVm; only?: boolean }) {
   const { theme } = useTheme()
   const t = useT()
-
-  const repoRows = vm.activeWindow.items.map((name, i) => {
-    if (name === NO_FOLDER) {
-      return { key: `${vm.activeWindow.start + i}:`, body: t("newTask.noFolder"), accent: vm.noFolder }
-    }
-    const isCurrentDir = vm.mode === "saved" && name === vm.defaultRepo
-    const tag = isCurrentDir ? `  ${t("newTask.hint.currentDir")}` : ""
-    // Browse mode lists SUBDIRECTORY NAMES under the typed path, not full
-    // paths — there is no prefix to demote, so those rows stay whole.
-    if (vm.mode === "browse") {
-      return { key: `${vm.activeWindow.start + i}:${name}`, body: `${name}/${tag}`, accent: false }
-    }
-    // Saved paths mostly share a prefix, so the basename leads and the
-    // directory trails muted (`splitRepoRow`).
-    const { base, dir } = splitRepoRow(name)
-    return {
-      key: `${vm.activeWindow.start + i}:${name}`,
-      body: `${base}${tag}`,
-      accent: vm.expandedRepo === name,
-      ...(dir ? { dim: dir } : {}),
-    }
-  })
 
   const branchRows = vm.branchWindow.items.map((name, i) => ({
     key: `${vm.branchWindow.start + i}:${name}`,
@@ -57,50 +31,7 @@ export function ExistingTab({ vm, only }: { vm: NewTaskVm; only?: boolean }) {
 
   return (
     <>
-      {only && vm.field !== "repo" ? null : (
-        <DialogSection
-          label={t("newTask.field.repo")}
-          focused={vm.field === "repo"}
-          onPress={() => vm.setField("repo")}
-        >
-          {/* Name left, directory right — the same weighting as the picker rows
-            below, so a repo reads the same whether it is being chosen or has
-            been. The input still holds the full path (`vm.repo`); only which
-            half of it sits in the editable cell changes. */}
-          <DialogField focused={vm.field === "repo"}>
-            <box flexDirection="row">
-              <input
-                {...INPUT_SCROLL}
-                value={vm.repo}
-                placeholder={t("newTask.noFolder")}
-                focused={vm.field === "repo"}
-                onMouseUp={() => vm.setField("repo")}
-                onInput={(v: string) => vm.setRepoText(v)}
-                // Every Enter routes through onRepoSubmit.
-                onSubmit={() => vm.onRepoSubmit()}
-                // NAME: fixed column, the directory beside it gives way. NOT
-                // `flexGrow` — the directory would squeeze the input below its
-                // content, which scrolls to the cursor (`fixture-repo` shows as
-                // `ture-repo`). PATH: nothing beside it, takes the whole row.
-                flexGrow={vm.repoDir ? 0 : 1}
-                flexShrink={0}
-                {...(vm.repoDir ? { flexBasis: REPO_INPUT_CELLS } : {})}
-              />
-              {/* The separating space is INSIDE the string rather than
-                `paddingLeft`: padding belongs to the box Yoga is shrinking, so a
-                full row closes it to zero and the name runs into the path. */}
-              {vm.repoDir ? (
-                <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
-                  {` ${vm.repoDir}`}
-                </text>
-              ) : null}
-            </box>
-          </DialogField>
-        </DialogSection>
-      )}
-      {vm.field === "repo" && vm.activeList.length > 0 && !vm.repoPicked ? (
-        <PickerList window={vm.activeWindow} cursor={vm.repoCursor} rows={repoRows} onPick={vm.selectRepoAt} />
-      ) : null}
+      {only && vm.field !== "repo" ? null : <FolderPickerCard vm={vm} />}
       {/* More repos the task spans: the repo above is the primary, these follow in pick order. Not for
           "open the project", which enters one existing checkout. */}
       {vm.extraCandidates.length > 0 &&

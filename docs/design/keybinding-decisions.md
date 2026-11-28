@@ -8,6 +8,19 @@ reasoning is recorded so the next agent has the context.
 The user-facing vocabulary lives in [`../KEYBINDINGS.md`](../KEYBINDINGS.md).
 `F1` renders the live keymap and is authoritative over both.
 
+## New task → Open folder: `h`/`←` step back, `l`/`→` step in, `enter` selects
+
+**2026-11-28 — owner sign-off.** Inside the New task composer's **+ Open folder…**
+directory browser, when the filter/path input is empty, `h` / `←` (and
+`backspace`) step up to the parent directory (keeping the cursor on the folder
+just exited), `l` / `→` (and `tab`) step into the highlighted subfolder, and
+`enter` confirms the highlighted folder. Owner explicitly requested these chords.
+
+**Guard.** `h`/`l`/`←`/`→`/`backspace` are bound only while `Open folder…` is
+active and the filter/path input is empty (checked against a sync ref so pasted
+paths containing `h`/`l` never lose characters). Typing or pasting a filepath
+hands every character straight to the input.
+
 ## Desktop app on macOS: ⌘W closes the window, not the app
 
 **2026-11-28 — owner sign-off.** In the macOS desktop app, ⌘W (File › Close

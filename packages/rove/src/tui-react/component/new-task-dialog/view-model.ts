@@ -125,6 +125,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     defaultRepo: props.defaultRepo,
     savedRepos: props.savedRepos,
     pickerRows,
+    focused: active && tab === "existing" && field === "repo",
     // Intent is per-repo; reset so the row doesn't describe the previous path.
     // Safety is `commitExisting`'s own `canOpenProject` guard.
     onChanged: () => setIntent("task"),
@@ -188,14 +189,6 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
         ...(model ? { model } : {}),
         ...(effort ? { modelEffort: effort } : {}),
       })
-      return
-    }
-    // Two saved repos can share a basename; reopen the picker (directories
-    // visible) rather than opening the alphabetically-first one.
-    if (repoField.repoResolution.kind === "ambiguous") {
-      setSubmitError(t("newTask.error.repoAmbiguous", { name: repoField.repoResolution.name }))
-      setField("repo")
-      repoField.reopenPicker()
       return
     }
     const r = expandedRepo
@@ -377,8 +370,23 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   useBindings(() => ({
     enabled: active,
     bindings: [
-      { key: "escape", cmd: () => props.onCancel() },
+      {
+        key: "escape",
+        cmd: () => {
+          if (tab === "existing" && field === "repo" && repoField.exitBrowse()) return
+          props.onCancel()
+        },
+      },
       { key: "ctrl+c", cmd: () => props.onCancel() },
+      ...(tab === "existing" && field === "repo" && repoField.mode === "folder-browse" && repoField.isSearchEmpty()
+        ? [
+            { key: "h" as const, cmd: () => void repoField.stepUpBrowse() },
+            { key: "left" as const, cmd: () => void repoField.stepUpBrowse() },
+            { key: "backspace" as const, cmd: () => void repoField.stepUpBrowse() },
+            { key: "l" as const, cmd: () => void repoField.stepIntoBrowse() },
+            { key: "right" as const, cmd: () => void repoField.stepIntoBrowse() },
+          ]
+        : []),
       {
         key: "tab",
         cmd: () => {
