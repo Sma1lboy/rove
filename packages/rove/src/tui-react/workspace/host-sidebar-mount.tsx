@@ -116,6 +116,7 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
       onLandRequest={(id) => void actions.landTask(id)}
       onArchiveRequest={(id) => void actions.archiveTask(id)}
       onSyncBaseRequest={(id) => void actions.syncBase(id)}
+      onAbortOperationRequest={(id) => void actions.abortOperation(id)}
       onRenameRequest={(id) => void actions.renameTask(id)}
       onPinRequest={(id) => void actions.togglePin(id)}
       isNotificationsMuted={(id) => mutedTaskIds(kv.get(MUTED_TASKS_KEY)).has(id)}

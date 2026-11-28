@@ -241,6 +241,12 @@ abort the operation on its own. If Git cannot read the conflicted files, the
 action shows an error without sending a prompt. If delivery fails, it asks you
 to open an engine tab in the Task and retry.
 
+The same menu offers **Abort paused merge or rebase**, which runs
+`git <operation> --abort` in the worktree after a confirmation. It puts the
+branch back where it was before the operation started, so any conflict
+resolution made since then is lost. Like Resolve conflicts, it appears only for
+a worktree on this machine.
+
 The confirmation dialogs state the exact deletion boundary before anything is
 changed. See [Concepts → Session](CONCEPTS.md#session) for the Session kinds and
 [Sessions](SESSIONS.md#what-actually-ends-a-session) for session teardown.

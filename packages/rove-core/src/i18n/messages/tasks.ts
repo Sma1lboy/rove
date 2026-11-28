@@ -74,6 +74,14 @@ export const en = {
     dirty: "Commit the worktree's changes first, then sync: {files}",
     failed: "Sync failed: {error}",
   },
+  /** Row menu "Abort paused merge or rebase". {op} is merge, rebase, cherry-pick or revert. */
+  abortOp: {
+    title: "Abort the {op}?",
+    body: "Git puts {branch} back where it was before the {op} started. Conflict resolutions made since then are lost.",
+    confirm: "Abort {op}",
+    done: "Aborted the {op} on {branch}",
+    failed: "Couldn't abort the {op}: {error}",
+  },
   /** Row menu "Archive" / "Unarchive". Archive ends the sessions and keeps the files. */
   archive: {
     done: "Archived {title}",
@@ -291,6 +299,13 @@ export const zh: typeof en = {
     conflict: "合并冲突——解决后提交：{files}",
     dirty: "请先提交工作树里的改动，再同步：{files}",
     failed: "同步失败：{error}",
+  },
+  abortOp: {
+    title: "中止这次 {op}？",
+    body: "Git 会把 {branch} 恢复到 {op} 开始之前的状态，此后做过的冲突解决都会丢失。",
+    confirm: "中止 {op}",
+    done: "已中止 {branch} 上的 {op}",
+    failed: "无法中止 {op}：{error}",
   },
   archive: {
     done: "已归档 {title}",

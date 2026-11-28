@@ -65,6 +65,23 @@ export async function conflictedPaths(worktree: string): Promise<string[] | null
   }
 }
 
+/** `git <op> --abort`: puts the branch back where it was before the operation. Null on success, else git's first line. */
+export async function abortPausedOperation(worktree: string, operation: PausedGitOperation): Promise<string | null> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), GIT_TIMEOUT_MS)
+  const args = [operation, "--abort"]
+  try {
+    recordSpawn("tui.abortOperation", ["git", ...args], worktree)
+    const out = await spawnCapture("git", args, { cwd: worktree, env: process.env, signal: controller.signal })
+    if (controller.signal.aborted) return `git ${operation} --abort timed out`
+    if (out.status === 0) return null
+    const detail = `${out.stderr}\n${out.stdout}`.split("\n").find((line) => line.trim().length > 0)
+    return detail?.trim() ?? `git ${operation} --abort exited ${out.status}`
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export interface ConflictPromptState {
   readonly operation: PausedGitOperation
   readonly branch: string

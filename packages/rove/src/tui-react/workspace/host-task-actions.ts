@@ -34,6 +34,7 @@ import type { DialogContext } from "../ui/dialog"
 import { DialogChoice } from "../ui/dialog-choice"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import { buildBaseCreateTaskContext } from "../ui/task-dialog-adapters"
+import { abortOperationAction } from "./abort-operation-action"
 import { archiveTaskAction } from "./archive-task-action"
 import { landTaskAction } from "./land-task-action"
 import { rerunChecksAction } from "./rerun-checks-action"
@@ -99,6 +100,8 @@ export type WorkspaceTaskActions = {
   syncBase: (id: string) => Promise<boolean>
   /** Row menu "Re-run failed checks": restart the PR's failed CI jobs. */
   rerunChecks: (id: string) => Promise<void>
+  /** Row menu "Abort paused merge or rebase": `git <op> --abort` behind a confirm. */
+  abortOperation: (id: string) => Promise<void>
 }
 
 export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): WorkspaceTaskActions {
@@ -244,9 +247,26 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
       id,
     )
 
+  async function abortOperation(id: string): Promise<void> {
+    const task = tasks().find((candidate) => String(candidate.id) === id)
+    if (!task?.worktreePath) return
+    await abortOperationAction(
+      {
+        confirm: (title, body, confirmLabel) =>
+          DialogConfirm.show(dialog, title, body, t("common.cancel"), confirmLabel).then((ok: unknown) => ok === true),
+        notifyInfo: deps.notifyInfo,
+        notifyError,
+        t,
+      },
+      task.worktreePath,
+      task.branch,
+    )
+  }
+
   return {
     syncBase,
     rerunChecks,
+    abortOperation,
     createTask: (repo) => createTaskFlow(taskActions, repo ? { repo } : undefined),
     createTaskFromBranch: async (id) => {
       const task = taskActions.tasks().find((candidate) => candidate.id === id)

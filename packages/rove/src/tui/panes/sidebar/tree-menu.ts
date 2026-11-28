@@ -5,7 +5,7 @@
  * entry routes to an existing callback.
  *
  * Exceptions (`newTaskFromBranch`, `setStatus`, `copyId`, `copyBranch`, `copyPath`, `land`, `fieldNotes`,
- * `runAgain`, `moveToTop`, `toggleFold`, `resolveConflicts`, `muteNotifications`, `archive`) are menu-only until the owner agrees a chord (AGENTS.md,
+ * `runAgain`, `moveToTop`, `toggleFold`, `resolveConflicts`, `abortOperation`, `muteNotifications`, `archive`) are menu-only until the owner agrees a chord (AGENTS.md,
  * "Keybindings"); then the entry mirrors it like the rest.
  *
  * "New chat" routes to the row's workspace ctrl+e picker, like pressing the
@@ -53,6 +53,7 @@ export type TreeMenuAction =
   | "rerunChecks"
   | "syncBase"
   | "resolveConflicts"
+  | "abortOperation"
   | "land"
   | "archive"
   | "delete"
@@ -80,6 +81,7 @@ const SECTION_OF: Readonly<Record<TreeMenuAction, TreeMenuSection>> = {
   fixChecks: "git",
   syncBase: "git",
   resolveConflicts: "git",
+  abortOperation: "git",
   land: "git",
   copyId: "copy",
   copyBranch: "copy",
@@ -218,7 +220,10 @@ function taskVerbs(task: Task, ctx: TreeMenuContext): TreeMenuItem[] {
     verbs.push({ action: "syncBase", labelKey: "tasks.menu.syncBase", bindingId: "files.syncBase" })
   }
   // Menu-only: hand the paused operation's conflicts to the engine.
-  if (ctx.operationPaused === true) verbs.push({ action: "resolveConflicts", labelKey: "tasks.menu.resolveConflicts" })
+  if (ctx.operationPaused === true) {
+    verbs.push({ action: "resolveConflicts", labelKey: "tasks.menu.resolveConflicts" })
+    verbs.push({ action: "abortOperation", labelKey: "tasks.menu.abortOperation" })
+  }
   // Menu-only (landing's chord is the Worktrees page `l`). `landTask` throws
   // for `dir`; an unmaterialised task has no branch.
   if (workspaceCapabilities(task).ownsBranch && task.branch !== "") {
