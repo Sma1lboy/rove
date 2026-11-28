@@ -13,6 +13,7 @@ import { t } from "@sma1lboy/rove-core/i18n/index.ts"
 import {
   expandHome,
   filterSubdirs,
+  isExistingDir,
   isGitDir,
   joinDrill,
   joinPicked,
@@ -21,7 +22,7 @@ import {
   pathLeaf,
   stripTrailingSlash,
 } from "@sma1lboy/rove-core/lib/path-helpers.ts"
-import { samePath } from "@sma1lboy/rove-daemon/path-identity"
+import { pathSyntax, samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
   BROWSE_BACK_ROW,
@@ -32,7 +33,7 @@ import {
   buildSavedPicker,
   duplicateBasenames,
   initialBrowseDir,
-  stripPathQuotes,
+  normalizePastedPath,
 } from "../../../tui/component/new-task-dialog/folder-picker"
 import {
   type PickerWindow,
@@ -87,6 +88,8 @@ export function useRepoField(opts: RepoFieldOpts) {
   const [searchQuery, setSearchQuery] = useState("")
   // Sync mirror of `searchQuery` so rapid paste/type never lets `h`/`l` key bindings eat chars mid-burst.
   const searchQueryRef = useRef("")
+  // Tracks whether the user explicitly moved the picker cursor since their last edit/paste.
+  const cursorMovedRef = useRef(false)
   const [browsingDir, setBrowsingDir] = useState<string | null>(null)
   const [repoPicked, setRepoPicked] = useState(false)
 
@@ -222,7 +225,8 @@ export function useRepoField(opts: RepoFieldOpts) {
     const picked = browseItems[repoCursor]
     if (!picked || picked === BROWSE_SELECT_HERE_ROW || picked === BROWSE_BACK_ROW) return false
     if (picked === BROWSE_UP_ROW) return stepUpBrowse()
-    enterBrowseDir(`${browseDirBase}${picked}/`)
+    const sep = pathSyntax(browseDirBase).sep
+    enterBrowseDir(`${browseDirBase}${picked}${sep}`)
     return true
   }
 
@@ -230,6 +234,7 @@ export function useRepoField(opts: RepoFieldOpts) {
     if (browsingDir === null) return false
     setBrowsingDir(null)
     searchQueryRef.current = ""
+    cursorMovedRef.current = false
     setSearchQuery("")
     const fresh = buildSavedPicker({
       noFolderLabel: t("newTask.noFolder"),
@@ -242,9 +247,11 @@ export function useRepoField(opts: RepoFieldOpts) {
 
   function setSearchText(v: string): void {
     const raw = stripNewlines(v)
-    const cleaned = isRepoPathInput(stripPathQuotes(raw).trim()) ? stripPathQuotes(raw) : raw
+    const normalized = normalizePastedPath(raw)
+    const cleaned = isRepoPathInput(normalized) ? normalized : raw
     setRepoPicked(false)
     searchQueryRef.current = cleaned
+    cursorMovedRef.current = false
     setSearchQuery(cleaned)
     setRepoCursor(0)
   }
@@ -274,7 +281,27 @@ export function useRepoField(opts: RepoFieldOpts) {
     return true
   }
 
-  function activateIndex(absoluteIndex: number): void {
+  function activateIndex(absoluteIndex: number, fromEnter = false): void {
+    // Pasting a full path (POSIX, Windows, UNC, trailing slash, symlink, or hidden dir) and pressing
+    // Enter without arrowing down into children confirms THAT exact pasted path rather than a child or parent.
+    if (
+      fromEnter &&
+      !cursorMovedRef.current &&
+      (mode === "path-browse" || (mode === "folder-browse" && isRepoPathInput(trimmedQuery)))
+    ) {
+      const exactCandidate = stripTrailingSlash(expandHome(trimmedQuery))
+      if (isExistingDir(exactCandidate)) {
+        commitSelection(exactCandidate, true)
+        return
+      }
+      const matched = subdirFiltered[absoluteIndex]
+      if (matched) {
+        commitSelection(joinPicked(trimmedQuery, subdirSplit.base, matched), true)
+        return
+      }
+      commitSelection(trimmedQuery, true)
+      return
+    }
     if (mode === "path-browse") {
       const picked = subdirFiltered[absoluteIndex]
       if (picked) {
@@ -318,16 +345,17 @@ export function useRepoField(opts: RepoFieldOpts) {
   }
 
   function onRepoSubmit(): void {
-    activateIndex(repoCursor)
+    activateIndex(repoCursor, true)
   }
 
   function selectRepoAt(absoluteIndex: number): void {
     setRepoCursor(absoluteIndex)
-    activateIndex(absoluteIndex)
+    activateIndex(absoluteIndex, false)
   }
 
   function moveRepoCursor(delta: 1 | -1): void {
     if (activeList.length === 0) return
+    cursorMovedRef.current = true
     setRepoCursor((c) => clampCursor(c + delta, activeList.length))
   }
 

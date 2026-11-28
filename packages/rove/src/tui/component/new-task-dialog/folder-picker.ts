@@ -42,6 +42,44 @@ export function stripPathQuotes(value: string): string {
   return value
 }
 
+/**
+ * Normalize a clipboard-pasted path across Windows, Linux, and macOS:
+ *   - strips matching single/double quotes (Explorer "Copy as path", shell quotes)
+ *   - decodes `file://` URIs (Linux Nautilus/Dolphin/Thunar, Windows `file:///C:/…`, UNC `file://host/share`)
+ *   - strips Windows extended-length prefixes (`\\?\C:\…`, `\\?\UNC\…`)
+ *   - unescapes shell-escaped spaces (`\ `) on POSIX paths without touching Windows backslashes
+ */
+export function normalizePastedPath(value: string): string {
+  let out = stripPathQuotes(value).trim()
+  if (!out) return value
+  if (/^file:\/\//i.test(out)) {
+    const withoutScheme = out.slice("file://".length)
+    let decoded = withoutScheme
+    try {
+      decoded = decodeURIComponent(withoutScheme)
+    } catch {
+      // Malformed percent-escape: keep the raw text rather than failing the keystroke.
+    }
+    if (/^localhost\//i.test(decoded)) {
+      decoded = decoded.slice("localhost".length)
+    } else if (!decoded.startsWith("/")) {
+      // `file://server/share/path` → Windows UNC `\\server\share\path`
+      return `\\\\${decoded.replaceAll("/", "\\")}`
+    }
+    // `file:///C:/Projects/demo` → `C:/Projects/demo`
+    out = /^\/[a-z]:[/\\]/i.test(decoded) ? decoded.slice(1) : decoded
+  }
+  if (/^\\\\\?\\UNC\\/i.test(out)) {
+    out = `\\\\${out.slice("\\\\?\\UNC\\".length)}`
+  } else if (/^\\\\\?\\[a-z]:[/\\]/i.test(out)) {
+    out = out.slice("\\\\?\\".length)
+  }
+  if (pathSyntax(out).sep === "/" && (out.startsWith("/") || out.startsWith("~/")) && out.includes("\\ ")) {
+    out = out.replaceAll("\\ ", " ")
+  }
+  return out
+}
+
 /** Starting directory for `Open folder…`: parent of the active/default folder (lists siblings), else home. */
 export function initialBrowseDir(selectedRepo: string, defaultRepo: string, homeDir: string): string {
   const seed = selectedRepo.trim() || defaultRepo.trim()

@@ -8,6 +8,7 @@ import {
   buildSavedPicker,
   duplicateBasenames,
   initialBrowseDir,
+  normalizePastedPath,
   stripPathQuotes,
 } from "@/tui/component/new-task-dialog/folder-picker"
 import { describe, expect, it } from "vitest"
@@ -57,5 +58,25 @@ describe("stripPathQuotes", () => {
     expect(stripPathQuotes('"/Users/me/projects/rove"')).toBe("/Users/me/projects/rove")
     expect(stripPathQuotes("'/Users/me/my folder'")).toBe("/Users/me/my folder")
     expect(stripPathQuotes("/Users/me/plain")).toBe("/Users/me/plain")
+  })
+})
+
+describe("normalizePastedPath (Windows, Linux, macOS)", () => {
+  it("normalizes Windows Explorer quoted paths, extended prefixes, UNC, and file URLs", () => {
+    expect(normalizePastedPath('"C:\\Code_Project\\My_project\\demo"')).toBe("C:\\Code_Project\\My_project\\demo")
+    expect(normalizePastedPath("\\\\?\\C:\\Code\\repo")).toBe("C:\\Code\\repo")
+    expect(normalizePastedPath("\\\\?\\UNC\\wsl.localhost\\Ubuntu\\home\\me\\repo")).toBe(
+      "\\\\wsl.localhost\\Ubuntu\\home\\me\\repo",
+    )
+    expect(normalizePastedPath("file:///C:/Code%20Project/demo")).toBe("C:/Code Project/demo")
+    expect(normalizePastedPath("file://server/share/repo")).toBe("\\\\server\\share\\repo")
+  })
+
+  it("normalizes Linux/macOS file URLs and shell-escaped spaces without altering Windows backslashes", () => {
+    expect(normalizePastedPath("file:///home/me/my%20repo")).toBe("/home/me/my repo")
+    expect(normalizePastedPath("file://localhost/home/me/repo")).toBe("/home/me/repo")
+    expect(normalizePastedPath("/home/me/my\\ repo")).toBe("/home/me/my repo")
+    expect(normalizePastedPath("~/work/my\\ repo")).toBe("~/work/my repo")
+    expect(normalizePastedPath("C:\\my\\ repo")).toBe("C:\\my\\ repo")
   })
 })
