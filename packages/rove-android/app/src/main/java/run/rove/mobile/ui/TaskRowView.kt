@@ -14,7 +14,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathFillType
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -146,12 +152,45 @@ internal fun middleEllipsis(text: String, fits: (String) -> Boolean): String {
     Text(TaskAge.label(TaskAge.ms(receipt, now.value)), color = Rove.c.muted, maxLines = 1, style = Rove.mono(13))
 }
 
+/**
+ * Web `EngineIcon`: the engine's brand mark before the title, in its brand colours (the row's ink where the brand is
+ * black or white); a ring for an engine that declares none. The engine's name stays in the right column.
+ */
+@Composable fun EngineMark(icon: EngineIcon?, modifier: Modifier = Modifier) {
+    val ink = Rove.c.ink
+    val ring = Rove.c.muted
+    val paths = remember(icon) {
+        icon?.paths?.mapNotNull { p ->
+            runCatching {
+                PathParser().parsePathString(p.d).toPath().apply { if (p.evenodd) fillType = PathFillType.EvenOdd } to
+                    p.fill?.let { Color(android.graphics.Color.parseColor(it)) }
+            }.getOrNull()
+        }.orEmpty()
+    }
+    val box = remember(icon) { icon?.viewBox?.trim()?.split(Regex("[\\s,]+"))?.mapNotNull { it.toFloatOrNull() }?.takeIf { it.size == 4 } }
+    Canvas(modifier.size(16.dp)) {
+        if (paths.isEmpty() || box == null) {
+            drawCircle(ring, radius = size.minDimension * 4.5f / 14f, style = Stroke(size.minDimension * 1.2f / 14f))
+            return@Canvas
+        }
+        val (x, y, w, h) = box
+        val k = size.minDimension / maxOf(w, h)
+        withTransform({
+            translate((size.width - w * k) / 2f, (size.height - h * k) / 2f)
+            scale(k, k, Offset.Zero)
+            translate(-x, -y)
+        }) { paths.forEach { (path, fill) -> drawPath(path, fill ?: ink) } }
+    }
+}
+
 /** Line 1: pin mark + title. Line 2: status tag, branch, marks. Right column: age over engine. Nothing wraps. */
-@Composable fun TaskRowView(row: TaskRow, receipt: Receipt, now: State<Long>, onLongClick: () -> Unit = {}, onClick: () -> Unit) {
+@Composable fun TaskRowView(row: TaskRow, receipt: Receipt, now: State<Long>, icon: EngineIcon? = null, onLongClick: () -> Unit = {},
+                            onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth().rowPress(onClick, onLongClick).padding(horizontal = 12.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f).padding(end = 8.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (row.engine != null) EngineMark(icon, Modifier.padding(end = 2.dp))
                 if (row.pinned) {
                     val pinned = stringResource(R.string.list_pinned)
                     Text(TaskRowMarks.PINNED, Modifier.semantics { contentDescription = pinned }, color = Rove.c.accent,
