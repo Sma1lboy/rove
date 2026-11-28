@@ -1,6 +1,6 @@
 import type { KeyEvent } from "@opentui/core"
 import { describe, expect, it } from "vitest"
-import { defaultChordsOf, findBinding, resetKeymapToDefaults } from "../../src/tui/context/keybindings"
+import { defaultChordsOf, findBinding, resetKeymapToDefaults } from "../../src/keys/keybindings"
 import {
   PASSTHROUGH_CHORDS,
   PASSTHROUGH_NAMES,

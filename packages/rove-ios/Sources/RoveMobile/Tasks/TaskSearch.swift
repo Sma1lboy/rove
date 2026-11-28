@@ -1,7 +1,7 @@
 import Foundation
 
 /// Case-insensitive subsequence matching with a score, for the list's search field.
-/// The TUI's `fuzzyMatch` (`sidebar/fuzzy.ts`) is the same subsequence test without scoring;
+/// The TUI's `fuzzyMatch` (`lib/fuzzy.ts`) is the same subsequence test without scoring;
 /// the phone ranks survivors so the best hit is first.
 enum FuzzyMatch {
     private static let hit = 16

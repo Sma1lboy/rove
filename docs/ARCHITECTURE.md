@@ -112,6 +112,9 @@ worktree on the shared branch name. `taskRepos(task)` (in `rove-daemon`'s
     Resolving to drawable colors stays in `tui/context/theme-core.ts`.
   - `src/tabs/` — the terminal-tab model (tabs, splits, argv, titles) shared
     by the TUI, `rove api` and the web client.
+  - `src/keys/` — the keybinding model: bindings table, chord matching,
+    prefix dispatch, user overrides and the pure workspace gates. Free of
+    opentui and React; the TUI and the web client both read it.
   - `src/tui/` — framework-free keymap, state, terminal, file, sidebar, and
     workspace cores.
   - `src/tui-react/` — the only UI implementation: React 19 over opentui.
@@ -224,6 +227,9 @@ this capability refuse capped launches rather than opening without admission.
 - Core code (`src/**` outside `tui/`, `tui-react/`, `bundled-plugins/` and the
   `cli/*.ts` entry files) never imports `src/tui*`, so it can split into its own
   package (`test/architecture/core-off-tui.test.ts`).
+- Clients (`rove-web`, `rove-bridge`, `rove-lark`, `rove-weixin`) never import
+  `@sma1lboy/rove/src/tui*`; the modules still imported are a shrink-only list
+  in `test/architecture/clients-off-tui.test.ts`.
 
 ## 6. State
 

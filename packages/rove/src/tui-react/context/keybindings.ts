@@ -8,14 +8,14 @@
  */
 
 import { useSyncExternalStore } from "react"
-import { keymapVersion, subscribeKeymapVersion } from "../../tui/context/keybindings"
+import { keymapVersion, subscribeKeymapVersion } from "../../keys/keybindings"
 
 export {
   RoveKeymap,
   bindByIds,
   bumpKeymapVersion,
   subscribeKeymapVersion,
-} from "../../tui/context/keybindings"
+} from "../../keys/keybindings"
 
 /**
  * Subscribe the component to keymap reloads. Returns the current version

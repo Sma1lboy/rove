@@ -5,7 +5,7 @@
  */
 
 import type { Task } from "@/types/task"
-import { fuzzyMatch } from "./fuzzy"
+import { fuzzyMatch } from "../../../lib/fuzzy"
 import { repoBasename } from "./groups"
 import { type TreeRow, worktreeRowLabel } from "./tree-core"
 import { isNamedDir } from "./tree-labels"

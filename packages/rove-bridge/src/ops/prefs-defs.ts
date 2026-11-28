@@ -14,6 +14,12 @@
 
 import { DEFAULT_LOCALE, LOCALES, isLocaleId } from "@sma1lboy/rove/src/i18n/catalog.ts"
 import {
+  DEFAULT_PREFIX_TAP_PRESENTATION,
+  PREFIX_TAP_PRESENTATIONS,
+  PREFIX_TAP_PRESENTATION_KEY,
+  normalizePrefixTapPresentation,
+} from "@sma1lboy/rove/src/keys/prefix-tap-presentation.ts"
+import {
   DEFAULT_EDITOR_KIND,
   EDITOR_CUSTOM_KEY,
   EDITOR_KINDS,
@@ -86,12 +92,6 @@ import {
   THEME_MODE_PREFERENCES,
 } from "@sma1lboy/rove/src/tui/context/theme-core.ts"
 import { FINISHED_ALERTS_KEY } from "@sma1lboy/rove/src/tui/lib/notify-state.ts"
-import {
-  DEFAULT_PREFIX_TAP_PRESENTATION,
-  PREFIX_TAP_PRESENTATIONS,
-  PREFIX_TAP_PRESENTATION_KEY,
-  normalizePrefixTapPresentation,
-} from "@sma1lboy/rove/src/tui/lib/prefix-tap-presentation.ts"
 import { channelOf } from "@sma1lboy/rove/src/version.ts"
 import { BridgeError } from "../protocol.ts"
 

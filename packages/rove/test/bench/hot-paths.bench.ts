@@ -13,7 +13,7 @@
  */
 
 import { bench, describe } from "vitest"
-import { type Binding, type RegisteredBinding, dispatchKeyEvent, matchKey } from "../../src/tui/lib/keymap-dispatch"
+import { type Binding, type RegisteredBinding, dispatchKeyEvent, matchKey } from "../../src/keys/keymap-dispatch"
 import { type Row, reconcileRows } from "../../src/tui/panes/filetree/rows"
 import { buildSidebarRowView } from "../../src/tui/panes/sidebar/row-view"
 import type { Task } from "../../src/types/task"

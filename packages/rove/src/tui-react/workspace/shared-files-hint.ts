@@ -1,5 +1,5 @@
-import { formatChord } from "../../tui/lib/chord-glyphs"
-import { legendCap } from "../../tui/lib/help-groups"
+import { formatChord } from "../../keys/chord-glyphs"
+import { legendCap } from "../../keys/help-groups"
 import type { KVContext } from "../context/kv"
 
 export function showSharedFilesHint(

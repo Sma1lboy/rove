@@ -5,9 +5,9 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { formatChord } from "../../../keys/chord-glyphs"
+import { legendCap } from "../../../keys/help-groups"
 import { resolvePreferredVendor } from "../../../state/vendor-prefs"
-import { formatChord } from "../../../tui/lib/chord-glyphs"
-import { legendCap } from "../../../tui/lib/help-groups"
 import { pausedGitOperation } from "../../../tui/ops/conflict-prompt"
 import { SCRATCH_SECTION_ID, type TreeRow } from "../../../tui/panes/sidebar/tree-core"
 import {

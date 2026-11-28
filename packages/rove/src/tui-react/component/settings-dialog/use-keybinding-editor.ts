@@ -4,13 +4,13 @@
  */
 
 import { useEffect, useRef, useState } from "react"
-import { findBinding } from "../../../tui/context/keybindings"
+import { PREFIX_KEY_ID, type Recording, recordStroke } from "../../../keys/chord-recorder"
+import { findBinding } from "../../../keys/keybindings"
+import type { KeybindingEdit } from "../../../keys/keybindings-write"
+import { prefixFirstStrokes } from "../../../keys/keymap-dispatch"
+import { matchKey } from "../../../keys/keymap-match"
+import { recordSlotLabels } from "../../../keys/keymap-overrides"
 import { saveKeybindingEdits } from "../../../tui/context/keybindings-user"
-import { PREFIX_KEY_ID, type Recording, recordStroke } from "../../../tui/lib/chord-recorder"
-import type { KeybindingEdit } from "../../../tui/lib/keybindings-write"
-import { prefixFirstStrokes } from "../../../tui/lib/keymap-dispatch"
-import { matchKey } from "../../../tui/lib/keymap-match"
-import { recordSlotLabels } from "../../../tui/lib/keymap-overrides"
 import { captureKeys } from "../../lib/keymap"
 
 /** What the last edit of a binding came to: why it was refused, or what the loader warns about it. */

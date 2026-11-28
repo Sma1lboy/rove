@@ -1,6 +1,6 @@
 /**
  * React registration for key bindings; dispatch lives in
- * `src/tui/lib/keymap-dispatch.ts`. `config` is re-read on every keypress via
+ * `src/keys/keymap-dispatch.ts`. `config` is re-read on every keypress via
  * a ref; bindings stack LIFO and only the topmost enabled match fires.
  *
  * Mount effects run children before parents, so ANCESTORS land on top. A
@@ -14,7 +14,7 @@ import { profileTick } from "@/lib/render-profile"
 import type { KeyEvent, KeyHandler } from "@opentui/core"
 import { flushSync, useRenderer } from "@opentui/react"
 import { createContext, useContext, useEffect, useRef, useSyncExternalStore } from "react"
-import { type CtrlHoldDetector, createCtrlHoldDetector } from "../../tui/lib/ctrl-hold"
+import { type CtrlHoldDetector, createCtrlHoldDetector } from "../../keys/ctrl-hold"
 import {
   type Binding,
   type BindingsConfig,
@@ -25,15 +25,15 @@ import {
   insertRegistration,
   invokeArmedPrefixAction,
   resetPrefixState,
-} from "../../tui/lib/keymap-dispatch"
-import { type BindingReachability, bindingReachability } from "../../tui/lib/keymap-reachability"
-import { isKittyModifierKeyName } from "../../tui/lib/modifier-keys"
-import { capturePaletteActions } from "../../tui/lib/palette-actions"
-import { prefixHudHideDirect, prefixHudShowDirect } from "../../tui/lib/prefix-hud"
-import { directGuideOptions } from "../../tui/lib/shortcut-reveal"
+} from "../../keys/keymap-dispatch"
+import { type BindingReachability, bindingReachability } from "../../keys/keymap-reachability"
+import { isKittyModifierKeyName } from "../../keys/modifier-keys"
+import { capturePaletteActions } from "../../keys/palette-actions"
+import { prefixHudHideDirect, prefixHudShowDirect } from "../../keys/prefix-hud"
+import { directGuideOptions } from "../../keys/shortcut-reveal"
 import { useLatest } from "../lib/use-latest"
 
-export type { Binding, BindingsConfig } from "../../tui/lib/keymap-dispatch"
+export type { Binding, BindingsConfig } from "../../keys/keymap-dispatch"
 
 /**
  * Scope token set by the dialog overlay: `useBindings` inside it become

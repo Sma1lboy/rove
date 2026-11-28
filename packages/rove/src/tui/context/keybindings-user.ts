@@ -11,13 +11,13 @@
  * pristine defaults whatever the developer's own file says.
  */
 
+import { RoveKeymap, bumpKeymapVersion, resetKeymapToDefaults } from "../../keys/keybindings"
+import { type UserKeybindingsReport, resolveUserKeybindings } from "../../keys/keybindings-resolve"
+import { type KeybindingSaveResult, writeKeybindingEdits } from "../../keys/keybindings-save"
+import type { KeybindingEdit } from "../../keys/keybindings-write"
+import { configurePrefix, resetPrefixConfiguration } from "../../keys/keymap-dispatch"
+import type { PluginKeyBinding } from "../../keys/keymap-plugin-bindings"
 import { readKeybindingsFile, resetKeybindingsFileCache } from "../../state/keybindings-file"
-import { type UserKeybindingsReport, resolveUserKeybindings } from "../lib/keybindings-resolve"
-import { type KeybindingSaveResult, writeKeybindingEdits } from "../lib/keybindings-save"
-import type { KeybindingEdit } from "../lib/keybindings-write"
-import { configurePrefix, resetPrefixConfiguration } from "../lib/keymap-dispatch"
-import type { PluginKeyBinding } from "../lib/keymap-plugin-bindings"
-import { RoveKeymap, bumpKeymapVersion, resetKeymapToDefaults } from "./keybindings"
 
 export type { UserKeybindingsReport }
 

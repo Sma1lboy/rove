@@ -11,7 +11,7 @@
  * ~/.rove/settings/keybindings.yaml change dispatch but NOT the advertised
  * cap, so the legend lies. Each cap is derived from `RoveKeymap` via
  * `legendCap` / `legendRowCap`, which live in the framework-free
- * `src/tui/lib/help-groups.ts` — imported here directly (no opentui in the
+ * `src/keys/help-groups.ts` — imported here directly (no opentui in the
  * module graph), so this file tests the REAL helpers the footer legend
  * (tasks-pane/shortcut-hints.tsx) and the help dialog run. What locks is
  * that the resolution rule (`hint?.keys ?? keys[0]`, drop on unbind, join
@@ -20,9 +20,9 @@
  */
 
 import { afterEach, describe, expect, test } from "vitest"
-import { RoveKeymap, resetKeymapToDefaults } from "../../src/tui/context/keybindings"
-import { legendCap, legendRowCap } from "../../src/tui/lib/help-groups"
-import { applyKeymapOverrides } from "../../src/tui/lib/keymap-overrides"
+import { legendCap, legendRowCap } from "../../src/keys/help-groups"
+import { RoveKeymap, resetKeymapToDefaults } from "../../src/keys/keybindings"
+import { applyKeymapOverrides } from "../../src/keys/keymap-overrides"
 
 describe("tasks-pane legend keycap derivation", () => {
   afterEach(() => resetKeymapToDefaults())

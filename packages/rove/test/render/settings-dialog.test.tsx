@@ -11,10 +11,10 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import * as engineStatus from "../../src/engine/engine-status"
+import { PREFIX_TAP_PRESENTATION_KEY } from "../../src/keys/prefix-tap-presentation"
 import { SettingsDialog } from "../../src/tui-react/component/settings-dialog"
 import { type KVContext, useKV } from "../../src/tui-react/context/kv"
 import { devRows, rowIndex } from "../../src/tui/component/settings-dialog/model"
-import { PREFIX_TAP_PRESENTATION_KEY } from "../../src/tui/lib/prefix-tap-presentation"
 import { act, renderComponent, waitForFrameText } from "./harness"
 
 const NOOP = (): void => {}

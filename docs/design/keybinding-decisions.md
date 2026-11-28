@@ -906,7 +906,7 @@ whether the page earns a prefix chord next to `ctrl+a` `1`–`3`.
 Get owner sign-off on direct versus prefix placement, the selected key, and
 any engine/terminal shortcut it may shadow. Then:
 
-1. Add or change the stable binding row in `tui/context/keybindings-*.ts`.
+1. Add or change the stable binding row in `keys/keybindings-*.ts`.
 2. Register its handler at the narrowest correct focused surface.
 3. Check conflicts across direct and prefix forms.
 4. Update F1 localization, focused tests, and

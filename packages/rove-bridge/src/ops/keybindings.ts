@@ -9,21 +9,21 @@
  */
 
 import { roveCliInvocation } from "@sma1lboy/rove/src/cli/invocation.ts"
+import { PREFIX_KEY_ID } from "@sma1lboy/rove/src/keys/chord-recorder.ts"
+import { editableBindings } from "@sma1lboy/rove/src/keys/editable-bindings.ts"
+import { resolveUserKeybindings } from "@sma1lboy/rove/src/keys/keybindings-resolve.ts"
+import { type KeybindingSaveResult, writeKeybindingEdits } from "@sma1lboy/rove/src/keys/keybindings-save.ts"
+import { createKeybindingsFile } from "@sma1lboy/rove/src/keys/keybindings-starter.ts"
+import { RoveKeymap } from "@sma1lboy/rove/src/keys/keybindings-table.ts"
+import type { KeybindingEdit } from "@sma1lboy/rove/src/keys/keybindings-write.ts"
+import { prefixFirstStrokes } from "@sma1lboy/rove/src/keys/keymap-dispatch.ts"
+import { normalizeChord } from "@sma1lboy/rove/src/keys/keymap-overrides.ts"
 import { spawnDetached } from "@sma1lboy/rove/src/lib/spawn-detached.ts"
 import {
   type KeybindingsFile,
   readKeybindingsFile,
   resetKeybindingsFileCache,
 } from "@sma1lboy/rove/src/state/keybindings-file.ts"
-import { RoveKeymap } from "@sma1lboy/rove/src/tui/context/keybindings-table.ts"
-import { PREFIX_KEY_ID } from "@sma1lboy/rove/src/tui/lib/chord-recorder.ts"
-import { editableBindings } from "@sma1lboy/rove/src/tui/lib/editable-bindings.ts"
-import { resolveUserKeybindings } from "@sma1lboy/rove/src/tui/lib/keybindings-resolve.ts"
-import { type KeybindingSaveResult, writeKeybindingEdits } from "@sma1lboy/rove/src/tui/lib/keybindings-save.ts"
-import { createKeybindingsFile } from "@sma1lboy/rove/src/tui/lib/keybindings-starter.ts"
-import type { KeybindingEdit } from "@sma1lboy/rove/src/tui/lib/keybindings-write.ts"
-import { prefixFirstStrokes } from "@sma1lboy/rove/src/tui/lib/keymap-dispatch.ts"
-import { normalizeChord } from "@sma1lboy/rove/src/tui/lib/keymap-overrides.ts"
 import { BridgeError, str } from "../protocol.ts"
 import type { Args, OpTable } from "./types.ts"
 

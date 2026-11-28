@@ -24,6 +24,7 @@ import type { VendorId } from "@/types/vendor"
 import type { TaskRepoView } from "@sma1lboy/rove-daemon/task-tree"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { repoEnv } from "../../engine/multi-repo-launch"
+import { prefixAction } from "../../keys/keymap-dispatch"
 import { linkedWorktree } from "../../machines/remote-workspace.ts"
 import { shellTabInput } from "../../tabs/terminal-tab-spawn"
 import {
@@ -44,7 +45,6 @@ import {
   tabPtyKeyFor,
 } from "../../tabs/terminal-tabs-core"
 import type { SectionId } from "../../tui/component/settings-dialog/model"
-import { prefixAction } from "../../tui/lib/keymap-dispatch"
 import { terminalDrawsKitty } from "../../tui/lib/terminal-graphics"
 import { buildDiffReview } from "../../tui/ops/diff-comments"
 import { warmHostedShell } from "../../tui/panes/terminal/pty-hosted"

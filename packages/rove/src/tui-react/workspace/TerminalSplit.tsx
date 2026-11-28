@@ -13,6 +13,7 @@
 import type { EngineTerminalPresentation } from "@/types/terminal-presentation"
 import { TextAttributes } from "@opentui/core"
 import { type ReactNode, useEffect, useMemo, useState } from "react"
+import { prefixAction } from "../../keys/keymap-dispatch"
 import { SPLIT_STYLE_KEY, normalizeSplitStyle } from "../../state/split-style"
 import {
   type SplitLeaf,
@@ -32,7 +33,6 @@ import {
   splitLeafNames,
   splitLeafPtyKey,
 } from "../../tabs/terminal-tabs-core"
-import { prefixAction } from "../../tui/lib/keymap-dispatch"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { getDefaultLiveEngines } from "../../tui/workspace/live-engine"

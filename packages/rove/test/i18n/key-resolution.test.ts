@@ -39,12 +39,12 @@ import { fileURLToPath } from "node:url"
 import type { AutomationRunStatus } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { describe, expect, test } from "vitest"
 import { en } from "../../src/i18n/catalog"
+import { guideCategory, scopeCategory } from "../../src/keys/help-groups"
+import { RoveKeymap } from "../../src/keys/keybindings"
+import type { RoveBindingScope } from "../../src/keys/keybindings"
 import { DOW_CODES } from "../../src/tui/component/cron-segments"
 import { SECTIONS } from "../../src/tui/component/settings-dialog/model"
-import { RoveKeymap } from "../../src/tui/context/keybindings"
-import type { RoveBindingScope } from "../../src/tui/context/keybindings"
 import { UI_PREFS_FOCUS_ACCENT_SLOTS } from "../../src/tui/lib/apply-ui-prefs"
-import { guideCategory, scopeCategory } from "../../src/tui/lib/help-groups"
 
 const SRC_ROOT = fileURLToPath(new URL("../../src", import.meta.url))
 

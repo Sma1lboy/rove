@@ -8,14 +8,14 @@
  */
 
 import { type ReactNode, createContext, useContext, useMemo } from "react"
-import { currentPrefixConfiguration } from "../../tui/lib/keymap-dispatch"
-import { prefixHudState } from "../../tui/lib/prefix-hud"
+import { currentPrefixConfiguration } from "../../keys/keymap-dispatch"
+import { prefixHudState } from "../../keys/prefix-hud"
 import {
   PREFIX_TAP_PRESENTATION_KEY,
   type PrefixTapPresentation,
   normalizePrefixTapPresentation,
-} from "../../tui/lib/prefix-tap-presentation"
-import { shortcutCaption } from "../../tui/lib/shortcut-reveal"
+} from "../../keys/prefix-tap-presentation"
+import { shortcutCaption } from "../../keys/shortcut-reveal"
 import { useKeymapVersion } from "../context/keybindings"
 import { useOptionalKV } from "../context/kv"
 import { useTheme } from "../context/theme"

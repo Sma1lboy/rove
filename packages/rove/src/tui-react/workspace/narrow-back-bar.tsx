@@ -6,8 +6,8 @@
  */
 
 import { TextAttributes } from "@opentui/core"
-import { formatChord } from "../../tui/lib/chord-glyphs"
-import { legendCap } from "../../tui/lib/help-groups"
+import { formatChord } from "../../keys/chord-glyphs"
+import { legendCap } from "../../keys/help-groups"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 

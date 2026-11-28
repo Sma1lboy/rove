@@ -1,12 +1,12 @@
 /** @jsxImportSource @opentui/react */
 import { expect, it, mock } from "bun:test"
+import { bindByIds } from "../../src/keys/keybindings"
+import { prefixAction } from "../../src/keys/keymap-dispatch"
 import { CommandPalette } from "../../src/tui-react/component/command-palette"
 import { DoctorSuggestions } from "../../src/tui-react/component/doctor-suggestions"
 import { HelpDialog } from "../../src/tui-react/component/help-dialog"
 import { useBindings } from "../../src/tui-react/lib/keymap"
 import { useDialog } from "../../src/tui-react/ui/dialog"
-import { bindByIds } from "../../src/tui/context/keybindings"
-import { prefixAction } from "../../src/tui/lib/keymap-dispatch"
 import { act, renderComponent, settle } from "./harness"
 
 const searched: string[] = []

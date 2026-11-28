@@ -8,8 +8,8 @@
 
 import { useEffect, useState } from "react"
 import type { TaskTabRow } from "../../cli/api/tab-snapshot.ts"
+import { prefixAction } from "../../keys/keymap-dispatch"
 import { forwardVerb, requireMachine } from "../../machines/forward.ts"
-import { prefixAction } from "../../tui/lib/keymap-dispatch"
 import { bindByIds } from "../context/keybindings"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
