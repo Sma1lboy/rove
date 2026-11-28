@@ -22,12 +22,13 @@ export function ScriptMark() {
 
 /** The mark drops its 1px optical nudge here: on the row's centre with the title and the dots. */
 const ROW =
-  "flex min-h-15 w-full items-center gap-3 px-3 py-2 text-left active:bg-hover focus-visible:bg-hover focus-visible:outline-none [&>svg]:translate-y-0"
+  "flex min-h-15 w-full items-center gap-3 px-3 py-2 text-left active:not-has-[[data-pr-chip]:active]:bg-hover focus-visible:bg-hover focus-visible:outline-none [&>svg]:translate-y-0"
 /** Hidden while empty, so a one-line row's title sits on the row's centre. */
 const LINE2 = "flex min-w-0 items-center gap-1.5 font-mono text-[13px] leading-[1.3] text-muted empty:hidden"
 
 /**
- * One row: `mark`, then the title over a muted mono line, then `status` at the right edge, all on the row's centre.
+ * One row: `mark`, then the title over a muted mono line, then `trail` and `status` at the right edge, all on the
+ * row's centre.
  * The whole row is one target; a long press opens its menu (`onContextMenu`).
  */
 export function PhoneStatusRow(
@@ -40,10 +41,12 @@ export function PhoneStatusRow(
     dim?: boolean
     selected?: boolean
     line2: ReactNode
+    /** Before `status`, on the row's centre: a target of its own (the PR chip). */
+    trail?: ReactNode
     status: ReactNode
   },
 ) {
-  const { lead, mark, title, dim, selected, line2, status, ...rest } = props
+  const { lead, mark, title, dim, selected, line2, trail, status, ...rest } = props
   return (
     <button
       type="button"
@@ -57,6 +60,7 @@ export function PhoneStatusRow(
         <span className={`row-title truncate font-sans text-title ${dim ? "text-muted" : "text-ink"}`}>{title}</span>
         <span className={LINE2}>{line2}</span>
       </span>
+      {trail}
       {status}
     </button>
   )

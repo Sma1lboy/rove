@@ -22,6 +22,12 @@ export const FOLD_TOGGLE =
 
 export const PR_CHIP = "inline-flex items-center gap-1"
 export const PR_CHIP_COUNT = "font-sans"
+/** A phone row's chip: a 44px target around the glyph (the margins give the padding back), its own press. */
+export const PR_CHIP_HIT = "group -mx-2.5 -my-2 grid min-h-11 min-w-11 flex-none cursor-pointer place-items-center px-1"
+export const PR_CHIP_FACE =
+  "inline-flex items-center gap-1 whitespace-nowrap rounded-sm px-1.5 py-0.5 font-mono text-[13px] leading-[1.3] group-hover:bg-hover group-active:bg-hover motion-safe:transition-transform motion-safe:duration-120 motion-safe:ease-out group-active:scale-97"
+/** A PR in the phone's sheet: what the desktop card says, unboxed. */
+export const PR_SHEET_ITEM = "flex flex-col gap-1 px-2 pt-1 pb-2 font-sans"
 export const prListClass = (closing: boolean): string =>
   `fixed z-35 flex max-h-[min(380px,60vh)] w-85 max-w-[calc(100vw-24px)] animate-pr-list-in flex-col overflow-y-auto overscroll-contain rounded-md border-hairline border-line bg-surface p-1.5 shadow-popover transition-[opacity,translate] duration-120 ease-in motion-reduce:animate-none motion-reduce:transition-none ${closing ? "-translate-x-1 opacity-0" : ""}`
 export const PR_LIST_ITEM =

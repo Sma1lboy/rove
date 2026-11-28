@@ -68,10 +68,10 @@ export function PhoneRailRow(props: RailRowProps) {
           {line.behind && <span className="flex-none tabular-nums">{line.behind}</span>}
           {row.fold?.collapsed && <span className="flex-none text-subtle">+{row.fold.count}</span>}
           {task.pinned && <span className="flex-none text-subtle">▴</span>}
-          <PrChip tasks={props.prTasks ?? [task]} />
           {props.cloud && <CloudMark label={props.cloud} />}
         </>
       }
+      trail={<PrChip tasks={props.prTasks ?? [task]} sheet />}
       status={<StatusDots status={status} />}
       onClick={props.onClick}
       onContextMenu={props.onMenu}
