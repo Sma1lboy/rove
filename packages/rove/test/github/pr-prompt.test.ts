@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { describe, expect, test } from "vitest"
-import { type PRPromptState, buildPRPrompt, gatherPRPromptState, renderPRPrompt } from "../../src/tui/ops/pr-prompt"
+import { type PRPromptState, buildPRPrompt, gatherPRPromptState, renderPRPrompt } from "../../src/github/pr-prompt"
 
 /** Pinned git state, so the override tests assert only template selection. */
 const STATE: PRPromptState = { branch: "feature/x", targetBranch: "main", hasUpstream: false, dirtyCount: 0 }

@@ -5,7 +5,7 @@
  * lives elsewhere:
  *
  *   - sync git snapshots (branch, branch list, repo validation) →
- *     `src/tui/lib/git-snapshot.ts` (its sync-guard whitelist entry lives there).
+ *     `src/worktree/git-snapshot.ts` (its sync-guard whitelist entry lives there).
  *   - path/dir suggestion plumbing → `src/lib/path-helpers.ts`.
  *   - clone-tab fs/spawn helpers → `./clone.ts`.
  *
@@ -16,7 +16,7 @@ import { matchPathGlob } from "@/lib/path-glob"
 import type { VendorId } from "@/types/vendor"
 import type { AdoptableWorktree } from "@/types/worktree"
 import { pathIdentity, pathSyntax, samePath } from "@sma1lboy/rove-daemon/path-identity"
-import { DEFAULT_BASE_REF } from "../../lib/git-snapshot"
+import { DEFAULT_BASE_REF } from "../../../worktree/git-snapshot"
 
 /* --------------------------------------------------------------------- */
 /*  Public types                                                          */

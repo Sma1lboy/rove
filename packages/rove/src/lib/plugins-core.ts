@@ -21,8 +21,8 @@ import {
   savePluginRegistry,
 } from "@sma1lboy/rove-daemon/plugins/registry"
 import { readPluginSettings, writePluginSettings } from "@sma1lboy/rove-daemon/plugins/settings-env"
-import { reloadPluginEngines } from "../../../engine/plugin-engines.ts"
-import { pluginPageErrors } from "../../pages/page-errors"
+import { reloadPluginEngines } from "../engine/plugin-engines.ts"
+import { pluginPageErrors } from "./page-errors"
 import { type PluginSettingRowView, pluginSettingRows } from "./plugin-settings-core"
 
 /** Last appended `log.jsonl` record, normalized for display. */

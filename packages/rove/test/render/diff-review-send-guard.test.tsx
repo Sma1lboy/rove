@@ -30,7 +30,7 @@ import {
   buildDiffReview,
   diffCommentsKey,
   unsentComments,
-} from "../../src/tui/ops/diff-comments"
+} from "../../src/worktree/diff-comments"
 import { act, renderComponent, waitForFrameText } from "./harness"
 
 const DIFF = ["--- a/a.ts", "+++ b/a.ts", "@@ -1,1 +1,3 @@", " const a = 1", "+const b = 2", "+const c = 3"].join("\n")

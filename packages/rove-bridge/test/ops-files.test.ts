@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import type { DiffComment } from "@sma1lboy/rove/src/tui/ops/diff-comments.ts"
+import type { DiffComment } from "@sma1lboy/rove/src/worktree/diff-comments.ts"
 import { type NoteStore, createFilesOps } from "../src/ops/files.ts"
 import type { BridgeApi, OpTable } from "../src/ops/types.ts"
 

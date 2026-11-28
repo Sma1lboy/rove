@@ -26,6 +26,7 @@ import { t } from "../../i18n"
 import { canonPath } from "../../orchestrator/core-helpers"
 import { getSavedRepos, isGitRepo, resolveMainRepoRoot } from "../../state/repos"
 import { tabPtyKey } from "../../tabs/terminal-tabs-core"
+import type { TabsSnapshotKv } from "../../tabs/terminal-tabs-persist"
 import { repoBasename } from "../../tui/panes/sidebar/groups"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { getDefaultLiveEngines } from "../../tui/workspace/live-engine"
@@ -33,7 +34,6 @@ import { type ScratchOwnerTask, decideScratchAdopt } from "../../tui/workspace/s
 import type { Task } from "../../types/task"
 import { useLatest } from "../lib/use-latest"
 import { foldScratchShell } from "./scratch-fold"
-import type { TabsSnapshotKv } from "./terminal-tabs-persist"
 
 /** Same human timescale as the live-engine probe. */
 const POLL_MS = 5_000

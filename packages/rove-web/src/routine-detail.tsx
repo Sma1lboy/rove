@@ -1,7 +1,7 @@
 /** The Routines page's detail column: the selected routine's actions, schedule, engine, prompt and runs. */
 
-import type { Automation, AutomationRun } from "@sma1lboy/rove/src/tui/component/automation-run-core.ts"
-import { describeCronWith } from "@sma1lboy/rove/src/tui/component/cron-core.ts"
+import type { Automation, AutomationRun } from "@sma1lboy/rove/src/automations/automation-run-core.ts"
+import { describeCronWith } from "@sma1lboy/rove/src/automations/cron-core.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { fill, useCopy, useCronTranslate } from "./pages-kit.ts"
 import { RunLog } from "./routine-run-log.tsx"

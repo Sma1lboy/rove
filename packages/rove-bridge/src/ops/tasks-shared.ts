@@ -15,6 +15,7 @@ import { cloneDirFor, parseRepoRef } from "@sma1lboy/rove/src/machines/repo-ref.
 import { sendFileToMachine } from "@sma1lboy/rove/src/machines/send-file.ts"
 import { getSavedRepos } from "@sma1lboy/rove/src/state/repos.ts"
 import { resolvePreferredVendor, setLastActiveVendor } from "@sma1lboy/rove/src/state/vendor-prefs.ts"
+import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
 import {
   cloneRepo,
   deriveFolderName,
@@ -22,9 +23,12 @@ import {
   resolveCloneTarget,
   validateCloneTarget,
   validateGitUrl,
-} from "@sma1lboy/rove/src/tui/component/new-task-dialog/clone.ts"
-import { getCurrentBranch, listLocalBranches, validateRepoPath } from "@sma1lboy/rove/src/tui/lib/git-snapshot-async.ts"
-import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
+} from "@sma1lboy/rove/src/worktree/clone.ts"
+import {
+  getCurrentBranch,
+  listLocalBranches,
+  validateRepoPath,
+} from "@sma1lboy/rove/src/worktree/git-snapshot-async.ts"
 import { BridgeError } from "../protocol.ts"
 import { absPath, isAbsPath } from "./args.ts"
 import type { Args, OpContext } from "./types.ts"

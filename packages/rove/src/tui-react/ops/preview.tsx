@@ -15,9 +15,9 @@ import { errorMessage } from "../../lib/error-message"
 import { formatBytes } from "../../lib/format-bytes"
 import { openWithSystemViewer } from "../../lib/open-external"
 import { remotePreview } from "../../machines/remote-worktree.ts"
-import type { DiffReviewApi } from "../../tui/ops/diff-comments"
 import { buildSyntaxStyle } from "../../tui/ops/preview-syntax"
 import { worktreeFilePath } from "../../worktree/content"
+import type { DiffReviewApi } from "../../worktree/diff-comments"
 import {
   type PatchNote,
   type PreviewData,

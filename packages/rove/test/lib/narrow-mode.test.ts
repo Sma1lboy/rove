@@ -1,10 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest"
-import {
-  NARROW_BREAKPOINT,
-  isNarrowWidth,
-  narrowSurface,
-  setNarrowBreakpoint,
-} from "../../src/tui-react/lib/narrow-mode"
+import { NARROW_BREAKPOINT, isNarrowWidth, narrowSurface, setNarrowBreakpoint } from "../../src/lib/narrow-mode"
 
 describe("isNarrowWidth", () => {
   afterEach(() => setNarrowBreakpoint(undefined))

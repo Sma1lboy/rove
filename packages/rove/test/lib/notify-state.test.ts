@@ -19,7 +19,7 @@ import {
   shouldPlaySound,
   shouldShowToast,
   unreadKey,
-} from "../../src/tui/lib/notify-state"
+} from "../../src/lib/notify-state"
 
 const input = (kind: "done" | "needs_input" | "error", tabId = "tab-1") =>
   ({ kind, taskId: "task-1", tabId, title: "t" }) as const

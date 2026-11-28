@@ -49,7 +49,7 @@ vi.mock("node:child_process", () => ({
   }),
 }))
 
-const { openExternally } = await import("../../src/tui/panes/filetree/open-external")
+const { openExternally } = await import("../../src/lib/open-path-external")
 
 async function flush(): Promise<void> {
   for (let i = 0; i < 5; i++) await new Promise((r) => setImmediate(r))

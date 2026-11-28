@@ -1,5 +1,5 @@
 import { approxCharCells } from "../../../lib/display-width"
-import { truncateEndCells } from "../../lib/truncate"
+import { truncateEndCells } from "../../../lib/truncate"
 
 /**
  * Truncate a title to a cell budget, keeping the prefix. `approxCharCells`

@@ -16,11 +16,7 @@ import { afterEach, describe, expect, it } from "vitest"
 
 const NONE: ReadonlySet<string> = new Set()
 import { clearPluginEngines, pluginEngineIds } from "../../src/engine/contrib-engines.ts"
-import {
-  parseLastRun,
-  pluginRowView,
-  setPluginEnabled,
-} from "../../src/tui-react/component/settings-dialog/plugins-core.ts"
+import { parseLastRun, pluginRowView, setPluginEnabled } from "../../src/lib/plugins-core.ts"
 
 const NOW = Date.parse("2026-07-27T12:00:00.000Z")
 

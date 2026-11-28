@@ -7,14 +7,6 @@
 import type { VendorId } from "@/types/vendor"
 import { useEffect, useState } from "react"
 import { expandHome, joinPicked } from "../../../lib/path-helpers"
-import {
-  cloneRepo,
-  deriveFolderName,
-  findAvailableFolderName,
-  resolveCloneTarget,
-  validateCloneTarget,
-  validateGitUrl,
-} from "../../../tui/component/new-task-dialog/clone"
 import { completeRepoInput } from "../../../tui/component/new-task-dialog/repo-field"
 import {
   type Field,
@@ -25,7 +17,15 @@ import {
   stripNewlines,
   windowAround,
 } from "../../../tui/component/new-task-dialog/state"
-import { DEFAULT_BASE_REF } from "../../../tui/lib/git-snapshot"
+import {
+  cloneRepo,
+  deriveFolderName,
+  findAvailableFolderName,
+  resolveCloneTarget,
+  validateCloneTarget,
+  validateGitUrl,
+} from "../../../worktree/clone"
+import { DEFAULT_BASE_REF } from "../../../worktree/git-snapshot"
 import { t } from "../../i18n"
 import { useTerminalSize } from "../../lib/use-terminal-size"
 import { useDerivedDir } from "./use-derived-dir"

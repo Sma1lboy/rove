@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest"
 import type { TaskEngineState } from "../../src/client/remote-orchestrator"
+import { attentionEdges, attentionKindFor } from "../../src/lib/notify-state"
 import { notifyTargetStates } from "../../src/tui-react/workspace/use-attention"
-import { attentionEdges, attentionKindFor } from "../../src/tui/lib/notify-state"
 
 const es = (state: string, at = 1): TaskEngineState => ({ state, at }) as TaskEngineState
 

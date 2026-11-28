@@ -26,7 +26,7 @@ import {
   prevDialogTab,
   stripNewlines,
 } from "../../../tui/component/new-task-dialog/state"
-import { DEFAULT_BASE_REF, validateRepoPath } from "../../../tui/lib/git-snapshot"
+import { DEFAULT_BASE_REF, validateRepoPath } from "../../../worktree/git-snapshot"
 import { useBindings } from "../../lib/keymap"
 import { useTerminalSize } from "../../lib/use-terminal-size"
 import { engineAcceptsModel, useModelField } from "../model-field"

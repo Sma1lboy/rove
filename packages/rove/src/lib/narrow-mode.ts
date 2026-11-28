@@ -4,7 +4,7 @@
  * (golden stubs), so every narrow consumer gates on this one predicate.
  */
 
-import { DEFAULT_NARROW_BELOW, normalizeNarrowBelow } from "../../state/narrow-layout"
+import { DEFAULT_NARROW_BELOW, normalizeNarrowBelow } from "../state/narrow-layout"
 
 /** The default; the TUI's own breakpoint is `layout.narrowBelow`. Kept fs-free: rove-web imports this module. */
 export const NARROW_BREAKPOINT = DEFAULT_NARROW_BELOW

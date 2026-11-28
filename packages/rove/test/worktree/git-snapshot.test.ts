@@ -1,5 +1,5 @@
 /**
- * Unit tests for `src/tui/lib/git-snapshot.ts` — the one-shot sync git
+ * Unit tests for `src/worktree/git-snapshot.ts` — the one-shot sync git
  * helpers the new-task dialog and quick-task lean on.
  *
  * Why these matter: this module is THE sync-subprocess whitelist entry
@@ -20,7 +20,7 @@ import { spawnSync } from "node:child_process"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
-import { getCurrentBranch, listLocalBranches, validateRepoPath } from "@/tui/lib/git-snapshot"
+import { getCurrentBranch, listLocalBranches, validateRepoPath } from "@/worktree/git-snapshot"
 import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from "vitest"
 
 let root: string

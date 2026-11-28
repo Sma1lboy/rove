@@ -16,6 +16,8 @@ import {
   type CIFailingChecksRead,
   buildCIPromptForWorktree,
 } from "@sma1lboy/rove/src/github/ci-prompt.ts"
+import { buildPRPrompt } from "@sma1lboy/rove/src/github/pr-prompt.ts"
+import { openExternally, revealInFileManager } from "@sma1lboy/rove/src/lib/open-path-external.ts"
 import {
   expandHome,
   filterSubdirs,
@@ -25,9 +27,7 @@ import {
 } from "@sma1lboy/rove/src/lib/path-helpers.ts"
 import type { TabsState } from "@sma1lboy/rove/src/tabs/terminal-tab-shapes.ts"
 import { moveTab } from "@sma1lboy/rove/src/tabs/terminal-tabs-core.ts"
-import { type WorktreeOpener, detectWorktreeOpener, openWorktree } from "@sma1lboy/rove/src/tui/lib/worktree-opener.ts"
-import { buildPRPrompt } from "@sma1lboy/rove/src/tui/ops/pr-prompt.ts"
-import { openExternally, revealInFileManager } from "@sma1lboy/rove/src/tui/panes/filetree/open-external.ts"
+import { type WorktreeOpener, detectWorktreeOpener, openWorktree } from "@sma1lboy/rove/src/worktree/worktree-opener.ts"
 import { BridgeError, optStr } from "../protocol.ts"
 import { flag, isAbsPath, oneOf, tabId, taskId } from "./args.ts"
 import { effortLevel, engineId, model, optModel, taskOpDeps } from "./tasks-shared.ts"

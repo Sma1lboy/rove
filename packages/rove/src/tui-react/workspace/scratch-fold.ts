@@ -10,10 +10,10 @@
  */
 
 import { tabPtyKey } from "../../tabs/terminal-tabs-core"
+import type { TabsSnapshotKv } from "../../tabs/terminal-tabs-persist"
 import { getSharedPtyClient } from "../../tui/panes/terminal/pty-hosted-client"
 import { reserveTabOrdinals } from "./tabs-sync"
 import { adoptTaskTabs } from "./terminal-tabs-adopt"
-import type { TabsSnapshotKv } from "./terminal-tabs-persist"
 import { knownTaskTabs } from "./terminal-tabs-shared"
 
 export interface ScratchFoldIO {

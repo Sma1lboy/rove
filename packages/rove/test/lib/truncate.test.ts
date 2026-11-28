@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest"
 
 import { approxCharCells } from "../../src/lib/display-width"
-import { truncateEnd, truncateEndCells, truncateStart } from "../../src/tui/lib/truncate"
+import { truncateEnd, truncateEndCells, truncateStart } from "../../src/lib/truncate"
 
 describe("truncateEnd — keep the prefix", () => {
   test("returns the string unchanged when it fits the budget", () => {

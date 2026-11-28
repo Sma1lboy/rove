@@ -20,13 +20,13 @@
  * the last good value (or `initial`), so the UI goes stale, never errors.
  */
 
-import { type PollScheduleState, maybeStartScheduledRun } from "../../lib/poll-scheduling.ts"
+import { type PollScheduleState, maybeStartScheduledRun } from "./poll-scheduling.ts"
 
 export {
   computeNextAllowedAt,
   shouldPoll,
   spawnCapture,
-} from "../../lib/poll-scheduling.ts"
+} from "./poll-scheduling.ts"
 
 export interface BackgroundPollerConfig<T> {
   /** Pass the AbortSignal (fires at `timeoutMs`) to `spawnCapture` so a runaway child is SIGKILLed. Throw to keep the last value. */

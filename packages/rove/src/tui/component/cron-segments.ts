@@ -6,7 +6,7 @@
  */
 
 import { t } from "@/i18n"
-import { describeCronWith } from "./cron-core"
+import { describeCronWith } from "../../automations/cron-core"
 
 export {
   CRON_SEGMENTS,
@@ -18,7 +18,7 @@ export {
   setSegment,
   splitCron,
   stepSegment,
-} from "./cron-core"
+} from "../../automations/cron-core"
 
 /** See {@link describeCronWith}. */
 export function describeCron(expression: string): string | null {

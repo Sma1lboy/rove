@@ -8,9 +8,9 @@
  * i18n. Only the section's chrome does.
  */
 
-import type { RecentTaskEvent } from "../../client/remote-orchestrator"
-import { relativeAge } from "../../lib/relative-time"
-import { truncateEnd } from "../../tui/lib/truncate"
+import type { RecentTaskEvent } from "../client/remote-orchestrator"
+import { relativeAge } from "./relative-time"
+import { truncateEnd } from "./truncate"
 
 /** Rows the drawer shows — the tail of the ring, not the whole 100. */
 export const EVENT_FEED_LIMIT = 12

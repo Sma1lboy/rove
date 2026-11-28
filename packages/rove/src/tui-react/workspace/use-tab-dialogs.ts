@@ -42,10 +42,10 @@ import {
   renameActiveTab,
   tabPtyKeyFor,
 } from "../../tabs/terminal-tabs-core"
-import { getCurrentBranch } from "../../tui/lib/git-snapshot"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { openPluginPane } from "../../tui/workspace/pane-split"
+import { getCurrentBranch } from "../../worktree/git-snapshot"
 import {
   type NewChatChoice,
   type NewChatContext,

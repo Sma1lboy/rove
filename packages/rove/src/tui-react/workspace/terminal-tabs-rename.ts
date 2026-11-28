@@ -9,7 +9,7 @@
  */
 
 import { setTabTitle } from "../../tabs/terminal-tabs-core"
-import type { TabsSnapshotKv } from "./terminal-tabs-persist"
+import type { TabsSnapshotKv } from "../../tabs/terminal-tabs-persist"
 import { knownTabsState, requestTabRename, setTaskTabs, takeUnclaimedTabRename } from "./terminal-tabs-shared"
 
 /**

@@ -4,11 +4,11 @@
  * aligned meter rows. Pure — the React component only maps rows to <text>.
  */
 
-import { approxCharCells, charWidth, displayWidth, padEndCells } from "../../../lib/display-width.ts"
-import { type UsageShow, shownPercent } from "../../../state/usage-show.ts"
-import { ratioBar } from "../../../tui/lib/progress-bar.ts"
-import { truncateEndCells } from "../../../tui/lib/truncate.ts"
-import type { EngineQuotaUsage } from "../../../types/engine.ts"
+import { type UsageShow, shownPercent } from "../state/usage-show.ts"
+import type { EngineQuotaUsage } from "../types/engine.ts"
+import { approxCharCells, charWidth, displayWidth, padEndCells } from "./display-width.ts"
+import { ratioBar } from "./progress-bar.ts"
+import { truncateEndCells } from "./truncate.ts"
 
 /** Meter track width in cells. */
 export const USAGE_BAR_WIDTH = 10

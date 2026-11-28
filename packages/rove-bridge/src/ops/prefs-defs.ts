@@ -26,6 +26,7 @@ import {
   EDITOR_KIND_KEY,
   normalizeEditorKind,
 } from "@sma1lboy/rove/src/lib/editor-prefs.ts"
+import { FINISHED_ALERTS_KEY } from "@sma1lboy/rove/src/lib/notify-state.ts"
 import { defaultTransparentBackground } from "@sma1lboy/rove/src/lib/persisted-ui-prefs.ts"
 import { RELEASE_CHANNELS } from "@sma1lboy/rove/src/release-channels.ts"
 import { AUTO_STATUS_KEY } from "@sma1lboy/rove/src/state/auto-status.ts"
@@ -91,7 +92,6 @@ import {
   FOCUS_ACCENT_SLOTS,
   THEME_MODE_PREFERENCES,
 } from "@sma1lboy/rove/src/tui/context/theme-core.ts"
-import { FINISHED_ALERTS_KEY } from "@sma1lboy/rove/src/tui/lib/notify-state.ts"
 import { channelOf } from "@sma1lboy/rove/src/version.ts"
 import { BridgeError } from "../protocol.ts"
 

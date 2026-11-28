@@ -8,9 +8,9 @@
  */
 
 import { afterEach, expect, test } from "bun:test"
+import { isNarrowWidth, setNarrowBreakpoint } from "../../src/lib/narrow-mode"
 import { useKV } from "../../src/tui-react/context/kv"
 import { NarrowLayoutSync } from "../../src/tui-react/lib/narrow-layout-sync"
-import { isNarrowWidth, setNarrowBreakpoint } from "../../src/tui-react/lib/narrow-mode"
 import { useTerminalSize } from "../../src/tui-react/lib/use-terminal-size"
 import { act, isolateHome, renderComponent } from "./harness"
 

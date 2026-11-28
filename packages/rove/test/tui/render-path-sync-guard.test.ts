@@ -9,10 +9,7 @@ const TUI_ROOT = fileURLToPath(new URL("../../src/tui", import.meta.url))
  * Files (relative to src/tui) allowed to reference sync subprocess APIs,
  * each with a one-line reason. Everything else must stay async.
  */
-const WHITELIST: Record<string, string> = {
-  // One-shot O(refs) git (rev-parse / for-each-ref) on explicit dialog actions — never on a render tick; header documents the rationale.
-  "lib/git-snapshot.ts": "one-shot O(refs) git on explicit dialog actions; header documents the rationale",
-}
+const WHITELIST: Record<string, string> = {}
 
 const SYNC_NAMES = ["spawnSync", "execSync", "execFileSync"] as const
 

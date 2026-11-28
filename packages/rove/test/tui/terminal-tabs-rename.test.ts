@@ -17,8 +17,8 @@
 import type { SharedTabs } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { type TabsState, rehydrateTabs, setTabTitle } from "../../src/tabs/terminal-tabs-core.ts"
+import type { TabsSnapshotKv } from "../../src/tabs/terminal-tabs-persist.ts"
 import { resetTabsSyncForTests } from "../../src/tui-react/workspace/tabs-sync.ts"
-import type { TabsSnapshotKv } from "../../src/tui-react/workspace/terminal-tabs-persist.ts"
 import { renameTaskTab } from "../../src/tui-react/workspace/terminal-tabs-rename.ts"
 import {
   tabActivationListeners,

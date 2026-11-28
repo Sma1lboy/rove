@@ -1,11 +1,11 @@
 /** What `routine.list` answers, as the Routines page reads it. */
 
-import type { DotLook } from "@sma1lboy/rove/src/lib/status-dots.ts"
 import {
   type Automation,
   type AutomationRunStatus,
   automationRunNeedsAttention,
-} from "@sma1lboy/rove/src/tui/component/automation-run-core.ts"
+} from "@sma1lboy/rove/src/automations/automation-run-core.ts"
+import type { DotLook } from "@sma1lboy/rove/src/lib/status-dots.ts"
 import { fill } from "./pages-kit.ts"
 
 export interface RoutinesReply {

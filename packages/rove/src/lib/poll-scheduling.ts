@@ -2,7 +2,7 @@
  * Re-export of the scheduling core, which now lives in `rove-daemon` so the
  * daemon's collectors can import the same module instead of copying it (the
  * dependency arrow runs rove → rove-daemon, never back). Kept as a shim
- * because `src/tui/lib/background-poll.ts`, `src/monitor/pr-status.ts`,
+ * because `src/lib/background-poll.ts`, `src/monitor/pr-status.ts`,
  * `src/core/daemon-runtime.ts` and `src/engine/claude-code-local/quota.ts`
  * all import from here.
  *

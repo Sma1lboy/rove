@@ -6,7 +6,7 @@
  */
 
 import { moveTab } from "../../tabs/terminal-tabs-core"
-import type { TabsSnapshotKv } from "./terminal-tabs-persist"
+import type { TabsSnapshotKv } from "../../tabs/terminal-tabs-persist"
 import { knownTabsState, requestTabMove, setTaskTabs, takeUnclaimedTabMove } from "./terminal-tabs-shared"
 
 /** Whether the order changed; false for no such tab, no tabs, or the edge-stop (never wraps). */

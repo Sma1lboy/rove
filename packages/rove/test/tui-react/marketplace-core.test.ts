@@ -7,11 +7,11 @@
 
 import { describe, expect, it } from "vitest"
 import type { MarketEntry } from "../../src/cli/plugin-search.ts"
+import type { PluginRowView } from "../../src/lib/plugins-core.ts"
 import {
   installedSpecIds,
   marketplaceRowViews,
 } from "../../src/tui-react/component/settings-dialog/marketplace-core.ts"
-import type { PluginRowView } from "../../src/tui-react/component/settings-dialog/plugins-core.ts"
 
 function plugin(overrides: Partial<PluginRowView>): PluginRowView {
   return {

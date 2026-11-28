@@ -15,7 +15,7 @@ import {
   moveModCursor,
   resolveModCursor,
   sameModControl,
-} from "@sma1lboy/rove/src/tui/panes/mods/mods-core.ts"
+} from "@sma1lboy/rove/src/lib/mods-core.ts"
 import { type ReactNode, useRef, useState } from "react"
 import { useLocale } from "./i18n/index.ts"
 import { useNarrow } from "./layout.ts"

@@ -11,8 +11,8 @@ import { detectEngineStatuses, probeableEngineIds, summarizeEngines } from "@sma
 import { engineDisplayName } from "@sma1lboy/rove/src/engine/interactive-command.ts"
 import { getSavedRepos, resolveMainRepoRoot } from "@sma1lboy/rove/src/state/repos.ts"
 import { resolvePreferredVendor } from "@sma1lboy/rove/src/state/vendor-prefs.ts"
-import { DEFAULT_BASE_REF, getCurrentBranch, validateRepoPath } from "@sma1lboy/rove/src/tui/lib/git-snapshot.ts"
 import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
+import { DEFAULT_BASE_REF, getCurrentBranch, validateRepoPath } from "@sma1lboy/rove/src/worktree/git-snapshot.ts"
 import type { OpTable } from "./types.ts"
 
 interface EngineChip {

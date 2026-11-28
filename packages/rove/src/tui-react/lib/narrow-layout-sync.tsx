@@ -1,7 +1,7 @@
+import { setNarrowBreakpoint } from "../../lib/narrow-mode"
 /** @jsxImportSource @opentui/react */
 import { NARROW_BELOW_KEY } from "../../state/narrow-layout"
 import { useOptionalKV } from "../context/kv"
-import { setNarrowBreakpoint } from "./narrow-mode"
 
 /**
  * Keeps the narrow breakpoint on the live `layout.narrowBelow`. Set during

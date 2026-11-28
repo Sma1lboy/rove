@@ -20,7 +20,7 @@
  */
 
 import { describe, expect, it } from "vitest"
-import { sweepBar } from "../../src/tui/lib/progress-bar.ts"
+import { sweepBar } from "../../src/lib/progress-bar.ts"
 import { anyRowLoading, buildSidebarRowView, rowIsLoading } from "../../src/tui/panes/sidebar/row-view.ts"
 import type { Task, TaskStatus } from "../../src/types/task.ts"
 import { toTaskId } from "../../src/types/task.ts"

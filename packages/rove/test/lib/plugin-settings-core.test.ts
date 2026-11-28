@@ -18,7 +18,7 @@ import {
   normalizeNumberInput,
   pluginSettingRows,
   toggledBooleanValue,
-} from "../../src/tui-react/component/settings-dialog/plugin-settings-core.ts"
+} from "../../src/lib/plugin-settings-core.ts"
 
 const SOUND: PluginSetting = {
   key: "ROVE_NOTIFY_SOUND",

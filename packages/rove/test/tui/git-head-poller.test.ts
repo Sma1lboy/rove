@@ -18,7 +18,7 @@ import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, describe, expect, test } from "vitest"
-import { spawnCapture } from "../../src/tui/lib/background-poll"
+import { spawnCapture } from "../../src/lib/background-poll"
 import { resetGitHeadPoller, resolveBranchHead } from "../../src/tui/panes/sidebar/git-head"
 
 afterEach(() => resetGitHeadPoller())

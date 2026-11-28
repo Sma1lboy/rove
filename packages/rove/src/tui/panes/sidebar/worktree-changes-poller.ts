@@ -4,7 +4,7 @@
  * event loop for seconds per tick on a huge repo (sync is CLI-only).
  *
  * Scheduling (per-key cell, in-flight dedupe, adaptive cadence, timeout + hard
- * backoff) is `src/tui/lib/background-poll.ts`; this binds it to one
+ * backoff) is `src/lib/background-poll.ts`; this binds it to one
  * `git status --porcelain=v1` per worktree. Failure/timeout keeps the LAST
  * value; never-read reads `null` = UNKNOWN, not zeros — EACCES `.git`, a walk
  * past POLL_TIMEOUT_MS (then SLOW_REPO_RETRY_MS off), git off PATH must not look
@@ -19,10 +19,10 @@
 
 import { readOnlyGitProcessEnv } from "@/lib/git-env"
 import { recordSpawn } from "@/lib/spawn-profile"
+import { computeNextAllowedAt, createBackgroundPoller, spawnCapture } from "../../../lib/background-poll"
 import { type WorktreeChanges, parsePorcelain, sameWorktreeChanges } from "../../../worktree/worktree-changes"
-import { computeNextAllowedAt, createBackgroundPoller, spawnCapture } from "../../lib/background-poll"
 
-export { shouldPoll } from "../../lib/background-poll"
+export { shouldPoll } from "../../../lib/background-poll"
 
 /** Kill a git status that runs longer than this; the repo is too big to poll. */
 export const POLL_TIMEOUT_MS = 4_000

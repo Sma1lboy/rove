@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, test } from "vitest"
-import { contextChip } from "../../src/tui-react/component/settings-dialog/usage-core"
+import { contextChip } from "../../src/lib/usage-core"
 
 describe("contextChip", () => {
   test("absent data renders nothing — three ways", () => {

@@ -7,7 +7,7 @@
 import { homedir } from "node:os"
 import type { Task } from "@/types/task"
 import { tildify } from "../../../lib/path-home"
-import { truncateStart } from "../../lib/truncate"
+import { truncateStart } from "../../../lib/truncate"
 import { repoBasename } from "./groups"
 
 /** Widest path label a worktree row renders before tail-truncation — the

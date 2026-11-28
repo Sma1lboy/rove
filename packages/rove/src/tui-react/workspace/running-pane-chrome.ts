@@ -5,9 +5,9 @@
 
 import { type OptimizedBuffer, type RGBA, type Renderable, TargetChannel } from "@opentui/core"
 import { charWidth } from "../../lib/display-width"
+import { truncateEndCells } from "../../lib/truncate"
 import { flowInk, flowPalette, flowPhase, perimeter } from "../../tui/lib/border-flow"
 import { mixInk } from "../../tui/lib/breathe"
-import { truncateEndCells } from "../../tui/lib/truncate"
 
 const TITLE_LABEL_CELLS = 32
 /** Unfocused panes flow fainter so focus still reads at a glance. */
