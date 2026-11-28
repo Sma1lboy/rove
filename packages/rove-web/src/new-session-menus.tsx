@@ -35,7 +35,7 @@ export function ChipPopover(props: {
   title: string
   field: string
   disabled?: boolean
-  /** Its word shortens before any other chip's when the bar is full. */
+  /** The one chip that shortens when the bar is full. */
   yields?: boolean
   /** Runs whenever the popover shuts, however it shut. */
   onClose?: () => void
