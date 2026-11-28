@@ -93,12 +93,13 @@ test("an engine config written by an older Rove reads outdated, and the install 
   await press("l") // into the engine list
   await waitForFrameText(frame, "from an older version")
 
-  // `k` from the first row wraps to the LAST one (the skill install row), then
-  // two more land on the hooks install button — the section ends with the hooks
-  // install/remove pair, install first, then the skill row. Counted from the
+  // `k` from the first row wraps to the LAST one (the permissions row), then
+  // three more land on the hooks install button — the section ends with the hooks
+  // install/remove pair, install first, then the skill row, then permissions. Counted from the
   // END so this test never learns how many engines the machine detected;
   // counting `j` from the top would be a hard-coded index that a newly
   // installed contrib CLI silently shifts.
+  await press("k")
   await press("k")
   await press("k")
   await press("k")
