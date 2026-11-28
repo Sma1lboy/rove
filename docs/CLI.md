@@ -95,7 +95,8 @@ rove --web      # serve the browser client on 127.0.0.1 and print its link
 `rove --web` takes the bridge's flags (`--port`, `--preset`, `--rotate-token`);
 see [WEB.md](WEB.md). `rove --web --install` keeps it running as a login
 service (launchd on macOS, systemd on Linux) so a paired phone reaches this
-computer with no terminal open; `--uninstall` removes it
+computer with no terminal open; `--stop` / `--start` stop and start it,
+`--uninstall` removes it
 ([WEB.md](WEB.md#through-an-encrypted-relay)).
 
 A typo never silently opens the TUI: an unknown subcommand prints usage and

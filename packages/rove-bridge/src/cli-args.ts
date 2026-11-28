@@ -94,6 +94,7 @@ export const BRIDGE_USAGE = `usage: rove-bridge [--preset tailscale|cf|relay] [-
   --revoke-device <n>  revoke one device's token (others keep working), then exit
   --install            \`rove --web\` only: run \`rove --web\` (with the flags after it) as a
                        login service (launchd or systemd), restarted when it dies
+  --stop, --start      stop that service now (it returns at the next login) or start it again
   --uninstall          stop and remove that service
   --setup              check Tailscale / cloudflared here and print the exact
                        commands to reach this bridge from a phone; changes nothing

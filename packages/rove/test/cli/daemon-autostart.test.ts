@@ -5,7 +5,7 @@ import {
   systemdDaemonUnit,
   windowsRunCommand,
 } from "../../src/cli/daemon-autostart.ts"
-import { WEB_SERVICE } from "../../src/cli/web-service.ts"
+import { WEB_SERVICE, serviceNames } from "../../src/cli/web-service.ts"
 
 const ctx = {
   cli: ["/home/me/.bun/bin/bun", "/opt/my rove/rove-run.js"],
@@ -35,6 +35,14 @@ describe("daemon autostart", () => {
     expect(plist).toContain("<string>run.rove.web</string>")
     expect(plist).toContain("<string>--web</string>")
     expect(plist).toContain("<key>KeepAlive</key>")
+  })
+
+  test("a second Rove home gets its own web service, so installing there leaves the default one alone", () => {
+    expect(serviceNames(undefined)).toEqual({ label: "run.rove.web", unit: "rove-web.service" })
+    const other = serviceNames("/tmp/other-home")
+    expect(other.label).not.toBe("run.rove.web")
+    expect(other.unit).not.toBe("rove-web.service")
+    expect(serviceNames("/tmp/other-home")).toEqual(other)
   })
 
   test("the Windows Run entry starts the daemon through the windowless launcher, quoting a path with spaces", () => {
