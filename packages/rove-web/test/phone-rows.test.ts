@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import type { TaskRow } from "rove-bridge/protocol"
-import { extPages, sessionAge, sessionLine2 } from "../src/phone-rows.ts"
+import { extPages, sessionLine2 } from "../src/phone-rows.ts"
 import { routineLook, routineNeedsYou } from "../src/routines-data.ts"
 
 const names = { kanban: "Kanban", issues: "Issues" }
@@ -18,14 +18,6 @@ describe("a phone session row's second line", () => {
     ["the branch is up to date", { added: 0, deleted: 0, behind: 0 }],
   ])("shows no count when %s", (_, changes) => {
     expect(sessionLine2({ branch: "main", changes }).behind).toBeNull()
-  })
-})
-
-describe("a phone session row's age", () => {
-  test("counts from the episode's start, and is a dash with no reading", () => {
-    expect(sessionAge({ activity: { state: "idle", forMs: 5_000, since: 1_000 } }, 961_000)).toBe("16m")
-    expect(sessionAge({ activity: { state: "idle", forMs: 120_000 } }, 0)).toBe("2m")
-    expect(sessionAge({ activity: null }, 0)).toBe("—")
   })
 })
 

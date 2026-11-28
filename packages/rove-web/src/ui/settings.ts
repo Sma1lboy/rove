@@ -34,7 +34,7 @@ export const SETTINGS_CARD = "flex flex-col gap-0.5"
 /** Sections in ink, the group names under them faint; the quiet group (About, Feedback, Dev) reads a step lighter. */
 export const settingsNavItemClass = (active: boolean, quiet: boolean): string =>
   `flex items-center rounded-sm px-2 py-1.25 text-left font-sans text-body touch:min-h-10 ${
-    active ? "bg-menu text-ink" : `${quiet ? "text-muted" : "text-ink"} [&:hover]:bg-hover`
+    active ? "bg-menu text-ink" : `${quiet ? "text-muted" : "text-ink"} hover:bg-hover`
   }`
 /** A phone's section row: its chevron, and its glyph (plain and muted, 20px, one column). */
 export const SETTINGS_NAV_CHEVRON = "ml-auto block text-subtle"

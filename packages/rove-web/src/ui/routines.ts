@@ -10,7 +10,7 @@ export const RT_LIST =
 export const RT_GROUP = "flex gap-1.5 px-2 pt-0 pb-1"
 /** The rail's own pair: a neutral wash on hover (ungated, as the sheet had), the inset fill for the selected row. */
 export const rtRowClass = (cursor: boolean): string =>
-  `flex min-w-0 cursor-pointer flex-col gap-0.5 rounded-sm px-2 py-1.5 ${cursor ? "bg-menu" : "[&:hover]:bg-hover"}`
+  `flex min-w-0 cursor-pointer flex-col gap-0.5 rounded-sm px-2 py-1.5 select-none ${cursor ? "bg-menu" : "hover:bg-hover"}`
 export const RT_ROW_LINE = "flex min-w-0 items-baseline gap-2.5"
 export const rtNameClass = (off: boolean): string => `min-w-0 flex-1 truncate font-bold ${off ? "text-muted" : ""}`
 export const RT_WHEN = "whitespace-nowrap text-meta"
@@ -30,7 +30,7 @@ export const RT_RUN = "min-w-0 text-meta leading-[inherit]"
 const RUN_LINE = "flex w-full min-w-0 gap-2 text-inherit"
 export const RT_RUN_LINE = RUN_LINE
 /** A run that made a session opens it: a bare button, underlined on hover. */
-export const RT_RUN_OPEN = `${RUN_LINE} cursor-pointer border-none bg-transparent p-0 text-left font-[inherit] [&:hover]:underline`
+export const RT_RUN_OPEN = `${RUN_LINE} cursor-pointer border-none bg-transparent p-0 text-left font-[inherit] hover:underline`
 export const RT_GROW = "min-w-0 flex-1 truncate"
 export const RT_RUN_ERROR =
   "pl-[calc(2ch+16px)] [&_summary]:cursor-pointer [&_summary]:list-none [&_summary]:truncate [&_summary::-webkit-details-marker]:hidden [&[open]_summary]:whitespace-normal [&_pre]:mx-0 [&_pre]:mt-1 [&_pre]:mb-1.5 [&_pre]:max-h-[16lh] [&_pre]:overflow-auto [&_pre]:rounded-sm [&_pre]:bg-inset [&_pre]:px-2 [&_pre]:py-1.5 [&_pre]:whitespace-pre-wrap [&_pre]:wrap-anywhere [&_pre]:text-muted"

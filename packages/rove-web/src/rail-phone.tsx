@@ -1,4 +1,4 @@
-/** The session list as a phone draws it: two-line rows with a status mark, group headers with a count and ⋯, and the line under the wordmark. */
+/** The session list as a phone draws it: two-line rows with a status mark, group headers with a ⋯, and the line under the wordmark. */
 
 import { useEffect, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
@@ -6,10 +6,9 @@ import { openPage } from "./layout.ts"
 import { CloudMark } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { useCopy, useReload } from "./pages-kit.ts"
-import { extPages, lastExtPage, rememberExtPage, sessionAge, sessionLine2 } from "./phone-rows.ts"
+import { extPages, lastExtPage, rememberExtPage, sessionLine2 } from "./phone-rows.ts"
 import { PrChip } from "./pr-chip.tsx"
 import type { RailRowProps } from "./rail-view.tsx"
-import type { NavRow } from "./rail.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { type RoutinesReply, routineNeedsYou } from "./routines-data.ts"
 import { SettingsDialog } from "./settings-view.tsx"
@@ -35,7 +34,6 @@ export function PhoneRailRow(props: RailRowProps) {
       >
         <PhoneGroupHead
           label={row.label}
-          count={row.kind === "state" ? row.count : (props.count ?? 0)}
           collapsed={!!props.collapsed}
           foldLabel={t(props.collapsed ? "rail.expandGroup" : "rail.collapseGroup", { name: row.label })}
           onToggle={props.onClick}
@@ -66,7 +64,7 @@ export function PhoneRailRow(props: RailRowProps) {
       line2={
         <>
           {props.repo && <span className="max-w-24 flex-none truncate text-subtle">{props.repo}</span>}
-          <span className="min-w-0 truncate">{line.branch}</span>
+          {line.branch && <span className="min-w-0 truncate">{line.branch}</span>}
           {line.behind && <span className="flex-none tabular-nums">{line.behind}</span>}
           {row.fold?.collapsed && <span className="flex-none text-subtle">+{row.fold.count}</span>}
           {task.pinned && <span className="flex-none text-subtle">▴</span>}
@@ -74,8 +72,7 @@ export function PhoneRailRow(props: RailRowProps) {
           {props.cloud && <CloudMark label={props.cloud} />}
         </>
       }
-      top={<StatusDots status={status} />}
-      bottom={sessionAge(task, Date.now())}
+      status={<StatusDots status={status} />}
       onClick={props.onClick}
       onContextMenu={props.onMenu}
       {...props.place}
@@ -180,15 +177,4 @@ export function PhoneExtensions({ model }: { model: AppModel }) {
       )}
     </>
   )
-}
-
-/** How many tasks each project header holds, folded or not. */
-export function groupCounts(rows: readonly NavRow[]): Map<string, number> {
-  const counts = new Map<string, number>()
-  let head = ""
-  for (const row of rows) {
-    if (row.kind === "project") head = row.id
-    else if (row.kind === "task") counts.set(head, (counts.get(head) ?? 0) + 1)
-  }
-  return counts
 }

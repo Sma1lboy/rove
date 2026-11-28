@@ -103,18 +103,7 @@ export function railStateRows(input: RailInput): { rows: NavRow[]; groups: Proje
   const rows = listed.map((row): NavRow => {
     if (row.kind !== "project") return row
     const state = row.id.slice(`project:${KEY_PREFIX}`.length) as RailState
-    return { id: `state:${state}`, kind: "state", state, label: row.label, count: 0 }
+    return { id: `state:${state}`, kind: "state", state, label: row.label }
   })
-  return { rows: withStateCounts(rows), groups: [] }
-}
-
-/** Each state header's count = the task rows listed under it in `rows`; call before a fold hides any. */
-export function withStateCounts(rows: readonly NavRow[]): NavRow[] {
-  const counts = new Map<string, number>()
-  let head = ""
-  for (const row of rows) {
-    if (row.kind === "state") head = row.id
-    else if (row.kind === "task") counts.set(head, (counts.get(head) ?? 0) + 1)
-  }
-  return rows.map((row) => (row.kind === "state" ? { ...row, count: counts.get(row.id) ?? 0 } : row))
+  return { rows, groups: [] }
 }

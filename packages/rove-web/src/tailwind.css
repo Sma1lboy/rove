@@ -139,6 +139,9 @@ body {
 
 /* The element reset sits in a layer, so a component class (`.mono` in tailwind.css) still outranks it. */
 @layer base {
+  /* A button's label is not text to copy: a drag or a double-click on it selects nothing, and a long press on a
+     phone opens no callout. Text inside one that should copy opts back in with `select-text`; a clickable non-button
+     adds `select-none` itself. */
   button {
     font: inherit;
     color: inherit;
@@ -146,6 +149,9 @@ body {
     border: 0;
     padding: 0;
     cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
   }
 
   /* Form controls draw no browser chrome anywhere: no drag corner, no native arrow, the page's type. */

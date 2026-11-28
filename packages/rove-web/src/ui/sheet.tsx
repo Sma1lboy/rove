@@ -14,7 +14,7 @@ const TITLE = "m-0 px-5 pt-2 pb-2 font-sans text-body font-semibold text-ink"
 /** A sheet's list: it scrolls, the head stays. */
 export const SHEET_LIST = "flex min-h-0 flex-col overflow-y-auto px-3 pb-1"
 const ROW =
-  "flex min-h-11 w-full flex-none items-center gap-3 rounded-sm px-2 text-left font-sans text-body active:bg-hover focus-visible:bg-hover focus-visible:outline-none"
+  "flex min-h-11 w-full flex-none items-center gap-3 rounded-sm px-2 text-left font-sans text-body hover:bg-hover active:bg-hover focus-visible:bg-hover focus-visible:outline-none"
 const ROW_TONE = {
   ink: "text-ink",
   danger: "text-error",

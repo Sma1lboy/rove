@@ -22,3 +22,8 @@ export const SQUARE_BAR = "rounded-[14px]"
 /** A pressed control gives a little under the finger; no motion when the system asks for none. */
 export const PRESS =
   "transition-transform duration-120 active:scale-95 motion-reduce:transition-none motion-reduce:active:scale-none"
+
+/** Under a mouse a glass control lightens: the hover wash over its own fill. `hover:` needs a pointer that hovers, so a tap leaves nothing behind. */
+export const GLASS_HOVER = "enabled:hover:bg-[linear-gradient(var(--hover),var(--hover))]"
+/** The same for a fill drawn by a child of the control, which is the `group/glass`. */
+export const GLASS_HOVER_IN = "group-enabled/glass:group-hover/glass:bg-[linear-gradient(var(--hover),var(--hover))]"

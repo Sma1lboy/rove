@@ -6,7 +6,6 @@ import { PROJECT_ADD, PROJECT_NAME, PROJECT_TOGGLE, projectChevron } from "./rai
 export function GroupActions(props: {
   label: string
   repo?: string | undefined
-  count?: number | undefined
   collapsed: boolean
   onToggle: () => void
   onNewTask?: (() => void) | undefined
@@ -29,7 +28,6 @@ export function GroupActions(props: {
         onClick={props.onToggle}
       >
         {!repo && <span className="truncate">{label}</span>}
-        {props.count !== undefined && <span className="font-normal text-subtle">{props.count}</span>}
         <Chevron right={collapsed} className={projectChevron(collapsed)} />
       </button>
       {props.onNewTask && (

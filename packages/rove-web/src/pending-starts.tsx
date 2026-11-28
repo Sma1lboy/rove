@@ -51,9 +51,7 @@ export function PendingStarts(props: { client: BridgeClient; tick: number; reloa
   }
   return (
     <section data-field="later" className="mt-2.5">
-      <h2 className={`${KICKER} ${RT_GROUP} text-muted`}>
-        {t("pages.laterStarts")} <span className="mono">{starts.length}</span>
-      </h2>
+      <h2 className={`${KICKER} ${RT_GROUP} text-muted`}>{t("pages.laterStarts")}</h2>
       {starts.map((start) => (
         <div key={start.id} className={rtRowClass(false)}>
           <span className={RT_ROW_LINE}>

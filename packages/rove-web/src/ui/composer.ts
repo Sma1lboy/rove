@@ -29,7 +29,7 @@ export const BAR_GROUP_END = "group/end ml-auto flex min-w-0 flex-none items-cen
 export const GROW = "flex-1"
 /** The card's own small controls (attach, dictate) left of Start; `on` while attached or recording. On a phone the first one's glyph sits as far from the card's edge as Start does from the other. */
 export const cardIcon = (on = false): string =>
-  `flex h-7 min-w-7 cursor-pointer items-center justify-center rounded-sm px-1 narrow:first:-ml-1.25 has-[:disabled]:opacity-60 disabled:opacity-60 [&:hover]:bg-hover [&:hover]:text-ink ${on ? "text-accent" : "text-muted"}`
+  `flex h-7 min-w-7 cursor-pointer items-center justify-center rounded-sm px-1 narrow:first:-ml-1.25 has-[:disabled]:opacity-60 disabled:opacity-60 hover:bg-hover hover:text-ink ${on ? "text-accent" : "text-muted"}`
 export const ICON =
   "size-3.25 flex-none fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:1.3]"
 
@@ -41,7 +41,7 @@ const CHIP_FLOOR = "min-w-8.5"
 
 /** A pill in the bar; `on` is the Worktree toggle while it is on. Hover applies on touch too, as the sheet's did. */
 export const chipClass = (on = false): string =>
-  `inline-flex max-w-[28ch] ${CHIP_FLOOR} items-center gap-1.5 overflow-hidden rounded-full border-hairline px-2.5 py-0.75 text-ellipsis whitespace-nowrap touch:py-1.75 narrow:min-h-11 narrow:text-[15px] [&:hover]:bg-hover [&:hover]:text-ink aria-expanded:bg-hover aria-expanded:text-ink ${
+  `inline-flex max-w-[28ch] ${CHIP_FLOOR} items-center gap-1.5 overflow-hidden rounded-full border-hairline px-2.5 py-0.75 text-ellipsis whitespace-nowrap touch:py-1.75 narrow:min-h-11 narrow:text-[15px] hover:bg-hover hover:text-ink aria-expanded:bg-hover aria-expanded:text-ink ${
     on
       ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-accent-soft text-accent"
       : "border-line text-muted"

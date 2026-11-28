@@ -25,8 +25,6 @@ import { type SwipeAction, SwipeRow } from "./ui/swipe-row.tsx"
 
 export function RailRow(props: {
   row: Exclude<NavRow, { kind: "pane" | "round" }>
-  /** A phone's group header: the tasks under it. */
-  count?: number | undefined
   /** A child task's indent columns, outermost first. */
   guides?: readonly TreeGuide[]
   /** The task's project, named on a top-level row of the by-state list, which has no project headers. */
@@ -80,7 +78,6 @@ export function RailRow(props: {
         <GroupActions
           label={row.label}
           repo={row.kind === "project" && !row.noProject ? row.repo : undefined}
-          count={row.kind === "state" ? row.count : undefined}
           collapsed={!!props.collapsed}
           onToggle={props.onClick}
           onNewTask={props.onNewTask}

@@ -76,4 +76,4 @@ export const INBOX_CARD_MAIN = "min-w-0 flex-1"
 export const INBOX_PEEK_TOGGLE =
   "flex-none min-w-[calc(9ch+0.5rem)] whitespace-nowrap pr-2 text-right font-mono text-meta"
 /** The rail's unread count; `:hover` ungated, as the sheet had. */
-export const INBOX_CHIP = "font-mono [&:hover]:text-accent"
+export const INBOX_CHIP = "font-mono hover:text-accent"

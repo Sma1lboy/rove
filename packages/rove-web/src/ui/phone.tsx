@@ -5,7 +5,7 @@
 
 import { type MouseEvent, type ReactNode, type Ref, useLayoutEffect, useRef, useState } from "react"
 import { createStore, useStore } from "../store.ts"
-import { PRESS, SQUARE_BAR, glass } from "./glass.ts"
+import { GLASS_HOVER, GLASS_HOVER_IN, PRESS, SQUARE_BAR, glass } from "./glass.ts"
 import { haptic } from "./haptic.ts"
 import { NavButton, PlusGlyph } from "./nav-button.tsx"
 
@@ -71,7 +71,7 @@ export function PhoneGroup({ label, inset, children }: { label?: string; inset?:
 
 /** A row of a `PhoneGroup`: 52px, a leading glyph, the label, an optional trailing part. */
 export const PHONE_ROW =
-  "flex min-h-13 items-center gap-3 rounded-none px-3 py-1.25 text-left font-sans text-title text-ink [&:hover]:bg-hover"
+  "flex min-h-13 items-center gap-3 rounded-none px-3 py-1.25 text-left font-sans text-title text-ink hover:bg-hover"
 
 /**
  * The screen's floating foot, after iOS's: what the screen does sits where the thumb is. `children` are the secondary
@@ -98,7 +98,7 @@ export function PhoneActions({ actions }: { actions: readonly PhoneAction[] }) {
           type="button"
           disabled={action.disabled}
           aria-label={action.glyph ? action.label : undefined}
-          className={`grid h-13 cursor-pointer place-items-center px-3 font-sans text-body font-semibold disabled:opacity-50 ${SQUARE_BAR} ${PRESS} ${action.glyph ? "w-13 flex-none" : "min-w-0 flex-1"} ${action.tone === "accent" ? "bg-accent text-paper shadow-popover" : `${glass()} text-ink`}`}
+          className={`grid h-13 cursor-pointer place-items-center px-3 font-sans text-body font-semibold disabled:opacity-50 ${SQUARE_BAR} ${GLASS_HOVER} ${PRESS} ${action.glyph ? "w-13 flex-none" : "min-w-0 flex-1"} ${action.tone === "accent" ? "bg-accent text-paper shadow-popover" : `${glass()} text-ink`}`}
           onClick={() => {
             haptic()
             action.onClick()
@@ -360,14 +360,16 @@ export function PhoneBarHost({ show }: { show: BarSlot | null }) {
         ref={main}
         type="button"
         disabled={drawn.action?.disabled}
-        className={`pointer-events-auto relative h-13 min-w-0 flex-1 cursor-pointer disabled:opacity-50 ${PRESS} ${piece}`}
+        className={`group/glass pointer-events-auto relative h-13 min-w-0 flex-1 cursor-pointer disabled:opacity-50 ${PRESS} ${piece}`}
         data-new-task-bar={drawn.wide ? "" : undefined}
         onClick={() => {
           haptic()
           onPress?.()
         }}
       >
-        <span className={`absolute inset-0 ${SQUARE_BAR} ${accent ? "bg-accent shadow-popover" : glass()}`} />
+        <span
+          className={`absolute inset-0 ${SQUARE_BAR} ${GLASS_HOVER_IN} ${accent ? "bg-accent shadow-popover" : glass()}`}
+        />
         <span key={key} ref={content} className="relative block h-full">
           <BarContent spec={drawn} />
         </span>
@@ -390,7 +392,7 @@ export function PhoneListRow(props: {
   return (
     <button
       type="button"
-      className="flex min-h-13 w-full flex-col justify-center gap-0.5 px-3 py-2 text-left active:bg-hover focus-visible:bg-hover focus-visible:outline-none"
+      className="flex min-h-13 w-full flex-col justify-center gap-0.5 px-3 py-2 text-left hover:bg-hover active:bg-hover focus-visible:bg-hover focus-visible:outline-none"
       onClick={props.onClick}
       onContextMenu={props.onContextMenu}
     >
