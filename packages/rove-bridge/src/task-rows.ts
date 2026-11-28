@@ -16,7 +16,7 @@ import {
   type WorktreeChangesMap,
   liveRowTokens,
 } from "@sma1lboy/rove/src/client/remote-orchestrator.ts"
-import { prChip } from "@sma1lboy/rove/src/tui/panes/sidebar/row-chips.ts"
+import { prChip } from "@sma1lboy/rove/src/sidebar/row-chips.ts"
 import type { AttentionRow, MachineTag, PrChipKind, RowChanges, RowTokenChip, TaskRow, TaskRowPr } from "./protocol.ts"
 import type { EngineRow } from "./rove-ops.ts"
 

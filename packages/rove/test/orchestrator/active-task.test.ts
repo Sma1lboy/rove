@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Orchestrator } from "../../src/orchestrator/core.ts"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
-import { compareNewest } from "../../src/tui/panes/sidebar/groups.ts"
+import { compareNewest } from "../../src/sidebar/groups.ts"
 
 describe("Orchestrator active task recency", () => {
   let home: string

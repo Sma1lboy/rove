@@ -8,7 +8,7 @@
  * staleness bit and produces one cell. They share only the `task()` fixture.
  */
 
-import { prChip } from "@/tui/panes/sidebar/row-chips"
+import { prChip } from "@/sidebar/row-chips"
 import { TASK_STATUSES, type Task } from "@/types/task"
 import { pad } from "./golden-file"
 import { task } from "./sidebar-state-matrix"

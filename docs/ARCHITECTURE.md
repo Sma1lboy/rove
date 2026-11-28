@@ -118,6 +118,7 @@ worktree on the shared branch name. `taskRepos(task)` (in `rove-daemon`'s
   - `src/keys/` — the keybinding model: bindings table, chord matching,
     prefix dispatch, user overrides and the pure workspace gates. Free of
     opentui and React; the TUI and the web client both read it.
+  - `src/sidebar/` — sidebar view helpers (PR chips, row labels, project grouping) shared by the TUI and the bridge.
   - `src/tui/` — framework-free keymap, state, terminal, file, sidebar, and
     workspace cores.
   - `src/tui-react/` — the only UI implementation: React 19 over opentui.

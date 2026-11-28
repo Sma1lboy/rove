@@ -1,6 +1,6 @@
 import { attentionInboxItemKey, isRoutineInboxState } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { AttentionInboxItem } from "../../client/remote-orchestrator"
-import { compareRecent } from "../../tui/panes/sidebar/groups"
+import { compareRecent } from "../../sidebar/groups"
 import type { Task } from "../../types/task"
 import { type InboxVisit, inboxVisitIndex } from "./inbox-visits"
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { reconcileStableRows } from "../../src/tui/lib/stable-rows"
+import { reconcileStableRows } from "../../src/lib/stable-rows"
 
 type Row = { id: string; label: string }
 

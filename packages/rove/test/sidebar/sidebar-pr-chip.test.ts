@@ -1,4 +1,4 @@
-import { prChip, sidebarPrChip } from "@/tui/panes/sidebar/row-chips"
+import { prChip, sidebarPrChip } from "@/sidebar/row-chips"
 import type { Task } from "@/types/task"
 import { describe, expect, test } from "vitest"
 

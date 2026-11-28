@@ -3,7 +3,7 @@
  * metadata lives in the topbar, not here.
  */
 
-import { reconcileStableRows } from "@/tui/lib/stable-rows"
+import { reconcileStableRows } from "@/lib/stable-rows"
 import type { Task } from "@/types/task"
 import { pathIdentity, pathSyntax } from "@sma1lboy/rove-daemon/path-identity"
 

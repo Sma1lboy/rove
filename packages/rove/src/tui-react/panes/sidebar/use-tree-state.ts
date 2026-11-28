@@ -15,9 +15,9 @@
 import type { TaskEngineState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
 import { useCallback, useMemo, useRef, useState } from "react"
+import type { TaskSortMode } from "../../../sidebar/groups"
 import type { TabsSnapshotKv } from "../../../tabs/terminal-tabs-persist"
 import { currentBranch } from "../../../tui/panes/sidebar/git-head"
-import type { TaskSortMode } from "../../../tui/panes/sidebar/groups"
 import { type MachineLayerEntry, applyMachineLayer } from "../../../tui/panes/sidebar/machine-layer"
 import {
   type TreeRow,

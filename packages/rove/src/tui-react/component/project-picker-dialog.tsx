@@ -6,8 +6,8 @@
  */
 
 import { useState } from "react"
+import { sidebarProjectLabel } from "../../sidebar/groups"
 import { clampCursor, windowAround } from "../../tui/component/new-task-dialog/state"
-import { sidebarProjectLabel } from "../../tui/panes/sidebar/groups"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"

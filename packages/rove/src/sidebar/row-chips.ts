@@ -9,7 +9,8 @@
 
 import { rollupPr } from "@/orchestrator/task-tree"
 import type { Task, TaskPRStatus } from "@/types/task"
-import type { SidebarTone } from "./row-view.ts"
+
+export type SidebarTone = "success" | "warning" | "primary" | "textMuted" | "error"
 
 export type PrChip = { kind: "conflict" | "failing" | "passing"; tone: SidebarTone }
 
