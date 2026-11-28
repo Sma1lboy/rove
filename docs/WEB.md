@@ -94,14 +94,19 @@ the two share one token.
   message, a find box, `[ export .md ]` for the whole thread, and new messages
   as the engine writes them. A palette conversation hit opens it scrolled to
   that message. An engine with no readable history shows its labelled terminal
-  tail. It never takes input: the composer stays in the terminal.
+  tail. The view itself takes no input; on a phone the message composer sits
+  under it, so a message still goes to the agent.
 - The side panel holds several tabs per task (Files, a diff per file, a
   Browser per page), optionally in two stacked groups, and its views answer to
   agents. It starts closed: the Chat, Files, Diff and Browser buttons at the
   workspace's top right open it on that view (the shown kind is tinted;
   pressing it again closes the panel), and its top row has an expand button
-  and a close ×. A phone keeps its Terminal / Chat / Files / Diff / Browser switch
-  and shows no buttons. A page
+  and a close ×. A phone keeps its Terminal / Chat / Context / Files / Diff /
+  Browser switch and shows no buttons. A phone opens an engine tab on Chat,
+  whose messages reflow to the screen where the shared terminal's older output
+  would hard-wrap; a tab with nothing to read there (no history reader, nothing
+  said yet) or a shell tab opens on Terminal. Each tab keeps the view last
+  picked in that switch. A page
   reports whether it has a panel, whether it is open, and its width, so
   `rove api viewers` tells an agent what you can see (and whether the page is
   on the daemon's machine or behind a tunnel). `rove api panel-show` makes

@@ -9,7 +9,7 @@ import { trackNav } from "./nav-history.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { NewSessionView } from "./new-session-view.tsx"
 import { PagesHost } from "./pages-host.tsx"
-import { narrowView } from "./panel-layout.ts"
+import { narrowView, openNarrowView } from "./panel-layout.ts"
 import { NarrowBackBar } from "./rail-chrome.tsx"
 import { composerKey } from "./retry-seed.ts"
 import { SidePanel } from "./side-panel.tsx"
@@ -19,6 +19,7 @@ import { useStore } from "./store.ts"
 import { TabStrip } from "./tab-strip.tsx"
 import { useTaskColor } from "./task-colors.ts"
 import { newChatHere, openTab } from "./task-dialogs.tsx"
+import { TermComposer } from "./term-composer.tsx"
 import { dialog, newSession, page, toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import { PANE, PANE_WORKING, PLACEHOLDER, PLACEHOLDER_BOX, WORKSPACE, WORKSPACE_FRAME } from "./ui/shell.ts"
@@ -40,18 +41,39 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
   const taskInk = useTaskColor(task?.id)
   const working = task?.rowStatus?.kind === "running"
   const composing = useStore(newSession)
-  const panelOn = useStore(narrowView) !== "terminal" && narrow && !!task
+  const view = useStore(narrowView)
+  const panelOn = view !== "terminal" && narrow && !!task
+  const selectedTab = tabs.find((tab) => tab.id === selection.tabId)
   // Picking a task or tab leaves the composer and the narrow panel view, as it leaves a page; a tab sweep
   // that rewrites the same selection does not.
   useEffect(() => {
     let last = model.selection.get()
-    return model.selection.subscribe(() => {
+    // The phone's opening view waits until the selected tab is known: an engine tab may open on Chat.
+    let undecided = true
+    const decide = () => {
+      const { taskId, tabId } = model.selection.get()
+      const tab = taskId ? model.tabs.get()[taskId]?.find((row) => row.id === tabId) : undefined
+      if (!undecided || !taskId || !tab) return
+      undecided = false
+      openNarrowView(taskId, tab.id, tab.kind === "engine")
+    }
+    const offSelection = model.selection.subscribe(() => {
       page.set(null)
       newSession.set(null)
       const next = model.selection.get()
-      if (next.taskId !== last.taskId || next.tabId !== last.tabId) narrowView.set("terminal")
+      if (next.taskId !== last.taskId || next.tabId !== last.tabId) {
+        narrowView.set("terminal")
+        undecided = true
+        decide()
+      }
       last = next
     })
+    const offTabs = model.tabs.subscribe(decide)
+    decide()
+    return () => {
+      offSelection()
+      offTabs()
+    }
   }, [model])
   useEffect(() => trackNav(model), [model])
   if (pageOn === "worktrees") {
@@ -83,7 +105,7 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
   }
   return (
     <main className={`${WORKSPACE} ${WORKSPACE_FRAME}`}>
-      {narrow && <NarrowBackBar client={model.client} taskId={task?.id} title={task?.title} />}
+      {narrow && <NarrowBackBar client={model.client} taskId={task?.id} tabId={selection.tabId} title={task?.title} />}
       {task && <TabStrip model={model} task={task} tabs={tabs} narrow={narrow} />}
       {task && !task.groupId && <StackStrip model={model} taskId={task.id} />}
       {task?.groupId && <AttemptsStrip model={model} taskId={task.id} groupId={task.groupId} />}
@@ -120,7 +142,15 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
             </Button>
           </div>
         )}
-        {task && panelOn && <SidePanel model={model} task={task} narrow />}
+        {task && panelOn && (
+          <div className="flex min-w-0 flex-1 flex-col">
+            <SidePanel model={model} task={task} narrow />
+            {/* Chat reads the engine's conversation; the message composer comes along so the phone can still answer it. */}
+            {view === "chat" && selectedTab?.kind === "engine" && (
+              <TermComposer model={model} taskId={task.id} tabId={selectedTab.id} />
+            )}
+          </div>
+        )}
         {task && selection.tabId && tabs.some((tab) => tab.id === selection.tabId) && (
           <div className={`min-w-0 flex-1 ${panelOn ? "hidden" : "flex"}`}>
             <SplitPane
