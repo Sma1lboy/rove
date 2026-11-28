@@ -5,12 +5,8 @@
 
 import { relaunchSelf } from "../../../cli/self-relaunch"
 import type { RoveOrchestrator } from "../../../client/remote-orchestrator"
-import {
-  type DestroyableRenderer,
-  destroyRendererSafely,
-  hasRestartableDaemon,
-  removeTasksFileForReset,
-} from "../../../tui/component/settings-dialog/actions-core"
+import { type RestorableRenderer, restoreTerminal } from "../../../lib/restore-terminal"
+import { hasRestartableDaemon, removeTasksFileForReset } from "../../../tui/component/settings-dialog/actions-core"
 import type { KVContext } from "../../context/kv"
 import { t } from "../../i18n"
 import type { DialogContext } from "../../ui/dialog"
@@ -26,7 +22,7 @@ export { hasRestartableDaemon } from "../../../tui/component/settings-dialog/act
 export async function confirmResetState(
   dialog: DialogContext,
   kv: KVContext,
-  renderer: DestroyableRenderer | null | undefined,
+  renderer: RestorableRenderer | null | undefined,
 ): Promise<void> {
   const ok = await DialogConfirm.show(
     dialog,
@@ -42,7 +38,7 @@ export async function confirmResetState(
     return
   }
   removeTasksFileForReset()
-  destroyRendererSafely(renderer, "reset")
+  await restoreTerminal(renderer)
   process.stderr.write(`${t("settings.reset.done")}\n`)
   process.exit(0)
 }
@@ -55,7 +51,7 @@ export async function confirmResetState(
 export async function confirmRestartDaemon(
   dialog: DialogContext,
   orchestrator: RoveOrchestrator | undefined,
-  renderer: DestroyableRenderer | null | undefined,
+  renderer: RestorableRenderer | null | undefined,
 ): Promise<void> {
   if (!hasRestartableDaemon(orchestrator)) return
   const ok = await DialogConfirm.show(dialog, t("settings.restart.title"), t("settings.restart.body"), "cancel")
@@ -65,7 +61,7 @@ export async function confirmRestartDaemon(
   // swapped, not that the daemon is done. Best-effort: a gone or wedged daemon
   // leaves nothing to stop, and the successor spawns one on first connect.
   await orchestrator.restartDaemon()
-  relaunchSelf({ renderer, notice: t("settings.restart.done") })
+  await relaunchSelf({ renderer, notice: t("settings.restart.done") })
 }
 
 /** Settings → Dev "Reload settings": the status line the section shows after a reload. */

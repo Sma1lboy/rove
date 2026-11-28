@@ -8,11 +8,7 @@ vi.mock("../../src/client/remote-orchestrator", () => ({
 }))
 
 import { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
-import {
-  destroyRendererSafely,
-  hasRestartableDaemon,
-  removeTasksFileForReset,
-} from "../../src/tui/component/settings-dialog/actions-core.ts"
+import { hasRestartableDaemon, removeTasksFileForReset } from "../../src/tui/component/settings-dialog/actions-core.ts"
 
 let home: string
 let originalRoveHome: string | undefined
@@ -44,23 +40,5 @@ describe("settings action core", () => {
     removeTasksFileForReset()
     expect(existsSync(tasksPath)).toBe(false)
     expect(() => removeTasksFileForReset()).not.toThrow()
-  })
-
-  it("destroys renderers best-effort and reports destroy failures", () => {
-    const destroy = vi.fn()
-    destroyRendererSafely({ destroy }, "reset")
-    expect(destroy).toHaveBeenCalledTimes(1)
-
-    const error = vi.spyOn(console, "error").mockImplementation(() => undefined)
-    destroyRendererSafely(
-      {
-        destroy: () => {
-          throw new Error("boom")
-        },
-      },
-      "restart",
-    )
-    expect(error).toHaveBeenCalledWith("Rove: renderer.destroy() failed during restart:", expect.any(Error))
-    error.mockRestore()
   })
 })

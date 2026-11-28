@@ -8,6 +8,7 @@
  */
 
 import { spawnSync } from "node:child_process"
+import { type RestorableRenderer, restoreTerminal } from "../lib/restore-terminal"
 
 /** What a refresh would do, or why it would do nothing. */
 export type SelfRefreshPlan =
@@ -66,9 +67,6 @@ export function selfRelaunchArgv(proc: RelaunchProcess): readonly string[] {
   return [proc.execPath, ...proc.execArgv, ...proc.argv.slice(1)]
 }
 
-/** Structural renderer handle — only `destroy()` matters here. */
-export type DestroyableRenderer = { destroy(): void }
-
 /**
  * Become the new Rove. Never returns.
  *
@@ -78,21 +76,18 @@ export type DestroyableRenderer = { destroy(): void }
  * - Otherwise (Windows throws): spawn with the terminal inherited and exit with
  *   its code; the old process idles as parent until the successor quits.
  *
- * The renderer is destroyed FIRST: otherwise the successor inherits a terminal
- * with mouse tracking and the kitty keyboard protocol still armed.
+ * The terminal is restored FIRST (awaited, not just scheduled): otherwise the
+ * successor inherits it with mouse tracking and the kitty keyboard protocol
+ * still armed.
  */
-export function relaunchSelf(opts: {
-  readonly renderer: DestroyableRenderer | null | undefined
+export async function relaunchSelf(opts: {
+  readonly renderer: RestorableRenderer | null | undefined
   /** Printed above the successor's first frame, so a relaunch is never silent. */
   readonly notice?: string
   readonly proc?: RelaunchProcess
   readonly env?: NodeJS.ProcessEnv
-}): never {
-  try {
-    opts.renderer?.destroy()
-  } catch (err) {
-    console.error("Rove: renderer.destroy() failed during refresh:", err)
-  }
+}): Promise<never> {
+  await restoreTerminal(opts.renderer)
   const argv = selfRelaunchArgv(opts.proc ?? process)
   const [command, ...args] = argv as [string, ...string[]]
   if (opts.notice) process.stdout.write(`\n${opts.notice}\n`)

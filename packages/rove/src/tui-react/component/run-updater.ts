@@ -7,6 +7,7 @@
  */
 
 import { spawnSync } from "node:child_process"
+import { type RestorableRenderer, restoreTerminal } from "../../lib/restore-terminal.ts"
 import { updaterShell, updaterShellFailureHint } from "../../lib/updater-shell.ts"
 import { CURRENT_VERSION } from "../../version.ts"
 
@@ -29,14 +30,15 @@ function waitForKeypress(): Promise<void> {
 }
 
 export async function runShellUpdater(opts: {
-  renderer: { destroy(): void } | null
+  renderer: RestorableRenderer | null
   t: UpdaterT
   /** What the header shows after the arrow: "latest" or a pinned version. */
   targetLabel: string
   /** Full shell command to run (UPDATE_COMMAND, optionally `-s -- <v>`). */
   command: string
 }): Promise<never> {
-  opts.renderer?.destroy()
+  // spawnSync blocks the event loop, so the restore must finish first.
+  await restoreTerminal(opts.renderer)
   process.stdout.write(`\nrove ${CURRENT_VERSION} -> ${opts.targetLabel}\n`)
   process.stdout.write(`running: ${opts.command}\n\n`)
   // Bare `sh` exists on POSIX only; Windows resolves to Git Bash. The chip

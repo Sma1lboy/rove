@@ -22,16 +22,6 @@ export function hasRestartableDaemon(orchestrator: RoveOrchestrator | undefined)
 }
 
 /** Structural renderer type — both hosts only need `destroy()` here. */
-export type DestroyableRenderer = { destroy(): void }
-
-export function destroyRendererSafely(renderer: DestroyableRenderer | null | undefined, action: string): void {
-  try {
-    renderer?.destroy()
-  } catch (err) {
-    console.error(`Rove: renderer.destroy() failed during ${action}:`, err)
-  }
-}
-
 /** Delete `~/.rove/tasks.json` for the Dev "reset UI state" flow. */
 export function removeTasksFileForReset(): void {
   try {

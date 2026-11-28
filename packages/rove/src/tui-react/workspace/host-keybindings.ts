@@ -5,6 +5,7 @@
  */
 
 import { useRenderer } from "@opentui/react"
+import { restoreTerminal } from "../../lib/restore-terminal"
 import { prefixAction } from "../../tui/lib/keymap-dispatch"
 import { redrawScreen } from "../../tui/lib/screen-refresh"
 import { CommandPalette } from "../component/command-palette"
@@ -17,7 +18,6 @@ import { useBindings } from "../lib/keymap"
 import { usePageEntries } from "../pages/registry"
 import type { DialogContext } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
-import { exitAfterRestore } from "./exit-after-restore"
 import type { HostPagesState } from "./host-pages"
 import { type WorkspacePageState, nextFocusedPane, workspacePagesClosed } from "./keybinding-gates"
 import { usePluginKeybindings } from "./use-plugin-keybindings"
@@ -75,7 +75,7 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
   /** Restore the terminal BEFORE exiting: a bare process.exit leaves mouse
    *  tracking on, spraying `35;66;18M` junk into the shell. */
   function exitApp(): void {
-    void exitAfterRestore(renderer, () => process.exit(0))
+    void restoreTerminal(renderer).then(() => process.exit(0))
   }
 
   async function quit(): Promise<void> {
