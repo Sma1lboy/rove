@@ -51,10 +51,10 @@ const json = (status: number, body: unknown, headers: Record<string, string> = {
   })
 
 /** `web-login-20261022-141503` in UTC; a second login in the same second gets a suffix. */
-export function loginDeviceName(devicesPath: string, now: Date): string {
+export function loginDeviceName(devicesPath: string, now: Date, prefix = "web-login"): string {
   const stamp = now.toISOString().replace(/[-:]/g, "").replace("T", "-").slice(0, 15)
   const taken = new Set(listDevices(devicesPath).map((d) => d.name))
-  const base = `web-login-${stamp}`
+  const base = `${prefix}-${stamp}`
   if (!taken.has(base)) return base
   let n = 2
   while (taken.has(`${base}-${n}`)) n++

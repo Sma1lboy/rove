@@ -1,6 +1,19 @@
 /** `settings.connectors` messages: GitHub, machines and the chat connectors. */
 export const connectorsEn = {
   githubDescription: "Clone, push and open PRs on every machine with one GitHub account",
+  phone: "Phone",
+  phoneHint: "Open Rove on your phone, no VPN or tunnel to set up.",
+  phoneTitle: "Pair a phone",
+  phoneNote:
+    "Scan with the phone's camera or the Rove iPhone app. It connects through Rove's relay, end-to-end encrypted.",
+  phoneShow: "Show QR code",
+  phoneHide: "Done",
+  phoneQrAlt: "QR code that pairs a phone with this computer",
+  phoneSecret: "Anyone who scans this code gets in, so show it only to your own phone.",
+  phoneDevice: "The phone pairs as {device}. To unpair it later:",
+  phoneCopy: "Copy link",
+  phoneCopied: "Link copied",
+  phoneFailed: "Couldn't make a pairing code: {error}",
   chat: "Chat",
   chatHint: "Apps you can message Rove from. What you send goes to your own agent on this machine.",
   chatSince: "Connected since {date}",
@@ -58,6 +71,18 @@ export const connectorsEn = {
 
 export const connectorsZh: typeof connectorsEn = {
   githubDescription: "用同一个 GitHub 账号在每台机器上克隆、推送和开 PR",
+  phone: "手机",
+  phoneHint: "在手机上打开 Rove，不用装 VPN，也不用配隧道。",
+  phoneTitle: "配对手机",
+  phoneNote: "用手机相机或 Rove iPhone App 扫码。连接经过 Rove 的中继，端到端加密。",
+  phoneShow: "显示二维码",
+  phoneHide: "完成",
+  phoneQrAlt: "把手机和这台电脑配对的二维码",
+  phoneSecret: "谁扫到这个码谁就能进来，只给你自己的手机看。",
+  phoneDevice: "手机会以 {device} 的名字配对。以后要取消配对：",
+  phoneCopy: "复制链接",
+  phoneCopied: "链接已复制",
+  phoneFailed: "生成配对码失败：{error}",
   chat: "聊天",
   chatHint: "能给 Rove 发消息的应用。你发的消息会交给这台机器上你自己的智能体。",
   chatSince: "{date} 起已连接",

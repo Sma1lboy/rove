@@ -12,7 +12,7 @@ import { relayTransport } from "./relay-adapters.ts"
 import type { RelayTransport } from "./relay-transport.ts"
 
 const STORAGE_KEY = "rove.relay"
-const ASSET_URL = /url\((\/assets\/[^)]+)\)/g
+const ASSET_URL = /url\(((?:\/relay-client)?\/assets\/[^)]+)\)/g
 
 interface Pairing {
   readonly server: string
@@ -60,9 +60,12 @@ async function blobUrl(transport: RelayTransport, path: string, type: string): P
   return URL.createObjectURL(new Blob([await res.arrayBuffer()], { type }))
 }
 
-/** The bridge's own `index.html`, its script and stylesheets fetched through the tunnel. */
+/**
+ * The bridge's relay build of the client (its `index.html`, script and stylesheets) fetched through the tunnel. A
+ * bridge without one answers with its own app shell, whose split script loads only on bridges that predate splitting.
+ */
 async function loadClient(transport: RelayTransport): Promise<void> {
-  const shell = await transport.fetch("/")
+  const shell = await transport.fetch("/relay-client/index.html")
   const doc = new DOMParser().parseFromString(await shell.text(), "text/html")
   const script = doc.querySelector('script[type="module"][src]')?.getAttribute("src")
   if (!script) throw new Error(`no client script in the bridge's page (HTTP ${shell.status})`)

@@ -1,0 +1,21 @@
+# Rove's hosted relay: `rove --web --preset relay` and Settings → Connectors → Phone use it by default
+# (DEFAULT_RELAY_SERVER in packages/rove-bridge/src/cli-args.ts). Deploy: `bun run deploy` in this package.
+name = "rove-relay"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+routes = [{ pattern = "relay.sma1lboy.me", custom_domain = true }]
+
+[assets]
+directory = "public"
+
+[durable_objects]
+bindings = [{ name = "RELAY_ROOM", class_name = "RelayRoom" }]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RelayRoom"]
+
+[[ratelimits]]
+name = "CONNECTS"
+namespace_id = "1001"
+simple = { limit = 60, period = 60 }

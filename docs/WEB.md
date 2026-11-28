@@ -376,18 +376,43 @@ none of this exists: there is no login route and the page asks for the link.
 
 ### Through an encrypted relay
 
-`--preset relay` reaches this machine from a phone browser with no VPN app and
-no Cloudflare Access, and the relay in the middle sees only ciphertext. It uses
-[relay-kit](https://github.com/nanami-0713/relay-kit) (MIT): a Cloudflare
-Worker you deploy to your own account, and its `relay-e2e/v1` protocol.
+A phone reaches this machine with no VPN app, no tunnel and no Cloudflare
+account: open Settings → Connectors → Phone in the page and scan the QR code.
+The relay in the middle sees only ciphertext. It runs
+[relay-kit](https://github.com/nanami-0713/relay-kit)'s `relay-e2e/v1` protocol
+(MIT), hosted by Rove at `https://relay.sma1lboy.me` (`packages/rove-relay`).
 
 ```mermaid
 flowchart LR
-  B[phone browser] -- ciphertext --> W[relay Worker] -- ciphertext --> A[rove --web]
+  B[phone browser or app] -- ciphertext --> W[relay.sma1lboy.me] -- ciphertext --> A[rove --web]
   A -- plaintext, loopback --> I[bridge relay listener]
 ```
 
-Set it up once (`rove --web --setup` prints the same steps):
+**Show QR code** mints a device token for that phone, starts the relay
+connection if this run had none, and saves `relayServer` in
+`<home>/.rove/bridge/config.json`, so every later `rove --web` keeps the
+phone's way in. The phone pairs as `phone-<date>-<time>`; `rove --web
+--revoke-device <name>` unpairs it. The code carries the token: show it only to
+your own phone.
+
+To keep the phone working with no terminal open, run the page as a login
+service:
+
+```bash
+rove --web --install     # launchd agent (macOS) or systemd user unit (Linux)
+rove --web --uninstall
+```
+
+It starts at login, restarts when it dies, and logs to
+`<home>/.rove/bridge/web.log`, where the relay link is printed too. It is a
+`rove --web` with the flags given after `--install` (`rove --web --install
+--port 7979`), so the browser on this computer still opens it without a token.
+Its port must be free: stop a `rove --web` you started by hand on it first.
+
+`--preset relay` also uses the hosted relay: it listens on `127.0.0.1` only and
+prints the link and QR code in the terminal. To run your own relay instead,
+deploy relay-kit's Worker to your Cloudflare account and pass
+`--relay-server` (or set `relayServer` in `config.json`):
 
 ```bash
 git clone https://github.com/nanami-0713/relay-kit && cd relay-kit/workers/relay
@@ -397,35 +422,35 @@ npx wrangler login && npx wrangler deploy        # prints https://<worker>.<acco
 rove --web --preset relay --relay-server https://<worker>.<account>.workers.dev
 ```
 
-`--relay-server` can also live in `<home>/.rove/bridge/config.json` as
-`relayServer`. `*.workers.dev` is blocked on many mainland China networks; bind
-a custom domain (the commented `routes` in `wrangler.toml`).
+`*.workers.dev` is blocked on many mainland China networks; bind a custom
+domain (the commented `routes` in `wrangler.toml`).
 
-The bridge prints a link and a QR code:
-`https://<relay>/#code=<pairing code>&token=<bridge token>`. Both ride in the
-fragment, so the Worker never receives them.
+The link is `https://<relay>/#code=<pairing code>&token=<token>`. Both ride in
+the fragment, so the relay never receives them.
 
-- **What the Worker serves.** Only the page `--relay-shell` wrote: a small
-  loader. It runs the encrypted handshake, then fetches the real client from
-  this machine through the tunnel, so the client always matches the bridge.
-  Redo `--relay-shell` and `wrangler deploy` only when the loader changes.
+- **What the relay serves.** Only a small loader page. It runs the encrypted
+  handshake, then fetches the client from this machine through the tunnel
+  (`/relay-client/`, a build of the page in one script), so the client always
+  matches the bridge.
 - **Pairing code.** 32 random bytes in `<home>/.rove/bridge/relay-code`
   (owner-only). It derives the relay room and keys the handshake. `--rotate-relay`
   mints a new one, which unpairs every browser paired through the relay.
-- **The bridge token still applies.** The relay is a layer on top: a browser
-  with the pairing code but no token, or a revoked device token, gets no
-  socket. `--device`, `--revoke-device` and password login work as on any
-  other preset.
+- **The bridge token still applies.** A browser with the pairing code but no
+  token, or a revoked device token, gets no socket, even when this computer's
+  own browser needs none.
 - The bridge opens a second listener on `127.0.0.1` (a random port) that only
   the relay agent dials. The agent opens its sockets without headers, so that
   listener alone takes the token from `?token=`; the main listener still
   refuses a token in the URL.
+- **Limits on the hosted relay.** 60 connections a minute per IP, 8 browsers per
+  pairing, and 2 GB relayed per pairing per day; past that the relay closes the
+  pairing's sockets until the next UTC day.
 
 What it does not protect against: the relay can drop or delay traffic and see
-message sizes and timing. The loader is served by Cloudflare, so you trust it
-the way you trust any page you load. relay-kit's handshake is its own design
-and has not been audited. One relay link per browser origin: a second machine
-needs its own Worker.
+message sizes and timing. The loader comes from the relay's domain, so you trust
+it the way you trust any page you load. relay-kit's handshake is its own design
+and has not been audited. One relay link per browser origin: a browser paired
+with two computers through the same relay keeps only the last one.
 
 ## Install to the home screen
 

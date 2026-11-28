@@ -1,11 +1,20 @@
 /**
  * `dist/relay/index.html`: the relay shell (`src/relay-shell.ts`) as one self-contained file, so
  * `rove --web --relay-shell <dir>` can drop it into a Worker's static assets. Its CSP pins the one
- * inline script by hash; the client it then loads from the bridge runs as a `blob:` script.
+ * inline script by hash; the client it then loads from the bridge (`dist/relay-client`, one unsplit script) runs as a
+ * `blob:` script.
  */
 
 import { createHash } from "node:crypto"
 import { mkdirSync, writeFileSync } from "node:fs"
+import { build } from "vite"
+
+// The client the shell loads, as one script: it runs from a `blob:` URL, where a chunk's `./x.js` import cannot resolve.
+await build({
+  base: "/relay-client/",
+  logLevel: "warn",
+  build: { outDir: "dist/relay-client", emptyOutDir: true, rolldownOptions: { output: { codeSplitting: false } } },
+})
 
 const built = await Bun.build({ entrypoints: ["src/relay-shell.ts"], target: "browser", minify: true })
 if (!built.success) throw new AggregateError(built.logs, "relay shell build failed")

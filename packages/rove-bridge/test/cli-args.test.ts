@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { pairingUrl } from "../src/auth.ts"
-import { parseBridgeArgs } from "../src/cli-args.ts"
+import { DEFAULT_RELAY_SERVER, parseBridgeArgs } from "../src/cli-args.ts"
 
 const TS = () => ({ ipv4: "100.64.1.2", dnsName: "mac.tail1234.ts.net" })
 const NO_TS = () => ({ ipv4: null, dnsName: null })
@@ -87,11 +87,11 @@ describe("presets", () => {
     ).toThrow("--cf-team")
   })
 
-  test("relay stays on loopback, needs a relay URL, and refuses plain http off loopback", () => {
+  test("relay stays on loopback, defaults to Rove's hosted relay, and refuses plain http off loopback", () => {
     const a = parseBridgeArgs(["--preset", "relay"], { config: { relayServer: "https://relay.example.com/x" } })
     expect(a.hosts).toEqual(["127.0.0.1"])
     expect(a.relayServer).toBe("https://relay.example.com")
-    expect(() => parseBridgeArgs(["--preset", "relay"])).toThrow("--relay-server")
+    expect(parseBridgeArgs(["--preset", "relay"]).relayServer).toBe(DEFAULT_RELAY_SERVER)
     expect(() => parseBridgeArgs(["--preset", "relay", "--relay-server", "http://relay.example.com"])).toThrow(
       "https://",
     )

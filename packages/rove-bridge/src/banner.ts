@@ -18,7 +18,8 @@ export function printBanner(o: {
   readonly servers: readonly { readonly hostname?: string; readonly port?: number }[]
   /** The sign-in mode (`sign-in.ts`); null when no browser client is served. */
   readonly signIn: SignInMode | null
-  readonly relayCode: string | null
+  /** The relay this run dials: `--preset relay`, or one a phone paired from Settings saved. */
+  readonly relay: { readonly code: string; readonly server: string } | null
 }): void {
   console.log(`${o.name} ${CURRENT_VERSION} — Rove home ${o.home}`)
   for (const server of o.servers) {
@@ -38,15 +39,15 @@ export function printBanner(o: {
       )
     } else if (o.web) console.log(`\nopen: ${link}`)
     if (o.signIn === "password") console.log(`password login: on at ${bare}`)
-    if (o.relayCode !== null) continue
+    if (o.relay !== null) continue
     const url = pairingUrl({ host: publicHost, port, token: o.token, tls: o.args.tls, preset: o.args.preset })
     console.log(`${o.web ? "" : "\n"}pair: ${url}`)
     // With --web the QR carries the page link: a phone camera opens it in the browser, and the iPhone app pairs from it.
     if (o.args.qr) console.log(renderUnicodeCompact(o.web ? (o.signIn === "open" ? bare : link) : url))
   }
-  if (o.relayCode !== null && o.args.relayServer) {
-    const link = relayLink({ server: o.args.relayServer, code: o.relayCode, token: o.token })
-    console.log(`\nrelay (end-to-end encrypted through ${o.args.relayServer}):\n${link}`)
+  if (o.relay !== null) {
+    const link = relayLink({ server: o.relay.server, code: o.relay.code, token: o.token })
+    console.log(`\nrelay (end-to-end encrypted through ${o.relay.server}):\n${link}`)
     if (o.args.qr) console.log(renderUnicodeCompact(link))
     console.log("`--rotate-relay` unpairs every browser paired through the relay.")
   }

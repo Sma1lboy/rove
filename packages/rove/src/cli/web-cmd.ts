@@ -19,6 +19,13 @@ function webRoot(): string | null {
 }
 
 export async function runWebSubcommand(args: readonly string[]): Promise<void> {
+  const { webServiceCommand } = await import("./web-service.ts")
+  try {
+    if (await webServiceCommand(args)) return
+  } catch (err) {
+    console.error(`${ROVE_PRODUCT_NAME} --web: ${err instanceof Error ? err.message : String(err)}`)
+    process.exit(2)
+  }
   const root = webRoot()
   if (!root) {
     console.error(

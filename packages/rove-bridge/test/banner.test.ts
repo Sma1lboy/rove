@@ -15,7 +15,7 @@ const printed = (signIn: "token" | "open") => {
     token: "tok",
     servers: [{ hostname: "192.168.1.9", port: 7878 }],
     signIn,
-    relayCode: null,
+    relay: null,
   })
   log.mockRestore()
   return lines

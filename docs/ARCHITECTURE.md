@@ -138,6 +138,7 @@ worktree on the shared branch name. `taskRepos(task)` (in `rove-daemon`'s
   `@sma1lboy/rove-plugin-sdk`.
 - `packages/rove-android/`, `packages/rove-ios/` — the native phone apps.
 - `packages/rove-landing/` — the rove.run landing page.
+- `packages/rove-relay/` — the hosted end-to-end encrypted relay at `relay.sma1lboy.me`: relay-kit's Cloudflare Worker (vendored, MIT) with per-IP, per-pairing and daily byte limits. `bun run deploy` there ships it with `rove-web`'s loader page.
 - `packages/promo-kit/` — the team's promo asset site.
 - `packages/branding/` — Remotion assets and checked-in replay rendering.
 - `packages/rove-docs/` — public docs site (Fumadocs on Next.js, static

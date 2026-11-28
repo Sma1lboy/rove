@@ -32,17 +32,34 @@ export interface AutostartContext {
   readonly logPath: string
 }
 
-export function systemdDaemonUnit(ctx: AutostartContext): string {
+/** A login service: what it runs, its name, and whether the service manager restarts it when it dies. */
+export interface LoginService {
+  readonly description: string
+  readonly launchdLabel: string
+  readonly args: readonly string[]
+  /** The daemon is not: `rove daemon restart` replaces it itself. The web bridge is: nothing else would. */
+  readonly keepAlive: boolean
+}
+
+const DAEMON_SERVICE: LoginService = {
+  description: "Rove daemon",
+  launchdLabel: LAUNCHD_LABEL,
+  args: ["daemon", "start", "--resident"],
+  keepAlive: false,
+}
+
+export function systemdUnit(ctx: AutostartContext, service: LoginService): string {
   return [
     "[Unit]",
-    "Description=Rove daemon",
+    `Description=${service.description}`,
     "",
     "[Service]",
-    `ExecStart=${[...ctx.cli, "daemon", "start", "--resident"].map(shellQuote).join(" ")}`,
+    `ExecStart=${[...ctx.cli, ...service.args].map(shellQuote).join(" ")}`,
     ...Object.entries(ctx.env).map(([name, value]) => `Environment=${shellQuote(`${name}=${value}`)}`),
     `StandardOutput=append:${ctx.logPath}`,
     `StandardError=append:${ctx.logPath}`,
     "Restart=on-failure",
+    ...(service.keepAlive ? ["RestartSec=10"] : []),
     "",
     "[Install]",
     "WantedBy=default.target",
@@ -50,18 +67,27 @@ export function systemdDaemonUnit(ctx: AutostartContext): string {
   ].join("\n")
 }
 
-/** Started once at login and not kept alive: `rove daemon restart` replaces the daemon itself. */
-export function launchdDaemonPlist(ctx: AutostartContext): string {
-  const args = [...ctx.cli, "daemon", "start", "--resident"].map((a) => `    <string>${xml(a)}</string>`).join("\n")
+export function launchdPlist(ctx: AutostartContext, service: LoginService): string {
+  const args = [...ctx.cli, ...service.args].map((a) => `    <string>${xml(a)}</string>`).join("\n")
   const env = Object.entries(ctx.env)
     .map(([name, value]) => `    <key>${xml(name)}</key>\n    <string>${xml(value)}</string>`)
     .join("\n")
+  const keepAlive = service.keepAlive
+    ? `
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>`
+    : ""
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>${LAUNCHD_LABEL}</string>
+  <string>${service.launchdLabel}</string>
   <key>ProgramArguments</key>
   <array>
 ${args}
@@ -71,7 +97,7 @@ ${args}
 ${env}
   </dict>
   <key>RunAtLoad</key>
-  <true/>
+  <true/>${keepAlive}
   <key>StandardOutPath</key>
   <string>${xml(ctx.logPath)}</string>
   <key>StandardErrorPath</key>
@@ -80,6 +106,11 @@ ${env}
 </plist>
 `
 }
+
+export const systemdDaemonUnit = (ctx: AutostartContext): string => systemdUnit(ctx, DAEMON_SERVICE)
+
+/** Started once at login and not kept alive: `rove daemon restart` replaces the daemon itself. */
+export const launchdDaemonPlist = (ctx: AutostartContext): string => launchdPlist(ctx, DAEMON_SERVICE)
 
 /** `conhost --headless` gives the short-lived launcher a console nobody sees. */
 export function windowsRunCommand(ctx: AutostartContext): string {

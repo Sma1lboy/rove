@@ -4,6 +4,9 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { RelayAgent } from "@hsinsekai-nanami/agent"
 import { RelayTunnelClient } from "@hsinsekai-nanami/client"
+import { relayIngressDeps } from "../src/relay.ts"
+import type { BridgeDeps } from "../src/server.ts"
+import type { SignIn } from "../src/sign-in.ts"
 import { startRelay } from "./relay-fixture.ts"
 import { TOKEN, start, stopServers, upgradeStatus } from "./server-harness.ts"
 
@@ -68,6 +71,14 @@ describe("--preset relay", () => {
     const ingress = start({ tokenInQuery: true })
     expect(await upgradeStatus(`${ingress.url}ws`)).toBe(401)
     expect(await upgradeStatus(`${ingress.url}ws?token=${"x".repeat(43)}`)).toBe(401)
+  })
+
+  test("in the open sign-in mode a relayed socket still needs the token, though it dials from loopback", async () => {
+    const open = { opens: () => true } as unknown as SignIn
+    // Control: the main listener lets this computer in with no token.
+    expect(await upgradeStatus(`${start({ signIn: open }).url}ws`)).not.toBe(401)
+    const ingress = start(relayIngressDeps({ signIn: open } as BridgeDeps))
+    expect(await upgradeStatus(`${ingress.url}ws`)).toBe(401)
   })
 
   test("a wrong pairing code never reaches this bridge", async () => {

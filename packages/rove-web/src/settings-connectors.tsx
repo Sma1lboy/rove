@@ -19,6 +19,7 @@ import { t } from "./i18n/index.ts"
 import type { MachineRow } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { ChatConnectors } from "./settings-chat-connectors.tsx"
+import { PhoneConnector } from "./settings-phone-connector.tsx"
 import { toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import {
@@ -321,6 +322,7 @@ export function ConnectorsSection({ model }: { model: AppModel }) {
     <>
       <GithubCard model={model} />
       <ChatConnectors model={model} />
+      <PhoneConnector model={model} />
     </>
   )
 }
