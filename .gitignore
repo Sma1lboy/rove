@@ -93,7 +93,7 @@ HANDOFF.md
 /published/
 /releases/
 
-# brand-studio scratch workspace (production temp; accepted assets live in public/assets)
+# brand-studio scratch workspace (production temp; accepted assets live in packages/branding/assets)
 .studio/
 
 # Per-run artefacts from background agent sessions — runtime state, not source.

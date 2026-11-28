@@ -10,7 +10,7 @@ accepted:
     round: "round 4 · 01"
     modality: image
     asset_type: logo
-    path: public/assets/logos/cursor-block.png
+    path: packages/branding/assets/logos/cursor-block.png
     source: .studio/out/rove-logo/rove-logo-01.png
     mime_type: image/png
     size: [1024, 1024]
@@ -21,7 +21,7 @@ accepted:
     round: "round 5 · r5-03"
     modality: image
     asset_type: logo
-    path: public/assets/logos/prompt-lockup.png
+    path: packages/branding/assets/logos/prompt-lockup.png
     source: .studio/out/rove-logo/rove-logo-r5-03.png
     mime_type: image/png
     size: [1024, 1024]
@@ -32,7 +32,7 @@ accepted:
     round: "round 5 · r5-10"
     modality: image
     asset_type: logo
-    path: public/assets/logos/wordmark-status-dot.png
+    path: packages/branding/assets/logos/wordmark-status-dot.png
     source: .studio/out/rove-logo/rove-logo-r5-10.png
     mime_type: image/png
     size: [1024, 1024]
@@ -43,7 +43,7 @@ accepted:
     round: "round 5 · r5-09"
     modality: image
     asset_type: logo
-    path: public/assets/logos/wordmark-two-tone.png
+    path: packages/branding/assets/logos/wordmark-two-tone.png
     source: .studio/out/rove-logo/rove-logo-r5-09.png
     mime_type: image/png
     size: [1024, 1024]
@@ -54,7 +54,7 @@ accepted:
     round: "round 4 · 09b"
     modality: image
     asset_type: logo
-    path: public/assets/logos/bracket-badge.png
+    path: packages/branding/assets/logos/bracket-badge.png
     source: .studio/out/rove-logo/rove-logo-09b.png
     mime_type: image/png
     size: [1024, 1024]
@@ -65,7 +65,7 @@ accepted:
     round: "round 5 · r5-13"
     modality: image
     asset_type: logo
-    path: public/assets/logos/bracket-wordmark.png
+    path: packages/branding/assets/logos/bracket-wordmark.png
     source: .studio/out/rove-logo/rove-logo-r5-13.png
     mime_type: image/png
     size: [1024, 1024]
@@ -76,7 +76,7 @@ accepted:
     round: "round 5 · r5-16"
     modality: image
     asset_type: logo
-    path: public/assets/logos/selection-highlight.png
+    path: packages/branding/assets/logos/selection-highlight.png
     source: .studio/out/rove-logo/rove-logo-r5-16.png
     mime_type: image/png
     size: [1024, 1024]
@@ -87,7 +87,7 @@ accepted:
     round: "round 5 · r5-01"
     modality: image
     asset_type: logo
-    path: public/assets/logos/k-underscore-cursor.png
+    path: packages/branding/assets/logos/k-underscore-cursor.png
     source: .studio/out/rove-logo/rove-logo-r5-01.png
     mime_type: image/png
     size: [1024, 1024]
@@ -98,7 +98,7 @@ accepted:
     round: "round 5 · r5-02"
     modality: image
     asset_type: logo
-    path: public/assets/logos/wordmark-cursor.png
+    path: packages/branding/assets/logos/wordmark-cursor.png
     source: .studio/out/rove-logo/rove-logo-r5-02.png
     mime_type: image/png
     size: [1024, 1024]
@@ -109,7 +109,7 @@ accepted:
     round: "round 1"
     modality: video
     asset_type: promo-video
-    path: public/assets/video/rove-intro.mp4
+    path: packages/branding/assets/video/rove-intro.mp4
     source: .studio/out/rove-intro/out/rove-intro.mp4
     mime_type: video/mp4
     size: [1080, 1920]
@@ -121,7 +121,7 @@ accepted:
     round: "round 2 · voiced"
     modality: video
     asset_type: promo-video
-    path: public/assets/video/rove-intro-v2-elevenlabs.mp4
+    path: packages/branding/assets/video/rove-intro-v2-elevenlabs.mp4
     source: .studio/out/rove-intro/out/rove-intro.mp4
     mime_type: video/mp4
     size: [1080, 1920]
@@ -144,7 +144,7 @@ accepted:
     round: "promo v4 · 2026-08-25"
     modality: video
     asset_type: promo-video
-    path: public/assets/video/rove-promo.mp4
+    path: packages/branding/assets/video/rove-promo.mp4
     source: .studio/out/rove-promo/renders/video-v4.mp4
     mime_type: video/mp4
     size: [1920, 1080]
@@ -236,7 +236,7 @@ accepted:
     round: "gtm-x-week1 · r1"
     modality: video
     asset_type: promo-video
-    path: public/assets/video/chaos-converge.mp4
+    path: packages/branding/assets/video/chaos-converge.mp4
     source: .studio/out/chaos-converge/out/chaos-converge.mp4
     mime_type: video/mp4
     size: [1920, 1080]

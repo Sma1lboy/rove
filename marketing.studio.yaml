@@ -1,11 +1,11 @@
 # brand-studio metadata for the rove repo (skill: .agents/skills/brand-studio submodule).
 # Directory contract: production is scratch under .studio/ (gitignored);
-# user-accepted assets settle into public/assets/ and are recorded in
-# public/assets/accepted.yaml. Brand tokens live in packages/branding/src/colors.ts.
+# user-accepted assets settle into packages/branding/assets/ and are recorded in
+# packages/branding/assets/accepted.yaml. Brand tokens live in packages/branding/src/colors.ts.
 project:
   id: rove
   root: .
-  marketingRoot: marketing
+  marketingRoot: packages/branding/marketing
 
 skillDistribution:
   upstream: sma1lboy/brand-studio
@@ -13,12 +13,12 @@ skillDistribution:
   ref: main
 
 theme:
-  path: marketing/theme.md
+  path: packages/branding/marketing/theme.md
   references: packages/branding
 
 campaigns:
-  release: marketing/campaigns/release
-  promo: marketing/campaigns/promo
+  release: packages/branding/marketing/campaigns/release
+  promo: packages/branding/marketing/campaigns/promo
 
 skills:
   # Capability -> producer skill (installed at project scope). Producers may
@@ -37,17 +37,17 @@ backends:
 
 artifacts:
   scratch: .studio/out
-  approved: public/assets
+  approved: packages/branding/assets
 
 state:
-  plans: marketing/plans
-  assetIndex: marketing/asset-state.yaml
-  accepted: public/assets/accepted.yaml
+  plans: packages/branding/marketing/plans
+  assetIndex: packages/branding/marketing/asset-state.yaml
+  accepted: packages/branding/assets/accepted.yaml
   directoryStateFile: asset-state.yaml
 
 sources:
   assetRoots:
-    - public/assets
+    - packages/branding/assets
     - docs/assets/brand
   relatedRepos: []
 

@@ -37,7 +37,7 @@ const STALE_CLAIMS: Array<[path: string, phrases: string[]]> = [
   ],
   ["packages/rove-harness/README.md", ["rove-sandbox tmux socket"]],
   [".claude/skills/release/SKILL.md", ["needs tmux", "apt-installed tmux"]],
-  ["marketing/brand.meta.yaml", ["git worktrees, tmux sessions", "persistent tmux sessions"]],
+  ["packages/branding/marketing/brand.meta.yaml", ["git worktrees, tmux sessions", "persistent tmux sessions"]],
   ["docs/design/tasks.md", ["inside a tmux pane/embedded terminal"]],
   ["docs/design/dispatcher.md", ["send` pastes via tmux"]],
   ["docs/design/daemon.md", ["never tears down tmux sessions"]],

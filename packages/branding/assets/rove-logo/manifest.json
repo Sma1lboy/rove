@@ -8,7 +8,7 @@
     {
       "id": "icon-svg",
       "file": "icon.svg",
-      "path": "public/assets/rove-logo/icon.svg",
+      "path": "packages/branding/assets/rove-logo/icon.svg",
       "source_path": ".studio/out/rove-logo/dist/icon.svg",
       "run_lock": "",
       "size": [
@@ -21,7 +21,7 @@
     {
       "id": "favicon-16",
       "file": "favicon-16.png",
-      "path": "public/assets/rove-logo/favicon-16.png",
+      "path": "packages/branding/assets/rove-logo/favicon-16.png",
       "source_path": ".studio/out/rove-logo/dist/favicon-16.png",
       "run_lock": "",
       "size": [
@@ -34,7 +34,7 @@
     {
       "id": "favicon-32",
       "file": "favicon-32.png",
-      "path": "public/assets/rove-logo/favicon-32.png",
+      "path": "packages/branding/assets/rove-logo/favicon-32.png",
       "source_path": ".studio/out/rove-logo/dist/favicon-32.png",
       "run_lock": "",
       "size": [
@@ -47,7 +47,7 @@
     {
       "id": "apple-touch-icon",
       "file": "apple-touch-icon.png",
-      "path": "public/assets/rove-logo/apple-touch-icon.png",
+      "path": "packages/branding/assets/rove-logo/apple-touch-icon.png",
       "source_path": ".studio/out/rove-logo/dist/apple-touch-icon.png",
       "run_lock": "",
       "size": [
@@ -60,7 +60,7 @@
     {
       "id": "icon-192",
       "file": "icon-192.png",
-      "path": "public/assets/rove-logo/icon-192.png",
+      "path": "packages/branding/assets/rove-logo/icon-192.png",
       "source_path": ".studio/out/rove-logo/dist/icon-192.png",
       "run_lock": "",
       "size": [
@@ -73,7 +73,7 @@
     {
       "id": "icon-512",
       "file": "icon-512.png",
-      "path": "public/assets/rove-logo/icon-512.png",
+      "path": "packages/branding/assets/rove-logo/icon-512.png",
       "source_path": ".studio/out/rove-logo/dist/icon-512.png",
       "run_lock": "",
       "size": [
@@ -86,7 +86,7 @@
     {
       "id": "icon-mask",
       "file": "icon-mask.png",
-      "path": "public/assets/rove-logo/icon-mask.png",
+      "path": "packages/branding/assets/rove-logo/icon-mask.png",
       "source_path": ".studio/out/rove-logo/dist/icon-mask.png",
       "run_lock": "",
       "size": [

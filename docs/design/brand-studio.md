@@ -12,7 +12,7 @@ metadata 注入;没有宿主 repo 时它会先问一句品牌方向和落位,而
 
 目录契约:**所有 producer 的产出先进同一个 temp `.studio/out/`**(gitignored scratch);其中
 brand-video 的产出**按 project 分目录**——每支片子/每类适配一个独立 Remotion 项目
-(`.studio/out/rove-intro/` 这类)。用户 accept 后才 settle 进 `public/assets/` 并记入 `accepted.yaml`。
+(`.studio/out/rove-intro/` 这类)。用户 accept 后才 settle 进 `packages/branding/assets/` 并记入 `accepted.yaml`。
 
 仓库分发:brand-studio 本体是独立 GitHub 仓库,以 submodule 挂在 `.agents/skills/brand-studio`;
 **brand-video 就住在 brand-studio 仓库里**(`skills/brand-studio/producers/brand-video/`,纯
@@ -29,10 +29,10 @@ flowchart TB
 
   subgraph studio["brand-studio — 策展层(只管不产)"]
     stages["stage 路由:gen-repo / settle-repo / retire-repo"]
-    ledger["台账:public/assets/accepted.yaml<br/>(modality · source · checksum · revision)"]
+    ledger["台账:packages/branding/assets/accepted.yaml<br/>(modality · source · checksum · revision)"]
   end
 
-  meta["marketing.studio.yaml(绑定表)<br/>skills.video → brand-video · skills.image → gpt-image<br/>scratch=.studio/out · approved=public/assets"]
+  meta["marketing.studio.yaml(绑定表)<br/>skills.video → brand-video · skills.image → gpt-image<br/>scratch=.studio/out · approved=packages/branding/assets"]
 
   subgraph producers["producer 层 — 只生产(统一 temp:.studio/out/,产出按 project 分目录)"]
     bv["brand-video(video,通用)<br/>① 分析层:脚本/参考视频 → storyboard + 相机权重(核心)<br/>② 生产层:.studio/out/&lt;name&gt;/ 独立 Remotion 项目<br/>③ 插槽:bgm · TTS 口播 · 人脸角标 PiP"]
@@ -64,7 +64,7 @@ flowchart LR
   gen["gen-repo(scratch)<br/>.studio/out/&lt;name&gt;/<br/>storyboard → theme 物化 →<br/>镜头组件 → render"]
   cand["candidate<br/>out/&lt;name&gt;.mp4<br/>(scratch,不入库)"]
   gate{"用户 review"}
-  settle["settle-repo<br/>public/assets/video/&lt;name&gt;.mp4<br/>+ accepted.yaml 条目 · revision++"]
+  settle["settle-repo<br/>packages/branding/assets/video/&lt;name&gt;.mp4<br/>+ accepted.yaml 条目 · revision++"]
   consume["消费方<br/>landing · README · docs"]
 
   srt --> gen --> cand --> gate
@@ -82,5 +82,5 @@ flowchart LR
   theme 是 scaffold 时从 `packages/branding/src/colors.ts` 物化拷入的。
 - **scratch 永不自动入库**:没 accept 的产物留在 `.studio/`(gitignored);accept 语义参照
   studio 规则(单候选语境下"这个可以/无敌了"即 accept)。
-- worked example:`.studio/out/rove-intro/`(本机 scratch)→ `public/assets/video/rove-intro.mp4`
-  (已 settle,台账见 `public/assets/accepted.yaml`)。
+- worked example:`.studio/out/rove-intro/`(本机 scratch)→ `packages/branding/assets/video/rove-intro.mp4`
+  (已 settle,台账见 `packages/branding/assets/accepted.yaml`)。
