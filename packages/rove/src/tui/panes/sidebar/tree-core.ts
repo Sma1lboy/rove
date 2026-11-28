@@ -23,7 +23,7 @@ export {
   parseRowId,
   tabRowId,
 } from "./tree-ids"
-export { conversationTitleOf, rowLiveBranchPath, worktreeRowLabel } from "./tree-labels"
+export { conversationTitleOf, rowLiveBranchPath, worktreeRowLabel } from "../../../sidebar/tree-labels"
 
 /** One shared grouping (project-groups.ts), so tree and folded rail agree on which projects exist. */
 export { ownerProjectKey, projectKeysOf } from "./project-groups"

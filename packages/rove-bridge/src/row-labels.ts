@@ -5,9 +5,9 @@
  */
 
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { conversationTitleOf, worktreeRowLabel } from "@sma1lboy/rove/src/sidebar/tree-labels.ts"
 import { conversationTitle } from "@sma1lboy/rove/src/tabs/terminal-tab-split.ts"
 import { type TabsState, tabPtyKeyFor } from "@sma1lboy/rove/src/tabs/terminal-tabs-core.ts"
-import { conversationTitleOf, worktreeRowLabel } from "@sma1lboy/rove/src/tui/panes/sidebar/tree-labels.ts"
 import { DEFAULT_TASK_VENDOR, type Task } from "@sma1lboy/rove/src/types/task.ts"
 
 /** The live inputs of the row names, read once per feed read. */

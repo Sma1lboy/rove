@@ -10,8 +10,8 @@
  */
 
 import { charWidth } from "@/lib/display-width"
+import { reconcileStableRows } from "@/lib/stable-rows"
 import { truncateStartCells } from "@/lib/truncate"
-import { reconcileStableRows } from "@/tui/lib/stable-rows"
 import type { FileStatus, StatusEntry } from "../../../worktree/git-status"
 import type { TreeNode } from "./tree"
 

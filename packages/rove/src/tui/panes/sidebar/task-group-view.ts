@@ -14,7 +14,7 @@ import type { TaskEngineState } from "@/client/remote-orchestrator"
 import { t } from "@/i18n"
 import { type TaskGroup, deriveTaskGroup, taskGroupRank } from "@/lib/task-group"
 import type { Task } from "@/types/task"
-import { compareRecent } from "./groups"
+import { compareRecent } from "../../../sidebar/groups"
 import type { SidebarTone } from "./row-view"
 
 /**

@@ -23,7 +23,7 @@ import {
   sidebarProjectKeyOfTask,
   sidebarProjectKeyResolver,
   sidebarRepoLabel,
-} from "./groups"
+} from "../../../sidebar/groups"
 import { compareTaskGroup } from "./task-group-view"
 import { SCRATCH_SECTION_ID } from "./tree-ids"
 

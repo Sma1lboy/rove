@@ -10,9 +10,9 @@
 
 import type { TaskEngineState } from "@/client/remote-orchestrator"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
+import type { SidebarRow } from "../../../sidebar/groups"
 import { sidebarPollClockSnapshot, subscribeSidebarPollClock } from "../../../tui/lib/sidebar-poll-clock"
 import { spinnerFrameSnapshot, subscribeSpinnerFrame } from "../../../tui/lib/spinner-frame-store"
-import type { SidebarRow } from "../../../tui/panes/sidebar/groups"
 import { DONE_PULSE_MS } from "../../../tui/panes/sidebar/row-view"
 import { pollWorktreeChanges, worktreeChanges } from "../../../tui/panes/sidebar/worktree-changes-poller"
 import { type WorktreeChanges, pickPushedChanges } from "../../../worktree/worktree-changes"

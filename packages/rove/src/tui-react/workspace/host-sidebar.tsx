@@ -8,7 +8,7 @@
 import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
 import { type MutableRefObject, useCallback } from "react"
-import type { TaskSortMode } from "../../tui/panes/sidebar/groups"
+import type { TaskSortMode } from "../../sidebar/groups"
 import type { SidebarNav } from "../../tui/panes/sidebar/nav-core"
 import type { WorktreeChanges } from "../../worktree/worktree-changes"
 import { useOptionalKV } from "../context/kv"

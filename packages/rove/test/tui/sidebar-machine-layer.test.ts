@@ -11,7 +11,7 @@
  */
 
 import { describe, expect, it } from "vitest"
-import { sidebarProjectKey } from "../../src/tui/panes/sidebar/groups.ts"
+import { sidebarProjectKey } from "../../src/sidebar/groups.ts"
 import {
   type MachineLayerEntry,
   applyMachineLayer,

@@ -13,6 +13,7 @@
 import { TextAttributes } from "@opentui/core"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { useState } from "react"
+import { sidebarProjectLabel } from "../../sidebar/groups"
 import {
   type ComposerDraft,
   type ComposerField,
@@ -31,7 +32,6 @@ import {
   stepSegment,
 } from "../../tui/component/cron-segments"
 import { clampCursor, windowAround } from "../../tui/component/new-task-dialog/state"
-import { sidebarProjectLabel } from "../../tui/panes/sidebar/groups"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"

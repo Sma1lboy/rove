@@ -7,7 +7,7 @@ import {
   sameSidebarRowTask,
   sidebarProjectKey,
   sidebarProjectLabel,
-} from "../../src/tui/panes/sidebar/groups.ts"
+} from "../../src/sidebar/groups.ts"
 import type { Task } from "../../src/types/task.ts"
 import { toTaskId } from "../../src/types/task.ts"
 

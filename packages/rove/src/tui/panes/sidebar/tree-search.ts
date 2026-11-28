@@ -6,9 +6,9 @@
 
 import type { Task } from "@/types/task"
 import { fuzzyMatch } from "../../../lib/fuzzy"
-import { repoBasename } from "./groups"
+import { repoBasename } from "../../../sidebar/groups"
+import { isNamedDir } from "../../../sidebar/tree-labels"
 import { type TreeRow, worktreeRowLabel } from "./tree-core"
-import { isNamedDir } from "./tree-labels"
 
 /**
  * Fields matched ONE AT A TIME (see `matchesRow`). A worktree row starts from

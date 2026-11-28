@@ -17,8 +17,6 @@ const KNOWN = new Set<string>([
   // theme-palette.ts in the bridge resolves themes through opentui RGBA.
   "tui/context/theme-core.ts",
   "tui/lib/task-color.ts",
-  "tui/panes/sidebar/row-chips.ts",
-  "tui/panes/sidebar/tree-labels.ts",
 ])
 
 function sources(dir: string, acc: string[] = []): string[] {
