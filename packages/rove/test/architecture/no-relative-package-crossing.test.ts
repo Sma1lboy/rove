@@ -17,8 +17,6 @@ const NAMES = readdirSync(PACKAGES, { withFileTypes: true })
 
 const KNOWN = new Set<string>([
   "rove-daemon/src/client/daemon-process.ts",
-  "rove-harness/test/server-session.test.ts",
-  "rove-harness/test/web-page-selection.test.tsx",
   "rove-web/src/demo/transport.ts",
   "rove-web/src/wall/icons.ts",
   "rove/test/engine/chat-transcript-shape.test.ts",

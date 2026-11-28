@@ -2,11 +2,11 @@
 import { act } from "react"
 import { createRoot } from "react-dom/client"
 import { afterEach, expect, test, vi } from "vitest"
-import { BridgeClient } from "../../rove-web/src/bridge.ts"
-import { AppModel } from "../../rove-web/src/model.ts"
-import { openTaskRow } from "../../rove-web/src/rail-keys.ts"
-import { page } from "../../rove-web/src/ui.ts"
-import { Workspace } from "../../rove-web/src/workspace-view.tsx"
+import { BridgeClient } from "rove-web/src/bridge.ts"
+import { AppModel } from "rove-web/src/model.ts"
+import { openTaskRow } from "rove-web/src/rail-keys.ts"
+import { page } from "rove-web/src/ui.ts"
+import { Workspace } from "rove-web/src/workspace-view.tsx"
 
 vi.hoisted(() => {
   for (const name of ["localStorage", "sessionStorage"]) {
@@ -67,7 +67,7 @@ for (const destination of ["update", "worktrees"] as const) {
   test(`a reload restores the open ${destination} page`, async () => {
     page.set(destination)
     vi.resetModules()
-    const reloaded = await import("../../rove-web/src/ui.ts")
+    const reloaded = await import("rove-web/src/ui.ts")
     expect(reloaded.page.get()).toBe(destination)
   })
 }
