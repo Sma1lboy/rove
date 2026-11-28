@@ -11,18 +11,17 @@ import { SNIPPET_NAME, loadSnippets, removeSnippet, saveSnippet, useSnippets } f
 import { toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import { Chevron } from "./ui/chevron.tsx"
+import { FIELD_LABEL, TEXTAREA } from "./ui/form.ts"
 import { useGrow } from "./ui/grow.ts"
 import {
   SETTINGS_ACTIONS,
   SETTINGS_ADD_ROW,
   SETTINGS_FIELD,
-  SETTINGS_FIELD_LABEL,
   SETTINGS_INPUT,
   SETTINGS_NAME,
   SETTINGS_NAV_CHEVRON,
   SETTINGS_NOTE,
   SETTINGS_OPEN_ROW,
-  SETTINGS_TEXTAREA,
   SETTINGS_TEXT_STACK,
 } from "./ui/settings.ts"
 
@@ -58,7 +57,7 @@ function SnippetForm(props: {
       }}
     >
       <label className={SETTINGS_FIELD}>
-        <span className={SETTINGS_FIELD_LABEL}>{t("snippets.name")}</span>
+        <span className={FIELD_LABEL}>{t("snippets.name")}</span>
         <input
           className={`${SETTINGS_INPUT} w-full font-mono`}
           value={name}
@@ -74,10 +73,10 @@ function SnippetForm(props: {
         {name !== "" && !SNIPPET_NAME.test(name) && <span className={SETTINGS_NOTE}>{t("snippets.badName")}</span>}
       </label>
       <label className={SETTINGS_FIELD}>
-        <span className={SETTINGS_FIELD_LABEL}>{t("snippets.text")}</span>
+        <span className={FIELD_LABEL}>{t("snippets.text")}</span>
         <textarea
           ref={grow}
-          className={`${SETTINGS_INPUT} ${SETTINGS_TEXTAREA} w-full`}
+          className={`${SETTINGS_INPUT} ${TEXTAREA} w-full`}
           rows={5}
           value={text}
           maxLength={8000}

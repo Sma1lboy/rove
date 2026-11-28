@@ -11,11 +11,11 @@ import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { offeredEngines } from "./new-session.ts"
 import { tc } from "./tui-copy.ts"
-import { CHIPS_ROW, CHOICES, FIELD, chipClass } from "./ui/form.ts"
+import { CHIPS_ROW, CHOICES, FIELD, FIELD_LABEL, chipClass } from "./ui/form.ts"
 import { Legend } from "./ui/legend.tsx"
 import { DIALOG_BODY } from "./ui/overlay.ts"
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
-import { HINT, INPUT, KICKER } from "./ui/text.ts"
+import { HINT, INPUT } from "./ui/text.ts"
 
 export interface PickerEngine {
   readonly id: string
@@ -157,7 +157,7 @@ export function ChangeEngineDialog(props: {
         </ul>
         {loaded && engine && engine.acceptsModel && (
           <label className={FIELD}>
-            <span className={`${KICKER} text-muted`}>{tc("tasks", "engineModel.label")}</span>
+            <span className={`${FIELD_LABEL}`}>{tc("tasks", "engineModel.label")}</span>
             <input
               className={INPUT}
               spellCheck={false}
@@ -178,7 +178,7 @@ export function ChangeEngineDialog(props: {
         )}
         {choices.length > 0 && (
           <div className={FIELD}>
-            <span className={`${KICKER} text-muted`}>{tc("tasks", "changeEngine.effortLabel")}</span>
+            <span className={`${FIELD_LABEL}`}>{tc("tasks", "changeEngine.effortLabel")}</span>
             <div className={CHIPS_ROW}>
               {choices.map((level) => (
                 <button

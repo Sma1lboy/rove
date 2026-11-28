@@ -11,10 +11,10 @@ import { CLONE_PARENT_KEY, deriveFolderName, expandTilde, filterByGlob, joinPick
 import { SuggestField, focusField } from "./suggest-field.tsx"
 import { tc } from "./tui-copy.ts"
 import { toast } from "./ui.ts"
-import { FIELD } from "./ui/form.ts"
+import { FIELD, FIELD_LABEL } from "./ui/form.ts"
 import { Legend } from "./ui/legend.tsx"
 import { DIALOG_BODY } from "./ui/overlay.ts"
-import { INPUT, KICKER } from "./ui/text.ts"
+import { INPUT } from "./ui/text.ts"
 
 interface TabProps {
   readonly model: AppModel
@@ -100,7 +100,7 @@ export function CloneTab({ model, engine, busy, error, run }: TabProps) {
       }}
     >
       <div className={FIELD}>
-        <span className={`${KICKER} text-muted`}>{tc("newTask", "field.gitUrl")}</span>
+        <span className={`${FIELD_LABEL}`}>{tc("newTask", "field.gitUrl")}</span>
         <input
           className={INPUT}
           data-field="url"
@@ -116,7 +116,7 @@ export function CloneTab({ model, engine, busy, error, run }: TabProps) {
         />
       </div>
       <div className={FIELD}>
-        <span className={`${KICKER} text-muted`}>{tc("newTask", "field.parentDir")}</span>
+        <span className={`${FIELD_LABEL}`}>{tc("newTask", "field.parentDir")}</span>
         <SuggestField
           field="parent"
           value={parent}
@@ -146,7 +146,7 @@ export function CloneTab({ model, engine, busy, error, run }: TabProps) {
         <span className="text-muted">{tc("newTask", "hint.remembered")}</span>
       </div>
       <div className={FIELD}>
-        <span className={`${KICKER} text-muted`}>{tc("newTask", "field.folderName")}</span>
+        <span className={`${FIELD_LABEL}`}>{tc("newTask", "field.folderName")}</span>
         <input
           className={INPUT}
           data-field="folder"
@@ -162,7 +162,7 @@ export function CloneTab({ model, engine, busy, error, run }: TabProps) {
         />
       </div>
       <div className={FIELD}>
-        <span className={`${KICKER} text-muted`}>{tc("newTask", "field.baseBranch")}</span>
+        <span className={`${FIELD_LABEL}`}>{tc("newTask", "field.baseBranch")}</span>
         <input
           className={INPUT}
           data-field="clone-base"
@@ -274,7 +274,7 @@ export function AdoptTab({
       }}
     >
       <div className={FIELD}>
-        <span className={`${KICKER} text-muted`}>{tc("newTask", "field.adoptFilter")}</span>
+        <span className={`${FIELD_LABEL}`}>{tc("newTask", "field.adoptFilter")}</span>
         <SuggestField
           field="filter"
           value={filter}

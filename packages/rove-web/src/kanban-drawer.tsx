@@ -19,7 +19,7 @@ import { fill, useCopy } from "./pages-kit.ts"
 import { SelectorField } from "./selector-field.tsx"
 import { closeDialog, toast } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
-import { CHIPS_ROW, FIELD, TEXTAREA, chipClass } from "./ui/form.ts"
+import { CHIPS_ROW, FIELD, FIELD_LABEL, TEXTAREA, chipClass } from "./ui/form.ts"
 import { useGrow } from "./ui/grow.ts"
 import {
   KB_AGE,
@@ -268,7 +268,7 @@ export function IssueDrawer(props: {
         </div>
         <div className={DIALOG_BODY}>
           <label className={FIELD}>
-            <span className={`${KICKER} text-muted`}>{kanban.detail.titleLabel}</span>
+            <span className={`${FIELD_LABEL}`}>{kanban.detail.titleLabel}</span>
             <input
               ref={at("title")}
               className={INPUT}
@@ -284,7 +284,7 @@ export function IssueDrawer(props: {
             />
           </label>
           <label className={FIELD}>
-            <span className={`${KICKER} text-muted ${KB_LABEL}`}>
+            <span className={`${FIELD_LABEL} ${KB_LABEL}`}>
               {kanban.detail.description}
               <span className={`text-muted ${KB_HINT}`}>
                 {isTouch() ? t("pages.attachHintTouch") : kanban.detail.attachHint}
@@ -304,7 +304,7 @@ export function IssueDrawer(props: {
 
           {!create && (
             <div className={FIELD}>
-              <span className={`${KICKER} text-muted ${KB_LABEL}`}>
+              <span className={`${FIELD_LABEL} ${KB_LABEL}`}>
                 {kanban.detail.statusLabel}
                 <span className={`keys-only text-muted ${KB_HINT}`}>←/→</span>
               </span>
@@ -336,7 +336,7 @@ export function IssueDrawer(props: {
           {startable ? (
             <>
               <div className={FIELD}>
-                <span className={`${KICKER} text-muted ${KB_LABEL}`}>
+                <span className={`${FIELD_LABEL} ${KB_LABEL}`}>
                   {kanban.detail.engine}
                   <span className={`keys-only text-muted ${KB_HINT}`}>←/→</span>
                 </span>
@@ -375,7 +375,7 @@ export function IssueDrawer(props: {
                 </SelectorField>
               </div>
               <div className={FIELD}>
-                <span className={`${KICKER} text-muted ${KB_LABEL}`}>
+                <span className={`${FIELD_LABEL} ${KB_LABEL}`}>
                   {kanban.detail.workspace}
                   <span className={`keys-only text-muted ${KB_HINT}`}>↑/↓</span>
                 </span>
@@ -404,7 +404,7 @@ export function IssueDrawer(props: {
                 </SelectorField>
               </div>
               <div className={FIELD}>
-                <span className={`${KICKER} text-muted ${KB_LABEL}`}>
+                <span className={`${FIELD_LABEL} ${KB_LABEL}`}>
                   {kanban.detail.jumpLabel}
                   <span className={`keys-only text-muted ${KB_HINT}`}>←/→</span>
                 </span>
@@ -449,7 +449,7 @@ export function IssueDrawer(props: {
           ) : linkedTaskId ? (
             <>
               <div className={FIELD}>
-                <span className={`${KICKER} text-muted`}>{kanban.detail.sessionLabel}</span>
+                <span className={`${FIELD_LABEL}`}>{kanban.detail.sessionLabel}</span>
                 <div className={`${CHIPS_ROW} ${KB_GROUP}`}>
                   <button
                     ref={at("open")}
