@@ -4,8 +4,8 @@
  * its path into the task's engine, as a dropped image does.
  */
 
-import { type MouseEvent, type PointerEvent, type RefObject, useState } from "react"
-import { captureElement } from "./browser-capture.ts"
+import { type MouseEvent, type PointerEvent, type RefObject, useRef, useState } from "react"
+import { captureBackdropWithMarks, captureElement } from "./browser-capture.ts"
 import { browserHost } from "./browser-tabs.ts"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
@@ -42,6 +42,7 @@ export function BrowserAnnotate({
   taskId,
   url,
   target,
+  backdrop,
   onClose,
 }: {
   model: AppModel
@@ -49,6 +50,8 @@ export function BrowserAnnotate({
   url: string
   /** What the picture is cut to: the frame and this layer. */
   target: RefObject<HTMLDivElement | null>
+  /** Native desktop snapshot data URL when annotating a `WebContentsView` (skips `getDisplayMedia`). */
+  backdrop?: string
   onClose: () => void
 }) {
   const [tool, setTool] = useState<Tool>("pen")
@@ -56,6 +59,7 @@ export function BrowserAnnotate({
   const [draft, setDraft] = useState<Mark | null>(null)
   const [typing, setTyping] = useState<{ x: number; y: number } | null>(null)
   const [busy, setBusy] = useState(false)
+  const svgRef = useRef<SVGSVGElement>(null)
 
   const at = (e: PointerEvent<SVGSVGElement> | MouseEvent<SVGSVGElement>) => {
     const box = e.currentTarget.getBoundingClientRect()
@@ -95,7 +99,11 @@ export function BrowserAnnotate({
     // The bar is hidden while the browser asks, so it is not in the picture.
     setBusy(true)
     try {
-      await dropFiles(model.client, handle, [await captureElement(el, `browser-${browserHost(url)}.png`)])
+      const fileName = `browser-${browserHost(url)}.png`
+      const file = backdrop
+        ? await captureBackdropWithMarks(backdrop, svgRef.current, fileName)
+        : await captureElement(el, fileName)
+      await dropFiles(model.client, handle, [file])
       onClose()
     } catch (err) {
       // Saying no to the browser's question is an answer, not a failure.
@@ -108,8 +116,10 @@ export function BrowserAnnotate({
 
   return (
     <>
+      {backdrop && <img src={backdrop} alt="" className="size-full object-contain" />}
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: drawing is a pointer's job; the bar's buttons take keys */}
       <svg
+        ref={svgRef}
         className={ANNOTATE_LAYER}
         aria-label={t("browser.annotate")}
         onPointerDown={down}

@@ -20,6 +20,7 @@ import {
   normalizePath,
   normalizeUrl,
 } from "./browser-url.ts"
+import { hasDesktopBrowser } from "./desktop-browser.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { usePagePorts } from "./ports-strip.tsx"
@@ -38,6 +39,7 @@ import {
 } from "./ui/panel.ts"
 import { ROW_TITLE, rowClass } from "./ui/row.ts"
 import { useFrameProbe } from "./use-frame-probe.ts"
+import { useNativeBrowser } from "./use-native-browser.ts"
 
 function Glyph({ d }: { d: string }) {
   return (
@@ -106,10 +108,12 @@ export function BrowserView({
   const [problem, setProblem] = useState<"invalid" | "outside" | null>(null)
   const [reloads, setReloads] = useState(0)
   const [annotating, setAnnotating] = useState(false)
+  const [nativeBackdrop, setNativeBackdrop] = useState<string | undefined>(undefined)
   const stage = useRef<HTMLDivElement>(null)
   const bar = useRef<HTMLInputElement>(null)
   const peerLocal = useStore(model.client.conn).hello?.peer?.local
-  const verdict = url && path === null ? canFrame(url, window.location, peerLocal) : null
+  const isNative = hasDesktopBrowser()
+  const verdict = url && path === null ? canFrame(url, window.location, peerLocal, isNative) : null
 
   // An address set from outside (`rove api panel-show`, Files, back / forward) loads like a typed one.
   useEffect(() => {
@@ -129,6 +133,23 @@ export function BrowserView({
   }, [])
   const shownDraft = path === null || editing || !bar.current ? draft : elideToBar(bar.current, draft, barWidth)
 
+  // An https page is asked first (`browser.probe`) only in iframe mode: native WebContentsView has no frame block.
+  const host = verdict ? new URL(url).hostname : ""
+  const needsProbe = !isNative && verdict === "yes" && url.startsWith("https:") && !isLoopbackHost(host)
+  const { pending, probe } = useFrameProbe(model.client, url, needsProbe)
+  const note = url && verdict ? frameNote(url, verdict, probe) : null
+  const framed = verdict === "yes" && !note && !pending
+  const native = useNativeBrowser({
+    taskId,
+    tabId: tab.id,
+    url,
+    enabled: isNative && path === null && framed,
+    shown,
+    paused: annotating,
+    stage,
+    onUrlSync: onNavigate,
+  })
+
   const load = (input: string) => {
     const file = normalizePath(input, root)
     const next = file === "outside" ? null : (file ?? normalizeUrl(input))
@@ -137,16 +158,38 @@ export function BrowserView({
     if (next === null) return
     if (next === url) {
       setDraft(address)
-      setReloads(reloads + 1)
-    } else onNavigate(next)
+      if (native && path === null) native.reload()
+      else setReloads(reloads + 1)
+    } else {
+      onNavigate(next)
+      if (native && filePath(next) === null) native.navigate(next)
+    }
   }
 
-  // An https page is asked first (`browser.probe`): a site that forbids framing never gets an iframe.
-  const host = verdict ? new URL(url).hostname : ""
-  const needsProbe = verdict === "yes" && url.startsWith("https:") && !isLoopbackHost(host)
-  const { pending, probe } = useFrameProbe(model.client, url, needsProbe)
-  const note = url && verdict ? frameNote(url, verdict, probe) : null
-  const framed = verdict === "yes" && !note && !pending
+  const toggleAnnotate = () => {
+    if (annotating) {
+      setAnnotating(false)
+      setNativeBackdrop(undefined)
+      return
+    }
+    if (native) {
+      void native.captureDataUrl().then(
+        (dataUrl) => {
+          setNativeBackdrop(dataUrl)
+          setAnnotating(true)
+        },
+        () => {
+          setNativeBackdrop(undefined)
+          setAnnotating(false)
+        },
+      )
+      return
+    }
+    setAnnotating(true)
+  }
+
+  const backDisabled = native && path === null ? !native.state?.canGoBack : tab.at <= 0
+  const forwardDisabled = native && path === null ? !native.state?.canGoForward : tab.at >= tab.urls.length - 1
   const message = note
     ? t(`browser.${note.key}`, { host: note.host })
     : verdict === null && path === null
@@ -165,20 +208,20 @@ export function BrowserView({
         <button
           type="button"
           className={iconButton({ small: true })}
-          disabled={tab.at <= 0}
+          disabled={backDisabled}
           title={t("browser.back")}
           aria-label={t("browser.back")}
-          onClick={() => onStep(tab.at - 1)}
+          onClick={() => (native && path === null ? native.goBack() : onStep(tab.at - 1))}
         >
           <Glyph d="M10 3.5 5.5 8l4.5 4.5" />
         </button>
         <button
           type="button"
           className={iconButton({ small: true })}
-          disabled={tab.at >= tab.urls.length - 1}
+          disabled={forwardDisabled}
           title={t("browser.forward")}
           aria-label={t("browser.forward")}
-          onClick={() => onStep(tab.at + 1)}
+          onClick={() => (native && path === null ? native.goForward() : onStep(tab.at + 1))}
         >
           <Glyph d="M6 3.5 10.5 8 6 12.5" />
         </button>
@@ -188,7 +231,7 @@ export function BrowserView({
           disabled={!framed && path === null}
           title={t("browser.reload")}
           aria-label={t("browser.reload")}
-          onClick={() => setReloads(reloads + 1)}
+          onClick={() => (native && path === null ? native.reload() : setReloads(reloads + 1))}
         >
           <Glyph d="M12.5 8a4.5 4.5 0 1 1-1.4-3.3M12.5 2.5v2.7H9.8" />
         </button>
@@ -207,14 +250,27 @@ export function BrowserView({
           inputMode="url"
           onChange={(e) => setDraft(e.target.value)}
         />
-        {canCapture() && (
+        {native?.state && framed && (
+          <Button
+            variant="pill"
+            aria-current={native.state.owner === "agent" ? "true" : undefined}
+            title={
+              native.state.handoffReason ??
+              (native.state.owner === "agent" ? t("browser.takeControl") : t("browser.handToAgent"))
+            }
+            onClick={() => native.toggleHandoff()}
+          >
+            {native.state.owner === "agent" ? t("browser.takeControl") : t("browser.handToAgent")}
+          </Button>
+        )}
+        {(canCapture() || isNative) && (
           <Button
             variant={annotating && framed ? "iconOn" : "icon"}
             disabled={!framed}
             title={t("browser.annotate")}
             aria-label={t("browser.annotate")}
             aria-pressed={annotating && framed}
-            onClick={() => setAnnotating(!annotating)}
+            onClick={toggleAnnotate}
           >
             <Glyph d="M3 13l.6-2.6L10.9 3.1l2 2L5.6 12.4zM9.6 4.4l2 2" />
           </Button>
@@ -247,15 +303,17 @@ export function BrowserView({
           onClose={onClose}
         />
       ) : framed ? (
-        <div ref={stage} className={BROWSER_STAGE}>
-          <iframe
-            key={`${url}#${reloads}`}
-            className={BROWSER_FRAME}
-            src={url}
-            title={url}
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-            referrerPolicy="no-referrer"
-          />
+        <div ref={stage} className={BROWSER_STAGE} data-native-browser={native?.state?.id ?? undefined}>
+          {!isNative && (
+            <iframe
+              key={`${url}#${reloads}`}
+              className={BROWSER_FRAME}
+              src={url}
+              title={url}
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+              referrerPolicy="no-referrer"
+            />
+          )}
           {annotating && (
             <BrowserAnnotate
               // Marks belong to the page they were drawn on.
@@ -264,7 +322,11 @@ export function BrowserView({
               taskId={taskId}
               url={url}
               target={stage}
-              onClose={() => setAnnotating(false)}
+              backdrop={nativeBackdrop}
+              onClose={() => {
+                setAnnotating(false)
+                setNativeBackdrop(undefined)
+              }}
             />
           )}
         </div>

@@ -93,3 +93,47 @@ export async function captureElement(el: HTMLElement, name: string): Promise<Fil
     for (const track of stream.getTracks()) track.stop()
   }
 }
+
+/** Composite a captured native `WebContentsView` PNG with any drawn SVG marks, with no screen-share prompt. */
+export async function captureBackdropWithMarks(
+  backdropDataUrl: string,
+  svg: SVGSVGElement | null,
+  name: string,
+): Promise<File> {
+  const img = new Image()
+  img.src = backdropDataUrl
+  await img.decode()
+  const canvas = document.createElement("canvas")
+  canvas.width = img.naturalWidth || img.width
+  canvas.height = img.naturalHeight || img.height
+  const ctx = canvas.getContext("2d")
+  if (!ctx) throw new Error("canvas unavailable")
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+  if (svg) {
+    const rect = svg.getBoundingClientRect()
+    const clone = svg.cloneNode(true) as SVGSVGElement
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg")
+    clone.setAttribute("width", String(rect.width || canvas.width))
+    clone.setAttribute("height", String(rect.height || canvas.height))
+    const color = getComputedStyle(svg).stroke || "#e5734a"
+    clone.setAttribute("stroke", color)
+    clone.setAttribute("fill", "none")
+    clone.setAttribute("stroke-width", "2.5")
+    clone.setAttribute("stroke-linecap", "round")
+    clone.setAttribute("stroke-linejoin", "round")
+    const blobUrl = URL.createObjectURL(
+      new Blob([new XMLSerializer().serializeToString(clone)], { type: "image/svg+xml" }),
+    )
+    try {
+      const overlay = new Image()
+      overlay.src = blobUrl
+      await overlay.decode()
+      ctx.drawImage(overlay, 0, 0, canvas.width, canvas.height)
+    } finally {
+      URL.revokeObjectURL(blobUrl)
+    }
+  }
+  const blob = await new Promise<Blob | null>((done) => canvas.toBlob(done, "image/png"))
+  if (!blob) throw new Error("empty capture")
+  return new File([blob], name, { type: "image/png" })
+}

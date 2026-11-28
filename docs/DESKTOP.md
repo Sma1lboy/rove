@@ -139,13 +139,20 @@ count, swapped and compressed pages included), on Linux resident plus swap, on
 Windows Electron's working set without the bridge. A process past 2 GB gets its own
 `WARN` line. The file rolls to `desktop.log.1` at 5 MB. Bridge tokens never reach it.
 
+## Native side-panel browser and `rove api web`
+
+Inside the desktop app, the side-panel Browser upgrades automatically from an `<iframe>` to a native Electron `WebContentsView`:
+
+- **No iframe blocking** — sites sending `X-Frame-Options` or `CSP frame-ancestors` (as well as plain `http://` pages) render normally; only Rove's own bridge origin is refused.
+- **Real Chromium navigation** — Back and Forward drive `WebContents.navigationHistory` across cross-origin links and redirects, syncing the address bar and tab label.
+- **Persistent session** — browser tabs share the isolated `persist:rove-browser` partition, keeping logins and cookies across restarts without touching Rove's own bridge session.
+- **Local agent automation and handoff** — the app serves an owner-only local IPC socket (`~/.rove/desktop-browser.sock`, or a named pipe on Windows; override via `ROVE_DESKTOP_BROWSER_SOCKET_PATH`) for `rove api web <tab|nav|snap|batch|eval|fetch|handoff>`. Agents in the same workspace can take compact accessibility snapshots (`snap --interactive --root @eN`), navigate, evaluate JS, run multi-step batches, fetch using the live session's cookies, and hand a live logged-in tab back and forth with the human (`tab handoff <id>` or the toolbar's **Hand to agent** / **Agent · Take control** button).
+
+In browser-only `rove --web` mode (outside Electron), the side panel falls back gracefully to the existing `<iframe>` view and frame probe.
+
 ## Security posture
 
-The renderer is an ordinary page: no preload, no IPC channel, `contextIsolation`
-and `sandbox` on, `nodeIntegration` off. Navigation is locked to the bridge's own
-origin — anything else opens in the browser. Permissions are default-deny except
-notifications and the clipboard, and only for that origin. The page's URL carries
-the pairing token; the app never logs it and never writes it down.
+The renderer keeps `contextIsolation` and `sandbox` on with `nodeIntegration` off. Navigation on the main window is locked to the bridge's own origin — anything else opens in the system browser. A minimal sandboxed preload (`dist/preload.js`) exposes only the side-panel browser control methods to the main window, and every main-process IPC handler verifies that `senderFrame.url` matches the active local bridge origin. Embedded `WebContentsView` tabs run with no preload in the separate `persist:rove-browser` partition with restricted permissions. Permissions on the default session are default-deny except notifications and the clipboard, and only for the bridge origin. The page's URL carries the pairing token; the app never logs it and never writes it down. The local browser IPC socket is created `0600` inside `~/.rove`.
 
 ## Chords
 

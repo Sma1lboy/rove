@@ -1,7 +1,7 @@
-/** Bundle the main process for Electron: one CJS file, `electron` left to the runtime. */
+/** Bundle the main process and sandboxed preload for Electron: CJS files, `electron` left to the runtime. */
 
 const result = await Bun.build({
-  entrypoints: ["src/main.ts"],
+  entrypoints: ["src/main.ts", "src/preload.ts"],
   outdir: "dist",
   target: "node",
   format: "cjs",

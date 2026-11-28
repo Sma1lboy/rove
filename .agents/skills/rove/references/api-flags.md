@@ -156,6 +156,12 @@ tab-split          --task-id(REQ) --tab(REQ) --action{open|close|rename|reset}(R
                    --direction{right|down}(right) --leaf --title --cols --rows
 tab-revive         --task-id(REQ) --tab(REQ) --restart-exited
 panel-show         --task-id --view{browser|files|diff}(REQ) --url --path
+web                --action{tab|nav|snap|batch|eval|fetch|handoff}(REQ)
+                   --tab-action{list|new|close|focus|handoff}(list) --id --task-id --url
+                   --go{back|forward|reload}
+                   --wait-until{load|domcontentloaded|none}(load) --interactive --root
+                   --max-nodes --expr --await(true) --steps --steps-file --method(GET)
+                   --headers --body --owner{human|agent} --reason --timeout
 notify             --title(REQ) --body --kind(done) --task-id --source
 prompt             --title(REQ) --placeholder --initial --timeout
 engine-report      --task-id
@@ -499,6 +505,7 @@ Errors go to stderr as `{"error":{"message","code",...}}`. Most carry `hint`
 | `INVALID_WORKTREE_NAME` | `--worktree-name` is not one plain path segment | letters/digits/`.`/`_`/`-`, not starting with `.` |
 | `NO_LOCAL_CHECKOUT` | `add --repo <id>`, and this machine has no checkout of it | `--clone`, or `--repo` with a checkout's path |
 | `CLONE_FAILED` | `--clone` could not `git clone` the repo | check `git ls-remote <url>` there, or clone by hand and pass the path |
+| `DESKTOP_UNAVAILABLE` | `web` called when `rove-desktop` is not running | open `rove-desktop`, or use `panel-show` for browser-only `rove --web` |
 
 Daemon-side refusals carry their OWN code (`DIRTY_WORKTREE`, `LAND_CONFLICT`,
 `MISSING_REF`, `GIT_COMMAND_FAILED`, …), not `RPC_ERROR`. Match on `code`; the

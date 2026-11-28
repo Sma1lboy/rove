@@ -16,6 +16,7 @@ import {
   ROVE_API_VERSION,
 } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { REPEAT_SEP, VerbArgs, parseFlags, validateAgainstSpec } from "./flags.ts"
+import { normalizeWebArgv } from "./handlers-web.ts"
 import { defaultApiRuntime } from "./runtime.ts"
 import {
   type ApiCaller,
@@ -181,7 +182,11 @@ export async function runVerb(verbName: string, input: VerbInput, deps: VerbDeps
   }
   const flags =
     "argv" in input
-      ? parseFlags(input.argv, booleanFlagsOf(verb), repeatableFlagsOf(verb)).flags
+      ? parseFlags(
+          verb.name === "web" ? normalizeWebArgv(input.argv) : input.argv,
+          booleanFlagsOf(verb),
+          repeatableFlagsOf(verb),
+        ).flags
       : paramsToFlags(verb, input.params)
   validateAgainstSpec(verb, flags)
   return callVerb(verb, flags, deps)
@@ -200,6 +205,7 @@ export async function executeVerb(verbName: string, input: VerbInput, deps: Verb
 export function argvToParams(verbName: string, argv: readonly string[]): ApiParams {
   const verb = findVerb(verbName)
   if (!verb) throw unknownVerbError(verbName)
-  const { flags } = parseFlags(argv, booleanFlagsOf(verb), repeatableFlagsOf(verb))
+  const normalized = verb.name === "web" ? normalizeWebArgv(argv) : argv
+  const { flags } = parseFlags(normalized, booleanFlagsOf(verb), repeatableFlagsOf(verb))
   return Object.fromEntries(flags)
 }

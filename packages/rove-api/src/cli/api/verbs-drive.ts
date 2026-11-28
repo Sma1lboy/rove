@@ -16,6 +16,7 @@ import { RESUME_QUOTA_VERB } from "./handlers-resume-quota.ts"
 import { ROW_TOKEN_VERB } from "./handlers-row-token.ts"
 import { TAB_REVIVE_VERB } from "./handlers-tab-revive.ts"
 import { DISPATCH_VERB, note, send, setActive } from "./handlers-tasks.ts"
+import { WEB_VERB } from "./handlers-web.ts"
 import { ApiError, helpStep } from "./types.ts"
 import type { VerbSpec } from "./types.ts"
 
@@ -150,6 +151,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
   TAB_SPLIT_VERB,
   TAB_REVIVE_VERB,
   PANEL_SHOW_VERB,
+  WEB_VERB,
   {
     name: "notify",
     group: "drive",

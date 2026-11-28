@@ -3,14 +3,18 @@
  * installed (`bridge.ts` spawns `rove --web` on loopback). No client code lives here — the page,
  * the daemon and the terminal are the ones the TUI and the phones use.
  *
- * Renderer stays a plain page: no preload, no IPC, `contextIsolation` on, navigation locked to the
- * bridge's own origin, everything else handed to the browser.
+ * Renderer keeps `contextIsolation` and `sandbox` on with `nodeIntegration` off, navigation locked
+ * to the bridge's own origin, and a narrow origin-checked preload solely for the native side-panel
+ * `WebContentsView` browser (`browser-manager.ts`, `browser-ipc.ts`).
  */
 
 import { readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { BrowserWindow, Menu, type MenuItemConstructorOptions, app, dialog, screen, session, shell } from "electron"
 import { type Started, findRove, redact, rememberRove, start } from "./bridge"
+import { type BrowserIpcServer, startBrowserIpcServer } from "./browser-ipc"
+import { BrowserManager } from "./browser-manager"
+import { registerBrowserRendererIpc } from "./browser-renderer-ipc"
 import { openLog, watchMemory, writeLog } from "./memory-log"
 import { type Setup, openSetup } from "./setup"
 
@@ -33,6 +37,10 @@ let quitting = false
 let setup: Setup | null = null
 /** The start in flight, so a Dock click during it does not start a second bridge. */
 let booting: Promise<void> | null = null
+let lockedOrigin: string | null = null
+let webContentsGuardInstalled = false
+const browserManager = new BrowserManager(log)
+let browserIpc: BrowserIpcServer | null = null
 
 const binFile = () => join(app.getPath("userData"), "rove-binary.txt")
 const stateFile = () => join(app.getPath("userData"), "window.json")
@@ -84,10 +92,11 @@ function rememberBounds(window: BrowserWindow): void {
 
 /** Only the bridge's own origin may ask for anything; everything else is a browser's job. */
 function lockDown(origin: string): void {
+  lockedOrigin = origin
   const ours = (url: string | undefined): boolean => {
-    if (!url) return false
+    if (!url || !lockedOrigin) return false
     try {
-      return new URL(url).origin === origin
+      return new URL(url).origin === lockedOrigin
     } catch {
       return false
     }
@@ -101,13 +110,18 @@ function lockDown(origin: string): void {
   session.defaultSession.setPermissionCheckHandler((_contents, permission, requestingOrigin) => {
     return allowed.has(permission) && ours(requestingOrigin)
   })
-  app.on("web-contents-created", (_event, contents) => {
-    contents.on("will-attach-webview", (event) => event.preventDefault())
-    contents.setWindowOpenHandler(({ url }) => {
-      if (!ours(url)) void shell.openExternal(url)
-      return { action: "deny" }
+  if (!webContentsGuardInstalled) {
+    webContentsGuardInstalled = true
+    app.on("web-contents-created", (_event, contents) => {
+      contents.on("will-attach-webview", (event) => event.preventDefault())
+      // Embedded browser WebContentsViews live in `persist:rove-browser` and register their own handler.
+      if (contents.session !== session.defaultSession) return
+      contents.setWindowOpenHandler(({ url }) => {
+        if (!ours(url)) void shell.openExternal(url)
+        return { action: "deny" }
+      })
     })
-  })
+  }
 }
 
 function createWindow(started: Started): void {
@@ -125,10 +139,18 @@ function createWindow(started: Started): void {
     ...(process.platform === "darwin"
       ? { titleBarStyle: "hiddenInset" as const, trafficLightPosition: { x: 14, y: 13 } }
       : { autoHideMenuBar: false }),
-    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: true },
+    webPreferences: {
+      preload: join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      spellcheck: true,
+    },
   })
   if (bounds.maximized) win.maximize()
   lockDown(started.origin)
+  browserManager.setWindow(win, started.origin)
+  registerBrowserRendererIpc(browserManager, () => bridge?.origin ?? lockedOrigin)
   win.once("ready-to-show", () => win?.show())
   // A page that never finishes loading must not stay an invisible process: show it anyway and let
   // the page's own connection banner say what is wrong.
@@ -157,6 +179,7 @@ function createWindow(started: Started): void {
   // macOS: closing the window leaves the app in the Dock with its bridge, and a Dock click brings the window back
   // (`showWindow`). Elsewhere close means quit: a windowless app there is a process the owner cannot see.
   win.on("closed", () => {
+    browserManager.setWindow(null, bridge?.origin ?? null)
     win = null
     if (!quitting && process.platform !== "darwin") app.quit()
   })
@@ -273,6 +296,13 @@ async function boot(): Promise<void> {
     return app.quit()
   }
   keepUp(bin, bridge)
+  if (!browserIpc) {
+    try {
+      browserIpc = await startBrowserIpcServer(browserManager, { log })
+    } catch (err) {
+      log(`browser IPC failed to start: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
   createWindow(bridge)
   log("window created")
   setup?.close()
@@ -425,6 +455,9 @@ if (!app.requestSingleInstanceLock()) {
   })
   app.on("before-quit", () => {
     quitting = true
+    browserManager.dispose()
+    void browserIpc?.close()
+    browserIpc = null
     bridge?.stop()
   })
 }

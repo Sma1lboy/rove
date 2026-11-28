@@ -185,6 +185,10 @@ export const en = {
     annotateDone: "Stop marking",
     noEngine: "Open an agent session in this task first; the picture goes into its prompt.",
     captureFailed: "Couldn't take a picture of the page: {error}",
+    handToAgent: "Hand to agent",
+    takeControl: "Agent · Take control",
+    handedToAgent: "Handed {id} to agent",
+    handedToHuman: "Took control of {id}",
   },
 }
 
@@ -374,5 +378,9 @@ export const zh: typeof en = {
     annotateDone: "结束标注",
     noEngine: "先在这个任务里打开一个 agent 会话；截图会进它的输入框。",
     captureFailed: "没能截下这个页面：{error}",
+    handToAgent: "交给代理",
+    takeControl: "代理控制中 · 接管",
+    handedToAgent: "已将 {id} 交给代理",
+    handedToHuman: "已接管 {id}",
   },
 }
