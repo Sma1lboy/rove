@@ -4,8 +4,8 @@
  * daemon's `task.snapshot` broadcasts of the polled `prStatus`.
  */
 
+import { invokeVerb } from "@sma1lboy/rove-api/cli/api-cmd.ts"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, expectApiError, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 function snapshot(...tasks: Record<string, unknown>[]) {
