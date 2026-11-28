@@ -5,7 +5,7 @@ function fit(bar: HTMLElement | null): void {
   const left = bar?.firstElementChild
   if (!bar || !left) return
   delete bar.dataset.tight
-  if (left.scrollWidth > left.clientWidth + 1) bar.dataset.tight = ""
+  if (left.scrollWidth > left.clientWidth) bar.dataset.tight = ""
 }
 
 /** Refits on every render (a label changed), on resize and once fonts land; toggling never resizes the bar itself. */

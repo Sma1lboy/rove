@@ -26,7 +26,7 @@ export const TIGHT_WORD = "group-data-tight/bar:sr-only"
 export const TIGHT_MARK = "hidden group-data-tight/bar:contents"
 /**
  * Where the task runs (left), then how (right): one row, never wrapped. A phone drops each chip's word instead
- * (`CHIP_WORD`); in a full row the left group gives up its room first, then the engine and model chips their words (`TIGHT_WORD`).
+ * (`CHIP_WORD`); in a full row the engine and model chips give up their words first (`TIGHT_WORD`), then the folder its tail.
  */
 export const BAR_GROUP = "flex min-w-0 items-center gap-1.5 narrow:flex-1"
 /** `group/end`: the right-hand chips, whose last popover opens leftward. */
@@ -65,12 +65,11 @@ export const DICTATE_PRESS = "touch-none select-none [-webkit-touch-callout:none
 
 /**
  * `group/chip`: the last popover of the right-hand group opens leftward from its chip's right edge; any other would
- * run under the rail. `yields` is the chip whose word shortens first in a full phone bar (the folder: the longest
- * name). It takes all the room the others leave, so no other chip gives up even a pixel before it, and on a phone
- * every gap in the row is the same.
+ * run under the rail. A phone chip is as wide as its word, so a full bar overflows and turns `data-tight`; only then
+ * does the `yields` one (the folder, the longest name) shorten into what the engine and model words gave back.
  */
 export const chipWrap = (yields = false): string =>
-  `group/chip relative inline-flex ${CHIP_FLOOR} ${yields ? "narrow:flex-[1_1_0] narrow:[&>button]:flex-1" : ""}`
+  `group/chip relative inline-flex ${CHIP_FLOOR} narrow:shrink-0 ${yields ? "group-data-tight/bar:shrink" : ""}`
 export const POP =
   "absolute bottom-[calc(100%+6px)] left-0 z-20 flex max-h-[min(50vh,420px)] max-w-[min(52ch,calc(100vw-16px))] min-w-[min(34ch,calc(100vw-16px))] flex-col overflow-hidden rounded-md border-hairline border-line-active bg-surface shadow-popover group-[&]/end:group-last-of-type/chip:right-0 group-[&]/end:group-last-of-type/chip:left-auto"
 

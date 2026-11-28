@@ -6,5 +6,12 @@ export function ComposerToggle({
   on,
   ...rest
 }: { on: boolean } & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "className" | "type">) {
-  return <button type="button" className={`${chipClass(on)} ${TOGGLE_DISABLED}`} aria-pressed={on} {...rest} />
+  return (
+    <button
+      type="button"
+      className={`${chipClass(on)} ${TOGGLE_DISABLED} narrow:shrink-0`}
+      aria-pressed={on}
+      {...rest}
+    />
+  )
 }
