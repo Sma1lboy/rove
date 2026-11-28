@@ -14,8 +14,8 @@ import {
   isEnginePlaceholderTitle,
   stripEngineStatusPrefix,
 } from "../engine/registry"
+import { t } from "../i18n"
 import { pathLeaf } from "../lib/path-helpers"
-import { t } from "../tui/i18n"
 import { type SplitState, leaves } from "./split-core"
 import type { TerminalTab } from "./terminal-tabs-core"
 

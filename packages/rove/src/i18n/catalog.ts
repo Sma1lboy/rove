@@ -2,7 +2,7 @@
  * Composes the per-namespace `./messages/` files (one per surface, so
  * translation work parallelizes) into `en` / `zh` trees. English is the SOURCE
  * OF TRUTH; `zh` must carry the exact key set, enforced by `bun run check-i18n`
- * and `test/tui/i18n-catalog.test.ts`, including `{placeholder}`s. Pure data,
+ * and `test/i18n/catalog.test.ts`, including `{placeholder}`s. Pure data,
  * vitest-safe (the `t()` runtime is `./index.ts`). Prose is translated;
  * literal config syntax (YAML keys, shell commands) stays in the calling code.
  */

@@ -22,8 +22,8 @@ import { formatBytes } from "../lib/format-bytes.ts"
 import { skillOverview } from "../lib/skill-install.ts"
 import { readableLegacyIndexPath } from "../orchestrator/index/store-codec.ts"
 
+import { t } from "../i18n"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
-import { t } from "../tui/i18n"
 import { CURRENT_VERSION } from "../version.ts"
 import { MIN_BUN_VERSION, isBunAtLeast } from "./bun-runtime.ts"
 import {

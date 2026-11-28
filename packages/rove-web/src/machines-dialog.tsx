@@ -5,7 +5,7 @@
  * already knows (`machines.list`, the task feed, `machines.repos`): nothing about load or disk.
  */
 
-import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
+import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/i18n/messages/tasks.ts"
 import { useEffect, useState } from "react"
 import type { TaskRow } from "rove-bridge/protocol"
 import { DialogShell } from "./dialogs.tsx"

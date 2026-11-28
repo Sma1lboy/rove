@@ -11,11 +11,11 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { basename, join } from "node:path"
+import { t } from "../i18n"
 import type { ProductCliName } from "../product.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { loadStateFile, patchStateFile } from "../state/store.ts"
 import type { OnboardingChoices } from "../tui-react/onboarding/host.tsx"
-import { t } from "../tui/i18n"
 import { type ShellKind, isShellKind, shippedCompletionsPath } from "./completion-scripts.ts"
 
 /** Completions the user accepted, deferred until the TUI releases the terminal. */

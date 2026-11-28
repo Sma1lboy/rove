@@ -1,4 +1,4 @@
-import { t } from "../tui/i18n"
+import { t } from "../i18n"
 
 /** Preserve RPC remediation when present; unknown failures start with read-only diagnosis. */
 export function failureHint(error: unknown, cliName = "rove"): string {

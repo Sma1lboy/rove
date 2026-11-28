@@ -5,7 +5,7 @@
  * web client); this file binds the description to the TUI's `t`.
  */
 
-import { t } from "@/tui/i18n"
+import { t } from "@/i18n"
 import { describeCronWith } from "./cron-core"
 
 export {

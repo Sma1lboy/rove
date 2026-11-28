@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs"
 import { isDiskFull, userFacingErrorMessage } from "@/lib/error-message"
-import { t } from "../../tui/i18n"
+import { t } from "../../i18n"
 import { detectWorktreeOpener, openWorktree } from "../../tui/lib/worktree-opener"
 import type { Task } from "../../types/task"
 

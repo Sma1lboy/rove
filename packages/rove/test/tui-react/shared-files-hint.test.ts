@@ -1,6 +1,6 @@
 import { expect, test } from "vitest"
+import { t } from "../../src/i18n"
 import { showSharedFilesHint } from "../../src/tui-react/workspace/shared-files-hint"
-import { t } from "../../src/tui/i18n"
 
 test("the shared-files hint is persisted once across tab mounts", () => {
   const store = new Map<string, unknown>()

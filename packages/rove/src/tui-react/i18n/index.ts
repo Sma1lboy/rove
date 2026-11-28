@@ -8,11 +8,11 @@
  */
 
 import { useCallback } from "react"
-import { currentLang, localeState, setLocaleLang, t, tKeys } from "../../tui/i18n"
+import { currentLang, localeState, setLocaleLang, t, tKeys } from "../../i18n"
 import { useAccessor } from "../lib/use-accessor"
 
-export { DEFAULT_LOCALE, isLocaleId } from "../../tui/i18n/catalog"
-export type { LocaleId } from "../../tui/i18n/catalog"
+export { DEFAULT_LOCALE, isLocaleId } from "../../i18n/catalog"
+export type { LocaleId } from "../../i18n/catalog"
 export { currentLang, setLocaleLang, t, tKeys }
 
 /** Subscribe the component to the active language. */

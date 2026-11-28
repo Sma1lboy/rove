@@ -105,6 +105,8 @@ worktree on the shared branch name. `taskRepos(task)` (in `rove-daemon`'s
     than testing `task.kind`.
   - `src/client/` — framework-free remote Orchestrator client and channel
     stores.
+  - `src/i18n/` — the message catalogs and `t()`, shared by the TUI, the CLI
+    and the web client.
   - `src/theme/` — opentui-free theme data: the JSON shape, bundled palettes,
     loader, installer and hex resolver that `rove api` and the bridge read.
     Resolving to drawable colors stays in `tui/context/theme-core.ts`.
@@ -221,8 +223,7 @@ this capability refuse capped launches rather than opening without admission.
   framework-free `src/tui/**` modules.
 - Core code (`src/**` outside `tui/`, `tui-react/`, `bundled-plugins/` and the
   `cli/*.ts` entry files) never imports `src/tui*`, so it can split into its own
-  package; `test/architecture/core-off-tui.test.ts` holds the shrink-only list
-  of files not yet moved off it.
+  package (`test/architecture/core-off-tui.test.ts`).
 
 ## 6. State
 

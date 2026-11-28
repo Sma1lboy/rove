@@ -10,8 +10,8 @@
  */
 
 import { expect, test } from "bun:test"
+import { currentLang, setLocaleLang } from "../../src/i18n"
 import { VersionsPage } from "../../src/tui-react/component/versions-page"
-import { currentLang, setLocaleLang } from "../../src/tui/i18n"
 import type { ReleaseNotes, ReleaseSummary } from "../../src/version.ts"
 import { act, renderComponent, waitForFrameText } from "./harness"
 

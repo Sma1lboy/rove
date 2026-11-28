@@ -81,8 +81,8 @@ test/state/project-eligibility.test.ts
 test/state/repos-roots.test.ts
 test/state/repos.test.ts
 test/tui-react/file-open-actions.test.ts
-test/tui-react/ops-preview-core.test.ts
-test/tui-react/ops-preview-paths.test.ts
+test/worktree/preview-core.test.ts
+test/worktree/preview-paths.test.ts
 test/lib/attachments.test.ts
 test/tui/pty-dispatch-budget.test.ts
 test/tui/render-path-sync-guard.test.ts

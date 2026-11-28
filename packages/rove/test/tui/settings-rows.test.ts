@@ -7,6 +7,7 @@
 
 import { describe, expect, it } from "vitest"
 import { humanizeSlug } from "../../src/engine/interactive-command.ts"
+import { LOCALES } from "../../src/i18n/catalog.ts"
 import {
   SECTIONS,
   type SettingsRowsInput,
@@ -21,7 +22,6 @@ import {
   rowIndex,
   sectionRows,
 } from "../../src/tui/component/settings-dialog/model.ts"
-import { LOCALES } from "../../src/tui/i18n/catalog.ts"
 import { ALL_VENDORS } from "../../src/types/vendor.ts"
 
 /** Language picker rows sit right after the theme list — count them in the offsets. */

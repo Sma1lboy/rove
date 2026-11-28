@@ -1,5 +1,5 @@
+import { t } from "@/i18n"
 import { type RowTone, rowStatusGlyph } from "@/lib/row-status-glyph"
-import { t } from "@/tui/i18n"
 import { breathGlyph } from "@/tui/lib/breathe"
 import { DEFAULT_GLYPHS, type GlyphSet } from "@/tui/lib/glyphs"
 import type { Task } from "@/types/task"

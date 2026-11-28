@@ -7,6 +7,7 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import { tKeys } from "../../../i18n"
 import { tildify } from "../../../lib/path-home"
 import {
   keybindingRowId,
@@ -16,7 +17,6 @@ import {
 } from "../../../tui/component/settings-dialog/model"
 import { findBinding } from "../../../tui/context/keybindings"
 import { userKeybindingsReport } from "../../../tui/context/keybindings-user"
-import { tKeys } from "../../../tui/i18n"
 import { PREFIX_KEY_ID } from "../../../tui/lib/chord-recorder"
 import { editableBindings } from "../../../tui/lib/editable-bindings"
 import { groupBindings } from "../../../tui/lib/help-groups"

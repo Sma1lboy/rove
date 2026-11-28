@@ -5,10 +5,10 @@
  * English is the source of truth; this fails (exit 1) if any locale is missing
  * a key, carries an extra key, has an empty value, or drops a `{placeholder}`
  * that English declares. The same invariants are gated in CI by
- * `test/tui/i18n-catalog.test.ts`; this script is the fast local pre-commit run.
+ * `test/i18n/catalog.test.ts`; this script is the fast local pre-commit run.
  */
 
-import { CATALOGS, LOCALES, en } from "../src/tui/i18n/catalog.ts"
+import { CATALOGS, LOCALES, en } from "../src/i18n/catalog.ts"
 
 function flatten(obj: unknown, prefix = ""): Record<string, string> {
   const out: Record<string, string> = {}

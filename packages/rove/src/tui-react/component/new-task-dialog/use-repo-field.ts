@@ -10,6 +10,7 @@
  */
 
 import { useMemo, useState } from "react"
+import { t } from "../../../i18n"
 import { expandHome, joinPicked, stripTrailingSlash } from "../../../lib/path-helpers"
 import {
   type RepoResolution,
@@ -27,7 +28,6 @@ import {
   stripNewlines,
   windowAround,
 } from "../../../tui/component/new-task-dialog/state"
-import { t } from "../../../tui/i18n"
 import { useDerivedDir } from "./use-derived-dir"
 
 /** The picker row and field value for No folder: an empty field means a session in no project. */

@@ -4,11 +4,11 @@
  * the two clients cannot drift. Locale is the page's (Settings), not the TUI's.
  */
 
-import { en as helpEn, zh as helpZh } from "@sma1lboy/rove/src/tui/i18n/messages/help.ts"
-import { en as keysEn, zh as keysZh } from "@sma1lboy/rove/src/tui/i18n/messages/keys.ts"
-import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
-import { en as terminalEn, zh as terminalZh } from "@sma1lboy/rove/src/tui/i18n/messages/terminal.ts"
-import { en as workspaceEn, zh as workspaceZh } from "@sma1lboy/rove/src/tui/i18n/messages/workspace.ts"
+import { en as helpEn, zh as helpZh } from "@sma1lboy/rove/src/i18n/messages/help.ts"
+import { en as keysEn, zh as keysZh } from "@sma1lboy/rove/src/i18n/messages/keys.ts"
+import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/i18n/messages/tasks.ts"
+import { en as terminalEn, zh as terminalZh } from "@sma1lboy/rove/src/i18n/messages/terminal.ts"
+import { en as workspaceEn, zh as workspaceZh } from "@sma1lboy/rove/src/i18n/messages/workspace.ts"
 import { locale } from "./i18n/index.ts"
 
 function lookup(tree: unknown, key: string): string | undefined {

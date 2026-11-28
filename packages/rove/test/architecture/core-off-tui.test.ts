@@ -13,15 +13,6 @@ const SRC = fileURLToPath(new URL("../../src", import.meta.url))
 const UI_DIRS = ["tui", "tui-react", "bundled-plugins"]
 const UI_ROOTS = ["tui", "tui-react"].map((dir) => join(SRC, dir))
 
-/** Shrink-only: files that still import the TUI, waiting to be moved off it. */
-const NOT_YET_MOVED = new Set([
-  "lib/failure-hint.ts",
-  "lib/persisted-ui-prefs.ts",
-  "machines/remote-worktree.ts",
-  "tabs/terminal-tab-split.ts",
-  "worktree/review-read.ts",
-])
-
 const SPEC = /(?:from|import\()\s*["']([^"']+)["']/g
 
 function coreFiles(dir = SRC, acc: string[] = []): string[] {
@@ -47,15 +38,11 @@ function importsTui(file: string): boolean {
 }
 
 describe("core code does not import the TUI", () => {
-  const offenders = coreFiles()
-    .filter(importsTui)
-    .map((file) => relative(SRC, file))
-
-  test("no new core file imports src/tui or src/tui-react", () => {
-    expect(offenders.filter((file) => !NOT_YET_MOVED.has(file))).toEqual([])
-  })
-
-  test("a file moved off the TUI leaves the not-yet-moved list", () => {
-    expect([...NOT_YET_MOVED].filter((file) => !offenders.includes(file))).toEqual([])
+  test("no core file imports src/tui or src/tui-react", () => {
+    expect(
+      coreFiles()
+        .filter(importsTui)
+        .map((file) => relative(SRC, file)),
+    ).toEqual([])
   })
 })

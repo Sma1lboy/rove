@@ -5,8 +5,8 @@
  * `` `code` `` and `**bold**` — and built as React elements, never as HTML.
  */
 
+import { en as upEn, zh as upZh } from "@sma1lboy/rove/src/i18n/messages/update.ts"
 import { WEB_NOTE_CLIENTS, splitReleaseNotes } from "@sma1lboy/rove/src/lib/release-note-clients.ts"
-import { en as upEn, zh as upZh } from "@sma1lboy/rove/src/tui/i18n/messages/update.ts"
 import type { ReactNode } from "react"
 import { useLocale } from "./i18n/index.ts"
 import { RELEASE_MD, RELEASE_OTHER } from "./ui/update.ts"

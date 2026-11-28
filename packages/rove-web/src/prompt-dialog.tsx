@@ -4,7 +4,7 @@
  * one) goes back over `ui.promptReply`. The first client to answer wins; a later one is told so.
  */
 
-import { en as commonEn, zh as commonZh } from "@sma1lboy/rove/src/tui/i18n/messages/common.ts"
+import { en as commonEn, zh as commonZh } from "@sma1lboy/rove/src/i18n/messages/common.ts"
 import { useEffect, useRef, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { DialogActions, DialogShell, useSubmit } from "./dialogs.tsx"

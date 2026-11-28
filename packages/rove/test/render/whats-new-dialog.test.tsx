@@ -24,8 +24,8 @@
 
 import { afterEach, expect, test } from "bun:test"
 import { useState } from "react"
+import { currentLang, setLocaleLang } from "../../src/i18n"
 import { WhatsNewDialogView, useWhatsNewDialog } from "../../src/tui-react/component/whats-new-dialog"
-import { currentLang, setLocaleLang } from "../../src/tui/i18n"
 import type { ReleaseNotesRangeItem } from "../../src/version.ts"
 import { act, renderComponent, waitForFrameText } from "./harness"
 

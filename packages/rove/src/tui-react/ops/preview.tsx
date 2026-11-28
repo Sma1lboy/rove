@@ -16,6 +16,8 @@ import { openWithSystemViewer } from "../../lib/open-external"
 import { remotePreview } from "../../machines/remote-worktree.ts"
 import { bindByIds } from "../../tui/context/keybindings"
 import type { DiffReviewApi } from "../../tui/ops/diff-comments"
+import { buildSyntaxStyle } from "../../tui/ops/preview-syntax"
+import { worktreeFilePath } from "../../worktree/content"
 import {
   type PatchNote,
   type PreviewData,
@@ -26,9 +28,7 @@ import {
   loadPreviewData,
   patchFirstLine,
   unifiedDiffFiles,
-} from "../../tui/ops/preview-core"
-import { buildSyntaxStyle } from "../../tui/ops/preview-syntax"
-import { worktreeFilePath } from "../../worktree/content"
+} from "../../worktree/preview-core"
 import { useDiffInks } from "../context/diff-inks"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"

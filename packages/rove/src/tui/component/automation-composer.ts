@@ -8,7 +8,7 @@
  * to the TUI's `t` and locale.
  */
 
-import { intlLocale, t } from "@/tui/i18n"
+import { intlLocale, t } from "@/i18n"
 import { type SchedulePreview, previewScheduleWith } from "./cron-core"
 
 export {

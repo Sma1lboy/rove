@@ -10,7 +10,7 @@ export type Loaded =
   | { readonly kind: "rows"; readonly rows: DiffRow[]; readonly diff: boolean }
   | { readonly kind: "text"; readonly text: string; readonly error?: boolean }
 
-/** `diff.file` result (`PreviewData`, `tui/ops/preview-core.ts`) → what this view draws. */
+/** `diff.file` result (`PreviewData`, `worktree/preview-core.ts`) → what this view draws. */
 export function load(data: unknown, path: string, foreignBase: boolean): Loaded {
   if (!data || typeof data !== "object" || !("kind" in data)) return { kind: "text", text: t("preview.unknown") }
   const text = "text" in data && typeof data.text === "string" ? data.text : ""

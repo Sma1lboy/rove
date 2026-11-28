@@ -6,7 +6,7 @@
  * field over `mod.submit`; the redraw arrives as the next `mods` push.
  */
 
-import { en as modsEn, zh as modsZh } from "@sma1lboy/rove/src/tui/i18n/messages/mods.ts"
+import { en as modsEn, zh as modsZh } from "@sma1lboy/rove/src/i18n/messages/mods.ts"
 import {
   type ModControlRef,
   type ModNode,

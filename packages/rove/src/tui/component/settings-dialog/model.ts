@@ -17,10 +17,10 @@
  */
 
 import { AUTO_ROUTING_TIERS, type AutoRoutingTier } from "../../../engine/auto-routing"
-import type { VendorId } from "../../../types/vendor"
 // theme-core (not ../../context/theme): this module is shared with the
 // React port, which must not reference the Solid .tsx even type-only.
-import { LOCALES, type LocaleId } from "../../i18n/catalog"
+import { LOCALES, type LocaleId } from "../../../i18n/catalog"
+import type { VendorId } from "../../../types/vendor"
 import { PREFIX_KEY_ID } from "../../lib/chord-recorder"
 import { editableBindings } from "../../lib/editable-bindings"
 import { PREFIX_TAP_PRESENTATIONS, type PrefixTapPresentation } from "../../lib/prefix-tap-presentation"
