@@ -29,6 +29,7 @@ export function topLevelUsage(cliName: ProductCliName = ROVE_PRODUCT_NAME): stri
     "  repo <verb>             Per-repo init script + first prompt (show|set|unset)",
     `  api <verb>              Scriptable RPC surface for agents (see \`${cliName} api --help\`)`,
     "  daemon <verb>           Manage the daemon (start|stop|status|restart|autostart)",
+    "  gateway <verb>          Optional local loopback provider gateway (status|enable|add|set-key|…)",
     "  machine <verb>          Other computers running Rove (add|doctor|remove|list)",
     "  weixin <verb>           Talk to Rove from WeChat (login|logout|status|allow|deny|send|agent)",
     "  lark <verb>             Talk to Rove from Lark (connect|disconnect|status|allow|deny|tone)",

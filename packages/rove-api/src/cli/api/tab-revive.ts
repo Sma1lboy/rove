@@ -12,6 +12,7 @@ import type { HostedSessionRpc } from "@sma1lboy/rove-core/engine/hosted-session
 import { RemoteEngineLaunchError, buildEngineSessionLaunch } from "@sma1lboy/rove-core/engine/session-launch.ts"
 import { trustEngineWorktree } from "@sma1lboy/rove-core/engine/trust-worktree.ts"
 import { persistedMaxLiveEngines } from "@sma1lboy/rove-core/state/engine-limit.ts"
+import { type GatewayEndpointEnv, fetchHeadlessGatewayEnv } from "@sma1lboy/rove-core/state/provider-gateway.ts"
 import {
   type TabsRpc,
   markCliTabSession,
@@ -45,7 +46,7 @@ export interface RevivedTab {
 const NO_OP: RevivedTab = { revived: false, alive: true, resumed: false }
 
 /** An engine row's launch: resume its conversation, else a fresh one pinned where the engine accepts a caller-set id. */
-function engineRelaunch(target: PromptTarget, row: EngineTab, worktree: string) {
+function engineRelaunch(target: PromptTarget, row: EngineTab, worktree: string, gateway?: GatewayEndpointEnv) {
   const base = tabEngineBase(target, row)
   const vendor = row.vendor ?? target.vendor
   const resumeArgv = row.sessionId && row.spawned ? engineResumeArgv(base, vendor, row.sessionId) : null
@@ -61,6 +62,7 @@ function engineRelaunch(target: PromptTarget, row: EngineTab, worktree: string) 
     argv: resumeArgv ?? pinned?.argv ?? base,
     promptIntent: { kind: "none" },
     tabId: row.id,
+    ...(gateway ? { gateway } : {}),
   })
   return { launch, resumed: resumeArgv !== null, sessionId: resumeArgv ? row.sessionId : pinned?.sessionId }
 }
@@ -72,7 +74,8 @@ async function openEngineTab(
   row: EngineTab,
   worktree: string,
 ): Promise<RevivedTab> {
-  const { launch, resumed, sessionId } = engineRelaunch(target, row, worktree)
+  const gateway = await fetchHeadlessGatewayEnv(client)
+  const { launch, resumed, sessionId } = engineRelaunch(target, row, worktree, gateway)
   const open = await openAdmittedEngine(
     rpc,
     { key: launch.key, cwd: worktree, command: launch.command, defaultColors: readPersistedTerminalDefaultColors() },

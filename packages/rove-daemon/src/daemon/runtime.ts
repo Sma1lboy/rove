@@ -231,6 +231,8 @@ export interface DaemonRuntimeAdapter {
   getPersistedString(key: string): string | undefined
   setPersistedString(key: string, value: string): void
   getSavedRepos(): readonly string[]
+  /** Read raw `providerGateway` config from `state.json` (absent in test doubles -> disabled). */
+  loadProviderGatewayConfig?(): unknown
   engineEntry(vendor: VendorId): { effortLevels?: readonly string[] }
   prStatus: {
     /** `--json` fields for `gh pr view`/`list`; shared with the mapper's shape. */

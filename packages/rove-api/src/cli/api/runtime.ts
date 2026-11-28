@@ -21,6 +21,7 @@ import { launchReposOf, trustExtraRepos } from "@sma1lboy/rove-core/engine/multi
 import { buildEngineSessionLaunch } from "@sma1lboy/rove-core/engine/session-launch.ts"
 import { trustEngineWorktree } from "@sma1lboy/rove-core/engine/trust-worktree.ts"
 import { persistedMaxLiveEngines } from "@sma1lboy/rove-core/state/engine-limit.ts"
+import { fetchHeadlessGatewayEnv } from "@sma1lboy/rove-core/state/provider-gateway.ts"
 import {
   inspectRepo,
   isGitRepo,
@@ -95,6 +96,7 @@ async function deliverHosted(
       const tabId = target.tab
       // Only a consented respawn rebuilds a launch, so only it needs the repos.
       const respawnRepos = target.respawn && target.multiRepo ? await launchReposOf(client, target.id) : undefined
+      const respawnGateway = target.respawn ? await fetchHeadlessGatewayEnv(client) : undefined
       return await deliverToExactTab(host.rpc, target.id, tabId, worktree, prompt, {
         engineBin,
         maxLiveEngines: persistedMaxLiveEngines(),
@@ -103,7 +105,13 @@ async function deliverHosted(
         ...(target.respawn
           ? {
               respawn: () =>
-                restoredTabLaunch({ ...target, repos: respawnRepos }, tabId, worktree, resolveSessionShell()),
+                restoredTabLaunch(
+                  { ...target, repos: respawnRepos },
+                  tabId,
+                  worktree,
+                  resolveSessionShell(),
+                  respawnGateway,
+                ),
             }
           : {}),
       })
@@ -124,12 +132,14 @@ async function deliverHosted(
     trustEngineWorktree(target.vendor, worktree)
     const repos = target.multiRepo ? await launchReposOf(client, target.id) : undefined
     trustExtraRepos(target.vendor, repos)
+    const gateway = await fetchHeadlessGatewayEnv(client)
     const launch = buildEngineSessionLaunch({
       task: { id: target.id, kind: target.kind, vendor: target.vendor, repo: target.repo, repos },
       worktreePath: worktree,
       shell: resolveSessionShell(),
       argv,
       promptIntent: target.newTask ? { kind: "new-task", prompt } : { kind: "explicit", prompt },
+      ...(gateway ? { gateway } : {}),
     })
     const result = await deliverHostedPrompt(
       host.rpc,

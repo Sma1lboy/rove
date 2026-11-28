@@ -78,6 +78,13 @@ export const DYNAMIC_COMMANDS = new Map<string, CommandHandler>([
     },
   ],
   [
+    "gateway",
+    async (args) => {
+      const { runGatewaySubcommand } = await import("./gateway-cmd.ts")
+      await runGatewaySubcommand(args)
+    },
+  ],
+  [
     "machine",
     async (args) => {
       const { runMachineSubcommand } = await import("./machine-cmd.ts")

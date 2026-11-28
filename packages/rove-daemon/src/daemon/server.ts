@@ -56,7 +56,7 @@ import type { DaemonServer, DaemonServerOptions } from "./server-options.ts"
 import { DaemonResources } from "./server-resources.ts"
 import { createSocketOwnershipGuard, listenOnUnixSocket } from "./socket-guard.ts"
 import type { DaemonStopReason, DaemonStoppingPayload } from "./stop-reason.ts"
-import { initDaemonStores } from "./stores.ts"
+import { closeDaemonStores, initDaemonStores } from "./stores.ts"
 import { handleSubscribe } from "./subscribe.ts"
 import { TabCloseBroker } from "./tab-close-broker.ts"
 
@@ -152,7 +152,7 @@ async function startOwnedServer(
 
   // Spread wholesale into the handler context: `DaemonStores` IS its store half.
   const stores = await initDaemonStores(orch, runtime, bus, options.homeDir)
-  const { activity, deletions, rowTokens, automations, deliveries, quotaUsage, inbox, gates } = stores
+  const { activity, deletions, automations, deliveries, quotaUsage, inbox, gates } = stores
   const deliveryDeps: DeliveryDeps = {
     deliveries,
     inbox,
@@ -166,9 +166,7 @@ async function startOwnedServer(
     quotaUsage,
     runtime.defaultTaskVendor,
   )
-  resources.defer(() => activity.close())
-  resources.defer(() => rowTokens.close())
-  resources.defer(() => stores.tabs.flush())
+  resources.defer(() => closeDaemonStores(stores))
   // What every rail shows, from the ledger, the inbox and the PTY host itself (`row-status-store.ts`).
   const rowStatus = new RowStatusStore({
     bus,
@@ -181,7 +179,6 @@ async function startOwnedServer(
     tabIdsOf: (taskId) => stores.tabs.get(taskId).state?.tabs.map((tab) => tab.id) ?? null,
   })
   resources.defer(() => rowStatus.close())
-  resources.defer(() => stores.dispatches.close())
   resources.defer(() => deletions.drain())
   resources.defer(() => stores.checkpoints.drain())
   resources.defer(async () => {

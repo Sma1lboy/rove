@@ -270,6 +270,13 @@ export interface EngineRegistryEntry {
    * point the engine at a gateway that serves foreign models.
    */
   readonly foreignModel?: (model: string) => boolean
+  /**
+   * Environment variables that point this engine at Rove's local loopback
+   * provider gateway using an ephemeral placeholder token (never a real key).
+   */
+  readonly gatewayEnv?: (gateway: { readonly baseUrl: string; readonly token: string }) => Readonly<
+    Record<string, string>
+  >
 }
 
 // Re-exported so `@/engine/registry` stays the one import site.

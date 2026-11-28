@@ -1,6 +1,7 @@
 /** Constructs every daemon-owned store plus the per-task teardown chain. */
 
 import { hasFrozenPtySessions, listPtyHostSessions } from "../client/pty-process.ts"
+import { ProviderGatewayController } from "../gateway/controller.ts"
 import { readActivityLiveness } from "./activity-liveness.ts"
 import { type ActivityLivenessProbe, DaemonActivityRegistry } from "./activity-registry.ts"
 import { AgentTurnsStore, defaultAgentTurnsPath } from "./agent-turns-store.ts"
@@ -10,7 +11,7 @@ import { initAutomationsStore } from "./automation-wiring.ts"
 import type { AutomationsStore } from "./automations-store.ts"
 import { CheckpointQueue } from "./checkpoint-queue.ts"
 import type { DaemonOrchestrator } from "./contracts.ts"
-import { logDaemonError } from "./crash-log.ts"
+import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import { DeliveriesStore } from "./deliveries-store.ts"
 import { DispatchLedger } from "./dispatch-ledger.ts"
 import { EngineEventLog } from "./engine-events-log.ts"
@@ -49,6 +50,7 @@ export interface DaemonStores {
   readonly dispatches: DispatchLedger
   readonly aliases: AliasKeeper
   readonly pendingStarts: PendingStartsStore
+  readonly gateway: ProviderGatewayController
 }
 
 /**
@@ -136,6 +138,12 @@ export async function initDaemonStores(
   const engineEvents = new EngineEventLog()
   const pendingStarts = new PendingStartsStore(defaultPendingStartsPath(homeDir))
   await pendingStarts.init()
+  const gateway = new ProviderGatewayController({
+    loadConfig: () => runtime.loadProviderGatewayConfig?.(),
+    log: (line) => logDaemonInfo("provider-gateway", line),
+    logError: (err) => logDaemonError("provider-gateway", err),
+  })
+  await gateway.start()
   return {
     activity,
     gates,
@@ -155,5 +163,15 @@ export async function initDaemonStores(
     dispatches: new DispatchLedger(bus),
     aliases,
     pendingStarts,
+    gateway,
   }
+}
+
+/** Release store-owned timers, buffers, and the optional local gateway server. */
+export async function closeDaemonStores(stores: DaemonStores): Promise<void> {
+  stores.activity.close()
+  stores.rowTokens.close()
+  stores.tabs.flush()
+  stores.dispatches.close()
+  await stores.gateway.close()
 }

@@ -103,6 +103,7 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
       present: ["--dangerously-skip-permissions", "--allow-dangerously-skip-permissions", "--permission-mode"],
     },
     foreignModel: isOpenAiFamilyModel,
+    gatewayEnv: ({ baseUrl, token }) => ({ ANTHROPIC_BASE_URL: baseUrl, ANTHROPIC_API_KEY: token }),
     history: claudeHistoryReader,
     detectAccount: (deps) => detectClaudeAccount(deps),
     versionArgs: ["--version"],
@@ -180,6 +181,7 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
       return [...argv, "-c", "check_for_update_on_startup=false"]
     },
     foreignModel: isClaudeFamilyModel,
+    gatewayEnv: ({ baseUrl, token }) => ({ OPENAI_BASE_URL: `${baseUrl}/v1`, OPENAI_API_KEY: token }),
     // codex-tui `new_error_event`: every turn error is one red `■ <message>` row.
     errorLine: /^\s*■\s+\S/,
     history: codexHistoryReader,

@@ -23,6 +23,7 @@ import {
   samePrStatus,
 } from "@sma1lboy/rove-core/monitor/pr-status.ts"
 import { type Orchestrator, PLACEHOLDER_TASK_TITLE } from "@sma1lboy/rove-core/orchestrator/core.ts"
+import { readRawProviderGatewayConfig } from "@sma1lboy/rove-core/state/provider-gateway.ts"
 import {
   getCustomEngineIds,
   getPersistedString,
@@ -251,6 +252,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   buildCIPrompt: (worktree, state) => buildCIPromptForWorktree(worktree, state as never),
   setPersistedString,
   getSavedRepos: () => [...getSavedRepos()],
+  loadProviderGatewayConfig: readRawProviderGatewayConfig,
   prStatus: {
     viewFields: GH_PR_VIEW_FIELDS,
     mapView: (view, at) => mapGhPrView(view as never, at),
